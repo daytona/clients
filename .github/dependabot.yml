@@ -1,0 +1,90 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /.github/actions/setup-toolchain
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      devcontainer:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /libs/sdk-typescript
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      npm-prod:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: pip
+    directories:
+      - /libs/sdk-python
+      - /libs/api-client-python
+      - /libs/api-client-python-async
+      - /libs/toolbox-api-client-python
+      - /libs/toolbox-api-client-python-async
+      - /libs/analytics-api-client-python
+      - /libs/analytics-api-client-python-async
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      pip-prod:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: gomod
+    directories:
+      - /apps/cli
+      - /libs/api-client-go
+      - /libs/sdk-go
+      - /libs/toolbox-api-client-go
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      gomod-prod:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"

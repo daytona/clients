@@ -1,0 +1,41 @@
+name: Build devcontainer image
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  build:
+    if: github.repository == 'daytonaio/clients'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
+      - name: Setup Blacksmith Builder
+        uses: useblacksmith/setup-docker-builder@ab5c1da94f53f5cd75c1038092aa276dddfccbba
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and release devcontainer Multi-Platform
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: true
+        with:
+          imageName: ghcr.io/daytonaio/clients-devcontainer
+          cacheFrom: ghcr.io/daytonaio/clients-devcontainer
+          platform: linux/amd64,linux/arm64
+          imageTag: main,latest
+          configFile: .devcontainer/devcontainer.build.json

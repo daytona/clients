@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (start with "v")'
+        required: true
+        default: v0.0.0-dev
+
+permissions: {}
+
+env:
+  VERSION: ${{ inputs.version }}
+  POETRY_VIRTUALENVS_IN_PROJECT: true
+  GONOSUMDB: github.com/daytonaio/daytona
+
+jobs:
+  release:
+    if: github.repository == 'daytonaio/clients'
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+    steps:
+      - name: Validate version format
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: 'false'
+          install-swag: 'false'
+          run-go-work-sync: 'false'
+      - uses: ./.github/actions/install-gh-cli
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git config --global user.name "Daytona Release Bot"
+          git config --global user.email "daytona-release@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+      - name: Tag Go modules
+        run: |
+          git tag "libs/api-client-go/$VERSION"
+          git tag "libs/toolbox-api-client-go/$VERSION"
+          git tag "libs/sdk-go/$VERSION"
+          git push origin "libs/api-client-go/$VERSION" "libs/toolbox-api-client-go/$VERSION" "libs/sdk-go/$VERSION"
+      - name: Create release
+        run: yarn nx release "$VERSION" --skip-publish --verbose
+      - name: Build CLI
+        run: |
+          cd ./apps/cli
+          GOOS=linux GOARCH=amd64 ./hack/build.sh --skip-env-file
+          GOOS=linux GOARCH=arm64 ./hack/build.sh --skip-env-file
+          GOOS=darwin GOARCH=amd64 ./hack/build.sh --skip-env-file
+          GOOS=darwin GOARCH=arm64 ./hack/build.sh --skip-env-file
+          GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
+          GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
+      - name: Upload CLI to release assets
+        run: |
+          gh release upload "$VERSION" "dist/apps/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
+          gh release upload "$VERSION" "dist/apps/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
+          gh release upload "$VERSION" "dist/apps/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
+          gh release upload "$VERSION" "dist/apps/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
+          gh release upload "$VERSION" "dist/apps/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
+          gh release upload "$VERSION" "dist/apps/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
+      - name: Generate SDK docs artifact
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
+          yarn docs
+          tar -czf "sdk-docs-${VERSION}.tar.gz" -C artifacts sdk-docs
+      - name: Upload SDK docs to release assets
+        run: gh release upload "$VERSION" "sdk-docs-${VERSION}.tar.gz" --clobber
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          git config --global --fixed-value --unset-all user.name "Daytona Release Bot" 2>/dev/null || true
+          git config --global --fixed-value --unset-all user.email "daytona-release@users.noreply.github.com" 2>/dev/null || true
+          git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true

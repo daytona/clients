@@ -1,0 +1,217 @@
+name: '[PR] Validate clients'
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: true
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+
+jobs:
+  go-work:
+    name: Go work
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.work
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Verify Go workspace
+        run: |
+          GONOSUMDB=github.com/daytonaio/daytona go work sync
+          git diff --exit-code -- 'go.work*' '*/go.mod' '*/go.sum' || (echo "Go workspace files are not up to date. Run 'go work sync' and commit the changes." && exit 1)
+
+  golangci:
+    name: Go lint
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        working-directory: [apps/cli, libs/sdk-go]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.work
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
+        with:
+          version: v2.6.2
+          working-directory: ${{ matrix.working-directory }}
+          args: --timeout=5m ./...
+      - name: format
+        run: |
+          cd ${{ matrix.working-directory }}
+          go fmt ./...
+          git diff --exit-code '**/*.go' || (echo "Code is not formatted. Run 'go fmt ./...' and commit." && exit 1)
+
+  lint-python:
+    name: Python lint
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-ruby: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-go-work-sync: 'false'
+      - name: Lint Python code
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          yarn lint:py
+
+  format-lint-api-clients:
+    name: Format, lint, generate clients and docs
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          run-go-work-sync: 'false'
+          install-swag: 'false'
+      - name: Generate clients and docs
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
+          echo -e 'DEFAULT_PACKAGE_VERSION=0.0.0-dev\nDEFAULT_GEM_VERSION=0.0.0.pre.dev\n\nPYPI_PKG_VERSION=\nNPM_PKG_VERSION=\nNPM_TAG=\nPYPI_TOKEN=\nNPM_TOKEN=' > .env
+          openapi_version="$(node -e "console.log(require('./openapitools.json')['generator-cli'].version)")"
+          yarn openapi-generator-cli version-manager set "$openapi_version"
+          yarn generate:api-client
+          yarn lint:fix
+          yarn format
+          yarn docs
+          GONOSUMDB=github.com/daytonaio/daytona go work sync
+          git diff --exit-code || (echo "Generated clients, docs, formatting, or workspace files are out of date." && exit 1)
+      - name: Upload SDK docs artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-docs
+          path: artifacts/sdk-docs
+          if-no-files-found: error
+
+  typecheck-sdk-typescript:
+    name: TypeScript SDK type check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+      - run: corepack enable
+      - name: Get yarn cache directory
+        id: yarn-cache
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: yarn-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-${{ runner.arch }}-
+      - run: yarn install --immutable
+      - name: Check type-only imports
+        run: |
+          npx tsc -p ./libs/sdk-typescript/tsconfig.json \
+            --noEmit --verbatimModuleSyntax \
+            --module preserve --moduleResolution bundler
+
+  test:
+    name: Unit tests
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+      - name: Install Python test dependencies
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          pip install pytest pytest-asyncio pytest-timeout
+      - name: Publish Java API clients to Maven local
+        run: |
+          (cd libs/api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd libs/toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
+      - name: Run tests
+        run: yarn test
+
+  build:
+    name: Build clients
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+      - name: Build all clients
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          VERSION=v0.0.0-dev yarn build --nxBail=true
+
+  license-check:
+    name: License headers
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Check Apache License Headers
+        uses: apache/skywalking-eyes/header@ab3d1fe50d23f9c82eff489297167e2dde8ba6cb
+        with:
+          token: ${{ github.token }}
+          config: .licenserc.yaml
+          mode: check
+
+  yarnrc-lint:
+    name: Yarnrc integrity check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Ensure PyYAML available
+        run: sudo apt-get install -y -q python3-yaml
+      - name: Validate .yarnrc.yml
+        run: |
+          python3 <<'PY'
+          import sys
+          import yaml
+          from pathlib import Path
+
+          yarnrc = Path('.yarnrc.yml')
+          if not yarnrc.exists():
+              print('::error::.yarnrc.yml is required')
+              sys.exit(1)
+          config = yaml.safe_load(yarnrc.read_text(encoding='utf-8')) or {}
+          gate = config.get('npmMinimalAgeGate')
+          if not isinstance(gate, int) or gate < 10080:
+              print('::error::npmMinimalAgeGate must be >= 10080')
+              sys.exit(1)
+          if config.get('enableScripts'):
+              print('::error::enableScripts must stay disabled')
+              sys.exit(1)
+          print('OK -- .yarnrc.yml passes integrity check')
+          PY

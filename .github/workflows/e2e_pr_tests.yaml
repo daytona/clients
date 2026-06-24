@@ -1,0 +1,73 @@
+name: '[E2E] SDK and CLI Tests'
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DAYTONA_API_URL: ${{ vars.DAYTONA_API_URL || 'https://app.daytona.io/api' }}
+  DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+  POETRY_VIRTUALENVS_IN_PROJECT: true
+
+jobs:
+  sdk-e2e-tests:
+    name: SDK E2E against Daytona API
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+      - name: Skip when API key is unavailable
+        id: e2e-secret-check
+        run: |
+          if [ -z "$DAYTONA_API_KEY" ]; then
+            echo "run_e2e=false" >> "$GITHUB_OUTPUT"
+            echo "DAYTONA_API_KEY is not available; skipping live SDK E2E tests."
+          else
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Python test dependencies
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: |
+          source "$(poetry env info --path)/bin/activate"
+          pip install pytest pytest-asyncio pytest-timeout
+      - name: Publish Java API clients to Maven local
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: |
+          (cd libs/api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd libs/toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
+      - name: Run SDK E2E tests
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: yarn test:e2e
+      - name: Install Bun
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: latest
+      - name: Install Deno
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282
+        with:
+          deno-version: v2.x
+      - name: Install Azure Functions Core Tools
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+      - name: Install Playwright Chromium
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: npx --yes playwright@1.48 install --with-deps chromium
+      - name: Run TypeScript SDK runtime compatibility tests
+        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
+        run: yarn nx run sdk-typescript:test:runtime

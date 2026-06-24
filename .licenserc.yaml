@@ -1,0 +1,33 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Daytona Platforms Inc.
+    content: |
+      Copyright Daytona Platforms Inc.
+      SPDX-License-Identifier: Apache-2.0
+    pattern: |
+      Copyright (\d{4} )?Daytona Platforms Inc\.
+      SPDX-License-Identifier: Apache-2\.0
+  paths:
+    - 'apps/cli/**/*.go'
+    - 'apps/cli/**/*.sh'
+    - 'libs/**/*.go'
+    - 'libs/**/*.sh'
+    - 'libs/**/*.js'
+    - 'libs/**/*.ts'
+    - 'libs/**/*.tsx'
+    - 'libs/**/*.py'
+    - 'libs/**/*.rb'
+    - 'libs/**/*.java'
+    - 'examples/**/*.go'
+    - 'examples/**/*.js'
+    - 'examples/**/*.ts'
+    - 'examples/**/*.py'
+    - 'examples/**/*.rb'
+    - 'examples/**/*.java'
+
+  paths-ignore:
+    - 'libs/*api-client*/**'
+    - 'hack/**'
+
+  comment: on-failure

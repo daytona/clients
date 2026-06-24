@@ -1,0 +1,8 @@
+go 1.25.5
+
+use (
+	./apps/cli
+	./libs/api-client-go
+	./libs/sdk-go
+	./libs/toolbox-api-client-go
+)
