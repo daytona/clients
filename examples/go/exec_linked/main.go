@@ -9,9 +9,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/daytona"
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/options"
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/types"
+	"go.daytona.io/sdk-go/pkg/daytona"
+	"go.daytona.io/sdk-go/pkg/options"
+	"go.daytona.io/sdk-go/pkg/types"
 )
 
 func main() {

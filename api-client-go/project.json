@@ -1,0 +1,83 @@
+{
+  "name": "api-client-go",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "api-client-go",
+  "tags": [],
+  "targets": {
+    "test": {
+      "executor": "@nx-go/nx-go:test"
+    },
+    "build": {
+      "executor": "@nx-go/nx-go:build",
+      "inputs": [
+        "goProduction"
+      ],
+      "options": {
+        "main": "./{projectRoot}",
+        "outputPath": "dist/api-client-go"
+      }
+    },
+    "lint": {
+      "executor": "@nx-go/nx-go:lint"
+    },
+    "generate:api-client": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "goApiClient"
+      ],
+      "outputs": [
+        "{projectRoot}/*.go",
+        "{projectRoot}/go.mod",
+        "{projectRoot}/go.sum",
+        "{projectRoot}/api/openapi.yaml"
+      ],
+      "options": {
+        "commands": [
+          "rm -f {projectRoot}/*.go",
+          "yarn run openapi-generator-cli generate --git-repo-id=clients/api-client-go --git-user-id=daytona -i openapi-specs/api.json -g go -t hack/go-client/openapi-templates --additional-properties=disallowAdditionalPropertiesIfNotPresent=false,packageName=apiclient,moduleVersion=$DEFAULT_PACKAGE_VERSION,generateInterfaces=true,enumClassPrefix=true,structPrefix=true,enumUnknownDefaultCase=true -o api-client-go",
+          "bash hack/go-client/postprocess.sh api-client-go apiclient api-client-go",
+          "go mod edit -module go.daytona.io/api-client-go api-client-go/go.mod"
+        ],
+        "parallel": false
+      }
+    },
+    "tidy": {
+      "executor": "@nx-go/nx-go:tidy"
+    },
+    "check-version-env": {},
+    "set-version": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/cli/go.mod",
+        "{workspaceRoot}/sdk-go/go.mod",
+        {
+          "env": "VERSION"
+        },
+        {
+          "dependentTasksOutputFiles": "**/*",
+          "transitive": true
+        }
+      ],
+      "outputs": [
+        "{workspaceRoot}/cli/go.mod",
+        "{workspaceRoot}/sdk-go/go.mod",
+        "{projectRoot}/VERSION"
+      ],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "cd cli && go mod edit -require=go.daytona.io/api-client-go@$VERSION",
+          "cd sdk-go && go mod edit -require=go.daytona.io/api-client-go@$VERSION",
+          "echo \"$VERSION\" > api-client-go/VERSION"
+        ],
+        "parallel": false
+      },
+      "dependsOn": [
+        "check-version-env"
+      ]
+    }
+  }
+}

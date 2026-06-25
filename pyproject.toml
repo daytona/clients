@@ -11,11 +11,11 @@ requires-python = "^3.9"
 package-mode = false
 
 [tool.poetry.dependencies]
-daytona = {path = "libs/sdk-python", develop = true}
-daytona_api_client = {path = "libs/api-client-python", develop = true}
-daytona_api_client_async = {path = "libs/api-client-python-async", develop = true}
-daytona_toolbox_api_client = {path = "libs/toolbox-api-client-python", develop = true}
-daytona_toolbox_api_client_async = {path = "libs/toolbox-api-client-python-async", develop = true}
+daytona = {path = "sdk-python", develop = true}
+daytona_api_client = {path = "api-client-python", develop = true}
+daytona_api_client_async = {path = "api-client-python-async", develop = true}
+daytona_toolbox_api_client = {path = "toolbox-api-client-python", develop = true}
+daytona_toolbox_api_client_async = {path = "toolbox-api-client-python-async", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pydoc-markdown = ">=4.8.0,<5.0.0"
@@ -44,12 +44,12 @@ pythonVersion = "3.9"
 exclude = [
     "**/.venv",
     "**/node_modules",
-    "libs/sdk-python/scripts",
-    "libs/*api-client*",
+    "sdk-python/scripts",
+    "*api-client*",
     ".nx",
     "artifacts",
-    "libs/sdk-python/src/daytona/_utils/otel_decorator.py",
-    "libs/sdk-python/tests"
+    "sdk-python/src/daytona/_utils/otel_decorator.py",
+    "sdk-python/tests"
 ]
 reportUnknownMemberType = "none"
 reportAny = "none"
@@ -101,8 +101,8 @@ ignore-paths = [
   "^.venv/.*$",
   "^.*/\\.venv/.*$",
   "^.*/build/.*$",
-  "^libs/.*api-client-python.*/.*$",
-  "^libs/sdk-python/tests/.*$",
+  "^.*api-client-python.*/.*$",
+  "^sdk-python/tests/.*$",
   "^node_modules/.*$",
   "^.*/\\node_modules/.*$"
 ]

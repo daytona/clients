@@ -21,7 +21,7 @@
   "ignores": [
     "**/node_modules/**",
     "**/.venv/**",
-    "**/libs/toolbox-api-client-go/**",
+    "**/toolbox-api-client-go/**",
     "**/artifacts/sdk-docs/**"
   ],
 }

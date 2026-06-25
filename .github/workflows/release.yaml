@@ -13,11 +13,11 @@ permissions: {}
 env:
   VERSION: ${{ inputs.version }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
-  GONOSUMDB: github.com/daytonaio/daytona
+  GONOSUMDB: go.daytona.io
 
 jobs:
   release:
-    if: github.repository == 'daytonaio/clients'
+    if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -51,15 +51,15 @@ jobs:
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
       - name: Tag Go modules
         run: |
-          git tag "libs/api-client-go/$VERSION"
-          git tag "libs/toolbox-api-client-go/$VERSION"
-          git tag "libs/sdk-go/$VERSION"
-          git push origin "libs/api-client-go/$VERSION" "libs/toolbox-api-client-go/$VERSION" "libs/sdk-go/$VERSION"
+          git tag "api-client-go/$VERSION"
+          git tag "toolbox-api-client-go/$VERSION"
+          git tag "sdk-go/$VERSION"
+          git push origin "api-client-go/$VERSION" "toolbox-api-client-go/$VERSION" "sdk-go/$VERSION"
       - name: Create release
         run: yarn nx release "$VERSION" --skip-publish --verbose
       - name: Build CLI
         run: |
-          cd ./apps/cli
+          cd ./cli
           GOOS=linux GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=linux GOARCH=arm64 ./hack/build.sh --skip-env-file
           GOOS=darwin GOARCH=amd64 ./hack/build.sh --skip-env-file
@@ -68,12 +68,12 @@ jobs:
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
       - name: Upload CLI to release assets
         run: |
-          gh release upload "$VERSION" "dist/apps/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
-          gh release upload "$VERSION" "dist/apps/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
-          gh release upload "$VERSION" "dist/apps/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
-          gh release upload "$VERSION" "dist/apps/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
-          gh release upload "$VERSION" "dist/apps/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
-          gh release upload "$VERSION" "dist/apps/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"

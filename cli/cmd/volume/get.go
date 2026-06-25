@@ -1,0 +1,46 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package volume
+
+import (
+	"context"
+
+	"github.com/spf13/cobra"
+	apiclient_cli "go.daytona.io/cli/apiclient"
+	"go.daytona.io/cli/cmd/common"
+	"go.daytona.io/cli/views/volume"
+)
+
+var GetCmd = &cobra.Command{
+	Use:     "get [VOLUME_ID_OR_NAME]",
+	Short:   "Get volume details",
+	Args:    cobra.ExactArgs(1),
+	Aliases: common.GetAliases("get"),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		apiClient, err := apiclient_cli.GetApiClient(nil, nil)
+		if err != nil {
+			return err
+		}
+
+		vol, err := resolveVolume(ctx, apiClient, args[0])
+		if err != nil {
+			return err
+		}
+
+		if common.FormatFlag != "" {
+			formattedData := common.NewFormatter(vol)
+			formattedData.Print()
+			return nil
+		}
+
+		volume.RenderInfo(vol, false)
+		return nil
+	},
+}
+
+func init() {
+	common.RegisterFormatFlag(GetCmd)
+}

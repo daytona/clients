@@ -9,7 +9,7 @@ permissions: {}
 
 jobs:
   build:
-    if: github.repository == 'daytonaio/clients'
+    if: github.repository == 'daytona/clients'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
@@ -34,8 +34,8 @@ jobs:
         env:
           BUILDX_NO_DEFAULT_ATTESTATIONS: true
         with:
-          imageName: ghcr.io/daytonaio/clients-devcontainer
-          cacheFrom: ghcr.io/daytonaio/clients-devcontainer
+          imageName: ghcr.io/daytona/clients-devcontainer
+          cacheFrom: ghcr.io/daytona/clients-devcontainer
           platform: linux/amd64,linux/arm64
           imageTag: main,latest
           configFile: .devcontainer/devcontainer.build.json

@@ -143,5 +143,5 @@ runs:
       if: inputs.run-go-work-sync == 'true'
       shell: bash
       run: |
-        GONOSUMDB=github.com/daytonaio/daytona go work sync
+        GONOSUMDB=go.daytona.io go work sync
         go env -w GOFLAGS="-buildvcs=false"

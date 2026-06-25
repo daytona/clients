@@ -1117,7 +1117,7 @@ wsproto = ">=1.2.0,<2.0.0"
 
 [package.source]
 type = "directory"
-url = "libs/sdk-python"
+url = "sdk-python"
 
 [[package]]
 name = "daytona-api-client"
@@ -1137,7 +1137,7 @@ urllib3 = ">=2.1.0,<3.0.0"
 
 [package.source]
 type = "directory"
-url = "libs/api-client-python"
+url = "api-client-python"
 
 [[package]]
 name = "daytona-api-client-async"
@@ -1158,7 +1158,7 @@ typing-extensions = ">=4.7.1"
 
 [package.source]
 type = "directory"
-url = "libs/api-client-python-async"
+url = "api-client-python-async"
 
 [[package]]
 name = "daytona-toolbox-api-client"
@@ -1178,7 +1178,7 @@ urllib3 = ">=2.1.0,<3.0.0"
 
 [package.source]
 type = "directory"
-url = "libs/toolbox-api-client-python"
+url = "toolbox-api-client-python"
 
 [[package]]
 name = "daytona-toolbox-api-client-async"
@@ -1199,7 +1199,7 @@ typing-extensions = ">=4.7.1"
 
 [package.source]
 type = "directory"
-url = "libs/toolbox-api-client-python-async"
+url = "toolbox-api-client-python-async"
 
 [[package]]
 name = "debugpy"
@@ -5671,4 +5671,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "cd0f0560f3f4bf427d954da0f5418f70540dd68c0338d23f6737a18dd8678dfe"
+content-hash = "19310f080e009270a574717bf1ea6259a577cae41da7502031552240bbadefeb"

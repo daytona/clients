@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: '**/go.sum'
       - name: Verify Go workspace
         run: |
-          GONOSUMDB=github.com/daytonaio/daytona go work sync
+          GONOSUMDB=go.daytona.io go work sync
           git diff --exit-code -- 'go.work*' '*/go.mod' '*/go.sum' || (echo "Go workspace files are not up to date. Run 'go work sync' and commit the changes." && exit 1)
 
   golangci:
@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        working-directory: [apps/cli, libs/sdk-go]
+        working-directory: [cli, sdk-go]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -104,7 +104,7 @@ jobs:
           yarn lint:fix
           yarn format
           yarn docs
-          GONOSUMDB=github.com/daytonaio/daytona go work sync
+          GONOSUMDB=go.daytona.io go work sync
           git diff --exit-code || (echo "Generated clients, docs, formatting, or workspace files are out of date." && exit 1)
       - name: Upload SDK docs artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -135,7 +135,7 @@ jobs:
       - run: yarn install --immutable
       - name: Check type-only imports
         run: |
-          npx tsc -p ./libs/sdk-typescript/tsconfig.json \
+          npx tsc -p ./sdk-typescript/tsconfig.json \
             --noEmit --verbatimModuleSyntax \
             --module preserve --moduleResolution bundler
 
@@ -153,8 +153,8 @@ jobs:
           pip install pytest pytest-asyncio pytest-timeout
       - name: Publish Java API clients to Maven local
         run: |
-          (cd libs/api-client-java && ./gradlew publishToMavenLocal -x test)
-          (cd libs/toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
       - name: Run tests
         run: yarn test
 

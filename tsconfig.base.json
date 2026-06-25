@@ -15,10 +15,10 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@daytona/api-client": ["libs/api-client/src/index.ts"],
-      "@daytona/sdk": ["libs/sdk-typescript/src/index.ts"],
-      "@daytona/toolbox-api-client": ["libs/toolbox-api-client/src/index.ts"],
-      "@daytona/analytics-api-client": ["libs/analytics-api-client/src/index.ts"]
+      "@daytona/api-client": ["api-client/src/index.ts"],
+      "@daytona/sdk": ["sdk-typescript/src/index.ts"],
+      "@daytona/toolbox-api-client": ["toolbox-api-client/src/index.ts"],
+      "@daytona/analytics-api-client": ["analytics-api-client/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "artifacts"]

@@ -1,6 +1,6 @@
 /*
- * Copyright 2025 Daytona Platforms Inc.
- * SPDX-License-Identifier: AGPL-3.0
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 const nxPreset = require('@nx/jest/preset').default

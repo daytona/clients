@@ -1,8 +1,12 @@
 go 1.25.5
 
 use (
-	./apps/cli
-	./libs/api-client-go
-	./libs/sdk-go
-	./libs/toolbox-api-client-go
+	./api-client-go
+	./cli
+	./sdk-go
+	./toolbox-api-client-go
 )
+
+replace go.daytona.io/api-client-go v0.190.0 => ./api-client-go
+
+replace go.daytona.io/toolbox-api-client-go v0.190.0 => ./toolbox-api-client-go

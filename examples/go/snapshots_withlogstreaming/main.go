@@ -1,4 +1,4 @@
-// Copyright 2025 Daytona Platforms Inc.
+// Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/daytona"
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/types"
 	"github.com/google/uuid"
+	"go.daytona.io/sdk-go/pkg/daytona"
+	"go.daytona.io/sdk-go/pkg/types"
 )
 
 // This example demonstrates creating a snapshot with log streaming

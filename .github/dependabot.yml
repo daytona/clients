@@ -39,7 +39,7 @@ updates:
   - package-ecosystem: npm
     directories:
       - /
-      - /libs/sdk-typescript
+      - /sdk-typescript
     schedule:
       interval: weekly
       day: monday
@@ -52,13 +52,13 @@ updates:
 
   - package-ecosystem: pip
     directories:
-      - /libs/sdk-python
-      - /libs/api-client-python
-      - /libs/api-client-python-async
-      - /libs/toolbox-api-client-python
-      - /libs/toolbox-api-client-python-async
-      - /libs/analytics-api-client-python
-      - /libs/analytics-api-client-python-async
+      - /sdk-python
+      - /api-client-python
+      - /api-client-python-async
+      - /toolbox-api-client-python
+      - /toolbox-api-client-python-async
+      - /analytics-api-client-python
+      - /analytics-api-client-python-async
     schedule:
       interval: weekly
       day: monday
@@ -71,10 +71,10 @@ updates:
 
   - package-ecosystem: gomod
     directories:
-      - /apps/cli
-      - /libs/api-client-go
-      - /libs/sdk-go
-      - /libs/toolbox-api-client-go
+      - /cli
+      - /api-client-go
+      - /sdk-go
+      - /toolbox-api-client-go
     schedule:
       interval: weekly
       day: monday

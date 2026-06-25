@@ -2,6 +2,10 @@ name: '[PR] Devcontainer build'
 
 on:
   pull_request:
+    paths:
+      - '.devcontainer/**'
+      - '.github/actions/setup-toolchain/**'
+      - '.github/workflows/pr_docker_build.yaml'
 
 permissions:
   contents: read
