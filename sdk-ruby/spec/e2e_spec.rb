@@ -851,6 +851,7 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
 
     it 'lists sandboxes filtered by labels' do
       @sandbox.labels = { 'test' => 'e2e' } unless @sandbox.labels&.dig('test') == 'e2e'
+      sleep 5 # OpenSearch indexes with a small delay
       ids = @daytona.list(Daytona::ListSandboxesQuery.new(labels: { 'test' => 'e2e' })).map(&:id)
       expect(ids).to include(@sandbox.id)
     end
