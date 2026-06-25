@@ -62,7 +62,7 @@ jobs:
           mkdir -p dist
           printf '{ "name": "clients", "version": "0.0.0" }\n' > dist/package.json
       - name: Create release
-        run: yarn nx release "$VERSION" --skip-publish --verbose
+        run: yarn nx release "$VERSION" --skip-publish --first-release --verbose
       - name: Build CLI
         run: |
           cd ./cli
