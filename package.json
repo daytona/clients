@@ -6,11 +6,11 @@
   "scripts": {
     "postinstall": "is-ci || husky",
     "format": "nx run-many --target=format --all --parallel=$(getconf _NPROCESSORS_ONLN) && prettier --write \"*.{ts,js,json,yaml}\" && markdownlint-cli2 \"**/*.{mdx,md}\" --fix && yarn format:py",
-    "format:py": "isort libs examples/python --skip-glob \"**/libs/*api-client-python*/**\" --skip-glob \"**/.venv/**\" && nbqa isort examples/jupyter && black libs examples --extend-exclude '(^|/)(libs/.*api-client-python.*|\\.venv)(/|$)'",
+    "format:py": "isort sdk-python examples/python --skip-glob \"**/*api-client-python*/**\" --skip-glob \"**/.venv/**\" && nbqa isort examples/jupyter && black sdk-python examples --extend-exclude '(^|/)(.*api-client-python.*|\\.venv)(/|$)'",
     "lint": "yarn lint:ts && yarn lint:py",
-    "lint:ts": "eslint \"{apps,libs}/**/*.{ts,tsx}\"",
-    "lint:py": "pylint libs examples/python --recursive=y -sn && nbqa pylint examples/jupyter --recursive=y -sn && basedpyright",
-    "lint:fix": "eslint \"{apps,libs}/**/*.{ts,tsx}\" --fix",
+    "lint:ts": "eslint \"**/*.{ts,tsx}\"",
+    "lint:py": "pylint sdk-python examples/python --recursive=y -sn && nbqa pylint examples/jupyter --recursive=y -sn && basedpyright",
+    "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "test": "nx run-many --target=test --all --nxBail=true",
     "test:e2e": "nx run-many --target=test:e2e --all --nxBail=true",
     "build": "nx run-many --target=build --all --parallel=$(getconf _NPROCESSORS_ONLN) --configuration=development",
@@ -323,26 +323,26 @@
     "includedScripts": []
   },
   "lint-staged": {
-    "!(libs/*api-client*/**/*)*.{ts,tsx,astro}": [
+    "!(*api-client*/**/*)*.{ts,tsx,astro}": [
       "eslint --cache --fix",
       "prettier --write"
     ],
-    "!(libs/*api-client-go*/**/*)*.go": [
+    "!(*api-client-go*/**/*)*.go": [
       "gofmt -w"
     ],
-    "!(libs/*api-client-ruby*/**/*)*.rb": [
+    "!(*api-client-ruby*/**/*)*.rb": [
       "rubocop -a --fail-level fatal"
     ],
     "*.{mdx,md}": [
       "markdownlint-cli2 --fix"
     ],
-    "!(libs/*api-client-python*/**/*|libs/sdk-python/tests/**/*)*.py": [
+    "!(*api-client-python*/**/*|sdk-python/tests/**/*)*.py": [
       "isort",
       "black --config pyproject.toml",
       "pylint -sn",
       "basedpyright"
     ],
-    "libs/sdk-python/tests/**/*.py": [
+    "sdk-python/tests/**/*.py": [
       "isort",
       "black --config pyproject.toml"
     ],

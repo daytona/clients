@@ -1,11 +1,11 @@
 PATH
-  remote: libs/api-client-ruby
+  remote: api-client-ruby
   specs:
     daytona_api_client (0.0.0.pre.dev)
       typhoeus (~> 1.0, >= 1.0.1)
 
 PATH
-  remote: libs/sdk-ruby
+  remote: sdk-ruby
   specs:
     daytona (0.0.0.pre.dev)
       aws-sdk-s3 (~> 1.0)
@@ -21,7 +21,7 @@ PATH
       websocket-client-simple (~> 0.6)
 
 PATH
-  remote: libs/toolbox-api-client-ruby
+  remote: toolbox-api-client-ruby
   specs:
     daytona_toolbox_api_client (0.0.0.pre.dev)
       typhoeus (~> 1.0, >= 1.0.1)

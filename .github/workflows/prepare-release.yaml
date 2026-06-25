@@ -15,7 +15,7 @@ env:
 
 jobs:
   prepare:
-    if: github.repository == 'daytonaio/clients'
+    if: github.repository == 'daytona/clients'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write

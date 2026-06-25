@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DAYTONA_API_URL: ${{ vars.DAYTONA_API_URL || 'https://app.daytona.io/api' }}
+  DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL || 'https://app.daytona.io/api' }}
   DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
@@ -47,8 +47,8 @@ jobs:
       - name: Publish Java API clients to Maven local
         if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: |
-          (cd libs/api-client-java && ./gradlew publishToMavenLocal -x test)
-          (cd libs/toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
       - name: Run SDK E2E tests
         if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: yarn test:e2e

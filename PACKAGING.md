@@ -24,7 +24,7 @@ The Daytona team appreciates any efforts to make our software more accessible to
    ```
    This package contains an unofficial distribution of Daytona,
    developed by Daytona Platforms Inc. This package is not officially supported or endorsed
-   by the Daytona project. For the official version, please visit https://github.com/daytonaio/daytona.
+   by the Daytona project. For the official version, please visit https://github.com/daytona/clients.
    ```
 
 ## Feedback and Questions

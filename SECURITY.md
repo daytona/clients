@@ -8,7 +8,7 @@ At Daytona, we take security seriously. If you believe you have found a security
 
 Instead, please email us at: **security@daytona.io**
 
-You can also report vulnerabilities privately through [GitHub's security advisory feature](https://github.com/daytonaio/daytona/security/advisories/new).
+You can also report vulnerabilities privately through [GitHub's security advisory feature](https://github.com/daytona/clients/security/advisories/new).
 
 Please include:
 
@@ -28,7 +28,7 @@ The following assets and areas are in scope for vulnerability reports:
 - **Sandbox runtime isolation** — escape from sandbox to host, cross-tenant access, isolation boundary bypasses
 - **Authentication and authorization** — SSO, API key management, session handling, privilege escalation across accounts or organizations
 - **Secrets management** — scoped secret injection, unauthorized access to secrets, leakage across sandbox boundaries
-- **Public GitHub repositories** — any repository under the [daytonaio](https://github.com/daytonaio) organization
+- **Public GitHub repositories** — any repository under the [daytona](https://github.com/daytona) organization
 
 ## Excluded Submission Types
 

@@ -1,4 +1,4 @@
-// Copyright 2025 Daytona Platforms Inc.
+// Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/daytona"
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/options"
-	"github.com/daytonaio/daytona/libs/sdk-go/pkg/types"
+	"go.daytona.io/sdk-go/pkg/daytona"
+	"go.daytona.io/sdk-go/pkg/options"
+	"go.daytona.io/sdk-go/pkg/types"
 )
 
 func main() {

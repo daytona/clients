@@ -37,7 +37,7 @@ permissions: {}
 
 jobs:
   publish:
-    if: github.repository == 'daytonaio/clients'
+    if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     permissions:
       contents: read
@@ -97,7 +97,7 @@ jobs:
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    if: ${{ github.repository == 'daytonaio/clients' && inputs.npm_tag == 'latest' }}
+    if: ${{ github.repository == 'daytona/clients' && inputs.npm_tag == 'latest' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions: {}
     name: Update Homebrew CLI tap

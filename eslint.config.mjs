@@ -12,7 +12,7 @@ export default [
       '**/dist',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
-      'libs/*api-client*/**',
+      '*api-client*/**',
     ],
   },
   {
@@ -53,7 +53,7 @@ export default [
     // (the packed published package) instead of the workspace source — that's
     // the whole point of the tests. Disable the enforce-module-boundaries
     // auto-fix that rewrites those imports to relative source paths.
-    files: ['libs/sdk-typescript/runtime-tests/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    files: ['sdk-typescript/runtime-tests/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     rules: {
       '@nx/enforce-module-boundaries': 'off',
     },

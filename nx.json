@@ -108,61 +108,6 @@
         "command": "if [ -z \"$VERSION\" ]; then echo \"VERSION is not set\" && exit 1; else echo \"VERSION is set to: $VERSION\"; fi"
       }
     },
-    "docker": {
-      "executor": "@nx-tools/nx-container:build",
-      "options": {
-        "context": "{workspaceRoot}",
-        "file": "{projectRoot}/Dockerfile",
-        "tags": ["ghcr.io/daytonaio/daytona-{projectName}:$VERSION$ARCH"],
-        "build-args": ["VERSION=$VERSION"],
-        "cache-from": ["type=registry,ref=ghcr.io/daytonaio/daytona-{projectName}:buildcache$ARCH"],
-        "cache-to": ["type=registry,ref=ghcr.io/daytonaio/daytona-{projectName}:buildcache$ARCH,mode=max"]
-      },
-      "configurations": {
-        "production": {
-          "push": true
-        },
-        "production-multi-platform": {
-          "push": true,
-          "platforms": ["linux/amd64", "linux/arm64"],
-          "tags": ["ghcr.io/daytonaio/daytona-{projectName}:$VERSION"],
-          "cache-from": ["type=registry,ref=ghcr.io/daytonaio/daytona-{projectName}:buildcache"],
-          "cache-to": ["type=registry,ref=ghcr.io/daytonaio/daytona-{projectName}:buildcache,mode=max"]
-        },
-        "local-registry": {
-          "push": true,
-          "tags": [
-            "registry:5000/ghcr.io/daytonaio/test-daytona-{projectName}:$VERSION",
-            "registry:5000/ghcr.io/daytonaio/test-daytona-{projectName}:latest"
-          ],
-          "cache-from": ["type=registry,ref=registry:5000/ghcr.io/daytonaio/test-daytona-{projectName}:buildcache"],
-          "cache-to": [
-            "type=registry,ref=registry:5000/ghcr.io/daytonaio/test-daytona-{projectName}:buildcache,mode=max"
-          ]
-        },
-        "pr-build": {
-          "push": false,
-          "load": false,
-          "platforms": ["linux/amd64"],
-          "tags": ["ghcr.io/daytonaio/daytona-{projectName}:$VERSION"],
-          "cache-from": ["type=gha,scope=docker-{projectName}"],
-          "cache-to": ["type=gha,scope=docker-{projectName},mode=max"]
-        }
-      },
-      "dependsOn": ["check-version-env"]
-    },
-    "push-manifest": {
-      "executor": "nx:run-commands",
-      "options": {
-        "parallel": false,
-        "commands": [
-          "docker manifest create ghcr.io/daytonaio/daytona-{projectName}:$VERSION ghcr.io/daytonaio/daytona-{projectName}:$VERSION-amd64 ghcr.io/daytonaio/daytona-{projectName}:$VERSION-arm64",
-          "docker manifest push ghcr.io/daytonaio/daytona-{projectName}:$VERSION",
-          "docker manifest create ghcr.io/daytonaio/daytona-{projectName}:latest ghcr.io/daytonaio/daytona-{projectName}:$VERSION-amd64 ghcr.io/daytonaio/daytona-{projectName}:$VERSION-arm64",
-          "docker manifest push ghcr.io/daytonaio/daytona-{projectName}:latest"
-        ]
-      }
-    },
     "deps-check": {
       "executor": "nx:run-commands",
       "options": {
@@ -223,7 +168,7 @@
     }
   },
   "release": {
-    "projects": ["apps/cli", "libs/*"],
+    "projects": ["cli", "sdk-*", "api-client*", "toolbox-api-client*", "analytics-api-client*"],
     "changelog": {
       "workspaceChangelog": {
         "file": false,
