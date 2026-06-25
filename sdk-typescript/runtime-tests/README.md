@@ -16,13 +16,13 @@ yarn nx build sdk-typescript
 
 DAYTONA_API_KEY=<your-key> \
 DAYTONA_API_URL=https://app.daytona.io/api \
-  bash libs/sdk-typescript/runtime-tests/run-all.sh
+  bash sdk-typescript/runtime-tests/run-all.sh
 ```
 
 To run a subset:
 
 ```bash
-ONLY=node-cjs,node-esm,bun bash libs/sdk-typescript/runtime-tests/run-all.sh
+ONLY=node-cjs,node-esm,bun bash sdk-typescript/runtime-tests/run-all.sh
 ```
 
 The orchestrator iterates every subdirectory that contains a `run.sh`, packs the local SDK build, and runs each test in isolation. It exits 0 only if every runtime passes.

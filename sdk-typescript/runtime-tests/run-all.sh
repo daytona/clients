@@ -15,7 +15,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-DIST="$(cd "$ROOT/../../../dist/libs/sdk-typescript" 2>/dev/null && pwd || true)"
+DIST="$(cd "$ROOT/../../dist/sdk-typescript" 2>/dev/null && pwd || true)"
 
 if [ -z "$DIST" ] || [ ! -f "$DIST/package.json" ]; then
   echo "ERROR: SDK not built. Run: yarn nx build sdk-typescript" >&2
@@ -94,7 +94,9 @@ for runtime in "${RUNTIMES[@]}"; do
   cp -r "$dir"/. "$WORK_DIR/"
 
   start=$SECONDS
-  if (cd "$WORK_DIR" && bash run.sh); then
+  # Strip any ambient NODE_ENV (e.g. the devcontainer sets development) so each
+  # framework's production build/prerender runs with the React production build.
+  if (cd "$WORK_DIR" && env -u NODE_ENV bash run.sh); then
     duration=$((SECONDS - start))
     PASS+=("$runtime (${duration}s)")
     echo "✓ $runtime PASS (${duration}s)"
