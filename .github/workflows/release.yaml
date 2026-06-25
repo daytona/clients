@@ -55,9 +55,20 @@ jobs:
           git tag "toolbox-api-client-go/$VERSION"
           git tag "sdk-go/$VERSION"
           git push origin "api-client-go/$VERSION" "toolbox-api-client-go/$VERSION" "sdk-go/$VERSION"
+      - name: Write dummy manifest for nx release
+        run: |
+          mkdir -p dist
+          printf '{ "name": "clients", "version": "0.0.0" }\n' > dist/package.json
       - name: Create release
         run: yarn nx release "$VERSION" --skip-publish --verbose
       - name: Build CLI
+        env:
+          DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL }}
+          DAYTONA_AUTH0_DOMAIN: ${{ secrets.DAYTONA_AUTH0_DOMAIN }}
+          DAYTONA_AUTH0_CLIENT_ID: ${{ secrets.DAYTONA_AUTH0_CLIENT_ID }}
+          DAYTONA_AUTH0_CLIENT_SECRET: ${{ secrets.DAYTONA_AUTH0_CLIENT_SECRET }}
+          DAYTONA_AUTH0_CALLBACK_PORT: ${{ secrets.DAYTONA_AUTH0_CALLBACK_PORT }}
+          DAYTONA_AUTH0_AUDIENCE: ${{ secrets.DAYTONA_AUTH0_AUDIENCE }}
         run: |
           cd ./cli
           GOOS=linux GOARCH=amd64 ./hack/build.sh --skip-env-file
@@ -82,6 +93,56 @@ jobs:
           tar -czf "sdk-docs-${VERSION}.tar.gz" -C artifacts sdk-docs
       - name: Upload SDK docs to release assets
         run: gh release upload "$VERSION" "sdk-docs-${VERSION}.tar.gz" --clobber
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          git config --global --fixed-value --unset-all user.name "Daytona Release Bot" 2>/dev/null || true
+          git config --global --fixed-value --unset-all user.email "daytona-release@users.noreply.github.com" 2>/dev/null || true
+          git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
+
+  sync_gosum:
+    needs: release
+    if: github.repository == 'daytona/clients'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.work
+      - uses: ./.github/actions/install-gh-cli
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git config --global user.name "Daytona Release Bot"
+          git config --global user.email "daytona-release@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+      - name: Sync go.sum and create PR
+        run: |
+          git checkout -b "sync-gosum-$VERSION"
+          GONOSUMDB=go.daytona.io go work sync
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No go workspace changes detected; skipping commit and PR creation."
+          else
+            git commit -s -m "chore: sync go.sum for $VERSION"
+            git push origin "sync-gosum-$VERSION"
+            gh pr create \
+              --title "chore: sync go.sum for $VERSION" \
+              --body "Automated PR to sync go.sum after release $VERSION" \
+              --base main \
+              --head "sync-gosum-$VERSION"
+          fi
       - name: Cleanup credentials
         if: always()
         run: |
