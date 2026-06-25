@@ -151,7 +151,7 @@ func (a *ApiKeysAPIService) CreateApiKeyExecute(r ApiKeysAPICreateApiKeyRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys"
+	localVarPath := localBasePath + "/api/api-keys"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -264,7 +264,7 @@ func (a *ApiKeysAPIService) DeleteApiKeyExecute(r ApiKeysAPIDeleteApiKeyRequest)
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys/{name}"
+	localVarPath := localBasePath + "/api/api-keys/{name}"
 	localVarPath = strings.Replace(localVarPath, "{"+"name"+"}", url.PathEscape(parameterValueToString(r.name, "name")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -367,7 +367,7 @@ func (a *ApiKeysAPIService) DeleteApiKeyForUserExecute(r ApiKeysAPIDeleteApiKeyF
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys/{userId}/{name}"
+	localVarPath := localBasePath + "/api/api-keys/{userId}/{name}"
 	localVarPath = strings.Replace(localVarPath, "{"+"userId"+"}", url.PathEscape(parameterValueToString(r.userId, "userId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"name"+"}", url.PathEscape(parameterValueToString(r.name, "name")), -1)
 
@@ -470,7 +470,7 @@ func (a *ApiKeysAPIService) GetApiKeyExecute(r ApiKeysAPIGetApiKeyRequest) (*Api
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys/{name}"
+	localVarPath := localBasePath + "/api/api-keys/{name}"
 	localVarPath = strings.Replace(localVarPath, "{"+"name"+"}", url.PathEscape(parameterValueToString(r.name, "name")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -578,7 +578,7 @@ func (a *ApiKeysAPIService) GetCurrentApiKeyExecute(r ApiKeysAPIGetCurrentApiKey
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys/current"
+	localVarPath := localBasePath + "/api/api-keys/current"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -685,7 +685,7 @@ func (a *ApiKeysAPIService) ListApiKeysExecute(r ApiKeysAPIListApiKeysRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api-keys"
+	localVarPath := localBasePath + "/api/api-keys"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

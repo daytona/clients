@@ -105,7 +105,7 @@ public class ApiKeysApi {
         Object localVarPostBody = createApiKey;
 
         // create path and map variables
-        String localVarPath = "/api-keys";
+        String localVarPath = "/api/api-keys";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -241,7 +241,7 @@ public class ApiKeysApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api-keys/{name}"
+        String localVarPath = "/api/api-keys/{name}"
             .replace("{" + "name" + "}", localVarApiClient.escapeString(name.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -373,7 +373,7 @@ public class ApiKeysApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api-keys/{userId}/{name}"
+        String localVarPath = "/api/api-keys/{userId}/{name}"
             .replace("{" + "userId" + "}", localVarApiClient.escapeString(userId.toString()))
             .replace("{" + "name" + "}", localVarApiClient.escapeString(name.toString()));
 
@@ -513,7 +513,7 @@ public class ApiKeysApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api-keys/{name}"
+        String localVarPath = "/api/api-keys/{name}"
             .replace("{" + "name" + "}", localVarApiClient.escapeString(name.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -648,7 +648,7 @@ public class ApiKeysApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api-keys/current";
+        String localVarPath = "/api/api-keys/current";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -775,7 +775,7 @@ public class ApiKeysApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api-keys";
+        String localVarPath = "/api/api-keys";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

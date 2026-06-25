@@ -51,6 +51,7 @@ public class Daytona implements AutoCloseable {
     private final SandboxApi sandboxApi;
     private final SnapshotService snapshot;
     private final VolumeService volume;
+    private final SecretService secret;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -84,6 +85,7 @@ public class Daytona implements AutoCloseable {
         this.sandboxApi = new SandboxApi(apiClient);
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
+        this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
     }
 
     /**
@@ -485,6 +487,15 @@ public class Daytona implements AutoCloseable {
     }
 
     /**
+     * Returns Secret management service.
+     *
+     * @return secret service instance
+     */
+    public SecretService secret() {
+        return secret;
+    }
+
+    /**
      * Closes this client and releases underlying HTTP resources.
      */
     @Override
@@ -517,6 +528,13 @@ public class Daytona implements AutoCloseable {
                 volumes.add(new SandboxVolume().volumeId(mount.getVolumeId()).mountPath(mount.getMountPath()));
             }
             body.setVolumes(volumes);
+        }
+        if (params.getSecrets() != null) {
+            for (Map.Entry<String, String> entry : params.getSecrets().entrySet()) {
+                Map<String, String> secretEntry = new HashMap<String, String>();
+                secretEntry.put(entry.getKey(), entry.getValue());
+                body.addSecretsItem(secretEntry);
+            }
         }
 
         Map<String, String> labels = params.getLabels() == null

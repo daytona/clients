@@ -14,6 +14,7 @@ RSpec.describe Daytona::Daytona do
   let(:sandbox_api) { instance_double(DaytonaApiClient::SandboxApi) }
   let(:config_api) { instance_double(DaytonaApiClient::ConfigApi) }
   let(:volumes_api) { instance_double(DaytonaApiClient::VolumesApi) }
+  let(:secret_api) { instance_double(DaytonaApiClient::SecretApi) }
   let(:object_storage_api) { instance_double(DaytonaApiClient::ObjectStorageApi) }
   let(:snapshots_api) { instance_double(DaytonaApiClient::SnapshotsApi) }
   let(:sandbox_dto) { build_sandbox_dto }
@@ -24,6 +25,7 @@ RSpec.describe Daytona::Daytona do
     allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(sandbox_api)
     allow(DaytonaApiClient::ConfigApi).to receive(:new).and_return(config_api)
     allow(DaytonaApiClient::VolumesApi).to receive(:new).and_return(volumes_api)
+    allow(DaytonaApiClient::SecretApi).to receive(:new).and_return(secret_api)
     allow(DaytonaApiClient::ObjectStorageApi).to receive(:new).and_return(object_storage_api)
     allow(DaytonaApiClient::SnapshotsApi).to receive(:new).and_return(snapshots_api)
     allow(Daytona::Sandbox).to receive(:new).and_return(sandbox)
@@ -35,6 +37,7 @@ RSpec.describe Daytona::Daytona do
 
       expect(daytona.config).to eq(config)
       expect(daytona.volume).to be_a(Daytona::VolumeService)
+      expect(daytona.secret).to be_a(Daytona::SecretService)
       expect(daytona.snapshot).to be_a(Daytona::SnapshotService)
     end
 
@@ -131,6 +134,33 @@ RSpec.describe Daytona::Daytona do
       described_class.new(config).create(params)
 
       expect(params.language).to eq(:python)
+    end
+
+    it 'serializes the secrets hash to an array of single-key hashes' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(
+        snapshot: 'snap-1',
+        secrets: { 'ANTHROPIC_API_KEY' => 'anthropic-prod', 'DB_URL' => 'db-secret' }
+      )
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.secrets).to eq(
+          [{ 'ANTHROPIC_API_KEY' => 'anthropic-prod' }, { 'DB_URL' => 'db-secret' }]
+        )
+      end
+    end
+
+    it 'leaves secrets nil when none are provided' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1')
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.secrets).to be_nil
+      end
     end
 
     it 'raises on invalid language values' do

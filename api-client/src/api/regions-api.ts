@@ -35,7 +35,7 @@ export const RegionsApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listSharedRegions: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/shared-regions`;
+            const localVarPath = `/api/shared-regions`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

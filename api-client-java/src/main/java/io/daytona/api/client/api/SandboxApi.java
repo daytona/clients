@@ -41,6 +41,7 @@ import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.ResizeSandbox;
+import io.daytona.api.client.model.ResolveSandboxSecrets200ResponseInner;
 import io.daytona.api.client.model.Sandbox;
 import io.daytona.api.client.model.SandboxClass;
 import io.daytona.api.client.model.SandboxLabels;
@@ -130,7 +131,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/archive"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/archive"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -266,7 +267,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/backup"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/backup"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -402,7 +403,7 @@ public class SandboxApi {
         Object localVarPostBody = createSandbox;
 
         // create path and map variables
-        String localVarPath = "/sandbox";
+        String localVarPath = "/api/sandbox";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -539,7 +540,7 @@ public class SandboxApi {
         Object localVarPostBody = createSandboxSnapshot;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/snapshot"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/snapshot"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -685,7 +686,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ssh-access"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ssh-access"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -828,7 +829,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -966,7 +967,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "port" + "}", localVarApiClient.escapeString(port.toString()))
             .replace("{" + "token" + "}", localVarApiClient.escapeString(token.toString()));
@@ -1116,7 +1117,7 @@ public class SandboxApi {
         Object localVarPostBody = forkSandbox;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/fork"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/fork"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1264,7 +1265,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/build-logs"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/build-logs"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1409,7 +1410,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/build-logs-url"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/build-logs-url"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1545,7 +1546,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/organization"
+        String localVarPath = "/api/sandbox/{sandboxId}/organization"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1682,7 +1683,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ports/{port}/preview-url"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "port" + "}", localVarApiClient.escapeString(port.toString()));
 
@@ -1827,7 +1828,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/region-quota"
+        String localVarPath = "/api/sandbox/{sandboxId}/region-quota"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1964,7 +1965,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2107,7 +2108,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ancestors"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ancestors"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2244,7 +2245,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/forks"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/forks"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2393,7 +2394,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/telemetry/logs"
+        String localVarPath = "/api/sandbox/{sandboxId}/telemetry/logs"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2584,7 +2585,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/telemetry/metrics"
+        String localVarPath = "/api/sandbox/{sandboxId}/telemetry/metrics"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2751,7 +2752,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/parent"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/parent"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2888,7 +2889,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/telemetry/traces/{traceId}"
+        String localVarPath = "/api/sandbox/{sandboxId}/telemetry/traces/{traceId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "traceId" + "}", localVarApiClient.escapeString(traceId.toString()));
 
@@ -3037,7 +3038,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/telemetry/traces"
+        String localVarPath = "/api/sandbox/{sandboxId}/telemetry/traces"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3212,7 +3213,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/for-runner";
+        String localVarPath = "/api/sandbox/for-runner";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -3355,7 +3356,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "port" + "}", localVarApiClient.escapeString(port.toString()));
 
@@ -3507,7 +3508,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/toolbox-proxy-url"
+        String localVarPath = "/api/sandbox/{sandboxId}/toolbox-proxy-url"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3666,7 +3667,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox";
+        String localVarPath = "/api/sandbox";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -3981,7 +3982,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/paginated";
+        String localVarPath = "/api/sandbox/paginated";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -4248,7 +4249,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/pause"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/pause"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4385,7 +4386,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/recover"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/recover"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4529,7 +4530,7 @@ public class SandboxApi {
         Object localVarPostBody = sandboxLabels;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/labels"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/labels"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4675,7 +4676,7 @@ public class SandboxApi {
         Object localVarPostBody = resizeSandbox;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/resize"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/resize"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4790,6 +4791,142 @@ public class SandboxApi {
         return localVarCall;
     }
     /**
+     * Build call for resolveSandboxSecrets
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resolveSandboxSecretsCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/sandbox/{sandboxId}/secrets"
+            .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call resolveSandboxSecretsValidateBeforeCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxId' is set
+        if (sandboxId == null) {
+            throw new ApiException("Missing the required parameter 'sandboxId' when calling resolveSandboxSecrets(Async)");
+        }
+
+        return resolveSandboxSecretsCall(sandboxId, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Resolve sandbox secrets
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return List&lt;ResolveSandboxSecrets200ResponseInner&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<ResolveSandboxSecrets200ResponseInner> resolveSandboxSecrets(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<List<ResolveSandboxSecrets200ResponseInner>> localVarResp = resolveSandboxSecretsWithHttpInfo(sandboxId, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Resolve sandbox secrets
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;List&lt;ResolveSandboxSecrets200ResponseInner&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<ResolveSandboxSecrets200ResponseInner>> resolveSandboxSecretsWithHttpInfo(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = resolveSandboxSecretsValidateBeforeCall(sandboxId, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<List<ResolveSandboxSecrets200ResponseInner>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Resolve sandbox secrets (asynchronously)
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resolveSandboxSecretsAsync(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<List<ResolveSandboxSecrets200ResponseInner>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = resolveSandboxSecretsValidateBeforeCall(sandboxId, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<List<ResolveSandboxSecrets200ResponseInner>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for revokeSshAccess
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
@@ -4821,7 +4958,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/ssh-access"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/ssh-access"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4965,7 +5102,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/autoarchive/{interval}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "interval" + "}", localVarApiClient.escapeString(interval.toString()));
 
@@ -5111,7 +5248,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/autodelete/{interval}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/autodelete/{interval}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "interval" + "}", localVarApiClient.escapeString(interval.toString()));
 
@@ -5257,7 +5394,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/autostop/{interval}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/autostop/{interval}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "interval" + "}", localVarApiClient.escapeString(interval.toString()));
 
@@ -5402,7 +5539,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/start"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/start"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5539,7 +5676,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/stop"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/stop"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5682,7 +5819,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/last-activity"
+        String localVarPath = "/api/sandbox/{sandboxId}/last-activity"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5814,7 +5951,7 @@ public class SandboxApi {
         Object localVarPostBody = updateSandboxNetworkSettings;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/network-settings"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/network-settings"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5960,7 +6097,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxIdOrName}/public/{isPublic}"
+        String localVarPath = "/api/sandbox/{sandboxIdOrName}/public/{isPublic}"
             .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
             .replace("{" + "isPublic" + "}", localVarApiClient.escapeString(isPublic.toString()));
 
@@ -6106,7 +6243,7 @@ public class SandboxApi {
         Object localVarPostBody = updateSandboxStateDto;
 
         // create path and map variables
-        String localVarPath = "/sandbox/{sandboxId}/state"
+        String localVarPath = "/api/sandbox/{sandboxId}/state"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6246,7 +6383,7 @@ public class SandboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/sandbox/ssh-access/validate";
+        String localVarPath = "/api/sandbox/ssh-access/validate";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

@@ -571,7 +571,7 @@ func (a *OrganizationsAPIService) AcceptOrganizationInvitationExecute(r Organiza
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/invitations/{invitationId}/accept"
+	localVarPath := localBasePath + "/api/organizations/invitations/{invitationId}/accept"
 	localVarPath = strings.Replace(localVarPath, "{"+"invitationId"+"}", url.PathEscape(parameterValueToString(r.invitationId, "invitationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -673,7 +673,7 @@ func (a *OrganizationsAPIService) CancelOrganizationInvitationExecute(r Organiza
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/invitations/{invitationId}/cancel"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/invitations/{invitationId}/cancel"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"invitationId"+"}", url.PathEscape(parameterValueToString(r.invitationId, "invitationId")), -1)
 
@@ -769,7 +769,7 @@ func (a *OrganizationsAPIService) CreateOrganizationExecute(r OrganizationsAPICr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations"
+	localVarPath := localBasePath + "/api/organizations"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -880,7 +880,7 @@ func (a *OrganizationsAPIService) CreateOrganizationInvitationExecute(r Organiza
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/invitations"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/invitations"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -992,7 +992,7 @@ func (a *OrganizationsAPIService) CreateOrganizationRoleExecute(r OrganizationsA
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/roles"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/roles"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1108,7 +1108,7 @@ func (a *OrganizationsAPIService) CreateRegionExecute(r OrganizationsAPICreateRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions"
+	localVarPath := localBasePath + "/api/regions"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1214,7 +1214,7 @@ func (a *OrganizationsAPIService) DeclineOrganizationInvitationExecute(r Organiz
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/invitations/{invitationId}/decline"
+	localVarPath := localBasePath + "/api/organizations/invitations/{invitationId}/decline"
 	localVarPath = strings.Replace(localVarPath, "{"+"invitationId"+"}", url.PathEscape(parameterValueToString(r.invitationId, "invitationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1304,7 +1304,7 @@ func (a *OrganizationsAPIService) DeleteOrganizationExecute(r OrganizationsAPIDe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1397,7 +1397,7 @@ func (a *OrganizationsAPIService) DeleteOrganizationMemberExecute(r Organization
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/users/{userId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/users/{userId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"userId"+"}", url.PathEscape(parameterValueToString(r.userId, "userId")), -1)
 
@@ -1488,7 +1488,7 @@ func (a *OrganizationsAPIService) DeleteOrganizationOtelConfigExecute(r Organiza
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/otel-config"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/otel-config"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1581,7 +1581,7 @@ func (a *OrganizationsAPIService) DeleteOrganizationRoleExecute(r OrganizationsA
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/roles/{roleId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/roles/{roleId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"roleId"+"}", url.PathEscape(parameterValueToString(r.roleId, "roleId")), -1)
 
@@ -1679,7 +1679,7 @@ func (a *OrganizationsAPIService) DeleteRegionExecute(r OrganizationsAPIDeleteRe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}"
+	localVarPath := localBasePath + "/api/regions/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1774,7 +1774,7 @@ func (a *OrganizationsAPIService) GetOrganizationExecute(r OrganizationsAPIGetOr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1872,7 +1872,7 @@ func (a *OrganizationsAPIService) GetOrganizationInvitationsCountForAuthenticate
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/invitations/count"
+	localVarPath := localBasePath + "/api/organizations/invitations/count"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1972,7 +1972,7 @@ func (a *OrganizationsAPIService) GetOrganizationOtelConfigExecute(r Organizatio
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/otel-config"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/otel-config"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2073,7 +2073,7 @@ func (a *OrganizationsAPIService) GetOrganizationOtelConfigBySandboxAuthTokenExe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/otel-config/by-sandbox-auth-token/{authToken}"
+	localVarPath := localBasePath + "/api/organizations/otel-config/by-sandbox-auth-token/{authToken}"
 	localVarPath = strings.Replace(localVarPath, "{"+"authToken"+"}", url.PathEscape(parameterValueToString(r.authToken, "authToken")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2174,7 +2174,7 @@ func (a *OrganizationsAPIService) GetOrganizationUsageOverviewExecute(r Organiza
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/usage"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/usage"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2282,7 +2282,7 @@ func (a *OrganizationsAPIService) GetRegionByIdExecute(r OrganizationsAPIGetRegi
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}"
+	localVarPath := localBasePath + "/api/regions/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2384,7 +2384,7 @@ func (a *OrganizationsAPIService) LeaveOrganizationExecute(r OrganizationsAPILea
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/leave"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/leave"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2480,7 +2480,7 @@ func (a *OrganizationsAPIService) ListAvailableRegionsExecute(r OrganizationsAPI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions"
+	localVarPath := localBasePath + "/api/regions"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2583,7 +2583,7 @@ func (a *OrganizationsAPIService) ListOrganizationInvitationsExecute(r Organizat
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/invitations"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/invitations"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2681,7 +2681,7 @@ func (a *OrganizationsAPIService) ListOrganizationInvitationsForAuthenticatedUse
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/invitations"
+	localVarPath := localBasePath + "/api/organizations/invitations"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -2781,7 +2781,7 @@ func (a *OrganizationsAPIService) ListOrganizationMembersExecute(r Organizations
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/users"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/users"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2882,7 +2882,7 @@ func (a *OrganizationsAPIService) ListOrganizationRolesExecute(r OrganizationsAP
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/roles"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/roles"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2980,7 +2980,7 @@ func (a *OrganizationsAPIService) ListOrganizationsExecute(r OrganizationsAPILis
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations"
+	localVarPath := localBasePath + "/api/organizations"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -3087,7 +3087,7 @@ func (a *OrganizationsAPIService) RegenerateProxyApiKeyExecute(r OrganizationsAP
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}/regenerate-proxy-api-key"
+	localVarPath := localBasePath + "/api/regions/{id}/regenerate-proxy-api-key"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3198,7 +3198,7 @@ func (a *OrganizationsAPIService) RegenerateSnapshotManagerCredentialsExecute(r 
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}/regenerate-snapshot-manager-credentials"
+	localVarPath := localBasePath + "/api/regions/{id}/regenerate-snapshot-manager-credentials"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3309,7 +3309,7 @@ func (a *OrganizationsAPIService) RegenerateSshGatewayApiKeyExecute(r Organizati
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}/regenerate-ssh-gateway-api-key"
+	localVarPath := localBasePath + "/api/regions/{id}/regenerate-ssh-gateway-api-key"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3417,7 +3417,7 @@ func (a *OrganizationsAPIService) SetOrganizationDefaultRegionExecute(r Organiza
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/default-region"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/default-region"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3518,7 +3518,7 @@ func (a *OrganizationsAPIService) SuspendOrganizationExecute(r OrganizationsAPIS
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/suspend"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/suspend"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3610,7 +3610,7 @@ func (a *OrganizationsAPIService) UnsuspendOrganizationExecute(r OrganizationsAP
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/unsuspend"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/unsuspend"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3711,7 +3711,7 @@ func (a *OrganizationsAPIService) UpdateAccessForOrganizationMemberExecute(r Org
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/users/{userId}/access"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/users/{userId}/access"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"userId"+"}", url.PathEscape(parameterValueToString(r.userId, "userId")), -1)
 
@@ -3823,7 +3823,7 @@ func (a *OrganizationsAPIService) UpdateExperimentalConfigExecute(r Organization
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/experimental-config"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/experimental-config"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3926,7 +3926,7 @@ func (a *OrganizationsAPIService) UpdateOrganizationInvitationExecute(r Organiza
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/invitations/{invitationId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/invitations/{invitationId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"invitationId"+"}", url.PathEscape(parameterValueToString(r.invitationId, "invitationId")), -1)
 
@@ -4037,7 +4037,7 @@ func (a *OrganizationsAPIService) UpdateOrganizationOtelConfigExecute(r Organiza
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/otel-config"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/otel-config"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4138,7 +4138,7 @@ func (a *OrganizationsAPIService) UpdateOrganizationQuotaExecute(r Organizations
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/quota"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/quota"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4242,7 +4242,7 @@ func (a *OrganizationsAPIService) UpdateOrganizationRegionQuotaExecute(r Organiz
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/quota/{regionId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/quota/{regionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"regionId"+"}", url.PathEscape(parameterValueToString(r.regionId, "regionId")), -1)
 
@@ -4349,7 +4349,7 @@ func (a *OrganizationsAPIService) UpdateOrganizationRoleExecute(r OrganizationsA
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/roles/{roleId}"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/roles/{roleId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"roleId"+"}", url.PathEscape(parameterValueToString(r.roleId, "roleId")), -1)
 
@@ -4467,7 +4467,7 @@ func (a *OrganizationsAPIService) UpdateRegionExecute(r OrganizationsAPIUpdateRe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/regions/{id}"
+	localVarPath := localBasePath + "/api/regions/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4571,7 +4571,7 @@ func (a *OrganizationsAPIService) UpdateSandboxDefaultLimitedNetworkEgressExecut
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/organizations/{organizationId}/sandbox-default-limited-network-egress"
+	localVarPath := localBasePath + "/api/organizations/{organizationId}/sandbox-default-limited-network-egress"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)

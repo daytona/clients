@@ -36,7 +36,7 @@ export const HealthApiAxiosParamCreator = function (configuration?: Configuratio
          * @throws {RequiredError}
          */
         healthControllerCheck: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/health/ready`;
+            const localVarPath = `/api/health/ready`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -69,7 +69,7 @@ export const HealthApiAxiosParamCreator = function (configuration?: Configuratio
          * @throws {RequiredError}
          */
         healthControllerLive: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/health`;
+            const localVarPath = `/api/health`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

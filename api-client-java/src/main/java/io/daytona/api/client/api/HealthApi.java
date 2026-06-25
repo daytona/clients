@@ -103,7 +103,7 @@ public class HealthApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/health/ready";
+        String localVarPath = "/api/health/ready";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -223,7 +223,7 @@ public class HealthApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/health";
+        String localVarPath = "/api/health";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

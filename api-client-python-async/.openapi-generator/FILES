@@ -14,6 +14,7 @@ daytona_api_client_async/api/preview_api.py
 daytona_api_client_async/api/regions_api.py
 daytona_api_client_async/api/runners_api.py
 daytona_api_client_async/api/sandbox_api.py
+daytona_api_client_async/api/secret_api.py
 daytona_api_client_async/api/snapshots_api.py
 daytona_api_client_async/api/toolbox_api.py
 daytona_api_client_async/api/users_api.py
@@ -55,6 +56,7 @@ daytona_api_client_async/models/create_runner.py
 daytona_api_client_async/models/create_runner_response.py
 daytona_api_client_async/models/create_sandbox.py
 daytona_api_client_async/models/create_sandbox_snapshot.py
+daytona_api_client_async/models/create_secret.py
 daytona_api_client_async/models/create_session_request.py
 daytona_api_client_async/models/create_snapshot.py
 daytona_api_client_async/models/create_user.py
@@ -151,6 +153,7 @@ daytona_api_client_async/models/registry_push_access_dto.py
 daytona_api_client_async/models/replace_request.py
 daytona_api_client_async/models/replace_result.py
 daytona_api_client_async/models/resize_sandbox.py
+daytona_api_client_async/models/resolve_sandbox_secrets200_response_inner.py
 daytona_api_client_async/models/runner.py
 daytona_api_client_async/models/runner_class.py
 daytona_api_client_async/models/runner_full.py
@@ -170,6 +173,7 @@ daytona_api_client_async/models/sandbox_state.py
 daytona_api_client_async/models/sandbox_volume.py
 daytona_api_client_async/models/screenshot_response.py
 daytona_api_client_async/models/search_files_response.py
+daytona_api_client_async/models/secret.py
 daytona_api_client_async/models/send_webhook_dto.py
 daytona_api_client_async/models/session.py
 daytona_api_client_async/models/session_execute_request.py
@@ -196,6 +200,7 @@ daytona_api_client_async/models/update_organization_role.py
 daytona_api_client_async/models/update_region.py
 daytona_api_client_async/models/update_sandbox_network_settings.py
 daytona_api_client_async/models/update_sandbox_state_dto.py
+daytona_api_client_async/models/update_secret.py
 daytona_api_client_async/models/url.py
 daytona_api_client_async/models/user.py
 daytona_api_client_async/models/user_home_dir_response.py

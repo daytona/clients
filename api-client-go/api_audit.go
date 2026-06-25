@@ -116,7 +116,7 @@ func (a *AuditAPIService) GetOrganizationAuditLogsExecute(r AuditAPIGetOrganizat
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/audit/organizations/{organizationId}"
+	localVarPath := localBasePath + "/api/audit/organizations/{organizationId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)

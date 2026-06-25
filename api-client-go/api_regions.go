@@ -75,7 +75,7 @@ func (a *RegionsAPIService) ListSharedRegionsExecute(r RegionsAPIListSharedRegio
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/shared-regions"
+	localVarPath := localBasePath + "/api/shared-regions"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

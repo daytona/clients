@@ -183,6 +183,26 @@ class DaytonaTest {
     }
 
     @Test
+    void createFromSnapshotSerializesSecretsAsSingleEntryMaps() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-sec", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        Map<String, String> secrets = new java.util.LinkedHashMap<>();
+        secrets.put("ANTHROPIC_API_KEY", "anthropic-prod");
+        secrets.put("OPENAI_API_KEY", "openai-prod");
+        params.setSecrets(secrets);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        List<Map<String, String>> serialized = captor.getValue().getSecrets();
+        assertThat(serialized).containsExactly(
+                Collections.singletonMap("ANTHROPIC_API_KEY", "anthropic-prod"),
+                Collections.singletonMap("OPENAI_API_KEY", "openai-prod"));
+    }
+
+    @Test
     void createFromSnapshotRejectsUnsupportedLanguage() {
         CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
         params.setLanguage("ruby");

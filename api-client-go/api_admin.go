@@ -349,7 +349,7 @@ func (a *AdminAPIService) AdminCanCleanupImageExecute(r AdminAPIAdminCanCleanupI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/snapshots/can-cleanup-image"
+	localVarPath := localBasePath + "/api/admin/snapshots/can-cleanup-image"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -462,7 +462,7 @@ func (a *AdminAPIService) AdminCreateOrganizationRegionQuotaExecute(r AdminAPIAd
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/organizations/{organizationId}/quota/{regionId}"
+	localVarPath := localBasePath + "/api/admin/organizations/{organizationId}/quota/{regionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"regionId"+"}", url.PathEscape(parameterValueToString(r.regionId, "regionId")), -1)
 
@@ -572,7 +572,7 @@ func (a *AdminAPIService) AdminCreateRunnerExecute(r AdminAPIAdminCreateRunnerRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/runners"
+	localVarPath := localBasePath + "/api/admin/runners"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -678,7 +678,7 @@ func (a *AdminAPIService) AdminCreateUserExecute(r AdminAPIAdminCreateUserReques
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/users"
+	localVarPath := localBasePath + "/api/admin/users"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -778,7 +778,7 @@ func (a *AdminAPIService) AdminDeleteOrganizationRegionQuotaExecute(r AdminAPIAd
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
+	localVarPath := localBasePath + "/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"regionId"+"}", url.PathEscape(parameterValueToString(r.regionId, "regionId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxClass"+"}", url.PathEscape(parameterValueToString(r.sandboxClass, "sandboxClass")), -1)
@@ -870,7 +870,7 @@ func (a *AdminAPIService) AdminDeleteRunnerExecute(r AdminAPIAdminDeleteRunnerRe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/runners/{id}"
+	localVarPath := localBasePath + "/api/admin/runners/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -994,7 +994,7 @@ func (a *AdminAPIService) AdminGetAllAuditLogsExecute(r AdminAPIAdminGetAllAudit
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/audit"
+	localVarPath := localBasePath + "/api/admin/audit"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1120,7 +1120,7 @@ func (a *AdminAPIService) AdminGetMessageAttemptsExecute(r AdminAPIAdminGetMessa
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts"
+	localVarPath := localBasePath + "/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"messageId"+"}", url.PathEscape(parameterValueToString(r.messageId, "messageId")), -1)
 
@@ -1228,7 +1228,7 @@ func (a *AdminAPIService) AdminGetOrganizationRegionQuotaExecute(r AdminAPIAdmin
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
+	localVarPath := localBasePath + "/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"regionId"+"}", url.PathEscape(parameterValueToString(r.regionId, "regionId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxClass"+"}", url.PathEscape(parameterValueToString(r.sandboxClass, "sandboxClass")), -1)
@@ -1331,7 +1331,7 @@ func (a *AdminAPIService) AdminGetRunnerByIdExecute(r AdminAPIAdminGetRunnerById
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/runners/{id}"
+	localVarPath := localBasePath + "/api/admin/runners/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1432,7 +1432,7 @@ func (a *AdminAPIService) AdminGetUserExecute(r AdminAPIAdminGetUserRequest) (*U
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/users/{id}"
+	localVarPath := localBasePath + "/api/admin/users/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1530,7 +1530,7 @@ func (a *AdminAPIService) AdminGetWebhookStatusExecute(r AdminAPIAdminGetWebhook
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/webhooks/status"
+	localVarPath := localBasePath + "/api/admin/webhooks/status"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1628,7 +1628,7 @@ func (a *AdminAPIService) AdminInitializeWebhooksExecute(r AdminAPIAdminInitiali
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/webhooks/organizations/{organizationId}/initialize"
+	localVarPath := localBasePath + "/api/admin/webhooks/organizations/{organizationId}/initialize"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1724,7 +1724,7 @@ func (a *AdminAPIService) AdminListRunnersExecute(r AdminAPIAdminListRunnersRequ
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/runners"
+	localVarPath := localBasePath + "/api/admin/runners"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1822,7 +1822,7 @@ func (a *AdminAPIService) AdminListUsersExecute(r AdminAPIAdminListUsersRequest)
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/users"
+	localVarPath := localBasePath + "/api/admin/users"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1913,7 +1913,7 @@ func (a *AdminAPIService) AdminRecoverSandboxExecute(r AdminAPIAdminRecoverSandb
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/sandbox/{sandboxId}/recover"
+	localVarPath := localBasePath + "/api/admin/sandbox/{sandboxId}/recover"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2012,7 +2012,7 @@ func (a *AdminAPIService) AdminRegenerateKeyPairExecute(r AdminAPIAdminRegenerat
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/users/{id}/regenerate-key-pair"
+	localVarPath := localBasePath + "/api/admin/users/{id}/regenerate-key-pair"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2108,7 +2108,7 @@ func (a *AdminAPIService) AdminSendWebhookExecute(r AdminAPIAdminSendWebhookRequ
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/webhooks/organizations/{organizationId}/send"
+	localVarPath := localBasePath + "/api/admin/webhooks/organizations/{organizationId}/send"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2205,7 +2205,7 @@ func (a *AdminAPIService) AdminSetDefaultRegistryExecute(r AdminAPIAdminSetDefau
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/docker-registry/{id}/set-default"
+	localVarPath := localBasePath + "/api/admin/docker-registry/{id}/set-default"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2312,7 +2312,7 @@ func (a *AdminAPIService) AdminSetSnapshotGeneralStatusExecute(r AdminAPIAdminSe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/snapshots/{id}/general"
+	localVarPath := localBasePath + "/api/admin/snapshots/{id}/general"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2425,7 +2425,7 @@ func (a *AdminAPIService) AdminUpdateOrganizationRegionQuotaExecute(r AdminAPIAd
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/organizations/{organizationId}/quota/{regionId}"
+	localVarPath := localBasePath + "/api/admin/organizations/{organizationId}/quota/{regionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"regionId"+"}", url.PathEscape(parameterValueToString(r.regionId, "regionId")), -1)
 
@@ -2521,7 +2521,7 @@ func (a *AdminAPIService) AdminUpdateRunnerSchedulingExecute(r AdminAPIAdminUpda
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/admin/runners/{id}/scheduling"
+	localVarPath := localBasePath + "/api/admin/runners/{id}/scheduling"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)

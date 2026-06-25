@@ -151,7 +151,7 @@ func (a *DockerRegistryAPIService) CreateRegistryExecute(r DockerRegistryAPICrea
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry"
+	localVarPath := localBasePath + "/api/docker-registry"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -264,7 +264,7 @@ func (a *DockerRegistryAPIService) DeleteRegistryExecute(r DockerRegistryAPIDele
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry/{id}"
+	localVarPath := localBasePath + "/api/docker-registry/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -366,7 +366,7 @@ func (a *DockerRegistryAPIService) GetRegistryExecute(r DockerRegistryAPIGetRegi
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry/{id}"
+	localVarPath := localBasePath + "/api/docker-registry/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -481,7 +481,7 @@ func (a *DockerRegistryAPIService) GetTransientPushAccessExecute(r DockerRegistr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry/registry-push-access"
+	localVarPath := localBasePath + "/api/docker-registry/registry-push-access"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -591,7 +591,7 @@ func (a *DockerRegistryAPIService) ListRegistriesExecute(r DockerRegistryAPIList
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry"
+	localVarPath := localBasePath + "/api/docker-registry"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -707,7 +707,7 @@ func (a *DockerRegistryAPIService) UpdateRegistryExecute(r DockerRegistryAPIUpda
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/docker-registry/{id}"
+	localVarPath := localBasePath + "/api/docker-registry/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)

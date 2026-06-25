@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling WebhooksApi.webhook_controller_get_app_portal_access"
       end
       # resource path
-      local_var_path = '/webhooks/organizations/{organizationId}/app-portal-access'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/webhooks/organizations/{organizationId}/app-portal-access'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -107,7 +107,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling WebhooksApi.webhook_controller_get_initialization_status"
       end
       # resource path
-      local_var_path = '/webhooks/organizations/{organizationId}/initialization-status'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/webhooks/organizations/{organizationId}/initialization-status'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -171,7 +171,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling WebhooksApi.webhook_controller_initialize_webhooks"
       end
       # resource path
-      local_var_path = '/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -235,7 +235,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling WebhooksApi.webhook_controller_refresh_endpoints"
       end
       # resource path
-      local_var_path = '/webhooks/organizations/{organizationId}/refresh-endpoints'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/webhooks/organizations/{organizationId}/refresh-endpoints'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

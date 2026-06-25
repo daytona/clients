@@ -13,6 +13,7 @@ api_preview.go
 api_regions.go
 api_runners.go
 api_sandbox.go
+api_secret.go
 api_snapshots.go
 api_toolbox.go
 api_users.go
@@ -53,6 +54,7 @@ model_create_runner.go
 model_create_runner_response.go
 model_create_sandbox.go
 model_create_sandbox_snapshot.go
+model_create_secret.go
 model_create_session_request.go
 model_create_snapshot.go
 model_create_user.go
@@ -149,6 +151,7 @@ model_registry_push_access_dto.go
 model_replace_request.go
 model_replace_result.go
 model_resize_sandbox.go
+model_resolve_sandbox_secrets_200_response_inner.go
 model_runner.go
 model_runner_class.go
 model_runner_full.go
@@ -168,6 +171,7 @@ model_sandbox_state.go
 model_sandbox_volume.go
 model_screenshot_response.go
 model_search_files_response.go
+model_secret.go
 model_send_webhook_dto.go
 model_session.go
 model_session_execute_request.go
@@ -194,6 +198,7 @@ model_update_organization_role.go
 model_update_region.go
 model_update_sandbox_network_settings.go
 model_update_sandbox_state_dto.go
+model_update_secret.go
 model_url.go
 model_user.go
 model_user_home_dir_response.go

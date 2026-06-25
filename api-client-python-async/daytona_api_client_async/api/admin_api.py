@@ -300,7 +300,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/snapshots/can-cleanup-image',
+            resource_path='/api/admin/snapshots/can-cleanup-image',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -602,7 +602,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/organizations/{organizationId}/quota/{regionId}',
+            resource_path='/api/admin/organizations/{organizationId}/quota/{regionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -874,7 +874,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/runners',
+            resource_path='/api/admin/runners',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1139,7 +1139,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/users',
+            resource_path='/api/admin/users',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1421,7 +1421,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}',
+            resource_path='/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1673,7 +1673,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/admin/runners/{id}',
+            resource_path='/api/admin/runners/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2020,7 +2020,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/audit',
+            resource_path='/api/admin/audit',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2294,7 +2294,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts',
+            resource_path='/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2583,7 +2583,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}',
+            resource_path='/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2842,7 +2842,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/runners/{id}',
+            resource_path='/api/admin/runners/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3101,7 +3101,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/users/{id}',
+            resource_path='/api/admin/users/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3345,7 +3345,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/webhooks/status',
+            resource_path='/api/admin/webhooks/status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3600,7 +3600,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/webhooks/organizations/{organizationId}/initialize',
+            resource_path='/api/admin/webhooks/organizations/{organizationId}/initialize',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3861,7 +3861,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/runners',
+            resource_path='/api/admin/runners',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4098,7 +4098,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/admin/users',
+            resource_path='/api/admin/users',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4357,7 +4357,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/sandbox/{sandboxId}/recover',
+            resource_path='/api/admin/sandbox/{sandboxId}/recover',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4609,7 +4609,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/users/{id}/regenerate-key-pair',
+            resource_path='/api/admin/users/{id}/regenerate-key-pair',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4889,7 +4889,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/webhooks/organizations/{organizationId}/send',
+            resource_path='/api/admin/webhooks/organizations/{organizationId}/send',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5148,7 +5148,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/admin/docker-registry/{id}/set-default',
+            resource_path='/api/admin/docker-registry/{id}/set-default',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5435,7 +5435,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/admin/snapshots/{id}/general',
+            resource_path='/api/admin/snapshots/{id}/general',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5730,7 +5730,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/admin/organizations/{organizationId}/quota/{regionId}',
+            resource_path='/api/admin/organizations/{organizationId}/quota/{regionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5982,7 +5982,7 @@ class AdminApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/admin/runners/{id}/scheduling',
+            resource_path='/api/admin/runners/{id}/scheduling',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

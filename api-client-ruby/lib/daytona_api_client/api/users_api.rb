@@ -35,7 +35,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: UsersApi.enroll_in_sms_mfa ...'
       end
       # resource path
-      local_var_path = '/users/mfa/sms/enroll'
+      local_var_path = '/api/users/mfa/sms/enroll'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -90,7 +90,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: UsersApi.get_authenticated_user ...'
       end
       # resource path
-      local_var_path = '/users/me'
+      local_var_path = '/api/users/me'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -145,7 +145,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: UsersApi.get_available_account_providers ...'
       end
       # resource path
-      local_var_path = '/users/account-providers'
+      local_var_path = '/api/users/account-providers'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -206,7 +206,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_linked_account' when calling UsersApi.link_account"
       end
       # resource path
-      local_var_path = '/users/linked-accounts'
+      local_var_path = '/api/users/linked-accounts'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -276,7 +276,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'provider_user_id' when calling UsersApi.unlink_account"
       end
       # resource path
-      local_var_path = '/users/linked-accounts/{provider}/{providerUserId}'.sub('{' + 'provider' + '}', CGI.escape(provider.to_s)).sub('{' + 'providerUserId' + '}', CGI.escape(provider_user_id.to_s))
+      local_var_path = '/api/users/linked-accounts/{provider}/{providerUserId}'.sub('{' + 'provider' + '}', CGI.escape(provider.to_s)).sub('{' + 'providerUserId' + '}', CGI.escape(provider_user_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

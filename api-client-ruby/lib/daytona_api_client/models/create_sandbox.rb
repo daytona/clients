@@ -78,6 +78,9 @@ module DaytonaApiClient
     # ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
     attr_accessor :linked_sandbox
 
+    # Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
+    attr_accessor :secrets
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -101,7 +104,8 @@ module DaytonaApiClient
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
-        :'linked_sandbox' => :'linkedSandbox'
+        :'linked_sandbox' => :'linkedSandbox',
+        :'secrets' => :'secrets'
       }
     end
 
@@ -138,7 +142,8 @@ module DaytonaApiClient
         :'auto_delete_interval' => :'Integer',
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'CreateBuildInfo',
-        :'linked_sandbox' => :'String'
+        :'linked_sandbox' => :'String',
+        :'secrets' => :'Array<Hash<String, String>>'
       }
     end
 
@@ -255,6 +260,12 @@ module DaytonaApiClient
       if attributes.key?(:'linked_sandbox')
         self.linked_sandbox = attributes[:'linked_sandbox']
       end
+
+      if attributes.key?(:'secrets')
+        if (value = attributes[:'secrets']).is_a?(Array)
+          self.secrets = value
+        end
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -297,7 +308,8 @@ module DaytonaApiClient
           auto_delete_interval == o.auto_delete_interval &&
           volumes == o.volumes &&
           build_info == o.build_info &&
-          linked_sandbox == o.linked_sandbox
+          linked_sandbox == o.linked_sandbox &&
+          secrets == o.secrets
     end
 
     # @see the `==` method
@@ -309,7 +321,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, linked_sandbox].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

@@ -268,7 +268,7 @@ class UsersApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/users/mfa/sms/enroll',
+            resource_path='/api/users/mfa/sms/enroll',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -512,7 +512,7 @@ class UsersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/users/me',
+            resource_path='/api/users/me',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -756,7 +756,7 @@ class UsersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/users/account-providers',
+            resource_path='/api/users/account-providers',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1021,7 +1021,7 @@ class UsersApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/users/linked-accounts',
+            resource_path='/api/users/linked-accounts',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1288,7 +1288,7 @@ class UsersApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/users/linked-accounts/{provider}/{providerUserId}',
+            resource_path='/api/users/linked-accounts/{provider}/{providerUserId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

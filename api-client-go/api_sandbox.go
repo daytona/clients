@@ -433,6 +433,19 @@ type SandboxAPI interface {
 	ResizeSandboxExecute(r SandboxAPIResizeSandboxRequest) (*Sandbox, *http.Response, error)
 
 	/*
+	ResolveSandboxSecrets Resolve sandbox secrets
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param sandboxId Sandbox ID
+	@return SandboxAPIResolveSandboxSecretsRequest
+	*/
+	ResolveSandboxSecrets(ctx context.Context, sandboxId string) SandboxAPIResolveSandboxSecretsRequest
+
+	// ResolveSandboxSecretsExecute executes the request
+	//  @return []ResolveSandboxSecrets200ResponseInner
+	ResolveSandboxSecretsExecute(r SandboxAPIResolveSandboxSecretsRequest) ([]ResolveSandboxSecrets200ResponseInner, *http.Response, error)
+
+	/*
 	RevokeSshAccess Revoke SSH access for sandbox
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -631,7 +644,7 @@ func (a *SandboxAPIService) ArchiveSandboxExecute(r SandboxAPIArchiveSandboxRequ
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/archive"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/archive"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -742,7 +755,7 @@ func (a *SandboxAPIService) CreateBackupExecute(r SandboxAPICreateBackupRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/backup"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/backup"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -856,7 +869,7 @@ func (a *SandboxAPIService) CreateSandboxExecute(r SandboxAPICreateSandboxReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox"
+	localVarPath := localBasePath + "/api/sandbox"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -977,7 +990,7 @@ func (a *SandboxAPIService) CreateSandboxSnapshotExecute(r SandboxAPICreateSandb
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/snapshot"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/snapshot"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1100,7 +1113,7 @@ func (a *SandboxAPIService) CreateSshAccessExecute(r SandboxAPICreateSshAccessRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ssh-access"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ssh-access"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1214,7 +1227,7 @@ func (a *SandboxAPIService) DeleteSandboxExecute(r SandboxAPIDeleteSandboxReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1329,7 +1342,7 @@ func (a *SandboxAPIService) ExpireSignedPortPreviewUrlExecute(r SandboxAPIExpire
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"port"+"}", url.PathEscape(parameterValueToString(r.port, "port")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"token"+"}", url.PathEscape(parameterValueToString(r.token, "token")), -1)
@@ -1439,7 +1452,7 @@ func (a *SandboxAPIService) ForkSandboxExecute(r SandboxAPIForkSandboxRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/fork"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/fork"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1565,7 +1578,7 @@ func (a *SandboxAPIService) GetBuildLogsExecute(r SandboxAPIGetBuildLogsRequest)
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/build-logs"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/build-logs"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1670,7 +1683,7 @@ func (a *SandboxAPIService) GetBuildLogsUrlExecute(r SandboxAPIGetBuildLogsUrlRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/build-logs-url"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/build-logs-url"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1781,7 +1794,7 @@ func (a *SandboxAPIService) GetOrganizationBySandboxIdExecute(r SandboxAPIGetOrg
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/organization"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/organization"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1895,7 +1908,7 @@ func (a *SandboxAPIService) GetPortPreviewUrlExecute(r SandboxAPIGetPortPreviewU
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ports/{port}/preview-url"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"port"+"}", url.PathEscape(parameterValueToString(r.port, "port")), -1)
 
@@ -2007,7 +2020,7 @@ func (a *SandboxAPIService) GetRegionQuotaBySandboxIdExecute(r SandboxAPIGetRegi
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/region-quota"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/region-quota"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2125,7 +2138,7 @@ func (a *SandboxAPIService) GetSandboxExecute(r SandboxAPIGetSandboxRequest) (*S
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2239,7 +2252,7 @@ func (a *SandboxAPIService) GetSandboxAncestorsExecute(r SandboxAPIGetSandboxAnc
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ancestors"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ancestors"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2356,7 +2369,7 @@ func (a *SandboxAPIService) GetSandboxForksExecute(r SandboxAPIGetSandboxForksRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/forks"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/forks"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2514,7 +2527,7 @@ func (a *SandboxAPIService) GetSandboxLogsExecute(r SandboxAPIGetSandboxLogsRequ
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/telemetry/logs"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/telemetry/logs"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2684,7 +2697,7 @@ func (a *SandboxAPIService) GetSandboxMetricsExecute(r SandboxAPIGetSandboxMetri
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/telemetry/metrics"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/telemetry/metrics"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2814,7 +2827,7 @@ func (a *SandboxAPIService) GetSandboxParentExecute(r SandboxAPIGetSandboxParent
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/parent"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/parent"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2930,7 +2943,7 @@ func (a *SandboxAPIService) GetSandboxTraceSpansExecute(r SandboxAPIGetSandboxTr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/telemetry/traces/{traceId}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/telemetry/traces/{traceId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"traceId"+"}", url.PathEscape(parameterValueToString(r.traceId, "traceId")), -1)
 
@@ -3072,7 +3085,7 @@ func (a *SandboxAPIService) GetSandboxTracesExecute(r SandboxAPIGetSandboxTraces
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/telemetry/traces"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/telemetry/traces"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3216,7 +3229,7 @@ func (a *SandboxAPIService) GetSandboxesForRunnerExecute(r SandboxAPIGetSandboxe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/for-runner"
+	localVarPath := localBasePath + "/api/sandbox/for-runner"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -3342,7 +3355,7 @@ func (a *SandboxAPIService) GetSignedPortPreviewUrlExecute(r SandboxAPIGetSigned
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"port"+"}", url.PathEscape(parameterValueToString(r.port, "port")), -1)
 
@@ -3457,7 +3470,7 @@ func (a *SandboxAPIService) GetToolboxProxyUrlExecute(r SandboxAPIGetToolboxProx
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/toolbox-proxy-url"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/toolbox-proxy-url"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3735,7 +3748,7 @@ func (a *SandboxAPIService) ListSandboxesExecute(r SandboxAPIListSandboxesReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox"
+	localVarPath := localBasePath + "/api/sandbox"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -4090,7 +4103,7 @@ func (a *SandboxAPIService) ListSandboxesPaginatedDeprecatedExecute(r SandboxAPI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/paginated"
+	localVarPath := localBasePath + "/api/sandbox/paginated"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -4301,7 +4314,7 @@ func (a *SandboxAPIService) PauseSandboxExecute(r SandboxAPIPauseSandboxRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/pause"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/pause"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4419,7 +4432,7 @@ func (a *SandboxAPIService) RecoverSandboxExecute(r SandboxAPIRecoverSandboxRequ
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/recover"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/recover"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4539,7 +4552,7 @@ func (a *SandboxAPIService) ReplaceLabelsExecute(r SandboxAPIReplaceLabelsReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/labels"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/labels"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4661,7 +4674,7 @@ func (a *SandboxAPIService) ResizeSandboxExecute(r SandboxAPIResizeSandboxReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/resize"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/resize"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4693,6 +4706,117 @@ func (a *SandboxAPIService) ResizeSandboxExecute(r SandboxAPIResizeSandboxReques
 	}
 	// body params
 	localVarPostBody = r.resizeSandbox
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type SandboxAPIResolveSandboxSecretsRequest struct {
+	ctx context.Context
+	ApiService SandboxAPI
+	sandboxId string
+	xDaytonaOrganizationID *string
+}
+
+// Use with JWT to specify the organization ID
+func (r SandboxAPIResolveSandboxSecretsRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) SandboxAPIResolveSandboxSecretsRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r SandboxAPIResolveSandboxSecretsRequest) Execute() ([]ResolveSandboxSecrets200ResponseInner, *http.Response, error) {
+	return r.ApiService.ResolveSandboxSecretsExecute(r)
+}
+
+/*
+ResolveSandboxSecrets Resolve sandbox secrets
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param sandboxId Sandbox ID
+ @return SandboxAPIResolveSandboxSecretsRequest
+*/
+func (a *SandboxAPIService) ResolveSandboxSecrets(ctx context.Context, sandboxId string) SandboxAPIResolveSandboxSecretsRequest {
+	return SandboxAPIResolveSandboxSecretsRequest{
+		ApiService: a,
+		ctx: ctx,
+		sandboxId: sandboxId,
+	}
+}
+
+// Execute executes the request
+//  @return []ResolveSandboxSecrets200ResponseInner
+func (a *SandboxAPIService) ResolveSandboxSecretsExecute(r SandboxAPIResolveSandboxSecretsRequest) ([]ResolveSandboxSecrets200ResponseInner, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []ResolveSandboxSecrets200ResponseInner
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SandboxAPIService.ResolveSandboxSecrets")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/secrets"
+	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -4784,7 +4908,7 @@ func (a *SandboxAPIService) RevokeSshAccessExecute(r SandboxAPIRevokeSshAccessRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ssh-access"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/ssh-access"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4901,7 +5025,7 @@ func (a *SandboxAPIService) SetAutoArchiveIntervalExecute(r SandboxAPISetAutoArc
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/autoarchive/{interval}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"interval"+"}", url.PathEscape(parameterValueToString(r.interval, "interval")), -1)
 
@@ -5016,7 +5140,7 @@ func (a *SandboxAPIService) SetAutoDeleteIntervalExecute(r SandboxAPISetAutoDele
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/autodelete/{interval}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/autodelete/{interval}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"interval"+"}", url.PathEscape(parameterValueToString(r.interval, "interval")), -1)
 
@@ -5131,7 +5255,7 @@ func (a *SandboxAPIService) SetAutostopIntervalExecute(r SandboxAPISetAutostopIn
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/autostop/{interval}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/autostop/{interval}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"interval"+"}", url.PathEscape(parameterValueToString(r.interval, "interval")), -1)
 
@@ -5245,7 +5369,7 @@ func (a *SandboxAPIService) StartSandboxExecute(r SandboxAPIStartSandboxRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/start"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/start"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5363,7 +5487,7 @@ func (a *SandboxAPIService) StopSandboxExecute(r SandboxAPIStopSandboxRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/stop"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/stop"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5475,7 +5599,7 @@ func (a *SandboxAPIService) UpdateLastActivityExecute(r SandboxAPIUpdateLastActi
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/last-activity"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/last-activity"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5585,7 +5709,7 @@ func (a *SandboxAPIService) UpdateNetworkSettingsExecute(r SandboxAPIUpdateNetwo
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/network-settings"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/network-settings"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5704,7 +5828,7 @@ func (a *SandboxAPIService) UpdatePublicStatusExecute(r SandboxAPIUpdatePublicSt
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/public/{isPublic}"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxIdOrName}/public/{isPublic}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"isPublic"+"}", url.PathEscape(parameterValueToString(r.isPublic, "isPublic")), -1)
 
@@ -5820,7 +5944,7 @@ func (a *SandboxAPIService) UpdateSandboxStateExecute(r SandboxAPIUpdateSandboxS
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/{sandboxId}/state"
+	localVarPath := localBasePath + "/api/sandbox/{sandboxId}/state"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5931,7 +6055,7 @@ func (a *SandboxAPIService) ValidateSshAccessExecute(r SandboxAPIValidateSshAcce
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/sandbox/ssh-access/validate"
+	localVarPath := localBasePath + "/api/sandbox/ssh-access/validate"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

@@ -109,7 +109,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}/activate"
+        String localVarPath = "/api/snapshots/{id}/activate"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -252,7 +252,7 @@ public class SnapshotsApi {
         Object localVarPostBody = createSnapshot;
 
         // create path and map variables
-        String localVarPath = "/snapshots";
+        String localVarPath = "/api/snapshots";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -391,7 +391,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}/deactivate"
+        String localVarPath = "/api/snapshots/{id}/deactivate"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -526,7 +526,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots";
+        String localVarPath = "/api/snapshots";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -689,7 +689,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}"
+        String localVarPath = "/api/snapshots/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -831,7 +831,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}/build-logs"
+        String localVarPath = "/api/snapshots/{id}/build-logs"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -976,7 +976,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}/build-logs-url"
+        String localVarPath = "/api/snapshots/{id}/build-logs-url"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1112,7 +1112,7 @@ public class SnapshotsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/snapshots/{id}"
+        String localVarPath = "/api/snapshots/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

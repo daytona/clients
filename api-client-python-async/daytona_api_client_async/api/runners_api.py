@@ -315,7 +315,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/runners',
+            resource_path='/api/runners',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -582,7 +582,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/runners/{id}',
+            resource_path='/api/runners/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -826,7 +826,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners/me',
+            resource_path='/api/runners/me',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1100,7 +1100,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners/{id}',
+            resource_path='/api/runners/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1359,7 +1359,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners/by-sandbox/{sandboxId}',
+            resource_path='/api/runners/by-sandbox/{sandboxId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1618,7 +1618,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners/{id}/full',
+            resource_path='/api/runners/{id}/full',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1879,7 +1879,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners/by-snapshot-ref',
+            resource_path='/api/runners/by-snapshot-ref',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2155,7 +2155,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/runners',
+            resource_path='/api/runners',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2423,7 +2423,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/runners/healthcheck',
+            resource_path='/api/runners/healthcheck',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2697,7 +2697,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/runners/{id}/draining',
+            resource_path='/api/runners/{id}/draining',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2971,7 +2971,7 @@ class RunnersApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/runners/{id}/scheduling',
+            resource_path='/api/runners/{id}/scheduling',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

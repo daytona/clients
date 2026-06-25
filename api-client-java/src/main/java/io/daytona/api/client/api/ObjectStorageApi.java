@@ -102,7 +102,7 @@ public class ObjectStorageApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/object-storage/push-access";
+        String localVarPath = "/api/object-storage/push-access";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

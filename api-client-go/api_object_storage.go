@@ -82,7 +82,7 @@ func (a *ObjectStorageAPIService) GetPushAccessExecute(r ObjectStorageAPIGetPush
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/object-storage/push-access"
+	localVarPath := localBasePath + "/api/object-storage/push-access"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

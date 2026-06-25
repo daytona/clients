@@ -46,7 +46,7 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
         getJob: async (jobId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'jobId' is not null or undefined
             assertParamExists('getJob', 'jobId', jobId)
-            const localVarPath = `/jobs/{jobId}`
+            const localVarPath = `/api/jobs/{jobId}`
                 .replace(`{${"jobId"}}`, encodeURIComponent(String(jobId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -87,7 +87,7 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
          * @throws {RequiredError}
          */
         listJobs: async (page?: number, limit?: number, status?: JobStatus, offset?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/jobs`;
+            const localVarPath = `/api/jobs`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -141,7 +141,7 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
          * @throws {RequiredError}
          */
         pollJobs: async (timeout?: number, limit?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/jobs/poll`;
+            const localVarPath = `/api/jobs/poll`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -191,7 +191,7 @@ export const JobsApiAxiosParamCreator = function (configuration?: Configuration)
             assertParamExists('updateJobStatus', 'jobId', jobId)
             // verify required parameter 'updateJobStatus' is not null or undefined
             assertParamExists('updateJobStatus', 'updateJobStatus', updateJobStatus)
-            const localVarPath = `/jobs/{jobId}/status`
+            const localVarPath = `/api/jobs/{jobId}/status`
                 .replace(`{${"jobId"}}`, encodeURIComponent(String(jobId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

@@ -37,7 +37,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: ObjectStorageApi.get_push_access ...'
       end
       # resource path
-      local_var_path = '/object-storage/push-access'
+      local_var_path = '/api/object-storage/push-access'
 
       # query parameters
       query_params = opts[:query_params] || {}

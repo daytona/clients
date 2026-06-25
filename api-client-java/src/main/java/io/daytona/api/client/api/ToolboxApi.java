@@ -168,7 +168,7 @@ public class ToolboxApi {
         Object localVarPostBody = mouseClickRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/mouse/click"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -324,7 +324,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/folder"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/folder"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -489,7 +489,7 @@ public class ToolboxApi {
         Object localVarPostBody = ptyCreateRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/pty"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/pty"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -644,7 +644,7 @@ public class ToolboxApi {
         Object localVarPostBody = createSessionRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -795,7 +795,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -955,7 +955,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -1105,7 +1105,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -1255,7 +1255,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/download"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/download"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1413,7 +1413,7 @@ public class ToolboxApi {
         Object localVarPostBody = downloadFiles;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/bulk-download"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/bulk-download"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1568,7 +1568,7 @@ public class ToolboxApi {
         Object localVarPostBody = mouseDragRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1723,7 +1723,7 @@ public class ToolboxApi {
         Object localVarPostBody = executeRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/execute"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/execute"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1880,7 +1880,7 @@ public class ToolboxApi {
         Object localVarPostBody = sessionExecuteRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -2048,7 +2048,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/find"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/find"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2217,7 +2217,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/status"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/status"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2362,7 +2362,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/display/info"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/display/info"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2508,7 +2508,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/info"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/info"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2665,7 +2665,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/mouse/position"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2811,7 +2811,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -2966,7 +2966,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors"
             .replace("{" + "processName" + "}", localVarApiClient.escapeString(processName.toString()))
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
@@ -3121,7 +3121,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs"
             .replace("{" + "processName" + "}", localVarApiClient.escapeString(processName.toString()))
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
@@ -3276,7 +3276,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status"
             .replace("{" + "processName" + "}", localVarApiClient.escapeString(processName.toString()))
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
@@ -3430,7 +3430,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/project-dir"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/project-dir"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3577,7 +3577,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()))
             .replace("{" + "commandId" + "}", localVarApiClient.escapeString(commandId.toString()));
@@ -3743,7 +3743,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()))
             .replace("{" + "commandId" + "}", localVarApiClient.escapeString(commandId.toString()));
@@ -3914,7 +3914,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -4068,7 +4068,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/user-home-dir"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/user-home-dir"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4213,7 +4213,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/display/windows"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/display/windows"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4358,7 +4358,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/work-dir"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/work-dir"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4504,7 +4504,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitAddRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/add"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/add"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4654,7 +4654,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitCheckoutRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/checkout"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/checkout"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4804,7 +4804,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitCloneRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/clone"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/clone"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4954,7 +4954,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitCommitRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/commit"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/commit"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5109,7 +5109,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitBranchRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/branches"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/branches"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5259,7 +5259,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitDeleteBranchRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/branches"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/branches"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5409,7 +5409,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/history"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/history"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5567,7 +5567,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/status"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/status"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5725,7 +5725,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/branches"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/branches"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5883,7 +5883,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitRepoRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/pull"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/pull"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6033,7 +6033,7 @@ public class ToolboxApi {
         Object localVarPostBody = gitRepoRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/git/push"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/git/push"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6183,7 +6183,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6335,7 +6335,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/pty"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/pty"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6480,7 +6480,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/session"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/session"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6626,7 +6626,7 @@ public class ToolboxApi {
         Object localVarPostBody = lspCompletionParams;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/completions"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/completions"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6781,7 +6781,7 @@ public class ToolboxApi {
         Object localVarPostBody = lspDocumentRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/did-close"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/did-close"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -6931,7 +6931,7 @@ public class ToolboxApi {
         Object localVarPostBody = lspDocumentRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/did-open"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/did-open"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7083,7 +7083,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/document-symbols"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/document-symbols"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7265,7 +7265,7 @@ public class ToolboxApi {
         Object localVarPostBody = lspServerRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/start"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/start"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7415,7 +7415,7 @@ public class ToolboxApi {
         Object localVarPostBody = lspServerRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/stop"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/stop"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7567,7 +7567,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7750,7 +7750,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/move"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/move"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -7915,7 +7915,7 @@ public class ToolboxApi {
         Object localVarPostBody = mouseMoveRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/mouse/move"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -8070,7 +8070,7 @@ public class ToolboxApi {
         Object localVarPostBody = keyboardHotkeyRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -8220,7 +8220,7 @@ public class ToolboxApi {
         Object localVarPostBody = keyboardPressRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -8370,7 +8370,7 @@ public class ToolboxApi {
         Object localVarPostBody = replaceRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/replace"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/replace"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -8526,7 +8526,7 @@ public class ToolboxApi {
         Object localVarPostBody = ptyResizeRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "sessionId" + "}", localVarApiClient.escapeString(sessionId.toString()));
 
@@ -8690,7 +8690,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart"
             .replace("{" + "processName" + "}", localVarApiClient.escapeString(processName.toString()))
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
@@ -8845,7 +8845,7 @@ public class ToolboxApi {
         Object localVarPostBody = mouseScrollRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9001,7 +9001,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/search"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/search"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9174,7 +9174,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/permissions"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/permissions"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9347,7 +9347,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/start"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/start"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9492,7 +9492,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/stop"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/stop"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9645,7 +9645,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -9870,7 +9870,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -10048,7 +10048,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -10249,7 +10249,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/screenshot"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -10402,7 +10402,7 @@ public class ToolboxApi {
         Object localVarPostBody = keyboardTypeRequest;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -10553,7 +10553,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/upload"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/upload"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -10713,7 +10713,7 @@ public class ToolboxApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/toolbox/{sandboxId}/toolbox/files/bulk-upload"
+        String localVarPath = "/api/toolbox/{sandboxId}/toolbox/files/bulk-upload"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

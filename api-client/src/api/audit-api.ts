@@ -43,7 +43,7 @@ export const AuditApiAxiosParamCreator = function (configuration?: Configuration
         getOrganizationAuditLogs: async (organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('getOrganizationAuditLogs', 'organizationId', organizationId)
-            const localVarPath = `/audit/organizations/{organizationId}`
+            const localVarPath = `/api/audit/organizations/{organizationId}`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

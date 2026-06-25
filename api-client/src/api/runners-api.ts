@@ -49,7 +49,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         createRunner: async (createRunner: CreateRunner, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createRunner' is not null or undefined
             assertParamExists('createRunner', 'createRunner', createRunner)
-            const localVarPath = `/runners`;
+            const localVarPath = `/api/runners`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -94,7 +94,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         deleteRunner: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('deleteRunner', 'id', id)
-            const localVarPath = `/runners/{id}`
+            const localVarPath = `/api/runners/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -133,7 +133,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         getInfoForAuthenticatedRunner: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/runners/me`;
+            const localVarPath = `/api/runners/me`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -173,7 +173,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         getRunnerById: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getRunnerById', 'id', id)
-            const localVarPath = `/runners/{id}`
+            const localVarPath = `/api/runners/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -216,7 +216,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         getRunnerBySandboxId: async (sandboxId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getRunnerBySandboxId', 'sandboxId', sandboxId)
-            const localVarPath = `/runners/by-sandbox/{sandboxId}`
+            const localVarPath = `/api/runners/by-sandbox/{sandboxId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -256,7 +256,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         getRunnerFullById: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getRunnerFullById', 'id', id)
-            const localVarPath = `/runners/{id}/full`
+            const localVarPath = `/api/runners/{id}/full`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -296,7 +296,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         getRunnersBySnapshotRef: async (ref: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'ref' is not null or undefined
             assertParamExists('getRunnersBySnapshotRef', 'ref', ref)
-            const localVarPath = `/runners/by-snapshot-ref`;
+            const localVarPath = `/api/runners/by-snapshot-ref`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -338,7 +338,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listRunners: async (regionId?: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/runners`;
+            const localVarPath = `/api/runners`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -384,7 +384,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         runnerHealthcheck: async (runnerHealthcheck: RunnerHealthcheck, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'runnerHealthcheck' is not null or undefined
             assertParamExists('runnerHealthcheck', 'runnerHealthcheck', runnerHealthcheck)
-            const localVarPath = `/runners/healthcheck`;
+            const localVarPath = `/api/runners/healthcheck`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -425,7 +425,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         updateRunnerDraining: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('updateRunnerDraining', 'id', id)
-            const localVarPath = `/runners/{id}/draining`
+            const localVarPath = `/api/runners/{id}/draining`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -469,7 +469,7 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         updateRunnerScheduling: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('updateRunnerScheduling', 'id', id)
-            const localVarPath = `/runners/{id}/scheduling`
+            const localVarPath = `/api/runners/{id}/scheduling`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

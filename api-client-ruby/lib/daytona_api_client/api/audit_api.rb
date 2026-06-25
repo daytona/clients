@@ -63,7 +63,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/audit/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/audit/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

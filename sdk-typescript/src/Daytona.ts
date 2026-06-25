@@ -9,6 +9,7 @@ import {
   ObjectStorageApi,
   SandboxApi,
   SandboxState,
+  SecretApi,
   VolumesApi,
   ConfigApi,
 } from '@daytona/api-client'
@@ -25,6 +26,7 @@ import {
 import { Image } from './Image'
 import { Sandbox } from './Sandbox'
 import type { ListSandboxesQuery } from './Sandbox'
+import { SecretService } from './Secret'
 import { SnapshotService } from './Snapshot'
 import { VolumeService } from './Volume'
 import { getPackageInfo, dynamicRequire } from './utils/Import'
@@ -154,6 +156,7 @@ export interface Resources {
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
  * @property {boolean} [ephemeral] - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
+ * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
  */
 export type CreateSandboxBaseParams = {
   name?: string
@@ -171,6 +174,7 @@ export type CreateSandboxBaseParams = {
   domainAllowList?: string
   ephemeral?: boolean
   linkedSandbox?: string
+  secrets?: Record<string, string>
 }
 
 /**
@@ -204,6 +208,7 @@ export type CreateSandboxFromSnapshotParams = CreateSandboxBaseParams & {
  *
  * @property {VolumeService} volume - Service for managing Daytona Volumes
  * @property {SnapshotService} snapshot - Service for managing Daytona Snapshots
+ * @property {SecretService} secret - Service for managing Daytona Secrets
  *
  * @example
  * // Using environment variables
@@ -240,6 +245,7 @@ export class Daytona implements AsyncDisposable {
   private otelSdk?: NodeSDK
   public readonly volume: VolumeService
   public readonly snapshot: SnapshotService
+  public readonly secret: SecretService
 
   /**
    * Creates a new Daytona client instance.
@@ -328,6 +334,7 @@ export class Daytona implements AsyncDisposable {
     this.objectStorageApi = new ObjectStorageApi(configuration, '', axiosInstance)
     this.configApi = new ConfigApi(configuration, '', axiosInstance)
     this.volume = new VolumeService(new VolumesApi(configuration, '', axiosInstance))
+    this.secret = new SecretService(new SecretApi(configuration, '', axiosInstance))
     this.snapshot = new SnapshotService(
       configuration,
       new SnapshotsApi(configuration, '', axiosInstance),
@@ -572,6 +579,9 @@ export class Daytona implements AsyncDisposable {
           networkAllowList: params.networkAllowList,
           domainAllowList: params.domainAllowList,
           linkedSandbox: params.linkedSandbox,
+          secrets: params.secrets
+            ? Object.entries(params.secrets).map(([envVar, secretName]) => ({ [envVar]: secretName }))
+            : undefined,
         },
         undefined,
         {

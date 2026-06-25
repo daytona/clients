@@ -14,6 +14,7 @@ daytona_api_client/api/preview_api.py
 daytona_api_client/api/regions_api.py
 daytona_api_client/api/runners_api.py
 daytona_api_client/api/sandbox_api.py
+daytona_api_client/api/secret_api.py
 daytona_api_client/api/snapshots_api.py
 daytona_api_client/api/toolbox_api.py
 daytona_api_client/api/users_api.py
@@ -55,6 +56,7 @@ daytona_api_client/models/create_runner.py
 daytona_api_client/models/create_runner_response.py
 daytona_api_client/models/create_sandbox.py
 daytona_api_client/models/create_sandbox_snapshot.py
+daytona_api_client/models/create_secret.py
 daytona_api_client/models/create_session_request.py
 daytona_api_client/models/create_snapshot.py
 daytona_api_client/models/create_user.py
@@ -151,6 +153,7 @@ daytona_api_client/models/registry_push_access_dto.py
 daytona_api_client/models/replace_request.py
 daytona_api_client/models/replace_result.py
 daytona_api_client/models/resize_sandbox.py
+daytona_api_client/models/resolve_sandbox_secrets200_response_inner.py
 daytona_api_client/models/runner.py
 daytona_api_client/models/runner_class.py
 daytona_api_client/models/runner_full.py
@@ -170,6 +173,7 @@ daytona_api_client/models/sandbox_state.py
 daytona_api_client/models/sandbox_volume.py
 daytona_api_client/models/screenshot_response.py
 daytona_api_client/models/search_files_response.py
+daytona_api_client/models/secret.py
 daytona_api_client/models/send_webhook_dto.py
 daytona_api_client/models/session.py
 daytona_api_client/models/session_execute_request.py
@@ -196,6 +200,7 @@ daytona_api_client/models/update_organization_role.py
 daytona_api_client/models/update_region.py
 daytona_api_client/models/update_sandbox_network_settings.py
 daytona_api_client/models/update_sandbox_state_dto.py
+daytona_api_client/models/update_secret.py
 daytona_api_client/models/url.py
 daytona_api_client/models/user.py
 daytona_api_client/models/user_home_dir_response.py

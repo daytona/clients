@@ -103,7 +103,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/mfa/sms/enroll";
+        String localVarPath = "/api/users/mfa/sms/enroll";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -220,7 +220,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/me";
+        String localVarPath = "/api/users/me";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -337,7 +337,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/account-providers";
+        String localVarPath = "/api/users/account-providers";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -455,7 +455,7 @@ public class UsersApi {
         Object localVarPostBody = createLinkedAccount;
 
         // create path and map variables
-        String localVarPath = "/users/linked-accounts";
+        String localVarPath = "/api/users/linked-accounts";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -578,7 +578,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/linked-accounts/{provider}/{providerUserId}"
+        String localVarPath = "/api/users/linked-accounts/{provider}/{providerUserId}"
             .replace("{" + "provider" + "}", localVarApiClient.escapeString(provider.toString()))
             .replace("{" + "providerUserId" + "}", localVarApiClient.escapeString(providerUserId.toString()));
 

@@ -39,10 +39,13 @@
 
         # ──────────────────────────────────────────────
         # Go toolchain
-        # Covers: apps/cli and libs/{sdk-go,api-client-go,toolbox-api-client-go}
+        # Covers: apps/{cli,daemon,proxy,runner,snapshot-manager,ssh-gateway,otel-collector/exporter}
+        #         libs/{sdk-go,api-client-go,common-go,computer-use,toolbox-api-client-go}
         # ──────────────────────────────────────────────
         goPkgs = with pkgs; [
-          go # 1.25.x — matches go.work constraint
+          go_1_25 # pin to 1.25.x — matches go.work (go 1.25.5) and the devcontainer
+          # (go feature 1.25.5). The unversioned `go` attr now tracks 1.26, which
+          # produces different `gomarkdoc` output for the Go SDK docs.
           golangci-lint
           protobuf # provides protoc
           buf
@@ -57,10 +60,16 @@
           export GOBIN="$GOPATH/bin"
           export PATH="$GOBIN:$PATH"
 
-          # Install Go tools not packaged in nixpkgs
+          # Install Go tools not packaged in nixpkgs. Reinstall when missing OR
+          # when the cached binary was built with a different Go toolchain than the
+          # active one: a tool's output can depend on the Go version it was compiled
+          # with (e.g. gomarkdoc embeds go/doc/comment, whose [Type.Field] doc-link
+          # rendering changed in Go 1.26), so a stale binary silently desyncs the
+          # generated docs from what go.work / CI produce.
           _nix_install_go_tool() {
-            local name="$1" pkg="$2"
-            if ! command -v "$name" &>/dev/null; then
+            local name="$1" pkg="$2" bin
+            bin="$(command -v "$name" 2>/dev/null)"
+            if [ -z "$bin" ] || [ "$(go version "$bin" 2>/dev/null | awk '{print $2}')" != "$(go env GOVERSION)" ]; then
               echo "nix-shell: installing $name ..."
               go install "$pkg" 2>/dev/null || echo "nix-shell: warning — failed to install $name"
             fi
@@ -92,8 +101,26 @@
         ];
 
         # ──────────────────────────────────────────────
+        # X11 development libraries (Linux only)
+        # Covers: libs/computer-use — `go build` compiles github.com/go-vgo/robotgo
+        # via CGO, whose Linux build declares `#cgo LDFLAGS: -lX11 -lXtst` and
+        # includes <X11/Xlib.h>, <X11/Xutil.h>, <X11/XF86keysym.h> and
+        # <X11/extensions/XTest.h>. The devcontainer installs the libx11-dev /
+        # libxtst-dev apt packages; these are the nixpkgs equivalents.
+        # Like the BPF headers above, they go in buildInputs (not packages) so the
+        # cc-wrapper injects the include dirs (NIX_CFLAGS_COMPILE) and library
+        # paths/rpath (NIX_LDFLAGS) — no Makefile/cgo changes needed.
+        computerUseInputs = pkgs.lib.optionals pkgs.stdenv.isLinux [
+          pkgs.libx11 # -lX11; <X11/Xlib.h>, <X11/Xutil.h>, <X11/Xresource.h>
+          pkgs.libxtst # -lXtst; <X11/extensions/XTest.h>
+          pkgs.libxi # <X11/extensions/XInput.h> (pulled in by XTest.h)
+          pkgs.xorgproto # <X11/Xatom.h>, <X11/XF86keysym.h>, <X11/extensions/XI.h>, ...
+        ];
+
+        # ──────────────────────────────────────────────
         # Node.js / TypeScript toolchain
-        # Covers: apps/cli tooling and libs/{sdk-typescript,api-client,toolbox-api-client,analytics-api-client}
+        # Covers: apps/{api,dashboard,docs}
+        #         libs/{sdk-typescript,api-client,toolbox-api-client,analytics-api-client,runner-api-client,opencode-plugin}
         # ──────────────────────────────────────────────
         nodePkgs = [
           pkgs.nodejs_22
@@ -111,7 +138,7 @@
         # ──────────────────────────────────────────────
         # Python toolchain
         # Covers: libs/{sdk-python,api-client-python,api-client-python-async,toolbox-api-client-python,toolbox-api-client-python-async}
-        #         and examples/python
+        #         examples/python, guides/python
         # ──────────────────────────────────────────────
         pythonPkgs = with pkgs; [
           python312 # compatible with requires-python ^3.9
@@ -120,6 +147,20 @@
 
         pythonShellHook = ''
           export POETRY_VIRTUALENVS_IN_PROJECT=true
+
+          # The Poetry dev group provides Python tooling not packaged in nixpkgs
+          # (e.g. pydoc-markdown, used by `npm run docs` in libs/sdk-python). Its
+          # `python` loader imports the editable `daytona` package and all its
+          # runtime deps, so the tool and the SDK must live in one venv — bootstrap
+          # the in-project venv and put it on PATH so those binaries resolve.
+          if [ ! -x "$PWD/.venv/bin/pydoc-markdown" ]; then
+            echo "nix-shell: installing Python dev dependencies (poetry install) ..."
+            poetry install --no-interaction 2>/dev/null \
+              || echo "nix-shell: warning — poetry install failed; run it manually"
+          fi
+          if [ -d "$PWD/.venv/bin" ]; then
+            export PATH="$PWD/.venv/bin:$PATH"
+          fi
         '';
 
         # ──────────────────────────────────────────────
@@ -142,12 +183,14 @@
         #         examples/java
         # ──────────────────────────────────────────────
         javaPkgs = [
-          pkgs.jdk17 # Gradle 8.10 requires JDK 17+; source targets Java 11
+          pkgs.jdk21 # matches the devcontainer (java feature 21.0.11, Temurin);
+          # source still targets Java 11 and Gradle 8.10 supports JDK 21. The JDK
+          # major version affects Javadoc → Markdown output for the Java SDK docs.
           pkgs.gradle
         ];
 
         javaShellHook = ''
-          export JAVA_HOME="${pkgs.jdk17.home}"
+          export JAVA_HOME="${pkgs.jdk21.home}"
         '';
 
       in
@@ -158,7 +201,7 @@
           default = pkgs.mkShell {
             name = "daytona";
             packages = commonPkgs ++ goPkgs ++ nodePkgs ++ pythonPkgs ++ rubyPkgs ++ javaPkgs;
-            buildInputs = bpfHeaderInputs;
+            buildInputs = bpfHeaderInputs ++ computerUseInputs;
             # bpf2go invokes clang with `-target bpf`; the cc-wrapper's hardening
             # flags (e.g. -fzero-call-used-regs) are unsupported for that target.
             hardeningDisable = [ "all" ];
@@ -175,7 +218,7 @@
           go = pkgs.mkShell {
             name = "daytona-go";
             packages = commonPkgs ++ goPkgs;
-            buildInputs = bpfHeaderInputs;
+            buildInputs = bpfHeaderInputs ++ computerUseInputs;
             # bpf2go invokes clang with `-target bpf`; the cc-wrapper's hardening
             # flags (e.g. -fzero-call-used-regs) are unsupported for that target.
             hardeningDisable = [ "all" ];

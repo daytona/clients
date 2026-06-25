@@ -313,7 +313,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/docker-registry',
+            resource_path='/api/docker-registry',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -580,7 +580,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/docker-registry/{id}',
+            resource_path='/api/docker-registry/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -854,7 +854,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/docker-registry/{id}',
+            resource_path='/api/docker-registry/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1130,7 +1130,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/docker-registry/registry-push-access',
+            resource_path='/api/docker-registry/registry-push-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1389,7 +1389,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/docker-registry',
+            resource_path='/api/docker-registry',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1691,7 +1691,7 @@ class DockerRegistryApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/docker-registry/{id}',
+            resource_path='/api/docker-registry/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

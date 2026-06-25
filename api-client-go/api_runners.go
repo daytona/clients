@@ -215,7 +215,7 @@ func (a *RunnersAPIService) CreateRunnerExecute(r RunnersAPICreateRunnerRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners"
+	localVarPath := localBasePath + "/api/runners"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -328,7 +328,7 @@ func (a *RunnersAPIService) DeleteRunnerExecute(r RunnersAPIDeleteRunnerRequest)
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/{id}"
+	localVarPath := localBasePath + "/api/runners/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -420,7 +420,7 @@ func (a *RunnersAPIService) GetInfoForAuthenticatedRunnerExecute(r RunnersAPIGet
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/me"
+	localVarPath := localBasePath + "/api/runners/me"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -527,7 +527,7 @@ func (a *RunnersAPIService) GetRunnerByIdExecute(r RunnersAPIGetRunnerByIdReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/{id}"
+	localVarPath := localBasePath + "/api/runners/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -631,7 +631,7 @@ func (a *RunnersAPIService) GetRunnerBySandboxIdExecute(r RunnersAPIGetRunnerByS
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/by-sandbox/{sandboxId}"
+	localVarPath := localBasePath + "/api/runners/by-sandbox/{sandboxId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -732,7 +732,7 @@ func (a *RunnersAPIService) GetRunnerFullByIdExecute(r RunnersAPIGetRunnerFullBy
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/{id}/full"
+	localVarPath := localBasePath + "/api/runners/{id}/full"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -837,7 +837,7 @@ func (a *RunnersAPIService) GetRunnersBySnapshotRefExecute(r RunnersAPIGetRunner
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/by-snapshot-ref"
+	localVarPath := localBasePath + "/api/runners/by-snapshot-ref"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -952,7 +952,7 @@ func (a *RunnersAPIService) ListRunnersExecute(r RunnersAPIListRunnersRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners"
+	localVarPath := localBasePath + "/api/runners"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1061,7 +1061,7 @@ func (a *RunnersAPIService) RunnerHealthcheckExecute(r RunnersAPIRunnerHealthche
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/healthcheck"
+	localVarPath := localBasePath + "/api/runners/healthcheck"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1164,7 +1164,7 @@ func (a *RunnersAPIService) UpdateRunnerDrainingExecute(r RunnersAPIUpdateRunner
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/{id}/draining"
+	localVarPath := localBasePath + "/api/runners/{id}/draining"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1275,7 +1275,7 @@ func (a *RunnersAPIService) UpdateRunnerSchedulingExecute(r RunnersAPIUpdateRunn
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/runners/{id}/scheduling"
+	localVarPath := localBasePath + "/api/runners/{id}/scheduling"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)

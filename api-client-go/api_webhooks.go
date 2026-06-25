@@ -125,7 +125,7 @@ func (a *WebhooksAPIService) WebhookControllerGetAppPortalAccessExecute(r Webhoo
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/webhooks/organizations/{organizationId}/app-portal-access"
+	localVarPath := localBasePath + "/api/webhooks/organizations/{organizationId}/app-portal-access"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -236,7 +236,7 @@ func (a *WebhooksAPIService) WebhookControllerGetInitializationStatusExecute(r W
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/webhooks/organizations/{organizationId}/initialization-status"
+	localVarPath := localBasePath + "/api/webhooks/organizations/{organizationId}/initialization-status"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -347,7 +347,7 @@ func (a *WebhooksAPIService) WebhookControllerInitializeWebhooksExecute(r Webhoo
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/webhooks/organizations/{organizationId}/initialize"
+	localVarPath := localBasePath + "/api/webhooks/organizations/{organizationId}/initialize"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -456,7 +456,7 @@ func (a *WebhooksAPIService) WebhookControllerRefreshEndpointsExecute(r Webhooks
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/webhooks/organizations/{organizationId}/refresh-endpoints"
+	localVarPath := localBasePath + "/api/webhooks/organizations/{organizationId}/refresh-endpoints"
 	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
 
 	localVarHeaderParams := make(map[string]string)

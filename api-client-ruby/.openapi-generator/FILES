@@ -17,6 +17,7 @@ lib/daytona_api_client/api/preview_api.rb
 lib/daytona_api_client/api/regions_api.rb
 lib/daytona_api_client/api/runners_api.rb
 lib/daytona_api_client/api/sandbox_api.rb
+lib/daytona_api_client/api/secret_api.rb
 lib/daytona_api_client/api/snapshots_api.rb
 lib/daytona_api_client/api/toolbox_api.rb
 lib/daytona_api_client/api/users_api.rb
@@ -57,6 +58,7 @@ lib/daytona_api_client/models/create_runner.rb
 lib/daytona_api_client/models/create_runner_response.rb
 lib/daytona_api_client/models/create_sandbox.rb
 lib/daytona_api_client/models/create_sandbox_snapshot.rb
+lib/daytona_api_client/models/create_secret.rb
 lib/daytona_api_client/models/create_session_request.rb
 lib/daytona_api_client/models/create_snapshot.rb
 lib/daytona_api_client/models/create_user.rb
@@ -153,6 +155,7 @@ lib/daytona_api_client/models/registry_push_access_dto.rb
 lib/daytona_api_client/models/replace_request.rb
 lib/daytona_api_client/models/replace_result.rb
 lib/daytona_api_client/models/resize_sandbox.rb
+lib/daytona_api_client/models/resolve_sandbox_secrets200_response_inner.rb
 lib/daytona_api_client/models/runner.rb
 lib/daytona_api_client/models/runner_class.rb
 lib/daytona_api_client/models/runner_full.rb
@@ -172,6 +175,7 @@ lib/daytona_api_client/models/sandbox_state.rb
 lib/daytona_api_client/models/sandbox_volume.rb
 lib/daytona_api_client/models/screenshot_response.rb
 lib/daytona_api_client/models/search_files_response.rb
+lib/daytona_api_client/models/secret.rb
 lib/daytona_api_client/models/send_webhook_dto.rb
 lib/daytona_api_client/models/session.rb
 lib/daytona_api_client/models/session_execute_request.rb
@@ -198,6 +202,7 @@ lib/daytona_api_client/models/update_organization_role.rb
 lib/daytona_api_client/models/update_region.rb
 lib/daytona_api_client/models/update_sandbox_network_settings.rb
 lib/daytona_api_client/models/update_sandbox_state_dto.rb
+lib/daytona_api_client/models/update_secret.rb
 lib/daytona_api_client/models/url.rb
 lib/daytona_api_client/models/user.rb
 lib/daytona_api_client/models/user_home_dir_response.rb

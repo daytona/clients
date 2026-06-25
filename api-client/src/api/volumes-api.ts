@@ -41,7 +41,7 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
         createVolume: async (createVolume: CreateVolume, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createVolume' is not null or undefined
             assertParamExists('createVolume', 'createVolume', createVolume)
-            const localVarPath = `/volumes`;
+            const localVarPath = `/api/volumes`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -86,7 +86,7 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
         deleteVolume: async (volumeId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'volumeId' is not null or undefined
             assertParamExists('deleteVolume', 'volumeId', volumeId)
-            const localVarPath = `/volumes/{volumeId}`
+            const localVarPath = `/api/volumes/{volumeId}`
                 .replace(`{${"volumeId"}}`, encodeURIComponent(String(volumeId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -129,7 +129,7 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
         getVolume: async (volumeId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'volumeId' is not null or undefined
             assertParamExists('getVolume', 'volumeId', volumeId)
-            const localVarPath = `/volumes/{volumeId}`
+            const localVarPath = `/api/volumes/{volumeId}`
                 .replace(`{${"volumeId"}}`, encodeURIComponent(String(volumeId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -173,7 +173,7 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
         getVolumeByName: async (name: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'name' is not null or undefined
             assertParamExists('getVolumeByName', 'name', name)
-            const localVarPath = `/volumes/by-name/{name}`
+            const localVarPath = `/api/volumes/by-name/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -215,7 +215,7 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listVolumes: async (xDaytonaOrganizationID?: string, includeDeleted?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/volumes`;
+            const localVarPath = `/api/volumes`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

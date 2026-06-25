@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_runner_response import CreateRunnerResponse
     from daytona_api_client_async.models.create_sandbox import CreateSandbox
     from daytona_api_client_async.models.create_sandbox_snapshot import CreateSandboxSnapshot
+    from daytona_api_client_async.models.create_secret import CreateSecret
     from daytona_api_client_async.models.create_session_request import CreateSessionRequest
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
     from daytona_api_client_async.models.create_user import CreateUser
@@ -147,6 +148,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.replace_request import ReplaceRequest
     from daytona_api_client_async.models.replace_result import ReplaceResult
     from daytona_api_client_async.models.resize_sandbox import ResizeSandbox
+    from daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner import ResolveSandboxSecrets200ResponseInner
     from daytona_api_client_async.models.runner import Runner
     from daytona_api_client_async.models.runner_class import RunnerClass
     from daytona_api_client_async.models.runner_full import RunnerFull
@@ -166,6 +168,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.sandbox_volume import SandboxVolume
     from daytona_api_client_async.models.screenshot_response import ScreenshotResponse
     from daytona_api_client_async.models.search_files_response import SearchFilesResponse
+    from daytona_api_client_async.models.secret import Secret
     from daytona_api_client_async.models.send_webhook_dto import SendWebhookDto
     from daytona_api_client_async.models.session import Session
     from daytona_api_client_async.models.session_execute_request import SessionExecuteRequest
@@ -192,6 +195,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.update_region import UpdateRegion
     from daytona_api_client_async.models.update_sandbox_network_settings import UpdateSandboxNetworkSettings
     from daytona_api_client_async.models.update_sandbox_state_dto import UpdateSandboxStateDto
+    from daytona_api_client_async.models.update_secret import UpdateSecret
     from daytona_api_client_async.models.url import Url
     from daytona_api_client_async.models.user import User
     from daytona_api_client_async.models.user_home_dir_response import UserHomeDirResponse
@@ -236,6 +240,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateRunnerResponse": "daytona_api_client_async.models.create_runner_response",
     "CreateSandbox": "daytona_api_client_async.models.create_sandbox",
     "CreateSandboxSnapshot": "daytona_api_client_async.models.create_sandbox_snapshot",
+    "CreateSecret": "daytona_api_client_async.models.create_secret",
     "CreateSessionRequest": "daytona_api_client_async.models.create_session_request",
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
     "CreateUser": "daytona_api_client_async.models.create_user",
@@ -332,6 +337,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "ReplaceRequest": "daytona_api_client_async.models.replace_request",
     "ReplaceResult": "daytona_api_client_async.models.replace_result",
     "ResizeSandbox": "daytona_api_client_async.models.resize_sandbox",
+    "ResolveSandboxSecrets200ResponseInner": "daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner",
     "Runner": "daytona_api_client_async.models.runner",
     "RunnerClass": "daytona_api_client_async.models.runner_class",
     "RunnerFull": "daytona_api_client_async.models.runner_full",
@@ -351,6 +357,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SandboxVolume": "daytona_api_client_async.models.sandbox_volume",
     "ScreenshotResponse": "daytona_api_client_async.models.screenshot_response",
     "SearchFilesResponse": "daytona_api_client_async.models.search_files_response",
+    "Secret": "daytona_api_client_async.models.secret",
     "SendWebhookDto": "daytona_api_client_async.models.send_webhook_dto",
     "Session": "daytona_api_client_async.models.session",
     "SessionExecuteRequest": "daytona_api_client_async.models.session_execute_request",
@@ -377,6 +384,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateRegion": "daytona_api_client_async.models.update_region",
     "UpdateSandboxNetworkSettings": "daytona_api_client_async.models.update_sandbox_network_settings",
     "UpdateSandboxStateDto": "daytona_api_client_async.models.update_sandbox_state_dto",
+    "UpdateSecret": "daytona_api_client_async.models.update_secret",
     "Url": "daytona_api_client_async.models.url",
     "User": "daytona_api_client_async.models.user",
     "UserHomeDirResponse": "daytona_api_client_async.models.user_home_dir_response",

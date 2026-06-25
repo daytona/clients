@@ -286,7 +286,7 @@ class JobsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/jobs/{jobId}',
+            resource_path='/api/jobs/{jobId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -601,7 +601,7 @@ class JobsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/jobs',
+            resource_path='/api/jobs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -882,7 +882,7 @@ class JobsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/jobs/poll',
+            resource_path='/api/jobs/poll',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1169,7 +1169,7 @@ class JobsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/jobs/{jobId}/status',
+            resource_path='/api/jobs/{jobId}/status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

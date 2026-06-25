@@ -35,7 +35,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: ConfigApi.config_controller_get_config ...'
       end
       # resource path
-      local_var_path = '/config'
+      local_var_path = '/api/config'
 
       # query parameters
       query_params = opts[:query_params] || {}

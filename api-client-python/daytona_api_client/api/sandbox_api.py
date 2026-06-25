@@ -32,6 +32,7 @@ from daytona_api_client.models.paginated_traces import PaginatedTraces
 from daytona_api_client.models.port_preview_url import PortPreviewUrl
 from daytona_api_client.models.region_quota import RegionQuota
 from daytona_api_client.models.resize_sandbox import ResizeSandbox
+from daytona_api_client.models.resolve_sandbox_secrets200_response_inner import ResolveSandboxSecrets200ResponseInner
 from daytona_api_client.models.sandbox import Sandbox
 from daytona_api_client.models.sandbox_class import SandboxClass
 from daytona_api_client.models.sandbox_labels import SandboxLabels
@@ -323,7 +324,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/archive',
+            resource_path='/api/sandbox/{sandboxIdOrName}/archive',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -597,7 +598,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/backup',
+            resource_path='/api/sandbox/{sandboxIdOrName}/backup',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -884,7 +885,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox',
+            resource_path='/api/sandbox',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1186,7 +1187,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/snapshot',
+            resource_path='/api/sandbox/{sandboxIdOrName}/snapshot',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1477,7 +1478,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/ssh-access',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ssh-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1751,7 +1752,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/sandbox/{sandboxIdOrName}',
+            resource_path='/api/sandbox/{sandboxIdOrName}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2048,7 +2049,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2350,7 +2351,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/fork',
+            resource_path='/api/sandbox/{sandboxIdOrName}/fork',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2416,7 +2417,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2492,7 +2493,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2568,7 +2569,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2640,7 +2641,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/build-logs',
+            resource_path='/api/sandbox/{sandboxIdOrName}/build-logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2914,7 +2915,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/build-logs-url',
+            resource_path='/api/sandbox/{sandboxIdOrName}/build-logs-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3188,7 +3189,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/organization',
+            resource_path='/api/sandbox/{sandboxId}/organization',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3477,7 +3478,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/preview-url',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3751,7 +3752,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/region-quota',
+            resource_path='/api/sandbox/{sandboxId}/region-quota',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4042,7 +4043,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}',
+            resource_path='/api/sandbox/{sandboxIdOrName}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4316,7 +4317,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/ancestors',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ancestors',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4607,7 +4608,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/forks',
+            resource_path='/api/sandbox/{sandboxIdOrName}/forks',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5005,7 +5006,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/telemetry/logs',
+            resource_path='/api/sandbox/{sandboxId}/telemetry/logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5352,7 +5353,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/telemetry/metrics',
+            resource_path='/api/sandbox/{sandboxId}/telemetry/metrics',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5626,7 +5627,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/parent',
+            resource_path='/api/sandbox/{sandboxIdOrName}/parent',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5918,7 +5919,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/telemetry/traces/{traceId}',
+            resource_path='/api/sandbox/{sandboxId}/telemetry/traces/{traceId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6281,7 +6282,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/telemetry/traces',
+            resource_path='/api/sandbox/{sandboxId}/telemetry/traces',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6574,7 +6575,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/for-runner',
+            resource_path='/api/sandbox/for-runner',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6880,7 +6881,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7154,7 +7155,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/{sandboxId}/toolbox-proxy-url',
+            resource_path='/api/sandbox/{sandboxId}/toolbox-proxy-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7864,7 +7865,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox',
+            resource_path='/api/sandbox',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7980,7 +7981,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8123,7 +8124,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8266,7 +8267,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8470,7 +8471,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/paginated',
+            resource_path='/api/sandbox/paginated',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8744,7 +8745,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/pause',
+            resource_path='/api/sandbox/{sandboxIdOrName}/pause',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9035,7 +9036,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/recover',
+            resource_path='/api/sandbox/{sandboxIdOrName}/recover',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9337,7 +9338,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/sandbox/{sandboxIdOrName}/labels',
+            resource_path='/api/sandbox/{sandboxIdOrName}/labels',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9639,7 +9640,281 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/resize',
+            resource_path='/api/sandbox/{sandboxIdOrName}/resize',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def resolve_sandbox_secrets(
+        self,
+        sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
+        x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> List[ResolveSandboxSecrets200ResponseInner]:
+        """Resolve sandbox secrets
+
+
+        :param sandbox_id: Sandbox ID (required)
+        :type sandbox_id: str
+        :param x_daytona_organization_id: Use with JWT to specify the organization ID
+        :type x_daytona_organization_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._resolve_sandbox_secrets_serialize(
+            sandbox_id=sandbox_id,
+            x_daytona_organization_id=x_daytona_organization_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[ResolveSandboxSecrets200ResponseInner]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def resolve_sandbox_secrets_with_http_info(
+        self,
+        sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
+        x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[List[ResolveSandboxSecrets200ResponseInner]]:
+        """Resolve sandbox secrets
+
+
+        :param sandbox_id: Sandbox ID (required)
+        :type sandbox_id: str
+        :param x_daytona_organization_id: Use with JWT to specify the organization ID
+        :type x_daytona_organization_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._resolve_sandbox_secrets_serialize(
+            sandbox_id=sandbox_id,
+            x_daytona_organization_id=x_daytona_organization_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[ResolveSandboxSecrets200ResponseInner]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def resolve_sandbox_secrets_without_preload_content(
+        self,
+        sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
+        x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Resolve sandbox secrets
+
+
+        :param sandbox_id: Sandbox ID (required)
+        :type sandbox_id: str
+        :param x_daytona_organization_id: Use with JWT to specify the organization ID
+        :type x_daytona_organization_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._resolve_sandbox_secrets_serialize(
+            sandbox_id=sandbox_id,
+            x_daytona_organization_id=x_daytona_organization_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[ResolveSandboxSecrets200ResponseInner]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _resolve_sandbox_secrets_serialize(
+        self,
+        sandbox_id,
+        x_daytona_organization_id,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if sandbox_id is not None:
+            _path_params['sandboxId'] = sandbox_id
+        # process the query parameters
+        # process the header parameters
+        if x_daytona_organization_id is not None:
+            _header_params['X-Daytona-Organization-ID'] = x_daytona_organization_id
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearer', 
+            'oauth2'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/sandbox/{sandboxId}/secrets',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9930,7 +10205,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/sandbox/{sandboxIdOrName}/ssh-access',
+            resource_path='/api/sandbox/{sandboxIdOrName}/ssh-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10219,7 +10494,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/autoarchive/{interval}',
+            resource_path='/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10508,7 +10783,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/autodelete/{interval}',
+            resource_path='/api/sandbox/{sandboxIdOrName}/autodelete/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10797,7 +11072,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/autostop/{interval}',
+            resource_path='/api/sandbox/{sandboxIdOrName}/autostop/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11074,7 +11349,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/start',
+            resource_path='/api/sandbox/{sandboxIdOrName}/start',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11365,7 +11640,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/stop',
+            resource_path='/api/sandbox/{sandboxIdOrName}/stop',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11632,7 +11907,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxId}/last-activity',
+            resource_path='/api/sandbox/{sandboxId}/last-activity',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11937,7 +12212,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/network-settings',
+            resource_path='/api/sandbox/{sandboxIdOrName}/network-settings',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12226,7 +12501,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/sandbox/{sandboxIdOrName}/public/{isPublic}',
+            resource_path='/api/sandbox/{sandboxIdOrName}/public/{isPublic}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12521,7 +12796,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/sandbox/{sandboxId}/state',
+            resource_path='/api/sandbox/{sandboxId}/state',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12797,7 +13072,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/sandbox/ssh-access/validate',
+            resource_path='/api/sandbox/ssh-access/validate',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

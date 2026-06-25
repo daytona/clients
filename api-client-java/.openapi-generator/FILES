@@ -30,6 +30,7 @@ src/main/java/io/daytona/api/client/api/PreviewApi.java
 src/main/java/io/daytona/api/client/api/RegionsApi.java
 src/main/java/io/daytona/api/client/api/RunnersApi.java
 src/main/java/io/daytona/api/client/api/SandboxApi.java
+src/main/java/io/daytona/api/client/api/SecretApi.java
 src/main/java/io/daytona/api/client/api/SnapshotsApi.java
 src/main/java/io/daytona/api/client/api/ToolboxApi.java
 src/main/java/io/daytona/api/client/api/UsersApi.java
@@ -71,6 +72,7 @@ src/main/java/io/daytona/api/client/model/CreateRunner.java
 src/main/java/io/daytona/api/client/model/CreateRunnerResponse.java
 src/main/java/io/daytona/api/client/model/CreateSandbox.java
 src/main/java/io/daytona/api/client/model/CreateSandboxSnapshot.java
+src/main/java/io/daytona/api/client/model/CreateSecret.java
 src/main/java/io/daytona/api/client/model/CreateSessionRequest.java
 src/main/java/io/daytona/api/client/model/CreateSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateUser.java
@@ -167,6 +169,7 @@ src/main/java/io/daytona/api/client/model/RegistryPushAccessDto.java
 src/main/java/io/daytona/api/client/model/ReplaceRequest.java
 src/main/java/io/daytona/api/client/model/ReplaceResult.java
 src/main/java/io/daytona/api/client/model/ResizeSandbox.java
+src/main/java/io/daytona/api/client/model/ResolveSandboxSecrets200ResponseInner.java
 src/main/java/io/daytona/api/client/model/Runner.java
 src/main/java/io/daytona/api/client/model/RunnerClass.java
 src/main/java/io/daytona/api/client/model/RunnerFull.java
@@ -186,6 +189,7 @@ src/main/java/io/daytona/api/client/model/SandboxState.java
 src/main/java/io/daytona/api/client/model/SandboxVolume.java
 src/main/java/io/daytona/api/client/model/ScreenshotResponse.java
 src/main/java/io/daytona/api/client/model/SearchFilesResponse.java
+src/main/java/io/daytona/api/client/model/Secret.java
 src/main/java/io/daytona/api/client/model/SendWebhookDto.java
 src/main/java/io/daytona/api/client/model/Session.java
 src/main/java/io/daytona/api/client/model/SessionExecuteRequest.java
@@ -212,6 +216,7 @@ src/main/java/io/daytona/api/client/model/UpdateOrganizationRole.java
 src/main/java/io/daytona/api/client/model/UpdateRegion.java
 src/main/java/io/daytona/api/client/model/UpdateSandboxNetworkSettings.java
 src/main/java/io/daytona/api/client/model/UpdateSandboxStateDto.java
+src/main/java/io/daytona/api/client/model/UpdateSecret.java
 src/main/java/io/daytona/api/client/model/Url.java
 src/main/java/io/daytona/api/client/model/User.java
 src/main/java/io/daytona/api/client/model/UserHomeDirResponse.java
@@ -236,6 +241,7 @@ src/test/java/io/daytona/api/client/api/PreviewApiTest.java
 src/test/java/io/daytona/api/client/api/RegionsApiTest.java
 src/test/java/io/daytona/api/client/api/RunnersApiTest.java
 src/test/java/io/daytona/api/client/api/SandboxApiTest.java
+src/test/java/io/daytona/api/client/api/SecretApiTest.java
 src/test/java/io/daytona/api/client/api/SnapshotsApiTest.java
 src/test/java/io/daytona/api/client/api/ToolboxApiTest.java
 src/test/java/io/daytona/api/client/api/UsersApiTest.java
@@ -272,6 +278,7 @@ src/test/java/io/daytona/api/client/model/CreateRunnerResponseTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
+src/test/java/io/daytona/api/client/model/CreateSecretTest.java
 src/test/java/io/daytona/api/client/model/CreateSessionRequestTest.java
 src/test/java/io/daytona/api/client/model/CreateSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateUserTest.java
@@ -368,6 +375,7 @@ src/test/java/io/daytona/api/client/model/RegistryPushAccessDtoTest.java
 src/test/java/io/daytona/api/client/model/ReplaceRequestTest.java
 src/test/java/io/daytona/api/client/model/ReplaceResultTest.java
 src/test/java/io/daytona/api/client/model/ResizeSandboxTest.java
+src/test/java/io/daytona/api/client/model/ResolveSandboxSecrets200ResponseInnerTest.java
 src/test/java/io/daytona/api/client/model/RunnerClassTest.java
 src/test/java/io/daytona/api/client/model/RunnerFullTest.java
 src/test/java/io/daytona/api/client/model/RunnerHealthMetricsTest.java
@@ -387,6 +395,7 @@ src/test/java/io/daytona/api/client/model/SandboxTest.java
 src/test/java/io/daytona/api/client/model/SandboxVolumeTest.java
 src/test/java/io/daytona/api/client/model/ScreenshotResponseTest.java
 src/test/java/io/daytona/api/client/model/SearchFilesResponseTest.java
+src/test/java/io/daytona/api/client/model/SecretTest.java
 src/test/java/io/daytona/api/client/model/SendWebhookDtoTest.java
 src/test/java/io/daytona/api/client/model/SessionExecuteRequestTest.java
 src/test/java/io/daytona/api/client/model/SessionExecuteResponseTest.java
@@ -413,6 +422,7 @@ src/test/java/io/daytona/api/client/model/UpdateOrganizationRoleTest.java
 src/test/java/io/daytona/api/client/model/UpdateRegionTest.java
 src/test/java/io/daytona/api/client/model/UpdateSandboxNetworkSettingsTest.java
 src/test/java/io/daytona/api/client/model/UpdateSandboxStateDtoTest.java
+src/test/java/io/daytona/api/client/model/UpdateSecretTest.java
 src/test/java/io/daytona/api/client/model/UrlTest.java
 src/test/java/io/daytona/api/client/model/UserHomeDirResponseTest.java
 src/test/java/io/daytona/api/client/model/UserPublicKeyTest.java

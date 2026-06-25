@@ -32,6 +32,7 @@ from daytona_api_client_async import (
     SandboxListSortField,
     SandboxState,
     SandboxVolume,
+    SecretApi,
     SnapshotsApi,
 )
 from daytona_api_client_async import VolumesApi as VolumesApi
@@ -56,6 +57,7 @@ from ..common.sandbox import ListSandboxesQuery
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
 from ..internal.shared_session import SharedAiohttpSession
 from .sandbox import AsyncSandbox
+from .secret import AsyncSecretService
 from .snapshot import AsyncSnapshotService
 from .volume import AsyncVolumeService
 
@@ -100,6 +102,7 @@ class AsyncDaytona:
     Attributes:
         volume (AsyncVolumeService): Service for managing volumes.
         snapshot (AsyncSnapshotService): Service for managing snapshots.
+        secret (AsyncSecretService): Service for managing secrets.
 
     Example:
         Using environment variables:
@@ -294,6 +297,7 @@ class AsyncDaytona:
             self._target,
             self._shared_session,
         )
+        self.secret: AsyncSecretService = AsyncSecretService(SecretApi(self._api_client))
 
         # Initialize OpenTelemetry if enabled
         otel_enabled = (
@@ -531,6 +535,10 @@ class AsyncDaytona:
                 for volume in params.volumes
             ]
 
+        secrets = None
+        if params.secrets:
+            secrets = [{env_var: secret_name} for env_var, secret_name in params.secrets.items()]
+
         # Create sandbox using dictionary
         sandbox_data = CreateSandbox(
             name=params.name,
@@ -543,6 +551,7 @@ class AsyncDaytona:
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             volumes=volumes,
+            secrets=secrets,
             network_block_all=params.network_block_all,
             network_allow_list=params.network_allow_list,
             domain_allow_list=params.domain_allow_list,

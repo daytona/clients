@@ -36,7 +36,7 @@ export const ObjectStorageApiAxiosParamCreator = function (configuration?: Confi
          * @throws {RequiredError}
          */
         getPushAccess: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/object-storage/push-access`;
+            const localVarPath = `/api/object-storage/push-access`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

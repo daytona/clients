@@ -109,7 +109,7 @@ public class AuditApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/audit/organizations/{organizationId}"
+        String localVarPath = "/api/audit/organizations/{organizationId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

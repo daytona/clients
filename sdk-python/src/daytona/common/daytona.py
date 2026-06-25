@@ -136,6 +136,11 @@ class CreateSandboxBaseParams(BaseModel):
             automatically be deleted. By default, auto-delete is disabled.
             Negative value means disabled, 0 means delete immediately upon stopping.
         volumes (list[VolumeMount] | None): List of volumes mounts to attach to the Sandbox.
+        secrets (dict[str, str] | None): Map of environment variable name to the name of an existing
+            organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque
+            placeholder, not the plaintext; the real value is substituted transparently on outbound
+            requests to the Secret's allowed hosts. Every referenced Secret name must already exist
+            in the organization.
         network_block_all (bool | None): Whether to block all network access for the Sandbox.
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for the Sandbox.
         domain_allow_list (str | None): Comma-separated list of allowed domains for the Sandbox.
@@ -157,6 +162,7 @@ class CreateSandboxBaseParams(BaseModel):
     auto_archive_interval: int | None = None
     auto_delete_interval: int | None = None
     volumes: list[VolumeMount] | None = None
+    secrets: dict[str, str] | None = None
     network_block_all: bool | None = None
     network_allow_list: str | None = None
     domain_allow_list: str | None = None

@@ -35,7 +35,7 @@ export const ConfigApiAxiosParamCreator = function (configuration?: Configuratio
          * @throws {RequiredError}
          */
         configControllerGetConfig: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/config`;
+            const localVarPath = `/api/config`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

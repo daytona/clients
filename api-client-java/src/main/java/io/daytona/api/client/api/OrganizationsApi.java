@@ -125,7 +125,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/invitations/{invitationId}/accept"
+        String localVarPath = "/api/organizations/invitations/{invitationId}/accept"
             .replace("{" + "invitationId" + "}", localVarApiClient.escapeString(invitationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -253,7 +253,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/invitations/{invitationId}/cancel"
+        String localVarPath = "/api/organizations/{organizationId}/invitations/{invitationId}/cancel"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "invitationId" + "}", localVarApiClient.escapeString(invitationId.toString()));
 
@@ -384,7 +384,7 @@ public class OrganizationsApi {
         Object localVarPostBody = createOrganization;
 
         // create path and map variables
-        String localVarPath = "/organizations";
+        String localVarPath = "/api/organizations";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -512,7 +512,7 @@ public class OrganizationsApi {
         Object localVarPostBody = createOrganizationInvitation;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/invitations"
+        String localVarPath = "/api/organizations/{organizationId}/invitations"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -649,7 +649,7 @@ public class OrganizationsApi {
         Object localVarPostBody = createOrganizationRole;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/roles"
+        String localVarPath = "/api/organizations/{organizationId}/roles"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -786,7 +786,7 @@ public class OrganizationsApi {
         Object localVarPostBody = createRegion;
 
         // create path and map variables
-        String localVarPath = "/regions";
+        String localVarPath = "/api/regions";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -921,7 +921,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/invitations/{invitationId}/decline"
+        String localVarPath = "/api/organizations/invitations/{invitationId}/decline"
             .replace("{" + "invitationId" + "}", localVarApiClient.escapeString(invitationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1043,7 +1043,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}"
+        String localVarPath = "/api/organizations/{organizationId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1166,7 +1166,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/users/{userId}"
+        String localVarPath = "/api/organizations/{organizationId}/users/{userId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "userId" + "}", localVarApiClient.escapeString(userId.toString()));
 
@@ -1297,7 +1297,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/otel-config"
+        String localVarPath = "/api/organizations/{organizationId}/otel-config"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1420,7 +1420,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/roles/{roleId}"
+        String localVarPath = "/api/organizations/{organizationId}/roles/{roleId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "roleId" + "}", localVarApiClient.escapeString(roleId.toString()));
 
@@ -1552,7 +1552,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}"
+        String localVarPath = "/api/regions/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1682,7 +1682,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}"
+        String localVarPath = "/api/organizations/{organizationId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1808,7 +1808,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/invitations/count";
+        String localVarPath = "/api/organizations/invitations/count";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1926,7 +1926,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/otel-config"
+        String localVarPath = "/api/organizations/{organizationId}/otel-config"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2053,7 +2053,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/otel-config/by-sandbox-auth-token/{authToken}"
+        String localVarPath = "/api/organizations/otel-config/by-sandbox-auth-token/{authToken}"
             .replace("{" + "authToken" + "}", localVarApiClient.escapeString(authToken.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2180,7 +2180,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/usage"
+        String localVarPath = "/api/organizations/{organizationId}/usage"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2308,7 +2308,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}"
+        String localVarPath = "/api/regions/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2443,7 +2443,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/leave"
+        String localVarPath = "/api/organizations/{organizationId}/leave"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2565,7 +2565,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions";
+        String localVarPath = "/api/regions";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -2691,7 +2691,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/invitations"
+        String localVarPath = "/api/organizations/{organizationId}/invitations"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2817,7 +2817,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/invitations";
+        String localVarPath = "/api/organizations/invitations";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -2935,7 +2935,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/users"
+        String localVarPath = "/api/organizations/{organizationId}/users"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3062,7 +3062,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/roles"
+        String localVarPath = "/api/organizations/{organizationId}/roles"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3188,7 +3188,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations";
+        String localVarPath = "/api/organizations";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -3307,7 +3307,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}/regenerate-proxy-api-key"
+        String localVarPath = "/api/regions/{id}/regenerate-proxy-api-key"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3443,7 +3443,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}/regenerate-snapshot-manager-credentials"
+        String localVarPath = "/api/regions/{id}/regenerate-snapshot-manager-credentials"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3579,7 +3579,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}/regenerate-ssh-gateway-api-key"
+        String localVarPath = "/api/regions/{id}/regenerate-ssh-gateway-api-key"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3715,7 +3715,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationDefaultRegion;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/default-region"
+        String localVarPath = "/api/organizations/{organizationId}/default-region"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3847,7 +3847,7 @@ public class OrganizationsApi {
         Object localVarPostBody = organizationSuspension;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/suspend"
+        String localVarPath = "/api/organizations/{organizationId}/suspend"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -3973,7 +3973,7 @@ public class OrganizationsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/unsuspend"
+        String localVarPath = "/api/organizations/{organizationId}/unsuspend"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4097,7 +4097,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationMemberAccess;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/users/{userId}/access"
+        String localVarPath = "/api/organizations/{organizationId}/users/{userId}/access"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "userId" + "}", localVarApiClient.escapeString(userId.toString()));
 
@@ -4243,7 +4243,7 @@ public class OrganizationsApi {
         Object localVarPostBody = requestBody;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/experimental-config"
+        String localVarPath = "/api/organizations/{organizationId}/experimental-config"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4371,7 +4371,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationInvitation;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/invitations/{invitationId}"
+        String localVarPath = "/api/organizations/{organizationId}/invitations/{invitationId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "invitationId" + "}", localVarApiClient.escapeString(invitationId.toString()));
 
@@ -4517,7 +4517,7 @@ public class OrganizationsApi {
         Object localVarPostBody = otelConfig;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/otel-config"
+        String localVarPath = "/api/organizations/{organizationId}/otel-config"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4649,7 +4649,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationQuota;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/quota"
+        String localVarPath = "/api/organizations/{organizationId}/quota"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -4782,7 +4782,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationRegionQuota;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/quota/{regionId}"
+        String localVarPath = "/api/organizations/{organizationId}/quota/{regionId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()));
 
@@ -4924,7 +4924,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateOrganizationRole;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/roles/{roleId}"
+        String localVarPath = "/api/organizations/{organizationId}/roles/{roleId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "roleId" + "}", localVarApiClient.escapeString(roleId.toString()));
 
@@ -5071,7 +5071,7 @@ public class OrganizationsApi {
         Object localVarPostBody = updateRegion;
 
         // create path and map variables
-        String localVarPath = "/regions/{id}"
+        String localVarPath = "/api/regions/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -5211,7 +5211,7 @@ public class OrganizationsApi {
         Object localVarPostBody = organizationSandboxDefaultLimitedNetworkEgress;
 
         // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/sandbox-default-limited-network-egress"
+        String localVarPath = "/api/organizations/{organizationId}/sandbox-default-limited-network-egress"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

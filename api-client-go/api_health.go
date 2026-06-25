@@ -86,7 +86,7 @@ func (a *HealthAPIService) HealthControllerCheckExecute(r HealthAPIHealthControl
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/health/ready"
+	localVarPath := localBasePath + "/api/health/ready"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -191,7 +191,7 @@ func (a *HealthAPIService) HealthControllerLiveExecute(r HealthAPIHealthControll
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/health"
+	localVarPath := localBasePath + "/api/health"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

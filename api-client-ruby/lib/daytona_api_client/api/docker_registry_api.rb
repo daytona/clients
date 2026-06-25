@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_docker_registry' when calling DockerRegistryApi.create_registry"
       end
       # resource path
-      local_var_path = '/docker-registry'
+      local_var_path = '/api/docker-registry'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -112,7 +112,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling DockerRegistryApi.delete_registry"
       end
       # resource path
-      local_var_path = '/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -174,7 +174,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling DockerRegistryApi.get_registry"
       end
       # resource path
-      local_var_path = '/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -234,7 +234,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: DockerRegistryApi.get_transient_push_access ...'
       end
       # resource path
-      local_var_path = '/docker-registry/registry-push-access'
+      local_var_path = '/api/docker-registry/registry-push-access'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -293,7 +293,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: DockerRegistryApi.list_registries ...'
       end
       # resource path
-      local_var_path = '/docker-registry'
+      local_var_path = '/api/docker-registry'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -363,7 +363,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_docker_registry' when calling DockerRegistryApi.update_registry"
       end
       # resource path
-      local_var_path = '/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/docker-registry/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

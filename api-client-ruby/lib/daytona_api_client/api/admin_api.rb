@@ -41,7 +41,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'image_name' when calling AdminApi.admin_can_cleanup_image"
       end
       # resource path
-      local_var_path = '/admin/snapshots/can-cleanup-image'
+      local_var_path = '/api/admin/snapshots/can-cleanup-image'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -115,7 +115,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_organization_region_quota' when calling AdminApi.admin_create_organization_region_quota"
       end
       # resource path
-      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
+      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -181,7 +181,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'admin_create_runner' when calling AdminApi.admin_create_runner"
       end
       # resource path
-      local_var_path = '/admin/runners'
+      local_var_path = '/api/admin/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -247,7 +247,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_user' when calling AdminApi.admin_create_user"
       end
       # resource path
-      local_var_path = '/admin/users'
+      local_var_path = '/api/admin/users'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -323,7 +323,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_class' when calling AdminApi.admin_delete_organization_region_quota"
       end
       # resource path
-      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
+      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -382,7 +382,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_delete_runner"
       end
       # resource path
-      local_var_path = '/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -457,7 +457,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/admin/audit'
+      local_var_path = '/api/admin/audit'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -529,7 +529,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'message_id' when calling AdminApi.admin_get_message_attempts"
       end
       # resource path
-      local_var_path = '/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'messageId' + '}', CGI.escape(message_id.to_s))
+      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'messageId' + '}', CGI.escape(message_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -602,7 +602,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_class' when calling AdminApi.admin_get_organization_region_quota"
       end
       # resource path
-      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
+      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -663,7 +663,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_get_runner_by_id"
       end
       # resource path
-      local_var_path = '/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -724,7 +724,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_get_user"
       end
       # resource path
-      local_var_path = '/admin/users/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/users/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -779,7 +779,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_get_webhook_status ...'
       end
       # resource path
-      local_var_path = '/admin/webhooks/status'
+      local_var_path = '/api/admin/webhooks/status'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -840,7 +840,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling AdminApi.admin_initialize_webhooks"
       end
       # resource path
-      local_var_path = '/admin/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -895,7 +895,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_list_runners ...'
       end
       # resource path
-      local_var_path = '/admin/runners'
+      local_var_path = '/api/admin/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -951,7 +951,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_list_users ...'
       end
       # resource path
-      local_var_path = '/admin/users'
+      local_var_path = '/api/admin/users'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1010,7 +1010,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling AdminApi.admin_recover_sandbox"
       end
       # resource path
-      local_var_path = '/admin/sandbox/{sandboxId}/recover'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/api/admin/sandbox/{sandboxId}/recover'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1071,7 +1071,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_regenerate_key_pair"
       end
       # resource path
-      local_var_path = '/admin/users/{id}/regenerate-key-pair'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/users/{id}/regenerate-key-pair'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1136,7 +1136,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'send_webhook_dto' when calling AdminApi.admin_send_webhook"
       end
       # resource path
-      local_var_path = '/admin/webhooks/organizations/{organizationId}/send'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/send'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1200,7 +1200,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_set_default_registry"
       end
       # resource path
-      local_var_path = '/admin/docker-registry/{id}/set-default'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/docker-registry/{id}/set-default'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1267,7 +1267,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'set_snapshot_general_status_dto' when calling AdminApi.admin_set_snapshot_general_status"
       end
       # resource path
-      local_var_path = '/admin/snapshots/{id}/general'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/snapshots/{id}/general'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1345,7 +1345,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_region_quota' when calling AdminApi.admin_update_organization_region_quota"
       end
       # resource path
-      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
+      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1409,7 +1409,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_update_runner_scheduling"
       end
       # resource path
-      local_var_path = '/admin/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/api/admin/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

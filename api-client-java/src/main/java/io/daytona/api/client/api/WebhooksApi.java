@@ -104,7 +104,7 @@ public class WebhooksApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/webhooks/organizations/{organizationId}/app-portal-access"
+        String localVarPath = "/api/webhooks/organizations/{organizationId}/app-portal-access"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -241,7 +241,7 @@ public class WebhooksApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/webhooks/organizations/{organizationId}/initialization-status"
+        String localVarPath = "/api/webhooks/organizations/{organizationId}/initialization-status"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -380,7 +380,7 @@ public class WebhooksApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/webhooks/organizations/{organizationId}/initialize"
+        String localVarPath = "/api/webhooks/organizations/{organizationId}/initialize"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -517,7 +517,7 @@ public class WebhooksApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/webhooks/organizations/{organizationId}/refresh-endpoints"
+        String localVarPath = "/api/webhooks/organizations/{organizationId}/refresh-endpoints"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

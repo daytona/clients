@@ -39,7 +39,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         enrollInSmsMfa: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/users/mfa/sms/enroll`;
+            const localVarPath = `/api/users/mfa/sms/enroll`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -75,7 +75,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         getAuthenticatedUser: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/users/me`;
+            const localVarPath = `/api/users/me`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -111,7 +111,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         getAvailableAccountProviders: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/users/account-providers`;
+            const localVarPath = `/api/users/account-providers`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -150,7 +150,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
         linkAccount: async (createLinkedAccount: CreateLinkedAccount, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createLinkedAccount' is not null or undefined
             assertParamExists('linkAccount', 'createLinkedAccount', createLinkedAccount)
-            const localVarPath = `/users/linked-accounts`;
+            const localVarPath = `/api/users/linked-accounts`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -193,7 +193,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('unlinkAccount', 'provider', provider)
             // verify required parameter 'providerUserId' is not null or undefined
             assertParamExists('unlinkAccount', 'providerUserId', providerUserId)
-            const localVarPath = `/users/linked-accounts/{provider}/{providerUserId}`
+            const localVarPath = `/api/users/linked-accounts/{provider}/{providerUserId}`
                 .replace(`{${"provider"}}`, encodeURIComponent(String(provider)))
                 .replace(`{${"providerUserId"}}`, encodeURIComponent(String(providerUserId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.

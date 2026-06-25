@@ -119,7 +119,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/snapshots/can-cleanup-image";
+        String localVarPath = "/api/admin/snapshots/can-cleanup-image";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -251,7 +251,7 @@ public class AdminApi {
         Object localVarPostBody = createOrganizationRegionQuota;
 
         // create path and map variables
-        String localVarPath = "/admin/organizations/{organizationId}/quota/{regionId}"
+        String localVarPath = "/api/admin/organizations/{organizationId}/quota/{regionId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()));
 
@@ -396,7 +396,7 @@ public class AdminApi {
         Object localVarPostBody = adminCreateRunner;
 
         // create path and map variables
-        String localVarPath = "/admin/runners";
+        String localVarPath = "/api/admin/runners";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -523,7 +523,7 @@ public class AdminApi {
         Object localVarPostBody = createUser;
 
         // create path and map variables
-        String localVarPath = "/admin/users";
+        String localVarPath = "/api/admin/users";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -647,7 +647,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
+        String localVarPath = "/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()))
             .replace("{" + "sandboxClass" + "}", localVarApiClient.escapeString(sandboxClass.toString()));
@@ -787,7 +787,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/runners/{id}"
+        String localVarPath = "/api/admin/runners/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -913,7 +913,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/audit";
+        String localVarPath = "/api/admin/audit";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1067,7 +1067,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts"
+        String localVarPath = "/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "messageId" + "}", localVarApiClient.escapeString(messageId.toString()));
 
@@ -1205,7 +1205,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
+        String localVarPath = "/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()))
             .replace("{" + "sandboxClass" + "}", localVarApiClient.escapeString(sandboxClass.toString()));
@@ -1350,7 +1350,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/runners/{id}"
+        String localVarPath = "/api/admin/runners/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1477,7 +1477,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/users/{id}"
+        String localVarPath = "/api/admin/users/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1603,7 +1603,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/webhooks/status";
+        String localVarPath = "/api/admin/webhooks/status";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1722,7 +1722,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/webhooks/organizations/{organizationId}/initialize"
+        String localVarPath = "/api/admin/webhooks/organizations/{organizationId}/initialize"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1847,7 +1847,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/runners";
+        String localVarPath = "/api/admin/runners";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1971,7 +1971,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/users";
+        String localVarPath = "/api/admin/users";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -2084,7 +2084,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/sandbox/{sandboxId}/recover"
+        String localVarPath = "/api/admin/sandbox/{sandboxId}/recover"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2211,7 +2211,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/users/{id}/regenerate-key-pair"
+        String localVarPath = "/api/admin/users/{id}/regenerate-key-pair"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2334,7 +2334,7 @@ public class AdminApi {
         Object localVarPostBody = sendWebhookDto;
 
         // create path and map variables
-        String localVarPath = "/admin/webhooks/organizations/{organizationId}/send"
+        String localVarPath = "/api/admin/webhooks/organizations/{organizationId}/send"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2465,7 +2465,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/docker-registry/{id}/set-default"
+        String localVarPath = "/api/admin/docker-registry/{id}/set-default"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2593,7 +2593,7 @@ public class AdminApi {
         Object localVarPostBody = setSnapshotGeneralStatusDto;
 
         // create path and map variables
-        String localVarPath = "/admin/snapshots/{id}/general"
+        String localVarPath = "/api/admin/snapshots/{id}/general"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -2731,7 +2731,7 @@ public class AdminApi {
         Object localVarPostBody = updateOrganizationRegionQuota;
 
         // create path and map variables
-        String localVarPath = "/admin/organizations/{organizationId}/quota/{regionId}"
+        String localVarPath = "/api/admin/organizations/{organizationId}/quota/{regionId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
             .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()));
 
@@ -2871,7 +2871,7 @@ public class AdminApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/admin/runners/{id}/scheduling"
+        String localVarPath = "/api/admin/runners/{id}/scheduling"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

@@ -306,7 +306,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/snapshots/{id}/activate',
+            resource_path='/api/snapshots/{id}/activate',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -596,7 +596,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/snapshots',
+            resource_path='/api/snapshots',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -863,7 +863,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/snapshots/{id}/deactivate',
+            resource_path='/api/snapshots/{id}/deactivate',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1207,7 +1207,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/snapshots',
+            resource_path='/api/snapshots',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1484,7 +1484,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/snapshots/{id}',
+            resource_path='/api/snapshots/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1550,7 +1550,7 @@ class SnapshotsApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_snapshot_build_logs_serialize(
             id=id,
@@ -1626,7 +1626,7 @@ class SnapshotsApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_snapshot_build_logs_serialize(
             id=id,
@@ -1702,7 +1702,7 @@ class SnapshotsApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /api/snapshots/{id}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_snapshot_build_logs_serialize(
             id=id,
@@ -1774,7 +1774,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/snapshots/{id}/build-logs',
+            resource_path='/api/snapshots/{id}/build-logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2048,7 +2048,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/snapshots/{id}/build-logs-url',
+            resource_path='/api/snapshots/{id}/build-logs-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2315,7 +2315,7 @@ class SnapshotsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/snapshots/{id}',
+            resource_path='/api/snapshots/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

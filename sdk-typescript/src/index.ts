@@ -45,6 +45,7 @@ export {
 export { Image } from './Image'
 export { Sandbox } from './Sandbox'
 export type { ListSandboxesQuery } from './Sandbox'
+export type { Secret, CreateSecretParams, UpdateSecretParams } from './Secret'
 export type { CreateSnapshotParams } from './Snapshot'
 export { ComputerUse, Mouse, Keyboard, Screenshot, Display, Accessibility } from './ComputerUse'
 export type {
