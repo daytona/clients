@@ -10,6 +10,7 @@ export default [
   {
     ignores: [
       '**/dist',
+      '**/.nx/**',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
       '*api-client*/**',

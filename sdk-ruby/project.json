@@ -38,7 +38,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",
-        "command": "BUNDLE_GEMFILE=Gemfile bundle exec rubocop"
+        "command": "BUNDLE_GEMFILE=../Gemfile bundle exec rubocop"
       }
     },
     "test": {
@@ -52,21 +52,21 @@
       "outputs": [],
       "options": {
         "cwd": "{projectRoot}",
-        "command": "BUNDLE_GEMFILE=Gemfile bundle exec rspec --format documentation --tag '~e2e'"
+        "command": "BUNDLE_GEMFILE=../Gemfile bundle exec rspec --format documentation --tag '~e2e'"
       }
     },
     "test:e2e": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",
-        "command": "BUNDLE_GEMFILE=Gemfile bundle exec rspec spec/e2e_spec.rb --format documentation"
+        "command": "BUNDLE_GEMFILE=../Gemfile bundle exec rspec spec/e2e_spec.rb --format documentation"
       }
     },
     "format": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",
-        "commands": ["BUNDLE_GEMFILE=Gemfile bundle exec rubocop -a --fail-level=E"],
+        "commands": ["BUNDLE_GEMFILE=../Gemfile bundle exec rubocop -a --fail-level=E"],
         "parallel": false
       }
     },
@@ -75,7 +75,7 @@
       "outputs": ["{workspaceRoot}/artifacts/sdk-docs/ruby-sdk/**/*"],
       "options": {
         "cwd": "{projectRoot}",
-        "command": "bash -O extglob -c 'rm -rf ../artifacts/sdk-docs/ruby-sdk/!(index.mdx)' && BUNDLE_GEMFILE=Gemfile bundle exec ruby scripts/generate-docs.rb"
+        "command": "bash -O extglob -c 'rm -rf ../artifacts/sdk-docs/ruby-sdk/!(index.mdx)' && BUNDLE_GEMFILE=../Gemfile bundle exec ruby scripts/generate-docs.rb"
       }
     },
     "publish": {

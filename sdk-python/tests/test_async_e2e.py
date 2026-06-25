@@ -105,6 +105,9 @@ async def test_async_get_sandbox_by_id(async_daytona_client, async_sandbox):
 
 
 async def test_async_list_sandboxes_contains_created(async_daytona_client, async_sandbox):
+    # The list endpoint is backed by OpenSearch, which indexes with a small delay,
+    # so a just-created sandbox may not appear immediately. Give it a moment.
+    await asyncio.sleep(5)
     sandboxes = [s async for s in async_daytona_client.list()]
     assert len(sandboxes) > 0
     assert any(
