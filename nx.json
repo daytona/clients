@@ -168,7 +168,7 @@
     }
   },
   "release": {
-    "projects": ["cli", "sdk-*", "api-client*", "toolbox-api-client*", "analytics-api-client*"],
+    "projects": ["sdk-typescript", "sdk-python", "api-client", "toolbox-api-client", "analytics-api-client"],
     "changelog": {
       "workspaceChangelog": {
         "file": false,
