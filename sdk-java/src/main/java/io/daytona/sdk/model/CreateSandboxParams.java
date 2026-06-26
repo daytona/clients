@@ -26,6 +26,7 @@ public class CreateSandboxParams {
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
     private List<VolumeMount> volumes;
+    private Map<String, String> secrets;
     private Boolean networkBlockAll;
     private String domainAllowList;
     private String linkedSandbox;
@@ -169,6 +170,25 @@ public class CreateSandboxParams {
      * @param volumes volume mount definitions
      */
     public void setVolumes(List<VolumeMount> volumes) { this.volumes = volumes; }
+
+    /**
+     * Returns the Secrets to mount into the Sandbox as environment variables.
+     *
+     * @return map of environment variable name to existing organization Secret name
+     */
+    public Map<String, String> getSecrets() { return secrets; }
+
+    /**
+     * Sets the Secrets to mount into the Sandbox as environment variables.
+     *
+     * <p>Each map entry maps an environment variable name to the name of an existing
+     * organization-scoped Secret. The env var is set to the Secret's opaque placeholder; the real
+     * value is substituted transparently on outbound requests to the Secret's allowed hosts. Every
+     * referenced Secret name must already exist in the organization.
+     *
+     * @param secrets map of environment variable name to existing organization Secret name
+     */
+    public void setSecrets(Map<String, String> secrets) { this.secrets = secrets; }
 
     /**
      * Returns whether all outbound network access is blocked.

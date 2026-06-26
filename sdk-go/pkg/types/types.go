@@ -88,10 +88,16 @@ type SandboxBaseParams struct {
 	AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
 	AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
 	Volumes             []VolumeMount
-	NetworkBlockAll     bool
-	NetworkAllowList    *string
-	DomainAllowList     *string
-	Ephemeral           bool
+	// Secrets maps an environment variable name to the name of an existing
+	// organization secret. For each entry, the env var is injected into the
+	// sandbox holding the secret's opaque placeholder, which is resolved to the
+	// real value only when the sandbox connects to one of the secret's allowed
+	// hosts. The referenced secrets must already exist (see [Client.Secret]).
+	Secrets          map[string]string
+	NetworkBlockAll  bool
+	NetworkAllowList *string
+	DomainAllowList  *string
+	Ephemeral        bool
 	// LinkedSandbox is the ID or name of an existing sandbox to link the new sandbox to.
 	// The new sandbox will be scheduled on the same runner as the linked sandbox so a local
 	// network can be established between them.
@@ -141,6 +147,51 @@ type Volume struct {
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 	LastUsedAt     time.Time `json:"lastUsedAt,omitempty"`
+}
+
+// Secret represents an organization-scoped secret.
+//
+// A Secret stores a write-only plaintext value that is never returned by the
+// API. When referenced from a sandbox, the env var holds the opaque
+// [Secret.Placeholder] token, which is resolved to the real value only for the
+// secret's allowed [Secret.Hosts].
+type Secret struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	// Placeholder is the opaque token injected as the env var value in sandboxes.
+	Placeholder string `json:"placeholder"`
+	// Hosts are the allowed hosts this secret may be sent to. Entries are exact
+	// hostnames or "*." wildcards (without ports).
+	Hosts     []string  `json:"hosts"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// CreateSecretParams contains parameters for creating a secret.
+type CreateSecretParams struct {
+	// Name is the secret name. It must match ^[a-zA-Z_][a-zA-Z0-9_-]*$ and be
+	// unique within the organization (a duplicate name returns a 409 conflict).
+	Name string
+	// Value is the plaintext secret value. It is write-only and never returned.
+	Value string
+	// Description is an optional human-readable description.
+	Description *string
+	// Hosts are the allowed hosts this secret may be sent to. Entries are exact
+	// hostnames or "*." wildcards (without ports).
+	Hosts []string
+}
+
+// UpdateSecretParams contains parameters for updating a secret. Only the
+// non-nil fields are applied.
+type UpdateSecretParams struct {
+	// Value is the new plaintext secret value. It is write-only and never returned.
+	Value *string
+	// Description is an optional human-readable description.
+	Description *string
+	// Hosts are the allowed hosts this secret may be sent to. Entries are exact
+	// hostnames or "*." wildcards (without ports).
+	Hosts []string
 }
 
 // Snapshot represents a Daytona snapshot

@@ -28,6 +28,7 @@ import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.ResizeSandbox;
+import io.daytona.api.client.model.ResolveSandboxSecrets200ResponseInner;
 import io.daytona.api.client.model.Sandbox;
 import io.daytona.api.client.model.SandboxClass;
 import io.daytona.api.client.model.SandboxLabels;
@@ -527,6 +528,19 @@ public class SandboxApiTest {
         ResizeSandbox resizeSandbox = null;
         String xDaytonaOrganizationID = null;
         Sandbox response = api.resizeSandbox(sandboxIdOrName, resizeSandbox, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Resolve sandbox secrets
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void resolveSandboxSecretsTest() throws ApiException {
+        String sandboxId = null;
+        String xDaytonaOrganizationID = null;
+        List<ResolveSandboxSecrets200ResponseInner> response = api.resolveSandboxSecrets(sandboxId, xDaytonaOrganizationID);
         // TODO: test validations
     }
 

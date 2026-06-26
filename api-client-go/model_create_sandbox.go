@@ -62,6 +62,8 @@ type CreateSandbox struct {
 	BuildInfo *CreateBuildInfo `json:"buildInfo,omitempty"`
 	// ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
 	LinkedSandbox *string `json:"linkedSandbox,omitempty"`
+	// Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
+	Secrets []map[string]string `json:"secrets,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -756,6 +758,38 @@ func (o *CreateSandbox) SetLinkedSandbox(v string) {
 	o.LinkedSandbox = &v
 }
 
+// GetSecrets returns the Secrets field value if set, zero value otherwise.
+func (o *CreateSandbox) GetSecrets() []map[string]string {
+	if o == nil || IsNil(o.Secrets) {
+		var ret []map[string]string
+		return ret
+	}
+	return o.Secrets
+}
+
+// GetSecretsOk returns a tuple with the Secrets field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetSecretsOk() ([]map[string]string, bool) {
+	if o == nil || IsNil(o.Secrets) {
+		return nil, false
+	}
+	return o.Secrets, true
+}
+
+// HasSecrets returns a boolean if a field has been set.
+func (o *CreateSandbox) HasSecrets() bool {
+	if o != nil && !IsNil(o.Secrets) {
+		return true
+	}
+
+	return false
+}
+
+// SetSecrets gets a reference to the given []map[string]string and assigns it to the Secrets field.
+func (o *CreateSandbox) SetSecrets(v []map[string]string) {
+	o.Secrets = v
+}
+
 func (o CreateSandbox) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -829,6 +863,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.LinkedSandbox) {
 		toSerialize["linkedSandbox"] = o.LinkedSandbox
 	}
+	if !IsNil(o.Secrets) {
+		toSerialize["secrets"] = o.Secrets
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -872,6 +909,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "volumes")
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "linkedSandbox")
+		delete(additionalProperties, "secrets")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -50,6 +50,16 @@ type AuditAPIGetOrganizationAuditLogsRequest struct {
 	from *time.Time
 	to *time.Time
 	nextToken *string
+	id *StringFilter
+	actorId *StringFilter
+	actorEmail *StringFilter
+	actorApiKeyPrefix *StringFilter
+	actorApiKeySuffix *StringFilter
+	action *StringFilter
+	targetType *StringFilter
+	targetId *StringFilter
+	statusCode *IntFilter
+	createdAt *DateFilter
 }
 
 // Page number of the results
@@ -64,13 +74,15 @@ func (r AuditAPIGetOrganizationAuditLogsRequest) Limit(limit float32) AuditAPIGe
 	return r
 }
 
-// From date (ISO 8601 format)
+// Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+// Deprecated
 func (r AuditAPIGetOrganizationAuditLogsRequest) From(from time.Time) AuditAPIGetOrganizationAuditLogsRequest {
 	r.from = &from
 	return r
 }
 
-// To date (ISO 8601 format)
+// Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
+// Deprecated
 func (r AuditAPIGetOrganizationAuditLogsRequest) To(to time.Time) AuditAPIGetOrganizationAuditLogsRequest {
 	r.to = &to
 	return r
@@ -79,6 +91,66 @@ func (r AuditAPIGetOrganizationAuditLogsRequest) To(to time.Time) AuditAPIGetOrg
 // Token for cursor-based pagination. When provided, takes precedence over page parameter.
 func (r AuditAPIGetOrganizationAuditLogsRequest) NextToken(nextToken string) AuditAPIGetOrganizationAuditLogsRequest {
 	r.nextToken = &nextToken
+	return r
+}
+
+// Filter by audit log ID.
+func (r AuditAPIGetOrganizationAuditLogsRequest) Id(id StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.id = &id
+	return r
+}
+
+// Filter by actor user ID.
+func (r AuditAPIGetOrganizationAuditLogsRequest) ActorId(actorId StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.actorId = &actorId
+	return r
+}
+
+// Filter by actor email.
+func (r AuditAPIGetOrganizationAuditLogsRequest) ActorEmail(actorEmail StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.actorEmail = &actorEmail
+	return r
+}
+
+// Filter by actor API key prefix.
+func (r AuditAPIGetOrganizationAuditLogsRequest) ActorApiKeyPrefix(actorApiKeyPrefix StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.actorApiKeyPrefix = &actorApiKeyPrefix
+	return r
+}
+
+// Filter by actor API key suffix.
+func (r AuditAPIGetOrganizationAuditLogsRequest) ActorApiKeySuffix(actorApiKeySuffix StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.actorApiKeySuffix = &actorApiKeySuffix
+	return r
+}
+
+// Filter by action.
+func (r AuditAPIGetOrganizationAuditLogsRequest) Action(action StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.action = &action
+	return r
+}
+
+// Filter by target type.
+func (r AuditAPIGetOrganizationAuditLogsRequest) TargetType(targetType StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.targetType = &targetType
+	return r
+}
+
+// Filter by target ID.
+func (r AuditAPIGetOrganizationAuditLogsRequest) TargetId(targetId StringFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.targetId = &targetId
+	return r
+}
+
+// Filter by HTTP status code.
+func (r AuditAPIGetOrganizationAuditLogsRequest) StatusCode(statusCode IntFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.statusCode = &statusCode
+	return r
+}
+
+// Filter by creation timestamp.
+func (r AuditAPIGetOrganizationAuditLogsRequest) CreatedAt(createdAt DateFilter) AuditAPIGetOrganizationAuditLogsRequest {
+	r.createdAt = &createdAt
 	return r
 }
 
@@ -145,6 +217,36 @@ func (a *AuditAPIService) GetOrganizationAuditLogsExecute(r AuditAPIGetOrganizat
 	}
 	if r.nextToken != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "nextToken", r.nextToken, "form", "")
+	}
+	if r.id != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "id", r.id, "form", "")
+	}
+	if r.actorId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorId", r.actorId, "form", "")
+	}
+	if r.actorEmail != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorEmail", r.actorEmail, "form", "")
+	}
+	if r.actorApiKeyPrefix != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorApiKeyPrefix", r.actorApiKeyPrefix, "form", "")
+	}
+	if r.actorApiKeySuffix != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorApiKeySuffix", r.actorApiKeySuffix, "form", "")
+	}
+	if r.action != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "action", r.action, "form", "")
+	}
+	if r.targetType != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "targetType", r.targetType, "form", "")
+	}
+	if r.targetId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "targetId", r.targetId, "form", "")
+	}
+	if r.statusCode != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "statusCode", r.statusCode, "form", "")
+	}
+	if r.createdAt != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "createdAt", r.createdAt, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

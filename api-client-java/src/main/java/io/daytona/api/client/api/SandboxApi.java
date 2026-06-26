@@ -41,6 +41,7 @@ import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.ResizeSandbox;
+import io.daytona.api.client.model.ResolveSandboxSecrets200ResponseInner;
 import io.daytona.api.client.model.Sandbox;
 import io.daytona.api.client.model.SandboxClass;
 import io.daytona.api.client.model.SandboxLabels;
@@ -4786,6 +4787,142 @@ public class SandboxApi {
 
         okhttp3.Call localVarCall = resizeSandboxValidateBeforeCall(sandboxIdOrName, resizeSandbox, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for resolveSandboxSecrets
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resolveSandboxSecretsCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxId}/secrets"
+            .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call resolveSandboxSecretsValidateBeforeCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxId' is set
+        if (sandboxId == null) {
+            throw new ApiException("Missing the required parameter 'sandboxId' when calling resolveSandboxSecrets(Async)");
+        }
+
+        return resolveSandboxSecretsCall(sandboxId, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Resolve sandbox secrets
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return List&lt;ResolveSandboxSecrets200ResponseInner&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<ResolveSandboxSecrets200ResponseInner> resolveSandboxSecrets(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<List<ResolveSandboxSecrets200ResponseInner>> localVarResp = resolveSandboxSecretsWithHttpInfo(sandboxId, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Resolve sandbox secrets
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;List&lt;ResolveSandboxSecrets200ResponseInner&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<ResolveSandboxSecrets200ResponseInner>> resolveSandboxSecretsWithHttpInfo(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = resolveSandboxSecretsValidateBeforeCall(sandboxId, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<List<ResolveSandboxSecrets200ResponseInner>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Resolve sandbox secrets (asynchronously)
+     * 
+     * @param sandboxId Sandbox ID (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Decrypted secret key-value pairs for this sandbox </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resolveSandboxSecretsAsync(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<List<ResolveSandboxSecrets200ResponseInner>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = resolveSandboxSecretsValidateBeforeCall(sandboxId, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<List<ResolveSandboxSecrets200ResponseInner>>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

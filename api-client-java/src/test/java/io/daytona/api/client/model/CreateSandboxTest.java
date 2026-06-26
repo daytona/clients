@@ -212,4 +212,12 @@ public class CreateSandboxTest {
         // TODO: test linkedSandbox
     }
 
+    /**
+     * Test the property 'secrets'
+     */
+    @Test
+    public void secretsTest() {
+        // TODO: test secrets
+    }
+
 }

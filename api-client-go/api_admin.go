@@ -930,6 +930,16 @@ type AdminAPIAdminGetAllAuditLogsRequest struct {
 	from *time.Time
 	to *time.Time
 	nextToken *string
+	id *StringFilter
+	actorId *StringFilter
+	actorEmail *StringFilter
+	actorApiKeyPrefix *StringFilter
+	actorApiKeySuffix *StringFilter
+	action *StringFilter
+	targetType *StringFilter
+	targetId *StringFilter
+	statusCode *IntFilter
+	createdAt *DateFilter
 }
 
 // Page number of the results
@@ -944,13 +954,15 @@ func (r AdminAPIAdminGetAllAuditLogsRequest) Limit(limit float32) AdminAPIAdminG
 	return r
 }
 
-// From date (ISO 8601 format)
+// Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+// Deprecated
 func (r AdminAPIAdminGetAllAuditLogsRequest) From(from time.Time) AdminAPIAdminGetAllAuditLogsRequest {
 	r.from = &from
 	return r
 }
 
-// To date (ISO 8601 format)
+// Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
+// Deprecated
 func (r AdminAPIAdminGetAllAuditLogsRequest) To(to time.Time) AdminAPIAdminGetAllAuditLogsRequest {
 	r.to = &to
 	return r
@@ -959,6 +971,66 @@ func (r AdminAPIAdminGetAllAuditLogsRequest) To(to time.Time) AdminAPIAdminGetAl
 // Token for cursor-based pagination. When provided, takes precedence over page parameter.
 func (r AdminAPIAdminGetAllAuditLogsRequest) NextToken(nextToken string) AdminAPIAdminGetAllAuditLogsRequest {
 	r.nextToken = &nextToken
+	return r
+}
+
+// Filter by audit log ID.
+func (r AdminAPIAdminGetAllAuditLogsRequest) Id(id StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.id = &id
+	return r
+}
+
+// Filter by actor user ID.
+func (r AdminAPIAdminGetAllAuditLogsRequest) ActorId(actorId StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.actorId = &actorId
+	return r
+}
+
+// Filter by actor email.
+func (r AdminAPIAdminGetAllAuditLogsRequest) ActorEmail(actorEmail StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.actorEmail = &actorEmail
+	return r
+}
+
+// Filter by actor API key prefix.
+func (r AdminAPIAdminGetAllAuditLogsRequest) ActorApiKeyPrefix(actorApiKeyPrefix StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.actorApiKeyPrefix = &actorApiKeyPrefix
+	return r
+}
+
+// Filter by actor API key suffix.
+func (r AdminAPIAdminGetAllAuditLogsRequest) ActorApiKeySuffix(actorApiKeySuffix StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.actorApiKeySuffix = &actorApiKeySuffix
+	return r
+}
+
+// Filter by action.
+func (r AdminAPIAdminGetAllAuditLogsRequest) Action(action StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.action = &action
+	return r
+}
+
+// Filter by target type.
+func (r AdminAPIAdminGetAllAuditLogsRequest) TargetType(targetType StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.targetType = &targetType
+	return r
+}
+
+// Filter by target ID.
+func (r AdminAPIAdminGetAllAuditLogsRequest) TargetId(targetId StringFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.targetId = &targetId
+	return r
+}
+
+// Filter by HTTP status code.
+func (r AdminAPIAdminGetAllAuditLogsRequest) StatusCode(statusCode IntFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.statusCode = &statusCode
+	return r
+}
+
+// Filter by creation timestamp.
+func (r AdminAPIAdminGetAllAuditLogsRequest) CreatedAt(createdAt DateFilter) AdminAPIAdminGetAllAuditLogsRequest {
+	r.createdAt = &createdAt
 	return r
 }
 
@@ -1022,6 +1094,36 @@ func (a *AdminAPIService) AdminGetAllAuditLogsExecute(r AdminAPIAdminGetAllAudit
 	}
 	if r.nextToken != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "nextToken", r.nextToken, "form", "")
+	}
+	if r.id != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "id", r.id, "form", "")
+	}
+	if r.actorId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorId", r.actorId, "form", "")
+	}
+	if r.actorEmail != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorEmail", r.actorEmail, "form", "")
+	}
+	if r.actorApiKeyPrefix != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorApiKeyPrefix", r.actorApiKeyPrefix, "form", "")
+	}
+	if r.actorApiKeySuffix != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "actorApiKeySuffix", r.actorApiKeySuffix, "form", "")
+	}
+	if r.action != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "action", r.action, "form", "")
+	}
+	if r.targetType != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "targetType", r.targetType, "form", "")
+	}
+	if r.targetId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "targetId", r.targetId, "form", "")
+	}
+	if r.statusCode != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "statusCode", r.statusCode, "form", "")
+	}
+	if r.createdAt != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "createdAt", r.createdAt, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

@@ -22,6 +22,9 @@ module Daytona
     # @return [Daytona::VolumeService]
     attr_reader :volume
 
+    # @return [Daytona::SecretService]
+    attr_reader :secret
+
     # @return [DaytonaApiClient::ObjectStorageApi]
     attr_reader :object_storage_api
 
@@ -46,6 +49,7 @@ module Daytona
       @sandbox_api = DaytonaApiClient::SandboxApi.new(api_client)
       @config_api = DaytonaApiClient::ConfigApi.new(api_client)
       @volume = VolumeService.new(DaytonaApiClient::VolumesApi.new(api_client), otel_state:)
+      @secret = SecretService.new(DaytonaApiClient::SecretApi.new(api_client), otel_state:)
       @object_storage_api = DaytonaApiClient::ObjectStorageApi.new(api_client)
       @snapshots_api = DaytonaApiClient::SnapshotsApi.new(api_client)
       @snapshot = SnapshotService.new(snapshots_api:, object_storage_api:, default_region_id: config.target,
@@ -213,6 +217,7 @@ module Daytona
         auto_archive_interval: params.auto_archive_interval,
         auto_delete_interval: params.auto_delete_interval,
         volumes: params.volumes,
+        secrets: params.secrets&.map { |env_var, secret_name| { env_var.to_s => secret_name.to_s } },
         network_block_all: params.network_block_all,
         network_allow_list: params.network_allow_list,
         domain_allow_list: params.domain_allow_list,

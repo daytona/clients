@@ -46,6 +46,8 @@ import type { RegionQuota } from '../models';
 // @ts-ignore
 import type { ResizeSandbox } from '../models';
 // @ts-ignore
+import type { ResolveSandboxSecrets200ResponseInner } from '../models';
+// @ts-ignore
 import type { Sandbox } from '../models';
 // @ts-ignore
 import type { SandboxClass } from '../models';
@@ -1785,6 +1787,50 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Resolve sandbox secrets
+         * @param {string} sandboxId Sandbox ID
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resolveSandboxSecrets: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxId' is not null or undefined
+            assertParamExists('resolveSandboxSecrets', 'sandboxId', sandboxId)
+            const localVarPath = `/sandbox/{sandboxId}/secrets`
+                .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Revoke SSH access for sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -2807,6 +2853,20 @@ export const SandboxApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Resolve sandbox secrets
+         * @param {string} sandboxId Sandbox ID
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resolveSandboxSecrets(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ResolveSandboxSecrets200ResponseInner>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resolveSandboxSecrets(sandboxId, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.resolveSandboxSecrets']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Revoke SSH access for sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3380,6 +3440,17 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Resolve sandbox secrets
+         * @param {string} sandboxId Sandbox ID
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resolveSandboxSecrets(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ResolveSandboxSecrets200ResponseInner>> {
+            return localVarFp.resolveSandboxSecrets(sandboxId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Revoke SSH access for sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3944,6 +4015,18 @@ export class SandboxApi extends BaseAPI {
      */
     public resizeSandbox(sandboxIdOrName: string, resizeSandbox: ResizeSandbox, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).resizeSandbox(sandboxIdOrName, resizeSandbox, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Resolve sandbox secrets
+     * @param {string} sandboxId Sandbox ID
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public resolveSandboxSecrets(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).resolveSandboxSecrets(sandboxId, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -14,9 +14,11 @@ const mockSnapshotsApi = {}
 const mockObjectStorageApi = {}
 const mockConfigApi = {}
 const mockVolumesApi = {}
+const mockSecretApi = {}
 
 const mockSnapshotServiceCtor = jest.fn()
 const mockVolumeServiceCtor = jest.fn()
+const mockSecretServiceCtor = jest.fn()
 const mockSandboxCtor = jest.fn()
 const mockProcessImageContext = jest.fn()
 const mockProcessStreamingResponse = jest.fn()
@@ -48,6 +50,7 @@ jest.mock(
     ObjectStorageApi: jest.fn(() => mockObjectStorageApi),
     ConfigApi: jest.fn(() => mockConfigApi),
     VolumesApi: jest.fn(() => mockVolumesApi),
+    SecretApi: jest.fn(() => mockSecretApi),
     SandboxState: {
       PENDING_BUILD: 'pending_build',
       STARTED: 'started',
@@ -93,6 +96,13 @@ jest.mock('../utils/Stream', () => ({
 jest.mock('../Volume', () => ({
   VolumeService: jest.fn().mockImplementation((...args: unknown[]) => {
     mockVolumeServiceCtor(...args)
+    return { list: jest.fn() }
+  }),
+}))
+
+jest.mock('../Secret', () => ({
+  SecretService: jest.fn().mockImplementation((...args: unknown[]) => {
+    mockSecretServiceCtor(...args)
     return { list: jest.fn() }
   }),
 }))
@@ -321,6 +331,42 @@ describe('Daytona', () => {
       undefined,
       { timeout: 60000 },
     )
+  })
+
+  it('serializes the secrets map into an array of single-key objects', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-secret', state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+
+    await instance.create({
+      language: 'python',
+      secrets: { ANTHROPIC_API_KEY: 'anthropic-prod', DB_PASSWORD: 'DB_PASSWORD' },
+    })
+
+    expect(mockSandboxApi.createSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secrets: [{ ANTHROPIC_API_KEY: 'anthropic-prod' }, { DB_PASSWORD: 'DB_PASSWORD' }],
+      }),
+      undefined,
+      { timeout: 60000 },
+    )
+  })
+
+  it('omits secrets when not provided', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-nosecret', state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+
+    await instance.create({ language: 'python' })
+
+    const payload = mockSandboxApi.createSandbox.mock.calls[0][0] as { secrets?: unknown }
+    expect(payload.secrets).toBeUndefined()
   })
 
   it('creates sandboxes from image names using buildInfo dockerfile content', async () => {

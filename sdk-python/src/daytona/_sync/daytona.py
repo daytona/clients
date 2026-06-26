@@ -23,7 +23,7 @@ from opentelemetry.semconv.attributes import service_attributes
 
 from daytona_api_client import ApiClient, ConfigApi, Configuration, CreateBuildInfo, CreateSandbox
 from daytona_api_client import GpuType as SyncGpuType
-from daytona_api_client import ObjectStorageApi, SandboxApi, SandboxState, SandboxVolume, SnapshotsApi
+from daytona_api_client import ObjectStorageApi, SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
 
@@ -46,6 +46,7 @@ from ..common.sandbox import ListSandboxesQuery
 from ..internal.http_client import build_sync_http_client
 from ..internal.urllib3_retry import RemoteDisconnectedRetry
 from .sandbox import Sandbox
+from .secret import SecretService
 from .snapshot import SnapshotService
 from .volume import VolumeService
 
@@ -59,6 +60,7 @@ class Daytona:
     Attributes:
         volume (VolumeService): Service for managing volumes.
         snapshot (SnapshotService): Service for managing snapshots.
+        secret (SecretService): Service for managing secrets.
 
     Example:
         Using environment variables:
@@ -233,6 +235,7 @@ class Daytona:
         self.snapshot: SnapshotService = SnapshotService(
             SnapshotsApi(self._api_client), self._object_storage_api, self._target
         )
+        self.secret: SecretService = SecretService(SecretApi(self._api_client))
 
         # Initialize OpenTelemetry if enabled
         env = env_reader or DaytonaEnvReader()
@@ -416,6 +419,10 @@ class Daytona:
                 for volume in params.volumes
             ]
 
+        secrets = None
+        if params.secrets:
+            secrets = [{env_var: secret_name} for env_var, secret_name in params.secrets.items()]
+
         # Create sandbox using dictionary
         sandbox_data = CreateSandbox(
             name=params.name,
@@ -428,6 +435,7 @@ class Daytona:
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             volumes=volumes,
+            secrets=secrets,
             network_block_all=params.network_block_all,
             network_allow_list=params.network_allow_list,
             domain_allow_list=params.domain_allow_list,

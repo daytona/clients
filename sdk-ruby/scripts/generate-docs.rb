@@ -21,11 +21,13 @@ CLASSES_TO_DOCUMENT = [
   ['process.rb', 'process.mdx', 'Daytona::Process'],
   ['lsp_server.rb', 'lsp-server.mdx', 'Daytona::LspServer'],
   ['volume.rb', 'volume.mdx', 'Daytona::Volume'],
+  ['secret.rb', 'secret.mdx', 'Daytona::Secret'],
   ['object_storage.rb', 'object-storage.mdx', 'Daytona::ObjectStorage'],
   ['computer_use.rb', 'computer-use.mdx', 'Daytona::ComputerUse'],
   ['computer_use.rb', 'computer-use.mdx', 'Daytona::ComputerUse::Accessibility'],
   ['snapshot_service.rb', 'snapshot.mdx', 'Daytona::SnapshotService'],
   ['volume_service.rb', 'volume-service.mdx', 'Daytona::VolumeService'],
+  ['secret_service.rb', 'secret-service.mdx', 'Daytona::SecretService'],
   ['common/charts.rb', 'charts.mdx', 'Daytona::Chart'],
   ['common/image.rb', 'image.mdx', 'Daytona::Image']
 ]

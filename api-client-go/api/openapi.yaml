@@ -3488,6 +3488,44 @@ paths:
       summary: Get region quota by sandbox ID
       tags:
       - sandbox
+  /sandbox/{sandboxId}/secrets:
+    get:
+      operationId: resolveSandboxSecrets
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Sandbox ID
+        explode: false
+        in: path
+        name: sandboxId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/resolveSandboxSecrets_200_response_inner"
+                type: array
+          description: Decrypted secret key-value pairs for this sandbox
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Resolve sandbox secrets
+      tags:
+      - sandbox
   /runners:
     get:
       operationId: listRunners
@@ -7872,6 +7910,177 @@ paths:
       summary: Update registry
       tags:
       - docker-registry
+  /secret:
+    get:
+      operationId: listSecrets
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Secret"
+                type: array
+          description: "List of all secrets (metadata only, values are not returned)"
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List secrets
+      tags:
+      - secret
+    post:
+      operationId: createSecret
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSecret"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Secret"
+          description: The secret has been successfully created.
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Create secret
+      tags:
+      - secret
+  /secret/{secretId}:
+    delete:
+      operationId: deleteSecret
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID of the secret
+        explode: false
+        in: path
+        name: secretId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: The secret has been successfully deleted.
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Delete secret
+      tags:
+      - secret
+    get:
+      operationId: getSecret
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID of the secret
+        explode: false
+        in: path
+        name: secretId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Secret"
+          description: The secret metadata (value is not returned)
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Get secret
+      tags:
+      - secret
+    patch:
+      operationId: updateSecret
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID of the secret
+        explode: false
+        in: path
+        name: secretId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSecret"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Secret"
+          description: The secret has been successfully updated.
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Update secret
+      tags:
+      - secret
   /admin/runners:
     get:
       operationId: adminListRunners
@@ -8341,7 +8550,8 @@ paths:
           minimum: 1
           type: number
         style: form
-      - description: From date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format)."
         explode: true
         in: query
         name: from
@@ -8350,7 +8560,8 @@ paths:
           format: date-time
           type: string
         style: form
-      - description: To date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format)."
         explode: true
         in: query
         name: to
@@ -8367,6 +8578,86 @@ paths:
         required: false
         schema:
           type: string
+        style: form
+      - description: Filter by audit log ID.
+        explode: true
+        in: query
+        name: id
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor user ID.
+        explode: true
+        in: query
+        name: actorId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor email.
+        explode: true
+        in: query
+        name: actorEmail
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key prefix.
+        explode: true
+        in: query
+        name: actorApiKeyPrefix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key suffix.
+        explode: true
+        in: query
+        name: actorApiKeySuffix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by action.
+        explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target type.
+        explode: true
+        in: query
+        name: targetType
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target ID.
+        explode: true
+        in: query
+        name: targetId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by HTTP status code.
+        explode: true
+        in: query
+        name: statusCode
+        required: false
+        schema:
+          $ref: "#/components/schemas/IntFilter"
+        style: form
+      - description: Filter by creation timestamp.
+        explode: true
+        in: query
+        name: createdAt
+        required: false
+        schema:
+          $ref: "#/components/schemas/DateFilter"
         style: form
       responses:
         "200":
@@ -8720,7 +9011,8 @@ paths:
           minimum: 1
           type: number
         style: form
-      - description: From date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format)."
         explode: true
         in: query
         name: from
@@ -8729,7 +9021,8 @@ paths:
           format: date-time
           type: string
         style: form
-      - description: To date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format)."
         explode: true
         in: query
         name: to
@@ -8746,6 +9039,86 @@ paths:
         required: false
         schema:
           type: string
+        style: form
+      - description: Filter by audit log ID.
+        explode: true
+        in: query
+        name: id
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor user ID.
+        explode: true
+        in: query
+        name: actorId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor email.
+        explode: true
+        in: query
+        name: actorEmail
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key prefix.
+        explode: true
+        in: query
+        name: actorApiKeyPrefix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key suffix.
+        explode: true
+        in: query
+        name: actorApiKeySuffix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by action.
+        explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target type.
+        explode: true
+        in: query
+        name: targetType
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target ID.
+        explode: true
+        in: query
+        name: targetId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by HTTP status code.
+        explode: true
+        in: query
+        name: statusCode
+        required: false
+        schema:
+          $ref: "#/components/schemas/IntFilter"
+        style: form
+      - description: Filter by creation timestamp.
+        explode: true
+        in: query
+        name: createdAt
+        required: false
+        schema:
+          $ref: "#/components/schemas/DateFilter"
         style: form
       responses:
         "200":
@@ -9330,6 +9703,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9347,6 +9722,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9401,6 +9778,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9418,6 +9797,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9477,6 +9858,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9494,6 +9877,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         lastUsedAt:
           description: When the API key was last used
@@ -9560,6 +9945,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9577,6 +9964,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         isGlobal:
           description: Global role flag
@@ -10263,6 +10652,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -10280,6 +10671,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
       required:
       - description
@@ -10321,6 +10714,8 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
+            - manage:secrets
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -10338,6 +10733,8 @@ components:
             - WRITE_RUNNERS
             - DELETE_RUNNERS
             - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
       required:
       - description
@@ -11506,6 +11903,9 @@ components:
         env:
           NODE_ENV: production
         gpu: 1
+        secrets:
+        - ANTHROPIC_API_KEY: anthropic-prod
+        - DB_PASSWORD: DB_PASSWORD
         autoStopInterval: 30
         labels:
           daytona.io/public: "true"
@@ -11627,6 +12027,17 @@ components:
             another sandbox.
           example: sandbox123
           type: string
+        secrets:
+          description: Secrets to mount in this sandbox. Each entry maps an env var
+            name to a vault secret name.
+          example:
+          - ANTHROPIC_API_KEY: anthropic-prod
+          - DB_PASSWORD: DB_PASSWORD
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
       type: object
     ResizeSandbox:
       example:
@@ -14730,6 +15141,108 @@ components:
       - url
       - username
       type: object
+    CreateSecret:
+      example:
+        hosts:
+        - api.anthropic.com
+        name: MY_API_KEY
+        description: description
+        value: value
+      properties:
+        name:
+          description: "Secret name (alphanumeric, hyphens, underscores)"
+          example: MY_API_KEY
+          type: string
+        value:
+          description: Secret value
+          type: string
+        description:
+          description: Optional description of the secret
+          type: string
+        hosts:
+          description: Allowed hosts this secret may be sent to
+          example:
+          - api.anthropic.com
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      - value
+      type: object
+    Secret:
+      example:
+        createdAt: 2024-01-31T12:00:00Z
+        hosts:
+        - api.anthropic.com
+        name: MY_API_KEY
+        description: API key for external service
+        id: 123e4567-e89b-12d3-a456-426614174000
+        placeholder: dtn_secret_a7f3b2c1e9d4f6g8
+        updatedAt: 2024-01-31T12:00:00Z
+      properties:
+        id:
+          description: Secret ID
+          example: 123e4567-e89b-12d3-a456-426614174000
+          type: string
+        name:
+          description: Secret name
+          example: MY_API_KEY
+          type: string
+        description:
+          description: Optional description of the secret
+          example: API key for external service
+          type: string
+        createdAt:
+          description: Creation timestamp
+          example: 2024-01-31T12:00:00Z
+          format: date-time
+          type: string
+        placeholder:
+          description: Opaque placeholder token injected as env var value in sandboxes
+          example: dtn_secret_a7f3b2c1e9d4f6g8
+          type: string
+        hosts:
+          description: Allowed hosts this secret may be sent to
+          example:
+          - api.anthropic.com
+          items:
+            type: string
+          type: array
+        updatedAt:
+          description: Last update timestamp
+          example: 2024-01-31T12:00:00Z
+          format: date-time
+          type: string
+      required:
+      - createdAt
+      - hosts
+      - id
+      - name
+      - placeholder
+      - updatedAt
+      type: object
+    UpdateSecret:
+      example:
+        hosts:
+        - api.anthropic.com
+        description: description
+        value: value
+      properties:
+        value:
+          description: New secret value
+          type: string
+        description:
+          description: Optional description of the secret
+          type: string
+        hosts:
+          description: Allowed hosts this secret may be sent to
+          example:
+          - api.anthropic.com
+          items:
+            type: string
+          type: array
+      type: object
     AdminCreateRunner:
       example:
         diskGiB: 100
@@ -14928,6 +15441,79 @@ components:
           type: boolean
       required:
       - general
+      type: object
+    StringFilter:
+      properties:
+        eq:
+          description: Match values equal to this value.
+          type: string
+        not:
+          description: Match values not equal to this value.
+          type: string
+        in:
+          description: Match values present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: string
+          type: array
+        notIn:
+          description: Match values not present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: string
+          type: array
+      type: object
+    IntFilter:
+      properties:
+        eq:
+          description: Match values equal to this value.
+          type: number
+        not:
+          description: Match values not equal to this value.
+          type: number
+        in:
+          description: Match values present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: number
+          type: array
+        notIn:
+          description: Match values not present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: number
+          type: array
+        gte:
+          description: Match values greater than or equal to this value.
+          type: number
+        lte:
+          description: Match values less than or equal to this value.
+          type: number
+        gt:
+          description: Match values strictly greater than this value.
+          type: number
+        lt:
+          description: Match values strictly less than this value.
+          type: number
+      type: object
+    DateFilter:
+      properties:
+        gte:
+          description: Match values greater than or equal to this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        lte:
+          description: Match values less than or equal to this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        gt:
+          description: Match values strictly greater than this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        lt:
+          description: Match values strictly less than this timestamp (ISO 8601).
+          format: date-time
+          type: string
       type: object
     AuditLog:
       example:
@@ -15505,6 +16091,30 @@ components:
           type: array
       required:
       - series
+      type: object
+    resolveSandboxSecrets_200_response_inner:
+      example:
+        hosts:
+        - api.anthropic.com
+        placeholder: dtn_secret_a7f3b2c1e9d4
+        env: ANTHROPIC_API_KEY
+        value: sk-ant-...
+      properties:
+        env:
+          example: ANTHROPIC_API_KEY
+          type: string
+        placeholder:
+          example: dtn_secret_a7f3b2c1e9d4
+          type: string
+        value:
+          example: sk-ant-...
+          type: string
+        hosts:
+          example:
+          - api.anthropic.com
+          items:
+            type: string
+          type: array
       type: object
     uploadFile_deprecated_request:
       properties:

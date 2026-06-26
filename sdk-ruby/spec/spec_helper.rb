@@ -115,6 +115,20 @@ def build_volume_dto(overrides = {})
   instance_double(DaytonaApiClient::VolumeDto, **attrs)
 end
 
+def build_secret_dto(overrides = {})
+  attrs = {
+    id: 'secret-123',
+    name: 'test-secret',
+    description: nil,
+    placeholder: 'daytona-secret-placeholder',
+    hosts: ['api.example.com'],
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z'
+  }.merge(overrides)
+
+  instance_double(DaytonaApiClient::Secret, **attrs)
+end
+
 def build_snapshot_dto(overrides = {})
   attrs = {
     id: 'snap-123',

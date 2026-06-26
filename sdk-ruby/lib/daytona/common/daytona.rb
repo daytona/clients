@@ -37,6 +37,11 @@ module Daytona
     # @return [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
     attr_accessor :volumes
 
+    # @return [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a mapping
+    #   of env var name to existing Secret name. The injected env var holds an opaque placeholder that
+    #   is resolved to the real value only for the Secret's allowed hosts.
+    attr_accessor :secrets
+
     # @return [Boolean, nil] Whether to block all network access for the Sandbox
     attr_accessor :network_block_all
 
@@ -67,6 +72,8 @@ module Daytona
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
+    # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
+    #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
@@ -83,6 +90,7 @@ module Daytona
       auto_archive_interval: nil,
       auto_delete_interval: nil,
       volumes: nil,
+      secrets: nil,
       network_block_all: nil,
       network_allow_list: nil,
       domain_allow_list: nil,
@@ -99,6 +107,7 @@ module Daytona
       @auto_archive_interval = auto_archive_interval
       @auto_delete_interval = auto_delete_interval
       @volumes = volumes
+      @secrets = secrets
       @network_block_all = network_block_all
       @network_allow_list = network_allow_list
       @domain_allow_list = domain_allow_list
@@ -124,6 +133,7 @@ module Daytona
         auto_archive_interval:,
         auto_delete_interval:,
         volumes:,
+        secrets:,
         network_block_all:,
         network_allow_list:,
         domain_allow_list:,
@@ -171,6 +181,8 @@ module Daytona
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
+    # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
+    #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
@@ -210,6 +222,8 @@ module Daytona
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
+    # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
+    #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox

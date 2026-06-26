@@ -22,7 +22,13 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { DateFilter } from '../models';
+// @ts-ignore
+import type { IntFilter } from '../models';
+// @ts-ignore
 import type { PaginatedAuditLogs } from '../models';
+// @ts-ignore
+import type { StringFilter } from '../models';
 /**
  * AuditApi - axios parameter creator
  */
@@ -34,13 +40,23 @@ export const AuditApiAxiosParamCreator = function (configuration?: Configuration
          * @param {string} organizationId Organization ID
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getOrganizationAuditLogs: async (organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getOrganizationAuditLogs: async (organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('getOrganizationAuditLogs', 'organizationId', organizationId)
             const localVarPath = `/audit/organizations/{organizationId}`
@@ -86,6 +102,66 @@ export const AuditApiAxiosParamCreator = function (configuration?: Configuration
                 localVarQueryParameter['nextToken'] = nextToken;
             }
 
+            if (id !== undefined) {
+                for (const [key, value] of Object.entries(id)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorId !== undefined) {
+                for (const [key, value] of Object.entries(actorId)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorEmail !== undefined) {
+                for (const [key, value] of Object.entries(actorEmail)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorApiKeyPrefix !== undefined) {
+                for (const [key, value] of Object.entries(actorApiKeyPrefix)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorApiKeySuffix !== undefined) {
+                for (const [key, value] of Object.entries(actorApiKeySuffix)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (action !== undefined) {
+                for (const [key, value] of Object.entries(action)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (targetType !== undefined) {
+                for (const [key, value] of Object.entries(targetType)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (targetId !== undefined) {
+                for (const [key, value] of Object.entries(targetId)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (statusCode !== undefined) {
+                for (const [key, value] of Object.entries(statusCode)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (createdAt !== undefined) {
+                for (const [key, value] of Object.entries(createdAt)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
             localVarHeaderParameter['Accept'] = 'application/json';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -112,14 +188,24 @@ export const AuditApiFp = function(configuration?: Configuration) {
          * @param {string} organizationId Organization ID
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PaginatedAuditLogs>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, options);
+        async getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PaginatedAuditLogs>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuditApi.getOrganizationAuditLogs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -139,14 +225,24 @@ export const AuditApiFactory = function (configuration?: Configuration, basePath
          * @param {string} organizationId Organization ID
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig): AxiosPromise<PaginatedAuditLogs> {
-            return localVarFp.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, options).then((request) => request(axios, basePath));
+        getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig): AxiosPromise<PaginatedAuditLogs> {
+            return localVarFp.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -161,14 +257,24 @@ export class AuditApi extends BaseAPI {
      * @param {string} organizationId Organization ID
      * @param {number} [page] Page number of the results
      * @param {number} [limit] Number of results per page
-     * @param {Date} [from] From date (ISO 8601 format)
-     * @param {Date} [to] To date (ISO 8601 format)
+     * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+     * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
      * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+     * @param {StringFilter} [id] Filter by audit log ID.
+     * @param {StringFilter} [actorId] Filter by actor user ID.
+     * @param {StringFilter} [actorEmail] Filter by actor email.
+     * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+     * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+     * @param {StringFilter} [action] Filter by action.
+     * @param {StringFilter} [targetType] Filter by target type.
+     * @param {StringFilter} [targetId] Filter by target ID.
+     * @param {IntFilter} [statusCode] Filter by HTTP status code.
+     * @param {DateFilter} [createdAt] Filter by creation timestamp.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig) {
-        return AuditApiFp(this.configuration).getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, options).then((request) => request(this.axios, this.basePath));
+    public getOrganizationAuditLogs(organizationId: string, page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig) {
+        return AuditApiFp(this.configuration).getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

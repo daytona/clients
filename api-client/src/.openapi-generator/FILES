@@ -14,6 +14,7 @@ api/preview-api.ts
 api/regions-api.ts
 api/runners-api.ts
 api/sandbox-api.ts
+api/secret-api.ts
 api/snapshots-api.ts
 api/toolbox-api.ts
 api/users-api.ts
@@ -54,10 +55,12 @@ models/create-runner-response.ts
 models/create-runner.ts
 models/create-sandbox-snapshot.ts
 models/create-sandbox.ts
+models/create-secret.ts
 models/create-session-request.ts
 models/create-snapshot.ts
 models/create-user.ts
 models/create-volume.ts
+models/date-filter.ts
 models/daytona-configuration.ts
 models/display-info-response.ts
 models/docker-registry.ts
@@ -82,6 +85,7 @@ models/health-controller-check200-response-info-value.ts
 models/health-controller-check200-response.ts
 models/health-controller-check503-response.ts
 models/index.ts
+models/int-filter.ts
 models/job-status.ts
 models/job-type.ts
 models/job.ts
@@ -151,6 +155,7 @@ models/registry-push-access-dto.ts
 models/replace-request.ts
 models/replace-result.ts
 models/resize-sandbox.ts
+models/resolve-sandbox-secrets200-response-inner.ts
 models/runner-class.ts
 models/runner-full.ts
 models/runner-health-metrics.ts
@@ -170,6 +175,7 @@ models/sandbox-volume.ts
 models/sandbox.ts
 models/screenshot-response.ts
 models/search-files-response.ts
+models/secret.ts
 models/send-webhook-dto.ts
 models/session-execute-request.ts
 models/session-execute-response.ts
@@ -182,6 +188,7 @@ models/snapshot-state.ts
 models/ssh-access-dto.ts
 models/ssh-access-validation-dto.ts
 models/storage-access-dto.ts
+models/string-filter.ts
 models/toolbox-proxy-url.ts
 models/trace-span.ts
 models/trace-summary.ts
@@ -196,6 +203,7 @@ models/update-organization-role.ts
 models/update-region.ts
 models/update-sandbox-network-settings.ts
 models/update-sandbox-state-dto.ts
+models/update-secret.ts
 models/url.ts
 models/user-home-dir-response.ts
 models/user-public-key.ts

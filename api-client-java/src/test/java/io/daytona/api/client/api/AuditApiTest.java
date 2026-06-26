@@ -15,8 +15,11 @@ package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
 import java.math.BigDecimal;
+import io.daytona.api.client.model.DateFilter;
+import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
 import io.daytona.api.client.model.PaginatedAuditLogs;
+import io.daytona.api.client.model.StringFilter;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +49,17 @@ public class AuditApiTest {
         OffsetDateTime from = null;
         OffsetDateTime to = null;
         String nextToken = null;
-        PaginatedAuditLogs response = api.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken);
+        StringFilter id = null;
+        StringFilter actorId = null;
+        StringFilter actorEmail = null;
+        StringFilter actorApiKeyPrefix = null;
+        StringFilter actorApiKeySuffix = null;
+        StringFilter action = null;
+        StringFilter targetType = null;
+        StringFilter targetId = null;
+        IntFilter statusCode = null;
+        DateFilter createdAt = null;
+        PaginatedAuditLogs response = api.getOrganizationAuditLogs(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt);
         // TODO: test validations
     }
 

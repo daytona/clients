@@ -61,6 +61,8 @@ export const OrganizationRolePermissionsEnum = {
     WRITE_RUNNERS: 'write:runners',
     DELETE_RUNNERS: 'delete:runners',
     READ_AUDIT_LOGS: 'read:audit_logs',
+    MANAGE_API_KEYS: 'manage:api_keys',
+    MANAGE_SECRETS: 'manage:secrets',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 

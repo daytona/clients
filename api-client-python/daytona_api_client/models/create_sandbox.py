@@ -54,8 +54,9 @@ class CreateSandbox(BaseModel):
     volumes: Optional[List[SandboxVolume]] = Field(default=None, description="Array of volumes to attach to the sandbox")
     build_info: Optional[CreateBuildInfo] = Field(default=None, description="Build information for the sandbox", serialization_alias="buildInfo")
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.", serialization_alias="linkedSandbox")
+    secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "linkedSandbox"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -144,7 +145,8 @@ class CreateSandbox(BaseModel):
             "auto_delete_interval": obj.get("autoDeleteInterval"),
             "volumes": [SandboxVolume.from_dict(_item) for _item in obj["volumes"]] if obj.get("volumes") is not None else None,
             "build_info": CreateBuildInfo.from_dict(obj["buildInfo"]) if obj.get("buildInfo") is not None else None,
-            "linked_sandbox": obj.get("linkedSandbox")
+            "linked_sandbox": obj.get("linkedSandbox"),
+            "secrets": obj.get("secrets")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

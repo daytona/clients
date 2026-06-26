@@ -108,5 +108,9 @@ export interface CreateSandbox {
      * ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
      */
     'linkedSandbox'?: string;
+    /**
+     * Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
+     */
+    'secrets'?: Array<{ [key: string]: string; }>;
 }
 

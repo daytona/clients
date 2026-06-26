@@ -18,9 +18,7 @@
           }
         },
         "summary": "Get config",
-        "tags": [
-          "config"
-        ]
+        "tags": ["config"]
       }
     },
     "/api-keys": {
@@ -64,17 +62,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create API key",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       },
       "get": {
         "operationId": "listApiKeys",
@@ -112,17 +104,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List API keys",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       }
     },
     "/api-keys/current": {
@@ -156,17 +142,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get current API key's details",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       }
     },
     "/api-keys/{name}": {
@@ -208,17 +188,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get API key",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       },
       "delete": {
         "operationId": "deleteApiKey",
@@ -251,17 +225,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete API key",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       }
     },
     "/api-keys/{userId}/{name}": {
@@ -304,17 +272,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete API key for user",
-        "tags": [
-          "api-keys"
-        ]
+        "tags": ["api-keys"]
       }
     },
     "/organizations/invitations": {
@@ -341,17 +303,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List organization invitations for authenticated user",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/invitations/count": {
@@ -375,17 +331,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get count of organization invitations for authenticated user",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/invitations/{invitationId}/accept": {
@@ -419,17 +369,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Accept organization invitation",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/invitations/{invitationId}/decline": {
@@ -456,17 +400,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Decline organization invitation",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations": {
@@ -500,17 +438,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "get": {
         "operationId": "listOrganizations",
@@ -535,17 +467,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List organizations",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/default-region": {
@@ -582,17 +508,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set default region for organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}": {
@@ -626,17 +546,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization by ID",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "delete": {
         "operationId": "deleteOrganization",
@@ -661,17 +575,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/usage": {
@@ -705,17 +613,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization current usage overview",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/quota": {
@@ -752,17 +654,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization quota",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/quota/{regionId}": {
@@ -808,17 +704,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization region quota",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/leave": {
@@ -845,17 +735,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Leave organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/suspend": {
@@ -892,17 +776,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Suspend organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/unsuspend": {
@@ -929,17 +807,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Unsuspend organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/otel-config/by-sandbox-auth-token/{authToken}": {
@@ -973,17 +845,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization OTEL config by sandbox auth token",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/otel-config": {
@@ -1017,17 +883,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization OTEL config by organization ID",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "put": {
         "operationId": "updateOrganizationOtelConfig",
@@ -1062,17 +922,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization OpenTelemetry configuration",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "delete": {
         "operationId": "deleteOrganizationOtelConfig",
@@ -1097,17 +951,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete organization OpenTelemetry configuration",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/sandbox-default-limited-network-egress": {
@@ -1144,17 +992,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update sandbox default limited network egress",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/experimental-config": {
@@ -1200,17 +1042,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update experimental configuration",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/roles": {
@@ -1254,17 +1090,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create organization role",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "get": {
         "operationId": "listOrganizationRoles",
@@ -1299,17 +1129,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List organization roles",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/roles/{roleId}": {
@@ -1362,17 +1186,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization role",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "delete": {
         "operationId": "deleteOrganizationRole",
@@ -1406,17 +1224,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete organization role",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/users": {
@@ -1453,17 +1265,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List organization members",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/users/{userId}/access": {
@@ -1516,17 +1322,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update access for organization member",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/users/{userId}": {
@@ -1562,17 +1362,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete organization member",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/invitations": {
@@ -1616,17 +1410,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create organization invitation",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "get": {
         "operationId": "listOrganizationInvitations",
@@ -1661,17 +1449,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List pending organization invitations",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/invitations/{invitationId}": {
@@ -1724,17 +1506,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization invitation",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/organizations/{organizationId}/invitations/{invitationId}/cancel": {
@@ -1770,17 +1546,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Cancel organization invitation",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/regions": {
@@ -1817,17 +1587,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all available regions for the organization",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "post": {
         "operationId": "createRegion",
@@ -1869,17 +1633,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create a new region",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/regions/{id}": {
@@ -1922,17 +1680,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get region by ID",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "delete": {
         "operationId": "deleteRegion",
@@ -1966,17 +1718,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete a region",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       },
       "patch": {
         "operationId": "updateRegion",
@@ -2020,17 +1766,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update region configuration",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/regions/{id}/regenerate-proxy-api-key": {
@@ -2073,17 +1813,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Regenerate proxy API key for a region",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/regions/{id}/regenerate-ssh-gateway-api-key": {
@@ -2126,17 +1860,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Regenerate SSH gateway API key for a region",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/regions/{id}/regenerate-snapshot-manager-credentials": {
@@ -2179,17 +1907,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Regenerate snapshot manager credentials for a region",
-        "tags": [
-          "organizations"
-        ]
+        "tags": ["organizations"]
       }
     },
     "/users/me": {
@@ -2213,17 +1935,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get authenticated user",
-        "tags": [
-          "users"
-        ]
+        "tags": ["users"]
       }
     },
     "/users/account-providers": {
@@ -2250,17 +1966,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get available account providers",
-        "tags": [
-          "users"
-        ]
+        "tags": ["users"]
       }
     },
     "/users/linked-accounts": {
@@ -2287,17 +1997,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Link account",
-        "tags": [
-          "users"
-        ]
+        "tags": ["users"]
       }
     },
     "/users/linked-accounts/{provider}/{providerUserId}": {
@@ -2331,17 +2035,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Unlink account",
-        "tags": [
-          "users"
-        ]
+        "tags": ["users"]
       }
     },
     "/users/mfa/sms/enroll": {
@@ -2365,17 +2063,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Enroll in SMS MFA",
-        "tags": [
-          "users"
-        ]
+        "tags": ["users"]
       }
     },
     "/shared-regions": {
@@ -2398,9 +2090,7 @@
           }
         },
         "summary": "List all shared regions",
-        "tags": [
-          "regions"
-        ]
+        "tags": ["regions"]
       }
     },
     "/sandbox": {
@@ -2682,17 +2372,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List sandboxes",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       },
       "post": {
         "operationId": "createSandbox",
@@ -2734,17 +2418,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create a new sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/paginated": {
@@ -2973,16 +2651,7 @@
             "schema": {
               "default": "createdAt",
               "type": "string",
-              "enum": [
-                "id",
-                "name",
-                "state",
-                "snapshot",
-                "region",
-                "updatedAt",
-                "createdAt",
-                "lastActivityAt"
-              ]
+              "enum": ["id", "name", "state", "snapshot", "region", "updatedAt", "createdAt", "lastActivityAt"]
             }
           },
           {
@@ -2993,10 +2662,7 @@
             "schema": {
               "default": "desc",
               "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ]
+              "enum": ["asc", "desc"]
             }
           }
         ],
@@ -3017,17 +2683,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] List all sandboxes paginated",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/for-runner": {
@@ -3082,17 +2742,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandboxes for the authenticated runner",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}": {
@@ -3144,17 +2798,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox details",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       },
       "delete": {
         "operationId": "deleteSandbox",
@@ -3195,17 +2843,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/recover": {
@@ -3257,17 +2899,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Recover sandbox from error state",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/start": {
@@ -3311,17 +2947,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Start or resume sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/stop": {
@@ -3373,17 +3003,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Stop sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/pause": {
@@ -3426,17 +3050,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Pause sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/resize": {
@@ -3489,17 +3107,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Resize sandbox resources",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/labels": {
@@ -3552,17 +3164,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Replace sandbox labels",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/state": {
@@ -3608,17 +3214,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update sandbox state",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/backup": {
@@ -3661,17 +3261,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create sandbox backup",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/snapshot": {
@@ -3723,17 +3317,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create a snapshot from a sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/fork": {
@@ -3785,17 +3373,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Fork a sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/forks": {
@@ -3848,17 +3430,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox fork children",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/parent": {
@@ -3900,17 +3476,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox fork parent",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/ancestors": {
@@ -3955,17 +3525,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox fork ancestor chain",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/public/{isPublic}": {
@@ -4017,17 +3581,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update public status",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/last-activity": {
@@ -4063,17 +3621,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update sandbox last activity",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/autostop/{interval}": {
@@ -4125,17 +3677,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set sandbox auto-stop interval",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/autoarchive/{interval}": {
@@ -4187,17 +3733,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set sandbox auto-archive interval",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/autodelete/{interval}": {
@@ -4249,17 +3789,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set sandbox auto-delete interval",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/network-settings": {
@@ -4313,17 +3847,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update sandbox network settings",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/archive": {
@@ -4365,17 +3893,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Archive sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/ports/{port}/preview-url": {
@@ -4427,17 +3949,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get preview URL for a sandbox port",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url": {
@@ -4498,17 +4014,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get signed preview URL for a sandbox port",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire": {
@@ -4562,17 +4072,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Expire signed preview URL for a sandbox port",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/build-logs": {
@@ -4619,17 +4123,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get build logs",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/build-logs-url": {
@@ -4672,17 +4170,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get build logs URL",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxIdOrName}/ssh-access": {
@@ -4734,17 +4226,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create SSH access for sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       },
       "delete": {
         "operationId": "revokeSshAccess",
@@ -4794,17 +4280,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Revoke SSH access for sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/ssh-access/validate": {
@@ -4847,17 +4327,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Validate SSH access for sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/toolbox-proxy-url": {
@@ -4900,17 +4374,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get toolbox proxy URL for a sandbox",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/organization": {
@@ -4953,17 +4421,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization by sandbox ID",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/region-quota": {
@@ -5006,17 +4468,82 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get region quota by sandbox ID",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
+      }
+    },
+    "/sandbox/{sandboxId}/secrets": {
+      "get": {
+        "operationId": "resolveSandboxSecrets",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxId",
+            "required": true,
+            "in": "path",
+            "description": "Sandbox ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decrypted secret key-value pairs for this sandbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "env": {
+                        "type": "string",
+                        "example": "ANTHROPIC_API_KEY"
+                      },
+                      "placeholder": {
+                        "type": "string",
+                        "example": "dtn_secret_a7f3b2c1e9d4"
+                      },
+                      "value": {
+                        "type": "string",
+                        "example": "sk-ant-..."
+                      },
+                      "hosts": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": ["api.anthropic.com"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Resolve sandbox secrets",
+        "tags": ["sandbox"]
       }
     },
     "/runners": {
@@ -5060,17 +4587,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create runner",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       },
       "get": {
         "operationId": "listRunners",
@@ -5114,17 +4635,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all runners",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/me": {
@@ -5148,17 +4663,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get info for authenticated runner",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/by-sandbox/{sandboxId}": {
@@ -5191,17 +4700,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get runner by sandbox ID",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/by-snapshot-ref": {
@@ -5238,17 +4741,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get runners by snapshot ref",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/{id}": {
@@ -5291,17 +4788,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get runner by ID",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       },
       "delete": {
         "operationId": "deleteRunner",
@@ -5335,17 +4826,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete runner",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/{id}/full": {
@@ -5379,17 +4864,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get runner by ID",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/{id}/scheduling": {
@@ -5432,17 +4911,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update runner scheduling status",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/{id}/draining": {
@@ -5485,17 +4958,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update runner draining status",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/runners/healthcheck": {
@@ -5523,17 +4990,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Runner healthcheck",
-        "tags": [
-          "runners"
-        ]
+        "tags": ["runners"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/project-dir": {
@@ -5576,17 +5037,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get sandbox project dir",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/user-home-dir": {
@@ -5629,17 +5084,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get sandbox user home dir",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/work-dir": {
@@ -5682,17 +5131,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get sandbox work-dir",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files": {
@@ -5746,17 +5189,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] List files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "delete": {
         "deprecated": true,
@@ -5807,17 +5244,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Delete file",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/download": {
@@ -5870,17 +5301,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Download file",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/bulk-download": {
@@ -5935,17 +5360,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Download multiple files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/find": {
@@ -6008,17 +5427,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Search for text/pattern in files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/folder": {
@@ -6071,17 +5484,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Create folder",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/info": {
@@ -6133,17 +5540,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get file info",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/move": {
@@ -6196,17 +5597,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Move file",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/permissions": {
@@ -6275,17 +5670,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Set file permissions",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/replace": {
@@ -6342,17 +5731,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Replace in files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/search": {
@@ -6412,17 +5795,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Search files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/upload": {
@@ -6483,17 +5860,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Upload file",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/files/bulk-upload": {
@@ -6543,17 +5914,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Upload multiple files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/add": {
@@ -6600,17 +5965,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Add files",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/branches": {
@@ -6662,17 +6021,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get branch list",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "post": {
         "deprecated": true,
@@ -6717,17 +6070,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Create branch",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "delete": {
         "deprecated": true,
@@ -6772,17 +6119,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Delete branch",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/clone": {
@@ -6829,17 +6170,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Clone repository",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/commit": {
@@ -6893,17 +6228,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Commit changes",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/history": {
@@ -6958,17 +6287,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get commit history",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/pull": {
@@ -7015,17 +6338,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Pull changes",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/push": {
@@ -7072,17 +6389,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Push changes",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/checkout": {
@@ -7129,17 +6440,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Checkout branch",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/git/status": {
@@ -7191,17 +6496,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get git status",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/execute": {
@@ -7255,17 +6554,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Execute command",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/session": {
@@ -7312,17 +6605,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] List sessions",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "post": {
         "deprecated": true,
@@ -7367,17 +6654,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Create session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}": {
@@ -7429,17 +6710,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "delete": {
         "deprecated": true,
@@ -7482,17 +6757,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Delete session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec": {
@@ -7564,17 +6833,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Execute command in session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}": {
@@ -7634,17 +6897,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get session command",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs": {
@@ -7713,17 +6970,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get command logs",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/pty": {
@@ -7767,17 +7018,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] List PTY sessions",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "post": {
         "deprecated": true,
@@ -7829,17 +7074,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Create PTY session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}": {
@@ -7891,17 +7130,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get PTY session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       },
       "delete": {
         "deprecated": true,
@@ -7944,17 +7177,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Delete PTY session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize": {
@@ -8016,17 +7243,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Resize PTY session",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/completions": {
@@ -8080,17 +7301,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get Lsp Completions",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/did-close": {
@@ -8137,17 +7352,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Call Lsp DidClose",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/did-open": {
@@ -8194,17 +7403,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Call Lsp DidOpen",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/document-symbols": {
@@ -8275,17 +7478,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Call Lsp DocumentSymbols",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/start": {
@@ -8332,17 +7529,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Start Lsp server",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/stop": {
@@ -8389,17 +7580,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Stop Lsp server",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols": {
@@ -8470,17 +7655,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Call Lsp WorkspaceSymbols",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/start": {
@@ -8524,17 +7703,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Start computer use processes",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/stop": {
@@ -8578,17 +7751,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Stop computer use processes",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/status": {
@@ -8632,17 +7799,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get computer use status",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status": {
@@ -8694,17 +7855,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get process status",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart": {
@@ -8756,17 +7911,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Restart process",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs": {
@@ -8818,17 +7967,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get process logs",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors": {
@@ -8880,17 +8023,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get process errors",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/mouse/position": {
@@ -8934,17 +8071,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get mouse position",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/mouse/move": {
@@ -8998,17 +8129,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Move mouse",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/mouse/click": {
@@ -9062,17 +8187,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Click mouse",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag": {
@@ -9126,17 +8245,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Drag mouse",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll": {
@@ -9190,17 +8303,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Scroll mouse",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type": {
@@ -9247,17 +8354,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Type text",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key": {
@@ -9304,17 +8405,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Press key",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey": {
@@ -9361,17 +8456,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Press hotkey",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/screenshot": {
@@ -9423,17 +8512,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Take screenshot",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region": {
@@ -9517,17 +8600,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Take region screenshot",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed": {
@@ -9603,17 +8680,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Take compressed screenshot",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed": {
@@ -9721,17 +8792,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Take compressed region screenshot",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/display/info": {
@@ -9775,17 +8840,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get display info",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/toolbox/{sandboxId}/toolbox/computeruse/display/windows": {
@@ -9829,17 +8888,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "[DEPRECATED] Get windows",
-        "tags": [
-          "toolbox"
-        ]
+        "tags": ["toolbox"]
       }
     },
     "/snapshots": {
@@ -9886,17 +8939,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create a new snapshot",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       },
       "get": {
         "operationId": "getAllSnapshots",
@@ -9951,12 +8998,7 @@
             "schema": {
               "default": "lastUsedAt",
               "type": "string",
-              "enum": [
-                "name",
-                "state",
-                "lastUsedAt",
-                "createdAt"
-              ]
+              "enum": ["name", "state", "lastUsedAt", "createdAt"]
             }
           },
           {
@@ -9967,10 +9009,7 @@
             "schema": {
               "default": "desc",
               "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ]
+              "enum": ["asc", "desc"]
             }
           }
         ],
@@ -9991,17 +9030,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all snapshots",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/snapshots/{id}": {
@@ -10047,17 +9080,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get snapshot by ID or name",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       },
       "delete": {
         "operationId": "removeSnapshot",
@@ -10091,17 +9118,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete snapshot",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/snapshots/{id}/build-logs": {
@@ -10148,17 +9169,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get snapshot build logs",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/snapshots/{id}/build-logs-url": {
@@ -10201,17 +9216,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get snapshot build logs URL",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/snapshots/{id}/activate": {
@@ -10260,17 +9269,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Activate a snapshot",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/snapshots/{id}/deactivate": {
@@ -10306,17 +9309,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Deactivate a snapshot",
-        "tags": [
-          "snapshots"
-        ]
+        "tags": ["snapshots"]
       }
     },
     "/preview/{sandboxId}/public": {
@@ -10350,17 +9347,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Check if sandbox is public",
-        "tags": [
-          "preview"
-        ]
+        "tags": ["preview"]
       }
     },
     "/preview/{sandboxId}/validate/{authToken}": {
@@ -10403,17 +9394,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Check if sandbox auth token is valid",
-        "tags": [
-          "preview"
-        ]
+        "tags": ["preview"]
       }
     },
     "/preview/{sandboxId}/access": {
@@ -10446,17 +9431,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Check if user has access to the sandbox",
-        "tags": [
-          "preview"
-        ]
+        "tags": ["preview"]
       }
     },
     "/preview/{signedPreviewToken}/{port}/sandbox-id": {
@@ -10499,17 +9478,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox ID from signed preview URL token",
-        "tags": [
-          "preview"
-        ]
+        "tags": ["preview"]
       }
     },
     "/volumes": {
@@ -10555,17 +9528,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all volumes",
-        "tags": [
-          "volumes"
-        ]
+        "tags": ["volumes"]
       },
       "post": {
         "operationId": "createVolume",
@@ -10607,17 +9574,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create a new volume",
-        "tags": [
-          "volumes"
-        ]
+        "tags": ["volumes"]
       }
     },
     "/volumes/{volumeId}": {
@@ -10660,17 +9621,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get volume details",
-        "tags": [
-          "volumes"
-        ]
+        "tags": ["volumes"]
       },
       "delete": {
         "operationId": "deleteVolume",
@@ -10707,17 +9662,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete volume",
-        "tags": [
-          "volumes"
-        ]
+        "tags": ["volumes"]
       }
     },
     "/volumes/by-name/{name}": {
@@ -10760,17 +9709,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get volume details by name",
-        "tags": [
-          "volumes"
-        ]
+        "tags": ["volumes"]
       }
     },
     "/jobs": {
@@ -10837,17 +9780,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List jobs for the runner",
-        "tags": [
-          "jobs"
-        ]
+        "tags": ["jobs"]
       }
     },
     "/jobs/poll": {
@@ -10891,17 +9828,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Long poll for jobs",
-        "tags": [
-          "jobs"
-        ]
+        "tags": ["jobs"]
       }
     },
     "/jobs/{jobId}": {
@@ -10935,17 +9866,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get job details",
-        "tags": [
-          "jobs"
-        ]
+        "tags": ["jobs"]
       }
     },
     "/jobs/{jobId}/status": {
@@ -10989,17 +9914,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update job status",
-        "tags": [
-          "jobs"
-        ]
+        "tags": ["jobs"]
       }
     },
     "/docker-registry": {
@@ -11043,17 +9962,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create registry",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
       },
       "get": {
         "operationId": "listRegistries",
@@ -11088,17 +10001,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List registries",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
       }
     },
     "/docker-registry/registry-push-access": {
@@ -11141,17 +10048,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get temporary registry access for pushing snapshots",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
       }
     },
     "/docker-registry/{id}": {
@@ -11194,17 +10095,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get registry",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
       },
       "patch": {
         "operationId": "updateRegistry",
@@ -11255,17 +10150,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update registry",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
       },
       "delete": {
         "operationId": "deleteRegistry",
@@ -11299,17 +10188,238 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete registry",
-        "tags": [
-          "docker-registry"
-        ]
+        "tags": ["docker-registry"]
+      }
+    },
+    "/secret": {
+      "post": {
+        "operationId": "createSecret",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecret"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The secret has been successfully created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Create secret",
+        "tags": ["secret"]
+      },
+      "get": {
+        "operationId": "listSecrets",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all secrets (metadata only, values are not returned)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Secret"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "List secrets",
+        "tags": ["secret"]
+      }
+    },
+    "/secret/{secretId}": {
+      "get": {
+        "operationId": "getSecret",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "secretId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the secret",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The secret metadata (value is not returned)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Get secret",
+        "tags": ["secret"]
+      },
+      "patch": {
+        "operationId": "updateSecret",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "secretId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the secret",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecret"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The secret has been successfully updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Update secret",
+        "tags": ["secret"]
+      },
+      "delete": {
+        "operationId": "deleteSecret",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "secretId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the secret",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The secret has been successfully deleted."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Delete secret",
+        "tags": ["secret"]
       }
     },
     "/admin/runners": {
@@ -11343,17 +10453,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create runner",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       },
       "get": {
         "operationId": "adminListRunners",
@@ -11388,17 +10492,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all runners",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/runners/{id}": {
@@ -11432,17 +10530,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get runner by ID",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       },
       "delete": {
         "operationId": "adminDeleteRunner",
@@ -11467,17 +10559,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete runner",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/runners/{id}/scheduling": {
@@ -11503,17 +10589,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update runner scheduling status",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/sandbox/{sandboxId}/recover": {
@@ -11547,17 +10627,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Recover sandbox from error state as an admin",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/users": {
@@ -11584,17 +10658,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create user",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       },
       "get": {
         "operationId": "adminListUsers",
@@ -11609,17 +10677,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "List all users",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/users/{id}/regenerate-key-pair": {
@@ -11645,17 +10707,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Regenerate user key pair",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/users/{id}": {
@@ -11688,17 +10744,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get user by ID",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/webhooks/organizations/{organizationId}/send": {
@@ -11734,17 +10784,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Send a webhook message to an organization",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts": {
@@ -11788,17 +10832,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get delivery attempts for a webhook message",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/webhooks/status": {
@@ -11827,17 +10865,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get webhook service status",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/webhooks/organizations/{organizationId}/initialize": {
@@ -11866,17 +10898,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Initialize webhooks for an organization",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/docker-registry/{id}/set-default": {
@@ -11910,17 +10936,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set default registry",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/snapshots/can-cleanup-image": {
@@ -11954,17 +10974,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Check if an image can be cleaned up",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/snapshots/{id}/general": {
@@ -12008,17 +11022,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Set snapshot general status",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/audit": {
@@ -12052,7 +11060,8 @@
             "name": "from",
             "required": false,
             "in": "query",
-            "description": "From date (ISO 8601 format)",
+            "description": "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).",
+            "deprecated": true,
             "schema": {
               "format": "date-time",
               "type": "string"
@@ -12062,7 +11071,8 @@
             "name": "to",
             "required": false,
             "in": "query",
-            "description": "To date (ISO 8601 format)",
+            "description": "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).",
+            "deprecated": true,
             "schema": {
               "format": "date-time",
               "type": "string"
@@ -12075,6 +11085,96 @@
             "description": "Token for cursor-based pagination. When provided, takes precedence over page parameter.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by audit log ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor user ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorEmail",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor email.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorApiKeyPrefix",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor API key prefix.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorApiKeySuffix",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor API key suffix.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "targetType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by target type.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "targetId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by target ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "statusCode",
+            "required": false,
+            "in": "query",
+            "description": "Filter by HTTP status code.",
+            "schema": {
+              "$ref": "#/components/schemas/IntFilter"
+            }
+          },
+          {
+            "name": "createdAt",
+            "required": false,
+            "in": "query",
+            "description": "Filter by creation timestamp.",
+            "schema": {
+              "$ref": "#/components/schemas/DateFilter"
             }
           }
         ],
@@ -12095,17 +11195,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get all audit logs",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/organizations/{organizationId}/quota/{regionId}": {
@@ -12158,17 +11252,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Create organization region quota",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       },
       "patch": {
         "operationId": "adminUpdateOrganizationRegionQuota",
@@ -12212,17 +11300,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Update organization region quota",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}": {
@@ -12274,17 +11356,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get organization region quota",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       },
       "delete": {
         "operationId": "adminDeleteOrganizationRegionQuota",
@@ -12327,17 +11403,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Delete organization region quota",
-        "tags": [
-          "admin"
-        ]
+        "tags": ["admin"]
       }
     },
     "/webhooks/organizations/{organizationId}/app-portal-access": {
@@ -12379,17 +11449,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get Svix Consumer App Portal access for an organization",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/webhooks/organizations/{organizationId}/initialization-status": {
@@ -12434,17 +11498,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get webhook initialization status for an organization",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/webhooks/organizations/{organizationId}/initialize": {
@@ -12487,17 +11545,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Initialize webhooks for an organization",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/webhooks/organizations/{organizationId}/refresh-endpoints": {
@@ -12535,17 +11587,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Refresh cached endpoint presence flag for an organization",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/audit/organizations/{organizationId}": {
@@ -12588,7 +11634,8 @@
             "name": "from",
             "required": false,
             "in": "query",
-            "description": "From date (ISO 8601 format)",
+            "description": "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).",
+            "deprecated": true,
             "schema": {
               "format": "date-time",
               "type": "string"
@@ -12598,7 +11645,8 @@
             "name": "to",
             "required": false,
             "in": "query",
-            "description": "To date (ISO 8601 format)",
+            "description": "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).",
+            "deprecated": true,
             "schema": {
               "format": "date-time",
               "type": "string"
@@ -12611,6 +11659,96 @@
             "description": "Token for cursor-based pagination. When provided, takes precedence over page parameter.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by audit log ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor user ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorEmail",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor email.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorApiKeyPrefix",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor API key prefix.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "actorApiKeySuffix",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor API key suffix.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "targetType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by target type.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "targetId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by target ID.",
+            "schema": {
+              "$ref": "#/components/schemas/StringFilter"
+            }
+          },
+          {
+            "name": "statusCode",
+            "required": false,
+            "in": "query",
+            "description": "Filter by HTTP status code.",
+            "schema": {
+              "$ref": "#/components/schemas/IntFilter"
+            }
+          },
+          {
+            "name": "createdAt",
+            "required": false,
+            "in": "query",
+            "description": "Filter by creation timestamp.",
+            "schema": {
+              "$ref": "#/components/schemas/DateFilter"
             }
           }
         ],
@@ -12631,17 +11769,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get audit logs for organization",
-        "tags": [
-          "audit"
-        ]
+        "tags": ["audit"]
       }
     },
     "/object-storage/push-access": {
@@ -12675,17 +11807,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get temporary storage access for pushing objects",
-        "tags": [
-          "object-storage"
-        ]
+        "tags": ["object-storage"]
       }
     },
     "/health": {
@@ -12697,9 +11823,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "Health"
-        ]
+        "tags": ["Health"]
       }
     },
     "/health/ready": {
@@ -12727,9 +11851,7 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12744,9 +11866,7 @@
                       "example": {},
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12765,9 +11885,7 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12801,9 +11919,7 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12823,9 +11939,7 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12848,9 +11962,7 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": [
-                          "status"
-                        ],
+                        "required": ["status"],
                         "properties": {
                           "status": {
                             "type": "string"
@@ -12870,9 +11982,7 @@
             "bearer": []
           }
         ],
-        "tags": [
-          "Health"
-        ]
+        "tags": ["Health"]
       }
     },
     "/sandbox/{sandboxId}/telemetry/logs": {
@@ -12977,17 +12087,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox logs",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/telemetry/traces": {
@@ -13071,17 +12175,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox traces",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/telemetry/traces/{traceId}": {
@@ -13137,17 +12235,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get trace spans",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     },
     "/sandbox/{sandboxId}/telemetry/metrics": {
@@ -13223,17 +12315,11 @@
             "bearer": []
           },
           {
-            "oauth2": [
-              "openid",
-              "profile",
-              "email"
-            ]
+            "oauth2": ["openid", "profile", "email"]
           }
         ],
         "summary": "Get sandbox metrics",
-        "tags": [
-          "sandbox"
-        ]
+        "tags": ["sandbox"]
       }
     }
   },
@@ -13285,9 +12371,7 @@
             "example": "https://example.com/learn-more"
           }
         },
-        "required": [
-          "text"
-        ]
+        "required": ["text"]
       },
       "PosthogConfig": {
         "type": "object",
@@ -13303,10 +12387,7 @@
             "example": "https://app.posthog.com"
           }
         },
-        "required": [
-          "apiKey",
-          "host"
-        ]
+        "required": ["apiKey", "host"]
       },
       "OidcConfig": {
         "type": "object",
@@ -13327,11 +12408,7 @@
             "example": "daytona-api"
           }
         },
-        "required": [
-          "issuer",
-          "clientId",
-          "audience"
-        ]
+        "required": ["issuer", "clientId", "audience"]
       },
       "RateLimitEntry": {
         "type": "object",
@@ -13551,7 +12628,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13568,7 +12647,9 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           },
@@ -13580,10 +12661,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "name",
-          "permissions"
-        ]
+        "required": ["name", "permissions"]
       },
       "ApiKeyResponse": {
         "type": "object",
@@ -13624,7 +12702,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13641,7 +12721,9 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           },
@@ -13653,13 +12735,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "name",
-          "value",
-          "createdAt",
-          "permissions",
-          "expiresAt"
-        ]
+        "required": ["name", "value", "createdAt", "permissions", "expiresAt"]
       },
       "ApiKeyList": {
         "type": "object",
@@ -13700,7 +12776,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13717,7 +12795,9 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           },
@@ -13741,15 +12821,7 @@
             "example": "123"
           }
         },
-        "required": [
-          "name",
-          "value",
-          "createdAt",
-          "permissions",
-          "lastUsedAt",
-          "expiresAt",
-          "userId"
-        ]
+        "required": ["name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId"]
       },
       "OrganizationRole": {
         "type": "object",
@@ -13786,7 +12858,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13803,7 +12877,9 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           },
@@ -13822,15 +12898,7 @@
             "description": "Last update timestamp"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "description",
-          "permissions",
-          "isGlobal",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "name", "description", "permissions", "isGlobal", "createdAt", "updatedAt"]
       },
       "OrganizationInvitation": {
         "type": "object",
@@ -13863,20 +12931,12 @@
           "status": {
             "type": "string",
             "description": "Invitation status",
-            "enum": [
-              "pending",
-              "accepted",
-              "declined",
-              "cancelled"
-            ]
+            "enum": ["pending", "accepted", "declined", "cancelled"]
           },
           "role": {
             "type": "string",
             "description": "Member role",
-            "enum": [
-              "owner",
-              "member"
-            ]
+            "enum": ["owner", "member"]
           },
           "assignedRoles": {
             "description": "Assigned roles",
@@ -13924,10 +12984,7 @@
             "example": "us"
           }
         },
-        "required": [
-          "name",
-          "defaultRegionId"
-        ]
+        "required": ["name", "defaultRegionId"]
       },
       "OtelConfig": {
         "type": "object",
@@ -13948,9 +13005,7 @@
             }
           }
         },
-        "required": [
-          "endpoint"
-        ]
+        "required": ["endpoint"]
       },
       "Organization": {
         "type": "object",
@@ -14108,35 +13163,17 @@
             "example": "us"
           }
         },
-        "required": [
-          "defaultRegionId"
-        ]
+        "required": ["defaultRegionId"]
       },
       "SandboxClass": {
         "type": "string",
-        "enum": [
-          "linux-vm",
-          "container",
-          "android",
-          "windows"
-        ],
-        "x-enum-varnames": [
-          "LINUX_VM",
-          "CONTAINER",
-          "ANDROID",
-          "WINDOWS"
-        ]
+        "enum": ["linux-vm", "container", "android", "windows"],
+        "x-enum-varnames": ["LINUX_VM", "CONTAINER", "ANDROID", "WINDOWS"]
       },
       "GpuType": {
         "type": "string",
-        "enum": [
-          "H100",
-          "RTX-PRO-6000"
-        ],
-        "x-enum-varnames": [
-          "H100",
-          "RTX_PRO_6000"
-        ]
+        "enum": ["H100", "RTX-PRO-6000"],
+        "x-enum-varnames": ["H100", "RTX_PRO_6000"]
       },
       "RegionUsageOverview": {
         "type": "object",
@@ -14401,12 +13438,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "totalCpuQuota",
-          "totalMemoryQuota",
-          "totalDiskQuota",
-          "totalGpuQuota"
-        ]
+        "required": ["totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota"]
       },
       "OrganizationSuspension": {
         "type": "object",
@@ -14426,10 +13458,7 @@
             "minimum": 0
           }
         },
-        "required": [
-          "reason",
-          "until"
-        ]
+        "required": ["reason", "until"]
       },
       "OrganizationSandboxDefaultLimitedNetworkEgress": {
         "type": "object",
@@ -14439,9 +13468,7 @@
             "description": "Sandbox default limited network egress"
           }
         },
-        "required": [
-          "sandboxDefaultLimitedNetworkEgress"
-        ]
+        "required": ["sandboxDefaultLimitedNetworkEgress"]
       },
       "CreateOrganizationRole": {
         "type": "object",
@@ -14476,7 +13503,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -14493,16 +13522,14 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           }
         },
-        "required": [
-          "name",
-          "description",
-          "permissions"
-        ]
+        "required": ["name", "description", "permissions"]
       },
       "UpdateOrganizationRole": {
         "type": "object",
@@ -14537,7 +13564,9 @@
                 "read:runners",
                 "write:runners",
                 "delete:runners",
-                "read:audit_logs"
+                "read:audit_logs",
+                "manage:api_keys",
+                "manage:secrets"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -14554,16 +13583,14 @@
                 "READ_RUNNERS",
                 "WRITE_RUNNERS",
                 "DELETE_RUNNERS",
-                "READ_AUDIT_LOGS"
+                "READ_AUDIT_LOGS",
+                "MANAGE_API_KEYS",
+                "MANAGE_SECRETS"
               ]
             }
           }
         },
-        "required": [
-          "name",
-          "description",
-          "permissions"
-        ]
+        "required": ["name", "description", "permissions"]
       },
       "OrganizationUser": {
         "type": "object",
@@ -14587,10 +13614,7 @@
           "role": {
             "type": "string",
             "description": "Member role",
-            "enum": [
-              "owner",
-              "member"
-            ]
+            "enum": ["owner", "member"]
           },
           "assignedRoles": {
             "description": "Roles assigned to the user",
@@ -14610,16 +13634,7 @@
             "description": "Last update timestamp"
           }
         },
-        "required": [
-          "userId",
-          "organizationId",
-          "name",
-          "email",
-          "role",
-          "assignedRoles",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["userId", "organizationId", "name", "email", "role", "assignedRoles", "createdAt", "updatedAt"]
       },
       "UpdateOrganizationMemberAccess": {
         "type": "object",
@@ -14627,27 +13642,19 @@
           "role": {
             "type": "string",
             "description": "Organization member role",
-            "enum": [
-              "owner",
-              "member"
-            ],
+            "enum": ["owner", "member"],
             "default": "member"
           },
           "assignedRoleIds": {
             "description": "Array of assigned role IDs",
-            "default": [
-              "00000000-0000-0000-0000-000000000001"
-            ],
+            "default": ["00000000-0000-0000-0000-000000000001"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "role",
-          "assignedRoleIds"
-        ]
+        "required": ["role", "assignedRoleIds"]
       },
       "CreateOrganizationInvitation": {
         "type": "object",
@@ -14660,17 +13667,12 @@
           "role": {
             "type": "string",
             "description": "Organization member role for the invitee",
-            "enum": [
-              "owner",
-              "member"
-            ],
+            "enum": ["owner", "member"],
             "default": "member"
           },
           "assignedRoleIds": {
             "description": "Array of assigned role IDs for the invitee",
-            "default": [
-              "00000000-0000-0000-0000-000000000001"
-            ],
+            "default": ["00000000-0000-0000-0000-000000000001"],
             "type": "array",
             "items": {
               "type": "string"
@@ -14683,11 +13685,7 @@
             "example": "2021-12-31T23:59:59Z"
           }
         },
-        "required": [
-          "email",
-          "role",
-          "assignedRoleIds"
-        ]
+        "required": ["email", "role", "assignedRoleIds"]
       },
       "UpdateOrganizationInvitation": {
         "type": "object",
@@ -14695,10 +13693,7 @@
           "role": {
             "type": "string",
             "description": "Organization member role",
-            "enum": [
-              "owner",
-              "member"
-            ]
+            "enum": ["owner", "member"]
           },
           "assignedRoleIds": {
             "description": "Array of role IDs",
@@ -14714,18 +13709,11 @@
             "example": "2021-12-31T23:59:59Z"
           }
         },
-        "required": [
-          "role",
-          "assignedRoleIds"
-        ]
+        "required": ["role", "assignedRoleIds"]
       },
       "RegionType": {
         "type": "string",
-        "enum": [
-          "shared",
-          "dedicated",
-          "custom"
-        ],
+        "enum": ["shared", "dedicated", "custom"],
         "description": "The type of the region"
       },
       "Region": {
@@ -14785,13 +13773,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "id",
-          "name",
-          "regionType",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "name", "regionType", "createdAt", "updatedAt"]
       },
       "CreateRegion": {
         "type": "object",
@@ -14820,9 +13802,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "CreateRegionResponse": {
         "type": "object",
@@ -14856,9 +13836,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "RegenerateApiKeyResponse": {
         "type": "object",
@@ -14869,9 +13847,7 @@
             "example": "api-key-xyz123"
           }
         },
-        "required": [
-          "apiKey"
-        ]
+        "required": ["apiKey"]
       },
       "UpdateRegion": {
         "type": "object",
@@ -14909,10 +13885,7 @@
             "description": "Snapshot Manager password for the region"
           }
         },
-        "required": [
-          "username",
-          "password"
-        ]
+        "required": ["username", "password"]
       },
       "UserPublicKey": {
         "type": "object",
@@ -14926,10 +13899,7 @@
             "description": "Key name"
           }
         },
-        "required": [
-          "key",
-          "name"
-        ]
+        "required": ["key", "name"]
       },
       "User": {
         "type": "object",
@@ -14959,13 +13929,7 @@
             "description": "Creation timestamp"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "email",
-          "publicKeys",
-          "createdAt"
-        ]
+        "required": ["id", "name", "email", "publicKeys", "createdAt"]
       },
       "AccountProvider": {
         "type": "object",
@@ -14977,10 +13941,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "displayName"
-        ]
+        "required": ["name", "displayName"]
       },
       "CreateLinkedAccount": {
         "type": "object",
@@ -14994,10 +13955,7 @@
             "description": "The user ID of the secondary account"
           }
         },
-        "required": [
-          "provider",
-          "userId"
-        ]
+        "required": ["provider", "userId"]
       },
       "SandboxState": {
         "type": "string",
@@ -15028,32 +13986,15 @@
       },
       "SandboxListSortField": {
         "type": "string",
-        "enum": [
-          "name",
-          "cpu",
-          "memoryGib",
-          "diskGib",
-          "lastActivityAt",
-          "createdAt"
-        ]
+        "enum": ["name", "cpu", "memoryGib", "diskGib", "lastActivityAt", "createdAt"]
       },
       "SandboxListSortDirection": {
         "type": "string",
-        "enum": [
-          "asc",
-          "desc"
-        ]
+        "enum": ["asc", "desc"]
       },
       "SandboxDesiredState": {
         "type": "string",
-        "enum": [
-          "destroyed",
-          "started",
-          "stopped",
-          "resized",
-          "archived",
-          "paused"
-        ],
+        "enum": ["destroyed", "started", "stopped", "resized", "archived", "paused"],
         "description": "The desired state of the sandbox"
       },
       "SandboxListItem": {
@@ -15178,13 +14119,7 @@
           "backupState": {
             "type": "string",
             "description": "The state of the backup",
-            "enum": [
-              "None",
-              "Pending",
-              "InProgress",
-              "Completed",
-              "Error"
-            ],
+            "enum": ["None", "Pending", "InProgress", "Completed", "Error"],
             "example": "None"
           },
           "autoStopInterval": {
@@ -15259,10 +14194,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "items",
-          "nextCursor"
-        ]
+        "required": ["items", "nextCursor"]
       },
       "SandboxVolume": {
         "type": "object",
@@ -15283,10 +14215,7 @@
             "example": "users/alice"
           }
         },
-        "required": [
-          "volumeId",
-          "mountPath"
-        ]
+        "required": ["volumeId", "mountPath"]
       },
       "BuildInfo": {
         "type": "object",
@@ -15298,10 +14227,7 @@
           },
           "contextHashes": {
             "description": "The context hashes used for the build",
-            "example": [
-              "hash1",
-              "hash2"
-            ],
+            "example": ["hash1", "hash2"],
             "type": "array",
             "items": {
               "type": "string"
@@ -15323,11 +14249,7 @@
             "example": "daytonaio/sandbox:latest"
           }
         },
-        "required": [
-          "createdAt",
-          "updatedAt",
-          "snapshotRef"
-        ]
+        "required": ["createdAt", "updatedAt", "snapshotRef"]
       },
       "Sandbox": {
         "type": "object",
@@ -15462,13 +14384,7 @@
           "backupState": {
             "type": "string",
             "description": "The state of the backup",
-            "enum": [
-              "None",
-              "Pending",
-              "InProgress",
-              "Completed",
-              "Error"
-            ],
+            "enum": ["None", "Pending", "InProgress", "Completed", "Error"],
             "example": "None"
           },
           "backupCreatedAt": {
@@ -15524,19 +14440,9 @@
           "sandboxClass": {
             "type": "string",
             "description": "The class of the sandbox",
-            "enum": [
-              "linux-vm",
-              "container",
-              "android",
-              "windows"
-            ],
+            "enum": ["linux-vm", "container", "android", "windows"],
             "example": "linux-vm",
-            "x-enum-varnames": [
-              "LINUX_VM",
-              "CONTAINER",
-              "ANDROID",
-              "WINDOWS"
-            ]
+            "x-enum-varnames": ["LINUX_VM", "CONTAINER", "ANDROID", "WINDOWS"]
           },
           "daemonVersion": {
             "type": "string",
@@ -15595,12 +14501,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "CreateBuildInfo": {
         "type": "object",
@@ -15612,19 +14513,14 @@
           },
           "contextHashes": {
             "description": "The context hashes used for the build",
-            "example": [
-              "hash1",
-              "hash2"
-            ],
+            "example": ["hash1", "hash2"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "dockerfileContent"
-        ]
+        "required": ["dockerfileContent"]
       },
       "CreateSandbox": {
         "type": "object",
@@ -15702,9 +14598,7 @@
           "gpuType": {
             "type": "array",
             "description": "Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.",
-            "example": [
-              "H100"
-            ],
+            "example": ["H100"],
             "items": {
               "$ref": "#/components/schemas/GpuType"
             }
@@ -15753,6 +14647,24 @@
             "type": "string",
             "description": "ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.",
             "example": "sandbox123"
+          },
+          "secrets": {
+            "type": "array",
+            "description": "Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "example": [
+              {
+                "ANTHROPIC_API_KEY": "anthropic-prod"
+              },
+              {
+                "DB_PASSWORD": "DB_PASSWORD"
+              }
+            ]
           }
         }
       },
@@ -15794,9 +14706,7 @@
             }
           }
         },
-        "required": [
-          "labels"
-        ]
+        "required": ["labels"]
       },
       "UpdateSandboxStateDto": {
         "type": "object",
@@ -15841,9 +14751,7 @@
             "example": true
           }
         },
-        "required": [
-          "state"
-        ]
+        "required": ["state"]
       },
       "CreateSandboxSnapshot": {
         "type": "object",
@@ -15859,9 +14767,7 @@
             "default": false
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "ForkSandbox": {
         "type": "object",
@@ -15912,11 +14818,7 @@
             "example": "ul67qtv-jl6wb9z5o3eii-ljqt9qed6l"
           }
         },
-        "required": [
-          "sandboxId",
-          "url",
-          "token"
-        ]
+        "required": ["sandboxId", "url", "token"]
       },
       "SignedPortPreviewUrl": {
         "type": "object",
@@ -15942,12 +14844,7 @@
             "example": "https://{port}-{token}.{proxyDomain}"
           }
         },
-        "required": [
-          "sandboxId",
-          "port",
-          "token",
-          "url"
-        ]
+        "required": ["sandboxId", "port", "token", "url"]
       },
       "Url": {
         "type": "object",
@@ -15957,9 +14854,7 @@
             "description": "URL response"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "SshAccessDto": {
         "type": "object",
@@ -16003,15 +14898,7 @@
             "example": "ssh -p 2222 token@localhost"
           }
         },
-        "required": [
-          "id",
-          "sandboxId",
-          "token",
-          "expiresAt",
-          "createdAt",
-          "updatedAt",
-          "sshCommand"
-        ]
+        "required": ["id", "sandboxId", "token", "expiresAt", "createdAt", "updatedAt", "sshCommand"]
       },
       "SshAccessValidationDto": {
         "type": "object",
@@ -16027,10 +14914,7 @@
             "example": "123e4567-e89b-12d3-a456-426614174000"
           }
         },
-        "required": [
-          "valid",
-          "sandboxId"
-        ]
+        "required": ["valid", "sandboxId"]
       },
       "ToolboxProxyUrl": {
         "type": "object",
@@ -16041,9 +14925,7 @@
             "example": "https://proxy.app.daytona.io/toolbox"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "RegionQuota": {
         "type": "object",
@@ -16136,20 +15018,14 @@
           },
           "tags": {
             "description": "Tags to associate with the runner",
-            "example": [
-              "gpu",
-              "us-east"
-            ],
+            "example": ["gpu", "us-east"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "regionId",
-          "name"
-        ]
+        "required": ["regionId", "name"]
       },
       "CreateRunnerResponse": {
         "type": "object",
@@ -16165,27 +15041,16 @@
             "example": "dtn_1234567890"
           }
         },
-        "required": [
-          "id",
-          "apiKey"
-        ]
+        "required": ["id", "apiKey"]
       },
       "RunnerState": {
         "type": "string",
-        "enum": [
-          "initializing",
-          "ready",
-          "disabled",
-          "decommissioned",
-          "unresponsive"
-        ],
+        "enum": ["initializing", "ready", "disabled", "decommissioned", "unresponsive"],
         "description": "The state of the runner"
       },
       "RunnerClass": {
         "type": "string",
-        "enum": [
-          "container"
-        ],
+        "enum": ["container"],
         "description": "The class of the runner. Deprecated and always returns \"container\" for backward compatibility - use sandboxClass instead."
       },
       "RunnerFull": {
@@ -16320,10 +15185,7 @@
           },
           "tags": {
             "description": "Tags associated with the runner",
-            "example": [
-              "gpu",
-              "us-east"
-            ],
+            "example": ["gpu", "us-east"],
             "type": "array",
             "items": {
               "type": "string"
@@ -16425,10 +15287,7 @@
             "example": "runner.example.com"
           }
         },
-        "required": [
-          "runnerSnapshotId",
-          "runnerId"
-        ]
+        "required": ["runnerSnapshotId", "runnerId"]
       },
       "Runner": {
         "type": "object",
@@ -16562,10 +15421,7 @@
           },
           "tags": {
             "description": "Tags associated with the runner",
-            "example": [
-              "gpu",
-              "us-east"
-            ],
+            "example": ["gpu", "us-east"],
             "type": "array",
             "items": {
               "type": "string"
@@ -16741,10 +15597,7 @@
             "example": "Cannot connect to the runner"
           }
         },
-        "required": [
-          "serviceName",
-          "healthy"
-        ]
+        "required": ["serviceName", "healthy"]
       },
       "RunnerHealthcheck": {
         "type": "object",
@@ -16785,9 +15638,7 @@
             "example": "v0.0.0-dev"
           }
         },
-        "required": [
-          "appVersion"
-        ]
+        "required": ["appVersion"]
       },
       "ProjectDirResponse": {
         "type": "object",
@@ -16841,16 +15692,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "isDir",
-          "size",
-          "modTime",
-          "mode",
-          "permissions",
-          "owner",
-          "group"
-        ]
+        "required": ["name", "isDir", "size", "modTime", "mode", "permissions", "owner", "group"]
       },
       "DownloadFiles": {
         "type": "object",
@@ -16863,9 +15705,7 @@
             }
           }
         },
-        "required": [
-          "paths"
-        ]
+        "required": ["paths"]
       },
       "Match": {
         "type": "object",
@@ -16880,11 +15720,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "file",
-          "line",
-          "content"
-        ]
+        "required": ["file", "line", "content"]
       },
       "ReplaceRequest": {
         "type": "object",
@@ -16902,11 +15738,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "files",
-          "pattern",
-          "newValue"
-        ]
+        "required": ["files", "pattern", "newValue"]
       },
       "ReplaceResult": {
         "type": "object",
@@ -16932,9 +15764,7 @@
             }
           }
         },
-        "required": [
-          "files"
-        ]
+        "required": ["files"]
       },
       "UploadFile": {
         "type": "object",
@@ -16947,10 +15777,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "file",
-          "path"
-        ]
+        "required": ["file", "path"]
       },
       "GitAddRequest": {
         "type": "object",
@@ -16966,10 +15793,7 @@
             }
           }
         },
-        "required": [
-          "path",
-          "files"
-        ]
+        "required": ["path", "files"]
       },
       "ListBranchResponse": {
         "type": "object",
@@ -16981,9 +15805,7 @@
             }
           }
         },
-        "required": [
-          "branches"
-        ]
+        "required": ["branches"]
       },
       "GitBranchRequest": {
         "type": "object",
@@ -16995,10 +15817,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "path",
-          "name"
-        ]
+        "required": ["path", "name"]
       },
       "GitDeleteBranchRequest": {
         "type": "object",
@@ -17010,10 +15829,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "path",
-          "name"
-        ]
+        "required": ["path", "name"]
       },
       "GitCloneRequest": {
         "type": "object",
@@ -17037,10 +15853,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "url",
-          "path"
-        ]
+        "required": ["url", "path"]
       },
       "GitCommitRequest": {
         "type": "object",
@@ -17063,12 +15876,7 @@
             "default": false
           }
         },
-        "required": [
-          "path",
-          "message",
-          "author",
-          "email"
-        ]
+        "required": ["path", "message", "author", "email"]
       },
       "GitCommitResponse": {
         "type": "object",
@@ -17077,9 +15885,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "hash"
-        ]
+        "required": ["hash"]
       },
       "GitCommitInfo": {
         "type": "object",
@@ -17100,13 +15906,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "hash",
-          "message",
-          "author",
-          "email",
-          "timestamp"
-        ]
+        "required": ["hash", "message", "author", "email", "timestamp"]
       },
       "GitRepoRequest": {
         "type": "object",
@@ -17121,9 +15921,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "path"
-        ]
+        "required": ["path"]
       },
       "GitCheckoutRequest": {
         "type": "object",
@@ -17135,10 +15933,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "path",
-          "branch"
-        ]
+        "required": ["path", "branch"]
       },
       "FileStatus": {
         "type": "object",
@@ -17156,12 +15951,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "staging",
-          "worktree",
-          "extra"
-        ]
+        "required": ["name", "staging", "worktree", "extra"]
       },
       "GitStatus": {
         "type": "object",
@@ -17185,10 +15975,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "currentBranch",
-          "fileStatus"
-        ]
+        "required": ["currentBranch", "fileStatus"]
       },
       "ExecuteRequest": {
         "type": "object",
@@ -17205,9 +15992,7 @@
             "description": "Timeout in seconds, defaults to 10 seconds"
           }
         },
-        "required": [
-          "command"
-        ]
+        "required": ["command"]
       },
       "ExecuteResponse": {
         "type": "object",
@@ -17223,10 +16008,7 @@
             "example": "Command output here"
           }
         },
-        "required": [
-          "exitCode",
-          "result"
-        ]
+        "required": ["exitCode", "result"]
       },
       "Command": {
         "type": "object",
@@ -17247,10 +16029,7 @@
             "example": 0
           }
         },
-        "required": [
-          "id",
-          "command"
-        ]
+        "required": ["id", "command"]
       },
       "Session": {
         "type": "object",
@@ -17269,10 +16048,7 @@
             }
           }
         },
-        "required": [
-          "sessionId",
-          "commands"
-        ]
+        "required": ["sessionId", "commands"]
       },
       "CreateSessionRequest": {
         "type": "object",
@@ -17283,9 +16059,7 @@
             "example": "session-123"
           }
         },
-        "required": [
-          "sessionId"
-        ]
+        "required": ["sessionId"]
       },
       "SessionExecuteRequest": {
         "type": "object",
@@ -17307,9 +16081,7 @@
             "deprecated": true
           }
         },
-        "required": [
-          "command"
-        ]
+        "required": ["command"]
       },
       "SessionExecuteResponse": {
         "type": "object",
@@ -17379,16 +16151,7 @@
             "default": false
           }
         },
-        "required": [
-          "id",
-          "cwd",
-          "envs",
-          "cols",
-          "rows",
-          "createdAt",
-          "active",
-          "lazyStart"
-        ]
+        "required": ["id", "cwd", "envs", "cols", "rows", "createdAt", "active", "lazyStart"]
       },
       "PtyListResponse": {
         "type": "object",
@@ -17401,9 +16164,7 @@
             }
           }
         },
-        "required": [
-          "sessions"
-        ]
+        "required": ["sessions"]
       },
       "PtyCreateRequest": {
         "type": "object",
@@ -17443,9 +16204,7 @@
             "default": false
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "PtyCreateResponse": {
         "type": "object",
@@ -17456,9 +16215,7 @@
             "example": "pty-session-12345"
           }
         },
-        "required": [
-          "sessionId"
-        ]
+        "required": ["sessionId"]
       },
       "PtyResizeRequest": {
         "type": "object",
@@ -17474,10 +16231,7 @@
             "example": 24
           }
         },
-        "required": [
-          "cols",
-          "rows"
-        ]
+        "required": ["cols", "rows"]
       },
       "Position": {
         "type": "object",
@@ -17489,10 +16243,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "line",
-          "character"
-        ]
+        "required": ["line", "character"]
       },
       "CompletionContext": {
         "type": "object",
@@ -17504,9 +16255,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "triggerKind"
-        ]
+        "required": ["triggerKind"]
       },
       "LspCompletionParams": {
         "type": "object",
@@ -17530,12 +16279,7 @@
             "$ref": "#/components/schemas/CompletionContext"
           }
         },
-        "required": [
-          "languageId",
-          "pathToProject",
-          "uri",
-          "position"
-        ]
+        "required": ["languageId", "pathToProject", "uri", "position"]
       },
       "CompletionItem": {
         "type": "object",
@@ -17562,9 +16306,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "label"
-        ]
+        "required": ["label"]
       },
       "CompletionList": {
         "type": "object",
@@ -17579,10 +16321,7 @@
             }
           }
         },
-        "required": [
-          "isIncomplete",
-          "items"
-        ]
+        "required": ["isIncomplete", "items"]
       },
       "LspDocumentRequest": {
         "type": "object",
@@ -17600,11 +16339,7 @@
             "description": "Document URI"
           }
         },
-        "required": [
-          "languageId",
-          "pathToProject",
-          "uri"
-        ]
+        "required": ["languageId", "pathToProject", "uri"]
       },
       "Range": {
         "type": "object",
@@ -17616,10 +16351,7 @@
             "$ref": "#/components/schemas/Position"
           }
         },
-        "required": [
-          "start",
-          "end"
-        ]
+        "required": ["start", "end"]
       },
       "LspLocation": {
         "type": "object",
@@ -17631,10 +16363,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "range",
-          "uri"
-        ]
+        "required": ["range", "uri"]
       },
       "LspSymbol": {
         "type": "object",
@@ -17649,11 +16378,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "kind",
-          "location",
-          "name"
-        ]
+        "required": ["kind", "location", "name"]
       },
       "LspServerRequest": {
         "type": "object",
@@ -17667,10 +16392,7 @@
             "description": "Path to the project"
           }
         },
-        "required": [
-          "languageId",
-          "pathToProject"
-        ]
+        "required": ["languageId", "pathToProject"]
       },
       "ComputerUseStartResponse": {
         "type": "object",
@@ -17711,10 +16433,7 @@
             }
           }
         },
-        "required": [
-          "message",
-          "status"
-        ]
+        "required": ["message", "status"]
       },
       "ComputerUseStopResponse": {
         "type": "object",
@@ -17751,10 +16470,7 @@
             }
           }
         },
-        "required": [
-          "message",
-          "status"
-        ]
+        "required": ["message", "status"]
       },
       "ComputerUseStatusResponse": {
         "type": "object",
@@ -17763,17 +16479,10 @@
             "type": "string",
             "description": "Status of computer use services (active, partial, inactive, error)",
             "example": "active",
-            "enum": [
-              "active",
-              "partial",
-              "inactive",
-              "error"
-            ]
+            "enum": ["active", "partial", "inactive", "error"]
           }
         },
-        "required": [
-          "status"
-        ]
+        "required": ["status"]
       },
       "ProcessStatusResponse": {
         "type": "object",
@@ -17789,10 +16498,7 @@
             "example": true
           }
         },
-        "required": [
-          "processName",
-          "running"
-        ]
+        "required": ["processName", "running"]
       },
       "ProcessRestartResponse": {
         "type": "object",
@@ -17808,10 +16514,7 @@
             "example": "xfce4"
           }
         },
-        "required": [
-          "message",
-          "processName"
-        ]
+        "required": ["message", "processName"]
       },
       "ProcessLogsResponse": {
         "type": "object",
@@ -17827,10 +16530,7 @@
             "example": "2024-01-15 10:30:45 [INFO] NoVNC server started on port 6080"
           }
         },
-        "required": [
-          "processName",
-          "logs"
-        ]
+        "required": ["processName", "logs"]
       },
       "ProcessErrorsResponse": {
         "type": "object",
@@ -17846,10 +16546,7 @@
             "example": "2024-01-15 10:30:45 [ERROR] Failed to bind to port 5901"
           }
         },
-        "required": [
-          "processName",
-          "errors"
-        ]
+        "required": ["processName", "errors"]
       },
       "MousePosition": {
         "type": "object",
@@ -17865,10 +16562,7 @@
             "example": 200
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseMoveRequest": {
         "type": "object",
@@ -17884,10 +16578,7 @@
             "example": 250
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseMoveResponse": {
         "type": "object",
@@ -17903,10 +16594,7 @@
             "example": 250
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseClickRequest": {
         "type": "object",
@@ -17932,10 +16620,7 @@
             "example": false
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseClickResponse": {
         "type": "object",
@@ -17951,10 +16636,7 @@
             "example": 200
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseDragRequest": {
         "type": "object",
@@ -17985,12 +16667,7 @@
             "example": "left"
           }
         },
-        "required": [
-          "startX",
-          "startY",
-          "endX",
-          "endY"
-        ]
+        "required": ["startX", "startY", "endX", "endY"]
       },
       "MouseDragResponse": {
         "type": "object",
@@ -18006,10 +16683,7 @@
             "example": 400
           }
         },
-        "required": [
-          "x",
-          "y"
-        ]
+        "required": ["x", "y"]
       },
       "MouseScrollRequest": {
         "type": "object",
@@ -18035,11 +16709,7 @@
             "example": 3
           }
         },
-        "required": [
-          "x",
-          "y",
-          "direction"
-        ]
+        "required": ["x", "y", "direction"]
       },
       "MouseScrollResponse": {
         "type": "object",
@@ -18050,9 +16720,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "KeyboardTypeRequest": {
         "type": "object",
@@ -18068,9 +16736,7 @@
             "example": 100
           }
         },
-        "required": [
-          "text"
-        ]
+        "required": ["text"]
       },
       "KeyboardPressRequest": {
         "type": "object",
@@ -18082,19 +16748,14 @@
           },
           "modifiers": {
             "description": "Array of modifier keys to press along with the main key (ctrl, alt, shift, cmd)",
-            "example": [
-              "ctrl",
-              "shift"
-            ],
+            "example": ["ctrl", "shift"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "key"
-        ]
+        "required": ["key"]
       },
       "KeyboardHotkeyRequest": {
         "type": "object",
@@ -18105,9 +16766,7 @@
             "example": "ctrl+c"
           }
         },
-        "required": [
-          "keys"
-        ]
+        "required": ["keys"]
       },
       "ScreenshotResponse": {
         "type": "object",
@@ -18131,9 +16790,7 @@
             "example": 24576
           }
         },
-        "required": [
-          "screenshot"
-        ]
+        "required": ["screenshot"]
       },
       "RegionScreenshotResponse": {
         "type": "object",
@@ -18157,9 +16814,7 @@
             "example": 24576
           }
         },
-        "required": [
-          "screenshot"
-        ]
+        "required": ["screenshot"]
       },
       "CompressedScreenshotResponse": {
         "type": "object",
@@ -18183,9 +16838,7 @@
             "example": 12288
           }
         },
-        "required": [
-          "screenshot"
-        ]
+        "required": ["screenshot"]
       },
       "DisplayInfoResponse": {
         "type": "object",
@@ -18208,9 +16861,7 @@
             }
           }
         },
-        "required": [
-          "displays"
-        ]
+        "required": ["displays"]
       },
       "WindowsResponse": {
         "type": "object",
@@ -18234,10 +16885,7 @@
             "example": 5
           }
         },
-        "required": [
-          "windows",
-          "count"
-        ]
+        "required": ["windows", "count"]
       },
       "CreateSnapshot": {
         "type": "object",
@@ -18273,9 +16921,7 @@
           "gpuType": {
             "type": "array",
             "description": "Preferred GPU type for the resulting sandbox.",
-            "example": [
-              "H100"
-            ],
+            "example": ["H100"],
             "items": {
               "$ref": "#/components/schemas/GpuType"
             }
@@ -18312,22 +16958,11 @@
             ]
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "SnapshotState": {
         "type": "string",
-        "enum": [
-          "building",
-          "pending",
-          "pulling",
-          "active",
-          "inactive",
-          "error",
-          "build_failed",
-          "removing"
-        ]
+        "enum": ["building", "pending", "pulling", "active", "inactive", "error", "build_failed", "removing"]
       },
       "SnapshotDto": {
         "type": "object",
@@ -18431,19 +17066,9 @@
           "sandboxClass": {
             "type": "string",
             "description": "The sandbox class of the snapshot",
-            "enum": [
-              "linux-vm",
-              "container",
-              "android",
-              "windows"
-            ],
+            "enum": ["linux-vm", "container", "android", "windows"],
             "example": "linux-vm",
-            "x-enum-varnames": [
-              "LINUX_VM",
-              "CONTAINER",
-              "ANDROID",
-              "WINDOWS"
-            ]
+            "x-enum-varnames": ["LINUX_VM", "CONTAINER", "ANDROID", "WINDOWS"]
           }
         },
         "required": [
@@ -18482,24 +17107,11 @@
             "type": "number"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "VolumeState": {
         "type": "string",
-        "enum": [
-          "creating",
-          "ready",
-          "pending_create",
-          "pending_delete",
-          "deleting",
-          "deleted",
-          "error"
-        ],
+        "enum": ["creating", "ready", "pending_create", "pending_delete", "deleting", "deleted", "error"],
         "description": "Volume state"
       },
       "VolumeDto": {
@@ -18552,15 +17164,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "id",
-          "name",
-          "organizationId",
-          "state",
-          "createdAt",
-          "updatedAt",
-          "errorReason"
-        ]
+        "required": ["id", "name", "organizationId", "state", "createdAt", "updatedAt", "errorReason"]
       },
       "CreateVolume": {
         "type": "object",
@@ -18569,18 +17173,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "JobStatus": {
         "type": "string",
-        "enum": [
-          "PENDING",
-          "IN_PROGRESS",
-          "COMPLETED",
-          "FAILED"
-        ]
+        "enum": ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"]
       },
       "JobType": {
         "type": "string",
@@ -18632,11 +17229,7 @@
           "resourceType": {
             "type": "string",
             "description": "The type of resource this job operates on",
-            "enum": [
-              "SANDBOX",
-              "SNAPSHOT",
-              "BACKUP"
-            ],
+            "enum": ["SANDBOX", "SNAPSHOT", "BACKUP"],
             "example": "SANDBOX"
           },
           "resourceId": {
@@ -18672,14 +17265,7 @@
             "example": "2024-10-01T12:00:00Z"
           }
         },
-        "required": [
-          "id",
-          "type",
-          "status",
-          "resourceType",
-          "resourceId",
-          "createdAt"
-        ]
+        "required": ["id", "type", "status", "resourceType", "resourceId", "createdAt"]
       },
       "PaginatedJobs": {
         "type": "object",
@@ -18700,12 +17286,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "PollJobsResponse": {
         "type": "object",
@@ -18718,9 +17299,7 @@
             }
           }
         },
-        "required": [
-          "jobs"
-        ]
+        "required": ["jobs"]
       },
       "UpdateJobStatus": {
         "type": "object",
@@ -18744,9 +17323,7 @@
             "description": "Result metadata for the job"
           }
         },
-        "required": [
-          "status"
-        ]
+        "required": ["status"]
       },
       "CreateDockerRegistry": {
         "type": "object",
@@ -18772,12 +17349,7 @@
             "description": "Registry project"
           }
         },
-        "required": [
-          "name",
-          "url",
-          "username",
-          "password"
-        ]
+        "required": ["name", "url", "username", "password"]
       },
       "DockerRegistry": {
         "type": "object",
@@ -18810,12 +17382,7 @@
           "registryType": {
             "type": "string",
             "description": "Registry type",
-            "enum": [
-              "internal",
-              "organization",
-              "transient",
-              "backup"
-            ],
+            "enum": ["internal", "organization", "transient", "backup"],
             "example": "internal"
           },
           "createdAt": {
@@ -18831,16 +17398,7 @@
             "example": "2024-01-31T12:00:00Z"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "url",
-          "username",
-          "project",
-          "registryType",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "name", "url", "username", "project", "registryType", "createdAt", "updatedAt"]
       },
       "RegistryPushAccessDto": {
         "type": "object",
@@ -18876,14 +17434,7 @@
             "example": "2023-12-31T23:59:59Z"
           }
         },
-        "required": [
-          "username",
-          "secret",
-          "registryUrl",
-          "registryId",
-          "project",
-          "expiresAt"
-        ]
+        "required": ["username", "secret", "registryUrl", "registryId", "project", "expiresAt"]
       },
       "UpdateDockerRegistry": {
         "type": "object",
@@ -18909,11 +17460,101 @@
             "description": "Registry project"
           }
         },
-        "required": [
-          "name",
-          "url",
-          "username"
-        ]
+        "required": ["name", "url", "username"]
+      },
+      "CreateSecret": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Secret name (alphanumeric, hyphens, underscores)",
+            "example": "MY_API_KEY"
+          },
+          "value": {
+            "type": "string",
+            "description": "Secret value"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the secret"
+          },
+          "hosts": {
+            "description": "Allowed hosts this secret may be sent to",
+            "example": ["api.anthropic.com"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["name", "value"]
+      },
+      "Secret": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Secret ID",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "name": {
+            "type": "string",
+            "description": "Secret name",
+            "example": "MY_API_KEY"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the secret",
+            "example": "API key for external service"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp",
+            "example": "2024-01-31T12:00:00Z"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Opaque placeholder token injected as env var value in sandboxes",
+            "example": "dtn_secret_a7f3b2c1e9d4f6g8"
+          },
+          "hosts": {
+            "description": "Allowed hosts this secret may be sent to",
+            "example": ["api.anthropic.com"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last update timestamp",
+            "example": "2024-01-31T12:00:00Z"
+          }
+        },
+        "required": ["id", "name", "createdAt", "placeholder", "hosts", "updatedAt"]
+      },
+      "UpdateSecret": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "New secret value"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the secret"
+          },
+          "hosts": {
+            "description": "Allowed hosts this secret may be sent to",
+            "example": ["api.anthropic.com"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "AdminCreateRunner": {
         "type": "object",
@@ -18926,10 +17567,7 @@
           },
           "tags": {
             "description": "Tags to associate with the runner",
-            "example": [
-              "gpu",
-              "us-east"
-            ],
+            "example": ["gpu", "us-east"],
             "type": "array",
             "items": {
               "type": "string"
@@ -18975,12 +17613,7 @@
             "example": 100
           }
         },
-        "required": [
-          "regionId",
-          "name",
-          "apiKey",
-          "apiVersion"
-        ]
+        "required": ["regionId", "name", "apiKey", "apiVersion"]
       },
       "CreateOrganizationQuota": {
         "type": "object",
@@ -19038,19 +17671,13 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "user"
-            ]
+            "enum": ["admin", "user"]
           },
           "emailVerified": {
             "type": "boolean"
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "required": ["id", "name"]
       },
       "WebhookEvent": {
         "type": "string",
@@ -19100,10 +17727,7 @@
             "example": "evt_1234567890abcdef"
           }
         },
-        "required": [
-          "eventType",
-          "payload"
-        ]
+        "required": ["eventType", "payload"]
       },
       "SetSnapshotGeneralStatusDto": {
         "type": "object",
@@ -19114,9 +17738,102 @@
             "example": true
           }
         },
-        "required": [
-          "general"
-        ]
+        "required": ["general"]
+      },
+      "StringFilter": {
+        "type": "object",
+        "properties": {
+          "eq": {
+            "type": "string",
+            "description": "Match values equal to this value."
+          },
+          "not": {
+            "type": "string",
+            "description": "Match values not equal to this value."
+          },
+          "in": {
+            "description": "Match values present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notIn": {
+            "description": "Match values not present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IntFilter": {
+        "type": "object",
+        "properties": {
+          "eq": {
+            "type": "number",
+            "description": "Match values equal to this value."
+          },
+          "not": {
+            "type": "number",
+            "description": "Match values not equal to this value."
+          },
+          "in": {
+            "description": "Match values present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "notIn": {
+            "description": "Match values not present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "gte": {
+            "type": "number",
+            "description": "Match values greater than or equal to this value."
+          },
+          "lte": {
+            "type": "number",
+            "description": "Match values less than or equal to this value."
+          },
+          "gt": {
+            "type": "number",
+            "description": "Match values strictly greater than this value."
+          },
+          "lt": {
+            "type": "number",
+            "description": "Match values strictly less than this value."
+          }
+        }
+      },
+      "DateFilter": {
+        "type": "object",
+        "properties": {
+          "gte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Match values greater than or equal to this timestamp (ISO 8601)."
+          },
+          "lte": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Match values less than or equal to this timestamp (ISO 8601)."
+          },
+          "gt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Match values strictly greater than this timestamp (ISO 8601)."
+          },
+          "lt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Match values strictly less than this timestamp (ISO 8601)."
+          }
+        }
       },
       "AuditLog": {
         "type": "object",
@@ -19172,13 +17889,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "actorId",
-          "actorEmail",
-          "action",
-          "createdAt"
-        ]
+        "required": ["id", "actorId", "actorEmail", "action", "createdAt"]
       },
       "PaginatedAuditLogs": {
         "type": "object",
@@ -19203,12 +17914,7 @@
             "description": "Token for next page in cursor-based pagination"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "CreateOrganizationRegionQuota": {
         "type": "object",
@@ -19268,13 +17974,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "sandboxClass",
-          "totalCpuQuota",
-          "totalMemoryQuota",
-          "totalDiskQuota",
-          "totalGpuQuota"
-        ]
+        "required": ["sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota"]
       },
       "WebhookAppPortalAccess": {
         "type": "object",
@@ -19290,10 +17990,7 @@
             "example": "https://app.svix.com/app_1234567890"
           }
         },
-        "required": [
-          "token",
-          "url"
-        ]
+        "required": ["token", "url"]
       },
       "WebhookInitializationStatus": {
         "type": "object",
@@ -19331,14 +18028,7 @@
             "example": "2023-01-01T00:00:00.000Z"
           }
         },
-        "required": [
-          "organizationId",
-          "svixApplicationId",
-          "lastError",
-          "retryCount",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["organizationId", "svixApplicationId", "lastError", "retryCount", "createdAt", "updatedAt"]
       },
       "StorageAccessDto": {
         "type": "object",
@@ -19374,14 +18064,7 @@
             "example": "daytona"
           }
         },
-        "required": [
-          "accessKey",
-          "secret",
-          "sessionToken",
-          "storageUrl",
-          "organizationId",
-          "bucket"
-        ]
+        "required": ["accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket"]
       },
       "LogEntry": {
         "type": "object",
@@ -19429,14 +18112,7 @@
             "description": "Associated span ID if available"
           }
         },
-        "required": [
-          "timestamp",
-          "body",
-          "severityText",
-          "serviceName",
-          "resourceAttributes",
-          "logAttributes"
-        ]
+        "required": ["timestamp", "body", "severityText", "serviceName", "resourceAttributes", "logAttributes"]
       },
       "PaginatedLogs": {
         "type": "object",
@@ -19461,12 +18137,7 @@
             "description": "Total number of pages"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "TraceSummary": {
         "type": "object",
@@ -19500,14 +18171,7 @@
             "description": "Status code of the trace"
           }
         },
-        "required": [
-          "traceId",
-          "rootSpanName",
-          "startTime",
-          "endTime",
-          "durationMs",
-          "spanCount"
-        ]
+        "required": ["traceId", "rootSpanName", "startTime", "endTime", "durationMs", "spanCount"]
       },
       "PaginatedTraces": {
         "type": "object",
@@ -19532,12 +18196,7 @@
             "description": "Total number of pages"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "page",
-          "totalPages"
-        ]
+        "required": ["items", "total", "page", "totalPages"]
       },
       "TraceSpan": {
         "type": "object",
@@ -19582,14 +18241,7 @@
             "description": "Status message"
           }
         },
-        "required": [
-          "traceId",
-          "spanId",
-          "spanName",
-          "timestamp",
-          "durationNs",
-          "spanAttributes"
-        ]
+        "required": ["traceId", "spanId", "spanName", "timestamp", "durationNs", "spanAttributes"]
       },
       "MetricDataPoint": {
         "type": "object",
@@ -19603,10 +18255,7 @@
             "description": "Value at this timestamp"
           }
         },
-        "required": [
-          "timestamp",
-          "value"
-        ]
+        "required": ["timestamp", "value"]
       },
       "MetricSeries": {
         "type": "object",
@@ -19623,10 +18272,7 @@
             }
           }
         },
-        "required": [
-          "metricName",
-          "dataPoints"
-        ]
+        "required": ["metricName", "dataPoints"]
       },
       "MetricsResponse": {
         "type": "object",
@@ -19639,9 +18285,7 @@
             }
           }
         },
-        "required": [
-          "series"
-        ]
+        "required": ["series"]
       }
     }
   }

@@ -79,6 +79,19 @@ func testVolumePayload(id, name string, state apiclient.VolumeState) map[string]
 	}
 }
 
+func testSecretPayload(id, name string) map[string]any {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return map[string]any{
+		"id":          id,
+		"name":        name,
+		"description": "test secret",
+		"placeholder": "{{secret:" + id + "}}",
+		"hosts":       []string{"api.anthropic.com"},
+		"createdAt":   now,
+		"updatedAt":   now,
+	}
+}
+
 func boolPtr(v bool) *bool {
 	return &v
 }

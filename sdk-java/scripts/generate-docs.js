@@ -38,6 +38,11 @@ const DOC_TARGETS = [
     logName: 'VolumeService',
     classes: [{ file: 'VolumeService.java', className: 'VolumeService' }],
   },
+  {
+    outputFile: 'secret-service.mdx',
+    logName: 'SecretService',
+    classes: [{ file: 'SecretService.java', className: 'SecretService' }],
+  },
   { outputFile: 'image.mdx', logName: 'Image', classes: [{ file: 'Image.java', className: 'Image' }] },
   {
     outputFile: 'code-interpreter.mdx',

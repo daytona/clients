@@ -120,6 +120,9 @@ type Client struct {
 
 	// Snapshot provides methods for managing sandbox snapshots.
 	Snapshot *SnapshotService
+
+	// Secret provides methods for managing organization secrets.
+	Secret *SecretService
 }
 
 // NewClient creates a new Daytona client with default configuration.
@@ -261,6 +264,7 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	// Initialize services
 	client.Volume = NewVolumeService(client)
 	client.Snapshot = NewSnapshotService(client)
+	client.Secret = NewSecretService(client)
 
 	return client, nil
 }
@@ -487,6 +491,17 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 			}
 		}
 		createReq.SetVolumes(apiVolumes)
+	}
+	// Convert SDK secrets map (env var name -> secret name) to the API shape:
+	// an array of single-key maps. Each injected env var holds the secret's
+	// opaque placeholder, resolved to the real value only for the secret's
+	// allowed hosts.
+	if len(baseParams.Secrets) > 0 {
+		apiSecrets := make([]map[string]string, 0, len(baseParams.Secrets))
+		for envVar, secretName := range baseParams.Secrets {
+			apiSecrets = append(apiSecrets, map[string]string{envVar: secretName})
+		}
+		createReq.SetSecrets(apiSecrets)
 	}
 	if baseParams.NetworkAllowList != nil {
 		createReq.SetNetworkAllowList(*baseParams.NetworkAllowList)
