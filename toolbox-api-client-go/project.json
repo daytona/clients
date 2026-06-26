@@ -55,7 +55,7 @@
           "rm -f {projectRoot}/*.go",
           "yarn run openapi-generator-cli generate --git-repo-id=clients/toolbox-api-client-go --git-user-id=daytona -i openapi-specs/toolbox.json -g go -t hack/go-client/openapi-templates --model-name-mappings computeruse.AccessibilityNode=ComputerUseAccessibilityNode --additional-properties=packageName=toolbox,moduleVersion=$DEFAULT_PACKAGE_VERSION,generateInterfaces=true,enumClassPrefix=true,structPrefix=true,enumUnknownDefaultCase=true,disallowAdditionalPropertiesIfNotPresent=false -o toolbox-api-client-go",
           "bash hack/go-client/postprocess.sh toolbox-api-client-go toolbox toolbox-api-client-go",
-          "go mod edit -module go.daytona.io/toolbox-api-client-go toolbox-api-client-go/go.mod"
+          "go mod edit -module github.com/daytona/clients/toolbox-api-client-go toolbox-api-client-go/go.mod"
         ],
         "parallel": false
       }
@@ -81,7 +81,7 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "cd sdk-go && go mod edit -require=go.daytona.io/toolbox-api-client-go@$VERSION",
+          "cd sdk-go && go mod edit -require=github.com/daytona/clients/toolbox-api-client-go@$VERSION",
           "echo \"$VERSION\" > toolbox-api-client-go/VERSION"
         ],
         "parallel": false

@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/daytona/clients/cli/mcp"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/mcp"
 )
 
 var StartCmd = &cobra.Command{

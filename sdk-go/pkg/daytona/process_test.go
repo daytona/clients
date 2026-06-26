@@ -14,12 +14,12 @@ import (
 
 	"bytes"
 
+	"github.com/daytona/clients/sdk-go/pkg/options"
+	"github.com/daytona/clients/sdk-go/pkg/types"
+	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.daytona.io/sdk-go/pkg/options"
-	"go.daytona.io/sdk-go/pkg/types"
-	toolbox "go.daytona.io/toolbox-api-client-go"
 )
 
 var upgrader = websocket.Upgrader{

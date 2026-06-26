@@ -6,7 +6,7 @@ package options
 import (
 	"time"
 
-	"go.daytona.io/sdk-go/pkg/types"
+	"github.com/daytona/clients/sdk-go/pkg/types"
 )
 
 // ExecuteCommand holds optional parameters for [daytona.ProcessService.ExecuteCommand].

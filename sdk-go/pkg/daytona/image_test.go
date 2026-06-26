@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daytona/clients/sdk-go/pkg/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.daytona.io/sdk-go/pkg/options"
 )
 
 // TestBase tests the Base constructor

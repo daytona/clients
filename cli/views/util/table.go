@@ -11,7 +11,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"go.daytona.io/cli/views/common"
+	"github.com/daytona/clients/cli/views/common"
 	"golang.org/x/term"
 )
 

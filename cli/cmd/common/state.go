@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 )
 
 func AwaitSnapshotState(ctx context.Context, apiClient *apiclient.APIClient, name string, states ...apiclient.SnapshotState) error {

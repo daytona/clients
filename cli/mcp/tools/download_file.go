@@ -10,8 +10,8 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
-	"go.daytona.io/cli/apiclient"
 )
 
 type FileDownloadArgs struct {

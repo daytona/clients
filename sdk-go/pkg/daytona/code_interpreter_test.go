@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.daytona.io/sdk-go/pkg/types"
 )
 
 func TestCodeInterpreterServiceCreation(t *testing.T) {

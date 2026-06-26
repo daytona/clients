@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daytona/clients/sdk-go/pkg/errors"
+	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/gorilla/websocket"
-	"go.daytona.io/sdk-go/pkg/errors"
-	"go.daytona.io/sdk-go/pkg/types"
 )
 
 // PtyHandle manages a WebSocket connection to a PTY (pseudo-terminal) session.

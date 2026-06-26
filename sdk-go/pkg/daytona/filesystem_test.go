@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
+	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
+	"github.com/daytona/clients/sdk-go/pkg/options"
+	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	sdkerrors "go.daytona.io/sdk-go/pkg/errors"
-	"go.daytona.io/sdk-go/pkg/options"
-	toolbox "go.daytona.io/toolbox-api-client-go"
 )
 
 func createTestToolboxClient(server *httptest.Server) *toolbox.APIClient {

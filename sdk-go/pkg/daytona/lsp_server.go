@@ -7,9 +7,9 @@ import (
 	"context"
 	"strings"
 
-	"go.daytona.io/sdk-go/pkg/errors"
-	"go.daytona.io/sdk-go/pkg/types"
-	"go.daytona.io/toolbox-api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/errors"
+	"github.com/daytona/clients/sdk-go/pkg/types"
+	"github.com/daytona/clients/toolbox-api-client-go"
 )
 
 // LspServerService provides Language Server Protocol (LSP) operations for a sandbox.

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"go.daytona.io/sdk-go/pkg/daytona"
+	"github.com/daytona/clients/sdk-go/pkg/daytona"
 )
 
 func main() {

@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	apiclient "go.daytona.io/api-client-go"
-	"go.daytona.io/sdk-go/pkg/errors"
-	"go.daytona.io/sdk-go/pkg/types"
-	"go.daytona.io/toolbox-api-client-go"
+	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/errors"
+	"github.com/daytona/clients/sdk-go/pkg/types"
+	"github.com/daytona/clients/toolbox-api-client-go"
 )
 
 // Sandbox represents a Daytona sandbox environment.

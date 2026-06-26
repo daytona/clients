@@ -12,9 +12,9 @@ import (
 	"regexp"
 	"strings"
 
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/pkg/minio"
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/pkg/minio"
 )
 
 // Create MinIO client from access parameters

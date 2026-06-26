@@ -9,12 +9,12 @@ import (
 	"sync"
 	"sync/atomic"
 
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/cmd/common"
+	view_common "github.com/daytona/clients/cli/views/common"
+	views_util "github.com/daytona/clients/cli/views/util"
 	"github.com/spf13/cobra"
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/cmd/common"
-	view_common "go.daytona.io/cli/views/common"
-	views_util "go.daytona.io/cli/views/util"
 )
 
 const spinnerThreshold = 10

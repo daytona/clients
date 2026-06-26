@@ -4,9 +4,9 @@
 package mcp
 
 import (
+	"github.com/daytona/clients/cli/mcp/tools"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"go.daytona.io/cli/mcp/tools"
 )
 
 type DaytonaMCPServer struct {

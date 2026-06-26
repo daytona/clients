@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/daytona/clients/cli/apiclient"
+	view_common "github.com/daytona/clients/cli/views/common"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/apiclient"
-	view_common "go.daytona.io/cli/views/common"
 )
 
 var forceFlag bool

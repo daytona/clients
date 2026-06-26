@@ -4,8 +4,8 @@
 package volume
 
 import (
+	"github.com/daytona/clients/cli/internal"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/internal"
 )
 
 var VolumeCmd = &cobra.Command{

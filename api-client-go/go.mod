@@ -1,3 +1,3 @@
-module go.daytona.io/api-client-go
+module github.com/daytona/clients/api-client-go
 
 go 1.23

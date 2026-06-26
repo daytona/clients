@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/daytona/clients/cli/views/common"
 	log "github.com/sirupsen/logrus"
-	"go.daytona.io/cli/views/common"
 	"golang.org/x/term"
 )
 

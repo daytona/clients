@@ -7,6 +7,6 @@ use (
 	./toolbox-api-client-go
 )
 
-replace go.daytona.io/api-client-go v0.191.0 => ./api-client-go
+replace github.com/daytona/clients/api-client-go v0.192.0 => ./api-client-go
 
-replace go.daytona.io/toolbox-api-client-go v0.191.0 => ./toolbox-api-client-go
+replace github.com/daytona/clients/toolbox-api-client-go v0.192.0 => ./toolbox-api-client-go

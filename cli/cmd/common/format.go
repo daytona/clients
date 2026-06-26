@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/daytona/clients/cli/internal"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/internal"
 	"gopkg.in/yaml.v2"
 )
 

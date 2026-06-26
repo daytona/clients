@@ -6,9 +6,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/daytona/clients/cli/views/common"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/views/common"
 )
 
 var docsURL string = "https://www.daytona.io/docs/"

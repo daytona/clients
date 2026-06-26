@@ -29,7 +29,7 @@ gem install daytona
 ### Go
 
 ```bash
-go get go.daytona.io/sdk-go
+go get github.com/daytona/clients/sdk-go
 ```
 
 ### Java

@@ -23,7 +23,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      DOMAIN: go.daytona.io
+      DOMAIN: github.com/daytona/clients
       REPO: daytona/clients
       BRANCH: main
       # Set to "true" only after DNS for $DOMAIN points at GitHub Pages.

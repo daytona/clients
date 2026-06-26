@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"strings"
 
-	apiclient "go.daytona.io/api-client-go"
-	"go.daytona.io/cli/config"
+	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/cli/config"
 )
 
 type ExecuteRequest struct {

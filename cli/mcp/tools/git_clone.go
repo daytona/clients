@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
 
 	log "github.com/sirupsen/logrus"
 )

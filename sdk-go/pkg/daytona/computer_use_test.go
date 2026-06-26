@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.daytona.io/sdk-go/pkg/types"
 )
 
 func TestComputerUseServiceCreation(t *testing.T) {

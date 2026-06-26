@@ -6,7 +6,7 @@ package common
 import (
 	"fmt"
 
-	apiclient "go.daytona.io/api-client-go"
+	apiclient "github.com/daytona/clients/api-client-go"
 )
 
 func RequireStartedState(sandbox *apiclient.Sandbox) error {
