@@ -104,7 +104,7 @@ public class VolumesApi {
         Object localVarPostBody = createVolume;
 
         // create path and map variables
-        String localVarPath = "/api/volumes";
+        String localVarPath = "/volumes";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -241,7 +241,7 @@ public class VolumesApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/volumes/{volumeId}"
+        String localVarPath = "/volumes/{volumeId}"
             .replace("{" + "volumeId" + "}", localVarApiClient.escapeString(volumeId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -375,7 +375,7 @@ public class VolumesApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/volumes/{volumeId}"
+        String localVarPath = "/volumes/{volumeId}"
             .replace("{" + "volumeId" + "}", localVarApiClient.escapeString(volumeId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -511,7 +511,7 @@ public class VolumesApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/volumes/by-name/{name}"
+        String localVarPath = "/volumes/by-name/{name}"
             .replace("{" + "name" + "}", localVarApiClient.escapeString(name.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -647,7 +647,7 @@ public class VolumesApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/volumes";
+        String localVarPath = "/volumes";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

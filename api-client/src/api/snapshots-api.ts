@@ -45,7 +45,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         activateSnapshot: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('activateSnapshot', 'id', id)
-            const localVarPath = `/api/snapshots/{id}/activate`
+            const localVarPath = `/snapshots/{id}/activate`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -89,7 +89,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         createSnapshot: async (createSnapshot: CreateSnapshot, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createSnapshot' is not null or undefined
             assertParamExists('createSnapshot', 'createSnapshot', createSnapshot)
-            const localVarPath = `/api/snapshots`;
+            const localVarPath = `/snapshots`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -134,7 +134,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         deactivateSnapshot: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('deactivateSnapshot', 'id', id)
-            const localVarPath = `/api/snapshots/{id}/deactivate`
+            const localVarPath = `/snapshots/{id}/deactivate`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -179,7 +179,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
          * @throws {RequiredError}
          */
         getAllSnapshots: async (xDaytonaOrganizationID?: string, page?: number, limit?: number, name?: string, sort?: GetAllSnapshotsSortEnum, order?: GetAllSnapshotsOrderEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/snapshots`;
+            const localVarPath = `/snapshots`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -242,7 +242,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         getSnapshot: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getSnapshot', 'id', id)
-            const localVarPath = `/api/snapshots/{id}`
+            const localVarPath = `/snapshots/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -288,7 +288,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         getSnapshotBuildLogs: async (id: string, xDaytonaOrganizationID?: string, follow?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getSnapshotBuildLogs', 'id', id)
-            const localVarPath = `/api/snapshots/{id}/build-logs`
+            const localVarPath = `/snapshots/{id}/build-logs`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -335,7 +335,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         getSnapshotBuildLogsUrl: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getSnapshotBuildLogsUrl', 'id', id)
-            const localVarPath = `/api/snapshots/{id}/build-logs-url`
+            const localVarPath = `/snapshots/{id}/build-logs-url`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -379,7 +379,7 @@ export const SnapshotsApiAxiosParamCreator = function (configuration?: Configura
         removeSnapshot: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('removeSnapshot', 'id', id)
-            const localVarPath = `/api/snapshots/{id}`
+            const localVarPath = `/snapshots/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

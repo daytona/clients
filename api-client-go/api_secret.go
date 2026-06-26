@@ -139,7 +139,7 @@ func (a *SecretAPIService) CreateSecretExecute(r SecretAPICreateSecretRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/secret"
+	localVarPath := localBasePath + "/secret"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -252,7 +252,7 @@ func (a *SecretAPIService) DeleteSecretExecute(r SecretAPIDeleteSecretRequest) (
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/secret/{secretId}"
+	localVarPath := localBasePath + "/secret/{secretId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"secretId"+"}", url.PathEscape(parameterValueToString(r.secretId, "secretId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -354,7 +354,7 @@ func (a *SecretAPIService) GetSecretExecute(r SecretAPIGetSecretRequest) (*Secre
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/secret/{secretId}"
+	localVarPath := localBasePath + "/secret/{secretId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"secretId"+"}", url.PathEscape(parameterValueToString(r.secretId, "secretId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -462,7 +462,7 @@ func (a *SecretAPIService) ListSecretsExecute(r SecretAPIListSecretsRequest) ([]
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/secret"
+	localVarPath := localBasePath + "/secret"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -578,7 +578,7 @@ func (a *SecretAPIService) UpdateSecretExecute(r SecretAPIUpdateSecretRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/secret/{secretId}"
+	localVarPath := localBasePath + "/secret/{secretId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"secretId"+"}", url.PathEscape(parameterValueToString(r.secretId, "secretId")), -1)
 
 	localVarHeaderParams := make(map[string]string)

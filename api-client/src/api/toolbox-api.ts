@@ -163,7 +163,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('clickMouseDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'mouseClickRequest' is not null or undefined
             assertParamExists('clickMouseDeprecated', 'mouseClickRequest', mouseClickRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/mouse/click`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -216,7 +216,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('createFolderDeprecated', 'path', path)
             // verify required parameter 'mode' is not null or undefined
             assertParamExists('createFolderDeprecated', 'mode', mode)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/folder`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/folder`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -271,7 +271,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('createPTYSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'ptyCreateRequest' is not null or undefined
             assertParamExists('createPTYSessionDeprecated', 'ptyCreateRequest', ptyCreateRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/pty`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/pty`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -321,7 +321,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('createSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'createSessionRequest' is not null or undefined
             assertParamExists('createSessionDeprecated', 'createSessionRequest', createSessionRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -371,7 +371,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('deleteFileDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('deleteFileDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -426,7 +426,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('deletePTYSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'sessionId' is not null or undefined
             assertParamExists('deletePTYSessionDeprecated', 'sessionId', sessionId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -474,7 +474,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('deleteSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'sessionId' is not null or undefined
             assertParamExists('deleteSessionDeprecated', 'sessionId', sessionId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session/{sessionId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -522,7 +522,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('downloadFileDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('downloadFileDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/download`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/download`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -574,7 +574,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('downloadFilesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'downloadFiles' is not null or undefined
             assertParamExists('downloadFilesDeprecated', 'downloadFiles', downloadFiles)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/bulk-download`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/bulk-download`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -624,7 +624,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('dragMouseDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'mouseDragRequest' is not null or undefined
             assertParamExists('dragMouseDeprecated', 'mouseDragRequest', mouseDragRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -674,7 +674,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('executeCommandDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'executeRequest' is not null or undefined
             assertParamExists('executeCommandDeprecated', 'executeRequest', executeRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/execute`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/execute`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -727,7 +727,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('executeSessionCommandDeprecated', 'sessionId', sessionId)
             // verify required parameter 'sessionExecuteRequest' is not null or undefined
             assertParamExists('executeSessionCommandDeprecated', 'sessionExecuteRequest', sessionExecuteRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -781,7 +781,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('findInFilesDeprecated', 'path', path)
             // verify required parameter 'pattern' is not null or undefined
             assertParamExists('findInFilesDeprecated', 'pattern', pattern)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/find`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/find`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -834,7 +834,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getComputerUseStatusDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getComputerUseStatusDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/status`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/status`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -879,7 +879,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getDisplayInfoDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getDisplayInfoDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/display/info`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/display/info`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -927,7 +927,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getFileInfoDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('getFileInfoDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/info`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/info`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -976,7 +976,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getMousePositionDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getMousePositionDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/mouse/position`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1024,7 +1024,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getPTYSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'sessionId' is not null or undefined
             assertParamExists('getPTYSessionDeprecated', 'sessionId', sessionId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1073,7 +1073,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getProcessErrorsDeprecated', 'processName', processName)
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getProcessErrorsDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors`
                 .replace(`{${"processName"}}`, encodeURIComponent(String(processName)))
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1122,7 +1122,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getProcessLogsDeprecated', 'processName', processName)
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getProcessLogsDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs`
                 .replace(`{${"processName"}}`, encodeURIComponent(String(processName)))
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1171,7 +1171,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getProcessStatusDeprecated', 'processName', processName)
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getProcessStatusDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status`
                 .replace(`{${"processName"}}`, encodeURIComponent(String(processName)))
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1217,7 +1217,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getProjectDirDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getProjectDirDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/project-dir`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/project-dir`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1268,7 +1268,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSessionCommandDeprecated', 'sessionId', sessionId)
             // verify required parameter 'commandId' is not null or undefined
             assertParamExists('getSessionCommandDeprecated', 'commandId', commandId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)))
                 .replace(`{${"commandId"}}`, encodeURIComponent(String(commandId)));
@@ -1322,7 +1322,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSessionCommandLogsDeprecated', 'sessionId', sessionId)
             // verify required parameter 'commandId' is not null or undefined
             assertParamExists('getSessionCommandLogsDeprecated', 'commandId', commandId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)))
                 .replace(`{${"commandId"}}`, encodeURIComponent(String(commandId)));
@@ -1376,7 +1376,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSessionDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'sessionId' is not null or undefined
             assertParamExists('getSessionDeprecated', 'sessionId', sessionId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session/{sessionId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1422,7 +1422,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getUserHomeDirDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getUserHomeDirDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/user-home-dir`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/user-home-dir`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1467,7 +1467,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getWindowsDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getWindowsDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/display/windows`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/display/windows`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1512,7 +1512,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         getWorkDirDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getWorkDirDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/work-dir`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/work-dir`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1560,7 +1560,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitAddFilesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitAddRequest' is not null or undefined
             assertParamExists('gitAddFilesDeprecated', 'gitAddRequest', gitAddRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/add`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/add`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1609,7 +1609,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitCheckoutBranchDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitCheckoutRequest' is not null or undefined
             assertParamExists('gitCheckoutBranchDeprecated', 'gitCheckoutRequest', gitCheckoutRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/checkout`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/checkout`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1658,7 +1658,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitCloneRepositoryDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitCloneRequest' is not null or undefined
             assertParamExists('gitCloneRepositoryDeprecated', 'gitCloneRequest', gitCloneRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/clone`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/clone`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1707,7 +1707,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitCommitChangesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitCommitRequest' is not null or undefined
             assertParamExists('gitCommitChangesDeprecated', 'gitCommitRequest', gitCommitRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/commit`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/commit`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1757,7 +1757,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitCreateBranchDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitBranchRequest' is not null or undefined
             assertParamExists('gitCreateBranchDeprecated', 'gitBranchRequest', gitBranchRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/branches`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/branches`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1806,7 +1806,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitDeleteBranchDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitDeleteBranchRequest' is not null or undefined
             assertParamExists('gitDeleteBranchDeprecated', 'gitDeleteBranchRequest', gitDeleteBranchRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/branches`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/branches`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1855,7 +1855,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitGetHistoryDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('gitGetHistoryDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/history`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/history`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1907,7 +1907,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitGetStatusDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('gitGetStatusDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/status`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/status`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1959,7 +1959,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitListBranchesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('gitListBranchesDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/branches`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/branches`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2011,7 +2011,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitPullChangesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitRepoRequest' is not null or undefined
             assertParamExists('gitPullChangesDeprecated', 'gitRepoRequest', gitRepoRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/pull`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/pull`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2060,7 +2060,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('gitPushChangesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'gitRepoRequest' is not null or undefined
             assertParamExists('gitPushChangesDeprecated', 'gitRepoRequest', gitRepoRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/git/push`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/git/push`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2107,7 +2107,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         listFilesDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, path?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('listFilesDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2156,7 +2156,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         listPTYSessionsDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('listPTYSessionsDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/pty`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/pty`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2201,7 +2201,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         listSessionsDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('listSessionsDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/session`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/session`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2249,7 +2249,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspCompletionsDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'lspCompletionParams' is not null or undefined
             assertParamExists('lspCompletionsDeprecated', 'lspCompletionParams', lspCompletionParams)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/completions`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/completions`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2299,7 +2299,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspDidCloseDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'lspDocumentRequest' is not null or undefined
             assertParamExists('lspDidCloseDeprecated', 'lspDocumentRequest', lspDocumentRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/did-close`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/did-close`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2348,7 +2348,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspDidOpenDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'lspDocumentRequest' is not null or undefined
             assertParamExists('lspDidOpenDeprecated', 'lspDocumentRequest', lspDocumentRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/did-open`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/did-open`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2403,7 +2403,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspDocumentSymbolsDeprecated', 'pathToProject', pathToProject)
             // verify required parameter 'uri' is not null or undefined
             assertParamExists('lspDocumentSymbolsDeprecated', 'uri', uri)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/document-symbols`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/document-symbols`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2463,7 +2463,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspStartDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'lspServerRequest' is not null or undefined
             assertParamExists('lspStartDeprecated', 'lspServerRequest', lspServerRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/start`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/start`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2512,7 +2512,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspStopDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'lspServerRequest' is not null or undefined
             assertParamExists('lspStopDeprecated', 'lspServerRequest', lspServerRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/stop`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/stop`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2567,7 +2567,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('lspWorkspaceSymbolsDeprecated', 'pathToProject', pathToProject)
             // verify required parameter 'query' is not null or undefined
             assertParamExists('lspWorkspaceSymbolsDeprecated', 'query', query)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2630,7 +2630,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('moveFileDeprecated', 'source', source)
             // verify required parameter 'destination' is not null or undefined
             assertParamExists('moveFileDeprecated', 'destination', destination)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/move`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/move`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2685,7 +2685,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('moveMouseDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'mouseMoveRequest' is not null or undefined
             assertParamExists('moveMouseDeprecated', 'mouseMoveRequest', mouseMoveRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/mouse/move`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2735,7 +2735,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('pressHotkeyDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'keyboardHotkeyRequest' is not null or undefined
             assertParamExists('pressHotkeyDeprecated', 'keyboardHotkeyRequest', keyboardHotkeyRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2784,7 +2784,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('pressKeyDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'keyboardPressRequest' is not null or undefined
             assertParamExists('pressKeyDeprecated', 'keyboardPressRequest', keyboardPressRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2833,7 +2833,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('replaceInFilesDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'replaceRequest' is not null or undefined
             assertParamExists('replaceInFilesDeprecated', 'replaceRequest', replaceRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/replace`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/replace`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2886,7 +2886,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('resizePTYSessionDeprecated', 'sessionId', sessionId)
             // verify required parameter 'ptyResizeRequest' is not null or undefined
             assertParamExists('resizePTYSessionDeprecated', 'ptyResizeRequest', ptyResizeRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2937,7 +2937,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('restartProcessDeprecated', 'processName', processName)
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('restartProcessDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart`
                 .replace(`{${"processName"}}`, encodeURIComponent(String(processName)))
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2986,7 +2986,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('scrollMouseDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'mouseScrollRequest' is not null or undefined
             assertParamExists('scrollMouseDeprecated', 'mouseScrollRequest', mouseScrollRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3039,7 +3039,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('searchFilesDeprecated', 'path', path)
             // verify required parameter 'pattern' is not null or undefined
             assertParamExists('searchFilesDeprecated', 'pattern', pattern)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/search`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/search`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3098,7 +3098,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('setFilePermissionsDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('setFilePermissionsDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/permissions`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/permissions`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3158,7 +3158,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         startComputerUseDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('startComputerUseDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/start`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/start`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3203,7 +3203,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         stopComputerUseDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('stopComputerUseDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/stop`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/stop`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3264,7 +3264,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('takeCompressedRegionScreenshotDeprecated', 'y', y)
             // verify required parameter 'x' is not null or undefined
             assertParamExists('takeCompressedRegionScreenshotDeprecated', 'x', x)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3345,7 +3345,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         takeCompressedScreenshotDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, scale?: number, quality?: number, format?: string, showCursor?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('takeCompressedScreenshotDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3419,7 +3419,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('takeRegionScreenshotDeprecated', 'y', y)
             // verify required parameter 'x' is not null or undefined
             assertParamExists('takeRegionScreenshotDeprecated', 'x', x)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3485,7 +3485,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         takeScreenshotDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, showCursor?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('takeScreenshotDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/screenshot`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3537,7 +3537,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('typeTextDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'keyboardTypeRequest' is not null or undefined
             assertParamExists('typeTextDeprecated', 'keyboardTypeRequest', keyboardTypeRequest)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3587,7 +3587,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('uploadFileDeprecated', 'sandboxId', sandboxId)
             // verify required parameter 'path' is not null or undefined
             assertParamExists('uploadFileDeprecated', 'path', path)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/upload`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/upload`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3642,7 +3642,7 @@ export const ToolboxApiAxiosParamCreator = function (configuration?: Configurati
         uploadFilesDeprecated: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('uploadFilesDeprecated', 'sandboxId', sandboxId)
-            const localVarPath = `/api/toolbox/{sandboxId}/toolbox/files/bulk-upload`
+            const localVarPath = `/toolbox/{sandboxId}/toolbox/files/bulk-upload`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

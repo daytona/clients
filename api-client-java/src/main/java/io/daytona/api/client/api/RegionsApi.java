@@ -101,7 +101,7 @@ public class RegionsApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/shared-regions";
+        String localVarPath = "/shared-regions";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

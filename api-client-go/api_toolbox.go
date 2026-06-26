@@ -1293,7 +1293,7 @@ func (a *ToolboxAPIService) ClickMouseDeprecatedExecute(r ToolboxAPIClickMouseDe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/mouse/click"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1424,7 +1424,7 @@ func (a *ToolboxAPIService) CreateFolderDeprecatedExecute(r ToolboxAPICreateFold
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/folder"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/folder"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1545,7 +1545,7 @@ func (a *ToolboxAPIService) CreatePTYSessionDeprecatedExecute(r ToolboxAPICreate
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/pty"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/pty"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1670,7 +1670,7 @@ func (a *ToolboxAPIService) CreateSessionDeprecatedExecute(r ToolboxAPICreateSes
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1792,7 +1792,7 @@ func (a *ToolboxAPIService) DeleteFileDeprecatedExecute(r ToolboxAPIDeleteFileDe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1907,7 +1907,7 @@ func (a *ToolboxAPIService) DeletePTYSessionDeprecatedExecute(r ToolboxAPIDelete
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -2016,7 +2016,7 @@ func (a *ToolboxAPIService) DeleteSessionDeprecatedExecute(r ToolboxAPIDeleteSes
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -2130,7 +2130,7 @@ func (a *ToolboxAPIService) DownloadFileDeprecatedExecute(r ToolboxAPIDownloadFi
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/download"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/download"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2256,7 +2256,7 @@ func (a *ToolboxAPIService) DownloadFilesDeprecatedExecute(r ToolboxAPIDownloadF
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/bulk-download"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/bulk-download"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2383,7 +2383,7 @@ func (a *ToolboxAPIService) DragMouseDeprecatedExecute(r ToolboxAPIDragMouseDepr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2510,7 +2510,7 @@ func (a *ToolboxAPIService) ExecuteCommandDeprecatedExecute(r ToolboxAPIExecuteC
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/execute"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/execute"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2640,7 +2640,7 @@ func (a *ToolboxAPIService) ExecuteSessionCommandDeprecatedExecute(r ToolboxAPIE
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -2774,7 +2774,7 @@ func (a *ToolboxAPIService) FindInFilesDeprecatedExecute(r ToolboxAPIFindInFiles
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/find"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/find"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -2898,7 +2898,7 @@ func (a *ToolboxAPIService) GetComputerUseStatusDeprecatedExecute(r ToolboxAPIGe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/status"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/status"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3014,7 +3014,7 @@ func (a *ToolboxAPIService) GetDisplayInfoDeprecatedExecute(r ToolboxAPIGetDispl
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/display/info"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/display/info"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3136,7 +3136,7 @@ func (a *ToolboxAPIService) GetFileInfoDeprecatedExecute(r ToolboxAPIGetFileInfo
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/info"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/info"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3256,7 +3256,7 @@ func (a *ToolboxAPIService) GetMousePositionDeprecatedExecute(r ToolboxAPIGetMou
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/mouse/position"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3375,7 +3375,7 @@ func (a *ToolboxAPIService) GetPTYSessionDeprecatedExecute(r ToolboxAPIGetPTYSes
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -3495,7 +3495,7 @@ func (a *ToolboxAPIService) GetProcessErrorsDeprecatedExecute(r ToolboxAPIGetPro
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors"
 	localVarPath = strings.Replace(localVarPath, "{"+"processName"+"}", url.PathEscape(parameterValueToString(r.processName, "processName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
@@ -3615,7 +3615,7 @@ func (a *ToolboxAPIService) GetProcessLogsDeprecatedExecute(r ToolboxAPIGetProce
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs"
 	localVarPath = strings.Replace(localVarPath, "{"+"processName"+"}", url.PathEscape(parameterValueToString(r.processName, "processName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
@@ -3735,7 +3735,7 @@ func (a *ToolboxAPIService) GetProcessStatusDeprecatedExecute(r ToolboxAPIGetPro
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status"
 	localVarPath = strings.Replace(localVarPath, "{"+"processName"+"}", url.PathEscape(parameterValueToString(r.processName, "processName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
@@ -3850,7 +3850,7 @@ func (a *ToolboxAPIService) GetProjectDirDeprecatedExecute(r ToolboxAPIGetProjec
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/project-dir"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/project-dir"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -3972,7 +3972,7 @@ func (a *ToolboxAPIService) GetSessionCommandDeprecatedExecute(r ToolboxAPIGetSe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"commandId"+"}", url.PathEscape(parameterValueToString(r.commandId, "commandId")), -1)
@@ -4103,7 +4103,7 @@ func (a *ToolboxAPIService) GetSessionCommandLogsDeprecatedExecute(r ToolboxAPIG
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"commandId"+"}", url.PathEscape(parameterValueToString(r.commandId, "commandId")), -1)
@@ -4227,7 +4227,7 @@ func (a *ToolboxAPIService) GetSessionDeprecatedExecute(r ToolboxAPIGetSessionDe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session/{sessionId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -4342,7 +4342,7 @@ func (a *ToolboxAPIService) GetUserHomeDirDeprecatedExecute(r ToolboxAPIGetUserH
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/user-home-dir"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/user-home-dir"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4458,7 +4458,7 @@ func (a *ToolboxAPIService) GetWindowsDeprecatedExecute(r ToolboxAPIGetWindowsDe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/display/windows"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/display/windows"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4572,7 +4572,7 @@ func (a *ToolboxAPIService) GetWorkDirDeprecatedExecute(r ToolboxAPIGetWorkDirDe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/work-dir"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/work-dir"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4692,7 +4692,7 @@ func (a *ToolboxAPIService) GitAddFilesDeprecatedExecute(r ToolboxAPIGitAddFiles
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/add"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/add"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4808,7 +4808,7 @@ func (a *ToolboxAPIService) GitCheckoutBranchDeprecatedExecute(r ToolboxAPIGitCh
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/checkout"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/checkout"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -4924,7 +4924,7 @@ func (a *ToolboxAPIService) GitCloneRepositoryDeprecatedExecute(r ToolboxAPIGitC
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/clone"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/clone"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5042,7 +5042,7 @@ func (a *ToolboxAPIService) GitCommitChangesDeprecatedExecute(r ToolboxAPIGitCom
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/commit"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/commit"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5167,7 +5167,7 @@ func (a *ToolboxAPIService) GitCreateBranchDeprecatedExecute(r ToolboxAPIGitCrea
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/branches"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/branches"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5283,7 +5283,7 @@ func (a *ToolboxAPIService) GitDeleteBranchDeprecatedExecute(r ToolboxAPIGitDele
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/branches"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/branches"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5401,7 +5401,7 @@ func (a *ToolboxAPIService) GitGetHistoryDeprecatedExecute(r ToolboxAPIGitGetHis
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/history"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/history"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5527,7 +5527,7 @@ func (a *ToolboxAPIService) GitGetStatusDeprecatedExecute(r ToolboxAPIGitGetStat
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/status"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/status"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5653,7 +5653,7 @@ func (a *ToolboxAPIService) GitListBranchesDeprecatedExecute(r ToolboxAPIGitList
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/branches"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/branches"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5777,7 +5777,7 @@ func (a *ToolboxAPIService) GitPullChangesDeprecatedExecute(r ToolboxAPIGitPullC
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/pull"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/pull"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -5893,7 +5893,7 @@ func (a *ToolboxAPIService) GitPushChangesDeprecatedExecute(r ToolboxAPIGitPushC
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/git/push"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/git/push"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6009,7 +6009,7 @@ func (a *ToolboxAPIService) ListFilesDeprecatedExecute(r ToolboxAPIListFilesDepr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6128,7 +6128,7 @@ func (a *ToolboxAPIService) ListPTYSessionsDeprecatedExecute(r ToolboxAPIListPTY
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/pty"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/pty"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6244,7 +6244,7 @@ func (a *ToolboxAPIService) ListSessionsDeprecatedExecute(r ToolboxAPIListSessio
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/session"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/session"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6366,7 +6366,7 @@ func (a *ToolboxAPIService) LspCompletionsDeprecatedExecute(r ToolboxAPILspCompl
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/completions"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/completions"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6491,7 +6491,7 @@ func (a *ToolboxAPIService) LspDidCloseDeprecatedExecute(r ToolboxAPILspDidClose
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/did-close"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/did-close"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6607,7 +6607,7 @@ func (a *ToolboxAPIService) LspDidOpenDeprecatedExecute(r ToolboxAPILspDidOpenDe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/did-open"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/did-open"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6737,7 +6737,7 @@ func (a *ToolboxAPIService) LspDocumentSymbolsDeprecatedExecute(r ToolboxAPILspD
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/document-symbols"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/document-symbols"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6869,7 +6869,7 @@ func (a *ToolboxAPIService) LspStartDeprecatedExecute(r ToolboxAPILspStartDeprec
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/start"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/start"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -6985,7 +6985,7 @@ func (a *ToolboxAPIService) LspStopDeprecatedExecute(r ToolboxAPILspStopDeprecat
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/stop"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/stop"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7115,7 +7115,7 @@ func (a *ToolboxAPIService) LspWorkspaceSymbolsDeprecatedExecute(r ToolboxAPILsp
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7253,7 +7253,7 @@ func (a *ToolboxAPIService) MoveFileDeprecatedExecute(r ToolboxAPIMoveFileDeprec
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/move"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/move"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7374,7 +7374,7 @@ func (a *ToolboxAPIService) MoveMouseDeprecatedExecute(r ToolboxAPIMoveMouseDepr
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/mouse/move"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7499,7 +7499,7 @@ func (a *ToolboxAPIService) PressHotkeyDeprecatedExecute(r ToolboxAPIPressHotkey
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7615,7 +7615,7 @@ func (a *ToolboxAPIService) PressKeyDeprecatedExecute(r ToolboxAPIPressKeyDeprec
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7733,7 +7733,7 @@ func (a *ToolboxAPIService) ReplaceInFilesDeprecatedExecute(r ToolboxAPIReplaceI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/replace"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/replace"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -7863,7 +7863,7 @@ func (a *ToolboxAPIService) ResizePTYSessionDeprecatedExecute(r ToolboxAPIResize
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sessionId"+"}", url.PathEscape(parameterValueToString(r.sessionId, "sessionId")), -1)
 
@@ -7988,7 +7988,7 @@ func (a *ToolboxAPIService) RestartProcessDeprecatedExecute(r ToolboxAPIRestartP
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart"
 	localVarPath = strings.Replace(localVarPath, "{"+"processName"+"}", url.PathEscape(parameterValueToString(r.processName, "processName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
@@ -8111,7 +8111,7 @@ func (a *ToolboxAPIService) ScrollMouseDeprecatedExecute(r ToolboxAPIScrollMouse
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8244,7 +8244,7 @@ func (a *ToolboxAPIService) SearchFilesDeprecatedExecute(r ToolboxAPISearchFiles
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/search"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/search"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8390,7 +8390,7 @@ func (a *ToolboxAPIService) SetFilePermissionsDeprecatedExecute(r ToolboxAPISetF
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/permissions"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/permissions"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8510,7 +8510,7 @@ func (a *ToolboxAPIService) StartComputerUseDeprecatedExecute(r ToolboxAPIStartC
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/start"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/start"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8626,7 +8626,7 @@ func (a *ToolboxAPIService) StopComputerUseDeprecatedExecute(r ToolboxAPIStopCom
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/stop"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/stop"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8790,7 +8790,7 @@ func (a *ToolboxAPIService) TakeCompressedRegionScreenshotDeprecatedExecute(r To
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -8958,7 +8958,7 @@ func (a *ToolboxAPIService) TakeCompressedScreenshotDeprecatedExecute(r ToolboxA
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -9116,7 +9116,7 @@ func (a *ToolboxAPIService) TakeRegionScreenshotDeprecatedExecute(r ToolboxAPITa
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -9257,7 +9257,7 @@ func (a *ToolboxAPIService) TakeScreenshotDeprecatedExecute(r ToolboxAPITakeScre
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/screenshot"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -9380,7 +9380,7 @@ func (a *ToolboxAPIService) TypeTextDeprecatedExecute(r ToolboxAPITypeTextDeprec
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -9502,7 +9502,7 @@ func (a *ToolboxAPIService) UploadFileDeprecatedExecute(r ToolboxAPIUploadFileDe
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/upload"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/upload"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -9626,7 +9626,7 @@ func (a *ToolboxAPIService) UploadFilesDeprecatedExecute(r ToolboxAPIUploadFiles
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/toolbox/{sandboxId}/toolbox/files/bulk-upload"
+	localVarPath := localBasePath + "/toolbox/{sandboxId}/toolbox/files/bulk-upload"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)

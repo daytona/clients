@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_api_key' when calling ApiKeysApi.create_api_key"
       end
       # resource path
-      local_var_path = '/api/api-keys'
+      local_var_path = '/api-keys'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -112,7 +112,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'name' when calling ApiKeysApi.delete_api_key"
       end
       # resource path
-      local_var_path = '/api/api-keys/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
+      local_var_path = '/api-keys/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -180,7 +180,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'name' when calling ApiKeysApi.delete_api_key_for_user"
       end
       # resource path
-      local_var_path = '/api/api-keys/{userId}/{name}'.sub('{' + 'userId' + '}', CGI.escape(user_id.to_s)).sub('{' + 'name' + '}', CGI.escape(name.to_s))
+      local_var_path = '/api-keys/{userId}/{name}'.sub('{' + 'userId' + '}', CGI.escape(user_id.to_s)).sub('{' + 'name' + '}', CGI.escape(name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -242,7 +242,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'name' when calling ApiKeysApi.get_api_key"
       end
       # resource path
-      local_var_path = '/api/api-keys/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
+      local_var_path = '/api-keys/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -300,7 +300,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: ApiKeysApi.get_current_api_key ...'
       end
       # resource path
-      local_var_path = '/api/api-keys/current'
+      local_var_path = '/api-keys/current'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -358,7 +358,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: ApiKeysApi.list_api_keys ...'
       end
       # resource path
-      local_var_path = '/api/api-keys'
+      local_var_path = '/api-keys'
 
       # query parameters
       query_params = opts[:query_params] || {}

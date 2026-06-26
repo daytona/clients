@@ -47,7 +47,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'port' when calling PreviewApi.get_sandbox_id_from_signed_preview_url_token"
       end
       # resource path
-      local_var_path = '/api/preview/{signedPreviewToken}/{port}/sandbox-id'.sub('{' + 'signedPreviewToken' + '}', CGI.escape(signed_preview_token.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
+      local_var_path = '/preview/{signedPreviewToken}/{port}/sandbox-id'.sub('{' + 'signedPreviewToken' + '}', CGI.escape(signed_preview_token.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -108,7 +108,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling PreviewApi.has_sandbox_access"
       end
       # resource path
-      local_var_path = '/api/preview/{sandboxId}/access'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/preview/{sandboxId}/access'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -169,7 +169,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling PreviewApi.is_sandbox_public"
       end
       # resource path
-      local_var_path = '/api/preview/{sandboxId}/public'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/preview/{sandboxId}/public'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -236,7 +236,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'auth_token' when calling PreviewApi.is_valid_auth_token"
       end
       # resource path
-      local_var_path = '/api/preview/{sandboxId}/validate/{authToken}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'authToken' + '}', CGI.escape(auth_token.to_s))
+      local_var_path = '/preview/{sandboxId}/validate/{authToken}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'authToken' + '}', CGI.escape(auth_token.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

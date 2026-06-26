@@ -149,7 +149,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
 
         _param = self._click_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -225,7 +225,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
 
         _param = self._click_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -301,7 +301,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/click is deprecated.", DeprecationWarning)
 
         _param = self._click_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -391,7 +391,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/mouse/click',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -460,7 +460,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
 
         _param = self._create_folder_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -540,7 +540,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
 
         _param = self._create_folder_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -620,7 +620,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/folder is deprecated.", DeprecationWarning)
 
         _param = self._create_folder_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -698,7 +698,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/folder',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/folder',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -764,7 +764,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._create_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -840,7 +840,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._create_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -916,7 +916,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._create_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1006,7 +1006,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/pty',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/pty',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1072,7 +1072,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._create_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1148,7 +1148,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._create_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1224,7 +1224,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._create_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1307,7 +1307,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1376,7 +1376,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._delete_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1456,7 +1456,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._delete_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1536,7 +1536,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._delete_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1614,7 +1614,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files',
+            resource_path='/toolbox/{sandboxId}/toolbox/files',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1680,7 +1680,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1756,7 +1756,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1832,7 +1832,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -1902,7 +1902,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1968,7 +1968,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2044,7 +2044,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2120,7 +2120,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._delete_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2190,7 +2190,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session/{sessionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2256,7 +2256,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
 
         _param = self._download_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2332,7 +2332,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
 
         _param = self._download_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2408,7 +2408,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/download is deprecated.", DeprecationWarning)
 
         _param = self._download_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2487,7 +2487,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/download',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/download',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2553,7 +2553,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
 
         _param = self._download_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2629,7 +2629,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
 
         _param = self._download_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2705,7 +2705,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-download is deprecated.", DeprecationWarning)
 
         _param = self._download_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2795,7 +2795,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/bulk-download',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/bulk-download',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2861,7 +2861,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
 
         _param = self._drag_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -2937,7 +2937,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
 
         _param = self._drag_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3013,7 +3013,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/drag is deprecated.", DeprecationWarning)
 
         _param = self._drag_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3103,7 +3103,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3169,7 +3169,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
 
         _param = self._execute_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3245,7 +3245,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
 
         _param = self._execute_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3321,7 +3321,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/execute is deprecated.", DeprecationWarning)
 
         _param = self._execute_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3411,7 +3411,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/execute',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/execute',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3480,7 +3480,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
 
         _param = self._execute_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3561,7 +3561,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
 
         _param = self._execute_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3642,7 +3642,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec is deprecated.", DeprecationWarning)
 
         _param = self._execute_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3737,7 +3737,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3806,7 +3806,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
 
         _param = self._find_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3886,7 +3886,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
 
         _param = self._find_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -3966,7 +3966,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/find is deprecated.", DeprecationWarning)
 
         _param = self._find_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4051,7 +4051,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/find',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/find',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4114,7 +4114,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
 
         _param = self._get_computer_use_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4186,7 +4186,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
 
         _param = self._get_computer_use_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4258,7 +4258,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/status is deprecated.", DeprecationWarning)
 
         _param = self._get_computer_use_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4331,7 +4331,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/status',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4394,7 +4394,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
 
         _param = self._get_display_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4466,7 +4466,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
 
         _param = self._get_display_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4538,7 +4538,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/info is deprecated.", DeprecationWarning)
 
         _param = self._get_display_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4611,7 +4611,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/display/info',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/display/info',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4677,7 +4677,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
 
         _param = self._get_file_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4753,7 +4753,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
 
         _param = self._get_file_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4829,7 +4829,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/info is deprecated.", DeprecationWarning)
 
         _param = self._get_file_info_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -4908,7 +4908,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/info',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/info',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4971,7 +4971,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
 
         _param = self._get_mouse_position_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -5043,7 +5043,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
 
         _param = self._get_mouse_position_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -5115,7 +5115,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/mouse/position is deprecated.", DeprecationWarning)
 
         _param = self._get_mouse_position_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -5188,7 +5188,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/mouse/position',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5254,7 +5254,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
 
         _param = self._get_process_errors_deprecated_serialize(
             process_name=process_name,
@@ -5330,7 +5330,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
 
         _param = self._get_process_errors_deprecated_serialize(
             process_name=process_name,
@@ -5406,7 +5406,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors is deprecated.", DeprecationWarning)
 
         _param = self._get_process_errors_deprecated_serialize(
             process_name=process_name,
@@ -5483,7 +5483,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5549,7 +5549,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_process_logs_deprecated_serialize(
             process_name=process_name,
@@ -5625,7 +5625,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_process_logs_deprecated_serialize(
             process_name=process_name,
@@ -5701,7 +5701,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_process_logs_deprecated_serialize(
             process_name=process_name,
@@ -5778,7 +5778,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5844,7 +5844,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
 
         _param = self._get_process_status_deprecated_serialize(
             process_name=process_name,
@@ -5920,7 +5920,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
 
         _param = self._get_process_status_deprecated_serialize(
             process_name=process_name,
@@ -5996,7 +5996,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status is deprecated.", DeprecationWarning)
 
         _param = self._get_process_status_deprecated_serialize(
             process_name=process_name,
@@ -6073,7 +6073,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6135,7 +6135,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_project_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6206,7 +6206,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_project_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6277,7 +6277,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/project-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_project_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6350,7 +6350,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/project-dir',
+            resource_path='/toolbox/{sandboxId}/toolbox/project-dir',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6416,7 +6416,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6492,7 +6492,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6568,7 +6568,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6645,7 +6645,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6714,7 +6714,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6794,7 +6794,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6874,7 +6874,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -6955,7 +6955,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7027,7 +7027,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_logs_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7111,7 +7111,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_logs_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7195,7 +7195,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs is deprecated.", DeprecationWarning)
 
         _param = self._get_session_command_logs_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7282,7 +7282,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7348,7 +7348,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7424,7 +7424,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7500,7 +7500,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session/{sessionId} is deprecated.", DeprecationWarning)
 
         _param = self._get_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7577,7 +7577,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session/{sessionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7639,7 +7639,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_user_home_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7710,7 +7710,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_user_home_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7781,7 +7781,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/user-home-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_user_home_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7854,7 +7854,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/user-home-dir',
+            resource_path='/toolbox/{sandboxId}/toolbox/user-home-dir',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7917,7 +7917,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
 
         _param = self._get_windows_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -7989,7 +7989,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
 
         _param = self._get_windows_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8061,7 +8061,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/display/windows is deprecated.", DeprecationWarning)
 
         _param = self._get_windows_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8134,7 +8134,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/display/windows',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/display/windows',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8196,7 +8196,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_work_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8267,7 +8267,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_work_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8338,7 +8338,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/work-dir is deprecated.", DeprecationWarning)
 
         _param = self._get_work_dir_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8411,7 +8411,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/work-dir',
+            resource_path='/toolbox/{sandboxId}/toolbox/work-dir',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8477,7 +8477,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
 
         _param = self._git_add_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8553,7 +8553,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
 
         _param = self._git_add_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8629,7 +8629,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/add is deprecated.", DeprecationWarning)
 
         _param = self._git_add_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8712,7 +8712,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/add',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/add',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8778,7 +8778,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
 
         _param = self._git_checkout_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8854,7 +8854,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
 
         _param = self._git_checkout_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -8930,7 +8930,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/checkout is deprecated.", DeprecationWarning)
 
         _param = self._git_checkout_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9013,7 +9013,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/checkout',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/checkout',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9079,7 +9079,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
 
         _param = self._git_clone_repository_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9155,7 +9155,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
 
         _param = self._git_clone_repository_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9231,7 +9231,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/clone is deprecated.", DeprecationWarning)
 
         _param = self._git_clone_repository_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9314,7 +9314,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/clone',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/clone',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9380,7 +9380,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
 
         _param = self._git_commit_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9456,7 +9456,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
 
         _param = self._git_commit_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9532,7 +9532,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/commit is deprecated.", DeprecationWarning)
 
         _param = self._git_commit_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9622,7 +9622,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/commit',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/commit',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9688,7 +9688,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_create_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9764,7 +9764,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_create_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9840,7 +9840,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_create_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -9923,7 +9923,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/branches',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/branches',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9989,7 +9989,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_delete_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10065,7 +10065,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_delete_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10141,7 +10141,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("DELETE /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("DELETE /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_delete_branch_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10224,7 +10224,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/branches',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/branches',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10290,7 +10290,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
 
         _param = self._git_get_history_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10366,7 +10366,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
 
         _param = self._git_get_history_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10442,7 +10442,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/history is deprecated.", DeprecationWarning)
 
         _param = self._git_get_history_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10521,7 +10521,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/history',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/history',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10587,7 +10587,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
 
         _param = self._git_get_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10663,7 +10663,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
 
         _param = self._git_get_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10739,7 +10739,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/status is deprecated.", DeprecationWarning)
 
         _param = self._git_get_status_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10818,7 +10818,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/status',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10884,7 +10884,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_list_branches_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -10960,7 +10960,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_list_branches_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11036,7 +11036,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/git/branches is deprecated.", DeprecationWarning)
 
         _param = self._git_list_branches_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11115,7 +11115,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/branches',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/branches',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11181,7 +11181,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
 
         _param = self._git_pull_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11257,7 +11257,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
 
         _param = self._git_pull_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11333,7 +11333,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/pull is deprecated.", DeprecationWarning)
 
         _param = self._git_pull_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11416,7 +11416,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/pull',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/pull',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11482,7 +11482,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
 
         _param = self._git_push_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11558,7 +11558,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
 
         _param = self._git_push_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11634,7 +11634,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/git/push is deprecated.", DeprecationWarning)
 
         _param = self._git_push_changes_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11717,7 +11717,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/git/push',
+            resource_path='/toolbox/{sandboxId}/toolbox/git/push',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11782,7 +11782,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._list_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11857,7 +11857,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._list_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -11932,7 +11932,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files is deprecated.", DeprecationWarning)
 
         _param = self._list_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12011,7 +12011,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files',
+            resource_path='/toolbox/{sandboxId}/toolbox/files',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12074,7 +12074,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._list_pty_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12146,7 +12146,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._list_pty_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12218,7 +12218,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/pty is deprecated.", DeprecationWarning)
 
         _param = self._list_pty_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12291,7 +12291,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/pty',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/pty',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12354,7 +12354,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._list_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12426,7 +12426,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._list_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12498,7 +12498,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/process/session is deprecated.", DeprecationWarning)
 
         _param = self._list_sessions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12571,7 +12571,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/session',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/session',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12637,7 +12637,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
 
         _param = self._lsp_completions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12713,7 +12713,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
 
         _param = self._lsp_completions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12789,7 +12789,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/completions is deprecated.", DeprecationWarning)
 
         _param = self._lsp_completions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -12879,7 +12879,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/completions',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/completions',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12945,7 +12945,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_close_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13021,7 +13021,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_close_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13097,7 +13097,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-close is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_close_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13180,7 +13180,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/did-close',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/did-close',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -13246,7 +13246,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_open_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13322,7 +13322,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_open_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13398,7 +13398,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/did-open is deprecated.", DeprecationWarning)
 
         _param = self._lsp_did_open_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13481,7 +13481,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/did-open',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/did-open',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -13553,7 +13553,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_document_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13637,7 +13637,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_document_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13721,7 +13721,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/document-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_document_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13812,7 +13812,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/document-symbols',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/document-symbols',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -13878,7 +13878,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
 
         _param = self._lsp_start_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -13954,7 +13954,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
 
         _param = self._lsp_start_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14030,7 +14030,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/start is deprecated.", DeprecationWarning)
 
         _param = self._lsp_start_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14113,7 +14113,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/start',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/start',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -14179,7 +14179,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
 
         _param = self._lsp_stop_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14255,7 +14255,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
 
         _param = self._lsp_stop_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14331,7 +14331,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/lsp/stop is deprecated.", DeprecationWarning)
 
         _param = self._lsp_stop_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14414,7 +14414,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/stop',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/stop',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -14486,7 +14486,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_workspace_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14570,7 +14570,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_workspace_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14654,7 +14654,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/lsp/workspace-symbols is deprecated.", DeprecationWarning)
 
         _param = self._lsp_workspace_symbols_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14745,7 +14745,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols',
+            resource_path='/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -14814,7 +14814,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
 
         _param = self._move_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14894,7 +14894,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
 
         _param = self._move_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -14974,7 +14974,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/move is deprecated.", DeprecationWarning)
 
         _param = self._move_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15052,7 +15052,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/move',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/move',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -15118,7 +15118,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
 
         _param = self._move_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15194,7 +15194,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
 
         _param = self._move_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15270,7 +15270,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/move is deprecated.", DeprecationWarning)
 
         _param = self._move_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15360,7 +15360,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/mouse/move',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -15426,7 +15426,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
 
         _param = self._press_hotkey_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15502,7 +15502,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
 
         _param = self._press_hotkey_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15578,7 +15578,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey is deprecated.", DeprecationWarning)
 
         _param = self._press_hotkey_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15661,7 +15661,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -15727,7 +15727,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
 
         _param = self._press_key_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15803,7 +15803,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
 
         _param = self._press_key_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15879,7 +15879,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/key is deprecated.", DeprecationWarning)
 
         _param = self._press_key_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -15962,7 +15962,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -16028,7 +16028,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
 
         _param = self._replace_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16104,7 +16104,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
 
         _param = self._replace_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16180,7 +16180,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/replace is deprecated.", DeprecationWarning)
 
         _param = self._replace_in_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16270,7 +16270,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/replace',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/replace',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -16339,7 +16339,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
 
         _param = self._resize_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16419,7 +16419,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
 
         _param = self._resize_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16499,7 +16499,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize is deprecated.", DeprecationWarning)
 
         _param = self._resize_pty_session_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -16593,7 +16593,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize',
+            resource_path='/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -16659,7 +16659,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
 
         _param = self._restart_process_deprecated_serialize(
             process_name=process_name,
@@ -16735,7 +16735,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
 
         _param = self._restart_process_deprecated_serialize(
             process_name=process_name,
@@ -16811,7 +16811,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart is deprecated.", DeprecationWarning)
 
         _param = self._restart_process_deprecated_serialize(
             process_name=process_name,
@@ -16888,7 +16888,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -16954,7 +16954,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
 
         _param = self._scroll_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17030,7 +17030,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
 
         _param = self._scroll_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17106,7 +17106,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll is deprecated.", DeprecationWarning)
 
         _param = self._scroll_mouse_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17196,7 +17196,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -17265,7 +17265,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
 
         _param = self._search_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17345,7 +17345,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
 
         _param = self._search_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17425,7 +17425,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/files/search is deprecated.", DeprecationWarning)
 
         _param = self._search_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17510,7 +17510,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/search',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/search',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -17585,7 +17585,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
 
         _param = self._set_file_permissions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17673,7 +17673,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
 
         _param = self._set_file_permissions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17761,7 +17761,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/permissions is deprecated.", DeprecationWarning)
 
         _param = self._set_file_permissions_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17851,7 +17851,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/permissions',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/permissions',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -17914,7 +17914,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
 
         _param = self._start_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -17986,7 +17986,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
 
         _param = self._start_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18058,7 +18058,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/start is deprecated.", DeprecationWarning)
 
         _param = self._start_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18131,7 +18131,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/start',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/start',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -18194,7 +18194,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
 
         _param = self._stop_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18266,7 +18266,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
 
         _param = self._stop_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18338,7 +18338,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/stop is deprecated.", DeprecationWarning)
 
         _param = self._stop_computer_use_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18411,7 +18411,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/stop',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/stop',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -18498,7 +18498,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18602,7 +18602,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18706,7 +18706,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18827,7 +18827,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -18902,7 +18902,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -18990,7 +18990,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19078,7 +19078,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed is deprecated.", DeprecationWarning)
 
         _param = self._take_compressed_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19175,7 +19175,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -19253,7 +19253,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
 
         _param = self._take_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19345,7 +19345,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
 
         _param = self._take_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19437,7 +19437,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region is deprecated.", DeprecationWarning)
 
         _param = self._take_region_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19540,7 +19540,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -19606,7 +19606,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
 
         _param = self._take_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19682,7 +19682,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
 
         _param = self._take_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19758,7 +19758,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
+        warnings.warn("GET /toolbox/{sandboxId}/toolbox/computeruse/screenshot is deprecated.", DeprecationWarning)
 
         _param = self._take_screenshot_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19837,7 +19837,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/screenshot',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -19903,7 +19903,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
 
         _param = self._type_text_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -19979,7 +19979,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
 
         _param = self._type_text_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20055,7 +20055,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/computeruse/keyboard/type is deprecated.", DeprecationWarning)
 
         _param = self._type_text_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20138,7 +20138,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type',
+            resource_path='/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -20207,7 +20207,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20287,7 +20287,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20367,7 +20367,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_file_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20456,7 +20456,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/upload',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/upload',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -20519,7 +20519,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20591,7 +20591,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20663,7 +20663,7 @@ class ToolboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("POST /api/toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
+        warnings.warn("POST /toolbox/{sandboxId}/toolbox/files/bulk-upload is deprecated.", DeprecationWarning)
 
         _param = self._upload_files_deprecated_serialize(
             sandbox_id=sandbox_id,
@@ -20742,7 +20742,7 @@ class ToolboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/toolbox/{sandboxId}/toolbox/files/bulk-upload',
+            resource_path='/toolbox/{sandboxId}/toolbox/files/bulk-upload',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

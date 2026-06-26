@@ -103,7 +103,7 @@ public class PreviewApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/preview/{signedPreviewToken}/{port}/sandbox-id"
+        String localVarPath = "/preview/{signedPreviewToken}/{port}/sandbox-id"
             .replace("{" + "signedPreviewToken" + "}", localVarApiClient.escapeString(signedPreviewToken.toString()))
             .replace("{" + "port" + "}", localVarApiClient.escapeString(port.toString()));
 
@@ -239,7 +239,7 @@ public class PreviewApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/preview/{sandboxId}/access"
+        String localVarPath = "/preview/{sandboxId}/access"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -366,7 +366,7 @@ public class PreviewApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/preview/{sandboxId}/public"
+        String localVarPath = "/preview/{sandboxId}/public"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -494,7 +494,7 @@ public class PreviewApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/preview/{sandboxId}/validate/{authToken}"
+        String localVarPath = "/preview/{sandboxId}/validate/{authToken}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()))
             .replace("{" + "authToken" + "}", localVarApiClient.escapeString(authToken.toString()));
 

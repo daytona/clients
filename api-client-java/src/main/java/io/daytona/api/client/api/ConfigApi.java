@@ -101,7 +101,7 @@ public class ConfigApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/config";
+        String localVarPath = "/config";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();

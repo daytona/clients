@@ -124,7 +124,7 @@ func (a *UsersAPIService) EnrollInSmsMfaExecute(r UsersAPIEnrollInSmsMfaRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/users/mfa/sms/enroll"
+	localVarPath := localBasePath + "/users/mfa/sms/enroll"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -221,7 +221,7 @@ func (a *UsersAPIService) GetAuthenticatedUserExecute(r UsersAPIGetAuthenticated
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/users/me"
+	localVarPath := localBasePath + "/users/me"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -318,7 +318,7 @@ func (a *UsersAPIService) GetAvailableAccountProvidersExecute(r UsersAPIGetAvail
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/users/account-providers"
+	localVarPath := localBasePath + "/users/account-providers"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -419,7 +419,7 @@ func (a *UsersAPIService) LinkAccountExecute(r UsersAPILinkAccountRequest) (*htt
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/users/linked-accounts"
+	localVarPath := localBasePath + "/users/linked-accounts"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -516,7 +516,7 @@ func (a *UsersAPIService) UnlinkAccountExecute(r UsersAPIUnlinkAccountRequest) (
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/users/linked-accounts/{provider}/{providerUserId}"
+	localVarPath := localBasePath + "/users/linked-accounts/{provider}/{providerUserId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"provider"+"}", url.PathEscape(parameterValueToString(r.provider, "provider")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"providerUserId"+"}", url.PathEscape(parameterValueToString(r.providerUserId, "providerUserId")), -1)
 

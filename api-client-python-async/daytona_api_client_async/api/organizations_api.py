@@ -304,7 +304,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/invitations/{invitationId}/accept',
+            resource_path='/organizations/invitations/{invitationId}/accept',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -571,7 +571,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/invitations/{invitationId}/cancel',
+            resource_path='/organizations/{organizationId}/invitations/{invitationId}/cancel',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -843,7 +843,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations',
+            resource_path='/organizations',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1130,7 +1130,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/invitations',
+            resource_path='/organizations/{organizationId}/invitations',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1417,7 +1417,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/roles',
+            resource_path='/organizations/{organizationId}/roles',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1704,7 +1704,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/regions',
+            resource_path='/regions',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1956,7 +1956,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/invitations/{invitationId}/decline',
+            resource_path='/organizations/invitations/{invitationId}/decline',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2208,7 +2208,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/organizations/{organizationId}',
+            resource_path='/organizations/{organizationId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2475,7 +2475,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/organizations/{organizationId}/users/{userId}',
+            resource_path='/organizations/{organizationId}/users/{userId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2727,7 +2727,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/organizations/{organizationId}/otel-config',
+            resource_path='/organizations/{organizationId}/otel-config',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2994,7 +2994,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/organizations/{organizationId}/roles/{roleId}',
+            resource_path='/organizations/{organizationId}/roles/{roleId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3261,7 +3261,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/regions/{id}',
+            resource_path='/regions/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3520,7 +3520,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}',
+            resource_path='/organizations/{organizationId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3764,7 +3764,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/invitations/count',
+            resource_path='/organizations/invitations/count',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4023,7 +4023,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}/otel-config',
+            resource_path='/organizations/{organizationId}/otel-config',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4282,7 +4282,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/otel-config/by-sandbox-auth-token/{authToken}',
+            resource_path='/organizations/otel-config/by-sandbox-auth-token/{authToken}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4541,7 +4541,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}/usage',
+            resource_path='/organizations/{organizationId}/usage',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4815,7 +4815,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/regions/{id}',
+            resource_path='/regions/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5067,7 +5067,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/leave',
+            resource_path='/organizations/{organizationId}/leave',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5326,7 +5326,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/regions',
+            resource_path='/regions',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5585,7 +5585,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}/invitations',
+            resource_path='/organizations/{organizationId}/invitations',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5829,7 +5829,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/invitations',
+            resource_path='/organizations/invitations',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6088,7 +6088,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}/users',
+            resource_path='/organizations/{organizationId}/users',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6347,7 +6347,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations/{organizationId}/roles',
+            resource_path='/organizations/{organizationId}/roles',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6591,7 +6591,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/organizations',
+            resource_path='/organizations',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6865,7 +6865,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/regions/{id}/regenerate-proxy-api-key',
+            resource_path='/regions/{id}/regenerate-proxy-api-key',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7139,7 +7139,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/regions/{id}/regenerate-snapshot-manager-credentials',
+            resource_path='/regions/{id}/regenerate-snapshot-manager-credentials',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7413,7 +7413,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/regions/{id}/regenerate-ssh-gateway-api-key',
+            resource_path='/regions/{id}/regenerate-ssh-gateway-api-key',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7693,7 +7693,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/api/organizations/{organizationId}/default-region',
+            resource_path='/organizations/{organizationId}/default-region',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7973,7 +7973,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/suspend',
+            resource_path='/organizations/{organizationId}/suspend',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8225,7 +8225,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/unsuspend',
+            resource_path='/organizations/{organizationId}/unsuspend',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8527,7 +8527,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/users/{userId}/access',
+            resource_path='/organizations/{organizationId}/users/{userId}/access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8807,7 +8807,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/organizations/{organizationId}/experimental-config',
+            resource_path='/organizations/{organizationId}/experimental-config',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9109,7 +9109,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/organizations/{organizationId}/invitations/{invitationId}',
+            resource_path='/organizations/{organizationId}/invitations/{invitationId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9389,7 +9389,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/organizations/{organizationId}/otel-config',
+            resource_path='/organizations/{organizationId}/otel-config',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9669,7 +9669,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/api/organizations/{organizationId}/quota',
+            resource_path='/organizations/{organizationId}/quota',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9964,7 +9964,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/api/organizations/{organizationId}/quota/{regionId}',
+            resource_path='/organizations/{organizationId}/quota/{regionId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10266,7 +10266,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/organizations/{organizationId}/roles/{roleId}',
+            resource_path='/organizations/{organizationId}/roles/{roleId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10561,7 +10561,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='PATCH',
-            resource_path='/api/regions/{id}',
+            resource_path='/regions/{id}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10841,7 +10841,7 @@ class OrganizationsApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/organizations/{organizationId}/sandbox-default-limited-network-egress',
+            resource_path='/organizations/{organizationId}/sandbox-default-limited-network-egress',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

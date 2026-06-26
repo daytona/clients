@@ -311,7 +311,7 @@ class VolumesApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/volumes',
+            resource_path='/volumes',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -581,7 +581,7 @@ class VolumesApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/volumes/{volumeId}',
+            resource_path='/volumes/{volumeId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -855,7 +855,7 @@ class VolumesApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/volumes/{volumeId}',
+            resource_path='/volumes/{volumeId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1129,7 +1129,7 @@ class VolumesApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/volumes/by-name/{name}',
+            resource_path='/volumes/by-name/{name}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1405,7 +1405,7 @@ class VolumesApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/volumes',
+            resource_path='/volumes',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

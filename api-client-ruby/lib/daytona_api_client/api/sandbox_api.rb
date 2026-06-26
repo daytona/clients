@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.archive_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/archive'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/archive'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -107,7 +107,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.create_backup"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/backup'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/backup'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -171,7 +171,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_sandbox' when calling SandboxApi.create_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox'
+      local_var_path = '/sandbox'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -246,7 +246,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_sandbox_snapshot' when calling SandboxApi.create_sandbox_snapshot"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/snapshot'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/snapshot'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -317,7 +317,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.create_ssh_access"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ssh-access'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ssh-access'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -382,7 +382,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.delete_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -458,7 +458,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'token' when calling SandboxApi.expire_signed_port_preview_url"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s)).sub('{' + 'token' + '}', CGI.escape(token.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s)).sub('{' + 'token' + '}', CGI.escape(token.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -526,7 +526,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'fork_sandbox' when calling SandboxApi.fork_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/fork'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/fork'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -599,7 +599,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_build_logs"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/build-logs'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/build-logs'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -662,7 +662,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_build_logs_url"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/build-logs-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/build-logs-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -726,7 +726,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling SandboxApi.get_organization_by_sandbox_id"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/organization'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/organization'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -796,7 +796,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'port' when calling SandboxApi.get_port_preview_url"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ports/{port}/preview-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -860,7 +860,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling SandboxApi.get_region_quota_by_sandbox_id"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/region-quota'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/region-quota'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -926,7 +926,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -991,7 +991,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_sandbox_ancestors"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ancestors'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ancestors'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1057,7 +1057,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_sandbox_forks"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/forks'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/forks'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1144,7 +1144,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'to' when calling SandboxApi.get_sandbox_logs"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/telemetry/logs'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/telemetry/logs'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1230,7 +1230,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'to' when calling SandboxApi.get_sandbox_metrics"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/telemetry/metrics'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/telemetry/metrics'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1297,7 +1297,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_sandbox_parent"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/parent'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/parent'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1369,7 +1369,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'trace_id' when calling SandboxApi.get_sandbox_trace_spans"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/telemetry/traces/{traceId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'traceId' + '}', CGI.escape(trace_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/telemetry/traces/{traceId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'traceId' + '}', CGI.escape(trace_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1451,7 +1451,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'to' when calling SandboxApi.get_sandbox_traces"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/telemetry/traces'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/telemetry/traces'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1517,7 +1517,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: SandboxApi.get_sandboxes_for_runner ...'
       end
       # resource path
-      local_var_path = '/api/sandbox/for-runner'
+      local_var_path = '/sandbox/for-runner'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1591,7 +1591,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'port' when calling SandboxApi.get_signed_port_preview_url"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'port' + '}', CGI.escape(port.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1656,7 +1656,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling SandboxApi.get_toolbox_proxy_url"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/toolbox-proxy-url'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/toolbox-proxy-url'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1796,7 +1796,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/api/sandbox'
+      local_var_path = '/sandbox'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1964,7 +1964,7 @@ module DaytonaApiClient
         fail ArgumentError, "invalid value for \"order\", must be one of #{allowable_values}"
       end
       # resource path
-      local_var_path = '/api/sandbox/paginated'
+      local_var_path = '/sandbox/paginated'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2047,7 +2047,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.pause_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/pause'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/pause'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2113,7 +2113,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.recover_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/recover'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/recover'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2184,7 +2184,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_labels' when calling SandboxApi.replace_labels"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/labels'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/labels'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2259,7 +2259,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'resize_sandbox' when calling SandboxApi.resize_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/resize'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/resize'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2328,7 +2328,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling SandboxApi.resolve_sandbox_secrets"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/secrets'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/secrets'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2394,7 +2394,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.revoke_ssh_access"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/ssh-access'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/ssh-access'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2465,7 +2465,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'interval' when calling SandboxApi.set_auto_archive_interval"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/autoarchive/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2535,7 +2535,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'interval' when calling SandboxApi.set_auto_delete_interval"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/autodelete/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/autodelete/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2605,7 +2605,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'interval' when calling SandboxApi.set_autostop_interval"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/autostop/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/autostop/{interval}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'interval' + '}', CGI.escape(interval.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2671,7 +2671,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.start_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/start'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/start'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2737,7 +2737,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.stop_sandbox"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/stop'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/stop'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2802,7 +2802,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling SandboxApi.update_last_activity"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/last-activity'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/last-activity'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2872,7 +2872,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_sandbox_network_settings' when calling SandboxApi.update_network_settings"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/network-settings'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/network-settings'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2947,7 +2947,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'is_public' when calling SandboxApi.update_public_status"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxIdOrName}/public/{isPublic}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'isPublic' + '}', CGI.escape(is_public.to_s))
+      local_var_path = '/sandbox/{sandboxIdOrName}/public/{isPublic}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'isPublic' + '}', CGI.escape(is_public.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3017,7 +3017,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_sandbox_state_dto' when calling SandboxApi.update_sandbox_state"
       end
       # resource path
-      local_var_path = '/api/sandbox/{sandboxId}/state'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/sandbox/{sandboxId}/state'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3084,7 +3084,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'token' when calling SandboxApi.validate_ssh_access"
       end
       # resource path
-      local_var_path = '/api/sandbox/ssh-access/validate'
+      local_var_path = '/sandbox/ssh-access/validate'
 
       # query parameters
       query_params = opts[:query_params] || {}

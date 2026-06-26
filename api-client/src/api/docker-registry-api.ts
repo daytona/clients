@@ -45,7 +45,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
         createRegistry: async (createDockerRegistry: CreateDockerRegistry, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createDockerRegistry' is not null or undefined
             assertParamExists('createRegistry', 'createDockerRegistry', createDockerRegistry)
-            const localVarPath = `/api/docker-registry`;
+            const localVarPath = `/docker-registry`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -90,7 +90,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
         deleteRegistry: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('deleteRegistry', 'id', id)
-            const localVarPath = `/api/docker-registry/{id}`
+            const localVarPath = `/docker-registry/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -133,7 +133,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
         getRegistry: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('getRegistry', 'id', id)
-            const localVarPath = `/api/docker-registry/{id}`
+            const localVarPath = `/docker-registry/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -175,7 +175,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
          * @throws {RequiredError}
          */
         getTransientPushAccess: async (xDaytonaOrganizationID?: string, regionId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/docker-registry/registry-push-access`;
+            const localVarPath = `/docker-registry/registry-push-access`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -219,7 +219,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
          * @throws {RequiredError}
          */
         listRegistries: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/docker-registry`;
+            const localVarPath = `/docker-registry`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -265,7 +265,7 @@ export const DockerRegistryApiAxiosParamCreator = function (configuration?: Conf
             assertParamExists('updateRegistry', 'id', id)
             // verify required parameter 'updateDockerRegistry' is not null or undefined
             assertParamExists('updateRegistry', 'updateDockerRegistry', updateDockerRegistry)
-            const localVarPath = `/api/docker-registry/{id}`
+            const localVarPath = `/docker-registry/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

@@ -41,7 +41,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'job_id' when calling JobsApi.get_job"
       end
       # resource path
-      local_var_path = '/api/jobs/{jobId}'.sub('{' + 'jobId' + '}', CGI.escape(job_id.to_s))
+      local_var_path = '/jobs/{jobId}'.sub('{' + 'jobId' + '}', CGI.escape(job_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -118,7 +118,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/api/jobs'
+      local_var_path = '/jobs'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -183,7 +183,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: JobsApi.poll_jobs ...'
       end
       # resource path
-      local_var_path = '/api/jobs/poll'
+      local_var_path = '/jobs/poll'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -252,7 +252,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_job_status' when calling JobsApi.update_job_status"
       end
       # resource path
-      local_var_path = '/api/jobs/{jobId}/status'.sub('{' + 'jobId' + '}', CGI.escape(job_id.to_s))
+      local_var_path = '/jobs/{jobId}/status'.sub('{' + 'jobId' + '}', CGI.escape(job_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

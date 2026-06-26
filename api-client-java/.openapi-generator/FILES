@@ -77,6 +77,7 @@ src/main/java/io/daytona/api/client/model/CreateSessionRequest.java
 src/main/java/io/daytona/api/client/model/CreateSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateUser.java
 src/main/java/io/daytona/api/client/model/CreateVolume.java
+src/main/java/io/daytona/api/client/model/DateFilter.java
 src/main/java/io/daytona/api/client/model/DaytonaConfiguration.java
 src/main/java/io/daytona/api/client/model/DisplayInfoResponse.java
 src/main/java/io/daytona/api/client/model/DockerRegistry.java
@@ -100,6 +101,7 @@ src/main/java/io/daytona/api/client/model/GpuType.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck200Response.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck200ResponseInfoValue.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck503Response.java
+src/main/java/io/daytona/api/client/model/IntFilter.java
 src/main/java/io/daytona/api/client/model/Job.java
 src/main/java/io/daytona/api/client/model/JobStatus.java
 src/main/java/io/daytona/api/client/model/JobType.java
@@ -202,6 +204,7 @@ src/main/java/io/daytona/api/client/model/SnapshotState.java
 src/main/java/io/daytona/api/client/model/SshAccessDto.java
 src/main/java/io/daytona/api/client/model/SshAccessValidationDto.java
 src/main/java/io/daytona/api/client/model/StorageAccessDto.java
+src/main/java/io/daytona/api/client/model/StringFilter.java
 src/main/java/io/daytona/api/client/model/ToolboxProxyUrl.java
 src/main/java/io/daytona/api/client/model/TraceSpan.java
 src/main/java/io/daytona/api/client/model/TraceSummary.java
@@ -283,6 +286,7 @@ src/test/java/io/daytona/api/client/model/CreateSessionRequestTest.java
 src/test/java/io/daytona/api/client/model/CreateSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateUserTest.java
 src/test/java/io/daytona/api/client/model/CreateVolumeTest.java
+src/test/java/io/daytona/api/client/model/DateFilterTest.java
 src/test/java/io/daytona/api/client/model/DaytonaConfigurationTest.java
 src/test/java/io/daytona/api/client/model/DisplayInfoResponseTest.java
 src/test/java/io/daytona/api/client/model/DockerRegistryTest.java
@@ -306,6 +310,7 @@ src/test/java/io/daytona/api/client/model/GpuTypeTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck200ResponseInfoValueTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck200ResponseTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck503ResponseTest.java
+src/test/java/io/daytona/api/client/model/IntFilterTest.java
 src/test/java/io/daytona/api/client/model/JobStatusTest.java
 src/test/java/io/daytona/api/client/model/JobTest.java
 src/test/java/io/daytona/api/client/model/JobTypeTest.java
@@ -408,6 +413,7 @@ src/test/java/io/daytona/api/client/model/SnapshotStateTest.java
 src/test/java/io/daytona/api/client/model/SshAccessDtoTest.java
 src/test/java/io/daytona/api/client/model/SshAccessValidationDtoTest.java
 src/test/java/io/daytona/api/client/model/StorageAccessDtoTest.java
+src/test/java/io/daytona/api/client/model/StringFilterTest.java
 src/test/java/io/daytona/api/client/model/ToolboxProxyUrlTest.java
 src/test/java/io/daytona/api/client/model/TraceSpanTest.java
 src/test/java/io/daytona/api/client/model/TraceSummaryTest.java

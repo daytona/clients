@@ -32,7 +32,11 @@ import type { CreateRunnerResponse } from '../models';
 // @ts-ignore
 import type { CreateUser } from '../models';
 // @ts-ignore
+import type { DateFilter } from '../models';
+// @ts-ignore
 import type { DockerRegistry } from '../models';
+// @ts-ignore
+import type { IntFilter } from '../models';
 // @ts-ignore
 import type { PaginatedAuditLogs } from '../models';
 // @ts-ignore
@@ -49,6 +53,8 @@ import type { SendWebhookDto } from '../models';
 import type { SetSnapshotGeneralStatusDto } from '../models';
 // @ts-ignore
 import type { SnapshotDto } from '../models';
+// @ts-ignore
+import type { StringFilter } from '../models';
 // @ts-ignore
 import type { UpdateOrganizationRegionQuota } from '../models';
 // @ts-ignore
@@ -68,7 +74,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminCanCleanupImage: async (imageName: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'imageName' is not null or undefined
             assertParamExists('adminCanCleanupImage', 'imageName', imageName)
-            const localVarPath = `/api/admin/snapshots/can-cleanup-image`;
+            const localVarPath = `/admin/snapshots/can-cleanup-image`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -117,7 +123,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminCreateOrganizationRegionQuota', 'regionId', regionId)
             // verify required parameter 'createOrganizationRegionQuota' is not null or undefined
             assertParamExists('adminCreateOrganizationRegionQuota', 'createOrganizationRegionQuota', createOrganizationRegionQuota)
-            const localVarPath = `/api/admin/organizations/{organizationId}/quota/{regionId}`
+            const localVarPath = `/admin/organizations/{organizationId}/quota/{regionId}`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
                 .replace(`{${"regionId"}}`, encodeURIComponent(String(regionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -160,7 +166,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminCreateRunner: async (adminCreateRunner: AdminCreateRunner, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'adminCreateRunner' is not null or undefined
             assertParamExists('adminCreateRunner', 'adminCreateRunner', adminCreateRunner)
-            const localVarPath = `/api/admin/runners`;
+            const localVarPath = `/admin/runners`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -201,7 +207,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminCreateUser: async (createUser: CreateUser, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createUser' is not null or undefined
             assertParamExists('adminCreateUser', 'createUser', createUser)
-            const localVarPath = `/api/admin/users`;
+            const localVarPath = `/admin/users`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -247,7 +253,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminDeleteOrganizationRegionQuota', 'regionId', regionId)
             // verify required parameter 'sandboxClass' is not null or undefined
             assertParamExists('adminDeleteOrganizationRegionQuota', 'sandboxClass', sandboxClass)
-            const localVarPath = `/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}`
+            const localVarPath = `/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
                 .replace(`{${"regionId"}}`, encodeURIComponent(String(regionId)))
                 .replace(`{${"sandboxClass"}}`, encodeURIComponent(String(sandboxClass)));
@@ -288,7 +294,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminDeleteRunner: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminDeleteRunner', 'id', id)
-            const localVarPath = `/api/admin/runners/{id}`
+            const localVarPath = `/admin/runners/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -322,14 +328,24 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Get all audit logs
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        adminGetAllAuditLogs: async (page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/admin/audit`;
+        adminGetAllAuditLogs: async (page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/admin/audit`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -371,6 +387,66 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
                 localVarQueryParameter['nextToken'] = nextToken;
             }
 
+            if (id !== undefined) {
+                for (const [key, value] of Object.entries(id)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorId !== undefined) {
+                for (const [key, value] of Object.entries(actorId)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorEmail !== undefined) {
+                for (const [key, value] of Object.entries(actorEmail)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorApiKeyPrefix !== undefined) {
+                for (const [key, value] of Object.entries(actorApiKeyPrefix)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (actorApiKeySuffix !== undefined) {
+                for (const [key, value] of Object.entries(actorApiKeySuffix)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (action !== undefined) {
+                for (const [key, value] of Object.entries(action)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (targetType !== undefined) {
+                for (const [key, value] of Object.entries(targetType)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (targetId !== undefined) {
+                for (const [key, value] of Object.entries(targetId)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (statusCode !== undefined) {
+                for (const [key, value] of Object.entries(statusCode)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
+            if (createdAt !== undefined) {
+                for (const [key, value] of Object.entries(createdAt)) {
+                    localVarQueryParameter[key] = value;
+                }
+            }
+
             localVarHeaderParameter['Accept'] = 'application/json';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -395,7 +471,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminGetMessageAttempts', 'organizationId', organizationId)
             // verify required parameter 'messageId' is not null or undefined
             assertParamExists('adminGetMessageAttempts', 'messageId', messageId)
-            const localVarPath = `/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts`
+            const localVarPath = `/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
                 .replace(`{${"messageId"}}`, encodeURIComponent(String(messageId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -442,7 +518,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminGetOrganizationRegionQuota', 'regionId', regionId)
             // verify required parameter 'sandboxClass' is not null or undefined
             assertParamExists('adminGetOrganizationRegionQuota', 'sandboxClass', sandboxClass)
-            const localVarPath = `/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}`
+            const localVarPath = `/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
                 .replace(`{${"regionId"}}`, encodeURIComponent(String(regionId)))
                 .replace(`{${"sandboxClass"}}`, encodeURIComponent(String(sandboxClass)));
@@ -484,7 +560,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminGetRunnerById: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminGetRunnerById', 'id', id)
-            const localVarPath = `/api/admin/runners/{id}`
+            const localVarPath = `/admin/runners/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -524,7 +600,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminGetUser: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminGetUser', 'id', id)
-            const localVarPath = `/api/admin/users/{id}`
+            const localVarPath = `/admin/users/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -561,7 +637,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         adminGetWebhookStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/admin/webhooks/status`;
+            const localVarPath = `/admin/webhooks/status`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -600,7 +676,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminInitializeWebhooks: async (organizationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('adminInitializeWebhooks', 'organizationId', organizationId)
-            const localVarPath = `/api/admin/webhooks/organizations/{organizationId}/initialize`
+            const localVarPath = `/admin/webhooks/organizations/{organizationId}/initialize`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -637,7 +713,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         adminListRunners: async (regionId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/admin/runners`;
+            const localVarPath = `/admin/runners`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -677,7 +753,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
          * @throws {RequiredError}
          */
         adminListUsers: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/admin/users`;
+            const localVarPath = `/admin/users`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -715,7 +791,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminRecoverSandbox: async (sandboxId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('adminRecoverSandbox', 'sandboxId', sandboxId)
-            const localVarPath = `/api/admin/sandbox/{sandboxId}/recover`
+            const localVarPath = `/admin/sandbox/{sandboxId}/recover`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -755,7 +831,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminRegenerateKeyPair: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminRegenerateKeyPair', 'id', id)
-            const localVarPath = `/api/admin/users/{id}/regenerate-key-pair`
+            const localVarPath = `/admin/users/{id}/regenerate-key-pair`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -797,7 +873,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminSendWebhook', 'organizationId', organizationId)
             // verify required parameter 'sendWebhookDto' is not null or undefined
             assertParamExists('adminSendWebhook', 'sendWebhookDto', sendWebhookDto)
-            const localVarPath = `/api/admin/webhooks/organizations/{organizationId}/send`
+            const localVarPath = `/admin/webhooks/organizations/{organizationId}/send`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -838,7 +914,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminSetDefaultRegistry: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminSetDefaultRegistry', 'id', id)
-            const localVarPath = `/api/admin/docker-registry/{id}/set-default`
+            const localVarPath = `/admin/docker-registry/{id}/set-default`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -881,7 +957,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminSetSnapshotGeneralStatus', 'id', id)
             // verify required parameter 'setSnapshotGeneralStatusDto' is not null or undefined
             assertParamExists('adminSetSnapshotGeneralStatus', 'setSnapshotGeneralStatusDto', setSnapshotGeneralStatusDto)
-            const localVarPath = `/api/admin/snapshots/{id}/general`
+            const localVarPath = `/admin/snapshots/{id}/general`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -929,7 +1005,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('adminUpdateOrganizationRegionQuota', 'regionId', regionId)
             // verify required parameter 'updateOrganizationRegionQuota' is not null or undefined
             assertParamExists('adminUpdateOrganizationRegionQuota', 'updateOrganizationRegionQuota', updateOrganizationRegionQuota)
-            const localVarPath = `/api/admin/organizations/{organizationId}/quota/{regionId}`
+            const localVarPath = `/admin/organizations/{organizationId}/quota/{regionId}`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
                 .replace(`{${"regionId"}}`, encodeURIComponent(String(regionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -971,7 +1047,7 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
         adminUpdateRunnerScheduling: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminUpdateRunnerScheduling', 'id', id)
-            const localVarPath = `/api/admin/runners/{id}/scheduling`
+            const localVarPath = `/admin/runners/{id}/scheduling`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1096,14 +1172,24 @@ export const AdminApiFp = function(configuration?: Configuration) {
          * @summary Get all audit logs
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PaginatedAuditLogs>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.adminGetAllAuditLogs(page, limit, from, to, nextToken, options);
+        async adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PaginatedAuditLogs>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.adminGetAllAuditLogs(page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminApi.adminGetAllAuditLogs']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1386,14 +1472,24 @@ export const AdminApiFactory = function (configuration?: Configuration, basePath
          * @summary Get all audit logs
          * @param {number} [page] Page number of the results
          * @param {number} [limit] Number of results per page
-         * @param {Date} [from] From date (ISO 8601 format)
-         * @param {Date} [to] To date (ISO 8601 format)
+         * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+         * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
          * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+         * @param {StringFilter} [id] Filter by audit log ID.
+         * @param {StringFilter} [actorId] Filter by actor user ID.
+         * @param {StringFilter} [actorEmail] Filter by actor email.
+         * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+         * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+         * @param {StringFilter} [action] Filter by action.
+         * @param {StringFilter} [targetType] Filter by target type.
+         * @param {StringFilter} [targetId] Filter by target ID.
+         * @param {IntFilter} [statusCode] Filter by HTTP status code.
+         * @param {DateFilter} [createdAt] Filter by creation timestamp.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig): AxiosPromise<PaginatedAuditLogs> {
-            return localVarFp.adminGetAllAuditLogs(page, limit, from, to, nextToken, options).then((request) => request(axios, basePath));
+        adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig): AxiosPromise<PaginatedAuditLogs> {
+            return localVarFp.adminGetAllAuditLogs(page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1632,14 +1728,24 @@ export class AdminApi extends BaseAPI {
      * @summary Get all audit logs
      * @param {number} [page] Page number of the results
      * @param {number} [limit] Number of results per page
-     * @param {Date} [from] From date (ISO 8601 format)
-     * @param {Date} [to] To date (ISO 8601 format)
+     * @param {Date} [from] Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+     * @param {Date} [to] Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
      * @param {string} [nextToken] Token for cursor-based pagination. When provided, takes precedence over page parameter.
+     * @param {StringFilter} [id] Filter by audit log ID.
+     * @param {StringFilter} [actorId] Filter by actor user ID.
+     * @param {StringFilter} [actorEmail] Filter by actor email.
+     * @param {StringFilter} [actorApiKeyPrefix] Filter by actor API key prefix.
+     * @param {StringFilter} [actorApiKeySuffix] Filter by actor API key suffix.
+     * @param {StringFilter} [action] Filter by action.
+     * @param {StringFilter} [targetType] Filter by target type.
+     * @param {StringFilter} [targetId] Filter by target ID.
+     * @param {IntFilter} [statusCode] Filter by HTTP status code.
+     * @param {DateFilter} [createdAt] Filter by creation timestamp.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, options?: RawAxiosRequestConfig) {
-        return AdminApiFp(this.configuration).adminGetAllAuditLogs(page, limit, from, to, nextToken, options).then((request) => request(this.axios, this.basePath));
+    public adminGetAllAuditLogs(page?: number, limit?: number, from?: Date, to?: Date, nextToken?: string, id?: StringFilter, actorId?: StringFilter, actorEmail?: StringFilter, actorApiKeyPrefix?: StringFilter, actorApiKeySuffix?: StringFilter, action?: StringFilter, targetType?: StringFilter, targetId?: StringFilter, statusCode?: IntFilter, createdAt?: DateFilter, options?: RawAxiosRequestConfig) {
+        return AdminApiFp(this.configuration).adminGetAllAuditLogs(page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

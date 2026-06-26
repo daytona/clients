@@ -33,7 +33,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: HealthApi.health_controller_check ...'
       end
       # resource path
-      local_var_path = '/api/health/ready'
+      local_var_path = '/health/ready'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -86,7 +86,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: HealthApi.health_controller_live ...'
       end
       # resource path
-      local_var_path = '/api/health'
+      local_var_path = '/health'
 
       # query parameters
       query_params = opts[:query_params] || {}

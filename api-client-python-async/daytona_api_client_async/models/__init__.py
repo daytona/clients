@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
     from daytona_api_client_async.models.create_user import CreateUser
     from daytona_api_client_async.models.create_volume import CreateVolume
+    from daytona_api_client_async.models.date_filter import DateFilter
     from daytona_api_client_async.models.daytona_configuration import DaytonaConfiguration
     from daytona_api_client_async.models.display_info_response import DisplayInfoResponse
     from daytona_api_client_async.models.docker_registry import DockerRegistry
@@ -79,6 +80,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.health_controller_check200_response import HealthControllerCheck200Response
     from daytona_api_client_async.models.health_controller_check200_response_info_value import HealthControllerCheck200ResponseInfoValue
     from daytona_api_client_async.models.health_controller_check503_response import HealthControllerCheck503Response
+    from daytona_api_client_async.models.int_filter import IntFilter
     from daytona_api_client_async.models.job import Job
     from daytona_api_client_async.models.job_status import JobStatus
     from daytona_api_client_async.models.job_type import JobType
@@ -181,6 +183,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.ssh_access_dto import SshAccessDto
     from daytona_api_client_async.models.ssh_access_validation_dto import SshAccessValidationDto
     from daytona_api_client_async.models.storage_access_dto import StorageAccessDto
+    from daytona_api_client_async.models.string_filter import StringFilter
     from daytona_api_client_async.models.toolbox_proxy_url import ToolboxProxyUrl
     from daytona_api_client_async.models.trace_span import TraceSpan
     from daytona_api_client_async.models.trace_summary import TraceSummary
@@ -245,6 +248,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
     "CreateUser": "daytona_api_client_async.models.create_user",
     "CreateVolume": "daytona_api_client_async.models.create_volume",
+    "DateFilter": "daytona_api_client_async.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client_async.models.daytona_configuration",
     "DisplayInfoResponse": "daytona_api_client_async.models.display_info_response",
     "DockerRegistry": "daytona_api_client_async.models.docker_registry",
@@ -268,6 +272,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "HealthControllerCheck200Response": "daytona_api_client_async.models.health_controller_check200_response",
     "HealthControllerCheck200ResponseInfoValue": "daytona_api_client_async.models.health_controller_check200_response_info_value",
     "HealthControllerCheck503Response": "daytona_api_client_async.models.health_controller_check503_response",
+    "IntFilter": "daytona_api_client_async.models.int_filter",
     "Job": "daytona_api_client_async.models.job",
     "JobStatus": "daytona_api_client_async.models.job_status",
     "JobType": "daytona_api_client_async.models.job_type",
@@ -370,6 +375,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SshAccessDto": "daytona_api_client_async.models.ssh_access_dto",
     "SshAccessValidationDto": "daytona_api_client_async.models.ssh_access_validation_dto",
     "StorageAccessDto": "daytona_api_client_async.models.storage_access_dto",
+    "StringFilter": "daytona_api_client_async.models.string_filter",
     "ToolboxProxyUrl": "daytona_api_client_async.models.toolbox_proxy_url",
     "TraceSpan": "daytona_api_client_async.models.trace_span",
     "TraceSummary": "daytona_api_client_async.models.trace_summary",

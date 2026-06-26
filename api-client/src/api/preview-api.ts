@@ -39,7 +39,7 @@ export const PreviewApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSandboxIdFromSignedPreviewUrlToken', 'signedPreviewToken', signedPreviewToken)
             // verify required parameter 'port' is not null or undefined
             assertParamExists('getSandboxIdFromSignedPreviewUrlToken', 'port', port)
-            const localVarPath = `/api/preview/{signedPreviewToken}/{port}/sandbox-id`
+            const localVarPath = `/preview/{signedPreviewToken}/{port}/sandbox-id`
                 .replace(`{${"signedPreviewToken"}}`, encodeURIComponent(String(signedPreviewToken)))
                 .replace(`{${"port"}}`, encodeURIComponent(String(port)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -80,7 +80,7 @@ export const PreviewApiAxiosParamCreator = function (configuration?: Configurati
         hasSandboxAccess: async (sandboxId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('hasSandboxAccess', 'sandboxId', sandboxId)
-            const localVarPath = `/api/preview/{sandboxId}/access`
+            const localVarPath = `/preview/{sandboxId}/access`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -120,7 +120,7 @@ export const PreviewApiAxiosParamCreator = function (configuration?: Configurati
         isSandboxPublic: async (sandboxId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('isSandboxPublic', 'sandboxId', sandboxId)
-            const localVarPath = `/api/preview/{sandboxId}/public`
+            const localVarPath = `/preview/{sandboxId}/public`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -163,7 +163,7 @@ export const PreviewApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('isValidAuthToken', 'sandboxId', sandboxId)
             // verify required parameter 'authToken' is not null or undefined
             assertParamExists('isValidAuthToken', 'authToken', authToken)
-            const localVarPath = `/api/preview/{sandboxId}/validate/{authToken}`
+            const localVarPath = `/preview/{sandboxId}/validate/{authToken}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"authToken"}}`, encodeURIComponent(String(authToken)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.

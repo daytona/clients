@@ -296,7 +296,7 @@ class PreviewApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/preview/{signedPreviewToken}/{port}/sandbox-id',
+            resource_path='/preview/{signedPreviewToken}/{port}/sandbox-id',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -555,7 +555,7 @@ class PreviewApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/preview/{sandboxId}/access',
+            resource_path='/preview/{sandboxId}/access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -814,7 +814,7 @@ class PreviewApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/preview/{sandboxId}/public',
+            resource_path='/preview/{sandboxId}/public',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1088,7 +1088,7 @@ class PreviewApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/preview/{sandboxId}/validate/{authToken}',
+            resource_path='/preview/{sandboxId}/validate/{authToken}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

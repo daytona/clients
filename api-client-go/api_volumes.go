@@ -139,7 +139,7 @@ func (a *VolumesAPIService) CreateVolumeExecute(r VolumesAPICreateVolumeRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/volumes"
+	localVarPath := localBasePath + "/volumes"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -252,7 +252,7 @@ func (a *VolumesAPIService) DeleteVolumeExecute(r VolumesAPIDeleteVolumeRequest)
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/volumes/{volumeId}"
+	localVarPath := localBasePath + "/volumes/{volumeId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"volumeId"+"}", url.PathEscape(parameterValueToString(r.volumeId, "volumeId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -354,7 +354,7 @@ func (a *VolumesAPIService) GetVolumeExecute(r VolumesAPIGetVolumeRequest) (*Vol
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/volumes/{volumeId}"
+	localVarPath := localBasePath + "/volumes/{volumeId}"
 	localVarPath = strings.Replace(localVarPath, "{"+"volumeId"+"}", url.PathEscape(parameterValueToString(r.volumeId, "volumeId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -465,7 +465,7 @@ func (a *VolumesAPIService) GetVolumeByNameExecute(r VolumesAPIGetVolumeByNameRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/volumes/by-name/{name}"
+	localVarPath := localBasePath + "/volumes/by-name/{name}"
 	localVarPath = strings.Replace(localVarPath, "{"+"name"+"}", url.PathEscape(parameterValueToString(r.name, "name")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -580,7 +580,7 @@ func (a *VolumesAPIService) ListVolumesExecute(r VolumesAPIListVolumesRequest) (
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/volumes"
+	localVarPath := localBasePath + "/volumes"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

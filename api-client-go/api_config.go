@@ -75,7 +75,7 @@ func (a *ConfigAPIService) ConfigControllerGetConfigExecute(r ConfigAPIConfigCon
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/config"
+	localVarPath := localBasePath + "/config"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

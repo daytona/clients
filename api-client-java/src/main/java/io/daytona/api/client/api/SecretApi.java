@@ -105,7 +105,7 @@ public class SecretApi {
         Object localVarPostBody = createSecret;
 
         // create path and map variables
-        String localVarPath = "/api/secret";
+        String localVarPath = "/secret";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -241,7 +241,7 @@ public class SecretApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/secret/{secretId}"
+        String localVarPath = "/secret/{secretId}"
             .replace("{" + "secretId" + "}", localVarApiClient.escapeString(secretId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -372,7 +372,7 @@ public class SecretApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/secret/{secretId}"
+        String localVarPath = "/secret/{secretId}"
             .replace("{" + "secretId" + "}", localVarApiClient.escapeString(secretId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -507,7 +507,7 @@ public class SecretApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/secret";
+        String localVarPath = "/secret";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -635,7 +635,7 @@ public class SecretApi {
         Object localVarPostBody = updateSecret;
 
         // create path and map variables
-        String localVarPath = "/api/secret/{secretId}"
+        String localVarPath = "/secret/{secretId}"
             .replace("{" + "secretId" + "}", localVarApiClient.escapeString(secretId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

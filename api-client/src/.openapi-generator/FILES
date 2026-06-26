@@ -60,6 +60,7 @@ models/create-session-request.ts
 models/create-snapshot.ts
 models/create-user.ts
 models/create-volume.ts
+models/date-filter.ts
 models/daytona-configuration.ts
 models/display-info-response.ts
 models/docker-registry.ts
@@ -84,6 +85,7 @@ models/health-controller-check200-response-info-value.ts
 models/health-controller-check200-response.ts
 models/health-controller-check503-response.ts
 models/index.ts
+models/int-filter.ts
 models/job-status.ts
 models/job-type.ts
 models/job.ts
@@ -186,6 +188,7 @@ models/snapshot-state.ts
 models/ssh-access-dto.ts
 models/ssh-access-validation-dto.ts
 models/storage-access-dto.ts
+models/string-filter.ts
 models/toolbox-proxy-url.ts
 models/trace-span.ts
 models/trace-summary.ts

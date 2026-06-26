@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.activate_snapshot"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}/activate'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}/activate'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -107,7 +107,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_snapshot' when calling SnapshotsApi.create_snapshot"
       end
       # resource path
-      local_var_path = '/api/snapshots'
+      local_var_path = '/snapshots'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -176,7 +176,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.deactivate_snapshot"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}/deactivate'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}/deactivate'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -262,7 +262,7 @@ module DaytonaApiClient
         fail ArgumentError, "invalid value for \"order\", must be one of #{allowable_values}"
       end
       # resource path
-      local_var_path = '/api/snapshots'
+      local_var_path = '/snapshots'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -331,7 +331,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.get_snapshot"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -399,7 +399,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.get_snapshot_build_logs"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}/build-logs'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}/build-logs'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -462,7 +462,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.get_snapshot_build_logs_url"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}/build-logs-url'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}/build-logs-url'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -526,7 +526,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling SnapshotsApi.remove_snapshot"
       end
       # resource path
-      local_var_path = '/api/snapshots/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/snapshots/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

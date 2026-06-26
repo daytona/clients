@@ -51,7 +51,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'mouse_click_request' when calling ToolboxApi.click_mouse_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/mouse/click'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -134,7 +134,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'mode' when calling ToolboxApi.create_folder_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/folder'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/folder'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -206,7 +206,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'pty_create_request' when calling ToolboxApi.create_pty_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/pty'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/pty'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -283,7 +283,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_session_request' when calling ToolboxApi.create_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -360,7 +360,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.delete_file_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -432,7 +432,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'session_id' when calling ToolboxApi.delete_pty_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -502,7 +502,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'session_id' when calling ToolboxApi.delete_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -572,7 +572,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.download_file_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/download'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/download'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -645,7 +645,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'download_files' when calling ToolboxApi.download_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/bulk-download'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/bulk-download'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -722,7 +722,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'mouse_drag_request' when calling ToolboxApi.drag_mouse_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -799,7 +799,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'execute_request' when calling ToolboxApi.execute_command_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/execute'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/execute'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -882,7 +882,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'session_execute_request' when calling ToolboxApi.execute_session_command_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -965,7 +965,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'pattern' when calling ToolboxApi.find_in_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/find'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/find'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1033,7 +1033,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_computer_use_status_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/status'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/status'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1099,7 +1099,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_display_info_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/display/info'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/display/info'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1171,7 +1171,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.get_file_info_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/info'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/info'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1238,7 +1238,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_mouse_position_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/mouse/position'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1310,7 +1310,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_process_errors_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1382,7 +1382,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_process_logs_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1454,7 +1454,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_process_status_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1518,7 +1518,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_project_dir_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/project-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/project-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1590,7 +1590,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'session_id' when calling ToolboxApi.get_pty_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1668,7 +1668,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'command_id' when calling ToolboxApi.get_session_command_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s)).sub('{' + 'commandId' + '}', CGI.escape(command_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s)).sub('{' + 'commandId' + '}', CGI.escape(command_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1748,7 +1748,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'command_id' when calling ToolboxApi.get_session_command_logs_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s)).sub('{' + 'commandId' + '}', CGI.escape(command_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s)).sub('{' + 'commandId' + '}', CGI.escape(command_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1821,7 +1821,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'session_id' when calling ToolboxApi.get_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session/{sessionId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1885,7 +1885,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_user_home_dir_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/user-home-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/user-home-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1951,7 +1951,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_windows_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/display/windows'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/display/windows'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2015,7 +2015,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.get_work_dir_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/work-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/work-dir'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2087,7 +2087,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_add_request' when calling ToolboxApi.git_add_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/add'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/add'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2162,7 +2162,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_checkout_request' when calling ToolboxApi.git_checkout_branch_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/checkout'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/checkout'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2237,7 +2237,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_clone_request' when calling ToolboxApi.git_clone_repository_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/clone'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/clone'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2312,7 +2312,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_commit_request' when calling ToolboxApi.git_commit_changes_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/commit'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/commit'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2389,7 +2389,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_branch_request' when calling ToolboxApi.git_create_branch_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2464,7 +2464,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_delete_branch_request' when calling ToolboxApi.git_delete_branch_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2539,7 +2539,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.git_get_history_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/history'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/history'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2612,7 +2612,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.git_get_status_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/status'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/status'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2685,7 +2685,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.git_list_branches_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/branches'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2758,7 +2758,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_repo_request' when calling ToolboxApi.git_pull_changes_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/pull'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/pull'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2833,7 +2833,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'git_repo_request' when calling ToolboxApi.git_push_changes_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/git/push'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/git/push'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2902,7 +2902,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.list_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2969,7 +2969,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.list_pty_sessions_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/pty'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/pty'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3035,7 +3035,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.list_sessions_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/session'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/session'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3107,7 +3107,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'lsp_completion_params' when calling ToolboxApi.lsp_completions_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/completions'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/completions'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3184,7 +3184,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'lsp_document_request' when calling ToolboxApi.lsp_did_close_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/did-close'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/did-close'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3259,7 +3259,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'lsp_document_request' when calling ToolboxApi.lsp_did_open_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/did-open'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/did-open'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3346,7 +3346,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'uri' when calling ToolboxApi.lsp_document_symbols_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/document-symbols'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/document-symbols'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3421,7 +3421,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'lsp_server_request' when calling ToolboxApi.lsp_start_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/start'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/start'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3496,7 +3496,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'lsp_server_request' when calling ToolboxApi.lsp_stop_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/stop'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/stop'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3583,7 +3583,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'query' when calling ToolboxApi.lsp_workspace_symbols_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3664,7 +3664,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'destination' when calling ToolboxApi.move_file_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/move'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/move'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3736,7 +3736,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'mouse_move_request' when calling ToolboxApi.move_mouse_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/mouse/move'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3813,7 +3813,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'keyboard_hotkey_request' when calling ToolboxApi.press_hotkey_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3888,7 +3888,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'keyboard_press_request' when calling ToolboxApi.press_key_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -3963,7 +3963,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'replace_request' when calling ToolboxApi.replace_in_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/replace'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/replace'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4046,7 +4046,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'pty_resize_request' when calling ToolboxApi.resize_pty_session_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s)).sub('{' + 'sessionId' + '}', CGI.escape(session_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4123,7 +4123,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.restart_process_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart'.sub('{' + 'processName' + '}', CGI.escape(process_name.to_s)).sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4195,7 +4195,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'mouse_scroll_request' when calling ToolboxApi.scroll_mouse_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4278,7 +4278,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'pattern' when calling ToolboxApi.search_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/search'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/search'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4358,7 +4358,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.set_file_permissions_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/permissions'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/permissions'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4426,7 +4426,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.start_computer_use_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/start'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/start'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4492,7 +4492,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.stop_computer_use_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/stop'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/stop'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4590,7 +4590,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'x' when calling ToolboxApi.take_compressed_region_screenshot_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4672,7 +4672,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.take_compressed_screenshot_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4768,7 +4768,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'x' when calling ToolboxApi.take_region_screenshot_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4841,7 +4841,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.take_screenshot_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/screenshot'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/screenshot'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4914,7 +4914,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'keyboard_type_request' when calling ToolboxApi.type_text_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -4991,7 +4991,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'path' when calling ToolboxApi.upload_file_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/upload'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/upload'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -5062,7 +5062,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling ToolboxApi.upload_files_deprecated"
       end
       # resource path
-      local_var_path = '/api/toolbox/{sandboxId}/toolbox/files/bulk-upload'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/toolbox/{sandboxId}/toolbox/files/bulk-upload'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

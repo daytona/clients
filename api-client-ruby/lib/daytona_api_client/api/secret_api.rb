@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_secret' when calling SecretApi.create_secret"
       end
       # resource path
-      local_var_path = '/api/secret'
+      local_var_path = '/secret'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -112,7 +112,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'secret_id' when calling SecretApi.delete_secret"
       end
       # resource path
-      local_var_path = '/api/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
+      local_var_path = '/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -174,7 +174,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'secret_id' when calling SecretApi.get_secret"
       end
       # resource path
-      local_var_path = '/api/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
+      local_var_path = '/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -232,7 +232,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: SecretApi.list_secrets ...'
       end
       # resource path
-      local_var_path = '/api/secret'
+      local_var_path = '/secret'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -302,7 +302,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_secret' when calling SecretApi.update_secret"
       end
       # resource path
-      local_var_path = '/api/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
+      local_var_path = '/secret/{secretId}'.sub('{' + 'secretId' + '}', CGI.escape(secret_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

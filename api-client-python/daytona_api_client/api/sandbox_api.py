@@ -324,7 +324,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/archive',
+            resource_path='/sandbox/{sandboxIdOrName}/archive',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -598,7 +598,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/backup',
+            resource_path='/sandbox/{sandboxIdOrName}/backup',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -885,7 +885,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox',
+            resource_path='/sandbox',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1187,7 +1187,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/snapshot',
+            resource_path='/sandbox/{sandboxIdOrName}/snapshot',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1478,7 +1478,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ssh-access',
+            resource_path='/sandbox/{sandboxIdOrName}/ssh-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1752,7 +1752,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/sandbox/{sandboxIdOrName}',
+            resource_path='/sandbox/{sandboxIdOrName}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2049,7 +2049,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire',
+            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2351,7 +2351,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/fork',
+            resource_path='/sandbox/{sandboxIdOrName}/fork',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2417,7 +2417,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2493,7 +2493,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2569,7 +2569,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/{sandboxIdOrName}/build-logs is deprecated.", DeprecationWarning)
 
         _param = self._get_build_logs_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -2641,7 +2641,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/build-logs',
+            resource_path='/sandbox/{sandboxIdOrName}/build-logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2915,7 +2915,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/build-logs-url',
+            resource_path='/sandbox/{sandboxIdOrName}/build-logs-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3189,7 +3189,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/organization',
+            resource_path='/sandbox/{sandboxId}/organization',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3478,7 +3478,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url',
+            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/preview-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -3752,7 +3752,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/region-quota',
+            resource_path='/sandbox/{sandboxId}/region-quota',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4043,7 +4043,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}',
+            resource_path='/sandbox/{sandboxIdOrName}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4317,7 +4317,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ancestors',
+            resource_path='/sandbox/{sandboxIdOrName}/ancestors',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -4608,7 +4608,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/forks',
+            resource_path='/sandbox/{sandboxIdOrName}/forks',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5006,7 +5006,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/telemetry/logs',
+            resource_path='/sandbox/{sandboxId}/telemetry/logs',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5353,7 +5353,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/telemetry/metrics',
+            resource_path='/sandbox/{sandboxId}/telemetry/metrics',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5627,7 +5627,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/parent',
+            resource_path='/sandbox/{sandboxIdOrName}/parent',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5919,7 +5919,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/telemetry/traces/{traceId}',
+            resource_path='/sandbox/{sandboxId}/telemetry/traces/{traceId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6282,7 +6282,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/telemetry/traces',
+            resource_path='/sandbox/{sandboxId}/telemetry/traces',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6575,7 +6575,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/for-runner',
+            resource_path='/sandbox/for-runner',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -6881,7 +6881,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url',
+            resource_path='/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7155,7 +7155,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/toolbox-proxy-url',
+            resource_path='/sandbox/{sandboxId}/toolbox-proxy-url',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7865,7 +7865,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox',
+            resource_path='/sandbox',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -7981,7 +7981,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8124,7 +8124,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8267,7 +8267,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
-        warnings.warn("GET /api/sandbox/paginated is deprecated.", DeprecationWarning)
+        warnings.warn("GET /sandbox/paginated is deprecated.", DeprecationWarning)
 
         _param = self._list_sandboxes_paginated_deprecated_serialize(
             x_daytona_organization_id=x_daytona_organization_id,
@@ -8471,7 +8471,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/paginated',
+            resource_path='/sandbox/paginated',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -8745,7 +8745,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/pause',
+            resource_path='/sandbox/{sandboxIdOrName}/pause',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9036,7 +9036,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/recover',
+            resource_path='/sandbox/{sandboxIdOrName}/recover',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9338,7 +9338,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/sandbox/{sandboxIdOrName}/labels',
+            resource_path='/sandbox/{sandboxIdOrName}/labels',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9640,7 +9640,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/resize',
+            resource_path='/sandbox/{sandboxIdOrName}/resize',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -9914,7 +9914,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/{sandboxId}/secrets',
+            resource_path='/sandbox/{sandboxId}/secrets',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10205,7 +10205,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/sandbox/{sandboxIdOrName}/ssh-access',
+            resource_path='/sandbox/{sandboxIdOrName}/ssh-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10494,7 +10494,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}',
+            resource_path='/sandbox/{sandboxIdOrName}/autoarchive/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -10783,7 +10783,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/autodelete/{interval}',
+            resource_path='/sandbox/{sandboxIdOrName}/autodelete/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11072,7 +11072,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/autostop/{interval}',
+            resource_path='/sandbox/{sandboxIdOrName}/autostop/{interval}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11349,7 +11349,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/start',
+            resource_path='/sandbox/{sandboxIdOrName}/start',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11640,7 +11640,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/stop',
+            resource_path='/sandbox/{sandboxIdOrName}/stop',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11907,7 +11907,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxId}/last-activity',
+            resource_path='/sandbox/{sandboxId}/last-activity',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12212,7 +12212,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/network-settings',
+            resource_path='/sandbox/{sandboxIdOrName}/network-settings',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12501,7 +12501,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/sandbox/{sandboxIdOrName}/public/{isPublic}',
+            resource_path='/sandbox/{sandboxIdOrName}/public/{isPublic}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -12796,7 +12796,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/sandbox/{sandboxId}/state',
+            resource_path='/sandbox/{sandboxId}/state',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -13072,7 +13072,7 @@ class SandboxApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/sandbox/ssh-access/validate',
+            resource_path='/sandbox/ssh-access/validate',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

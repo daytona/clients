@@ -20,7 +20,9 @@ import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateOrganizationRegionQuota;
 import io.daytona.api.client.model.CreateRunnerResponse;
 import io.daytona.api.client.model.CreateUser;
+import io.daytona.api.client.model.DateFilter;
 import io.daytona.api.client.model.DockerRegistry;
+import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
 import io.daytona.api.client.model.PaginatedAuditLogs;
 import io.daytona.api.client.model.RegionQuota;
@@ -30,6 +32,7 @@ import io.daytona.api.client.model.SandboxClass;
 import io.daytona.api.client.model.SendWebhookDto;
 import io.daytona.api.client.model.SetSnapshotGeneralStatusDto;
 import io.daytona.api.client.model.SnapshotDto;
+import io.daytona.api.client.model.StringFilter;
 import io.daytona.api.client.model.UpdateOrganizationRegionQuota;
 import io.daytona.api.client.model.User;
 import org.junit.jupiter.api.Disabled;
@@ -136,7 +139,17 @@ public class AdminApiTest {
         OffsetDateTime from = null;
         OffsetDateTime to = null;
         String nextToken = null;
-        PaginatedAuditLogs response = api.adminGetAllAuditLogs(page, limit, from, to, nextToken);
+        StringFilter id = null;
+        StringFilter actorId = null;
+        StringFilter actorEmail = null;
+        StringFilter actorApiKeyPrefix = null;
+        StringFilter actorApiKeySuffix = null;
+        StringFilter action = null;
+        StringFilter targetType = null;
+        StringFilter targetId = null;
+        IntFilter statusCode = null;
+        DateFilter createdAt = null;
+        PaginatedAuditLogs response = api.adminGetAllAuditLogs(page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt);
         // TODO: test validations
     }
 

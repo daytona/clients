@@ -41,7 +41,7 @@ export const WebhooksApiAxiosParamCreator = function (configuration?: Configurat
         webhookControllerGetAppPortalAccess: async (organizationId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('webhookControllerGetAppPortalAccess', 'organizationId', organizationId)
-            const localVarPath = `/api/webhooks/organizations/{organizationId}/app-portal-access`
+            const localVarPath = `/webhooks/organizations/{organizationId}/app-portal-access`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -85,7 +85,7 @@ export const WebhooksApiAxiosParamCreator = function (configuration?: Configurat
         webhookControllerGetInitializationStatus: async (organizationId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('webhookControllerGetInitializationStatus', 'organizationId', organizationId)
-            const localVarPath = `/api/webhooks/organizations/{organizationId}/initialization-status`
+            const localVarPath = `/webhooks/organizations/{organizationId}/initialization-status`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -129,7 +129,7 @@ export const WebhooksApiAxiosParamCreator = function (configuration?: Configurat
         webhookControllerInitializeWebhooks: async (organizationId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('webhookControllerInitializeWebhooks', 'organizationId', organizationId)
-            const localVarPath = `/api/webhooks/organizations/{organizationId}/initialize`
+            const localVarPath = `/webhooks/organizations/{organizationId}/initialize`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -173,7 +173,7 @@ export const WebhooksApiAxiosParamCreator = function (configuration?: Configurat
         webhookControllerRefreshEndpoints: async (organizationId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organizationId' is not null or undefined
             assertParamExists('webhookControllerRefreshEndpoints', 'organizationId', organizationId)
-            const localVarPath = `/api/webhooks/organizations/{organizationId}/refresh-endpoints`
+            const localVarPath = `/webhooks/organizations/{organizationId}/refresh-endpoints`
                 .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

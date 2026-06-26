@@ -106,7 +106,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = createDockerRegistry;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry";
+        String localVarPath = "/docker-registry";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -242,7 +242,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry/{id}"
+        String localVarPath = "/docker-registry/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -373,7 +373,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry/{id}"
+        String localVarPath = "/docker-registry/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -509,7 +509,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry/registry-push-access";
+        String localVarPath = "/docker-registry/registry-push-access";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -642,7 +642,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry";
+        String localVarPath = "/docker-registry";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -770,7 +770,7 @@ public class DockerRegistryApi {
         Object localVarPostBody = updateDockerRegistry;
 
         // create path and map variables
-        String localVarPath = "/api/docker-registry/{id}"
+        String localVarPath = "/docker-registry/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

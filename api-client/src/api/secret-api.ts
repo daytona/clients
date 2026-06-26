@@ -43,7 +43,7 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
         createSecret: async (createSecret: CreateSecret, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createSecret' is not null or undefined
             assertParamExists('createSecret', 'createSecret', createSecret)
-            const localVarPath = `/api/secret`;
+            const localVarPath = `/secret`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -88,7 +88,7 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
         deleteSecret: async (secretId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'secretId' is not null or undefined
             assertParamExists('deleteSecret', 'secretId', secretId)
-            const localVarPath = `/api/secret/{secretId}`
+            const localVarPath = `/secret/{secretId}`
                 .replace(`{${"secretId"}}`, encodeURIComponent(String(secretId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -131,7 +131,7 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
         getSecret: async (secretId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'secretId' is not null or undefined
             assertParamExists('getSecret', 'secretId', secretId)
-            const localVarPath = `/api/secret/{secretId}`
+            const localVarPath = `/secret/{secretId}`
                 .replace(`{${"secretId"}}`, encodeURIComponent(String(secretId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -172,7 +172,7 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
          * @throws {RequiredError}
          */
         listSecrets: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/secret`;
+            const localVarPath = `/secret`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -218,7 +218,7 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
             assertParamExists('updateSecret', 'secretId', secretId)
             // verify required parameter 'updateSecret' is not null or undefined
             assertParamExists('updateSecret', 'updateSecret', updateSecret)
-            const localVarPath = `/api/secret/{secretId}`
+            const localVarPath = `/secret/{secretId}`
                 .replace(`{${"secretId"}}`, encodeURIComponent(String(secretId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);

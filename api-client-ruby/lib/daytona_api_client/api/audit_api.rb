@@ -24,9 +24,19 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
-    # @option opts [Time] :from From date (ISO 8601 format)
-    # @option opts [Time] :to To date (ISO 8601 format)
+    # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+    # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.
+    # @option opts [StringFilter] :id Filter by audit log ID.
+    # @option opts [StringFilter] :actor_id Filter by actor user ID.
+    # @option opts [StringFilter] :actor_email Filter by actor email.
+    # @option opts [StringFilter] :actor_api_key_prefix Filter by actor API key prefix.
+    # @option opts [StringFilter] :actor_api_key_suffix Filter by actor API key suffix.
+    # @option opts [StringFilter] :action Filter by action.
+    # @option opts [StringFilter] :target_type Filter by target type.
+    # @option opts [StringFilter] :target_id Filter by target ID.
+    # @option opts [IntFilter] :status_code Filter by HTTP status code.
+    # @option opts [DateFilter] :created_at Filter by creation timestamp.
     # @return [PaginatedAuditLogs]
     def get_organization_audit_logs(organization_id, opts = {})
       data, _status_code, _headers = get_organization_audit_logs_with_http_info(organization_id, opts)
@@ -38,9 +48,19 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
-    # @option opts [Time] :from From date (ISO 8601 format)
-    # @option opts [Time] :to To date (ISO 8601 format)
+    # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+    # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.
+    # @option opts [StringFilter] :id Filter by audit log ID.
+    # @option opts [StringFilter] :actor_id Filter by actor user ID.
+    # @option opts [StringFilter] :actor_email Filter by actor email.
+    # @option opts [StringFilter] :actor_api_key_prefix Filter by actor API key prefix.
+    # @option opts [StringFilter] :actor_api_key_suffix Filter by actor API key suffix.
+    # @option opts [StringFilter] :action Filter by action.
+    # @option opts [StringFilter] :target_type Filter by target type.
+    # @option opts [StringFilter] :target_id Filter by target ID.
+    # @option opts [IntFilter] :status_code Filter by HTTP status code.
+    # @option opts [DateFilter] :created_at Filter by creation timestamp.
     # @return [Array<(PaginatedAuditLogs, Integer, Hash)>] PaginatedAuditLogs data, response status code and response headers
     def get_organization_audit_logs_with_http_info(organization_id, opts = {})
       if @api_client.config.debugging
@@ -63,7 +83,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/api/audit/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/audit/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -72,6 +92,16 @@ module DaytonaApiClient
       query_params[:'from'] = opts[:'from'] if !opts[:'from'].nil?
       query_params[:'to'] = opts[:'to'] if !opts[:'to'].nil?
       query_params[:'nextToken'] = opts[:'next_token'] if !opts[:'next_token'].nil?
+      query_params[:'id'] = opts[:'id'] if !opts[:'id'].nil?
+      query_params[:'actorId'] = opts[:'actor_id'] if !opts[:'actor_id'].nil?
+      query_params[:'actorEmail'] = opts[:'actor_email'] if !opts[:'actor_email'].nil?
+      query_params[:'actorApiKeyPrefix'] = opts[:'actor_api_key_prefix'] if !opts[:'actor_api_key_prefix'].nil?
+      query_params[:'actorApiKeySuffix'] = opts[:'actor_api_key_suffix'] if !opts[:'actor_api_key_suffix'].nil?
+      query_params[:'action'] = opts[:'action'] if !opts[:'action'].nil?
+      query_params[:'targetType'] = opts[:'target_type'] if !opts[:'target_type'].nil?
+      query_params[:'targetId'] = opts[:'target_id'] if !opts[:'target_id'].nil?
+      query_params[:'statusCode'] = opts[:'status_code'] if !opts[:'status_code'].nil?
+      query_params[:'createdAt'] = opts[:'created_at'] if !opts[:'created_at'].nil?
 
       # header parameters
       header_params = opts[:header_params] || {}

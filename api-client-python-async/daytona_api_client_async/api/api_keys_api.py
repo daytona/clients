@@ -312,7 +312,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/api-keys',
+            resource_path='/api-keys',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -579,7 +579,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/api-keys/{name}',
+            resource_path='/api-keys/{name}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -861,7 +861,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='DELETE',
-            resource_path='/api/api-keys/{userId}/{name}',
+            resource_path='/api-keys/{userId}/{name}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1135,7 +1135,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/api-keys/{name}',
+            resource_path='/api-keys/{name}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1394,7 +1394,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/api-keys/current',
+            resource_path='/api-keys/current',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1656,7 +1656,7 @@ class ApiKeysApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/api-keys',
+            resource_path='/api-keys',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

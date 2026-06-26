@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_runner' when calling RunnersApi.create_runner"
       end
       # resource path
-      local_var_path = '/api/runners'
+      local_var_path = '/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -112,7 +112,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling RunnersApi.delete_runner"
       end
       # resource path
-      local_var_path = '/api/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -166,7 +166,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: RunnersApi.get_info_for_authenticated_runner ...'
       end
       # resource path
-      local_var_path = '/api/runners/me'
+      local_var_path = '/runners/me'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -229,7 +229,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling RunnersApi.get_runner_by_id"
       end
       # resource path
-      local_var_path = '/api/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -291,7 +291,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling RunnersApi.get_runner_by_sandbox_id"
       end
       # resource path
-      local_var_path = '/api/runners/by-sandbox/{sandboxId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/runners/by-sandbox/{sandboxId}'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -352,7 +352,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling RunnersApi.get_runner_full_by_id"
       end
       # resource path
-      local_var_path = '/api/runners/{id}/full'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/runners/{id}/full'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -413,7 +413,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'ref' when calling RunnersApi.get_runners_by_snapshot_ref"
       end
       # resource path
-      local_var_path = '/api/runners/by-snapshot-ref'
+      local_var_path = '/runners/by-snapshot-ref'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -473,7 +473,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: RunnersApi.list_runners ...'
       end
       # resource path
-      local_var_path = '/api/runners'
+      local_var_path = '/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -538,7 +538,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'runner_healthcheck' when calling RunnersApi.runner_healthcheck"
       end
       # resource path
-      local_var_path = '/api/runners/healthcheck'
+      local_var_path = '/runners/healthcheck'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -604,7 +604,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling RunnersApi.update_runner_draining"
       end
       # resource path
-      local_var_path = '/api/runners/{id}/draining'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/runners/{id}/draining'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -668,7 +668,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling RunnersApi.update_runner_scheduling"
       end
       # resource path
-      local_var_path = '/api/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

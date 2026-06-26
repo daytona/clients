@@ -298,7 +298,7 @@ class WebhooksApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/webhooks/organizations/{organizationId}/app-portal-access',
+            resource_path='/webhooks/organizations/{organizationId}/app-portal-access',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -575,7 +575,7 @@ class WebhooksApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/webhooks/organizations/{organizationId}/initialization-status',
+            resource_path='/webhooks/organizations/{organizationId}/initialization-status',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -849,7 +849,7 @@ class WebhooksApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/webhooks/organizations/{organizationId}/initialize',
+            resource_path='/webhooks/organizations/{organizationId}/initialize',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -1119,7 +1119,7 @@ class WebhooksApi:
 
         return self.api_client.param_serialize(
             method='POST',
-            resource_path='/api/webhooks/organizations/{organizationId}/refresh-endpoints',
+            resource_path='/webhooks/organizations/{organizationId}/refresh-endpoints',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

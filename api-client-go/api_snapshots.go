@@ -178,7 +178,7 @@ func (a *SnapshotsAPIService) ActivateSnapshotExecute(r SnapshotsAPIActivateSnap
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}/activate"
+	localVarPath := localBasePath + "/snapshots/{id}/activate"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -292,7 +292,7 @@ func (a *SnapshotsAPIService) CreateSnapshotExecute(r SnapshotsAPICreateSnapshot
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots"
+	localVarPath := localBasePath + "/snapshots"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -405,7 +405,7 @@ func (a *SnapshotsAPIService) DeactivateSnapshotExecute(r SnapshotsAPIDeactivate
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}/deactivate"
+	localVarPath := localBasePath + "/snapshots/{id}/deactivate"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -539,7 +539,7 @@ func (a *SnapshotsAPIService) GetAllSnapshotsExecute(r SnapshotsAPIGetAllSnapsho
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots"
+	localVarPath := localBasePath + "/snapshots"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -680,7 +680,7 @@ func (a *SnapshotsAPIService) GetSnapshotExecute(r SnapshotsAPIGetSnapshotReques
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}"
+	localVarPath := localBasePath + "/snapshots/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -801,7 +801,7 @@ func (a *SnapshotsAPIService) GetSnapshotBuildLogsExecute(r SnapshotsAPIGetSnaps
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}/build-logs"
+	localVarPath := localBasePath + "/snapshots/{id}/build-logs"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -906,7 +906,7 @@ func (a *SnapshotsAPIService) GetSnapshotBuildLogsUrlExecute(r SnapshotsAPIGetSn
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}/build-logs-url"
+	localVarPath := localBasePath + "/snapshots/{id}/build-logs-url"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -1015,7 +1015,7 @@ func (a *SnapshotsAPIService) RemoveSnapshotExecute(r SnapshotsAPIRemoveSnapshot
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/snapshots/{id}"
+	localVarPath := localBasePath + "/snapshots/{id}"
 	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
 
 	localVarHeaderParams := make(map[string]string)

@@ -43,7 +43,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_volume' when calling VolumesApi.create_volume"
       end
       # resource path
-      local_var_path = '/api/volumes'
+      local_var_path = '/volumes'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -112,7 +112,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'volume_id' when calling VolumesApi.delete_volume"
       end
       # resource path
-      local_var_path = '/api/volumes/{volumeId}'.sub('{' + 'volumeId' + '}', CGI.escape(volume_id.to_s))
+      local_var_path = '/volumes/{volumeId}'.sub('{' + 'volumeId' + '}', CGI.escape(volume_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -174,7 +174,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'volume_id' when calling VolumesApi.get_volume"
       end
       # resource path
-      local_var_path = '/api/volumes/{volumeId}'.sub('{' + 'volumeId' + '}', CGI.escape(volume_id.to_s))
+      local_var_path = '/volumes/{volumeId}'.sub('{' + 'volumeId' + '}', CGI.escape(volume_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -238,7 +238,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'name' when calling VolumesApi.get_volume_by_name"
       end
       # resource path
-      local_var_path = '/api/volumes/by-name/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
+      local_var_path = '/volumes/by-name/{name}'.sub('{' + 'name' + '}', CGI.escape(name.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -298,7 +298,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: VolumesApi.list_volumes ...'
       end
       # resource path
-      local_var_path = '/api/volumes'
+      local_var_path = '/volumes'
 
       # query parameters
       query_params = opts[:query_params] || {}

@@ -41,7 +41,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'image_name' when calling AdminApi.admin_can_cleanup_image"
       end
       # resource path
-      local_var_path = '/api/admin/snapshots/can-cleanup-image'
+      local_var_path = '/admin/snapshots/can-cleanup-image'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -115,7 +115,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_organization_region_quota' when calling AdminApi.admin_create_organization_region_quota"
       end
       # resource path
-      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
+      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -181,7 +181,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'admin_create_runner' when calling AdminApi.admin_create_runner"
       end
       # resource path
-      local_var_path = '/api/admin/runners'
+      local_var_path = '/admin/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -247,7 +247,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_user' when calling AdminApi.admin_create_user"
       end
       # resource path
-      local_var_path = '/api/admin/users'
+      local_var_path = '/admin/users'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -323,7 +323,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_class' when calling AdminApi.admin_delete_organization_region_quota"
       end
       # resource path
-      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
+      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -382,7 +382,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_delete_runner"
       end
       # resource path
-      local_var_path = '/api/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -423,9 +423,19 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
-    # @option opts [Time] :from From date (ISO 8601 format)
-    # @option opts [Time] :to To date (ISO 8601 format)
+    # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+    # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.
+    # @option opts [StringFilter] :id Filter by audit log ID.
+    # @option opts [StringFilter] :actor_id Filter by actor user ID.
+    # @option opts [StringFilter] :actor_email Filter by actor email.
+    # @option opts [StringFilter] :actor_api_key_prefix Filter by actor API key prefix.
+    # @option opts [StringFilter] :actor_api_key_suffix Filter by actor API key suffix.
+    # @option opts [StringFilter] :action Filter by action.
+    # @option opts [StringFilter] :target_type Filter by target type.
+    # @option opts [StringFilter] :target_id Filter by target ID.
+    # @option opts [IntFilter] :status_code Filter by HTTP status code.
+    # @option opts [DateFilter] :created_at Filter by creation timestamp.
     # @return [PaginatedAuditLogs]
     def admin_get_all_audit_logs(opts = {})
       data, _status_code, _headers = admin_get_all_audit_logs_with_http_info(opts)
@@ -436,9 +446,19 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
-    # @option opts [Time] :from From date (ISO 8601 format)
-    # @option opts [Time] :to To date (ISO 8601 format)
+    # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
+    # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.
+    # @option opts [StringFilter] :id Filter by audit log ID.
+    # @option opts [StringFilter] :actor_id Filter by actor user ID.
+    # @option opts [StringFilter] :actor_email Filter by actor email.
+    # @option opts [StringFilter] :actor_api_key_prefix Filter by actor API key prefix.
+    # @option opts [StringFilter] :actor_api_key_suffix Filter by actor API key suffix.
+    # @option opts [StringFilter] :action Filter by action.
+    # @option opts [StringFilter] :target_type Filter by target type.
+    # @option opts [StringFilter] :target_id Filter by target ID.
+    # @option opts [IntFilter] :status_code Filter by HTTP status code.
+    # @option opts [DateFilter] :created_at Filter by creation timestamp.
     # @return [Array<(PaginatedAuditLogs, Integer, Hash)>] PaginatedAuditLogs data, response status code and response headers
     def admin_get_all_audit_logs_with_http_info(opts = {})
       if @api_client.config.debugging
@@ -457,7 +477,7 @@ module DaytonaApiClient
       end
 
       # resource path
-      local_var_path = '/api/admin/audit'
+      local_var_path = '/admin/audit'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -466,6 +486,16 @@ module DaytonaApiClient
       query_params[:'from'] = opts[:'from'] if !opts[:'from'].nil?
       query_params[:'to'] = opts[:'to'] if !opts[:'to'].nil?
       query_params[:'nextToken'] = opts[:'next_token'] if !opts[:'next_token'].nil?
+      query_params[:'id'] = opts[:'id'] if !opts[:'id'].nil?
+      query_params[:'actorId'] = opts[:'actor_id'] if !opts[:'actor_id'].nil?
+      query_params[:'actorEmail'] = opts[:'actor_email'] if !opts[:'actor_email'].nil?
+      query_params[:'actorApiKeyPrefix'] = opts[:'actor_api_key_prefix'] if !opts[:'actor_api_key_prefix'].nil?
+      query_params[:'actorApiKeySuffix'] = opts[:'actor_api_key_suffix'] if !opts[:'actor_api_key_suffix'].nil?
+      query_params[:'action'] = opts[:'action'] if !opts[:'action'].nil?
+      query_params[:'targetType'] = opts[:'target_type'] if !opts[:'target_type'].nil?
+      query_params[:'targetId'] = opts[:'target_id'] if !opts[:'target_id'].nil?
+      query_params[:'statusCode'] = opts[:'status_code'] if !opts[:'status_code'].nil?
+      query_params[:'createdAt'] = opts[:'created_at'] if !opts[:'created_at'].nil?
 
       # header parameters
       header_params = opts[:header_params] || {}
@@ -529,7 +559,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'message_id' when calling AdminApi.admin_get_message_attempts"
       end
       # resource path
-      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'messageId' + '}', CGI.escape(message_id.to_s))
+      local_var_path = '/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'messageId' + '}', CGI.escape(message_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -602,7 +632,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_class' when calling AdminApi.admin_get_organization_region_quota"
       end
       # resource path
-      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
+      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s)).sub('{' + 'sandboxClass' + '}', CGI.escape(sandbox_class.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -663,7 +693,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_get_runner_by_id"
       end
       # resource path
-      local_var_path = '/api/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/runners/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -724,7 +754,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_get_user"
       end
       # resource path
-      local_var_path = '/api/admin/users/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/users/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -779,7 +809,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_get_webhook_status ...'
       end
       # resource path
-      local_var_path = '/api/admin/webhooks/status'
+      local_var_path = '/admin/webhooks/status'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -840,7 +870,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling AdminApi.admin_initialize_webhooks"
       end
       # resource path
-      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/admin/webhooks/organizations/{organizationId}/initialize'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -895,7 +925,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_list_runners ...'
       end
       # resource path
-      local_var_path = '/api/admin/runners'
+      local_var_path = '/admin/runners'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -951,7 +981,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: AdminApi.admin_list_users ...'
       end
       # resource path
-      local_var_path = '/api/admin/users'
+      local_var_path = '/admin/users'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1010,7 +1040,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'sandbox_id' when calling AdminApi.admin_recover_sandbox"
       end
       # resource path
-      local_var_path = '/api/admin/sandbox/{sandboxId}/recover'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
+      local_var_path = '/admin/sandbox/{sandboxId}/recover'.sub('{' + 'sandboxId' + '}', CGI.escape(sandbox_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1071,7 +1101,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_regenerate_key_pair"
       end
       # resource path
-      local_var_path = '/api/admin/users/{id}/regenerate-key-pair'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/users/{id}/regenerate-key-pair'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1136,7 +1166,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'send_webhook_dto' when calling AdminApi.admin_send_webhook"
       end
       # resource path
-      local_var_path = '/api/admin/webhooks/organizations/{organizationId}/send'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/admin/webhooks/organizations/{organizationId}/send'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1200,7 +1230,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_set_default_registry"
       end
       # resource path
-      local_var_path = '/api/admin/docker-registry/{id}/set-default'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/docker-registry/{id}/set-default'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1267,7 +1297,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'set_snapshot_general_status_dto' when calling AdminApi.admin_set_snapshot_general_status"
       end
       # resource path
-      local_var_path = '/api/admin/snapshots/{id}/general'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/snapshots/{id}/general'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1345,7 +1375,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_region_quota' when calling AdminApi.admin_update_organization_region_quota"
       end
       # resource path
-      local_var_path = '/api/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
+      local_var_path = '/admin/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1409,7 +1439,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling AdminApi.admin_update_runner_scheduling"
       end
       # resource path
-      local_var_path = '/api/admin/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/admin/runners/{id}/scheduling'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

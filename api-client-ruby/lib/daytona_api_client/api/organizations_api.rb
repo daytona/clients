@@ -41,7 +41,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'invitation_id' when calling OrganizationsApi.accept_organization_invitation"
       end
       # resource path
-      local_var_path = '/api/organizations/invitations/{invitationId}/accept'.sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
+      local_var_path = '/organizations/invitations/{invitationId}/accept'.sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -108,7 +108,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'invitation_id' when calling OrganizationsApi.cancel_organization_invitation"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/invitations/{invitationId}/cancel'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
+      local_var_path = '/organizations/{organizationId}/invitations/{invitationId}/cancel'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -167,7 +167,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_organization' when calling OrganizationsApi.create_organization"
       end
       # resource path
-      local_var_path = '/api/organizations'
+      local_var_path = '/organizations'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -239,7 +239,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_organization_invitation' when calling OrganizationsApi.create_organization_invitation"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/invitations'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/invitations'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -311,7 +311,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_organization_role' when calling OrganizationsApi.create_organization_role"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/roles'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/roles'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -379,7 +379,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'create_region' when calling OrganizationsApi.create_region"
       end
       # resource path
-      local_var_path = '/api/regions'
+      local_var_path = '/regions'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -446,7 +446,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'invitation_id' when calling OrganizationsApi.decline_organization_invitation"
       end
       # resource path
-      local_var_path = '/api/organizations/invitations/{invitationId}/decline'.sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
+      local_var_path = '/organizations/invitations/{invitationId}/decline'.sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -505,7 +505,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.delete_organization"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -570,7 +570,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'user_id' when calling OrganizationsApi.delete_organization_member"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/users/{userId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'userId' + '}', CGI.escape(user_id.to_s))
+      local_var_path = '/organizations/{organizationId}/users/{userId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'userId' + '}', CGI.escape(user_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -629,7 +629,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.delete_organization_otel_config"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -694,7 +694,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'role_id' when calling OrganizationsApi.delete_organization_role"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/roles/{roleId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'roleId' + '}', CGI.escape(role_id.to_s))
+      local_var_path = '/organizations/{organizationId}/roles/{roleId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'roleId' + '}', CGI.escape(role_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -755,7 +755,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling OrganizationsApi.delete_region"
       end
       # resource path
-      local_var_path = '/api/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -815,7 +815,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.get_organization"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -870,7 +870,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: OrganizationsApi.get_organization_invitations_count_for_authenticated_user ...'
       end
       # resource path
-      local_var_path = '/api/organizations/invitations/count'
+      local_var_path = '/organizations/invitations/count'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -931,7 +931,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.get_organization_otel_config"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -992,7 +992,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'auth_token' when calling OrganizationsApi.get_organization_otel_config_by_sandbox_auth_token"
       end
       # resource path
-      local_var_path = '/api/organizations/otel-config/by-sandbox-auth-token/{authToken}'.sub('{' + 'authToken' + '}', CGI.escape(auth_token.to_s))
+      local_var_path = '/organizations/otel-config/by-sandbox-auth-token/{authToken}'.sub('{' + 'authToken' + '}', CGI.escape(auth_token.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1053,7 +1053,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.get_organization_usage_overview"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/usage'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/usage'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1116,7 +1116,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling OrganizationsApi.get_region_by_id"
       end
       # resource path
-      local_var_path = '/api/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1178,7 +1178,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.leave_organization"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/leave'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/leave'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1233,7 +1233,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: OrganizationsApi.list_available_regions ...'
       end
       # resource path
-      local_var_path = '/api/regions'
+      local_var_path = '/regions'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1295,7 +1295,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.list_organization_invitations"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/invitations'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/invitations'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1350,7 +1350,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: OrganizationsApi.list_organization_invitations_for_authenticated_user ...'
       end
       # resource path
-      local_var_path = '/api/organizations/invitations'
+      local_var_path = '/organizations/invitations'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1411,7 +1411,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.list_organization_members"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/users'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/users'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1472,7 +1472,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.list_organization_roles"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/roles'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/roles'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1527,7 +1527,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: OrganizationsApi.list_organizations ...'
       end
       # resource path
-      local_var_path = '/api/organizations'
+      local_var_path = '/organizations'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1590,7 +1590,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling OrganizationsApi.regenerate_proxy_api_key"
       end
       # resource path
-      local_var_path = '/api/regions/{id}/regenerate-proxy-api-key'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}/regenerate-proxy-api-key'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1654,7 +1654,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling OrganizationsApi.regenerate_snapshot_manager_credentials"
       end
       # resource path
-      local_var_path = '/api/regions/{id}/regenerate-snapshot-manager-credentials'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}/regenerate-snapshot-manager-credentials'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1718,7 +1718,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'id' when calling OrganizationsApi.regenerate_ssh_gateway_api_key"
       end
       # resource path
-      local_var_path = '/api/regions/{id}/regenerate-ssh-gateway-api-key'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}/regenerate-ssh-gateway-api-key'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1786,7 +1786,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_default_region' when calling OrganizationsApi.set_organization_default_region"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/default-region'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/default-region'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1852,7 +1852,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.suspend_organization"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/suspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/suspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1916,7 +1916,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.unsuspend_organization"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/unsuspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/unsuspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -1987,7 +1987,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_member_access' when calling OrganizationsApi.update_access_for_organization_member"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/users/{userId}/access'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'userId' + '}', CGI.escape(user_id.to_s))
+      local_var_path = '/organizations/{organizationId}/users/{userId}/access'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'userId' + '}', CGI.escape(user_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2055,7 +2055,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_experimental_config"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/experimental-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/experimental-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2131,7 +2131,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_invitation' when calling OrganizationsApi.update_organization_invitation"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/invitations/{invitationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
+      local_var_path = '/organizations/{organizationId}/invitations/{invitationId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'invitationId' + '}', CGI.escape(invitation_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2203,7 +2203,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'otel_config' when calling OrganizationsApi.update_organization_otel_config"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/otel-config'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2273,7 +2273,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_quota' when calling OrganizationsApi.update_organization_quota"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/quota'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/quota'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2349,7 +2349,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_region_quota' when calling OrganizationsApi.update_organization_region_quota"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
+      local_var_path = '/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2425,7 +2425,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_organization_role' when calling OrganizationsApi.update_organization_role"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/roles/{roleId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'roleId' + '}', CGI.escape(role_id.to_s))
+      local_var_path = '/organizations/{organizationId}/roles/{roleId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'roleId' + '}', CGI.escape(role_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2499,7 +2499,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'update_region' when calling OrganizationsApi.update_region"
       end
       # resource path
-      local_var_path = '/api/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+      local_var_path = '/regions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -2570,7 +2570,7 @@ module DaytonaApiClient
         fail ArgumentError, "Missing the required parameter 'organization_sandbox_default_limited_network_egress' when calling OrganizationsApi.update_sandbox_default_limited_network_egress"
       end
       # resource path
-      local_var_path = '/api/organizations/{organizationId}/sandbox-default-limited-network-egress'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+      local_var_path = '/organizations/{organizationId}/sandbox-default-limited-network-egress'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
 
       # query parameters
       query_params = opts[:query_params] || {}

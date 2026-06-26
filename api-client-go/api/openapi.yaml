@@ -13,7 +13,7 @@ info:
 servers:
 - url: http://localhost:3000
 paths:
-  /api/config:
+  /config:
     get:
       operationId: ConfigController_getConfig
       parameters: []
@@ -27,7 +27,7 @@ paths:
       summary: Get config
       tags:
       - config
-  /api/api-keys:
+  /api-keys:
     get:
       operationId: listApiKeys
       parameters:
@@ -92,7 +92,7 @@ paths:
       summary: Create API key
       tags:
       - api-keys
-  /api/api-keys/current:
+  /api-keys/current:
     get:
       operationId: getCurrentApiKey
       parameters:
@@ -120,7 +120,7 @@ paths:
       summary: Get current API key's details
       tags:
       - api-keys
-  /api/api-keys/{name}:
+  /api-keys/{name}:
     delete:
       operationId: deleteApiKey
       parameters:
@@ -185,7 +185,7 @@ paths:
       summary: Get API key
       tags:
       - api-keys
-  /api/api-keys/{userId}/{name}:
+  /api-keys/{userId}/{name}:
     delete:
       operationId: deleteApiKeyForUser
       parameters:
@@ -223,7 +223,7 @@ paths:
       summary: Delete API key for user
       tags:
       - api-keys
-  /api/organizations/invitations:
+  /organizations/invitations:
     get:
       operationId: listOrganizationInvitationsForAuthenticatedUser
       parameters: []
@@ -245,7 +245,7 @@ paths:
       summary: List organization invitations for authenticated user
       tags:
       - organizations
-  /api/organizations/invitations/count:
+  /organizations/invitations/count:
     get:
       operationId: getOrganizationInvitationsCountForAuthenticatedUser
       parameters: []
@@ -265,7 +265,7 @@ paths:
       summary: Get count of organization invitations for authenticated user
       tags:
       - organizations
-  /api/organizations/invitations/{invitationId}/accept:
+  /organizations/invitations/{invitationId}/accept:
     post:
       operationId: acceptOrganizationInvitation
       parameters:
@@ -293,7 +293,7 @@ paths:
       summary: Accept organization invitation
       tags:
       - organizations
-  /api/organizations/invitations/{invitationId}/decline:
+  /organizations/invitations/{invitationId}/decline:
     post:
       operationId: declineOrganizationInvitation
       parameters:
@@ -317,7 +317,7 @@ paths:
       summary: Decline organization invitation
       tags:
       - organizations
-  /api/organizations:
+  /organizations:
     get:
       operationId: listOrganizations
       parameters: []
@@ -364,7 +364,7 @@ paths:
       summary: Create organization
       tags:
       - organizations
-  /api/organizations/{organizationId}/default-region:
+  /organizations/{organizationId}/default-region:
     patch:
       operationId: setOrganizationDefaultRegion
       parameters:
@@ -394,7 +394,7 @@ paths:
       summary: Set default region for organization
       tags:
       - organizations
-  /api/organizations/{organizationId}:
+  /organizations/{organizationId}:
     delete:
       operationId: deleteOrganization
       parameters:
@@ -445,7 +445,7 @@ paths:
       summary: Get organization by ID
       tags:
       - organizations
-  /api/organizations/{organizationId}/usage:
+  /organizations/{organizationId}/usage:
     get:
       operationId: getOrganizationUsageOverview
       parameters:
@@ -473,7 +473,7 @@ paths:
       summary: Get organization current usage overview
       tags:
       - organizations
-  /api/organizations/{organizationId}/quota:
+  /organizations/{organizationId}/quota:
     patch:
       operationId: updateOrganizationQuota
       parameters:
@@ -503,7 +503,7 @@ paths:
       summary: Update organization quota
       tags:
       - organizations
-  /api/organizations/{organizationId}/quota/{regionId}:
+  /organizations/{organizationId}/quota/{regionId}:
     patch:
       operationId: updateOrganizationRegionQuota
       parameters:
@@ -541,7 +541,7 @@ paths:
       summary: Update organization region quota
       tags:
       - organizations
-  /api/organizations/{organizationId}/leave:
+  /organizations/{organizationId}/leave:
     post:
       operationId: leaveOrganization
       parameters:
@@ -565,7 +565,7 @@ paths:
       summary: Leave organization
       tags:
       - organizations
-  /api/organizations/{organizationId}/suspend:
+  /organizations/{organizationId}/suspend:
     post:
       operationId: suspendOrganization
       parameters:
@@ -595,7 +595,7 @@ paths:
       summary: Suspend organization
       tags:
       - organizations
-  /api/organizations/{organizationId}/unsuspend:
+  /organizations/{organizationId}/unsuspend:
     post:
       operationId: unsuspendOrganization
       parameters:
@@ -619,7 +619,7 @@ paths:
       summary: Unsuspend organization
       tags:
       - organizations
-  /api/organizations/otel-config/by-sandbox-auth-token/{authToken}:
+  /organizations/otel-config/by-sandbox-auth-token/{authToken}:
     get:
       operationId: getOrganizationOtelConfigBySandboxAuthToken
       parameters:
@@ -647,7 +647,7 @@ paths:
       summary: Get organization OTEL config by sandbox auth token
       tags:
       - organizations
-  /api/organizations/{organizationId}/otel-config:
+  /organizations/{organizationId}/otel-config:
     delete:
       operationId: deleteOrganizationOtelConfig
       parameters:
@@ -727,7 +727,7 @@ paths:
       summary: Update organization OpenTelemetry configuration
       tags:
       - organizations
-  /api/organizations/{organizationId}/sandbox-default-limited-network-egress:
+  /organizations/{organizationId}/sandbox-default-limited-network-egress:
     post:
       operationId: updateSandboxDefaultLimitedNetworkEgress
       parameters:
@@ -757,7 +757,7 @@ paths:
       summary: Update sandbox default limited network egress
       tags:
       - organizations
-  /api/organizations/{organizationId}/experimental-config:
+  /organizations/{organizationId}/experimental-config:
     put:
       operationId: updateExperimentalConfig
       parameters:
@@ -795,7 +795,7 @@ paths:
       summary: Update experimental configuration
       tags:
       - organizations
-  /api/organizations/{organizationId}/roles:
+  /organizations/{organizationId}/roles:
     get:
       operationId: listOrganizationRoles
       parameters:
@@ -858,7 +858,7 @@ paths:
       summary: Create organization role
       tags:
       - organizations
-  /api/organizations/{organizationId}/roles/{roleId}:
+  /organizations/{organizationId}/roles/{roleId}:
     delete:
       operationId: deleteOrganizationRole
       parameters:
@@ -931,7 +931,7 @@ paths:
       summary: Update organization role
       tags:
       - organizations
-  /api/organizations/{organizationId}/users:
+  /organizations/{organizationId}/users:
     get:
       operationId: listOrganizationMembers
       parameters:
@@ -961,7 +961,7 @@ paths:
       summary: List organization members
       tags:
       - organizations
-  /api/organizations/{organizationId}/users/{userId}/access:
+  /organizations/{organizationId}/users/{userId}/access:
     post:
       operationId: updateAccessForOrganizationMember
       parameters:
@@ -1003,7 +1003,7 @@ paths:
       summary: Update access for organization member
       tags:
       - organizations
-  /api/organizations/{organizationId}/users/{userId}:
+  /organizations/{organizationId}/users/{userId}:
     delete:
       operationId: deleteOrganizationMember
       parameters:
@@ -1035,7 +1035,7 @@ paths:
       summary: Delete organization member
       tags:
       - organizations
-  /api/organizations/{organizationId}/invitations:
+  /organizations/{organizationId}/invitations:
     get:
       operationId: listOrganizationInvitations
       parameters:
@@ -1098,7 +1098,7 @@ paths:
       summary: Create organization invitation
       tags:
       - organizations
-  /api/organizations/{organizationId}/invitations/{invitationId}:
+  /organizations/{organizationId}/invitations/{invitationId}:
     put:
       operationId: updateOrganizationInvitation
       parameters:
@@ -1140,7 +1140,7 @@ paths:
       summary: Update organization invitation
       tags:
       - organizations
-  /api/organizations/{organizationId}/invitations/{invitationId}/cancel:
+  /organizations/{organizationId}/invitations/{invitationId}/cancel:
     post:
       operationId: cancelOrganizationInvitation
       parameters:
@@ -1172,7 +1172,7 @@ paths:
       summary: Cancel organization invitation
       tags:
       - organizations
-  /api/regions:
+  /regions:
     get:
       operationId: listAvailableRegions
       parameters:
@@ -1235,7 +1235,7 @@ paths:
       summary: Create a new region
       tags:
       - organizations
-  /api/regions/{id}:
+  /regions/{id}:
     delete:
       operationId: deleteRegion
       parameters:
@@ -1339,7 +1339,7 @@ paths:
       summary: Update region configuration
       tags:
       - organizations
-  /api/regions/{id}/regenerate-proxy-api-key:
+  /regions/{id}/regenerate-proxy-api-key:
     post:
       operationId: regenerateProxyApiKey
       parameters:
@@ -1375,7 +1375,7 @@ paths:
       summary: Regenerate proxy API key for a region
       tags:
       - organizations
-  /api/regions/{id}/regenerate-ssh-gateway-api-key:
+  /regions/{id}/regenerate-ssh-gateway-api-key:
     post:
       operationId: regenerateSshGatewayApiKey
       parameters:
@@ -1411,7 +1411,7 @@ paths:
       summary: Regenerate SSH gateway API key for a region
       tags:
       - organizations
-  /api/regions/{id}/regenerate-snapshot-manager-credentials:
+  /regions/{id}/regenerate-snapshot-manager-credentials:
     post:
       operationId: regenerateSnapshotManagerCredentials
       parameters:
@@ -1447,7 +1447,7 @@ paths:
       summary: Regenerate snapshot manager credentials for a region
       tags:
       - organizations
-  /api/users/me:
+  /users/me:
     get:
       operationId: getAuthenticatedUser
       parameters: []
@@ -1467,7 +1467,7 @@ paths:
       summary: Get authenticated user
       tags:
       - users
-  /api/users/account-providers:
+  /users/account-providers:
     get:
       operationId: getAvailableAccountProviders
       parameters: []
@@ -1489,7 +1489,7 @@ paths:
       summary: Get available account providers
       tags:
       - users
-  /api/users/linked-accounts:
+  /users/linked-accounts:
     post:
       operationId: linkAccount
       parameters: []
@@ -1511,7 +1511,7 @@ paths:
       summary: Link account
       tags:
       - users
-  /api/users/linked-accounts/{provider}/{providerUserId}:
+  /users/linked-accounts/{provider}/{providerUserId}:
     delete:
       operationId: unlinkAccount
       parameters:
@@ -1541,7 +1541,7 @@ paths:
       summary: Unlink account
       tags:
       - users
-  /api/users/mfa/sms/enroll:
+  /users/mfa/sms/enroll:
     post:
       operationId: enrollInSmsMfa
       parameters: []
@@ -1561,7 +1561,7 @@ paths:
       summary: Enroll in SMS MFA
       tags:
       - users
-  /api/shared-regions:
+  /shared-regions:
     get:
       operationId: listSharedRegions
       parameters: []
@@ -1577,7 +1577,7 @@ paths:
       summary: List all shared regions
       tags:
       - regions
-  /api/sandbox:
+  /sandbox:
     get:
       description: Advanced filtering and ordering. Eventually consistent.
       operationId: listSandboxes
@@ -1858,7 +1858,7 @@ paths:
       summary: Create a new sandbox
       tags:
       - sandbox
-  /api/sandbox/paginated:
+  /sandbox/paginated:
     get:
       deprecated: true
       operationId: listSandboxesPaginated_deprecated
@@ -2100,7 +2100,7 @@ paths:
       summary: "[DEPRECATED] List all sandboxes paginated"
       tags:
       - sandbox
-  /api/sandbox/for-runner:
+  /sandbox/for-runner:
     get:
       operationId: getSandboxesForRunner
       parameters:
@@ -2146,7 +2146,7 @@ paths:
       summary: Get sandboxes for the authenticated runner
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}:
+  /sandbox/{sandboxIdOrName}:
     delete:
       operationId: deleteSandbox
       parameters:
@@ -2225,7 +2225,7 @@ paths:
       summary: Get sandbox details
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/recover:
+  /sandbox/{sandboxIdOrName}/recover:
     post:
       operationId: recoverSandbox
       parameters:
@@ -2270,7 +2270,7 @@ paths:
       summary: Recover sandbox from error state
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/start:
+  /sandbox/{sandboxIdOrName}/start:
     post:
       description: "Starts a stopped or archived sandbox, or resumes a paused sandbox.\
         \ The transition taken depends on the current sandbox state."
@@ -2309,7 +2309,7 @@ paths:
       summary: Start or resume sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/stop:
+  /sandbox/{sandboxIdOrName}/stop:
     post:
       operationId: stopSandbox
       parameters:
@@ -2353,7 +2353,7 @@ paths:
       summary: Stop sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/pause:
+  /sandbox/{sandboxIdOrName}/pause:
     post:
       operationId: pauseSandbox
       parameters:
@@ -2389,7 +2389,7 @@ paths:
       summary: Pause sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/resize:
+  /sandbox/{sandboxIdOrName}/resize:
     post:
       operationId: resizeSandbox
       parameters:
@@ -2431,7 +2431,7 @@ paths:
       summary: Resize sandbox resources
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/labels:
+  /sandbox/{sandboxIdOrName}/labels:
     put:
       operationId: replaceLabels
       parameters:
@@ -2473,7 +2473,7 @@ paths:
       summary: Replace sandbox labels
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/state:
+  /sandbox/{sandboxId}/state:
     put:
       operationId: updateSandboxState
       parameters:
@@ -2511,7 +2511,7 @@ paths:
       summary: Update sandbox state
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/backup:
+  /sandbox/{sandboxIdOrName}/backup:
     post:
       operationId: createBackup
       parameters:
@@ -2547,7 +2547,7 @@ paths:
       summary: Create sandbox backup
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/snapshot:
+  /sandbox/{sandboxIdOrName}/snapshot:
     post:
       operationId: createSandboxSnapshot
       parameters:
@@ -2588,7 +2588,7 @@ paths:
       summary: Create a snapshot from a sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/fork:
+  /sandbox/{sandboxIdOrName}/fork:
     post:
       operationId: forkSandbox
       parameters:
@@ -2629,7 +2629,7 @@ paths:
       summary: Fork a sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/forks:
+  /sandbox/{sandboxIdOrName}/forks:
     get:
       operationId: getSandboxForks
       parameters:
@@ -2673,7 +2673,7 @@ paths:
       summary: Get sandbox fork children
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/parent:
+  /sandbox/{sandboxIdOrName}/parent:
     get:
       operationId: getSandboxParent
       parameters:
@@ -2708,7 +2708,7 @@ paths:
       summary: Get sandbox fork parent
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/ancestors:
+  /sandbox/{sandboxIdOrName}/ancestors:
     get:
       operationId: getSandboxAncestors
       parameters:
@@ -2745,7 +2745,7 @@ paths:
       summary: Get sandbox fork ancestor chain
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/public/{isPublic}:
+  /sandbox/{sandboxIdOrName}/public/{isPublic}:
     post:
       operationId: updatePublicStatus
       parameters:
@@ -2789,7 +2789,7 @@ paths:
       summary: Update public status
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/last-activity:
+  /sandbox/{sandboxId}/last-activity:
     post:
       operationId: updateLastActivity
       parameters:
@@ -2821,7 +2821,7 @@ paths:
       summary: Update sandbox last activity
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/autostop/{interval}:
+  /sandbox/{sandboxIdOrName}/autostop/{interval}:
     post:
       operationId: setAutostopInterval
       parameters:
@@ -2865,7 +2865,7 @@ paths:
       summary: Set sandbox auto-stop interval
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/autoarchive/{interval}:
+  /sandbox/{sandboxIdOrName}/autoarchive/{interval}:
     post:
       operationId: setAutoArchiveInterval
       parameters:
@@ -2910,7 +2910,7 @@ paths:
       summary: Set sandbox auto-archive interval
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/autodelete/{interval}:
+  /sandbox/{sandboxIdOrName}/autodelete/{interval}:
     post:
       operationId: setAutoDeleteInterval
       parameters:
@@ -2955,7 +2955,7 @@ paths:
       summary: Set sandbox auto-delete interval
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/network-settings:
+  /sandbox/{sandboxIdOrName}/network-settings:
     post:
       description: "Changes outbound network policy on the runner for a running sandbox\
         \ (for example block all traffic, restore access, or set a CIDR allow list)."
@@ -2999,7 +2999,7 @@ paths:
       summary: Update sandbox network settings
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/archive:
+  /sandbox/{sandboxIdOrName}/archive:
     post:
       operationId: archiveSandbox
       parameters:
@@ -3034,7 +3034,7 @@ paths:
       summary: Archive sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url:
+  /sandbox/{sandboxIdOrName}/ports/{port}/preview-url:
     get:
       operationId: getPortPreviewUrl
       parameters:
@@ -3078,7 +3078,7 @@ paths:
       summary: Get preview URL for a sandbox port
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url:
+  /sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url:
     get:
       operationId: getSignedPortPreviewUrl
       parameters:
@@ -3130,7 +3130,7 @@ paths:
       summary: Get signed preview URL for a sandbox port
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire:
+  /sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire:
     post:
       operationId: expireSignedPortPreviewUrl
       parameters:
@@ -3178,7 +3178,7 @@ paths:
       summary: Expire signed preview URL for a sandbox port
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/build-logs:
+  /sandbox/{sandboxIdOrName}/build-logs:
     get:
       deprecated: true
       description: This endpoint is deprecated. Use `getBuildLogsUrl` instead.
@@ -3220,7 +3220,7 @@ paths:
       summary: Get build logs
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/build-logs-url:
+  /sandbox/{sandboxIdOrName}/build-logs-url:
     get:
       operationId: getBuildLogsUrl
       parameters:
@@ -3256,7 +3256,7 @@ paths:
       summary: Get build logs URL
       tags:
       - sandbox
-  /api/sandbox/{sandboxIdOrName}/ssh-access:
+  /sandbox/{sandboxIdOrName}/ssh-access:
     delete:
       operationId: revokeSshAccess
       parameters:
@@ -3344,7 +3344,7 @@ paths:
       summary: Create SSH access for sandbox
       tags:
       - sandbox
-  /api/sandbox/ssh-access/validate:
+  /sandbox/ssh-access/validate:
     get:
       operationId: validateSshAccess
       parameters:
@@ -3380,7 +3380,7 @@ paths:
       summary: Validate SSH access for sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/toolbox-proxy-url:
+  /sandbox/{sandboxId}/toolbox-proxy-url:
     get:
       operationId: getToolboxProxyUrl
       parameters:
@@ -3416,7 +3416,7 @@ paths:
       summary: Get toolbox proxy URL for a sandbox
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/organization:
+  /sandbox/{sandboxId}/organization:
     get:
       operationId: getOrganizationBySandboxId
       parameters:
@@ -3452,7 +3452,7 @@ paths:
       summary: Get organization by sandbox ID
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/region-quota:
+  /sandbox/{sandboxId}/region-quota:
     get:
       operationId: getRegionQuotaBySandboxId
       parameters:
@@ -3488,7 +3488,7 @@ paths:
       summary: Get region quota by sandbox ID
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/secrets:
+  /sandbox/{sandboxId}/secrets:
     get:
       operationId: resolveSandboxSecrets
       parameters:
@@ -3526,7 +3526,7 @@ paths:
       summary: Resolve sandbox secrets
       tags:
       - sandbox
-  /api/runners:
+  /runners:
     get:
       operationId: listRunners
       parameters:
@@ -3597,7 +3597,7 @@ paths:
       summary: Create runner
       tags:
       - runners
-  /api/runners/me:
+  /runners/me:
     get:
       operationId: getInfoForAuthenticatedRunner
       parameters: []
@@ -3617,7 +3617,7 @@ paths:
       summary: Get info for authenticated runner
       tags:
       - runners
-  /api/runners/by-sandbox/{sandboxId}:
+  /runners/by-sandbox/{sandboxId}:
     get:
       operationId: getRunnerBySandboxId
       parameters:
@@ -3644,7 +3644,7 @@ paths:
       summary: Get runner by sandbox ID
       tags:
       - runners
-  /api/runners/by-snapshot-ref:
+  /runners/by-snapshot-ref:
     get:
       operationId: getRunnersBySnapshotRef
       parameters:
@@ -3674,7 +3674,7 @@ paths:
       summary: Get runners by snapshot ref
       tags:
       - runners
-  /api/runners/{id}:
+  /runners/{id}:
     delete:
       operationId: deleteRunner
       parameters:
@@ -3741,7 +3741,7 @@ paths:
       summary: Get runner by ID
       tags:
       - runners
-  /api/runners/{id}/full:
+  /runners/{id}/full:
     get:
       operationId: getRunnerFullById
       parameters:
@@ -3769,7 +3769,7 @@ paths:
       summary: Get runner by ID
       tags:
       - runners
-  /api/runners/{id}/scheduling:
+  /runners/{id}/scheduling:
     patch:
       operationId: updateRunnerScheduling
       parameters:
@@ -3805,7 +3805,7 @@ paths:
       summary: Update runner scheduling status
       tags:
       - runners
-  /api/runners/{id}/draining:
+  /runners/{id}/draining:
     patch:
       operationId: updateRunnerDraining
       parameters:
@@ -3841,7 +3841,7 @@ paths:
       summary: Update runner draining status
       tags:
       - runners
-  /api/runners/healthcheck:
+  /runners/healthcheck:
     post:
       description: Endpoint for version 2 runners to send healthcheck and metrics.
         Updates lastChecked timestamp and runner metrics.
@@ -3865,7 +3865,7 @@ paths:
       summary: Runner healthcheck
       tags:
       - runners
-  /api/toolbox/{sandboxId}/toolbox/project-dir:
+  /toolbox/{sandboxId}/toolbox/project-dir:
     get:
       deprecated: true
       operationId: getProjectDir_deprecated
@@ -3901,7 +3901,7 @@ paths:
       summary: "[DEPRECATED] Get sandbox project dir"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/user-home-dir:
+  /toolbox/{sandboxId}/toolbox/user-home-dir:
     get:
       deprecated: true
       operationId: getUserHomeDir_deprecated
@@ -3937,7 +3937,7 @@ paths:
       summary: "[DEPRECATED] Get sandbox user home dir"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/work-dir:
+  /toolbox/{sandboxId}/toolbox/work-dir:
     get:
       deprecated: true
       operationId: getWorkDir_deprecated
@@ -3973,7 +3973,7 @@ paths:
       summary: "[DEPRECATED] Get sandbox work-dir"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files:
+  /toolbox/{sandboxId}/toolbox/files:
     delete:
       deprecated: true
       description: Delete file inside sandbox
@@ -4064,7 +4064,7 @@ paths:
       summary: "[DEPRECATED] List files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/download:
+  /toolbox/{sandboxId}/toolbox/files/download:
     get:
       deprecated: true
       description: Download file from sandbox
@@ -4109,7 +4109,7 @@ paths:
       summary: "[DEPRECATED] Download file"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/bulk-download:
+  /toolbox/{sandboxId}/toolbox/files/bulk-download:
     post:
       deprecated: true
       description: Streams back a multipart/form-data bundle of the requested paths
@@ -4153,7 +4153,7 @@ paths:
       summary: "[DEPRECATED] Download multiple files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/find:
+  /toolbox/{sandboxId}/toolbox/files/find:
     get:
       deprecated: true
       description: Search for text/pattern inside sandbox files
@@ -4206,7 +4206,7 @@ paths:
       summary: "[DEPRECATED] Search for text/pattern in files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/folder:
+  /toolbox/{sandboxId}/toolbox/files/folder:
     post:
       deprecated: true
       description: Create folder inside sandbox
@@ -4253,7 +4253,7 @@ paths:
       summary: "[DEPRECATED] Create folder"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/info:
+  /toolbox/{sandboxId}/toolbox/files/info:
     get:
       deprecated: true
       description: Get file info inside sandbox
@@ -4297,7 +4297,7 @@ paths:
       summary: "[DEPRECATED] Get file info"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/move:
+  /toolbox/{sandboxId}/toolbox/files/move:
     post:
       deprecated: true
       description: Move file inside sandbox
@@ -4344,7 +4344,7 @@ paths:
       summary: "[DEPRECATED] Move file"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/permissions:
+  /toolbox/{sandboxId}/toolbox/files/permissions:
     post:
       deprecated: true
       description: Set file owner/group/permissions inside sandbox
@@ -4405,7 +4405,7 @@ paths:
       summary: "[DEPRECATED] Set file permissions"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/replace:
+  /toolbox/{sandboxId}/toolbox/files/replace:
     post:
       deprecated: true
       description: Replace text/pattern in multiple files inside sandbox
@@ -4450,7 +4450,7 @@ paths:
       summary: "[DEPRECATED] Replace in files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/search:
+  /toolbox/{sandboxId}/toolbox/files/search:
     get:
       deprecated: true
       description: Search for files inside sandbox
@@ -4501,7 +4501,7 @@ paths:
       summary: "[DEPRECATED] Search files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/upload:
+  /toolbox/{sandboxId}/toolbox/files/upload:
     post:
       deprecated: true
       description: Upload file inside sandbox
@@ -4547,7 +4547,7 @@ paths:
       summary: "[DEPRECATED] Upload file"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/files/bulk-upload:
+  /toolbox/{sandboxId}/toolbox/files/bulk-upload:
     post:
       deprecated: true
       description: Upload multiple files inside sandbox
@@ -4588,7 +4588,7 @@ paths:
       summary: "[DEPRECATED] Upload multiple files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/add:
+  /toolbox/{sandboxId}/toolbox/git/add:
     post:
       deprecated: true
       description: Add files to git commit
@@ -4627,7 +4627,7 @@ paths:
       summary: "[DEPRECATED] Add files"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/branches:
+  /toolbox/{sandboxId}/toolbox/git/branches:
     delete:
       deprecated: true
       description: Delete branch on git repository
@@ -4747,7 +4747,7 @@ paths:
       summary: "[DEPRECATED] Create branch"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/clone:
+  /toolbox/{sandboxId}/toolbox/git/clone:
     post:
       deprecated: true
       description: Clone git repository
@@ -4786,7 +4786,7 @@ paths:
       summary: "[DEPRECATED] Clone repository"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/commit:
+  /toolbox/{sandboxId}/toolbox/git/commit:
     post:
       deprecated: true
       description: Commit changes to git repository
@@ -4829,7 +4829,7 @@ paths:
       summary: "[DEPRECATED] Commit changes"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/history:
+  /toolbox/{sandboxId}/toolbox/git/history:
     get:
       deprecated: true
       description: Get commit history from git repository
@@ -4875,7 +4875,7 @@ paths:
       summary: "[DEPRECATED] Get commit history"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/pull:
+  /toolbox/{sandboxId}/toolbox/git/pull:
     post:
       deprecated: true
       description: Pull changes from remote
@@ -4914,7 +4914,7 @@ paths:
       summary: "[DEPRECATED] Pull changes"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/push:
+  /toolbox/{sandboxId}/toolbox/git/push:
     post:
       deprecated: true
       description: Push changes to remote
@@ -4953,7 +4953,7 @@ paths:
       summary: "[DEPRECATED] Push changes"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/checkout:
+  /toolbox/{sandboxId}/toolbox/git/checkout:
     post:
       deprecated: true
       description: Checkout branch or commit in git repository
@@ -4992,7 +4992,7 @@ paths:
       summary: "[DEPRECATED] Checkout branch"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/git/status:
+  /toolbox/{sandboxId}/toolbox/git/status:
     get:
       deprecated: true
       description: Get status from git repository
@@ -5036,7 +5036,7 @@ paths:
       summary: "[DEPRECATED] Get git status"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/execute:
+  /toolbox/{sandboxId}/toolbox/process/execute:
     post:
       deprecated: true
       description: Execute command synchronously inside sandbox
@@ -5079,7 +5079,7 @@ paths:
       summary: "[DEPRECATED] Execute command"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/session:
+  /toolbox/{sandboxId}/toolbox/process/session:
     get:
       deprecated: true
       description: List all active sessions in the sandbox
@@ -5156,7 +5156,7 @@ paths:
       summary: "[DEPRECATED] Create session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}:
     delete:
       deprecated: true
       description: Delete a specific session
@@ -5239,7 +5239,7 @@ paths:
       summary: "[DEPRECATED] Get session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec:
     post:
       deprecated: true
       description: Execute a command in a specific session
@@ -5295,7 +5295,7 @@ paths:
       summary: "[DEPRECATED] Execute command in session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}:
     get:
       deprecated: true
       description: Get session command by ID
@@ -5346,7 +5346,7 @@ paths:
       summary: "[DEPRECATED] Get session command"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs:
     get:
       deprecated: true
       description: Get logs for a specific command in a session
@@ -5405,7 +5405,7 @@ paths:
       summary: "[DEPRECATED] Get command logs"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/pty:
+  /toolbox/{sandboxId}/toolbox/process/pty:
     get:
       deprecated: true
       description: List all active PTY sessions in the sandbox
@@ -5484,7 +5484,7 @@ paths:
       summary: "[DEPRECATED] Create PTY session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}:
+  /toolbox/{sandboxId}/toolbox/process/pty/{sessionId}:
     delete:
       deprecated: true
       description: Delete a PTY session and terminate the associated process
@@ -5567,7 +5567,7 @@ paths:
       summary: "[DEPRECATED] Get PTY session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize:
+  /toolbox/{sandboxId}/toolbox/process/pty/{sessionId}/resize:
     post:
       deprecated: true
       description: Resize a PTY session
@@ -5617,7 +5617,7 @@ paths:
       summary: "[DEPRECATED] Resize PTY session"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/completions:
+  /toolbox/{sandboxId}/toolbox/lsp/completions:
     post:
       deprecated: true
       description: The Completion request is sent from the client to the server to
@@ -5661,7 +5661,7 @@ paths:
       summary: "[DEPRECATED] Get Lsp Completions"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/did-close:
+  /toolbox/{sandboxId}/toolbox/lsp/did-close:
     post:
       deprecated: true
       description: The document close notification is sent from the client to the
@@ -5701,7 +5701,7 @@ paths:
       summary: "[DEPRECATED] Call Lsp DidClose"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/did-open:
+  /toolbox/{sandboxId}/toolbox/lsp/did-open:
     post:
       deprecated: true
       description: The document open notification is sent from the client to the server
@@ -5741,7 +5741,7 @@ paths:
       summary: "[DEPRECATED] Call Lsp DidOpen"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/document-symbols:
+  /toolbox/{sandboxId}/toolbox/lsp/document-symbols:
     get:
       deprecated: true
       description: The document symbol request is sent from the client to the server.
@@ -5801,7 +5801,7 @@ paths:
       summary: "[DEPRECATED] Call Lsp DocumentSymbols"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/start:
+  /toolbox/{sandboxId}/toolbox/lsp/start:
     post:
       deprecated: true
       description: Start Lsp server process inside sandbox project
@@ -5840,7 +5840,7 @@ paths:
       summary: "[DEPRECATED] Start Lsp server"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/stop:
+  /toolbox/{sandboxId}/toolbox/lsp/stop:
     post:
       deprecated: true
       description: Stop Lsp server process inside sandbox project
@@ -5879,7 +5879,7 @@ paths:
       summary: "[DEPRECATED] Stop Lsp server"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/lsp/workspace-symbols:
+  /toolbox/{sandboxId}/toolbox/lsp/workspace-symbols:
     get:
       deprecated: true
       description: The workspace symbol request is sent from the client to the server
@@ -5940,7 +5940,7 @@ paths:
       summary: "[DEPRECATED] Call Lsp WorkspaceSymbols"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/start:
+  /toolbox/{sandboxId}/toolbox/computeruse/start:
     post:
       deprecated: true
       description: "Start all VNC desktop processes (Xvfb, xfce4, x11vnc, novnc)"
@@ -5977,7 +5977,7 @@ paths:
       summary: "[DEPRECATED] Start computer use processes"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/stop:
+  /toolbox/{sandboxId}/toolbox/computeruse/stop:
     post:
       deprecated: true
       description: "Stop all VNC desktop processes (Xvfb, xfce4, x11vnc, novnc)"
@@ -6014,7 +6014,7 @@ paths:
       summary: "[DEPRECATED] Stop computer use processes"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/status:
+  /toolbox/{sandboxId}/toolbox/computeruse/status:
     get:
       deprecated: true
       description: Get status of all VNC desktop processes
@@ -6051,7 +6051,7 @@ paths:
       summary: "[DEPRECATED] Get computer use status"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status:
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status:
     get:
       deprecated: true
       description: Get status of a specific VNC process
@@ -6095,7 +6095,7 @@ paths:
       summary: "[DEPRECATED] Get process status"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart:
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart:
     post:
       deprecated: true
       description: Restart a specific VNC process
@@ -6139,7 +6139,7 @@ paths:
       summary: "[DEPRECATED] Restart process"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs:
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs:
     get:
       deprecated: true
       description: Get logs for a specific VNC process
@@ -6183,7 +6183,7 @@ paths:
       summary: "[DEPRECATED] Get process logs"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors:
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors:
     get:
       deprecated: true
       description: Get error logs for a specific VNC process
@@ -6227,7 +6227,7 @@ paths:
       summary: "[DEPRECATED] Get process errors"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/position:
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/position:
     get:
       deprecated: true
       description: Get current mouse cursor position
@@ -6264,7 +6264,7 @@ paths:
       summary: "[DEPRECATED] Get mouse position"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/move:
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/move:
     post:
       deprecated: true
       description: Move mouse cursor to specified coordinates
@@ -6307,7 +6307,7 @@ paths:
       summary: "[DEPRECATED] Move mouse"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/click:
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/click:
     post:
       deprecated: true
       description: Click mouse at specified coordinates
@@ -6350,7 +6350,7 @@ paths:
       summary: "[DEPRECATED] Click mouse"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/drag:
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/drag:
     post:
       deprecated: true
       description: Drag mouse from start to end coordinates
@@ -6393,7 +6393,7 @@ paths:
       summary: "[DEPRECATED] Drag mouse"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll:
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll:
     post:
       deprecated: true
       description: Scroll mouse at specified coordinates
@@ -6436,7 +6436,7 @@ paths:
       summary: "[DEPRECATED] Scroll mouse"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/type:
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/type:
     post:
       deprecated: true
       description: Type text using keyboard
@@ -6475,7 +6475,7 @@ paths:
       summary: "[DEPRECATED] Type text"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/key:
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/key:
     post:
       deprecated: true
       description: Press a key with optional modifiers
@@ -6514,7 +6514,7 @@ paths:
       summary: "[DEPRECATED] Press key"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey:
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey:
     post:
       deprecated: true
       description: Press a hotkey combination
@@ -6553,7 +6553,7 @@ paths:
       summary: "[DEPRECATED] Press hotkey"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot:
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot:
     get:
       deprecated: true
       description: Take a screenshot of the entire screen
@@ -6597,7 +6597,7 @@ paths:
       summary: "[DEPRECATED] Take screenshot"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region:
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region:
     get:
       deprecated: true
       description: Take a screenshot of a specific region
@@ -6669,7 +6669,7 @@ paths:
       summary: "[DEPRECATED] Take region screenshot"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed:
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed:
     get:
       deprecated: true
       description: "Take a compressed screenshot with format, quality, and scale options"
@@ -6734,7 +6734,7 @@ paths:
       summary: "[DEPRECATED] Take compressed screenshot"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed:
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed:
     get:
       deprecated: true
       description: Take a compressed screenshot of a specific region
@@ -6827,7 +6827,7 @@ paths:
       summary: "[DEPRECATED] Take compressed region screenshot"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/display/info:
+  /toolbox/{sandboxId}/toolbox/computeruse/display/info:
     get:
       deprecated: true
       description: Get information about displays
@@ -6864,7 +6864,7 @@ paths:
       summary: "[DEPRECATED] Get display info"
       tags:
       - toolbox
-  /api/toolbox/{sandboxId}/toolbox/computeruse/display/windows:
+  /toolbox/{sandboxId}/toolbox/computeruse/display/windows:
     get:
       deprecated: true
       description: Get list of open windows
@@ -6901,7 +6901,7 @@ paths:
       summary: "[DEPRECATED] Get windows"
       tags:
       - toolbox
-  /api/snapshots:
+  /snapshots:
     get:
       operationId: getAllSnapshots
       parameters:
@@ -7020,7 +7020,7 @@ paths:
       summary: Create a new snapshot
       tags:
       - snapshots
-  /api/snapshots/{id}:
+  /snapshots/{id}:
     delete:
       operationId: removeSnapshot
       parameters:
@@ -7089,7 +7089,7 @@ paths:
       summary: Get snapshot by ID or name
       tags:
       - snapshots
-  /api/snapshots/{id}/build-logs:
+  /snapshots/{id}/build-logs:
     get:
       deprecated: true
       description: This endpoint is deprecated. Use `getSnapshotBuildLogsUrl` instead.
@@ -7131,7 +7131,7 @@ paths:
       summary: Get snapshot build logs
       tags:
       - snapshots
-  /api/snapshots/{id}/build-logs-url:
+  /snapshots/{id}/build-logs-url:
     get:
       operationId: getSnapshotBuildLogsUrl
       parameters:
@@ -7167,7 +7167,7 @@ paths:
       summary: Get snapshot build logs URL
       tags:
       - snapshots
-  /api/snapshots/{id}/activate:
+  /snapshots/{id}/activate:
     post:
       operationId: activateSnapshot
       parameters:
@@ -7208,7 +7208,7 @@ paths:
       summary: Activate a snapshot
       tags:
       - snapshots
-  /api/snapshots/{id}/deactivate:
+  /snapshots/{id}/deactivate:
     post:
       operationId: deactivateSnapshot
       parameters:
@@ -7240,7 +7240,7 @@ paths:
       summary: Deactivate a snapshot
       tags:
       - snapshots
-  /api/preview/{sandboxId}/public:
+  /preview/{sandboxId}/public:
     get:
       operationId: isSandboxPublic
       parameters:
@@ -7268,7 +7268,7 @@ paths:
       summary: Check if sandbox is public
       tags:
       - preview
-  /api/preview/{sandboxId}/validate/{authToken}:
+  /preview/{sandboxId}/validate/{authToken}:
     get:
       operationId: isValidAuthToken
       parameters:
@@ -7304,7 +7304,7 @@ paths:
       summary: Check if sandbox auth token is valid
       tags:
       - preview
-  /api/preview/{sandboxId}/access:
+  /preview/{sandboxId}/access:
     get:
       operationId: hasSandboxAccess
       parameters:
@@ -7331,7 +7331,7 @@ paths:
       summary: Check if user has access to the sandbox
       tags:
       - preview
-  /api/preview/{signedPreviewToken}/{port}/sandbox-id:
+  /preview/{signedPreviewToken}/{port}/sandbox-id:
     get:
       operationId: getSandboxIdFromSignedPreviewUrlToken
       parameters:
@@ -7367,7 +7367,7 @@ paths:
       summary: Get sandbox ID from signed preview URL token
       tags:
       - preview
-  /api/volumes:
+  /volumes:
     get:
       operationId: listVolumes
       parameters:
@@ -7438,7 +7438,7 @@ paths:
       summary: Create a new volume
       tags:
       - volumes
-  /api/volumes/{volumeId}:
+  /volumes/{volumeId}:
     delete:
       operationId: deleteVolume
       parameters:
@@ -7507,7 +7507,7 @@ paths:
       summary: Get volume details
       tags:
       - volumes
-  /api/volumes/by-name/{name}:
+  /volumes/by-name/{name}:
     get:
       operationId: getVolumeByName
       parameters:
@@ -7543,7 +7543,7 @@ paths:
       summary: Get volume details by name
       tags:
       - volumes
-  /api/jobs:
+  /jobs:
     get:
       description: "Returns a paginated list of jobs for the runner, optionally filtered\
         \ by status."
@@ -7602,7 +7602,7 @@ paths:
       summary: List jobs for the runner
       tags:
       - jobs
-  /api/jobs/poll:
+  /jobs/poll:
     get:
       description: "Long poll endpoint for runners to fetch pending jobs. Returns\
         \ immediately if jobs are available, otherwise waits up to timeout seconds."
@@ -7640,7 +7640,7 @@ paths:
       summary: Long poll for jobs
       tags:
       - jobs
-  /api/jobs/{jobId}:
+  /jobs/{jobId}:
     get:
       operationId: getJob
       parameters:
@@ -7668,7 +7668,7 @@ paths:
       summary: Get job details
       tags:
       - jobs
-  /api/jobs/{jobId}/status:
+  /jobs/{jobId}/status:
     post:
       operationId: updateJobStatus
       parameters:
@@ -7702,7 +7702,7 @@ paths:
       summary: Update job status
       tags:
       - jobs
-  /api/docker-registry:
+  /docker-registry:
     get:
       operationId: listRegistries
       parameters:
@@ -7765,7 +7765,7 @@ paths:
       summary: Create registry
       tags:
       - docker-registry
-  /api/docker-registry/registry-push-access:
+  /docker-registry/registry-push-access:
     get:
       operationId: getTransientPushAccess
       parameters:
@@ -7802,7 +7802,7 @@ paths:
       summary: Get temporary registry access for pushing snapshots
       tags:
       - docker-registry
-  /api/docker-registry/{id}:
+  /docker-registry/{id}:
     delete:
       operationId: deleteRegistry
       parameters:
@@ -7910,7 +7910,7 @@ paths:
       summary: Update registry
       tags:
       - docker-registry
-  /api/secret:
+  /secret:
     get:
       operationId: listSecrets
       parameters:
@@ -7973,7 +7973,7 @@ paths:
       summary: Create secret
       tags:
       - secret
-  /api/secret/{secretId}:
+  /secret/{secretId}:
     delete:
       operationId: deleteSecret
       parameters:
@@ -8081,7 +8081,7 @@ paths:
       summary: Update secret
       tags:
       - secret
-  /api/admin/runners:
+  /admin/runners:
     get:
       operationId: adminListRunners
       parameters:
@@ -8136,7 +8136,7 @@ paths:
       summary: Create runner
       tags:
       - admin
-  /api/admin/runners/{id}:
+  /admin/runners/{id}:
     delete:
       operationId: adminDeleteRunner
       parameters:
@@ -8187,7 +8187,7 @@ paths:
       summary: Get runner by ID
       tags:
       - admin
-  /api/admin/runners/{id}/scheduling:
+  /admin/runners/{id}/scheduling:
     patch:
       operationId: adminUpdateRunnerScheduling
       parameters:
@@ -8210,7 +8210,7 @@ paths:
       summary: Update runner scheduling status
       tags:
       - admin
-  /api/admin/sandbox/{sandboxId}/recover:
+  /admin/sandbox/{sandboxId}/recover:
     post:
       operationId: adminRecoverSandbox
       parameters:
@@ -8238,7 +8238,7 @@ paths:
       summary: Recover sandbox from error state as an admin
       tags:
       - admin
-  /api/admin/users:
+  /admin/users:
     get:
       operationId: adminListUsers
       parameters: []
@@ -8275,7 +8275,7 @@ paths:
       summary: Create user
       tags:
       - admin
-  /api/admin/users/{id}/regenerate-key-pair:
+  /admin/users/{id}/regenerate-key-pair:
     post:
       operationId: adminRegenerateKeyPair
       parameters:
@@ -8298,7 +8298,7 @@ paths:
       summary: Regenerate user key pair
       tags:
       - admin
-  /api/admin/users/{id}:
+  /admin/users/{id}:
     get:
       operationId: adminGetUser
       parameters:
@@ -8325,7 +8325,7 @@ paths:
       summary: Get user by ID
       tags:
       - admin
-  /api/admin/webhooks/organizations/{organizationId}/send:
+  /admin/webhooks/organizations/{organizationId}/send:
     post:
       operationId: adminSendWebhook
       parameters:
@@ -8354,7 +8354,7 @@ paths:
       summary: Send a webhook message to an organization
       tags:
       - admin
-  /api/admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts:
+  /admin/webhooks/organizations/{organizationId}/messages/{messageId}/attempts:
     get:
       operationId: adminGetMessageAttempts
       parameters:
@@ -8390,7 +8390,7 @@ paths:
       summary: Get delivery attempts for a webhook message
       tags:
       - admin
-  /api/admin/webhooks/status:
+  /admin/webhooks/status:
     get:
       operationId: adminGetWebhookStatus
       parameters: []
@@ -8410,7 +8410,7 @@ paths:
       summary: Get webhook service status
       tags:
       - admin
-  /api/admin/webhooks/organizations/{organizationId}/initialize:
+  /admin/webhooks/organizations/{organizationId}/initialize:
     post:
       operationId: adminInitializeWebhooks
       parameters:
@@ -8435,7 +8435,7 @@ paths:
       summary: Initialize webhooks for an organization
       tags:
       - admin
-  /api/admin/docker-registry/{id}/set-default:
+  /admin/docker-registry/{id}/set-default:
     post:
       operationId: adminSetDefaultRegistry
       parameters:
@@ -8463,7 +8463,7 @@ paths:
       summary: Set default registry
       tags:
       - admin
-  /api/admin/snapshots/can-cleanup-image:
+  /admin/snapshots/can-cleanup-image:
     get:
       operationId: adminCanCleanupImage
       parameters:
@@ -8491,7 +8491,7 @@ paths:
       summary: Check if an image can be cleaned up
       tags:
       - admin
-  /api/admin/snapshots/{id}/general:
+  /admin/snapshots/{id}/general:
     patch:
       operationId: adminSetSnapshotGeneralStatus
       parameters:
@@ -8525,7 +8525,7 @@ paths:
       summary: Set snapshot general status
       tags:
       - admin
-  /api/admin/audit:
+  /admin/audit:
     get:
       operationId: adminGetAllAuditLogs
       parameters:
@@ -8550,7 +8550,8 @@ paths:
           minimum: 1
           type: number
         style: form
-      - description: From date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format)."
         explode: true
         in: query
         name: from
@@ -8559,7 +8560,8 @@ paths:
           format: date-time
           type: string
         style: form
-      - description: To date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format)."
         explode: true
         in: query
         name: to
@@ -8577,6 +8579,86 @@ paths:
         schema:
           type: string
         style: form
+      - description: Filter by audit log ID.
+        explode: true
+        in: query
+        name: id
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor user ID.
+        explode: true
+        in: query
+        name: actorId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor email.
+        explode: true
+        in: query
+        name: actorEmail
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key prefix.
+        explode: true
+        in: query
+        name: actorApiKeyPrefix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key suffix.
+        explode: true
+        in: query
+        name: actorApiKeySuffix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by action.
+        explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target type.
+        explode: true
+        in: query
+        name: targetType
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target ID.
+        explode: true
+        in: query
+        name: targetId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by HTTP status code.
+        explode: true
+        in: query
+        name: statusCode
+        required: false
+        schema:
+          $ref: "#/components/schemas/IntFilter"
+        style: form
+      - description: Filter by creation timestamp.
+        explode: true
+        in: query
+        name: createdAt
+        required: false
+        schema:
+          $ref: "#/components/schemas/DateFilter"
+        style: form
       responses:
         "200":
           content:
@@ -8593,7 +8675,7 @@ paths:
       summary: Get all audit logs
       tags:
       - admin
-  /api/admin/organizations/{organizationId}/quota/{regionId}:
+  /admin/organizations/{organizationId}/quota/{regionId}:
     patch:
       operationId: adminUpdateOrganizationRegionQuota
       parameters:
@@ -8672,7 +8754,7 @@ paths:
       summary: Create organization region quota
       tags:
       - admin
-  /api/admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}:
+  /admin/organizations/{organizationId}/quota/{regionId}/{sandboxClass}:
     delete:
       operationId: adminDeleteOrganizationRegionQuota
       parameters:
@@ -8755,7 +8837,7 @@ paths:
       summary: Get organization region quota
       tags:
       - admin
-  /api/webhooks/organizations/{organizationId}/app-portal-access:
+  /webhooks/organizations/{organizationId}/app-portal-access:
     post:
       operationId: WebhookController_getAppPortalAccess
       parameters:
@@ -8790,7 +8872,7 @@ paths:
       summary: Get Svix Consumer App Portal access for an organization
       tags:
       - webhooks
-  /api/webhooks/organizations/{organizationId}/initialization-status:
+  /webhooks/organizations/{organizationId}/initialization-status:
     get:
       operationId: WebhookController_getInitializationStatus
       parameters:
@@ -8827,7 +8909,7 @@ paths:
       summary: Get webhook initialization status for an organization
       tags:
       - webhooks
-  /api/webhooks/organizations/{organizationId}/initialize:
+  /webhooks/organizations/{organizationId}/initialize:
     post:
       operationId: WebhookController_initializeWebhooks
       parameters:
@@ -8863,7 +8945,7 @@ paths:
       summary: Initialize webhooks for an organization
       tags:
       - webhooks
-  /api/webhooks/organizations/{organizationId}/refresh-endpoints:
+  /webhooks/organizations/{organizationId}/refresh-endpoints:
     post:
       operationId: WebhookController_refreshEndpoints
       parameters:
@@ -8896,7 +8978,7 @@ paths:
       summary: Refresh cached endpoint presence flag for an organization
       tags:
       - webhooks
-  /api/audit/organizations/{organizationId}:
+  /audit/organizations/{organizationId}:
     get:
       operationId: getOrganizationAuditLogs
       parameters:
@@ -8929,7 +9011,8 @@ paths:
           minimum: 1
           type: number
         style: form
-      - description: From date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format)."
         explode: true
         in: query
         name: from
@@ -8938,7 +9021,8 @@ paths:
           format: date-time
           type: string
         style: form
-      - description: To date (ISO 8601 format)
+      - deprecated: true
+        description: "Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format)."
         explode: true
         in: query
         name: to
@@ -8956,6 +9040,86 @@ paths:
         schema:
           type: string
         style: form
+      - description: Filter by audit log ID.
+        explode: true
+        in: query
+        name: id
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor user ID.
+        explode: true
+        in: query
+        name: actorId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor email.
+        explode: true
+        in: query
+        name: actorEmail
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key prefix.
+        explode: true
+        in: query
+        name: actorApiKeyPrefix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by actor API key suffix.
+        explode: true
+        in: query
+        name: actorApiKeySuffix
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by action.
+        explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target type.
+        explode: true
+        in: query
+        name: targetType
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by target ID.
+        explode: true
+        in: query
+        name: targetId
+        required: false
+        schema:
+          $ref: "#/components/schemas/StringFilter"
+        style: form
+      - description: Filter by HTTP status code.
+        explode: true
+        in: query
+        name: statusCode
+        required: false
+        schema:
+          $ref: "#/components/schemas/IntFilter"
+        style: form
+      - description: Filter by creation timestamp.
+        explode: true
+        in: query
+        name: createdAt
+        required: false
+        schema:
+          $ref: "#/components/schemas/DateFilter"
+        style: form
       responses:
         "200":
           content:
@@ -8972,7 +9136,7 @@ paths:
       summary: Get audit logs for organization
       tags:
       - audit
-  /api/object-storage/push-access:
+  /object-storage/push-access:
     get:
       operationId: getPushAccess
       parameters:
@@ -9000,7 +9164,7 @@ paths:
       summary: Get temporary storage access for pushing objects
       tags:
       - object-storage
-  /api/health:
+  /health:
     get:
       operationId: HealthController_live
       parameters: []
@@ -9009,7 +9173,7 @@ paths:
           description: ""
       tags:
       - Health
-  /api/health/ready:
+  /health/ready:
     get:
       operationId: HealthController_check
       parameters: []
@@ -9030,7 +9194,7 @@ paths:
       - bearer: []
       tags:
       - Health
-  /api/sandbox/{sandboxId}/telemetry/logs:
+  /sandbox/{sandboxId}/telemetry/logs:
     get:
       description: Retrieve OTEL logs for a sandbox within a time range
       operationId: getSandboxLogs
@@ -9121,7 +9285,7 @@ paths:
       summary: Get sandbox logs
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/telemetry/traces:
+  /sandbox/{sandboxId}/telemetry/traces:
     get:
       description: Retrieve OTEL traces for a sandbox within a time range
       operationId: getSandboxTraces
@@ -9194,7 +9358,7 @@ paths:
       summary: Get sandbox traces
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/telemetry/traces/{traceId}:
+  /sandbox/{sandboxId}/telemetry/traces/{traceId}:
     get:
       description: Retrieve all spans for a specific trace
       operationId: getSandboxTraceSpans
@@ -9241,7 +9405,7 @@ paths:
       summary: Get trace spans
       tags:
       - sandbox
-  /api/sandbox/{sandboxId}/telemetry/metrics:
+  /sandbox/{sandboxId}/telemetry/metrics:
     get:
       description: Retrieve OTEL metrics for a sandbox within a time range
       operationId: getSandboxMetrics
@@ -9539,8 +9703,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9595,8 +9778,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9656,8 +9858,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         lastUsedAt:
           description: When the API key was last used
@@ -9724,8 +9945,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
         isGlobal:
           description: Global role flag
@@ -10035,11 +10275,19 @@ components:
       - android
       - windows
       type: string
+      x-enum-varnames:
+      - LINUX_VM
+      - CONTAINER
+      - ANDROID
+      - WINDOWS
     GpuType:
       enum:
       - H100
       - RTX-PRO-6000
       type: string
+      x-enum-varnames:
+      - H100
+      - RTX_PRO_6000
     RegionUsageOverview:
       example:
         totalCpuQuota: 0.8008281904610115
@@ -10404,8 +10652,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
       required:
       - description
@@ -10447,8 +10714,27 @@ components:
             - write:runners
             - delete:runners
             - read:audit_logs
+            - manage:api_keys
             - manage:secrets
             type: string
+            x-enum-varnames:
+            - WRITE_REGISTRIES
+            - DELETE_REGISTRIES
+            - WRITE_SNAPSHOTS
+            - DELETE_SNAPSHOTS
+            - WRITE_SANDBOXES
+            - DELETE_SANDBOXES
+            - READ_VOLUMES
+            - WRITE_VOLUMES
+            - DELETE_VOLUMES
+            - WRITE_REGIONS
+            - DELETE_REGIONS
+            - READ_RUNNERS
+            - WRITE_RUNNERS
+            - DELETE_RUNNERS
+            - READ_AUDIT_LOGS
+            - MANAGE_API_KEYS
+            - MANAGE_SECRETS
           type: array
       required:
       - description
@@ -11430,6 +11716,11 @@ components:
           - windows
           example: linux-vm
           type: string
+          x-enum-varnames:
+          - LINUX_VM
+          - CONTAINER
+          - ANDROID
+          - WINDOWS
         daemonVersion:
           description: The version of the daemon running in the sandbox
           example: 1.0.0
@@ -14324,6 +14615,11 @@ components:
           - windows
           example: linux-vm
           type: string
+          x-enum-varnames:
+          - LINUX_VM
+          - CONTAINER
+          - ANDROID
+          - WINDOWS
       required:
       - cpu
       - createdAt
@@ -15100,6 +15396,14 @@ components:
       - volume.created
       - volume.state.updated
       type: string
+      x-enum-varnames:
+      - SANDBOX_CREATED
+      - SANDBOX_STATE_UPDATED
+      - SNAPSHOT_CREATED
+      - SNAPSHOT_STATE_UPDATED
+      - SNAPSHOT_REMOVED
+      - VOLUME_CREATED
+      - VOLUME_STATE_UPDATED
     SendWebhookDto:
       example:
         eventId: evt_1234567890abcdef
@@ -15137,6 +15441,79 @@ components:
           type: boolean
       required:
       - general
+      type: object
+    StringFilter:
+      properties:
+        eq:
+          description: Match values equal to this value.
+          type: string
+        not:
+          description: Match values not equal to this value.
+          type: string
+        in:
+          description: Match values present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: string
+          type: array
+        notIn:
+          description: Match values not present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: string
+          type: array
+      type: object
+    IntFilter:
+      properties:
+        eq:
+          description: Match values equal to this value.
+          type: number
+        not:
+          description: Match values not equal to this value.
+          type: number
+        in:
+          description: Match values present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: number
+          type: array
+        notIn:
+          description: Match values not present in this list. Accepts comma-separated
+            values or repeated query parameters. Maximum 100 entries.
+          items:
+            type: number
+          type: array
+        gte:
+          description: Match values greater than or equal to this value.
+          type: number
+        lte:
+          description: Match values less than or equal to this value.
+          type: number
+        gt:
+          description: Match values strictly greater than this value.
+          type: number
+        lt:
+          description: Match values strictly less than this value.
+          type: number
+      type: object
+    DateFilter:
+      properties:
+        gte:
+          description: Match values greater than or equal to this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        lte:
+          description: Match values less than or equal to this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        gt:
+          description: Match values strictly greater than this timestamp (ISO 8601).
+          format: date-time
+          type: string
+        lt:
+          description: Match values strictly less than this timestamp (ISO 8601).
+          format: date-time
+          type: string
       type: object
     AuditLog:
       example:
@@ -15851,5 +16228,5 @@ components:
       scheme: bearer
       type: http
     oauth2:
-      openIdConnectUrl: https://daytonastage.us.auth0.com/.well-known/openid-configuration
+      openIdConnectUrl: http://localhost:3000/.well-known/openid-configuration
       type: openIdConnect

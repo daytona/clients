@@ -124,7 +124,7 @@ func (a *PreviewAPIService) GetSandboxIdFromSignedPreviewUrlTokenExecute(r Previ
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/preview/{signedPreviewToken}/{port}/sandbox-id"
+	localVarPath := localBasePath + "/preview/{signedPreviewToken}/{port}/sandbox-id"
 	localVarPath = strings.Replace(localVarPath, "{"+"signedPreviewToken"+"}", url.PathEscape(parameterValueToString(r.signedPreviewToken, "signedPreviewToken")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"port"+"}", url.PathEscape(parameterValueToString(r.port, "port")), -1)
 
@@ -226,7 +226,7 @@ func (a *PreviewAPIService) HasSandboxAccessExecute(r PreviewAPIHasSandboxAccess
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/preview/{sandboxId}/access"
+	localVarPath := localBasePath + "/preview/{sandboxId}/access"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -327,7 +327,7 @@ func (a *PreviewAPIService) IsSandboxPublicExecute(r PreviewAPIIsSandboxPublicRe
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/preview/{sandboxId}/public"
+	localVarPath := localBasePath + "/preview/{sandboxId}/public"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -431,7 +431,7 @@ func (a *PreviewAPIService) IsValidAuthTokenExecute(r PreviewAPIIsValidAuthToken
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/api/preview/{sandboxId}/validate/{authToken}"
+	localVarPath := localBasePath + "/preview/{sandboxId}/validate/{authToken}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxId"+"}", url.PathEscape(parameterValueToString(r.sandboxId, "sandboxId")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"authToken"+"}", url.PathEscape(parameterValueToString(r.authToken, "authToken")), -1)
 

@@ -91,7 +91,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         archiveSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('archiveSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/archive`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/archive`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -135,7 +135,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         createBackup: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('createBackup', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/backup`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/backup`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -179,7 +179,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         createSandbox: async (createSandbox: CreateSandbox, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createSandbox' is not null or undefined
             assertParamExists('createSandbox', 'createSandbox', createSandbox)
-            const localVarPath = `/api/sandbox`;
+            const localVarPath = `/sandbox`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -227,7 +227,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('createSandboxSnapshot', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'createSandboxSnapshot' is not null or undefined
             assertParamExists('createSandboxSnapshot', 'createSandboxSnapshot', createSandboxSnapshot)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/snapshot`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/snapshot`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -274,7 +274,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         createSshAccess: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, expiresInMinutes?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('createSshAccess', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ssh-access`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ssh-access`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -322,7 +322,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         deleteSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('deleteSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -372,7 +372,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('expireSignedPortPreviewUrl', 'port', port)
             // verify required parameter 'token' is not null or undefined
             assertParamExists('expireSignedPortPreviewUrl', 'token', token)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url/{token}/expire`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"port"}}`, encodeURIComponent(String(port)))
                 .replace(`{${"token"}}`, encodeURIComponent(String(token)));
@@ -420,7 +420,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('forkSandbox', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'forkSandbox' is not null or undefined
             assertParamExists('forkSandbox', 'forkSandbox', forkSandbox)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/fork`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/fork`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -468,7 +468,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getBuildLogs: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, follow?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getBuildLogs', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/build-logs`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/build-logs`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -515,7 +515,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getBuildLogsUrl: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getBuildLogsUrl', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/build-logs-url`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/build-logs-url`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -559,7 +559,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getOrganizationBySandboxId: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getOrganizationBySandboxId', 'sandboxId', sandboxId)
-            const localVarPath = `/api/sandbox/{sandboxId}/organization`
+            const localVarPath = `/sandbox/{sandboxId}/organization`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -606,7 +606,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getPortPreviewUrl', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'port' is not null or undefined
             assertParamExists('getPortPreviewUrl', 'port', port)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ports/{port}/preview-url`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ports/{port}/preview-url`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"port"}}`, encodeURIComponent(String(port)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -651,7 +651,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getRegionQuotaBySandboxId: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getRegionQuotaBySandboxId', 'sandboxId', sandboxId)
-            const localVarPath = `/api/sandbox/{sandboxId}/region-quota`
+            const localVarPath = `/sandbox/{sandboxId}/region-quota`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -696,7 +696,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, verbose?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -744,7 +744,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getSandboxAncestors: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getSandboxAncestors', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ancestors`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ancestors`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -789,7 +789,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getSandboxForks: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, includeDestroyed?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getSandboxForks', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/forks`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/forks`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -847,7 +847,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSandboxLogs', 'from', from)
             // verify required parameter 'to' is not null or undefined
             assertParamExists('getSandboxLogs', 'to', to)
-            const localVarPath = `/api/sandbox/{sandboxId}/telemetry/logs`
+            const localVarPath = `/sandbox/{sandboxId}/telemetry/logs`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -926,7 +926,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSandboxMetrics', 'from', from)
             // verify required parameter 'to' is not null or undefined
             assertParamExists('getSandboxMetrics', 'to', to)
-            const localVarPath = `/api/sandbox/{sandboxId}/telemetry/metrics`
+            const localVarPath = `/sandbox/{sandboxId}/telemetry/metrics`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -986,7 +986,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getSandboxParent: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('getSandboxParent', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/parent`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/parent`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1033,7 +1033,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSandboxTraceSpans', 'sandboxId', sandboxId)
             // verify required parameter 'traceId' is not null or undefined
             assertParamExists('getSandboxTraceSpans', 'traceId', traceId)
-            const localVarPath = `/api/sandbox/{sandboxId}/telemetry/traces/{traceId}`
+            const localVarPath = `/sandbox/{sandboxId}/telemetry/traces/{traceId}`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)))
                 .replace(`{${"traceId"}}`, encodeURIComponent(String(traceId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1086,7 +1086,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSandboxTraces', 'from', from)
             // verify required parameter 'to' is not null or undefined
             assertParamExists('getSandboxTraces', 'to', to)
-            const localVarPath = `/api/sandbox/{sandboxId}/telemetry/traces`
+            const localVarPath = `/sandbox/{sandboxId}/telemetry/traces`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1149,7 +1149,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         getSandboxesForRunner: async (xDaytonaOrganizationID?: string, states?: string, skipReconcilingSandboxes?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/sandbox/for-runner`;
+            const localVarPath = `/sandbox/for-runner`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1204,7 +1204,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getSignedPortPreviewUrl', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'port' is not null or undefined
             assertParamExists('getSignedPortPreviewUrl', 'port', port)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ports/{port}/signed-preview-url`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"port"}}`, encodeURIComponent(String(port)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1253,7 +1253,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         getToolboxProxyUrl: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('getToolboxProxyUrl', 'sandboxId', sandboxId)
-            const localVarPath = `/api/sandbox/{sandboxId}/toolbox-proxy-url`
+            const localVarPath = `/sandbox/{sandboxId}/toolbox-proxy-url`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1318,7 +1318,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listSandboxes: async (xDaytonaOrganizationID?: string, cursor?: string, limit?: number, id?: string, name?: string, labels?: string, includeErroredDeleted?: boolean, states?: Array<SandboxState>, snapshots?: Array<string>, regionIds?: Array<string>, sandboxClasses?: Array<SandboxClass>, minCpu?: number, maxCpu?: number, minMemoryGiB?: number, maxMemoryGiB?: number, minDiskGiB?: number, maxDiskGiB?: number, isPublic?: boolean, isRecoverable?: boolean, createdAtAfter?: Date, createdAtBefore?: Date, lastEventAfter?: Date, lastEventBefore?: Date, sort?: SandboxListSortField, order?: SandboxListSortDirection, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/sandbox`;
+            const localVarPath = `/sandbox`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1482,7 +1482,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listSandboxesPaginatedDeprecated: async (xDaytonaOrganizationID?: string, page?: number, limit?: number, id?: string, name?: string, labels?: string, includeErroredDeleted?: boolean, states?: Array<ListSandboxesPaginatedDeprecatedStatesEnum>, snapshots?: Array<string>, regions?: Array<string>, minCpu?: number, maxCpu?: number, minMemoryGiB?: number, maxMemoryGiB?: number, minDiskGiB?: number, maxDiskGiB?: number, lastEventAfter?: Date, lastEventBefore?: Date, sort?: ListSandboxesPaginatedDeprecatedSortEnum, order?: ListSandboxesPaginatedDeprecatedOrderEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/sandbox/paginated`;
+            const localVarPath = `/sandbox/paginated`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1605,7 +1605,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         pauseSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('pauseSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/pause`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/pause`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1650,7 +1650,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         recoverSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, skipStart?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('recoverSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/recover`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/recover`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1701,7 +1701,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('replaceLabels', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'sandboxLabels' is not null or undefined
             assertParamExists('replaceLabels', 'sandboxLabels', sandboxLabels)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/labels`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/labels`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1750,7 +1750,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('resizeSandbox', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'resizeSandbox' is not null or undefined
             assertParamExists('resizeSandbox', 'resizeSandbox', resizeSandbox)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/resize`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/resize`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1796,7 +1796,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         resolveSandboxSecrets: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('resolveSandboxSecrets', 'sandboxId', sandboxId)
-            const localVarPath = `/api/sandbox/{sandboxId}/secrets`
+            const localVarPath = `/sandbox/{sandboxId}/secrets`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1841,7 +1841,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         revokeSshAccess: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, token?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('revokeSshAccess', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/ssh-access`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ssh-access`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1892,7 +1892,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('setAutoArchiveInterval', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'interval' is not null or undefined
             assertParamExists('setAutoArchiveInterval', 'interval', interval)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/autoarchive/{interval}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/autoarchive/{interval}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"interval"}}`, encodeURIComponent(String(interval)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1940,7 +1940,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('setAutoDeleteInterval', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'interval' is not null or undefined
             assertParamExists('setAutoDeleteInterval', 'interval', interval)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/autodelete/{interval}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/autodelete/{interval}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"interval"}}`, encodeURIComponent(String(interval)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -1988,7 +1988,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('setAutostopInterval', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'interval' is not null or undefined
             assertParamExists('setAutostopInterval', 'interval', interval)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/autostop/{interval}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/autostop/{interval}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"interval"}}`, encodeURIComponent(String(interval)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2033,7 +2033,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         startSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('startSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/start`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/start`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2078,7 +2078,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         stopSandbox: async (sandboxIdOrName: string, xDaytonaOrganizationID?: string, force?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxIdOrName' is not null or undefined
             assertParamExists('stopSandbox', 'sandboxIdOrName', sandboxIdOrName)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/stop`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/stop`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2126,7 +2126,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         updateLastActivity: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'sandboxId' is not null or undefined
             assertParamExists('updateLastActivity', 'sandboxId', sandboxId)
-            const localVarPath = `/api/sandbox/{sandboxId}/last-activity`
+            const localVarPath = `/sandbox/{sandboxId}/last-activity`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2172,7 +2172,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('updateNetworkSettings', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'updateSandboxNetworkSettings' is not null or undefined
             assertParamExists('updateNetworkSettings', 'updateSandboxNetworkSettings', updateSandboxNetworkSettings)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/network-settings`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/network-settings`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2221,7 +2221,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('updatePublicStatus', 'sandboxIdOrName', sandboxIdOrName)
             // verify required parameter 'isPublic' is not null or undefined
             assertParamExists('updatePublicStatus', 'isPublic', isPublic)
-            const localVarPath = `/api/sandbox/{sandboxIdOrName}/public/{isPublic}`
+            const localVarPath = `/sandbox/{sandboxIdOrName}/public/{isPublic}`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
                 .replace(`{${"isPublic"}}`, encodeURIComponent(String(isPublic)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2269,7 +2269,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('updateSandboxState', 'sandboxId', sandboxId)
             // verify required parameter 'updateSandboxStateDto' is not null or undefined
             assertParamExists('updateSandboxState', 'updateSandboxStateDto', updateSandboxStateDto)
-            const localVarPath = `/api/sandbox/{sandboxId}/state`
+            const localVarPath = `/sandbox/{sandboxId}/state`
                 .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2314,7 +2314,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         validateSshAccess: async (token: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'token' is not null or undefined
             assertParamExists('validateSshAccess', 'token', token)
-            const localVarPath = `/api/sandbox/ssh-access/validate`;
+            const localVarPath = `/sandbox/ssh-access/validate`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

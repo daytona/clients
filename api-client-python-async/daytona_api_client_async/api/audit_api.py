@@ -20,7 +20,10 @@ from datetime import datetime
 from pydantic import Field, StrictStr
 from typing import Optional, Union
 from typing_extensions import Annotated
+from daytona_api_client_async.models.date_filter import DateFilter
+from daytona_api_client_async.models.int_filter import IntFilter
 from daytona_api_client_async.models.paginated_audit_logs import PaginatedAuditLogs
+from daytona_api_client_async.models.string_filter import StringFilter
 
 from daytona_api_client_async.api_client import ApiClient, RequestSerialized
 from daytona_api_client_async.api_response import ApiResponse
@@ -46,9 +49,19 @@ class AuditApi:
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
-        var_from: Annotated[Optional[datetime], Field(description="From date (ISO 8601 format)")] = None,
-        to: Annotated[Optional[datetime], Field(description="To date (ISO 8601 format)")] = None,
+        var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
+        to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
+        id: Annotated[Optional[StringFilter], Field(description="Filter by audit log ID.")] = None,
+        actor_id: Annotated[Optional[StringFilter], Field(description="Filter by actor user ID.")] = None,
+        actor_email: Annotated[Optional[StringFilter], Field(description="Filter by actor email.")] = None,
+        actor_api_key_prefix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key prefix.")] = None,
+        actor_api_key_suffix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key suffix.")] = None,
+        action: Annotated[Optional[StringFilter], Field(description="Filter by action.")] = None,
+        target_type: Annotated[Optional[StringFilter], Field(description="Filter by target type.")] = None,
+        target_id: Annotated[Optional[StringFilter], Field(description="Filter by target ID.")] = None,
+        status_code: Annotated[Optional[IntFilter], Field(description="Filter by HTTP status code.")] = None,
+        created_at: Annotated[Optional[DateFilter], Field(description="Filter by creation timestamp.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -71,12 +84,32 @@ class AuditApi:
         :type page: float
         :param limit: Number of results per page
         :type limit: float
-        :param var_from: From date (ISO 8601 format)
+        :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
-        :param to: To date (ISO 8601 format)
+        :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).
         :type to: datetime
         :param next_token: Token for cursor-based pagination. When provided, takes precedence over page parameter.
         :type next_token: str
+        :param id: Filter by audit log ID.
+        :type id: StringFilter
+        :param actor_id: Filter by actor user ID.
+        :type actor_id: StringFilter
+        :param actor_email: Filter by actor email.
+        :type actor_email: StringFilter
+        :param actor_api_key_prefix: Filter by actor API key prefix.
+        :type actor_api_key_prefix: StringFilter
+        :param actor_api_key_suffix: Filter by actor API key suffix.
+        :type actor_api_key_suffix: StringFilter
+        :param action: Filter by action.
+        :type action: StringFilter
+        :param target_type: Filter by target type.
+        :type target_type: StringFilter
+        :param target_id: Filter by target ID.
+        :type target_id: StringFilter
+        :param status_code: Filter by HTTP status code.
+        :type status_code: IntFilter
+        :param created_at: Filter by creation timestamp.
+        :type created_at: DateFilter
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -106,6 +139,16 @@ class AuditApi:
             var_from=var_from,
             to=to,
             next_token=next_token,
+            id=id,
+            actor_id=actor_id,
+            actor_email=actor_email,
+            actor_api_key_prefix=actor_api_key_prefix,
+            actor_api_key_suffix=actor_api_key_suffix,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            status_code=status_code,
+            created_at=created_at,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -132,9 +175,19 @@ class AuditApi:
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
-        var_from: Annotated[Optional[datetime], Field(description="From date (ISO 8601 format)")] = None,
-        to: Annotated[Optional[datetime], Field(description="To date (ISO 8601 format)")] = None,
+        var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
+        to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
+        id: Annotated[Optional[StringFilter], Field(description="Filter by audit log ID.")] = None,
+        actor_id: Annotated[Optional[StringFilter], Field(description="Filter by actor user ID.")] = None,
+        actor_email: Annotated[Optional[StringFilter], Field(description="Filter by actor email.")] = None,
+        actor_api_key_prefix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key prefix.")] = None,
+        actor_api_key_suffix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key suffix.")] = None,
+        action: Annotated[Optional[StringFilter], Field(description="Filter by action.")] = None,
+        target_type: Annotated[Optional[StringFilter], Field(description="Filter by target type.")] = None,
+        target_id: Annotated[Optional[StringFilter], Field(description="Filter by target ID.")] = None,
+        status_code: Annotated[Optional[IntFilter], Field(description="Filter by HTTP status code.")] = None,
+        created_at: Annotated[Optional[DateFilter], Field(description="Filter by creation timestamp.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -157,12 +210,32 @@ class AuditApi:
         :type page: float
         :param limit: Number of results per page
         :type limit: float
-        :param var_from: From date (ISO 8601 format)
+        :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
-        :param to: To date (ISO 8601 format)
+        :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).
         :type to: datetime
         :param next_token: Token for cursor-based pagination. When provided, takes precedence over page parameter.
         :type next_token: str
+        :param id: Filter by audit log ID.
+        :type id: StringFilter
+        :param actor_id: Filter by actor user ID.
+        :type actor_id: StringFilter
+        :param actor_email: Filter by actor email.
+        :type actor_email: StringFilter
+        :param actor_api_key_prefix: Filter by actor API key prefix.
+        :type actor_api_key_prefix: StringFilter
+        :param actor_api_key_suffix: Filter by actor API key suffix.
+        :type actor_api_key_suffix: StringFilter
+        :param action: Filter by action.
+        :type action: StringFilter
+        :param target_type: Filter by target type.
+        :type target_type: StringFilter
+        :param target_id: Filter by target ID.
+        :type target_id: StringFilter
+        :param status_code: Filter by HTTP status code.
+        :type status_code: IntFilter
+        :param created_at: Filter by creation timestamp.
+        :type created_at: DateFilter
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -192,6 +265,16 @@ class AuditApi:
             var_from=var_from,
             to=to,
             next_token=next_token,
+            id=id,
+            actor_id=actor_id,
+            actor_email=actor_email,
+            actor_api_key_prefix=actor_api_key_prefix,
+            actor_api_key_suffix=actor_api_key_suffix,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            status_code=status_code,
+            created_at=created_at,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -218,9 +301,19 @@ class AuditApi:
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
-        var_from: Annotated[Optional[datetime], Field(description="From date (ISO 8601 format)")] = None,
-        to: Annotated[Optional[datetime], Field(description="To date (ISO 8601 format)")] = None,
+        var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
+        to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
+        id: Annotated[Optional[StringFilter], Field(description="Filter by audit log ID.")] = None,
+        actor_id: Annotated[Optional[StringFilter], Field(description="Filter by actor user ID.")] = None,
+        actor_email: Annotated[Optional[StringFilter], Field(description="Filter by actor email.")] = None,
+        actor_api_key_prefix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key prefix.")] = None,
+        actor_api_key_suffix: Annotated[Optional[StringFilter], Field(description="Filter by actor API key suffix.")] = None,
+        action: Annotated[Optional[StringFilter], Field(description="Filter by action.")] = None,
+        target_type: Annotated[Optional[StringFilter], Field(description="Filter by target type.")] = None,
+        target_id: Annotated[Optional[StringFilter], Field(description="Filter by target ID.")] = None,
+        status_code: Annotated[Optional[IntFilter], Field(description="Filter by HTTP status code.")] = None,
+        created_at: Annotated[Optional[DateFilter], Field(description="Filter by creation timestamp.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -243,12 +336,32 @@ class AuditApi:
         :type page: float
         :param limit: Number of results per page
         :type limit: float
-        :param var_from: From date (ISO 8601 format)
+        :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
-        :param to: To date (ISO 8601 format)
+        :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).
         :type to: datetime
         :param next_token: Token for cursor-based pagination. When provided, takes precedence over page parameter.
         :type next_token: str
+        :param id: Filter by audit log ID.
+        :type id: StringFilter
+        :param actor_id: Filter by actor user ID.
+        :type actor_id: StringFilter
+        :param actor_email: Filter by actor email.
+        :type actor_email: StringFilter
+        :param actor_api_key_prefix: Filter by actor API key prefix.
+        :type actor_api_key_prefix: StringFilter
+        :param actor_api_key_suffix: Filter by actor API key suffix.
+        :type actor_api_key_suffix: StringFilter
+        :param action: Filter by action.
+        :type action: StringFilter
+        :param target_type: Filter by target type.
+        :type target_type: StringFilter
+        :param target_id: Filter by target ID.
+        :type target_id: StringFilter
+        :param status_code: Filter by HTTP status code.
+        :type status_code: IntFilter
+        :param created_at: Filter by creation timestamp.
+        :type created_at: DateFilter
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -278,6 +391,16 @@ class AuditApi:
             var_from=var_from,
             to=to,
             next_token=next_token,
+            id=id,
+            actor_id=actor_id,
+            actor_email=actor_email,
+            actor_api_key_prefix=actor_api_key_prefix,
+            actor_api_key_suffix=actor_api_key_suffix,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            status_code=status_code,
+            created_at=created_at,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -302,6 +425,16 @@ class AuditApi:
         var_from,
         to,
         next_token,
+        id,
+        actor_id,
+        actor_email,
+        actor_api_key_prefix,
+        actor_api_key_suffix,
+        action,
+        target_type,
+        target_id,
+        status_code,
+        created_at,
         _request_auth,
         _content_type,
         _headers,
@@ -364,6 +497,46 @@ class AuditApi:
             
             _query_params.append(('nextToken', next_token))
             
+        if id is not None:
+            
+            _query_params.append(('id', id))
+            
+        if actor_id is not None:
+            
+            _query_params.append(('actorId', actor_id))
+            
+        if actor_email is not None:
+            
+            _query_params.append(('actorEmail', actor_email))
+            
+        if actor_api_key_prefix is not None:
+            
+            _query_params.append(('actorApiKeyPrefix', actor_api_key_prefix))
+            
+        if actor_api_key_suffix is not None:
+            
+            _query_params.append(('actorApiKeySuffix', actor_api_key_suffix))
+            
+        if action is not None:
+            
+            _query_params.append(('action', action))
+            
+        if target_type is not None:
+            
+            _query_params.append(('targetType', target_type))
+            
+        if target_id is not None:
+            
+            _query_params.append(('targetId', target_id))
+            
+        if status_code is not None:
+            
+            _query_params.append(('statusCode', status_code))
+            
+        if created_at is not None:
+            
+            _query_params.append(('createdAt', created_at))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -386,7 +559,7 @@ class AuditApi:
 
         return self.api_client.param_serialize(
             method='GET',
-            resource_path='/api/audit/organizations/{organizationId}',
+            resource_path='/audit/organizations/{organizationId}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

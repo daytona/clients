@@ -59,6 +59,7 @@ model_create_session_request.go
 model_create_snapshot.go
 model_create_user.go
 model_create_volume.go
+model_date_filter.go
 model_daytona_configuration.go
 model_display_info_response.go
 model_docker_registry.go
@@ -82,6 +83,7 @@ model_gpu_type.go
 model_health_controller_check_200_response.go
 model_health_controller_check_200_response_info_value.go
 model_health_controller_check_503_response.go
+model_int_filter.go
 model_job.go
 model_job_status.go
 model_job_type.go
@@ -184,6 +186,7 @@ model_snapshot_state.go
 model_ssh_access_dto.go
 model_ssh_access_validation_dto.go
 model_storage_access_dto.go
+model_string_filter.go
 model_toolbox_proxy_url.go
 model_trace_span.go
 model_trace_summary.go

@@ -108,7 +108,7 @@ public class RunnersApi {
         Object localVarPostBody = createRunner;
 
         // create path and map variables
-        String localVarPath = "/api/runners";
+        String localVarPath = "/runners";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -244,7 +244,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/{id}"
+        String localVarPath = "/runners/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -373,7 +373,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/me";
+        String localVarPath = "/runners/me";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -492,7 +492,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/{id}"
+        String localVarPath = "/runners/{id}"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -627,7 +627,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/by-sandbox/{sandboxId}"
+        String localVarPath = "/runners/by-sandbox/{sandboxId}"
             .replace("{" + "sandboxId" + "}", localVarApiClient.escapeString(sandboxId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -754,7 +754,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/{id}/full"
+        String localVarPath = "/runners/{id}/full"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -881,7 +881,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/by-snapshot-ref";
+        String localVarPath = "/runners/by-snapshot-ref";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1012,7 +1012,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners";
+        String localVarPath = "/runners";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1145,7 +1145,7 @@ public class RunnersApi {
         Object localVarPostBody = runnerHealthcheck;
 
         // create path and map variables
-        String localVarPath = "/api/runners/healthcheck";
+        String localVarPath = "/runners/healthcheck";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -1268,7 +1268,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/{id}/draining"
+        String localVarPath = "/runners/{id}/draining"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -1404,7 +1404,7 @@ public class RunnersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/runners/{id}/scheduling"
+        String localVarPath = "/runners/{id}/scheduling"
             .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();

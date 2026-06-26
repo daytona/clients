@@ -132,6 +132,7 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSnapshot.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateUser.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateVolume.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.DateFilter.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.DaytonaConfiguration.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.DisplayInfoResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.DockerRegistry.CustomTypeAdapterFactory());
@@ -154,6 +155,7 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.HealthControllerCheck200Response.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.HealthControllerCheck200ResponseInfoValue.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.HealthControllerCheck503Response.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.IntFilter.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.Job.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.KeyboardHotkeyRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.KeyboardPressRequest.CustomTypeAdapterFactory());
@@ -245,6 +247,7 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.SshAccessDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.SshAccessValidationDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.StorageAccessDto.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.StringFilter.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.ToolboxProxyUrl.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.TraceSpan.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.TraceSummary.CustomTypeAdapterFactory());

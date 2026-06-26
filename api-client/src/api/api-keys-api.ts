@@ -43,7 +43,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
         createApiKey: async (createApiKey: CreateApiKey, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'createApiKey' is not null or undefined
             assertParamExists('createApiKey', 'createApiKey', createApiKey)
-            const localVarPath = `/api/api-keys`;
+            const localVarPath = `/api-keys`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -88,7 +88,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
         deleteApiKey: async (name: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'name' is not null or undefined
             assertParamExists('deleteApiKey', 'name', name)
-            const localVarPath = `/api/api-keys/{name}`
+            const localVarPath = `/api-keys/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -134,7 +134,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('deleteApiKeyForUser', 'userId', userId)
             // verify required parameter 'name' is not null or undefined
             assertParamExists('deleteApiKeyForUser', 'name', name)
-            const localVarPath = `/api/api-keys/{userId}/{name}`
+            const localVarPath = `/api-keys/{userId}/{name}`
                 .replace(`{${"userId"}}`, encodeURIComponent(String(userId)))
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -178,7 +178,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
         getApiKey: async (name: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'name' is not null or undefined
             assertParamExists('getApiKey', 'name', name)
-            const localVarPath = `/api/api-keys/{name}`
+            const localVarPath = `/api-keys/{name}`
                 .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -219,7 +219,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         getCurrentApiKey: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/api-keys/current`;
+            const localVarPath = `/api-keys/current`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -259,7 +259,7 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         listApiKeys: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/api-keys`;
+            const localVarPath = `/api-keys`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;

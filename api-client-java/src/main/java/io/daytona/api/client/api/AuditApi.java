@@ -28,8 +28,11 @@ import java.io.IOException;
 
 
 import java.math.BigDecimal;
+import io.daytona.api.client.model.DateFilter;
+import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
 import io.daytona.api.client.model.PaginatedAuditLogs;
+import io.daytona.api.client.model.StringFilter;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -79,9 +82,19 @@ public class AuditApi {
      * @param organizationId Organization ID (required)
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
-     * @param from From date (ISO 8601 format) (optional)
-     * @param to To date (ISO 8601 format) (optional)
+     * @param from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format). (optional)
+     * @param to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format). (optional)
      * @param nextToken Token for cursor-based pagination. When provided, takes precedence over page parameter. (optional)
+     * @param id Filter by audit log ID. (optional)
+     * @param actorId Filter by actor user ID. (optional)
+     * @param actorEmail Filter by actor email. (optional)
+     * @param actorApiKeyPrefix Filter by actor API key prefix. (optional)
+     * @param actorApiKeySuffix Filter by actor API key suffix. (optional)
+     * @param action Filter by action. (optional)
+     * @param targetType Filter by target type. (optional)
+     * @param targetId Filter by target ID. (optional)
+     * @param statusCode Filter by HTTP status code. (optional)
+     * @param createdAt Filter by creation timestamp. (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -92,7 +105,7 @@ public class AuditApi {
         <tr><td> 200 </td><td> Paginated list of organization audit logs </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getOrganizationAuditLogsCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call getOrganizationAuditLogsCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, @javax.annotation.Nullable StringFilter id, @javax.annotation.Nullable StringFilter actorId, @javax.annotation.Nullable StringFilter actorEmail, @javax.annotation.Nullable StringFilter actorApiKeyPrefix, @javax.annotation.Nullable StringFilter actorApiKeySuffix, @javax.annotation.Nullable StringFilter action, @javax.annotation.Nullable StringFilter targetType, @javax.annotation.Nullable StringFilter targetId, @javax.annotation.Nullable IntFilter statusCode, @javax.annotation.Nullable DateFilter createdAt, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -109,7 +122,7 @@ public class AuditApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/audit/organizations/{organizationId}"
+        String localVarPath = "/audit/organizations/{organizationId}"
             .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
@@ -138,6 +151,46 @@ public class AuditApi {
             localVarQueryParams.addAll(localVarApiClient.parameterToPair("nextToken", nextToken));
         }
 
+        if (id != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("id", id));
+        }
+
+        if (actorId != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("actorId", actorId));
+        }
+
+        if (actorEmail != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("actorEmail", actorEmail));
+        }
+
+        if (actorApiKeyPrefix != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("actorApiKeyPrefix", actorApiKeyPrefix));
+        }
+
+        if (actorApiKeySuffix != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("actorApiKeySuffix", actorApiKeySuffix));
+        }
+
+        if (action != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("action", action));
+        }
+
+        if (targetType != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("targetType", targetType));
+        }
+
+        if (targetId != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("targetId", targetId));
+        }
+
+        if (statusCode != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("statusCode", statusCode));
+        }
+
+        if (createdAt != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("createdAt", createdAt));
+        }
+
         final String[] localVarAccepts = {
             "application/json"
         };
@@ -158,13 +211,13 @@ public class AuditApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call getOrganizationAuditLogsValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call getOrganizationAuditLogsValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, @javax.annotation.Nullable StringFilter id, @javax.annotation.Nullable StringFilter actorId, @javax.annotation.Nullable StringFilter actorEmail, @javax.annotation.Nullable StringFilter actorApiKeyPrefix, @javax.annotation.Nullable StringFilter actorApiKeySuffix, @javax.annotation.Nullable StringFilter action, @javax.annotation.Nullable StringFilter targetType, @javax.annotation.Nullable StringFilter targetId, @javax.annotation.Nullable IntFilter statusCode, @javax.annotation.Nullable DateFilter createdAt, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'organizationId' is set
         if (organizationId == null) {
             throw new ApiException("Missing the required parameter 'organizationId' when calling getOrganizationAuditLogs(Async)");
         }
 
-        return getOrganizationAuditLogsCall(organizationId, page, limit, from, to, nextToken, _callback);
+        return getOrganizationAuditLogsCall(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, _callback);
 
     }
 
@@ -174,9 +227,19 @@ public class AuditApi {
      * @param organizationId Organization ID (required)
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
-     * @param from From date (ISO 8601 format) (optional)
-     * @param to To date (ISO 8601 format) (optional)
+     * @param from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format). (optional)
+     * @param to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format). (optional)
      * @param nextToken Token for cursor-based pagination. When provided, takes precedence over page parameter. (optional)
+     * @param id Filter by audit log ID. (optional)
+     * @param actorId Filter by actor user ID. (optional)
+     * @param actorEmail Filter by actor email. (optional)
+     * @param actorApiKeyPrefix Filter by actor API key prefix. (optional)
+     * @param actorApiKeySuffix Filter by actor API key suffix. (optional)
+     * @param action Filter by action. (optional)
+     * @param targetType Filter by target type. (optional)
+     * @param targetId Filter by target ID. (optional)
+     * @param statusCode Filter by HTTP status code. (optional)
+     * @param createdAt Filter by creation timestamp. (optional)
      * @return PaginatedAuditLogs
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -186,8 +249,8 @@ public class AuditApi {
         <tr><td> 200 </td><td> Paginated list of organization audit logs </td><td>  -  </td></tr>
      </table>
      */
-    public PaginatedAuditLogs getOrganizationAuditLogs(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken) throws ApiException {
-        ApiResponse<PaginatedAuditLogs> localVarResp = getOrganizationAuditLogsWithHttpInfo(organizationId, page, limit, from, to, nextToken);
+    public PaginatedAuditLogs getOrganizationAuditLogs(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, @javax.annotation.Nullable StringFilter id, @javax.annotation.Nullable StringFilter actorId, @javax.annotation.Nullable StringFilter actorEmail, @javax.annotation.Nullable StringFilter actorApiKeyPrefix, @javax.annotation.Nullable StringFilter actorApiKeySuffix, @javax.annotation.Nullable StringFilter action, @javax.annotation.Nullable StringFilter targetType, @javax.annotation.Nullable StringFilter targetId, @javax.annotation.Nullable IntFilter statusCode, @javax.annotation.Nullable DateFilter createdAt) throws ApiException {
+        ApiResponse<PaginatedAuditLogs> localVarResp = getOrganizationAuditLogsWithHttpInfo(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt);
         return localVarResp.getData();
     }
 
@@ -197,9 +260,19 @@ public class AuditApi {
      * @param organizationId Organization ID (required)
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
-     * @param from From date (ISO 8601 format) (optional)
-     * @param to To date (ISO 8601 format) (optional)
+     * @param from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format). (optional)
+     * @param to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format). (optional)
      * @param nextToken Token for cursor-based pagination. When provided, takes precedence over page parameter. (optional)
+     * @param id Filter by audit log ID. (optional)
+     * @param actorId Filter by actor user ID. (optional)
+     * @param actorEmail Filter by actor email. (optional)
+     * @param actorApiKeyPrefix Filter by actor API key prefix. (optional)
+     * @param actorApiKeySuffix Filter by actor API key suffix. (optional)
+     * @param action Filter by action. (optional)
+     * @param targetType Filter by target type. (optional)
+     * @param targetId Filter by target ID. (optional)
+     * @param statusCode Filter by HTTP status code. (optional)
+     * @param createdAt Filter by creation timestamp. (optional)
      * @return ApiResponse&lt;PaginatedAuditLogs&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -209,8 +282,8 @@ public class AuditApi {
         <tr><td> 200 </td><td> Paginated list of organization audit logs </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<PaginatedAuditLogs> getOrganizationAuditLogsWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken) throws ApiException {
-        okhttp3.Call localVarCall = getOrganizationAuditLogsValidateBeforeCall(organizationId, page, limit, from, to, nextToken, null);
+    public ApiResponse<PaginatedAuditLogs> getOrganizationAuditLogsWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, @javax.annotation.Nullable StringFilter id, @javax.annotation.Nullable StringFilter actorId, @javax.annotation.Nullable StringFilter actorEmail, @javax.annotation.Nullable StringFilter actorApiKeyPrefix, @javax.annotation.Nullable StringFilter actorApiKeySuffix, @javax.annotation.Nullable StringFilter action, @javax.annotation.Nullable StringFilter targetType, @javax.annotation.Nullable StringFilter targetId, @javax.annotation.Nullable IntFilter statusCode, @javax.annotation.Nullable DateFilter createdAt) throws ApiException {
+        okhttp3.Call localVarCall = getOrganizationAuditLogsValidateBeforeCall(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, null);
         Type localVarReturnType = new TypeToken<PaginatedAuditLogs>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
@@ -221,9 +294,19 @@ public class AuditApi {
      * @param organizationId Organization ID (required)
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
-     * @param from From date (ISO 8601 format) (optional)
-     * @param to To date (ISO 8601 format) (optional)
+     * @param from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format). (optional)
+     * @param to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format). (optional)
      * @param nextToken Token for cursor-based pagination. When provided, takes precedence over page parameter. (optional)
+     * @param id Filter by audit log ID. (optional)
+     * @param actorId Filter by actor user ID. (optional)
+     * @param actorEmail Filter by actor email. (optional)
+     * @param actorApiKeyPrefix Filter by actor API key prefix. (optional)
+     * @param actorApiKeySuffix Filter by actor API key suffix. (optional)
+     * @param action Filter by action. (optional)
+     * @param targetType Filter by target type. (optional)
+     * @param targetId Filter by target ID. (optional)
+     * @param statusCode Filter by HTTP status code. (optional)
+     * @param createdAt Filter by creation timestamp. (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -234,9 +317,9 @@ public class AuditApi {
         <tr><td> 200 </td><td> Paginated list of organization audit logs </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getOrganizationAuditLogsAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, final ApiCallback<PaginatedAuditLogs> _callback) throws ApiException {
+    public okhttp3.Call getOrganizationAuditLogsAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable OffsetDateTime from, @javax.annotation.Nullable OffsetDateTime to, @javax.annotation.Nullable String nextToken, @javax.annotation.Nullable StringFilter id, @javax.annotation.Nullable StringFilter actorId, @javax.annotation.Nullable StringFilter actorEmail, @javax.annotation.Nullable StringFilter actorApiKeyPrefix, @javax.annotation.Nullable StringFilter actorApiKeySuffix, @javax.annotation.Nullable StringFilter action, @javax.annotation.Nullable StringFilter targetType, @javax.annotation.Nullable StringFilter targetId, @javax.annotation.Nullable IntFilter statusCode, @javax.annotation.Nullable DateFilter createdAt, final ApiCallback<PaginatedAuditLogs> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = getOrganizationAuditLogsValidateBeforeCall(organizationId, page, limit, from, to, nextToken, _callback);
+        okhttp3.Call localVarCall = getOrganizationAuditLogsValidateBeforeCall(organizationId, page, limit, from, to, nextToken, id, actorId, actorEmail, actorApiKeyPrefix, actorApiKeySuffix, action, targetType, targetId, statusCode, createdAt, _callback);
         Type localVarReturnType = new TypeToken<PaginatedAuditLogs>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;

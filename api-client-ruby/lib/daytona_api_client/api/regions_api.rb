@@ -35,7 +35,7 @@ module DaytonaApiClient
         @api_client.config.logger.debug 'Calling API: RegionsApi.list_shared_regions ...'
       end
       # resource path
-      local_var_path = '/api/shared-regions'
+      local_var_path = '/shared-regions'
 
       # query parameters
       query_params = opts[:query_params] || {}
