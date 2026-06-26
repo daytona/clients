@@ -1,32 +1,48 @@
 header:
-  license:
-    spdx-id: Apache-2.0
-    copyright-owner: Daytona Platforms Inc.
-    content: |
-      Copyright Daytona Platforms Inc.
-      SPDX-License-Identifier: Apache-2.0
-    pattern: |
-      Copyright (\d{4} )?Daytona Platforms Inc\.
-      SPDX-License-Identifier: Apache-2\.0
-  paths:
-    - 'cli/**/*.go'
-    - 'cli/**/*.sh'
-    - 'sdk-go/**/*.go'
-    - 'sdk-go/**/*.sh'
-    - 'sdk-typescript/**/*.js'
-    - 'sdk-typescript/**/*.ts'
-    - 'sdk-typescript/**/*.tsx'
-    - 'sdk-python/**/*.py'
-    - 'sdk-ruby/**/*.rb'
-    - 'sdk-java/**/*.java'
+  # CLI is licensed under AGPL-3.0 (see cli/LICENSE). The rest of the repo
+  # defaults to Apache-2.0 (see LICENSE / COPYRIGHT).
+  - license:
+      spdx-id: AGPL-3.0
+      copyright-owner: Daytona Platforms Inc.
+      content: |
+        Copyright Daytona Platforms Inc.
+        SPDX-License-Identifier: AGPL-3.0
+      pattern: |
+        Copyright (\d{4} )?Daytona Platforms Inc\.
+        SPDX-License-Identifier: AGPL-3\.0
+    paths:
+      - 'cli/**/*.go'
+      - 'cli/**/*.sh'
+    paths-ignore:
+      - '**/node_modules/**'
+      - '**/dist/**'
+      - '**/build/**'
+    comment: on-failure
 
-  paths-ignore:
-    - '**/*api-client*/**'
-    - 'hack/**'
-    - '**/node_modules/**'
-    - '**/dist/**'
-    - '**/build/**'
-    - '**/.venv/**'
-    - '**/.gradle/**'
-
-  comment: on-failure
+  - license:
+      spdx-id: Apache-2.0
+      copyright-owner: Daytona Platforms Inc.
+      content: |
+        Copyright Daytona Platforms Inc.
+        SPDX-License-Identifier: Apache-2.0
+      pattern: |
+        Copyright (\d{4} )?Daytona Platforms Inc\.
+        SPDX-License-Identifier: Apache-2\.0
+    paths:
+      - 'sdk-go/**/*.go'
+      - 'sdk-go/**/*.sh'
+      - 'sdk-typescript/**/*.js'
+      - 'sdk-typescript/**/*.ts'
+      - 'sdk-typescript/**/*.tsx'
+      - 'sdk-python/**/*.py'
+      - 'sdk-ruby/**/*.rb'
+      - 'sdk-java/**/*.java'
+    paths-ignore:
+      - '**/*api-client*/**'
+      - 'hack/**'
+      - '**/node_modules/**'
+      - '**/dist/**'
+      - '**/build/**'
+      - '**/.venv/**'
+      - '**/.gradle/**'
+    comment: on-failure
