@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"go.daytona.io/sdk-go/pkg/daytona"
-	"go.daytona.io/sdk-go/pkg/types"
+	"github.com/daytona/clients/sdk-go/pkg/daytona"
+	"github.com/daytona/clients/sdk-go/pkg/types"
 )
 
 func main() {

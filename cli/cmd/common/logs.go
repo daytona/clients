@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/daytona/clients/cli/config"
 	log "github.com/sirupsen/logrus"
-	"go.daytona.io/cli/config"
 )
 
 type ReadLogParams struct {

@@ -18,7 +18,7 @@ participating, you are expected to uphold it. Please report unacceptable behavio
 Found a bug or have an idea for the SDKs, clients, or CLI? Please
 [open an issue](https://github.com/daytona/clients/issues/new) — but first check that a
 matching issue doesn't already exist. For questions and discussion, join the
-[Daytona Community Slack](https://go.daytona.io/slack).
+[Daytona Community Slack](https://github.com/daytona/clients/slack).
 
 ## What you can contribute
 

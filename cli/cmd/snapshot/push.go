@@ -12,17 +12,17 @@ import (
 	"strings"
 	"time"
 
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/cmd/common"
+	"github.com/daytona/clients/cli/docker"
+	views_common "github.com/daytona/clients/cli/views/common"
+	views_util "github.com/daytona/clients/cli/views/util"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/spf13/cobra"
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/cmd/common"
-	"go.daytona.io/cli/docker"
-	views_common "go.daytona.io/cli/views/common"
-	views_util "go.daytona.io/cli/views/util"
 )
 
 var PushCmd = &cobra.Command{

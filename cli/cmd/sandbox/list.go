@@ -7,11 +7,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/cmd/common"
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/views/sandbox"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/cmd/common"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/views/sandbox"
 )
 
 var (

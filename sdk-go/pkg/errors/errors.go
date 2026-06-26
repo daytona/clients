@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net/http"
 
-	apiclient "go.daytona.io/api-client-go"
-	"go.daytona.io/toolbox-api-client-go"
+	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/toolbox-api-client-go"
 )
 
 // DaytonaError is the base error type for all Daytona SDK errors

@@ -10,10 +10,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/daytona/clients/sdk-go/pkg/options"
+	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.daytona.io/sdk-go/pkg/options"
-	toolbox "go.daytona.io/toolbox-api-client-go"
 )
 
 func TestGitServiceCreation(t *testing.T) {

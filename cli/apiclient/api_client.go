@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	apiclient "go.daytona.io/api-client-go"
-	"go.daytona.io/cli/auth"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/internal"
+	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/cli/auth"
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
 
 	log "github.com/sirupsen/logrus"
 )

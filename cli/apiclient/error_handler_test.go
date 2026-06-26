@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"go.daytona.io/cli/apiclient"
+	"github.com/daytona/clients/cli/apiclient"
 )
 
 func response(statusCode int, body string) *http.Response {

@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net/http"
 
+	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/google/uuid"
-	apiclient "go.daytona.io/api-client-go"
-	apiclient_cli "go.daytona.io/cli/apiclient"
 )
 
 // isVolumeId reports whether the argument is a canonical UUID (the length check

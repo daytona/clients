@@ -6,9 +6,9 @@ package organization
 import (
 	"errors"
 
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/internal"
 )
 
 var OrganizationCmd = &cobra.Command{

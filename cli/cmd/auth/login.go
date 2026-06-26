@@ -8,13 +8,13 @@ import (
 	"fmt"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/daytona/clients/cli/auth"
+	"github.com/daytona/clients/cli/cmd/common"
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
+	view_common "github.com/daytona/clients/cli/views/common"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/auth"
-	"go.daytona.io/cli/cmd/common"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/internal"
-	view_common "go.daytona.io/cli/views/common"
 	"golang.org/x/oauth2"
 )
 

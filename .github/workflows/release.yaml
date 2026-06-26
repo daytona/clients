@@ -13,7 +13,7 @@ permissions: {}
 env:
   VERSION: ${{ inputs.version }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
-  GONOSUMDB: go.daytona.io
+  GONOSUMDB: github.com/daytona/clients
 
 jobs:
   release:
@@ -134,7 +134,7 @@ jobs:
       - name: Sync go.sum and create PR
         run: |
           git checkout -b "sync-gosum-$VERSION"
-          GONOSUMDB=go.daytona.io go work sync
+          GONOSUMDB=github.com/daytona/clients go work sync
           git add -A
           if git diff --cached --quiet; then
             echo "No go workspace changes detected; skipping commit and PR creation."

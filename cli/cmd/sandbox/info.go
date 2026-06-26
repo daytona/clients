@@ -6,10 +6,10 @@ package sandbox
 import (
 	"context"
 
+	"github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/cmd/common"
+	"github.com/daytona/clients/cli/views/sandbox"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/cmd/common"
-	"go.daytona.io/cli/views/sandbox"
 )
 
 var InfoCmd = &cobra.Command{

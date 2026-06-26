@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
+	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/types"
+	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiclient "go.daytona.io/api-client-go"
-	"go.daytona.io/sdk-go/pkg/types"
-	toolbox "go.daytona.io/toolbox-api-client-go"
 )
 
 func TestNewSandboxConstruction(t *testing.T) {

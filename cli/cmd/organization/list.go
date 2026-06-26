@@ -6,11 +6,11 @@ package organization
 import (
 	"context"
 
+	"github.com/daytona/clients/cli/apiclient"
+	"github.com/daytona/clients/cli/cmd/common"
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/views/organization"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/apiclient"
-	"go.daytona.io/cli/cmd/common"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/views/organization"
 )
 
 var ListCmd = &cobra.Command{

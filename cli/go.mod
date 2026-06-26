@@ -1,4 +1,4 @@
-module go.daytona.io/cli
+module github.com/daytona/clients/cli
 
 go 1.25.4
 
@@ -10,7 +10,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
-	go.daytona.io/api-client-go v0.192.0
+	github.com/daytona/clients/api-client-go v0.192.0
 	golang.org/x/oauth2 v0.35.0
 )
 

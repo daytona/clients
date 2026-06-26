@@ -4,10 +4,10 @@
 package auth
 
 import (
+	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
+	"github.com/daytona/clients/cli/views/common"
 	"github.com/spf13/cobra"
-	"go.daytona.io/cli/config"
-	"go.daytona.io/cli/internal"
-	"go.daytona.io/cli/views/common"
 )
 
 var LogoutCmd = &cobra.Command{
