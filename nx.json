@@ -177,7 +177,8 @@
     },
     "version": {
       "manifestRootsToUpdate": ["dist"],
-      "conventionalCommits": true
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
     },
     "conventionalCommits": {
       "types": {
