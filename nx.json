@@ -170,6 +170,7 @@
   "release": {
     "projects": ["sdk-typescript", "sdk-python", "api-client", "toolbox-api-client", "analytics-api-client"],
     "changelog": {
+      "automaticFromRef": true,
       "workspaceChangelog": {
         "file": false,
         "createRelease": "github"
