@@ -79,4 +79,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines. Please kee
 
 ## License
 
-Apache-2.0
+This repository uses a dual-license model. See [LICENSE](./LICENSE) for details.
+
+- **CLI** (`cli/`): [AGPL-3.0](./cli/LICENSE)
+- **Everything else** (SDKs, API clients, examples): [Apache-2.0](./LICENSE)
