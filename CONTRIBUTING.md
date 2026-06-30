@@ -43,6 +43,7 @@ Use the Nix dev shells (`nix develop`, or `.#go` / `.#node` / `.#python` / `.#ru
 yarn install
 poetry install
 bundle install
+go work sync
 ```
 
 Common commands:

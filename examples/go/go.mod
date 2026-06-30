@@ -22,6 +22,8 @@ require (
 	github.com/aws/smithy-go v1.25.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/daytona/clients/api-client-go v0.192.0 // indirect
+	github.com/daytona/clients/toolbox-api-client-go v0.192.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
@@ -46,3 +48,7 @@ require (
 )
 
 replace github.com/daytona/clients/sdk-go => ../../sdk-go
+
+replace github.com/daytona/clients/api-client-go => ../../api-client-go
+
+replace github.com/daytona/clients/toolbox-api-client-go => ../../toolbox-api-client-go
