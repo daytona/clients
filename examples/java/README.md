@@ -12,7 +12,7 @@ This directory contains example projects demonstrating how to use the Daytona Ja
    export DAYTONA_TARGET="us"  # optional
    ```
 
-2. **Java** - Ensure JDK 11+ is installed (the devcontainer includes JDK 21)
+2. **Java** - Ensure JDK 11+ is installed (the Nix dev shell `nix develop .#java` includes JDK 21)
 
 ## Running Examples
 
@@ -32,4 +32,4 @@ examples/java/gradlew -p examples/java/file-operations run
 
 Each example is a standalone Gradle project. The shared Gradle wrapper (`gradlew`) in this directory handles downloading Gradle and building examples.
 
-Examples resolve the SDK from source via Gradle composite builds — any changes you make to the SDK or API clients in `libs/` are reflected immediately without any install or publish step.
+Examples resolve the SDK from source via Gradle composite builds (`includeBuild("../../../sdk-java")`) — any changes you make to the SDK at the repo root (`sdk-java`) are reflected immediately without any install or publish step.

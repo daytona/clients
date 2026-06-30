@@ -7,7 +7,7 @@ dependencyResolutionManagement {
     }
 }
 
-includeBuild("../../../libs/sdk-java") {
+includeBuild("../../../sdk-java") {
     dependencySubstitution {
         substitute(module("io.daytona:sdk-java")).using(project(":"))
     }

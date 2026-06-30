@@ -3,6 +3,7 @@ go 1.25.5
 use (
 	./api-client-go
 	./cli
+	./examples/go
 	./sdk-go
 	./toolbox-api-client-go
 )

@@ -35,12 +35,15 @@ matching issue doesn't already exist. For questions and discussion, join the
 ## Development setup
 
 Use the Nix dev shells (`nix develop`, or `.#go` / `.#node` / `.#python` / `.#ruby` /
-`.#java`) or the included devcontainer, then install dependencies:
+`.#java`). Each shell auto-installs its language's dependencies on first entry
+(`yarn install` / `poetry install` / `bundle install` / `go work sync`); set
+`DAYTONA_NO_BOOTSTRAP=1` to skip. To install manually instead:
 
 ```bash
 yarn install
 poetry install
 bundle install
+go work sync
 ```
 
 Common commands:

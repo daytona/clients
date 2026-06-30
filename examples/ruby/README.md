@@ -32,9 +32,9 @@ This directory contains example scripts demonstrating how to use the Daytona Rub
    export DAYTONA_TARGET="us"  # optional
    ```
 
-2. **Ruby** - Ensure Ruby is installed (the devcontainer includes Ruby 3.4.5)
+2. **Ruby** - Ensure Ruby is installed (the Nix dev shell `nix develop .#ruby` includes Ruby 3.4.5)
 
-3. **Devcontainer Setup** - The devcontainer automatically sets up the Ruby environment with the SDK libraries in your `RUBYLIB` path
+3. **Dev shell setup** - The Nix dev shell `nix develop .#ruby` automatically sets up the Ruby environment with the SDK libraries in your `RUBYLIB` path
 
 ## Running Examples
 
@@ -52,11 +52,11 @@ ruby examples/ruby/lifecycle/lifecycle.rb
 ruby examples/ruby/file-operations/main.rb
 ```
 
-The SDK and all client libraries are loaded from source files in the `libs/` directory, so any changes you make to the SDK will be reflected immediately when you run examples.
+The SDK and all client libraries are loaded from source files at the repo root (`sdk-ruby`, `api-client-ruby`, `toolbox-api-client-ruby`), so any changes you make to the SDK will be reflected immediately when you run examples.
 
 ## How It Works
 
-The devcontainer sets up the following environment variables:
+The Nix dev shell `nix develop .#ruby` sets up the following environment variables:
 
 - **`RUBYLIB`** - Includes paths to the SDK and client library source files
 - **`BUNDLE_GEMFILE`** - Points to the SDK's Gemfile for dependency management

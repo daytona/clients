@@ -94,7 +94,7 @@ for runtime in "${RUNTIMES[@]}"; do
   cp -r "$dir"/. "$WORK_DIR/"
 
   start=$SECONDS
-  # Strip any ambient NODE_ENV (e.g. the devcontainer sets development) so each
+  # Strip any ambient NODE_ENV (e.g. the Nix dev shell sets development) so each
   # framework's production build/prerender runs with the React production build.
   if (cd "$WORK_DIR" && env -u NODE_ENV bash run.sh); then
     duration=$((SECONDS - start))
