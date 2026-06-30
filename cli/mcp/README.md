@@ -185,6 +185,57 @@ Note: if you are running Daytona MCP Server on Windows OS, add the following to 
     - `description`: Description of the service
     - `check_server`: Check if a server is running
 
+### Computer Use
+
+Computer-use tools operate the sandbox desktop through the direct toolbox API. They do not interact with your local machine. Call `computer_use_start` before mouse, keyboard, screenshot, or accessibility tools.
+
+Typical flow:
+
+1. Create or select a sandbox with `create_sandbox`
+2. Start the desktop session with `computer_use_start`
+3. Inspect the desktop with screenshots, display info, or accessibility tree tools
+4. Interact with the desktop using mouse, keyboard, or accessibility tools
+5. Stop the desktop session with `computer_use_stop`
+6. Destroy the sandbox with `destroy_sandbox` when finished
+
+- `computer_use_start`: Start the desktop environment (Xvfb, window manager, VNC/noVNC)
+- `computer_use_stop`: Stop the desktop environment
+- `computer_use_status`: Get computer-use process status
+
+- `computer_use_screenshot`: Take a full-screen screenshot (returns MCP image content)
+- `computer_use_screenshot_region`: Take a region screenshot
+- `computer_use_screenshot_compressed`: Take a compressed full-screen screenshot
+- `computer_use_screenshot_compressed_region`: Take a compressed region screenshot
+
+- `computer_use_mouse_position`: Get current cursor position
+- `computer_use_mouse_move`: Move cursor to coordinates
+- `computer_use_mouse_click`: Click at coordinates
+- `computer_use_mouse_drag`: Drag from start to end coordinates
+- `computer_use_mouse_scroll`: Scroll at coordinates
+
+- `computer_use_keyboard_type`: Type text
+- `computer_use_keyboard_press`: Press a key with optional modifiers
+- `computer_use_keyboard_hotkey`: Press a hotkey combination (e.g. `ctrl+c`)
+
+- `computer_use_display_info`: Get display information
+- `computer_use_windows`: List open windows
+
+- `computer_use_recording_start`: Start a screen recording
+- `computer_use_recording_stop`: Stop a recording
+- `computer_use_recording_list`: List recordings
+- `computer_use_recording_get`: Get recording metadata
+- `computer_use_recording_delete`: Delete a recording
+
+- `computer_use_accessibility_tree`: Fetch the AT-SPI accessibility tree
+- `computer_use_accessibility_find`: Find nodes by role/name/state filters
+- `computer_use_accessibility_focus`: Focus an accessibility node
+- `computer_use_accessibility_invoke`: Invoke an action on a node
+- `computer_use_accessibility_set_value`: Set the value of a node
+
+All computer-use tools require `id` (sandbox ID).
+
+Screenshots return MCP image content. Recording tools expose start, stop, list, metadata, and delete operations; direct recording download is intentionally not exposed because recordings can be large binary files.
+
 ## Troubleshooting
 
 - **Authentication issues:** Run `daytona login` to refresh your credentials
