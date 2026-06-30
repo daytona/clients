@@ -3,40 +3,39 @@ name: SDK and CLI Publish
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (start with "v", e.g. v1.2.3 or v1.2.3-alpha.1)'
-        required: true
-      packages:
-        description: 'Packages to publish (comma-separated): typescript,analytics,python,ruby,java,cli'
-        required: true
-        default: typescript,analytics,python,ruby,java,cli
-      prerelease:
-        description: 'Prerelease mode: enforce a prerelease version and never publish to a stable/default channel'
-        type: boolean
-        default: false
-      npm_pkg_version:
-        description: 'Override npm version (npm format, default: derived from version)'
+      npm_version:
+        description: 'npm version — e.g. 0.190.0-alpha.3 (blank = skip)'
         required: false
-      pypi_pkg_version:
-        description: 'Override PyPI version (PEP 440 format, default: derived from version)'
+      pypi_version:
+        description: 'PyPI version — e.g. 0.192.0 (blank = skip)'
         required: false
-      rubygems_pkg_version:
-        description: 'Override RubyGems version (RubyGems format, default: derived from version)'
+      rubygems_version:
+        description: 'RubyGems version — e.g. 0.190.0.alpha.3 (blank = skip)'
         required: false
-      maven_pkg_version:
-        description: 'Override Maven version (default: derived from version; use -SNAPSHOT for Java prereleases)'
+      maven_version:
+        description: 'Maven version — e.g. 0.190.2-SNAPSHOT (blank = skip)'
         required: false
       cli_version:
-        description: 'Override CLI version for the Homebrew tap (default: version)'
+        description: 'CLI version for Homebrew — e.g. v0.190.0 (blank = skip)'
         required: false
       npm_tag:
-        description: 'Override npm dist-tag (default: latest for stable, derived from suffix for prereleases)'
-        required: false
+        description: 'npm dist-tag'
+        type: choice
+        options:
+          - latest
+          - rc
+          - alpha
+          - beta
+        default: latest
+      prerelease:
+        description: 'Prerelease mode — never publish to latest/stable channels'
+        type: boolean
+        default: false
 
 permissions: {}
 
 concurrency:
-  group: sdk-publish-${{ inputs.version }}
+  group: sdk-publish
   cancel-in-progress: false
 
 env:
@@ -63,22 +62,16 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - uses: ./.github/actions/validate-version
-        with:
-          version: ${{ inputs.version }}
-          prerelease: ${{ inputs.prerelease }}
-      - name: Resolve packages, versions and guardrails
+      - name: Resolve packages and guardrails
         id: resolve
         env:
-          VERSION: ${{ inputs.version }}
+          NPM_PKG_VERSION: ${{ inputs.npm_version }}
+          PYPI_PKG_VERSION: ${{ inputs.pypi_version }}
+          RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_version }}
+          MAVEN_PKG_VERSION: ${{ inputs.maven_version }}
+          CLI_VERSION: ${{ inputs.cli_version }}
+          NPM_TAG: ${{ inputs.npm_tag }}
           PRERELEASE: ${{ inputs.prerelease }}
-          PACKAGES: ${{ inputs.packages }}
-          NPM_PKG_VERSION_OVERRIDE: ${{ inputs.npm_pkg_version }}
-          PYPI_PKG_VERSION_OVERRIDE: ${{ inputs.pypi_pkg_version }}
-          RUBYGEMS_PKG_VERSION_OVERRIDE: ${{ inputs.rubygems_pkg_version }}
-          MAVEN_PKG_VERSION_OVERRIDE: ${{ inputs.maven_pkg_version }}
-          CLI_VERSION_OVERRIDE: ${{ inputs.cli_version }}
-          NPM_TAG_OVERRIDE: ${{ inputs.npm_tag }}
         run: bash ./.github/scripts/resolve-publish-versions.sh
 
   publish:
@@ -92,7 +85,6 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     env:
-      VERSION: ${{ inputs.version }}
       NPM_PKG_VERSION: ${{ needs.setup.outputs.npm_version }}
       PYPI_PKG_VERSION: ${{ needs.setup.outputs.pypi_version }}
       RUBYGEMS_PKG_VERSION: ${{ needs.setup.outputs.rubygems_version }}
