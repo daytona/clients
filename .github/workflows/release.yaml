@@ -7,8 +7,15 @@ on:
         description: 'Version to release (start with "v")'
         required: true
         default: v0.0.0-dev
+      cli_version:
+        description: 'Override CLI binary version (default: version)'
+        required: false
 
 permissions: {}
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
 
 env:
   VERSION: ${{ inputs.version }}
@@ -25,18 +32,15 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
-      - name: Validate version format
-        run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
-            exit 1
-          fi
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
+      - uses: ./.github/actions/validate-version
+        with:
+          version: ${{ inputs.version }}
       - uses: ./.github/actions/setup-toolchain
         with:
           go-cache: 'false'
@@ -67,6 +71,7 @@ jobs:
         run: yarn nx release "$VERSION" --skip-publish --verbose
       - name: Build CLI
         env:
+          VERSION: ${{ inputs.cli_version || inputs.version }}
           DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL }}
           DAYTONA_AUTH0_DOMAIN: ${{ secrets.DAYTONA_AUTH0_DOMAIN }}
           DAYTONA_AUTH0_CLIENT_ID: ${{ secrets.DAYTONA_AUTH0_CLIENT_ID }}

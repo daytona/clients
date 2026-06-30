@@ -4,59 +4,100 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (start with "v")'
+        description: 'Version to release (start with "v", e.g. v1.2.3 or v1.2.3-alpha.1)'
         required: true
-        default: v0.0.0-dev
-      pypi_pkg_version:
-        description: 'PyPI package version (default: version)'
-        required: false
+      packages:
+        description: 'Packages to publish (comma-separated): typescript,analytics,python,ruby,java,cli'
+        required: true
+        default: typescript,analytics,python,ruby,java,cli
+      prerelease:
+        description: 'Prerelease mode: enforce a prerelease version and never publish to a stable/default channel'
+        type: boolean
+        default: false
       npm_pkg_version:
-        description: 'NPM package version (default: version)'
+        description: 'Override npm version (npm format, default: derived from version)'
         required: false
-      npm_tag:
-        description: 'NPM tag (default: latest)'
+      pypi_pkg_version:
+        description: 'Override PyPI version (PEP 440 format, default: derived from version)'
         required: false
-        default: latest
       rubygems_pkg_version:
-        description: 'RubyGems package version (default: version)'
+        description: 'Override RubyGems version (RubyGems format, default: derived from version)'
         required: false
       maven_pkg_version:
-        description: 'Maven package version (default: version)'
+        description: 'Override Maven version (default: derived from version; use -SNAPSHOT for Java prereleases)'
         required: false
-
-env:
-  VERSION: ${{ inputs.version }}
-  PYPI_PKG_VERSION: ${{ inputs.pypi_pkg_version || inputs.version }}
-  NPM_PKG_VERSION: ${{ inputs.npm_pkg_version || inputs.version }}
-  RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_pkg_version || inputs.version }}
-  MAVEN_PKG_VERSION: ${{ inputs.maven_pkg_version || inputs.version }}
-  NPM_TAG: ${{ inputs.npm_tag }}
-  POETRY_VIRTUALENVS_IN_PROJECT: true
+      cli_version:
+        description: 'Override CLI version for the Homebrew tap (default: version)'
+        required: false
+      npm_tag:
+        description: 'Override npm dist-tag (default: latest for stable, derived from suffix for prereleases)'
+        required: false
 
 permissions: {}
 
+concurrency:
+  group: sdk-publish-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: true
+
 jobs:
-  publish:
+  setup:
     if: github.repository == 'daytona/clients'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      has_publishable: ${{ steps.resolve.outputs.has_publishable }}
+      publish_cli: ${{ steps.resolve.outputs.publish_cli }}
+      npm_version: ${{ steps.resolve.outputs.npm_version }}
+      pypi_version: ${{ steps.resolve.outputs.pypi_version }}
+      rubygems_version: ${{ steps.resolve.outputs.rubygems_version }}
+      maven_version: ${{ steps.resolve.outputs.maven_version }}
+      cli_version: ${{ steps.resolve.outputs.cli_version }}
+      npm_tag: ${{ steps.resolve.outputs.npm_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/validate-version
+        with:
+          version: ${{ inputs.version }}
+          prerelease: ${{ inputs.prerelease }}
+      - name: Resolve packages, versions and guardrails
+        id: resolve
+        env:
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          PACKAGES: ${{ inputs.packages }}
+          NPM_PKG_VERSION_OVERRIDE: ${{ inputs.npm_pkg_version }}
+          PYPI_PKG_VERSION_OVERRIDE: ${{ inputs.pypi_pkg_version }}
+          RUBYGEMS_PKG_VERSION_OVERRIDE: ${{ inputs.rubygems_pkg_version }}
+          MAVEN_PKG_VERSION_OVERRIDE: ${{ inputs.maven_pkg_version }}
+          CLI_VERSION_OVERRIDE: ${{ inputs.cli_version }}
+          NPM_TAG_OVERRIDE: ${{ inputs.npm_tag }}
+        run: bash ./.github/scripts/resolve-publish-versions.sh
+
+  publish:
+    needs: setup
+    if: needs.setup.outputs.has_publishable == 'true'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     permissions:
       contents: read
     name: Publish ${{ matrix.name }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: TypeScript SDK
-            projects: sdk-typescript
-          - name: Analytics API Client
-            projects: analytics-api-client
-          - name: Python SDK
-            projects: sdk-python
-          - name: Ruby SDK
-            projects: sdk-ruby
-          - name: Java SDK
-            projects: sdk-java
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     env:
+      VERSION: ${{ inputs.version }}
+      NPM_PKG_VERSION: ${{ needs.setup.outputs.npm_version }}
+      PYPI_PKG_VERSION: ${{ needs.setup.outputs.pypi_version }}
+      RUBYGEMS_PKG_VERSION: ${{ needs.setup.outputs.rubygems_version }}
+      MAVEN_PKG_VERSION: ${{ needs.setup.outputs.maven_version }}
+      NPM_TAG: ${{ needs.setup.outputs.npm_tag }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
       RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
@@ -66,12 +107,6 @@ jobs:
       MAVEN_GPG_SIGNING_PASSWORD: ${{ secrets.MAVEN_GPG_SIGNING_PASSWORD }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
-      - name: Validate version format
-        run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
-            exit 1
-          fi
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -97,22 +132,18 @@ jobs:
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    if: ${{ github.repository == 'daytona/clients' && inputs.npm_tag == 'latest' }}
+    needs: setup
+    if: ${{ github.repository == 'daytona/clients' && needs.setup.outputs.publish_cli == 'true' && inputs.prerelease == false }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions: {}
     name: Update Homebrew CLI tap
     steps:
-      - name: Validate version format
-        run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
-            exit 1
-          fi
       - name: Update version
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          CLI_VERSION: ${{ needs.setup.outputs.cli_version }}
         run: |
           curl -f -X POST -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
             https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$CLI_VERSION\"}}"

@@ -1,0 +1,48 @@
+name: Validate Version
+description: Validate a release version string (vX.Y.Z[-suffix]) and, optionally, that it matches a prerelease flag
+
+inputs:
+  version:
+    description: Version to validate (must start with 'v', e.g. v1.2.3 or v1.2.3-alpha.1)
+    required: true
+  prerelease:
+    description: >-
+      Optional prerelease consistency check. Leave empty to only validate the
+      format. Set to 'true' to require a prerelease suffix, or 'false' to forbid one.
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Validate version
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        PRERELEASE: ${{ inputs.prerelease }}
+      run: |
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+          echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+          exit 1
+        fi
+
+        SUFFIX=""
+        [[ "$VERSION" == *-* ]] && SUFFIX="${VERSION#*-}"
+
+        case "$PRERELEASE" in
+          '') ;;
+          true)
+            if [[ -z "$SUFFIX" ]]; then
+              echo "::error::prerelease=true but '$VERSION' has no prerelease suffix (e.g. ${VERSION}-alpha.1)"
+              exit 1
+            fi ;;
+          false)
+            if [[ -n "$SUFFIX" ]]; then
+              echo "::error::prerelease=false but '$VERSION' contains a prerelease suffix ('$SUFFIX'). Use a clean vX.Y.Z or set prerelease=true."
+              exit 1
+            fi ;;
+          *)
+            echo "::error::prerelease input must be '', 'true', or 'false' (got '$PRERELEASE')"
+            exit 1 ;;
+        esac
+
+        echo "Version OK: $VERSION${PRERELEASE:+ (prerelease=$PRERELEASE)}"
