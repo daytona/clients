@@ -3,20 +3,15 @@ name: SDK and CLI Publish
 on:
   workflow_dispatch:
     inputs:
+      prerelease:
+        description: 'Prerelease mode — never publish to latest/stable channels'
+        type: boolean
+        default: false
+      version:
+        description: 'Version to release (start with "v") — default for every package. The "v" is dropped for npm/PyPI/RubyGems/Maven and kept for the CLI. Leave blank and fill only the language fields below to publish a subset; a language field overrides this default.'
+        required: false
       npm_version:
-        description: 'npm version — e.g. 0.190.0-alpha.3 (blank = skip)'
-        required: false
-      pypi_version:
-        description: 'PyPI version — e.g. 0.192.0 (blank = skip)'
-        required: false
-      rubygems_version:
-        description: 'RubyGems version — e.g. 0.190.0.alpha.3 (blank = skip)'
-        required: false
-      maven_version:
-        description: 'Maven version — e.g. 0.190.2-SNAPSHOT (blank = skip)'
-        required: false
-      cli_version:
-        description: 'CLI version for Homebrew — e.g. v0.190.0 (blank = skip)'
+        description: 'npm version — e.g. 0.190.0-alpha.3'
         required: false
       npm_tag:
         description: 'npm dist-tag'
@@ -27,10 +22,18 @@ on:
           - alpha
           - beta
         default: latest
-      prerelease:
-        description: 'Prerelease mode — never publish to latest/stable channels'
-        type: boolean
-        default: false
+      pypi_version:
+        description: 'PyPI version — e.g. 0.192.0a1'
+        required: false
+      rubygems_version:
+        description: 'RubyGems version — e.g. 0.190.0.alpha.3'
+        required: false
+      maven_version:
+        description: 'Maven version — e.g. 0.190.2-SNAPSHOT'
+        required: false
+      cli_version:
+        description: 'CLI version — e.g. v0.190.0'
+        required: false
 
 permissions: {}
 
@@ -65,11 +68,12 @@ jobs:
       - name: Resolve packages and guardrails
         id: resolve
         env:
-          NPM_PKG_VERSION: ${{ inputs.npm_version }}
-          PYPI_PKG_VERSION: ${{ inputs.pypi_version }}
-          RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_version }}
-          MAVEN_PKG_VERSION: ${{ inputs.maven_version }}
-          CLI_VERSION: ${{ inputs.cli_version }}
+          VERSION: ${{ inputs.version }}
+          NPM_OVERRIDE: ${{ inputs.npm_version }}
+          PYPI_OVERRIDE: ${{ inputs.pypi_version }}
+          RUBYGEMS_OVERRIDE: ${{ inputs.rubygems_version }}
+          MAVEN_OVERRIDE: ${{ inputs.maven_version }}
+          CLI_OVERRIDE: ${{ inputs.cli_version }}
           NPM_TAG: ${{ inputs.npm_tag }}
           PRERELEASE: ${{ inputs.prerelease }}
         run: bash ./.github/scripts/resolve-publish-versions.sh
@@ -125,7 +129,7 @@ jobs:
 
   update-homebrew-tap:
     needs: setup
-    if: ${{ github.repository == 'daytona/clients' && needs.setup.outputs.publish_cli == 'true' && inputs.prerelease == false }}
+    if: ${{ github.repository == 'daytona/clients' && needs.setup.outputs.publish_cli == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions: {}
     name: Update Homebrew CLI tap
@@ -134,8 +138,9 @@ jobs:
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
           CLI_VERSION: ${{ needs.setup.outputs.cli_version }}
+          EVENT_TYPE: ${{ inputs.prerelease == true && 'update-version-rc' || 'update-version' }}
         run: |
           curl -f -X POST -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
             https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$CLI_VERSION\"}}"
+            -d "{\"event_type\": \"${EVENT_TYPE}\", \"client_payload\": {\"version\": \"$CLI_VERSION\"}}"
