@@ -262,7 +262,7 @@ func ComputerUseMouseScroll(ctx context.Context, request mcp.CallToolRequest, ar
 	req.SetY(y)
 	req.SetDirection(*args.Direction)
 	if args.Amount != nil {
-		amount, errResult, err := int32FromInt(*args.Amount, "amount")
+		amount, errResult, err := int32FromIntNonNegative(*args.Amount, "amount")
 		if errResult != nil || err != nil {
 			return errResult, err
 		}
