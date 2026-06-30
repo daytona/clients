@@ -49,8 +49,7 @@ as needed; it's idempotent (instant on re-entry). Skip it with `DAYTONA_NO_BOOTS
 Java has no install step — Gradle resolves the SDK via composite build on first run.
 
 If `nix develop` fails with a Nix daemon permission error, the Nix daemon isn't running.
-In the devcontainer it auto-starts on container start; otherwise start it
-(`sudo systemctl start nix-daemon` on systemd hosts) or restart the container.
+Start it (`sudo systemctl start nix-daemon` on systemd hosts) and retry.
 
 ## Common Commands
 

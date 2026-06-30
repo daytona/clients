@@ -12,7 +12,7 @@ This directory contains example projects demonstrating how to use the Daytona Ja
    export DAYTONA_TARGET="us"  # optional
    ```
 
-2. **Java** - Ensure JDK 11+ is installed (the devcontainer includes JDK 21)
+2. **Java** - Ensure JDK 11+ is installed (the Nix dev shell `nix develop .#java` includes JDK 21)
 
 ## Running Examples
 
