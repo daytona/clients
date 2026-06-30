@@ -32,4 +32,4 @@ examples/java/gradlew -p examples/java/file-operations run
 
 Each example is a standalone Gradle project. The shared Gradle wrapper (`gradlew`) in this directory handles downloading Gradle and building examples.
 
-Examples resolve the SDK from source via Gradle composite builds — any changes you make to the SDK or API clients in `libs/` are reflected immediately without any install or publish step.
+Examples resolve the SDK from source via Gradle composite builds (`includeBuild("../../../sdk-java")`) — any changes you make to the SDK at the repo root (`sdk-java`) are reflected immediately without any install or publish step.
