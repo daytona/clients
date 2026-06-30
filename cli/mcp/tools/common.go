@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -23,6 +24,22 @@ var daytonaMCPHeaders map[string]string = map[string]string{
 
 type SandboxIdArgs struct {
 	Id *string `json:"id,omitempty"`
+}
+
+func int32FromInt(value int, fieldName string) (int32, *mcp.CallToolResult, error) {
+	if value < math.MinInt32 || value > math.MaxInt32 {
+		errResult, err := toolResultError(fmt.Sprintf("%s must be between %d and %d", fieldName, math.MinInt32, math.MaxInt32))
+		return 0, errResult, err
+	}
+	return int32(value), nil, nil
+}
+
+func int32FromIntNonNegative(value int, fieldName string) (int32, *mcp.CallToolResult, error) {
+	if value < 0 {
+		errResult, err := toolResultError(fmt.Sprintf("%s must be non-negative", fieldName))
+		return 0, errResult, err
+	}
+	return int32FromInt(value, fieldName)
 }
 
 func requireSandboxID(id *string) (string, *mcp.CallToolResult, error) {

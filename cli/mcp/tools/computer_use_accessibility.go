@@ -177,7 +177,7 @@ func GetComputerUseAccessibilityInvokeTool() mcp.Tool {
 		mcp.WithDescription("Invoke an action on an accessibility node in the Daytona sandbox desktop."),
 		mcp.WithString("id", mcp.Required(), mcp.Description("ID of the sandbox.")),
 		mcp.WithString("node_id", mcp.Required(), mcp.Description("Accessibility node ID (bus-name:object-path).")),
-		mcp.WithString("action", mcp.Description("Action to invoke (e.g. click). Defaults to click.")),
+		mcp.WithString("action", mcp.Description("Action to invoke (e.g. click). If omitted, invokes the node's primary action.")),
 	)
 }
 
@@ -198,8 +198,6 @@ func ComputerUseAccessibilityInvoke(ctx context.Context, request mcp.CallToolReq
 	req := toolboxclient.NewAccessibilityInvokeRequest(*args.NodeId)
 	if args.Action != nil {
 		req.SetAction(*args.Action)
-	} else {
-		req.SetAction("click")
 	}
 
 	result, _, apiErr := toolboxClient.ComputerUseAPI.InvokeAccessibilityNode(ctx).Request(*req).Execute()

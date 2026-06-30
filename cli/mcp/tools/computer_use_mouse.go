@@ -84,6 +84,14 @@ func ComputerUseMouseMove(ctx context.Context, request mcp.CallToolRequest, args
 	if args.X == nil || args.Y == nil {
 		return toolResultError("x and y are required")
 	}
+	x, errResult, err := int32FromInt(*args.X, "x")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	y, errResult, err := int32FromInt(*args.Y, "y")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
 
 	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
 	if errResult != nil || err != nil {
@@ -91,8 +99,8 @@ func ComputerUseMouseMove(ctx context.Context, request mcp.CallToolRequest, args
 	}
 
 	req := toolboxclient.NewMouseMoveRequest()
-	req.SetX(int32(*args.X))
-	req.SetY(int32(*args.Y))
+	req.SetX(x)
+	req.SetY(y)
 
 	result, _, apiErr := toolboxClient.ComputerUseAPI.MoveMouse(ctx).Request(*req).Execute()
 	if apiErr != nil {
@@ -121,6 +129,14 @@ func ComputerUseMouseClick(ctx context.Context, request mcp.CallToolRequest, arg
 	if args.X == nil || args.Y == nil {
 		return toolResultError("x and y are required")
 	}
+	x, errResult, err := int32FromInt(*args.X, "x")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	y, errResult, err := int32FromInt(*args.Y, "y")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
 
 	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
 	if errResult != nil || err != nil {
@@ -128,8 +144,8 @@ func ComputerUseMouseClick(ctx context.Context, request mcp.CallToolRequest, arg
 	}
 
 	req := toolboxclient.NewMouseClickRequest()
-	req.SetX(int32(*args.X))
-	req.SetY(int32(*args.Y))
+	req.SetX(x)
+	req.SetY(y)
 	if args.Button != nil {
 		req.SetButton(*args.Button)
 	} else {
@@ -167,6 +183,22 @@ func ComputerUseMouseDrag(ctx context.Context, request mcp.CallToolRequest, args
 	if args.StartX == nil || args.StartY == nil || args.EndX == nil || args.EndY == nil {
 		return toolResultError("start_x, start_y, end_x, and end_y are required")
 	}
+	startX, errResult, err := int32FromInt(*args.StartX, "start_x")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	startY, errResult, err := int32FromInt(*args.StartY, "start_y")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	endX, errResult, err := int32FromInt(*args.EndX, "end_x")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	endY, errResult, err := int32FromInt(*args.EndY, "end_y")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
 
 	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
 	if errResult != nil || err != nil {
@@ -174,10 +206,10 @@ func ComputerUseMouseDrag(ctx context.Context, request mcp.CallToolRequest, args
 	}
 
 	req := toolboxclient.NewMouseDragRequest()
-	req.SetStartX(int32(*args.StartX))
-	req.SetStartY(int32(*args.StartY))
-	req.SetEndX(int32(*args.EndX))
-	req.SetEndY(int32(*args.EndY))
+	req.SetStartX(startX)
+	req.SetStartY(startY)
+	req.SetEndX(endX)
+	req.SetEndY(endY)
 	if args.Button != nil {
 		req.SetButton(*args.Button)
 	} else {
@@ -211,6 +243,14 @@ func ComputerUseMouseScroll(ctx context.Context, request mcp.CallToolRequest, ar
 	if args.X == nil || args.Y == nil || args.Direction == nil {
 		return toolResultError("x, y, and direction are required")
 	}
+	x, errResult, err := int32FromInt(*args.X, "x")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+	y, errResult, err := int32FromInt(*args.Y, "y")
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
 
 	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
 	if errResult != nil || err != nil {
@@ -218,11 +258,15 @@ func ComputerUseMouseScroll(ctx context.Context, request mcp.CallToolRequest, ar
 	}
 
 	req := toolboxclient.NewMouseScrollRequest()
-	req.SetX(int32(*args.X))
-	req.SetY(int32(*args.Y))
+	req.SetX(x)
+	req.SetY(y)
 	req.SetDirection(*args.Direction)
 	if args.Amount != nil {
-		req.SetAmount(int32(*args.Amount))
+		amount, errResult, err := int32FromInt(*args.Amount, "amount")
+		if errResult != nil || err != nil {
+			return errResult, err
+		}
+		req.SetAmount(amount)
 	} else {
 		req.SetAmount(3)
 	}

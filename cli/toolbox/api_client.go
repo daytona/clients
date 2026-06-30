@@ -54,6 +54,9 @@ func NewAPIClientWithProfileProvider(ctx context.Context, apiClient *apiclient.A
 	if profiles == nil {
 		profiles = ConfigProfileProvider{}
 	}
+	if sandbox.GetToolboxProxyUrl() == "" && apiClient == nil {
+		return nil, fmt.Errorf("api client is required when sandbox has no toolbox proxy URL")
+	}
 
 	proxyURL, err := resolveProxyURL(ctx, apiClient, sandbox)
 	if err != nil {

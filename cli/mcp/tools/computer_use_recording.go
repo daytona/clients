@@ -30,6 +30,46 @@ type ComputerUseRecordingDeleteArgs struct {
 	RecordingId *string `json:"recording_id,omitempty"`
 }
 
+type recordingMetadata struct {
+	DurationSeconds *float32 `json:"durationSeconds,omitempty"`
+	EndTime         *string  `json:"endTime,omitempty"`
+	FileName        string   `json:"fileName"`
+	Id              string   `json:"id"`
+	SizeBytes       *int32   `json:"sizeBytes,omitempty"`
+	StartTime       string   `json:"startTime"`
+	Status          string   `json:"status"`
+}
+
+func recordingMetadataFrom(rec *toolboxclient.Recording) recordingMetadata {
+	if rec == nil {
+		return recordingMetadata{}
+	}
+	return recordingMetadata{
+		DurationSeconds: rec.DurationSeconds,
+		EndTime:         rec.EndTime,
+		FileName:        rec.FileName,
+		Id:              rec.Id,
+		SizeBytes:       rec.SizeBytes,
+		StartTime:       rec.StartTime,
+		Status:          rec.Status,
+	}
+}
+
+func toolResultRecording(rec *toolboxclient.Recording) (*mcp.CallToolResult, error) {
+	return toolResultJSON(recordingMetadataFrom(rec))
+}
+
+func toolResultRecordingList(resp *toolboxclient.ListRecordingsResponse) (*mcp.CallToolResult, error) {
+	recordings := []recordingMetadata{}
+	if resp != nil {
+		recordings = make([]recordingMetadata, 0, len(resp.Recordings))
+		for i := range resp.Recordings {
+			recordings = append(recordings, recordingMetadataFrom(&resp.Recordings[i]))
+		}
+	}
+	return toolResultJSON(map[string]any{"recordings": recordings})
+}
+
 func GetComputerUseRecordingStartTool() mcp.Tool {
 	return mcp.NewTool("computer_use_recording_start",
 		mcp.WithDescription("Start a screen recording in the Daytona sandbox desktop environment."),
@@ -59,7 +99,7 @@ func ComputerUseRecordingStart(ctx context.Context, request mcp.CallToolRequest,
 		return toolboxAPIError("Failed to start recording", apiErr)
 	}
 
-	return toolResultJSON(result)
+	return toolResultRecording(result)
 }
 
 func GetComputerUseRecordingStopTool() mcp.Tool {
@@ -90,7 +130,7 @@ func ComputerUseRecordingStop(ctx context.Context, request mcp.CallToolRequest, 
 		return toolboxAPIError("Failed to stop recording", apiErr)
 	}
 
-	return toolResultJSON(result)
+	return toolResultRecording(result)
 }
 
 func GetComputerUseRecordingListTool() mcp.Tool {
@@ -116,7 +156,7 @@ func ComputerUseRecordingList(ctx context.Context, request mcp.CallToolRequest, 
 		return toolboxAPIError("Failed to list recordings", apiErr)
 	}
 
-	return toolResultJSON(result)
+	return toolResultRecordingList(result)
 }
 
 func GetComputerUseRecordingGetTool() mcp.Tool {
@@ -146,7 +186,7 @@ func ComputerUseRecordingGet(ctx context.Context, request mcp.CallToolRequest, a
 		return toolboxAPIError("Failed to get recording", apiErr)
 	}
 
-	return toolResultJSON(result)
+	return toolResultRecording(result)
 }
 
 func GetComputerUseRecordingDeleteTool() mcp.Tool {

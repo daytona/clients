@@ -53,7 +53,11 @@ func ComputerUseKeyboardType(ctx context.Context, request mcp.CallToolRequest, a
 	req := toolboxclient.NewKeyboardTypeRequest()
 	req.SetText(*args.Text)
 	if args.Delay != nil {
-		req.SetDelay(int32(*args.Delay))
+		delay, errResult, err := int32FromIntNonNegative(*args.Delay, "delay")
+		if errResult != nil || err != nil {
+			return errResult, err
+		}
+		req.SetDelay(delay)
 	}
 
 	result, _, apiErr := toolboxClient.ComputerUseAPI.TypeText(ctx).Request(*req).Execute()
