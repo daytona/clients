@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -123,7 +124,7 @@ func (f *FileSystemService) ListFiles(ctx context.Context, path string, opts ...
 		req := f.toolboxClient.FileSystemAPI.ListFiles(ctx).Path(path)
 		if listOpts.Depth != nil {
 			if *listOpts.Depth < 1 {
-				return nil, errors.NewDaytonaValidationError("depth must be at least 1", nil)
+				return nil, errors.NewDaytonaError("depth must be at least 1", http.StatusBadRequest, nil)
 			}
 			req = req.Depth(*listOpts.Depth)
 		}

@@ -807,9 +807,8 @@ func TestPauseTimeoutReturnsDaytonaTimeoutError(t *testing.T) {
 	err := sandbox.doPauseWithTimeout(context.Background(), 200*time.Millisecond)
 	require.Error(t, err)
 
-	var timeoutErr *errors.DaytonaTimeoutError
-	require.ErrorAs(t, err, &timeoutErr, "pause timeout must return DaytonaTimeoutError, got %T", err)
-	assert.Contains(t, timeoutErr.Error(), "pause")
+	require.ErrorIs(t, err, errors.ErrTimeout, "pause timeout must match ErrTimeout, got %T", err)
+	assert.Contains(t, err.Error(), "pause")
 }
 
 func TestPauseCancellationIsNotReportedAsTimeout(t *testing.T) {
@@ -830,8 +829,7 @@ func TestPauseCancellationIsNotReportedAsTimeout(t *testing.T) {
 	err := sandbox.doPauseWithTimeout(ctx, 30*time.Second)
 	require.Error(t, err)
 
-	var timeoutErr *errors.DaytonaTimeoutError
-	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.False(t, stderrors.Is(err, errors.ErrTimeout), "explicit cancellation must not match ErrTimeout, got %v", err)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -852,8 +850,7 @@ func TestWaitForStartCancellationIsNotReportedAsTimeout(t *testing.T) {
 	err := sandbox.doWaitForStart(ctx, 30*time.Second)
 	require.Error(t, err)
 
-	var timeoutErr *errors.DaytonaTimeoutError
-	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.False(t, stderrors.Is(err, errors.ErrTimeout), "explicit cancellation must not match ErrTimeout, got %v", err)
 	require.ErrorIs(t, err, context.Canceled)
 }
 

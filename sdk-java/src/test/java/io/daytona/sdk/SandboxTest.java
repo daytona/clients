@@ -18,7 +18,7 @@ import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
-import io.daytona.sdk.exception.DaytonaValidationException;
+import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.toolbox.client.api.InfoApi;
 import io.daytona.toolbox.client.api.ServerApi;
@@ -419,7 +419,7 @@ class SandboxTest {
                 Arguments.of(403, DaytonaForbiddenException.class),
                 Arguments.of(404, DaytonaNotFoundException.class),
                 Arguments.of(409, DaytonaConflictException.class),
-                Arguments.of(422, DaytonaValidationException.class),
+                Arguments.of(422, DaytonaUnprocessableEntityException.class),
                 Arguments.of(429, DaytonaRateLimitException.class),
                 Arguments.of(500, DaytonaServerException.class)
         );

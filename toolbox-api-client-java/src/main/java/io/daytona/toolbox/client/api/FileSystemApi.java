@@ -27,6 +27,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
+import io.daytona.toolbox.client.model.ErrorResponse;
 import java.io.File;
 import io.daytona.toolbox.client.model.FileInfo;
 import io.daytona.toolbox.client.model.FilesDownloadRequest;
@@ -91,6 +92,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call createFolderCall(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String mode, final ApiCallback _callback) throws ApiException {
@@ -127,6 +129,7 @@ public class FileSystemApi {
         }
 
         final String[] localVarAccepts = {
+            "*/*"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -171,6 +174,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public void createFolder(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String mode) throws ApiException {
@@ -189,6 +193,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> createFolderWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String mode) throws ApiException {
@@ -209,6 +214,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call createFolderAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String mode, final ApiCallback<Void> _callback) throws ApiException {
@@ -229,6 +235,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call deleteFileCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable Boolean recursive, final ApiCallback _callback) throws ApiException {
@@ -265,6 +274,7 @@ public class FileSystemApi {
         }
 
         final String[] localVarAccepts = {
+            "*/*"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -304,6 +314,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public void deleteFile(@javax.annotation.Nonnull String path, @javax.annotation.Nullable Boolean recursive) throws ApiException {
@@ -322,6 +335,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> deleteFileWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nullable Boolean recursive) throws ApiException {
@@ -342,6 +358,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call deleteFileAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nullable Boolean recursive, final ApiCallback<Void> _callback) throws ApiException {
@@ -361,6 +380,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call downloadFileCall(@javax.annotation.Nonnull String path, final ApiCallback _callback) throws ApiException {
@@ -433,6 +455,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public File downloadFile(@javax.annotation.Nonnull String path) throws ApiException {
@@ -451,6 +476,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<File> downloadFileWithHttpInfo(@javax.annotation.Nonnull String path) throws ApiException {
@@ -471,6 +499,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call downloadFileAsync(@javax.annotation.Nonnull String path, final ApiCallback<File> _callback) throws ApiException {
@@ -491,6 +522,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Multipart response with file parts and JSON error parts </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call downloadFilesCall(@javax.annotation.Nonnull FilesDownloadRequest downloadFiles, final ApiCallback _callback) throws ApiException {
@@ -560,6 +595,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Multipart response with file parts and JSON error parts </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public Map<String, Object> downloadFiles(@javax.annotation.Nonnull FilesDownloadRequest downloadFiles) throws ApiException {
@@ -578,6 +617,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Multipart response with file parts and JSON error parts </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Map<String, Object>> downloadFilesWithHttpInfo(@javax.annotation.Nonnull FilesDownloadRequest downloadFiles) throws ApiException {
@@ -598,6 +641,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Multipart response with file parts and JSON error parts </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call downloadFilesAsync(@javax.annotation.Nonnull FilesDownloadRequest downloadFiles, final ApiCallback<Map<String, Object>> _callback) throws ApiException {
@@ -619,6 +666,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call findInFilesCall(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern, final ApiCallback _callback) throws ApiException {
@@ -701,6 +749,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public List<Match> findInFiles(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern) throws ApiException {
@@ -720,6 +769,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<List<Match>> findInFilesWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern) throws ApiException {
@@ -741,6 +791,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call findInFilesAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern, final ApiCallback<List<Match>> _callback) throws ApiException {
@@ -761,6 +812,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call getFileInfoCall(@javax.annotation.Nonnull String path, final ApiCallback _callback) throws ApiException {
@@ -833,6 +887,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public FileInfo getFileInfo(@javax.annotation.Nonnull String path) throws ApiException {
@@ -851,6 +908,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<FileInfo> getFileInfoWithHttpInfo(@javax.annotation.Nonnull String path) throws ApiException {
@@ -871,6 +931,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call getFileInfoAsync(@javax.annotation.Nonnull String path, final ApiCallback<FileInfo> _callback) throws ApiException {
@@ -892,6 +955,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call listFilesCall(@javax.annotation.Nullable String path, @javax.annotation.Nullable Integer depth, final ApiCallback _callback) throws ApiException {
@@ -964,6 +1030,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public List<FileInfo> listFiles(@javax.annotation.Nullable String path, @javax.annotation.Nullable Integer depth) throws ApiException {
@@ -983,6 +1052,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<List<FileInfo>> listFilesWithHttpInfo(@javax.annotation.Nullable String path, @javax.annotation.Nullable Integer depth) throws ApiException {
@@ -1004,6 +1076,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call listFilesAsync(@javax.annotation.Nullable String path, @javax.annotation.Nullable Integer depth, final ApiCallback<List<FileInfo>> _callback) throws ApiException {
@@ -1025,6 +1100,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call moveFileCall(@javax.annotation.Nonnull String source, @javax.annotation.Nonnull String destination, final ApiCallback _callback) throws ApiException {
@@ -1061,6 +1140,7 @@ public class FileSystemApi {
         }
 
         final String[] localVarAccepts = {
+            "*/*"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -1105,6 +1185,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
      </table>
      */
     public void moveFile(@javax.annotation.Nonnull String source, @javax.annotation.Nonnull String destination) throws ApiException {
@@ -1123,6 +1207,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> moveFileWithHttpInfo(@javax.annotation.Nonnull String source, @javax.annotation.Nonnull String destination) throws ApiException {
@@ -1143,6 +1231,10 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call moveFileAsync(@javax.annotation.Nonnull String source, @javax.annotation.Nonnull String destination, final ApiCallback<Void> _callback) throws ApiException {
@@ -1162,6 +1254,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call replaceInFilesCall(@javax.annotation.Nonnull ReplaceRequest request, final ApiCallback _callback) throws ApiException {
@@ -1231,6 +1324,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public List<ReplaceResult> replaceInFiles(@javax.annotation.Nonnull ReplaceRequest request) throws ApiException {
@@ -1249,6 +1343,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<List<ReplaceResult>> replaceInFilesWithHttpInfo(@javax.annotation.Nonnull ReplaceRequest request) throws ApiException {
@@ -1269,6 +1364,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call replaceInFilesAsync(@javax.annotation.Nonnull ReplaceRequest request, final ApiCallback<List<ReplaceResult>> _callback) throws ApiException {
@@ -1290,6 +1386,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call searchFilesCall(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern, final ApiCallback _callback) throws ApiException {
@@ -1372,6 +1469,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public SearchFilesResponse searchFiles(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern) throws ApiException {
@@ -1391,6 +1489,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<SearchFilesResponse> searchFilesWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern) throws ApiException {
@@ -1412,6 +1511,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call searchFilesAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nonnull String pattern, final ApiCallback<SearchFilesResponse> _callback) throws ApiException {
@@ -1435,6 +1535,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call setFilePermissionsCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String owner, @javax.annotation.Nullable String group, @javax.annotation.Nullable String mode, final ApiCallback _callback) throws ApiException {
@@ -1479,6 +1582,7 @@ public class FileSystemApi {
         }
 
         final String[] localVarAccepts = {
+            "*/*"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -1520,6 +1624,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public void setFilePermissions(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String owner, @javax.annotation.Nullable String group, @javax.annotation.Nullable String mode) throws ApiException {
@@ -1540,6 +1647,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> setFilePermissionsWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String owner, @javax.annotation.Nullable String group, @javax.annotation.Nullable String mode) throws ApiException {
@@ -1562,6 +1672,9 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call setFilePermissionsAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String owner, @javax.annotation.Nullable String group, @javax.annotation.Nullable String mode, final ApiCallback<Void> _callback) throws ApiException {
@@ -1582,6 +1695,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call uploadFileCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable File _file, final ApiCallback _callback) throws ApiException {
@@ -1660,6 +1774,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public UploadedFile uploadFile(@javax.annotation.Nonnull String path, @javax.annotation.Nullable File _file) throws ApiException {
@@ -1679,6 +1794,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<UploadedFile> uploadFileWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nullable File _file) throws ApiException {
@@ -1700,6 +1816,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call uploadFileAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nullable File _file, final ApiCallback<UploadedFile> _callback) throws ApiException {
@@ -1719,6 +1836,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call uploadFilesCall(final ApiCallback _callback) throws ApiException {
@@ -1747,6 +1865,7 @@ public class FileSystemApi {
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
         final String[] localVarAccepts = {
+            "*/*"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -1779,6 +1898,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public void uploadFiles() throws ApiException {
@@ -1795,6 +1915,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> uploadFilesWithHttpInfo() throws ApiException {
@@ -1813,6 +1934,7 @@ public class FileSystemApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call uploadFilesAsync(final ApiCallback<Void> _callback) throws ApiException {

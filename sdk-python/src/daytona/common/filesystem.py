@@ -96,11 +96,23 @@ class FileDownloadResponse:
 
 @dataclass
 class FileDownloadErrorDetails:
-    """Structured error metadata for a failed bulk file download item."""
+    """Structured error metadata for a failed bulk file download item.
+
+    ``error_code`` is a deprecated alias of ``code`` kept for backward
+    compatibility; the two fields are kept in sync in ``__post_init__``.
+    """
 
     message: str
     status_code: int | None = None
+    code: str | None = None
+    source: str | None = None
     error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.code is None and self.error_code is not None:
+            self.code = self.error_code
+        elif self.error_code is None and self.code is not None:
+            self.error_code = self.code
 
 
 def create_file_download_error(response: FileDownloadResponse) -> DaytonaError:
@@ -115,7 +127,8 @@ def create_file_download_error(response: FileDownloadResponse) -> DaytonaError:
     return create_daytona_error(
         response.error_details.message,
         status_code=response.error_details.status_code,
-        error_code=response.error_details.error_code,
+        code=response.error_details.code,
+        source=response.error_details.source,
     )
 
 
@@ -161,9 +174,11 @@ def parse_file_download_error_payload(
     status_code = payload_dict.get("statusCode")
     if status_code is None:
         status_code = payload_dict.get("status_code")
-    error_code = payload_dict.get("code")
-    if error_code is None:
-        error_code = payload_dict.get("error_code")
+    code = payload_dict.get("code")
+    if code is None:
+        # Older daemon/runner builds emitted `error_code` instead of `code`.
+        code = payload_dict.get("error_code")
+    source = payload_dict.get("source")
 
     if isinstance(structured_message, str):
         message = structured_message
@@ -171,7 +186,8 @@ def parse_file_download_error_payload(
     details = FileDownloadErrorDetails(
         message=message,
         status_code=status_code if isinstance(status_code, int) else None,
-        error_code=error_code if isinstance(error_code, str) else None,
+        code=code if isinstance(code, str) else None,
+        source=source if isinstance(source, str) else None,
     )
 
     return message, details

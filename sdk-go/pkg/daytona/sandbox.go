@@ -690,8 +690,7 @@ func (s *Sandbox) refreshDataSafe(ctx context.Context) error {
 		return nil
 	}
 
-	var notFoundErr *errors.DaytonaNotFoundError
-	if stderrors.As(refreshErr, &notFoundErr) {
+	if stderrors.Is(refreshErr, errors.ErrNotFound) {
 		s.applyState(apiclient.SANDBOXSTATE_DESTROYED)
 		return nil
 	}

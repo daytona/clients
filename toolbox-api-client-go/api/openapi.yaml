@@ -35,33 +35,25 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Service Unavailable
       summary: Find accessibility nodes
       tags:
@@ -89,33 +81,25 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Service Unavailable
       summary: Focus an accessibility node
       tags:
@@ -144,33 +128,25 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Service Unavailable
       summary: Invoke an action on an accessibility node
       tags:
@@ -199,33 +175,25 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Service Unavailable
       summary: Set the value of an accessibility node
       tags:
@@ -263,33 +231,25 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Service Unavailable
       summary: Get accessibility tree
       tags:
@@ -305,6 +265,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/DisplayInfoResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get display information
       tags:
       - computer-use
@@ -319,6 +285,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/WindowsResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get windows information
       tags:
       - computer-use
@@ -340,6 +312,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Empty"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Press hotkey
       tags:
       - computer-use
@@ -362,6 +346,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Empty"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Press key
       tags:
       - computer-use
@@ -384,6 +380,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Empty"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Type text
       tags:
       - computer-use
@@ -406,6 +414,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/MouseClickResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Click mouse button
       tags:
       - computer-use
@@ -428,6 +448,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/MouseDragResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Drag mouse
       tags:
       - computer-use
@@ -450,6 +482,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/MousePositionResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Move mouse cursor
       tags:
       - computer-use
@@ -465,6 +509,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/MousePositionResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get mouse position
       tags:
       - computer-use
@@ -486,6 +536,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScrollResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Scroll mouse wheel
       tags:
       - computer-use
@@ -603,9 +665,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: List all recordings
       tags:
@@ -632,18 +692,20 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Service Unavailable
       summary: Start a new recording
       tags:
       - computer-use
@@ -670,18 +732,20 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Stop a recording
       tags:
       - computer-use
@@ -705,25 +769,25 @@ paths:
           content:
             '*/*':
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             '*/*':
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
         "500":
           content:
             '*/*':
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Delete a recording
       tags:
@@ -745,21 +809,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/Recording"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Get recording details
       tags:
@@ -783,21 +849,23 @@ paths:
                 format: binary
                 type: string
           description: OK
+        "400":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
         "404":
           content:
             application/octet-stream:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
         "500":
           content:
             application/octet-stream:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Download a recording
       tags:
@@ -819,6 +887,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScreenshotResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Take a screenshot
       tags:
       - computer-use
@@ -854,6 +934,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScreenshotResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Take a compressed screenshot
       tags:
       - computer-use
@@ -898,6 +990,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScreenshotResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Take a region screenshot
       tags:
       - computer-use
@@ -957,6 +1061,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScreenshotResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Take a compressed region screenshot
       tags:
       - computer-use
@@ -985,6 +1101,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ComputerUseStatusResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get computer use status
       tags:
       - computer-use
@@ -1048,6 +1170,24 @@ paths:
         "204":
           content: {}
           description: No Content
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Delete a file or directory
       tags:
       - file-system
@@ -1077,6 +1217,24 @@ paths:
                   $ref: "#/components/schemas/FileInfo"
                 type: array
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: List files and directories
       tags:
       - file-system
@@ -1100,6 +1258,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/gin.H"
           description: Multipart response with file parts and JSON error parts
+        "400":
+          content:
+            multipart/form-data:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            multipart/form-data:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            multipart/form-data:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            multipart/form-data:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Download multiple files
       tags:
       - file-system
@@ -1112,6 +1294,12 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Upload multiple files
       tags:
       - file-system
@@ -1134,6 +1322,24 @@ paths:
                 format: binary
                 type: string
           description: OK
+        "400":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Download a file
       tags:
       - file-system
@@ -1163,6 +1369,12 @@ paths:
                   $ref: "#/components/schemas/Match"
                 type: array
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Find text in files
       tags:
       - file-system
@@ -1187,6 +1399,12 @@ paths:
         "201":
           content: {}
           description: Created
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Create a folder
       tags:
       - file-system
@@ -1208,6 +1426,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/FileInfo"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Get file information
       tags:
       - file-system
@@ -1232,6 +1468,30 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
       summary: Move or rename file/directory
       tags:
       - file-system
@@ -1265,6 +1525,24 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Set file permissions
       tags:
       - file-system
@@ -1288,6 +1566,12 @@ paths:
                   $ref: "#/components/schemas/ReplaceResult"
                 type: array
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Replace text in files
       tags:
       - file-system
@@ -1316,6 +1600,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/SearchFilesResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Search files by pattern
       tags:
       - file-system
@@ -1345,6 +1635,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadedFile"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Upload a file
       tags:
       - file-system
@@ -1363,6 +1659,24 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Add files to Git staging
       tags:
       - git
@@ -1382,6 +1696,24 @@ paths:
         "204":
           content: {}
           description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Delete a branch
       tags:
       - git
@@ -1403,6 +1735,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListBranchResponse"
           description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: List branches
       tags:
       - git
@@ -1420,6 +1764,24 @@ paths:
         "201":
           content: {}
           description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Create a new branch
       tags:
       - git
@@ -1439,6 +1801,30 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Checkout branch or commit
       tags:
       - git
@@ -1460,6 +1846,36 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Clone a Git repository
       tags:
       - git
@@ -1482,6 +1898,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/GitCommitResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Commit changes
       tags:
       - git
@@ -1594,6 +2028,18 @@ paths:
                   $ref: "#/components/schemas/GitCommitInfo"
                 type: array
           description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get commit history
       tags:
       - git
@@ -1631,6 +2077,42 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Pull changes from remote
       tags:
       - git
@@ -1727,6 +2209,36 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Restore files
       tags:
       - git
@@ -1749,6 +2261,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/GitStatus"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get Git status
       tags:
       - git
@@ -1794,6 +2324,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/CompletionList"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Get code completions
       tags:
       - lsp
@@ -1813,6 +2349,12 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Notify document closed
       tags:
       - lsp
@@ -1832,6 +2374,12 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Notify document opened
       tags:
       - lsp
@@ -1868,6 +2416,12 @@ paths:
                   $ref: "#/components/schemas/LspSymbol"
                 type: array
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Get document symbols
       tags:
       - lsp
@@ -1886,6 +2440,18 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Start LSP server
       tags:
       - lsp
@@ -1905,6 +2471,18 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Stop LSP server
       tags:
       - lsp
@@ -1941,6 +2519,12 @@ paths:
                   $ref: "#/components/schemas/LspSymbol"
                 type: array
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Get workspace symbols
       tags:
       - lsp
@@ -1976,6 +2560,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/IsPortInUseResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Check if port is in use
       tags:
       - port
@@ -1998,6 +2588,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/CodeRunResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "408":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request Timeout
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Execute code
       tags:
       - process
@@ -2020,6 +2628,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExecuteResponse"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "408":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request Timeout
       summary: Execute a command
       tags:
       - process
@@ -2036,6 +2656,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListContextsResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: List all user-created interpreter contexts
       tags:
       - interpreter
@@ -2061,17 +2687,13 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "500":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Create a new interpreter context
       tags:
@@ -2101,18 +2723,20 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                additionalProperties:
-                  type: string
-                type: object
+                $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Delete an interpreter context
       tags:
       - interpreter
@@ -2151,6 +2775,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/PtyListResponse"
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: List all PTY sessions
       tags:
       - process
@@ -2171,6 +2801,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/PtyCreateResponse"
           description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Create a new PTY session
       tags:
       - process
@@ -2193,6 +2841,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/gin.H"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Delete a PTY session
       tags:
       - process
@@ -2213,6 +2873,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/PtySessionInfo"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
       summary: Get PTY session information
       tags:
       - process
@@ -2232,6 +2904,12 @@ paths:
         "101":
           content: {}
           description: Switching Protocols - WebSocket connection established
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
       summary: Connect to PTY session via WebSocket
       tags:
       - process
@@ -2260,6 +2938,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/PtySessionInfo"
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "410":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Gone
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Resize a PTY session
       tags:
       - process
@@ -2277,6 +2973,12 @@ paths:
                   $ref: "#/components/schemas/Session"
                 type: array
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: List all sessions
       tags:
       - process
@@ -2294,6 +2996,24 @@ paths:
         "201":
           content: {}
           description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Create a new session
       tags:
       - process
@@ -2309,6 +3029,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Session"
           description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get entrypoint session details
       tags:
       - process
@@ -2334,6 +3066,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionCommandLogsResponse"
           description: Entrypoint log content
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get entrypoint logs
       tags:
       - process
@@ -2352,6 +3102,24 @@ paths:
         "204":
           content: {}
           description: No Content
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Delete a session
       tags:
       - process
@@ -2372,6 +3140,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Session"
           description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get session details
       tags:
       - process
@@ -2399,6 +3179,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Command"
           description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get session command details
       tags:
       - process
@@ -2431,6 +3223,30 @@ paths:
         "204":
           content: {}
           description: No Content
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "410":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Gone
+        "500":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Send input to command
       tags:
       - process
@@ -2469,6 +3285,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionCommandLogsResponse"
           description: "Log content (JSON for new SDKs, plain text for old SDKs)"
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Get session command logs
       tags:
       - process
@@ -2503,6 +3355,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionExecuteResponse"
           description: Accepted
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Execute command in session
       tags:
       - process
@@ -4973,6 +5849,104 @@ components:
     gin.H:
       additionalProperties:
         type: object
+      type: object
+    DaemonErrorCode:
+      enum:
+      - GIT_AUTH_FAILED
+      - GIT_REPO_NOT_FOUND
+      - GIT_BRANCH_NOT_FOUND
+      - GIT_BRANCH_EXISTS
+      - GIT_PUSH_REJECTED
+      - GIT_DIRTY_WORKTREE
+      - GIT_MERGE_CONFLICT
+      - FILE_NOT_FOUND
+      - FILE_ACCESS_DENIED
+      - LSP_SERVER_NOT_INITIALIZED
+      - PROCESS_EXECUTION_TIMEOUT
+      - PROCESS_NOT_FOUND
+      - SESSION_ENDED
+      - COMMAND_ALREADY_COMPLETED
+      - A11Y_UNAVAILABLE
+      - RECORDING_STILL_ACTIVE
+      - RECORDING_FFMPEG_NOT_FOUND
+      - BAD_REQUEST
+      - INVALID_REQUEST_BODY
+      - UNAUTHORIZED
+      - FORBIDDEN
+      - NOT_FOUND
+      - CONFLICT
+      - REQUEST_TIMEOUT
+      - GONE
+      - UNPROCESSABLE_ENTITY
+      - INTERNAL_SERVER_ERROR
+      type: string
+      x-enum-varnames:
+      - CodeGitAuthFailed
+      - CodeGitRepoNotFound
+      - CodeGitBranchNotFound
+      - CodeGitBranchExists
+      - CodeGitPushRejected
+      - CodeGitDirtyWorktree
+      - CodeGitMergeConflict
+      - CodeFileNotFound
+      - CodeFileAccessDenied
+      - CodeLspServerNotInitialized
+      - CodeProcessExecutionTimeout
+      - CodeProcessNotFound
+      - CodeSessionEnded
+      - CodeCommandAlreadyCompleted
+      - CodeA11yUnavailable
+      - CodeRecordingStillActive
+      - CodeRecordingFfmpegNotFound
+      - CodeBadRequest
+      - CodeInvalidRequestBody
+      - CodeUnauthorized
+      - CodeForbidden
+      - CodeNotFound
+      - CodeConflict
+      - CodeRequestTimeout
+      - CodeGone
+      - CodeUnprocessableEntity
+      - CodeInternalServerError
+    ErrorResponse:
+      description: Error response
+      example:
+        path: /api/resource
+        code: GIT_REPO_NOT_FOUND
+        method: GET
+        source: DAYTONA_DAEMON
+        message: Bad request
+        statusCode: 400
+        timestamp: 2023-01-01T12:00:00Z
+      properties:
+        code:
+          allOf:
+          - $ref: "#/components/schemas/DaemonErrorCode"
+          example: GIT_REPO_NOT_FOUND
+          type: object
+        message:
+          example: Bad request
+          type: string
+        method:
+          example: GET
+          type: string
+        path:
+          example: /api/resource
+          type: string
+        source:
+          example: DAYTONA_DAEMON
+          type: string
+        statusCode:
+          example: 400
+          type: integer
+        timestamp:
+          example: 2023-01-01T12:00:00Z
+          type: string
+      required:
+      - message
+      - path
+      - statusCode
+      - timestamp
       type: object
     UploadFile_request:
       properties:
