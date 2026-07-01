@@ -32,8 +32,9 @@ class OtelConfig(BaseModel):
     """ # noqa: E501
     endpoint: StrictStr = Field(description="Endpoint")
     headers: Optional[Dict[str, StrictStr]] = Field(default=None, description="Headers")
+    organization_id: Optional[StrictStr] = Field(default=None, description="Organization ID the config belongs to", serialization_alias="organizationId")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["endpoint", "headers"]
+    __properties: ClassVar[List[str]] = ["endpoint", "headers", "organizationId"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,7 +99,8 @@ class OtelConfig(BaseModel):
 
         _obj = cls.model_validate({
             "endpoint": obj.get("endpoint"),
-            "headers": obj.get("headers")
+            "headers": obj.get("headers"),
+            "organization_id": obj.get("organizationId")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

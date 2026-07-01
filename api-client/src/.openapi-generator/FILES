@@ -25,6 +25,7 @@ common.ts
 configuration.ts
 index.ts
 models/account-provider.ts
+models/admin-create-organization.ts
 models/admin-create-runner.ts
 models/admin-get-webhook-status200-response.ts
 models/announcement.ts

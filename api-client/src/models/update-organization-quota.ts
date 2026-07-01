@@ -21,6 +21,7 @@ export interface UpdateOrganizationQuota {
     'snapshotQuota': number | null;
     'maxSnapshotSize': number | null;
     'volumeQuota': number | null;
+    'secretQuota': number | null;
     'authenticatedRateLimit': number | null;
     'sandboxCreateRateLimit': number | null;
     'sandboxLifecycleRateLimit': number | null;

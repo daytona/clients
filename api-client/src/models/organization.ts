@@ -75,6 +75,10 @@ export interface Organization {
      */
     'maxDiskPerSandbox': number;
     /**
+     * Maximum number of secrets
+     */
+    'secretQuota': number;
+    /**
      * Time in minutes before an unused snapshot is deactivated
      */
     'snapshotDeactivationTimeoutMinutes': number;

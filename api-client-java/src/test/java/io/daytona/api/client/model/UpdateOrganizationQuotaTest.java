@@ -87,6 +87,14 @@ public class UpdateOrganizationQuotaTest {
     }
 
     /**
+     * Test the property 'secretQuota'
+     */
+    @Test
+    public void secretQuotaTest() {
+        // TODO: test secretQuota
+    }
+
+    /**
      * Test the property 'authenticatedRateLimit'
      */
     @Test

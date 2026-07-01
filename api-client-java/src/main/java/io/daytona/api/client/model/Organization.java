@@ -123,6 +123,11 @@ public class Organization {
   @javax.annotation.Nonnull
   private BigDecimal maxDiskPerSandbox;
 
+  public static final String SERIALIZED_NAME_SECRET_QUOTA = "secretQuota";
+  @SerializedName(SERIALIZED_NAME_SECRET_QUOTA)
+  @javax.annotation.Nonnull
+  private BigDecimal secretQuota;
+
   public static final String SERIALIZED_NAME_SNAPSHOT_DEACTIVATION_TIMEOUT_MINUTES = "snapshotDeactivationTimeoutMinutes";
   @SerializedName(SERIALIZED_NAME_SNAPSHOT_DEACTIVATION_TIMEOUT_MINUTES)
   @javax.annotation.Nonnull
@@ -447,6 +452,25 @@ public class Organization {
   }
 
 
+  public Organization secretQuota(@javax.annotation.Nonnull BigDecimal secretQuota) {
+    this.secretQuota = secretQuota;
+    return this;
+  }
+
+  /**
+   * Maximum number of secrets
+   * @return secretQuota
+   */
+  @javax.annotation.Nonnull
+  public BigDecimal getSecretQuota() {
+    return secretQuota;
+  }
+
+  public void setSecretQuota(@javax.annotation.Nonnull BigDecimal secretQuota) {
+    this.secretQuota = secretQuota;
+  }
+
+
   public Organization snapshotDeactivationTimeoutMinutes(@javax.annotation.Nonnull BigDecimal snapshotDeactivationTimeoutMinutes) {
     this.snapshotDeactivationTimeoutMinutes = snapshotDeactivationTimeoutMinutes;
     return this;
@@ -724,6 +748,7 @@ public class Organization {
         Objects.equals(this.maxCpuPerSandbox, organization.maxCpuPerSandbox) &&
         Objects.equals(this.maxMemoryPerSandbox, organization.maxMemoryPerSandbox) &&
         Objects.equals(this.maxDiskPerSandbox, organization.maxDiskPerSandbox) &&
+        Objects.equals(this.secretQuota, organization.secretQuota) &&
         Objects.equals(this.snapshotDeactivationTimeoutMinutes, organization.snapshotDeactivationTimeoutMinutes) &&
         Objects.equals(this.sandboxLimitedNetworkEgress, organization.sandboxLimitedNetworkEgress) &&
         Objects.equals(this.defaultRegionId, organization.defaultRegionId) &&
@@ -740,7 +765,7 @@ public class Organization {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, snapshotDeactivationTimeoutMinutes, sandboxLimitedNetworkEgress, defaultRegionId, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
+    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, secretQuota, snapshotDeactivationTimeoutMinutes, sandboxLimitedNetworkEgress, defaultRegionId, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
   }
 
   @Override
@@ -761,6 +786,7 @@ public class Organization {
     sb.append("    maxCpuPerSandbox: ").append(toIndentedString(maxCpuPerSandbox)).append("\n");
     sb.append("    maxMemoryPerSandbox: ").append(toIndentedString(maxMemoryPerSandbox)).append("\n");
     sb.append("    maxDiskPerSandbox: ").append(toIndentedString(maxDiskPerSandbox)).append("\n");
+    sb.append("    secretQuota: ").append(toIndentedString(secretQuota)).append("\n");
     sb.append("    snapshotDeactivationTimeoutMinutes: ").append(toIndentedString(snapshotDeactivationTimeoutMinutes)).append("\n");
     sb.append("    sandboxLimitedNetworkEgress: ").append(toIndentedString(sandboxLimitedNetworkEgress)).append("\n");
     sb.append("    defaultRegionId: ").append(toIndentedString(defaultRegionId)).append("\n");
@@ -791,10 +817,10 @@ public class Organization {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "defaultRegionId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "defaultRegionId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
   }
 
   /**

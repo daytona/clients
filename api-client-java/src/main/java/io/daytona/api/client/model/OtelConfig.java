@@ -63,6 +63,11 @@ public class OtelConfig {
   @javax.annotation.Nullable
   private Map<String, String> headers;
 
+  public static final String SERIALIZED_NAME_ORGANIZATION_ID = "organizationId";
+  @SerializedName(SERIALIZED_NAME_ORGANIZATION_ID)
+  @javax.annotation.Nullable
+  private String organizationId;
+
   public OtelConfig() {
   }
 
@@ -109,6 +114,25 @@ public class OtelConfig {
 
   public void setHeaders(@javax.annotation.Nullable Map<String, String> headers) {
     this.headers = headers;
+  }
+
+
+  public OtelConfig organizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
+    return this;
+  }
+
+  /**
+   * Organization ID the config belongs to
+   * @return organizationId
+   */
+  @javax.annotation.Nullable
+  public String getOrganizationId() {
+    return organizationId;
+  }
+
+  public void setOrganizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
   }
 
   /**
@@ -167,7 +191,8 @@ public class OtelConfig {
     }
     OtelConfig otelConfig = (OtelConfig) o;
     return Objects.equals(this.endpoint, otelConfig.endpoint) &&
-        Objects.equals(this.headers, otelConfig.headers)&&
+        Objects.equals(this.headers, otelConfig.headers) &&
+        Objects.equals(this.organizationId, otelConfig.organizationId)&&
         Objects.equals(this.additionalProperties, otelConfig.additionalProperties);
   }
 
@@ -177,7 +202,7 @@ public class OtelConfig {
 
   @Override
   public int hashCode() {
-    return Objects.hash(endpoint, headers, additionalProperties);
+    return Objects.hash(endpoint, headers, organizationId, additionalProperties);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -193,6 +218,7 @@ public class OtelConfig {
     sb.append("class OtelConfig {\n");
     sb.append("    endpoint: ").append(toIndentedString(endpoint)).append("\n");
     sb.append("    headers: ").append(toIndentedString(headers)).append("\n");
+    sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -212,7 +238,7 @@ public class OtelConfig {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("endpoint", "headers"));
+    openapiFields = new HashSet<String>(Arrays.asList("endpoint", "headers", "organizationId"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("endpoint"));
@@ -240,6 +266,9 @@ public class OtelConfig {
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       if (!jsonObj.get("endpoint").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `endpoint` to be a primitive type in the JSON string but got `%s`", jsonObj.get("endpoint").toString()));
+      }
+      if ((jsonObj.get("organizationId") != null && !jsonObj.get("organizationId").isJsonNull()) && !jsonObj.get("organizationId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `organizationId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("organizationId").toString()));
       }
   }
 

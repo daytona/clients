@@ -19,6 +19,7 @@ require 'daytona_api_client/configuration'
 
 # Models
 require 'daytona_api_client/models/account_provider'
+require 'daytona_api_client/models/admin_create_organization'
 require 'daytona_api_client/models/admin_create_runner'
 require 'daytona_api_client/models/admin_get_webhook_status200_response'
 require 'daytona_api_client/models/announcement'

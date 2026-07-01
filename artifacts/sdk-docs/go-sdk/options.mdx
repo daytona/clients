@@ -57,7 +57,7 @@ opts := options.Apply(
 - [func WithCreatePtySize\(ptySize types.PtySize\) func\(\*CreatePty\)](<#WithCreatePtySize>)
 - [func WithCustomContext\(contextID string\) func\(\*RunCode\)](<#WithCustomContext>)
 - [func WithCwd\(cwd string\) func\(\*ExecuteCommand\)](<#WithCwd>)
-- [func WithDepth\(depth int32\) func\(\*GitClone\)](<#WithDepth>)
+- [func WithDepth\(depth int32\) func\(\*ListFiles\)](<#WithDepth>)
 - [func WithEnv\(env map\[string\]string\) func\(\*RunCode\)](<#WithEnv>)
 - [func WithExecuteTimeout\(timeout time.Duration\) func\(\*ExecuteCommand\)](<#WithExecuteTimeout>)
 - [func WithExtraIndexURLs\(urls ...string\) func\(\*PipInstall\)](<#WithExtraIndexURLs>)
@@ -113,6 +113,7 @@ opts := options.Apply(
 - [type GitRemoteAdd](<#GitRemoteAdd>)
 - [type GitReset](<#GitReset>)
 - [type GitRestore](<#GitRestore>)
+- [type ListFiles](<#ListFiles>)
 - [type PipInstall](<#PipInstall>)
 - [type PtySession](<#PtySession>)
 - [type RunCode](<#RunCode>)
@@ -364,15 +365,17 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la",
 ## func WithDepth
 
 ```go
-func WithDepth(depth int32) func(*GitClone)
+func WithDepth(depth int32) func(*ListFiles)
 ```
 
-WithDepth creates a shallow clone truncated to the given number of commits.
+WithDepth sets how many levels deep to list. Depth 1 \(the default\) lists the directory's entries, depth 2 also includes their children, and so on.
 
 Example:
 
 ```
-err := sandbox.Git.Clone(ctx, url, path, options.WithDepth(1))
+files, err := sandbox.FileSystem.ListFiles(ctx, "/home/user",
+    options.WithDepth(3),
+)
 ```
 
 <a name="WithEnv"></a>
@@ -1180,6 +1183,17 @@ type GitRestore struct {
     Staged   *bool   // Restore the staging index for the given files
     Worktree *bool   // Restore the working tree for the given files (default when neither is set)
     Source   *string // Restore file contents from the given revision instead of the index
+}
+```
+
+<a name="ListFiles"></a>
+## type ListFiles
+
+ListFiles holds optional parameters for \[daytona.FileSystemService.ListFiles\].
+
+```go
+type ListFiles struct {
+    Depth *int32 // How many levels deep to list (default: 1, must be >= 1)
 }
 ```
 

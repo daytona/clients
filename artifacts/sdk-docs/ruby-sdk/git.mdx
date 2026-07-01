@@ -12,7 +12,7 @@ Main class for a new Git handler instance.
 #### new Git()
 
 ```ruby
-def initialize(sandbox_id:, toolbox_api:, otel_state:)
+def initialize(sandbox_id:, toolbox_api:, otel_state: nil)
 
 ```
 
@@ -124,7 +124,7 @@ puts "Branches: #{response.branches}"
 #### clone()
 
 ```ruby
-def clone(url:, path:, branch:, commit_id:, username:, password:, insecure_skip_tls:, depth:)
+def clone(url:, path:, branch: nil, commit_id: nil, username: nil, password: nil, insecure_skip_tls: nil, depth: nil)
 
 ```
 
@@ -186,7 +186,7 @@ sandbox.git.clone(
 #### commit()
 
 ```ruby
-def commit(path:, message:, author:, email:, allow_empty:)
+def commit(path:, message:, author:, email:, allow_empty: false)
 
 ```
 
@@ -229,7 +229,7 @@ puts "Commit SHA: #{commit_response.sha}"
 #### push()
 
 ```ruby
-def push(path:, username:, password:, branch:, remote:, set_upstream:)
+def push(path:, username: nil, password: nil, branch: nil, remote: nil, set_upstream: false)
 
 ```
 
@@ -276,7 +276,7 @@ sandbox.git.push(path: "workspace/repo", branch: "feature", set_upstream: true)
 #### pull()
 
 ```ruby
-def pull(path:, username:, password:, branch:, remote:)
+def pull(path:, username: nil, password: nil, branch: nil, remote: nil)
 
 ```
 
@@ -446,7 +446,7 @@ sandbox.git.delete_branch("workspace/repo", "old-feature")
 #### init()
 
 ```ruby
-def init(path, bare:, initial_branch:)
+def init(path, bare: false, initial_branch: nil)
 
 ```
 
@@ -476,7 +476,7 @@ sandbox.git.init("workspace/repo", initial_branch: "main")
 #### reset()
 
 ```ruby
-def reset(path, mode:, target:, files:)
+def reset(path, mode: nil, target: nil, files: nil)
 
 ```
 
@@ -511,7 +511,7 @@ sandbox.git.reset("workspace/repo", mode: "hard", target: "HEAD~1")
 #### restore()
 
 ```ruby
-def restore(path, files, staged:, worktree:, source:)
+def restore(path, files, staged: nil, worktree: nil, source: nil)
 
 ```
 
@@ -548,7 +548,7 @@ sandbox.git.restore("workspace/repo", ["file.txt"], staged: true)
 #### remote_add()
 
 ```ruby
-def remote_add(path, name, url, fetch:, overwrite:)
+def remote_add(path, name, url, fetch: false, overwrite: false)
 
 ```
 
@@ -638,7 +638,7 @@ url = sandbox.git.remote_get("workspace/repo", "origin")
 #### set_config()
 
 ```ruby
-def set_config(key, value, scope:, path:)
+def set_config(key, value, scope: 'global', path: nil)
 
 ```
 
@@ -669,7 +669,7 @@ sandbox.git.set_config("user.name", "John Doe")
 #### get_config()
 
 ```ruby
-def get_config(key, scope:, path:)
+def get_config(key, scope: 'global', path: nil)
 
 ```
 
@@ -699,7 +699,7 @@ name = sandbox.git.get_config("user.name")
 #### configure_user()
 
 ```ruby
-def configure_user(name, email, scope:, path:)
+def configure_user(name, email, scope: 'global', path: nil)
 
 ```
 
@@ -730,7 +730,7 @@ sandbox.git.configure_user("John Doe", "john@example.com")
 #### dangerously_authenticate()
 
 ```ruby
-def dangerously_authenticate(username, password, host:, protocol:)
+def dangerously_authenticate(username, password, host: nil, protocol: nil)
 
 ```
 

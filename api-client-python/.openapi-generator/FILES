@@ -26,6 +26,7 @@ daytona_api_client/configuration.py
 daytona_api_client/exceptions.py
 daytona_api_client/models/__init__.py
 daytona_api_client/models/account_provider.py
+daytona_api_client/models/admin_create_organization.py
 daytona_api_client/models/admin_create_runner.py
 daytona_api_client/models/admin_get_webhook_status200_response.py
 daytona_api_client/models/announcement.py

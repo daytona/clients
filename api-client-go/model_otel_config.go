@@ -25,6 +25,8 @@ type OtelConfig struct {
 	Endpoint string `json:"endpoint"`
 	// Headers
 	Headers map[string]string `json:"headers,omitempty"`
+	// Organization ID the config belongs to
+	OrganizationId *string `json:"organizationId,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -105,6 +107,38 @@ func (o *OtelConfig) SetHeaders(v map[string]string) {
 	o.Headers = v
 }
 
+// GetOrganizationId returns the OrganizationId field value if set, zero value otherwise.
+func (o *OtelConfig) GetOrganizationId() string {
+	if o == nil || IsNil(o.OrganizationId) {
+		var ret string
+		return ret
+	}
+	return *o.OrganizationId
+}
+
+// GetOrganizationIdOk returns a tuple with the OrganizationId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *OtelConfig) GetOrganizationIdOk() (*string, bool) {
+	if o == nil || IsNil(o.OrganizationId) {
+		return nil, false
+	}
+	return o.OrganizationId, true
+}
+
+// HasOrganizationId returns a boolean if a field has been set.
+func (o *OtelConfig) HasOrganizationId() bool {
+	if o != nil && !IsNil(o.OrganizationId) {
+		return true
+	}
+
+	return false
+}
+
+// SetOrganizationId gets a reference to the given string and assigns it to the OrganizationId field.
+func (o *OtelConfig) SetOrganizationId(v string) {
+	o.OrganizationId = &v
+}
+
 func (o OtelConfig) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -118,6 +152,9 @@ func (o OtelConfig) ToMap() (map[string]interface{}, error) {
 	toSerialize["endpoint"] = o.Endpoint
 	if o.Headers != nil {
 		toSerialize["headers"] = o.Headers
+	}
+	if !IsNil(o.OrganizationId) {
+		toSerialize["organizationId"] = o.OrganizationId
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -164,6 +201,7 @@ func (o *OtelConfig) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "endpoint")
 		delete(additionalProperties, "headers")
+		delete(additionalProperties, "organizationId")
 		o.AdditionalProperties = additionalProperties
 	}
 
