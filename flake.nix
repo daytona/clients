@@ -76,9 +76,22 @@
           # `bundle config without development` otherwise silently omits it.
           export BUNDLE_WITHOUT=""
           # api-client-ruby reaches the API through typhoeus/ethon, which dlopen()
-          # libcurl via FFI at runtime. Nix shells expose no system libs on the loader
-          # path, so make libcurl (+ libstdc++ for native gem extensions) discoverable.
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.curl pkgs.stdenv.cc.cc.lib ]}:''${LD_LIBRARY_PATH:-}"
+          # libcurl via FFI at runtime (by soname), so libcurl must be on the loader
+          # path. Native gem extensions bake an RPATH to their nix deps at build time
+          # (including gcc-lib), so they resolve libstdc++ on their own — it does NOT
+          # need to be here.
+          #
+          # LD_LIBRARY_PATH is inherited by every child process, and a newer nix
+          # libstdc++ leaking into prebuilt foreign binaries (e.g. the VS Code
+          # `code --wait` git editor) breaks them with `GLIBC_2.xx not found`. Nested
+          # `nix develop` shells otherwise ACCUMULATE such compiler-lib paths via the
+          # inherited tail, so we re-append the inherited entries with any nix
+          # `gcc-*-lib` dir filtered out. This keeps the shell self-healing: a single
+          # entry sanitizes an already-polluted environment, and only libcurl (plus
+          # any unrelated inherited libs) stays on the path.
+          _daytona_ld_keep=$(printf '%s' "''${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -vE 'gcc-[0-9._]+-lib(/|$)' | grep -v '^$' | paste -sd: -)
+          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.curl ]}''${_daytona_ld_keep:+:$_daytona_ld_keep}"
+          unset _daytona_ld_keep
           ${bootstrap "bundle install (Ruby)" ".bundle" "bundle install"}
         '';
 

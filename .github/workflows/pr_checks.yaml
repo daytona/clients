@@ -34,6 +34,8 @@ jobs:
         run: |
           GONOSUMDB=github.com/daytona/clients go work sync
           git diff --exit-code -- 'go.work*' '*/go.mod' '*/go.sum' || (echo "Go workspace files are not up to date. Run 'go work sync' and commit the changes." && exit 1)
+      - name: Build Go examples
+        run: go build ./examples/go/...
 
   golangci:
     name: Go lint
