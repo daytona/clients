@@ -30,6 +30,7 @@ import "github.com/daytona/clients/sdk-go/pkg/types"
 - [type FileStatus](<#FileStatus>)
 - [type FileUpload](<#FileUpload>)
 - [type GitCommitResponse](<#GitCommitResponse>)
+- [type GitRemote](<#GitRemote>)
 - [type GitStatus](<#GitStatus>)
 - [type GpuType](<#GpuType>)
 - [type ImageParams](<#ImageParams>)
@@ -296,6 +297,18 @@ type GitCommitResponse struct {
 }
 ```
 
+<a name="GitRemote"></a>
+## type GitRemote
+
+GitRemote describes a configured Git remote.
+
+```go
+type GitRemote struct {
+    Name string
+    URL  string
+}
+```
+
 <a name="GitStatus"></a>
 ## type GitStatus
 
@@ -308,6 +321,10 @@ type GitStatus struct {
     Behind          int
     BranchPublished bool
     FileStatus      []FileStatus
+    // Detached is true when HEAD is not on a branch (detached HEAD state).
+    Detached bool
+    // Upstream is the upstream tracking branch (e.g. "origin/main"), empty when unset.
+    Upstream string
 }
 ```
 

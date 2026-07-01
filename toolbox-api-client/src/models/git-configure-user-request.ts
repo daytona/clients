@@ -14,9 +14,16 @@
 
 
 
-export interface GitRepoRequest {
-    'password'?: string;
-    'path': string;
-    'username'?: string;
+export interface GitConfigureUserRequest {
+    'email': string;
+    'name': string;
+    /**
+     * Path is the repository path, required when scope is \"local\".
+     */
+    'path'?: string;
+    /**
+     * Scope is one of global (default), local or system.
+     */
+    'scope'?: string;
 }
 
