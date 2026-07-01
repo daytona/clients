@@ -118,6 +118,7 @@ models/status.ts
 models/stop-recording-request.ts
 models/system-metrics.ts
 models/update-env-request.ts
+models/uploaded-file.ts
 models/user-home-dir-response.ts
 models/window-info.ts
 models/windows-response.ts

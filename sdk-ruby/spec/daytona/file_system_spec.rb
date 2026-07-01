@@ -298,7 +298,7 @@ RSpec.describe Daytona::FileSystem do
 
         fs.upload_file(file_path, '/remote/local.txt')
 
-        expect(toolbox_api).to have_received(:upload_file).with('/remote/local.txt', kind_of(File))
+        expect(toolbox_api).to have_received(:upload_file).with('/remote/local.txt', { file: kind_of(File) })
       end
     end
 
@@ -308,7 +308,7 @@ RSpec.describe Daytona::FileSystem do
 
       fs.upload_file(io, '/remote/io.txt')
 
-      expect(toolbox_api).to have_received(:upload_file).with('/remote/io.txt', io)
+      expect(toolbox_api).to have_received(:upload_file).with('/remote/io.txt', { file: io })
     end
 
     it 'wraps errors' do

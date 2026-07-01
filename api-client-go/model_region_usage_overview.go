@@ -36,9 +36,12 @@ type RegionUsageOverview struct {
 	MaxMemoryPerSandbox NullableFloat32 `json:"maxMemoryPerSandbox"`
 	MaxDiskPerSandbox NullableFloat32 `json:"maxDiskPerSandbox"`
 	MaxDiskPerNonEphemeralSandbox NullableFloat32 `json:"maxDiskPerNonEphemeralSandbox"`
-	MaxCpuPerGpuSandbox NullableFloat32 `json:"maxCpuPerGpuSandbox"`
-	MaxMemoryPerGpuSandbox NullableFloat32 `json:"maxMemoryPerGpuSandbox"`
-	MaxDiskPerGpuSandbox NullableFloat32 `json:"maxDiskPerGpuSandbox"`
+	// CPU maximum per requested GPU unit for GPU sandboxes.
+	MaxCpuPerGpu NullableFloat32 `json:"maxCpuPerGpu"`
+	// Memory maximum per requested GPU unit for GPU sandboxes.
+	MaxMemoryPerGpu NullableFloat32 `json:"maxMemoryPerGpu"`
+	// Disk maximum per requested GPU unit for GPU sandboxes.
+	MaxDiskPerGpu NullableFloat32 `json:"maxDiskPerGpu"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -48,7 +51,7 @@ type _RegionUsageOverview RegionUsageOverview
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRegionUsageOverview(regionId string, sandboxClass SandboxClass, totalCpuQuota float32, currentCpuUsage float32, totalMemoryQuota float32, currentMemoryUsage float32, totalDiskQuota float32, currentDiskUsage float32, totalGpuQuota float32, currentGpuUsage float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpuSandbox NullableFloat32, maxMemoryPerGpuSandbox NullableFloat32, maxDiskPerGpuSandbox NullableFloat32) *RegionUsageOverview {
+func NewRegionUsageOverview(regionId string, sandboxClass SandboxClass, totalCpuQuota float32, currentCpuUsage float32, totalMemoryQuota float32, currentMemoryUsage float32, totalDiskQuota float32, currentDiskUsage float32, totalGpuQuota float32, currentGpuUsage float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpu NullableFloat32, maxMemoryPerGpu NullableFloat32, maxDiskPerGpu NullableFloat32) *RegionUsageOverview {
 	this := RegionUsageOverview{}
 	this.RegionId = regionId
 	this.SandboxClass = sandboxClass
@@ -64,9 +67,9 @@ func NewRegionUsageOverview(regionId string, sandboxClass SandboxClass, totalCpu
 	this.MaxMemoryPerSandbox = maxMemoryPerSandbox
 	this.MaxDiskPerSandbox = maxDiskPerSandbox
 	this.MaxDiskPerNonEphemeralSandbox = maxDiskPerNonEphemeralSandbox
-	this.MaxCpuPerGpuSandbox = maxCpuPerGpuSandbox
-	this.MaxMemoryPerGpuSandbox = maxMemoryPerGpuSandbox
-	this.MaxDiskPerGpuSandbox = maxDiskPerGpuSandbox
+	this.MaxCpuPerGpu = maxCpuPerGpu
+	this.MaxMemoryPerGpu = maxMemoryPerGpu
+	this.MaxDiskPerGpu = maxDiskPerGpu
 	return &this
 }
 
@@ -454,82 +457,82 @@ func (o *RegionUsageOverview) SetMaxDiskPerNonEphemeralSandbox(v float32) {
 	o.MaxDiskPerNonEphemeralSandbox.Set(&v)
 }
 
-// GetMaxCpuPerGpuSandbox returns the MaxCpuPerGpuSandbox field value
+// GetMaxCpuPerGpu returns the MaxCpuPerGpu field value
 // If the value is explicit nil, the zero value for float32 will be returned
-func (o *RegionUsageOverview) GetMaxCpuPerGpuSandbox() float32 {
-	if o == nil || o.MaxCpuPerGpuSandbox.Get() == nil {
+func (o *RegionUsageOverview) GetMaxCpuPerGpu() float32 {
+	if o == nil || o.MaxCpuPerGpu.Get() == nil {
 		var ret float32
 		return ret
 	}
 
-	return *o.MaxCpuPerGpuSandbox.Get()
+	return *o.MaxCpuPerGpu.Get()
 }
 
-// GetMaxCpuPerGpuSandboxOk returns a tuple with the MaxCpuPerGpuSandbox field value
+// GetMaxCpuPerGpuOk returns a tuple with the MaxCpuPerGpu field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *RegionUsageOverview) GetMaxCpuPerGpuSandboxOk() (*float32, bool) {
+func (o *RegionUsageOverview) GetMaxCpuPerGpuOk() (*float32, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.MaxCpuPerGpuSandbox.Get(), o.MaxCpuPerGpuSandbox.IsSet()
+	return o.MaxCpuPerGpu.Get(), o.MaxCpuPerGpu.IsSet()
 }
 
-// SetMaxCpuPerGpuSandbox sets field value
-func (o *RegionUsageOverview) SetMaxCpuPerGpuSandbox(v float32) {
-	o.MaxCpuPerGpuSandbox.Set(&v)
+// SetMaxCpuPerGpu sets field value
+func (o *RegionUsageOverview) SetMaxCpuPerGpu(v float32) {
+	o.MaxCpuPerGpu.Set(&v)
 }
 
-// GetMaxMemoryPerGpuSandbox returns the MaxMemoryPerGpuSandbox field value
+// GetMaxMemoryPerGpu returns the MaxMemoryPerGpu field value
 // If the value is explicit nil, the zero value for float32 will be returned
-func (o *RegionUsageOverview) GetMaxMemoryPerGpuSandbox() float32 {
-	if o == nil || o.MaxMemoryPerGpuSandbox.Get() == nil {
+func (o *RegionUsageOverview) GetMaxMemoryPerGpu() float32 {
+	if o == nil || o.MaxMemoryPerGpu.Get() == nil {
 		var ret float32
 		return ret
 	}
 
-	return *o.MaxMemoryPerGpuSandbox.Get()
+	return *o.MaxMemoryPerGpu.Get()
 }
 
-// GetMaxMemoryPerGpuSandboxOk returns a tuple with the MaxMemoryPerGpuSandbox field value
+// GetMaxMemoryPerGpuOk returns a tuple with the MaxMemoryPerGpu field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *RegionUsageOverview) GetMaxMemoryPerGpuSandboxOk() (*float32, bool) {
+func (o *RegionUsageOverview) GetMaxMemoryPerGpuOk() (*float32, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.MaxMemoryPerGpuSandbox.Get(), o.MaxMemoryPerGpuSandbox.IsSet()
+	return o.MaxMemoryPerGpu.Get(), o.MaxMemoryPerGpu.IsSet()
 }
 
-// SetMaxMemoryPerGpuSandbox sets field value
-func (o *RegionUsageOverview) SetMaxMemoryPerGpuSandbox(v float32) {
-	o.MaxMemoryPerGpuSandbox.Set(&v)
+// SetMaxMemoryPerGpu sets field value
+func (o *RegionUsageOverview) SetMaxMemoryPerGpu(v float32) {
+	o.MaxMemoryPerGpu.Set(&v)
 }
 
-// GetMaxDiskPerGpuSandbox returns the MaxDiskPerGpuSandbox field value
+// GetMaxDiskPerGpu returns the MaxDiskPerGpu field value
 // If the value is explicit nil, the zero value for float32 will be returned
-func (o *RegionUsageOverview) GetMaxDiskPerGpuSandbox() float32 {
-	if o == nil || o.MaxDiskPerGpuSandbox.Get() == nil {
+func (o *RegionUsageOverview) GetMaxDiskPerGpu() float32 {
+	if o == nil || o.MaxDiskPerGpu.Get() == nil {
 		var ret float32
 		return ret
 	}
 
-	return *o.MaxDiskPerGpuSandbox.Get()
+	return *o.MaxDiskPerGpu.Get()
 }
 
-// GetMaxDiskPerGpuSandboxOk returns a tuple with the MaxDiskPerGpuSandbox field value
+// GetMaxDiskPerGpuOk returns a tuple with the MaxDiskPerGpu field value
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
-func (o *RegionUsageOverview) GetMaxDiskPerGpuSandboxOk() (*float32, bool) {
+func (o *RegionUsageOverview) GetMaxDiskPerGpuOk() (*float32, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return o.MaxDiskPerGpuSandbox.Get(), o.MaxDiskPerGpuSandbox.IsSet()
+	return o.MaxDiskPerGpu.Get(), o.MaxDiskPerGpu.IsSet()
 }
 
-// SetMaxDiskPerGpuSandbox sets field value
-func (o *RegionUsageOverview) SetMaxDiskPerGpuSandbox(v float32) {
-	o.MaxDiskPerGpuSandbox.Set(&v)
+// SetMaxDiskPerGpu sets field value
+func (o *RegionUsageOverview) SetMaxDiskPerGpu(v float32) {
+	o.MaxDiskPerGpu.Set(&v)
 }
 
 func (o RegionUsageOverview) MarshalJSON() ([]byte, error) {
@@ -559,9 +562,9 @@ func (o RegionUsageOverview) ToMap() (map[string]interface{}, error) {
 	toSerialize["maxMemoryPerSandbox"] = o.MaxMemoryPerSandbox.Get()
 	toSerialize["maxDiskPerSandbox"] = o.MaxDiskPerSandbox.Get()
 	toSerialize["maxDiskPerNonEphemeralSandbox"] = o.MaxDiskPerNonEphemeralSandbox.Get()
-	toSerialize["maxCpuPerGpuSandbox"] = o.MaxCpuPerGpuSandbox.Get()
-	toSerialize["maxMemoryPerGpuSandbox"] = o.MaxMemoryPerGpuSandbox.Get()
-	toSerialize["maxDiskPerGpuSandbox"] = o.MaxDiskPerGpuSandbox.Get()
+	toSerialize["maxCpuPerGpu"] = o.MaxCpuPerGpu.Get()
+	toSerialize["maxMemoryPerGpu"] = o.MaxMemoryPerGpu.Get()
+	toSerialize["maxDiskPerGpu"] = o.MaxDiskPerGpu.Get()
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -589,9 +592,9 @@ func (o *RegionUsageOverview) UnmarshalJSON(data []byte) (err error) {
 		"maxMemoryPerSandbox",
 		"maxDiskPerSandbox",
 		"maxDiskPerNonEphemeralSandbox",
-		"maxCpuPerGpuSandbox",
-		"maxMemoryPerGpuSandbox",
-		"maxDiskPerGpuSandbox",
+		"maxCpuPerGpu",
+		"maxMemoryPerGpu",
+		"maxDiskPerGpu",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -636,9 +639,9 @@ func (o *RegionUsageOverview) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "maxMemoryPerSandbox")
 		delete(additionalProperties, "maxDiskPerSandbox")
 		delete(additionalProperties, "maxDiskPerNonEphemeralSandbox")
-		delete(additionalProperties, "maxCpuPerGpuSandbox")
-		delete(additionalProperties, "maxMemoryPerGpuSandbox")
-		delete(additionalProperties, "maxDiskPerGpuSandbox")
+		delete(additionalProperties, "maxCpuPerGpu")
+		delete(additionalProperties, "maxMemoryPerGpu")
+		delete(additionalProperties, "maxDiskPerGpu")
 		o.AdditionalProperties = additionalProperties
 	}
 

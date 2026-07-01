@@ -1022,6 +1022,50 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * 
+         * @summary Get the signing key for a sandbox
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSandboxSigningKey: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxId' is not null or undefined
+            assertParamExists('getSandboxSigningKey', 'sandboxId', sandboxId)
+            const localVarPath = `/sandbox/{sandboxId}/signing-key`
+                .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Retrieve all spans for a specific trace
          * @summary Get trace spans
          * @param {string} sandboxId ID of the sandbox
@@ -1865,6 +1909,50 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             if (token !== undefined) {
                 localVarQueryParameter['token'] = token;
             }
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Rotate the signing key, invalidating all previously signed URLs
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rotateSigningKey: async (sandboxId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxId' is not null or undefined
+            assertParamExists('rotateSigningKey', 'sandboxId', sandboxId)
+            const localVarPath = `/sandbox/{sandboxId}/signing-key/rotate`
+                .replace(`{${"sandboxId"}}`, encodeURIComponent(String(sandboxId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
 
             localVarHeaderParameter['Accept'] = 'application/json';
 
@@ -2744,6 +2832,20 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * 
+         * @summary Get the signing key for a sandbox
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getSandboxSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getSandboxSigningKey(sandboxId, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.getSandboxSigningKey']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Retrieve all spans for a specific trace
          * @summary Get trace spans
          * @param {string} sandboxId ID of the sandbox
@@ -2977,6 +3079,20 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.revokeSshAccess(sandboxIdOrName, xDaytonaOrganizationID, token, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SandboxApi.revokeSshAccess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Rotate the signing key, invalidating all previously signed URLs
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async rotateSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.rotateSigningKey(sandboxId, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.rotateSigningKey']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3394,6 +3510,17 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.getSandboxParent(sandboxIdOrName, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
+         * 
+         * @summary Get the signing key for a sandbox
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSandboxSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.getSandboxSigningKey(sandboxId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Retrieve all spans for a specific trace
          * @summary Get trace spans
          * @param {string} sandboxId ID of the sandbox
@@ -3589,6 +3716,17 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          */
         revokeSshAccess(sandboxIdOrName: string, xDaytonaOrganizationID?: string, token?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
             return localVarFp.revokeSshAccess(sandboxIdOrName, xDaytonaOrganizationID, token, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Rotate the signing key, invalidating all previously signed URLs
+         * @param {string} sandboxId ID of the sandbox
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rotateSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.rotateSigningKey(sandboxId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3986,6 +4124,18 @@ export class SandboxApi extends BaseAPI {
     }
 
     /**
+     * 
+     * @summary Get the signing key for a sandbox
+     * @param {string} sandboxId ID of the sandbox
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getSandboxSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).getSandboxSigningKey(sandboxId, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Retrieve all spans for a specific trace
      * @summary Get trace spans
      * @param {string} sandboxId ID of the sandbox
@@ -4193,6 +4343,18 @@ export class SandboxApi extends BaseAPI {
      */
     public revokeSshAccess(sandboxIdOrName: string, xDaytonaOrganizationID?: string, token?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).revokeSshAccess(sandboxIdOrName, xDaytonaOrganizationID, token, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Rotate the signing key, invalidating all previously signed URLs
+     * @param {string} sandboxId ID of the sandbox
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public rotateSigningKey(sandboxId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).rotateSigningKey(sandboxId, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

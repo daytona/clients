@@ -42,11 +42,11 @@ class CreateOrganizationRegionQuota(BaseModel):
     max_memory_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxMemoryPerSandbox")
     max_disk_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxDiskPerSandbox")
     max_disk_per_non_ephemeral_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxDiskPerNonEphemeralSandbox")
-    max_cpu_per_gpu_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxCpuPerGpuSandbox")
-    max_memory_per_gpu_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxMemoryPerGpuSandbox")
-    max_disk_per_gpu_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxDiskPerGpuSandbox")
+    max_cpu_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="CPU maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxCpuPerGpu")
+    max_memory_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Memory maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxMemoryPerGpu")
+    max_disk_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Disk maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxDiskPerGpu")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpuSandbox", "maxMemoryPerGpuSandbox", "maxDiskPerGpuSandbox"]
+    __properties: ClassVar[List[str]] = ["sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -118,20 +118,20 @@ class CreateOrganizationRegionQuota(BaseModel):
         if self.max_disk_per_non_ephemeral_sandbox is None and "max_disk_per_non_ephemeral_sandbox" in self.model_fields_set:
             _dict['maxDiskPerNonEphemeralSandbox'] = None
 
-        # set to None if max_cpu_per_gpu_sandbox (nullable) is None
+        # set to None if max_cpu_per_gpu (nullable) is None
         # and model_fields_set contains the field
-        if self.max_cpu_per_gpu_sandbox is None and "max_cpu_per_gpu_sandbox" in self.model_fields_set:
-            _dict['maxCpuPerGpuSandbox'] = None
+        if self.max_cpu_per_gpu is None and "max_cpu_per_gpu" in self.model_fields_set:
+            _dict['maxCpuPerGpu'] = None
 
-        # set to None if max_memory_per_gpu_sandbox (nullable) is None
+        # set to None if max_memory_per_gpu (nullable) is None
         # and model_fields_set contains the field
-        if self.max_memory_per_gpu_sandbox is None and "max_memory_per_gpu_sandbox" in self.model_fields_set:
-            _dict['maxMemoryPerGpuSandbox'] = None
+        if self.max_memory_per_gpu is None and "max_memory_per_gpu" in self.model_fields_set:
+            _dict['maxMemoryPerGpu'] = None
 
-        # set to None if max_disk_per_gpu_sandbox (nullable) is None
+        # set to None if max_disk_per_gpu (nullable) is None
         # and model_fields_set contains the field
-        if self.max_disk_per_gpu_sandbox is None and "max_disk_per_gpu_sandbox" in self.model_fields_set:
-            _dict['maxDiskPerGpuSandbox'] = None
+        if self.max_disk_per_gpu is None and "max_disk_per_gpu" in self.model_fields_set:
+            _dict['maxDiskPerGpu'] = None
 
         return _dict
 
@@ -155,9 +155,9 @@ class CreateOrganizationRegionQuota(BaseModel):
             "max_memory_per_sandbox": obj.get("maxMemoryPerSandbox"),
             "max_disk_per_sandbox": obj.get("maxDiskPerSandbox"),
             "max_disk_per_non_ephemeral_sandbox": obj.get("maxDiskPerNonEphemeralSandbox"),
-            "max_cpu_per_gpu_sandbox": obj.get("maxCpuPerGpuSandbox"),
-            "max_memory_per_gpu_sandbox": obj.get("maxMemoryPerGpuSandbox"),
-            "max_disk_per_gpu_sandbox": obj.get("maxDiskPerGpuSandbox")
+            "max_cpu_per_gpu": obj.get("maxCpuPerGpu"),
+            "max_memory_per_gpu": obj.get("maxMemoryPerGpu"),
+            "max_disk_per_gpu": obj.get("maxDiskPerGpu")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

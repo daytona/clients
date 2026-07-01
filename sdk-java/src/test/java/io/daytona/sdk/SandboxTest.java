@@ -95,7 +95,7 @@ class SandboxTest {
 
         Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());
 
-        assertThat(loaded.getToolboxProxyUrl()).isEmpty();
+        assertThat(loaded.getToolboxProxyUrl()).isEqualTo("https://proxy.example");
         assertThat(loaded.getToolboxApiClient().getBasePath()).isEqualTo("https://proxy.example/sb-2");
     }
 
