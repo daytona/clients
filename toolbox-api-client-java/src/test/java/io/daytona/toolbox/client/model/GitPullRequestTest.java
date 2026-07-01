@@ -24,17 +24,25 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
- * Model tests for GitRepoRequest
+ * Model tests for GitPullRequest
  */
-public class GitRepoRequestTest {
-    private final GitRepoRequest model = new GitRepoRequest();
+public class GitPullRequestTest {
+    private final GitPullRequest model = new GitPullRequest();
 
     /**
-     * Model tests for GitRepoRequest
+     * Model tests for GitPullRequest
      */
     @Test
-    public void testGitRepoRequest() {
-        // TODO: test GitRepoRequest
+    public void testGitPullRequest() {
+        // TODO: test GitPullRequest
+    }
+
+    /**
+     * Test the property 'branch'
+     */
+    @Test
+    public void branchTest() {
+        // TODO: test branch
     }
 
     /**
@@ -51,6 +59,14 @@ public class GitRepoRequestTest {
     @Test
     public void pathTest() {
         // TODO: test path
+    }
+
+    /**
+     * Test the property 'remote'
+     */
+    @Test
+    public void remoteTest() {
+        // TODO: test remote
     }
 
     /**

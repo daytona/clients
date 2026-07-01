@@ -46,48 +46,67 @@ import java.util.Set;
 import io.daytona.toolbox.client.JSON;
 
 /**
- * GitRepoRequest
+ * GitInitRequest
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.21.0")
-public class GitRepoRequest {
-  public static final String SERIALIZED_NAME_PASSWORD = "password";
-  @SerializedName(SERIALIZED_NAME_PASSWORD)
+public class GitInitRequest {
+  public static final String SERIALIZED_NAME_BARE = "bare";
+  @SerializedName(SERIALIZED_NAME_BARE)
   @javax.annotation.Nullable
-  private String password;
+  private Boolean bare;
+
+  public static final String SERIALIZED_NAME_INITIAL_BRANCH = "initial_branch";
+  @SerializedName(SERIALIZED_NAME_INITIAL_BRANCH)
+  @javax.annotation.Nullable
+  private String initialBranch;
 
   public static final String SERIALIZED_NAME_PATH = "path";
   @SerializedName(SERIALIZED_NAME_PATH)
   @javax.annotation.Nonnull
   private String path;
 
-  public static final String SERIALIZED_NAME_USERNAME = "username";
-  @SerializedName(SERIALIZED_NAME_USERNAME)
-  @javax.annotation.Nullable
-  private String username;
-
-  public GitRepoRequest() {
+  public GitInitRequest() {
   }
 
-  public GitRepoRequest password(@javax.annotation.Nullable String password) {
-    this.password = password;
+  public GitInitRequest bare(@javax.annotation.Nullable Boolean bare) {
+    this.bare = bare;
     return this;
   }
 
   /**
-   * Get password
-   * @return password
+   * Bare creates a repository without a working tree.
+   * @return bare
    */
   @javax.annotation.Nullable
-  public String getPassword() {
-    return password;
+  public Boolean getBare() {
+    return bare;
   }
 
-  public void setPassword(@javax.annotation.Nullable String password) {
-    this.password = password;
+  public void setBare(@javax.annotation.Nullable Boolean bare) {
+    this.bare = bare;
   }
 
 
-  public GitRepoRequest path(@javax.annotation.Nonnull String path) {
+  public GitInitRequest initialBranch(@javax.annotation.Nullable String initialBranch) {
+    this.initialBranch = initialBranch;
+    return this;
+  }
+
+  /**
+   * InitialBranch sets the name of the initial branch.
+   * @return initialBranch
+   */
+  @javax.annotation.Nullable
+  public String getInitialBranch() {
+    return initialBranch;
+  }
+
+  public void setInitialBranch(@javax.annotation.Nullable String initialBranch) {
+    this.initialBranch = initialBranch;
+  }
+
+
+  public GitInitRequest path(@javax.annotation.Nonnull String path) {
     this.path = path;
     return this;
   }
@@ -105,25 +124,6 @@ public class GitRepoRequest {
     this.path = path;
   }
 
-
-  public GitRepoRequest username(@javax.annotation.Nullable String username) {
-    this.username = username;
-    return this;
-  }
-
-  /**
-   * Get username
-   * @return username
-   */
-  @javax.annotation.Nullable
-  public String getUsername() {
-    return username;
-  }
-
-  public void setUsername(@javax.annotation.Nullable String username) {
-    this.username = username;
-  }
-
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -137,9 +137,9 @@ public class GitRepoRequest {
    *
    * @param key name of the property
    * @param value value of the property
-   * @return the GitRepoRequest instance itself
+   * @return the GitInitRequest instance itself
    */
-  public GitRepoRequest putAdditionalProperty(String key, Object value) {
+  public GitInitRequest putAdditionalProperty(String key, Object value) {
     if (this.additionalProperties == null) {
         this.additionalProperties = new HashMap<String, Object>();
     }
@@ -178,25 +178,25 @@ public class GitRepoRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    GitRepoRequest gitRepoRequest = (GitRepoRequest) o;
-    return Objects.equals(this.password, gitRepoRequest.password) &&
-        Objects.equals(this.path, gitRepoRequest.path) &&
-        Objects.equals(this.username, gitRepoRequest.username)&&
-        Objects.equals(this.additionalProperties, gitRepoRequest.additionalProperties);
+    GitInitRequest gitInitRequest = (GitInitRequest) o;
+    return Objects.equals(this.bare, gitInitRequest.bare) &&
+        Objects.equals(this.initialBranch, gitInitRequest.initialBranch) &&
+        Objects.equals(this.path, gitInitRequest.path)&&
+        Objects.equals(this.additionalProperties, gitInitRequest.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(password, path, username, additionalProperties);
+    return Objects.hash(bare, initialBranch, path, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class GitRepoRequest {\n");
-    sb.append("    password: ").append(toIndentedString(password)).append("\n");
+    sb.append("class GitInitRequest {\n");
+    sb.append("    bare: ").append(toIndentedString(bare)).append("\n");
+    sb.append("    initialBranch: ").append(toIndentedString(initialBranch)).append("\n");
     sb.append("    path: ").append(toIndentedString(path)).append("\n");
-    sb.append("    username: ").append(toIndentedString(username)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -216,7 +216,7 @@ public class GitRepoRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("password", "path", "username"));
+    openapiFields = new HashSet<String>(Arrays.asList("bare", "initial_branch", "path"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("path"));
@@ -226,30 +226,27 @@ public class GitRepoRequest {
    * Validates the JSON Element and throws an exception if issues found
    *
    * @param jsonElement JSON Element
-   * @throws IOException if the JSON Element is invalid with respect to GitRepoRequest
+   * @throws IOException if the JSON Element is invalid with respect to GitInitRequest
    */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!GitRepoRequest.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field(s) %s in GitRepoRequest is not found in the empty JSON string", GitRepoRequest.openapiRequiredFields.toString()));
+        if (!GitInitRequest.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field(s) %s in GitInitRequest is not found in the empty JSON string", GitInitRequest.openapiRequiredFields.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : GitRepoRequest.openapiRequiredFields) {
+      for (String requiredField : GitInitRequest.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if ((jsonObj.get("password") != null && !jsonObj.get("password").isJsonNull()) && !jsonObj.get("password").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `password` to be a primitive type in the JSON string but got `%s`", jsonObj.get("password").toString()));
+      if ((jsonObj.get("initial_branch") != null && !jsonObj.get("initial_branch").isJsonNull()) && !jsonObj.get("initial_branch").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `initial_branch` to be a primitive type in the JSON string but got `%s`", jsonObj.get("initial_branch").toString()));
       }
       if (!jsonObj.get("path").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `path` to be a primitive type in the JSON string but got `%s`", jsonObj.get("path").toString()));
-      }
-      if ((jsonObj.get("username") != null && !jsonObj.get("username").isJsonNull()) && !jsonObj.get("username").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `username` to be a primitive type in the JSON string but got `%s`", jsonObj.get("username").toString()));
       }
   }
 
@@ -257,16 +254,16 @@ public class GitRepoRequest {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!GitRepoRequest.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'GitRepoRequest' and its subtypes
+       if (!GitInitRequest.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'GitInitRequest' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<GitRepoRequest> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(GitRepoRequest.class));
+       final TypeAdapter<GitInitRequest> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(GitInitRequest.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<GitRepoRequest>() {
+       return (TypeAdapter<T>) new TypeAdapter<GitInitRequest>() {
            @Override
-           public void write(JsonWriter out, GitRepoRequest value) throws IOException {
+           public void write(JsonWriter out, GitInitRequest value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              obj.remove("additionalProperties");
              // serialize additional properties
@@ -294,12 +291,12 @@ public class GitRepoRequest {
            }
 
            @Override
-           public GitRepoRequest read(JsonReader in) throws IOException {
+           public GitInitRequest read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              JsonObject jsonObj = jsonElement.getAsJsonObject();
              // store additional fields in the deserialized instance
-             GitRepoRequest instance = thisAdapter.fromJsonTree(jsonObj);
+             GitInitRequest instance = thisAdapter.fromJsonTree(jsonObj);
              for (Map.Entry<String, JsonElement> entry : jsonObj.entrySet()) {
                if (!openapiFields.contains(entry.getKey())) {
                  if (entry.getValue().isJsonPrimitive()) { // primitive type
@@ -326,18 +323,18 @@ public class GitRepoRequest {
   }
 
   /**
-   * Create an instance of GitRepoRequest given an JSON string
+   * Create an instance of GitInitRequest given an JSON string
    *
    * @param jsonString JSON string
-   * @return An instance of GitRepoRequest
-   * @throws IOException if the JSON string is invalid with respect to GitRepoRequest
+   * @return An instance of GitInitRequest
+   * @throws IOException if the JSON string is invalid with respect to GitInitRequest
    */
-  public static GitRepoRequest fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, GitRepoRequest.class);
+  public static GitInitRequest fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, GitInitRequest.class);
   }
 
   /**
-   * Convert an instance of GitRepoRequest to an JSON string
+   * Convert an instance of GitInitRequest to an JSON string
    *
    * @return JSON string
    */
