@@ -1,6 +1,7 @@
 go 1.25.5
 
 use (
+	./analytics-api-client-go
 	./api-client-go
 	./cli
 	./examples/go
