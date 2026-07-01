@@ -2590,7 +2590,7 @@
     },
     "/process/session/entrypoint/logs": {
       "get": {
-        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK >= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get entrypoint logs",
@@ -2733,7 +2733,7 @@
     },
     "/process/session/{sessionId}/command/{commandId}/logs": {
       "get": {
-        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK >= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get session command logs",
@@ -2862,6 +2862,52 @@
             "schema": {
               "$ref": "#/definitions/WorkDirResponse"
             }
+          }
+        }
+      }
+    },
+    "/process/pty/create-connect": {
+      "get": {
+        "description": "Creates a new PTY session and immediately establishes a WebSocket connection.\nPTY configuration is passed as query parameters. The shell starts on WS open.\nThis is faster than calling create + connect separately (1 round-trip vs 2).",
+        "tags": ["process"],
+        "summary": "Create and connect to a PTY session in a single WebSocket upgrade",
+        "operationId": "CreateAndConnectPtySession",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "PTY session ID",
+            "name": "id",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Working directory",
+            "name": "cwd",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Terminal columns (default: 80)",
+            "name": "cols",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Terminal rows (default: 24)",
+            "name": "rows",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "WebSocket subprotocols. Env vars may be passed as the token X-Daytona-Pty-Envs~<base64url-no-padding JSON object>",
+            "name": "Sec-WebSocket-Protocol",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols - WebSocket connection established"
           }
         }
       }
