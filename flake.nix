@@ -71,6 +71,10 @@
           export RUBYLIB="$PWD/sdk-ruby/lib:$PWD/api-client-ruby/lib:$PWD/toolbox-api-client-ruby/lib"
           export BUNDLE_GEMFILE="$PWD/Gemfile"
           export BUNDLE_PATH="$PWD/.bundle"
+          # Never skip the development group: rubocop (used by the lint-staged
+          # pre-commit hook via `bundle exec`) lives there, and a stray
+          # `bundle config without development` otherwise silently omits it.
+          export BUNDLE_WITHOUT=""
           # api-client-ruby reaches the API through typhoeus/ethon, which dlopen()
           # libcurl via FFI at runtime. Nix shells expose no system libs on the loader
           # path, so make libcurl (+ libstdc++ for native gem extensions) discoverable.
