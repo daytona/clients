@@ -32,6 +32,7 @@ models/announcement.ts
 models/api-key-list.ts
 models/api-key-response.ts
 models/audit-log.ts
+models/available-sandbox-class.ts
 models/build-info.ts
 models/command.ts
 models/completion-context.ts
@@ -117,6 +118,7 @@ models/mouse-scroll-request.ts
 models/mouse-scroll-response.ts
 models/oidc-config.ts
 models/organization-invitation.ts
+models/organization-preview-warning.ts
 models/organization-role.ts
 models/organization-sandbox-default-limited-network-egress.ts
 models/organization-suspension.ts
@@ -134,6 +136,7 @@ models/poll-jobs-response.ts
 models/port-preview-url.ts
 models/position.ts
 models/posthog-config.ts
+models/preview-warning.ts
 models/process-errors-response.ts
 models/process-logs-response.ts
 models/process-restart-response.ts

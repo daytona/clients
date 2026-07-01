@@ -69,6 +69,9 @@ module DaytonaApiClient
     # Sandbox default network block all
     attr_accessor :sandbox_limited_network_egress
 
+    # Whether the proxy shows the preview URL warning page for this organization
+    attr_accessor :preview_warning_enabled
+
     # Default region ID
     attr_accessor :default_region_id
 
@@ -117,6 +120,7 @@ module DaytonaApiClient
         :'max_secrets_per_sandbox' => :'maxSecretsPerSandbox',
         :'snapshot_deactivation_timeout_minutes' => :'snapshotDeactivationTimeoutMinutes',
         :'sandbox_limited_network_egress' => :'sandboxLimitedNetworkEgress',
+        :'preview_warning_enabled' => :'previewWarningEnabled',
         :'default_region_id' => :'defaultRegionId',
         :'authenticated_rate_limit' => :'authenticatedRateLimit',
         :'sandbox_create_rate_limit' => :'sandboxCreateRateLimit',
@@ -160,6 +164,7 @@ module DaytonaApiClient
         :'max_secrets_per_sandbox' => :'Float',
         :'snapshot_deactivation_timeout_minutes' => :'Float',
         :'sandbox_limited_network_egress' => :'Boolean',
+        :'preview_warning_enabled' => :'Boolean',
         :'default_region_id' => :'String',
         :'authenticated_rate_limit' => :'Float',
         :'sandbox_create_rate_limit' => :'Float',
@@ -309,6 +314,12 @@ module DaytonaApiClient
         self.sandbox_limited_network_egress = nil
       end
 
+      if attributes.key?(:'preview_warning_enabled')
+        self.preview_warning_enabled = attributes[:'preview_warning_enabled']
+      else
+        self.preview_warning_enabled = nil
+      end
+
       if attributes.key?(:'default_region_id')
         self.default_region_id = attributes[:'default_region_id']
       end
@@ -439,6 +450,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "sandbox_limited_network_egress", sandbox_limited_network_egress cannot be nil.')
       end
 
+      if @preview_warning_enabled.nil?
+        invalid_properties.push('invalid value for "preview_warning_enabled", preview_warning_enabled cannot be nil.')
+      end
+
       if @experimental_config.nil?
         invalid_properties.push('invalid value for "experimental_config", experimental_config cannot be nil.')
       end
@@ -468,6 +483,7 @@ module DaytonaApiClient
       return false if @max_secrets_per_sandbox.nil?
       return false if @snapshot_deactivation_timeout_minutes.nil?
       return false if @sandbox_limited_network_egress.nil?
+      return false if @preview_warning_enabled.nil?
       return false if @experimental_config.nil?
       true
     end
@@ -653,6 +669,16 @@ module DaytonaApiClient
     end
 
     # Custom attribute writer method with validation
+    # @param [Object] preview_warning_enabled Value to be assigned
+    def preview_warning_enabled=(preview_warning_enabled)
+      if preview_warning_enabled.nil?
+        fail ArgumentError, 'preview_warning_enabled cannot be nil'
+      end
+
+      @preview_warning_enabled = preview_warning_enabled
+    end
+
+    # Custom attribute writer method with validation
     # @param [Object] experimental_config Value to be assigned
     def experimental_config=(experimental_config)
       if experimental_config.nil?
@@ -685,6 +711,7 @@ module DaytonaApiClient
           max_secrets_per_sandbox == o.max_secrets_per_sandbox &&
           snapshot_deactivation_timeout_minutes == o.snapshot_deactivation_timeout_minutes &&
           sandbox_limited_network_egress == o.sandbox_limited_network_egress &&
+          preview_warning_enabled == o.preview_warning_enabled &&
           default_region_id == o.default_region_id &&
           authenticated_rate_limit == o.authenticated_rate_limit &&
           sandbox_create_rate_limit == o.sandbox_create_rate_limit &&
@@ -705,7 +732,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, default_region_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
+      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, preview_warning_enabled, default_region_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
     end
 
     # Builds the object from hash

@@ -275,6 +275,19 @@ type OrganizationsAPI interface {
 	ListAvailableRegionsExecute(r OrganizationsAPIListAvailableRegionsRequest) ([]Region, *http.Response, error)
 
 	/*
+	ListAvailableSandboxClasses List available sandbox classes for organization
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param organizationId Organization ID
+	@return OrganizationsAPIListAvailableSandboxClassesRequest
+	*/
+	ListAvailableSandboxClasses(ctx context.Context, organizationId string) OrganizationsAPIListAvailableSandboxClassesRequest
+
+	// ListAvailableSandboxClassesExecute executes the request
+	//  @return []AvailableSandboxClass
+	ListAvailableSandboxClassesExecute(r OrganizationsAPIListAvailableSandboxClassesRequest) ([]AvailableSandboxClass, *http.Response, error)
+
+	/*
 	ListOrganizationInvitations List pending organization invitations
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -463,6 +476,18 @@ type OrganizationsAPI interface {
 
 	// UpdateOrganizationOtelConfigExecute executes the request
 	UpdateOrganizationOtelConfigExecute(r OrganizationsAPIUpdateOrganizationOtelConfigRequest) (*http.Response, error)
+
+	/*
+	UpdateOrganizationPreviewWarning Update organization preview warning
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param organizationId Organization ID
+	@return OrganizationsAPIUpdateOrganizationPreviewWarningRequest
+	*/
+	UpdateOrganizationPreviewWarning(ctx context.Context, organizationId string) OrganizationsAPIUpdateOrganizationPreviewWarningRequest
+
+	// UpdateOrganizationPreviewWarningExecute executes the request
+	UpdateOrganizationPreviewWarningExecute(r OrganizationsAPIUpdateOrganizationPreviewWarningRequest) (*http.Response, error)
 
 	/*
 	UpdateOrganizationQuota Update organization quota
@@ -2543,6 +2568,107 @@ func (a *OrganizationsAPIService) ListAvailableRegionsExecute(r OrganizationsAPI
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type OrganizationsAPIListAvailableSandboxClassesRequest struct {
+	ctx context.Context
+	ApiService OrganizationsAPI
+	organizationId string
+}
+
+func (r OrganizationsAPIListAvailableSandboxClassesRequest) Execute() ([]AvailableSandboxClass, *http.Response, error) {
+	return r.ApiService.ListAvailableSandboxClassesExecute(r)
+}
+
+/*
+ListAvailableSandboxClasses List available sandbox classes for organization
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param organizationId Organization ID
+ @return OrganizationsAPIListAvailableSandboxClassesRequest
+*/
+func (a *OrganizationsAPIService) ListAvailableSandboxClasses(ctx context.Context, organizationId string) OrganizationsAPIListAvailableSandboxClassesRequest {
+	return OrganizationsAPIListAvailableSandboxClassesRequest{
+		ApiService: a,
+		ctx: ctx,
+		organizationId: organizationId,
+	}
+}
+
+// Execute executes the request
+//  @return []AvailableSandboxClass
+func (a *OrganizationsAPIService) ListAvailableSandboxClassesExecute(r OrganizationsAPIListAvailableSandboxClassesRequest) ([]AvailableSandboxClass, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []AvailableSandboxClass
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "OrganizationsAPIService.ListAvailableSandboxClasses")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/organizations/{organizationId}/available-sandbox-classes"
+	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type OrganizationsAPIListOrganizationInvitationsRequest struct {
 	ctx context.Context
 	ApiService OrganizationsAPI
@@ -4066,6 +4192,107 @@ func (a *OrganizationsAPIService) UpdateOrganizationOtelConfigExecute(r Organiza
 	}
 	// body params
 	localVarPostBody = r.otelConfig
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
+type OrganizationsAPIUpdateOrganizationPreviewWarningRequest struct {
+	ctx context.Context
+	ApiService OrganizationsAPI
+	organizationId string
+	organizationPreviewWarning *OrganizationPreviewWarning
+}
+
+func (r OrganizationsAPIUpdateOrganizationPreviewWarningRequest) OrganizationPreviewWarning(organizationPreviewWarning OrganizationPreviewWarning) OrganizationsAPIUpdateOrganizationPreviewWarningRequest {
+	r.organizationPreviewWarning = &organizationPreviewWarning
+	return r
+}
+
+func (r OrganizationsAPIUpdateOrganizationPreviewWarningRequest) Execute() (*http.Response, error) {
+	return r.ApiService.UpdateOrganizationPreviewWarningExecute(r)
+}
+
+/*
+UpdateOrganizationPreviewWarning Update organization preview warning
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param organizationId Organization ID
+ @return OrganizationsAPIUpdateOrganizationPreviewWarningRequest
+*/
+func (a *OrganizationsAPIService) UpdateOrganizationPreviewWarning(ctx context.Context, organizationId string) OrganizationsAPIUpdateOrganizationPreviewWarningRequest {
+	return OrganizationsAPIUpdateOrganizationPreviewWarningRequest{
+		ApiService: a,
+		ctx: ctx,
+		organizationId: organizationId,
+	}
+}
+
+// Execute executes the request
+func (a *OrganizationsAPIService) UpdateOrganizationPreviewWarningExecute(r OrganizationsAPIUpdateOrganizationPreviewWarningRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "OrganizationsAPIService.UpdateOrganizationPreviewWarning")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/organizations/{organizationId}/preview-warning"
+	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.organizationPreviewWarning == nil {
+		return nil, reportError("organizationPreviewWarning is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.organizationPreviewWarning
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return nil, err

@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { AvailableSandboxClass } from '../models';
+// @ts-ignore
 import type { CreateOrganization } from '../models';
 // @ts-ignore
 import type { CreateOrganizationInvitation } from '../models';
@@ -35,6 +37,8 @@ import type { CreateRegionResponse } from '../models';
 import type { Organization } from '../models';
 // @ts-ignore
 import type { OrganizationInvitation } from '../models';
+// @ts-ignore
+import type { OrganizationPreviewWarning } from '../models';
 // @ts-ignore
 import type { OrganizationRole } from '../models';
 // @ts-ignore
@@ -898,6 +902,46 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
+         * @summary List available sandbox classes for organization
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listAvailableSandboxClasses: async (organizationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('listAvailableSandboxClasses', 'organizationId', organizationId)
+            const localVarPath = `/organizations/{organizationId}/available-sandbox-classes`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary List pending organization invitations
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -1531,6 +1575,50 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
+         * @summary Update organization preview warning
+         * @param {string} organizationId Organization ID
+         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateOrganizationPreviewWarning: async (organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('updateOrganizationPreviewWarning', 'organizationId', organizationId)
+            // verify required parameter 'organizationPreviewWarning' is not null or undefined
+            assertParamExists('updateOrganizationPreviewWarning', 'organizationPreviewWarning', organizationPreviewWarning)
+            const localVarPath = `/organizations/{organizationId}/preview-warning`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(organizationPreviewWarning, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Update organization quota
          * @param {string} organizationId Organization ID
          * @param {UpdateOrganizationQuota} updateOrganizationQuota 
@@ -2040,6 +2128,19 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary List available sandbox classes for organization
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listAvailableSandboxClasses(organizationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<AvailableSandboxClass>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listAvailableSandboxClasses(organizationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.listAvailableSandboxClasses']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary List pending organization invitations
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -2240,6 +2341,20 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationOtelConfig(organizationId, otelConfig, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationOtelConfig']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update organization preview warning
+         * @param {string} organizationId Organization ID
+         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationPreviewWarning']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -2533,6 +2648,16 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
+         * @summary List available sandbox classes for organization
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listAvailableSandboxClasses(organizationId: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<AvailableSandboxClass>> {
+            return localVarFp.listAvailableSandboxClasses(organizationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary List pending organization invitations
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -2689,6 +2814,17 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
          */
         updateOrganizationOtelConfig(organizationId: string, otelConfig: OtelConfig, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.updateOrganizationOtelConfig(organizationId, otelConfig, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update organization preview warning
+         * @param {string} organizationId Organization ID
+         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2984,6 +3120,17 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
+     * @summary List available sandbox classes for organization
+     * @param {string} organizationId Organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listAvailableSandboxClasses(organizationId: string, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).listAvailableSandboxClasses(organizationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary List pending organization invitations
      * @param {string} organizationId Organization ID
      * @param {*} [options] Override http request option.
@@ -3154,6 +3301,18 @@ export class OrganizationsApi extends BaseAPI {
      */
     public updateOrganizationOtelConfig(organizationId: string, otelConfig: OtelConfig, options?: RawAxiosRequestConfig) {
         return OrganizationsApiFp(this.configuration).updateOrganizationOtelConfig(organizationId, otelConfig, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update organization preview warning
+     * @param {string} organizationId Organization ID
+     * @param {OrganizationPreviewWarning} organizationPreviewWarning 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

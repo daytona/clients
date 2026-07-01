@@ -5,6 +5,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Capability token advertised on PTY WebSocket connects so the daemon sends the
+# "exited" control message; clients that don't send it only get the close frame.
+PTY_EXIT_CONTROL_SUBPROTOCOL = "X-Daytona-Pty-Exit-Control"
+
 
 @dataclass
 class PtySize:

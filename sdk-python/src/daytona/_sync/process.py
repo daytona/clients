@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import re
+from urllib.parse import urlencode
 
 import httpx
 import httpx_ws
@@ -14,14 +17,13 @@ from daytona_toolbox_api_client import (
     CreateSessionRequest,
     ExecuteRequest,
     ProcessApi,
-    PtyCreateRequest,
     PtyResizeRequest,
     PtySessionInfo,
     Session,
     SessionSendInputRequest,
 )
 
-from .._utils.errors import intercept_errors
+from .._utils.errors import create_daytona_error, intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.stream import std_demux_stream_httpx_ws
 from .._utils.timeout import http_timeout
@@ -35,7 +37,7 @@ from ..common.process import (
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
-from ..common.pty import PtySize
+from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
 from ..handle.pty_handle import PtyHandle
 
 
@@ -585,20 +587,76 @@ class Process:
         Raises:
             DaytonaError: If the PTY session creation fails or the session ID is already in use.
         """
-        response = self._api_client.create_pty_session(
-            request=PtyCreateRequest(
-                id=id,
-                cwd=cwd,
-                envs=envs,
-                cols=pty_size.cols if pty_size else None,
-                rows=pty_size.rows if pty_size else None,
-                lazy_start=True,
-            ),
-        )
+        cols = pty_size.cols if pty_size else 80
+        rows = pty_size.rows if pty_size else 24
 
-        return self.connect_pty_session(
-            response.session_id,
+        # Build query params for the combined create-connect endpoint (single round-trip)
+        params: dict[str, str] = {
+            "id": id,
+            "cols": str(cols),
+            "rows": str(rows),
+        }
+        if cwd:
+            params["cwd"] = cwd
+
+        # Derive the WS URL from the API client's base configuration
+        _, base_url, headers, *_ = self._api_client._connect_pty_session_serialize(
+            session_id="__placeholder__",
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
         )
+        url = base_url.replace("/process/pty/__placeholder__/connect", "/process/pty/create-connect")
+        url = re.sub(r"^http", "ws", url)
+        url = f"{url}?{urlencode(params)}"
+
+        # Envs travel as a WebSocket subprotocol token (base64url-no-pad of the JSON object)
+        # rather than the query string or a header, keeping the transport uniform across
+        # runtimes and potentially-large/secret values out of URLs and access logs.
+        subprotocols: list[str] = [PTY_EXIT_CONTROL_SUBPROTOCOL]
+        if envs:
+            encoded = base64.urlsafe_b64encode(json.dumps(envs).encode()).rstrip(b"=").decode()
+            subprotocols.append(f"X-Daytona-Pty-Envs~{encoded}")
+
+        try:
+            ws_cm = httpx_ws.connect_ws(url, self._http_client, headers=headers, subprotocols=subprotocols)
+            ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
+        except httpx_ws.WebSocketUpgradeError as e:
+            # A failed WS upgrade carries the HTTP response; surface it as the matching typed
+            # Daytona exception (e.g. 404 -> DaytonaNotFoundError, 409 -> DaytonaConflictError)
+            # so callers can branch on it like any REST error (parity with the async path).
+            raise create_daytona_error(
+                f"WebSocket upgrade failed with HTTP {e.response.status_code}",
+                status_code=e.response.status_code,
+                headers=e.response.headers,
+            ) from e
+
+        def resize_handler(pty_size_arg: PtySize) -> PtySessionInfo:
+            return self.resize_pty_session(id, pty_size_arg)
+
+        def kill_handler() -> None:
+            self.kill_pty_session(id)
+
+        # Guard from here so a failure constructing the handle or completing the
+        # handshake closes the socket instead of leaking the WebSocket connection.
+        handle: PtyHandle | None = None
+        try:
+            handle = PtyHandle(
+                ws,
+                session_id=id,
+                handle_resize=resize_handler,
+                handle_kill=kill_handler,
+                ws_context_manager=ws_cm,
+            )
+            handle.wait_for_connection()
+        except BaseException:
+            if handle is not None:
+                handle.disconnect()
+            else:
+                _ = ws_cm.__exit__(None, None, None)  # pylint: disable=unnecessary-dunder-call
+            raise
+        return handle
 
     @intercept_errors(message_prefix="Failed to connect PTY session: ")
     @with_instrumentation()
@@ -633,7 +691,9 @@ class Process:
         # closes via handle.disconnect(). The WS upgrade pulls a TCP/TLS connection from
         # self._http_client's pool (shared TLS context, DNS cache) — once upgraded, that
         # socket is dedicated to this PTY for its entire lifetime.
-        ws_cm = httpx_ws.connect_ws(url, self._http_client, headers=headers)
+        ws_cm = httpx_ws.connect_ws(
+            url, self._http_client, headers=headers, subprotocols=[PTY_EXIT_CONTROL_SUBPROTOCOL]
+        )
         ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
 
         def resize_handler(pty_size: PtySize) -> PtySessionInfo:
