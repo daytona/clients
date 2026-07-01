@@ -66,7 +66,7 @@ func (c *Client) ExecuteCommand(ctx context.Context, sandbox *apiclient.Sandbox,
 	return c.executeCommandViaProxy(ctx, proxyURL, sandbox.Id, request)
 }
 
-// TODO: replace this with the toolbox api client at some point
+// TODO: migrate this manual process client to NewAPIClient in a follow-up PR.
 func (c *Client) executeCommandViaProxy(ctx context.Context, proxyURL, sandboxId string, request ExecuteRequest) (*ExecuteResponse, error) {
 	// Build the URL: {proxyUrl}/{sandboxId}/process/execute
 	url := fmt.Sprintf("%s/%s/process/execute", strings.TrimSuffix(proxyURL, "/"), sandboxId)

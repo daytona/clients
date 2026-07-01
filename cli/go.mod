@@ -4,13 +4,14 @@ go 1.25.4
 
 require (
 	github.com/charmbracelet/bubbletea v1.1.0
+	github.com/daytona/clients/api-client-go v0.192.0
+	github.com/daytona/clients/toolbox-api-client-go v0.192.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.32.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
-	github.com/daytona/clients/api-client-go v0.192.0
 	golang.org/x/oauth2 v0.35.0
 )
 
