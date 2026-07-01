@@ -12321,6 +12321,138 @@
         "summary": "Get sandbox metrics",
         "tags": ["sandbox"]
       }
+    },
+    "/sandbox/{sandboxId}/signing-key": {
+      "get": {
+        "operationId": "getSandboxSigningKey",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signing key of the sandbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Get the signing key for a sandbox",
+        "tags": ["sandbox"]
+      }
+    },
+    "/sandbox/{sandboxId}/signing-key/rotate": {
+      "post": {
+        "operationId": "rotateSigningKey",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New signing key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Rotate the signing key, invalidating all previously signed URLs",
+        "tags": ["sandbox"]
+      }
+    },
+    "/preview/{sandboxId}/signing-key": {
+      "get": {
+        "operationId": "getSigningKey",
+        "parameters": [
+          {
+            "name": "sandboxId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signing key of the sandbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Get the signing key for a sandbox",
+        "tags": ["preview"]
+      }
     }
   },
   "info": {

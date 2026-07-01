@@ -1566,39 +1566,6 @@
         }
       }
     },
-    "/files/upload": {
-      "post": {
-        "description": "Upload a file to the specified path",
-        "consumes": ["multipart/form-data"],
-        "tags": ["file-system"],
-        "summary": "Upload a file",
-        "operationId": "UploadFile",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "Destination path for the uploaded file",
-            "name": "path",
-            "in": "query",
-            "required": true
-          },
-          {
-            "type": "file",
-            "description": "File to upload",
-            "name": "file",
-            "in": "formData",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/gin.H"
-            }
-          }
-        }
-      }
-    },
     "/git/add": {
       "post": {
         "description": "Add files to the Git staging area",
@@ -2590,7 +2557,7 @@
     },
     "/process/session/entrypoint/logs": {
       "get": {
-        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK >= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get entrypoint logs",
@@ -2733,7 +2700,7 @@
     },
     "/process/session/{sessionId}/command/{commandId}/logs": {
       "get": {
-        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK >= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get session command logs",
@@ -2861,6 +2828,39 @@
             "description": "OK",
             "schema": {
               "$ref": "#/definitions/WorkDirResponse"
+            }
+          }
+        }
+      }
+    },
+    "/files/upload-v2": {
+      "post": {
+        "description": "Upload a file to the specified path. Accepts either multipart/form-data\n(field \"file\") or a raw request body (e.g. application/octet-stream).\nParent directories are created if missing; an existing file is overwritten.",
+        "consumes": ["multipart/form-data"],
+        "produces": ["application/json"],
+        "tags": ["file-system"],
+        "summary": "Upload a file",
+        "operationId": "UploadFile",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Destination path for the uploaded file",
+            "name": "path",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "file",
+            "description": "File to upload (multipart/form-data)",
+            "name": "file",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/UploadedFile"
             }
           }
         }
@@ -4385,6 +4385,21 @@
     "gin.H": {
       "type": "object",
       "additionalProperties": {}
+    },
+    "UploadedFile": {
+      "type": "object",
+      "required": ["name", "path", "type"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
     }
   },
   "securityDefinitions": {

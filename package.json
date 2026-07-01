@@ -331,7 +331,7 @@
       "gofmt -w"
     ],
     "!(*api-client-ruby*/**/*)*.rb": [
-      "rubocop -a --fail-level fatal"
+      "bundle exec rubocop -a --fail-level fatal"
     ],
     "*.{mdx,md}": [
       "markdownlint-cli2 --fix"
@@ -340,7 +340,7 @@
       "isort",
       "black --config pyproject.toml",
       "pylint -sn",
-      "basedpyright"
+      "env -u LD_LIBRARY_PATH basedpyright"
     ],
     "sdk-python/tests/**/*.py": [
       "isort",
@@ -350,7 +350,7 @@
       "nbqa isort",
       "black --config pyproject.toml",
       "nbqa pylint -sn",
-      "basedpyright"
+      "env -u LD_LIBRARY_PATH basedpyright"
     ]
   }
 }
