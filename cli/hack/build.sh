@@ -83,6 +83,12 @@ if [ ${#MISSING_VARS[@]} -ne 0 ]; then
     exit 1
 fi
 
+# Auth0's discovery issuer ends in a single trailing slash, and go-oidc compares
+# the configured issuer against it exactly. Collapse any trailing slashes to one
+# so a value entered with none or several still matches.
+shopt -s extglob
+DAYTONA_AUTH0_DOMAIN="${DAYTONA_AUTH0_DOMAIN%%+(/)}/"
+
 # Create build directory if it doesn't exist
 mkdir -p "${DIST_DIR}/dist/cli"
 
