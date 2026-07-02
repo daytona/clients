@@ -963,6 +963,7 @@ class SandboxApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Sandbox",
+            '409': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1037,6 +1038,7 @@ class SandboxApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Sandbox",
+            '409': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1111,6 +1113,7 @@ class SandboxApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Sandbox",
+            '409': None,
         }
         response_data = self.api_client.call_api(
             *_param,

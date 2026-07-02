@@ -235,6 +235,7 @@ export type CreateSandboxFromSnapshotParams = CreateSandboxBaseParams & {
 export class Daytona implements AsyncDisposable {
   private readonly clientConfig: Configuration
   private readonly sandboxApi: SandboxApi
+  private readonly snapshotsApi: SnapshotsApi
   private readonly objectStorageApi: ObjectStorageApi
   private readonly configApi: ConfigApi
   private readonly target?: string
@@ -331,16 +332,12 @@ export class Daytona implements AsyncDisposable {
     const axiosInstance = Daytona.createAxiosInstance()
 
     this.sandboxApi = new SandboxApi(configuration, '', axiosInstance)
+    this.snapshotsApi = new SnapshotsApi(configuration, '', axiosInstance)
     this.objectStorageApi = new ObjectStorageApi(configuration, '', axiosInstance)
     this.configApi = new ConfigApi(configuration, '', axiosInstance)
     this.volume = new VolumeService(new VolumesApi(configuration, '', axiosInstance))
     this.secret = new SecretService(new SecretApi(configuration, '', axiosInstance))
-    this.snapshot = new SnapshotService(
-      configuration,
-      new SnapshotsApi(configuration, '', axiosInstance),
-      this.objectStorageApi,
-      this.target,
-    )
+    this.snapshot = new SnapshotService(configuration, this.snapshotsApi, this.objectStorageApi, this.target)
     this.clientConfig = configuration
 
     const env = envReader()
@@ -633,6 +630,7 @@ export class Daytona implements AsyncDisposable {
         new Configuration(structuredClone(this.clientConfig)),
         Daytona.createAxiosInstance(),
         this.sandboxApi,
+        this.snapshotsApi,
       )
 
       if (sandbox.state !== 'started') {
@@ -673,6 +671,7 @@ export class Daytona implements AsyncDisposable {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.snapshotsApi,
     )
   }
 
@@ -688,7 +687,7 @@ export class Daytona implements AsyncDisposable {
    * }
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
-    const { sandboxApi, clientConfig } = this
+    const { sandboxApi, snapshotsApi, clientConfig } = this
     const tracer = trace.getTracer('')
 
     async function* generator(): AsyncGenerator<Sandbox> {
@@ -759,7 +758,13 @@ export class Daytona implements AsyncDisposable {
 
         for (const sandbox of response.data.items) {
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          yield new Sandbox(sandbox, structuredClone(clientConfig), Daytona.createAxiosInstance(), sandboxApi)
+          yield new Sandbox(
+            sandbox,
+            structuredClone(clientConfig),
+            Daytona.createAxiosInstance(),
+            sandboxApi,
+            snapshotsApi,
+          )
         }
 
         cursor = response.data.nextCursor ?? undefined

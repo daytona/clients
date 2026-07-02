@@ -521,6 +521,7 @@ public class SandboxApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with this name already exists for the organization </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call createSandboxSnapshotCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
@@ -603,6 +604,7 @@ public class SandboxApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with this name already exists for the organization </td><td>  -  </td></tr>
      </table>
      */
     public Sandbox createSandboxSnapshot(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
@@ -623,6 +625,7 @@ public class SandboxApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with this name already exists for the organization </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Sandbox> createSandboxSnapshotWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
@@ -645,6 +648,7 @@ public class SandboxApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with this name already exists for the organization </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call createSandboxSnapshotAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Sandbox> _callback) throws ApiException {

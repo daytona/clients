@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SandboxState, SandboxApi, SandboxBackupStateEnum, Configuration } from '@daytona/api-client'
+import {
+  SandboxState,
+  SandboxApi,
+  SandboxBackupStateEnum,
+  Configuration,
+  SnapshotsApi,
+  SnapshotState,
+} from '@daytona/api-client'
 import type {
   Sandbox as SandboxDto,
   SandboxListItem as SandboxListItemDto,
@@ -18,6 +25,7 @@ import type {
   UpdateSandboxNetworkSettings,
   SandboxListSortField,
   SandboxListSortDirection,
+  SnapshotDto,
 } from '@daytona/api-client'
 import { Daytona } from './Daytona'
 import type { Resources } from './Daytona'
@@ -40,6 +48,20 @@ import { ComputerUse } from './ComputerUse'
 import type { AxiosInstance } from 'axios'
 import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
+
+// "Legacy API" below means a server that inserts the snapshot record only
+// after a successful capture (instead of creating it up front when the
+// capture is accepted). Such servers restore the sandbox state before the
+// record lands, so the record can be briefly missing even for a capture
+// that succeeded. These constants control how many times the record is
+// re-polled after observing the reverted sandbox, and how far apart.
+const SNAPSHOT_GRACE_READ_ATTEMPTS = 3
+const SNAPSHOT_GRACE_READ_DELAY_MS = 500
+
+// Allowance for clock skew between this client and the API when deciding
+// whether a polled snapshot record predates the capture that is being
+// waited on (pre-existing same-name snapshot on a legacy API).
+const SNAPSHOT_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000
 
 /**
  * Represents a Daytona Sandbox.
@@ -130,6 +152,7 @@ export class Sandbox {
   public toolboxProxyUrl: string
 
   private infoApi: InfoApi
+  private readonly snapshotsApi: SnapshotsApi
 
   /**
    * Creates a new Sandbox instance
@@ -141,7 +164,14 @@ export class Sandbox {
     private readonly clientConfig: Configuration,
     private readonly axiosInstance: AxiosInstance,
     private readonly sandboxApi: SandboxApi,
+    snapshotsApi?: SnapshotsApi,
   ) {
+    // clientConfig still targets the Daytona API at this point (it is repurposed
+    // for the toolbox below), so a default SnapshotsApi built from a copy of it
+    // polls the correct host when the caller does not provide one.
+    this.snapshotsApi =
+      snapshotsApi ?? new SnapshotsApi(new Configuration({ ...clientConfig }), '', Daytona.createAxiosInstance())
+
     this.processSandboxDto(sandboxDto)
 
     // Set the toolbox base URL
@@ -372,6 +402,7 @@ export class Sandbox {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.snapshotsApi,
     )
 
     const timeElapsed = Date.now() - startTime
@@ -385,7 +416,9 @@ export class Sandbox {
    *
    * This captures the Sandbox's filesystem into a reusable snapshot that can be
    * used to create new Sandboxes. The Sandbox will temporarily enter a
-   * 'snapshotting' state and return to its previous state when complete.
+   * 'snapshotting' state and return to its previous state when complete. The
+   * method waits until the snapshot record reaches the 'active' state and throws
+   * a DaytonaError carrying the snapshot's error reason if the capture fails.
    *
    * @param {string} name - Name for the new snapshot
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
@@ -415,25 +448,73 @@ export class Sandbox {
 
     const timeElapsed = Date.now() - startTime
     const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    await this.waitForSnapshotComplete(remainingTimeout)
+    await this.waitForSnapshotComplete(name, remainingTimeout, new Date(startTime))
   }
 
-  private async waitForSnapshotComplete(timeout: number) {
+  private async waitForSnapshotComplete(name: string, timeout: number, initiatedAt: Date) {
     let checkInterval = 100
     const startTime = Date.now()
 
-    while (this.state === SandboxState.SNAPSHOTTING) {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === SandboxState.ERROR || this.state === SandboxState.BUILD_FAILED) {
-        throw new DaytonaError(
-          `Sandbox ${this.id} snapshot failed with state: ${this.state}, error reason: ${this.errorReason}`,
-        )
+    while (true) {
+      let snapshot: SnapshotDto | undefined
+      try {
+        snapshot = (await this.snapshotsApi.getSnapshot(name)).data
+      } catch (error) {
+        if (!(error instanceof DaytonaNotFoundError)) {
+          throw error
+        }
+        // Legacy APIs create the snapshot record only after a successful capture.
+        // Tolerate the missing record while the sandbox is still snapshotting.
+        await this.refreshData()
+        if (this.state !== SandboxState.SNAPSHOTTING) {
+          // Legacy APIs persist the record and restore the sandbox state in separate
+          // steps, so a poll can observe the reverted sandbox before the record lands.
+          // Re-read a few times, spaced out, before declaring the capture failed.
+          for (let attempt = 1; !snapshot; attempt++) {
+            try {
+              snapshot = (await this.snapshotsApi.getSnapshot(name)).data
+            } catch (graceError) {
+              if (!(graceError instanceof DaytonaNotFoundError)) {
+                throw graceError
+              }
+              const timedOut = timeout !== 0 && Date.now() - startTime > timeout * 1000
+              if (attempt >= SNAPSHOT_GRACE_READ_ATTEMPTS || timedOut) {
+                throw new DaytonaError(
+                  `Sandbox ${this.id} snapshot '${name}' failed: no snapshot record exists and sandbox is no longer snapshotting (state: ${this.state}, error reason: ${this.errorReason})`,
+                )
+              }
+              await new Promise((resolve) => setTimeout(resolve, SNAPSHOT_GRACE_READ_DELAY_MS))
+            }
+          }
+        }
       }
 
-      if (this.state !== SandboxState.SNAPSHOTTING) {
-        return
+      if (snapshot) {
+        // A record that predates this capture (allowing for clock skew) is a
+        // pre-existing snapshot that happens to share the name, not ours:
+        // legacy APIs have no accept-time duplicate check, so the poll
+        // would otherwise resolve against it while the real capture is still
+        // running (and doomed to fail on the duplicate insert).
+        const createdAtMs = snapshot.createdAt ? new Date(snapshot.createdAt).getTime() : Number.NaN
+        if (Number.isFinite(createdAtMs) && createdAtMs < initiatedAt.getTime() - SNAPSHOT_CLOCK_SKEW_TOLERANCE_MS) {
+          throw new DaytonaError(
+            `Snapshot ${name} already existed before this capture started; delete it or choose a different name`,
+          )
+        }
+
+        if (snapshot.state === SnapshotState.ACTIVE) {
+          // Record polling bypasses the sandbox, so sync local data
+          // (state would otherwise stay SNAPSHOTTING) before resolving.
+          // Best-effort: a refresh failure must never reject a successful capture.
+          await this.refreshDataSafe()
+          return
+        }
+        if (snapshot.state === SnapshotState.ERROR || snapshot.state === SnapshotState.BUILD_FAILED) {
+          await this.refreshDataSafe()
+          throw new DaytonaError(
+            `Snapshot ${name} failed with state: ${snapshot.state}, error reason: ${snapshot.errorReason}`,
+          )
+        }
       }
 
       if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
