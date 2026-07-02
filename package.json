@@ -1,7 +1,7 @@
 {
   "name": "daytona",
   "version": "0.0.0-dev",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "scripts": {
     "postinstall": "is-ci || husky",
