@@ -31,6 +31,8 @@ from daytona_toolbox_api_client import (
     InterpreterApi,
     LspApi,
     ProcessApi,
+    SystemApi,
+    SystemMetrics,
 )
 
 from .._utils.errors import intercept_errors
@@ -148,6 +150,7 @@ class Sandbox(SandboxDto):
             http_client=http_client,
         )
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
+        self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
     @property
     def fs(self) -> FileSystem:
@@ -228,6 +231,20 @@ class Sandbox(SandboxDto):
         """
         response = self._info_api.get_work_dir()
         return response.dir
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    def get_metrics(self) -> SystemMetrics:
+        """Gets the current sandbox system metrics snapshot.
+
+        The snapshot is refreshed on the sandbox's metric collection interval (default 60s).
+        Override it by setting the ``OTEL_METRIC_EXPORT_INTERVAL`` env var (in milliseconds)
+        when creating the sandbox.
+
+        Returns:
+            SystemMetrics: The current CPU, memory, and disk usage snapshot for the Sandbox.
+        """
+        return self._system_api.get_system_metrics()
 
     @with_instrumentation()
     def create_lsp_server(self, language_id: LspLanguageId | LspLanguageIdLiteral, path_to_project: str) -> LspServer:

@@ -607,6 +607,31 @@ puts "Sandbox working directory: #{work_dir}"
 
 ```
 
+#### get_metrics()
+
+```ruby
+def get_metrics()
+
+```
+
+Gets a live CPU, memory, and disk metrics snapshot for the Sandbox.
+
+The snapshot is refreshed on the sandbox's metric collection interval (default 60s).
+Override it by setting the OTEL_METRIC_EXPORT_INTERVAL env var (in milliseconds) when
+creating the sandbox.
+
+**Returns**:
+
+- `DaytonaToolboxApiClient:SystemMetrics`
+
+**Examples:**
+
+```ruby
+metrics = sandbox.get_metrics
+puts "CPU used: #{metrics.cpu_used_pct}%"
+
+```
+
 #### labels=()
 
 ```ruby

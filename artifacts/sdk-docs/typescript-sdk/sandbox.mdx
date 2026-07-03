@@ -272,6 +272,31 @@ Expires a signed preview url for the sandbox at the specified port.
 
 ***
 
+#### getMetrics()
+
+```ts
+getMetrics(): Promise<SystemMetrics>
+```
+
+Gets the sandbox's current resource usage (CPU, memory, disk).
+
+The snapshot is refreshed on the sandbox's metric collection interval (default 60s).
+Override it by setting the `OTEL_METRIC_EXPORT_INTERVAL` env var (in milliseconds) when
+creating the sandbox.
+
+**Returns**:
+
+- `Promise<SystemMetrics>` - A live snapshot of the sandbox's resource metrics.
+
+**Example:**
+
+```ts
+const metrics = await sandbox.getMetrics()
+console.log(`CPU: ${metrics.cpuUsedPct}%, mem: ${metrics.memUsed}/${metrics.memTotal}`)
+```
+
+***
+
 #### getPreviewLink()
 
 ```ts

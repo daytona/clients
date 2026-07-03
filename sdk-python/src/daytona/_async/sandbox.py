@@ -30,6 +30,8 @@ from daytona_toolbox_api_client_async import (
     InterpreterApi,
     LspApi,
     ProcessApi,
+    SystemApi,
+    SystemMetrics,
 )
 
 from .._utils.errors import intercept_errors
@@ -132,6 +134,7 @@ class AsyncSandbox(SandboxDto):
         self._computer_use = AsyncComputerUse(ComputerUseApi(self._toolbox_api))
         self._code_interpreter = AsyncCodeInterpreter(InterpreterApi(self._toolbox_api))
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
+        self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
     @property
     def fs(self) -> AsyncFileSystem:
@@ -212,6 +215,20 @@ class AsyncSandbox(SandboxDto):
         """
         response = await self._info_api.get_work_dir()
         return response.dir
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    async def get_metrics(self) -> SystemMetrics:
+        """Gets the current sandbox system metrics snapshot.
+
+        The snapshot is refreshed on the sandbox's metric collection interval (default 60s).
+        Override it by setting the ``OTEL_METRIC_EXPORT_INTERVAL`` env var (in milliseconds)
+        when creating the sandbox.
+
+        Returns:
+            SystemMetrics: The current CPU, memory, and disk usage snapshot for the Sandbox.
+        """
+        return await self._system_api.get_system_metrics()
 
     @with_instrumentation()
     def create_lsp_server(

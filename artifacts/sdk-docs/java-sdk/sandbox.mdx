@@ -223,6 +223,25 @@ Returns home directory path for Sandbox user.
 
 - `DaytonaException` - if the request fails
 
+#### getMetrics()
+```java
+public SystemMetrics getMetrics()
+```
+
+Gets a live snapshot of the sandbox's CPU/memory/disk usage.
+
+The snapshot is refreshed on the sandbox's metric collection interval (default 60s).
+Override it by setting the OTEL_METRIC_EXPORT_INTERVAL env var (in milliseconds) when
+creating the sandbox.
+
+**Returns**:
+
+- `SystemMetrics` - current sandbox system metrics snapshot
+
+**Throws**:
+
+- `DaytonaException` - if the request fails
+
 #### getWorkDir()
 ```java
 public String getWorkDir()
