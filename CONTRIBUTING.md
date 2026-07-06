@@ -84,6 +84,8 @@ Run `yarn lint` before opening a PR.
    change.
 3. [Prepare your changes](./PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
    every commit to comply with the DCO v1.1 (`git commit -s`).
+   The first time you open a PR, our CLA assistant will also ask you to **sign the
+   [Contributor License Agreement](./CLA.md)** (see [Licensing](#licensing) below).
 4. If you changed generated clients, regenerate them (`yarn generate:api-client`) and commit
    the result. If you changed command behavior, regenerate any affected docs.
 5. Ensure `yarn lint`, `yarn build`, and `yarn test` pass.
@@ -93,6 +95,21 @@ Run `yarn lint` before opening a PR.
 
 ## Licensing
 
-This repository is licensed under [Apache-2.0](./LICENSE). By contributing, you agree that
-your contributions are licensed under Apache-2.0 and that you have the right to license them
-(via the DCO sign-off on each commit).
+This repository is currently made available under [Apache-2.0](./LICENSE) (with `cli/` under
+AGPL-3.0). Contributing involves two steps:
+
+1. **DCO sign-off (per commit).** Sign off every commit with `git commit -s` to certify, under
+   the [Developer Certificate of Origin](https://developercertificate.org/) v1.1, that you have
+   the right to submit the code. See [PREPARING_YOUR_CHANGES.md](./PREPARING_YOUR_CHANGES.md).
+
+2. **CLA signature (once).** You must also sign the
+   [Daytona Contributor License Agreement](./CLA.md) — it covers both individual and
+   entity/corporate contributors. You (or, for entity contributors, your organization) retain
+   copyright in your contributions,
+   but you grant Daytona Platforms, Inc. a perpetual, irrevocable, sublicensable license to them —
+   **including the right to relicense and redistribute the software under any terms (open source,
+   proprietary, or closed source) and to change the license or visibility of the project at any
+   time.** A CLA assistant bot will comment on your first pull request with a link and a one-line
+   instruction to sign; a single signature covers all your future contributions to this repo.
+
+Your PR cannot be merged until both the DCO check and the CLA check are green.
