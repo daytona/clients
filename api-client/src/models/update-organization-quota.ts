@@ -22,6 +22,10 @@ export interface UpdateOrganizationQuota {
     'maxSnapshotSize': number | null;
     'volumeQuota': number | null;
     'secretQuota': number | null;
+    /**
+     * Maximum number of secrets that can be mounted to a single sandbox
+     */
+    'maxSecretsPerSandbox': number | null;
     'authenticatedRateLimit': number | null;
     'sandboxCreateRateLimit': number | null;
     'sandboxLifecycleRateLimit': number | null;

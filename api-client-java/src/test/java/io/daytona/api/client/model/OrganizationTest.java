@@ -161,6 +161,14 @@ public class OrganizationTest {
     }
 
     /**
+     * Test the property 'maxSecretsPerSandbox'
+     */
+    @Test
+    public void maxSecretsPerSandboxTest() {
+        // TODO: test maxSecretsPerSandbox
+    }
+
+    /**
      * Test the property 'snapshotDeactivationTimeoutMinutes'
      */
     @Test

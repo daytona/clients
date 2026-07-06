@@ -95,6 +95,14 @@ public class UpdateOrganizationQuotaTest {
     }
 
     /**
+     * Test the property 'maxSecretsPerSandbox'
+     */
+    @Test
+    public void maxSecretsPerSandboxTest() {
+        // TODO: test maxSecretsPerSandbox
+    }
+
+    /**
      * Test the property 'authenticatedRateLimit'
      */
     @Test

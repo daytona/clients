@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from .common.process import CodeRunParams, ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
     from .common.pty import PtySize
     from .common.sandbox import ListSandboxesQuery, Resources
-    from .common.secret import CreateSecretParams, Secret, UpdateSecretParams
+    from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
     from .common.snapshot import CreateSnapshotParams
     from .common.volume import VolumeMount
 
@@ -101,6 +101,7 @@ __all__ = [
     "Secret",
     "CreateSecretParams",
     "UpdateSecretParams",
+    "ListSecretsResponse",
     "ListSandboxesQuery",
     "AsyncDaytona",
     "AsyncSandbox",
@@ -222,6 +223,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Secret": "common.secret",
     "CreateSecretParams": "common.secret",
     "UpdateSecretParams": "common.secret",
+    "ListSecretsResponse": "common.secret",
 }
 
 

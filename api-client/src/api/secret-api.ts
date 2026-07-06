@@ -24,6 +24,8 @@ import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError
 // @ts-ignore
 import type { CreateSecret } from '../models';
 // @ts-ignore
+import type { ListSecretsResponse } from '../models';
+// @ts-ignore
 import type { Secret } from '../models';
 // @ts-ignore
 import type { UpdateSecret } from '../models';
@@ -165,10 +167,11 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
             };
         },
         /**
-         * 
+         * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
          * @summary List secrets
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         listSecrets: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
@@ -189,6 +192,71 @@ export const SecretApiAxiosParamCreator = function (configuration?: Configuratio
             await setBearerAuthToObject(localVarHeaderParameter, configuration)
 
             // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List secrets with pagination
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {string} [cursor] Pagination cursor from a previous response
+         * @param {number} [limit] Number of results per page
+         * @param {string} [name] Filter by partial name match
+         * @param {ListSecretsPaginatedSortEnum} [sort] Field to sort by
+         * @param {ListSecretsPaginatedOrderEnum} [order] Direction to sort by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listSecretsPaginated: async (xDaytonaOrganizationID?: string, cursor?: string, limit?: number, name?: string, sort?: ListSecretsPaginatedSortEnum, order?: ListSecretsPaginatedOrderEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/secret/paginated`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            if (cursor !== undefined) {
+                localVarQueryParameter['cursor'] = cursor;
+            }
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+            if (name !== undefined) {
+                localVarQueryParameter['name'] = name;
+            }
+
+            if (sort !== undefined) {
+                localVarQueryParameter['sort'] = sort;
+            }
+
+            if (order !== undefined) {
+                localVarQueryParameter['order'] = order;
+            }
 
             localVarHeaderParameter['Accept'] = 'application/json';
 
@@ -305,16 +373,35 @@ export const SecretApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
+         * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
          * @summary List secrets
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         async listSecrets(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Secret>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listSecrets(xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SecretApi.listSecrets']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List secrets with pagination
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {string} [cursor] Pagination cursor from a previous response
+         * @param {number} [limit] Number of results per page
+         * @param {string} [name] Filter by partial name match
+         * @param {ListSecretsPaginatedSortEnum} [sort] Field to sort by
+         * @param {ListSecretsPaginatedOrderEnum} [order] Direction to sort by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listSecretsPaginated(xDaytonaOrganizationID?: string, cursor?: string, limit?: number, name?: string, sort?: ListSecretsPaginatedSortEnum, order?: ListSecretsPaginatedOrderEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ListSecretsResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listSecretsPaginated(xDaytonaOrganizationID, cursor, limit, name, sort, order, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SecretApi.listSecretsPaginated']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -375,14 +462,30 @@ export const SecretApiFactory = function (configuration?: Configuration, basePat
             return localVarFp.getSecret(secretId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
+         * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
          * @summary List secrets
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         listSecrets(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Secret>> {
             return localVarFp.listSecrets(xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List secrets with pagination
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {string} [cursor] Pagination cursor from a previous response
+         * @param {number} [limit] Number of results per page
+         * @param {string} [name] Filter by partial name match
+         * @param {ListSecretsPaginatedSortEnum} [sort] Field to sort by
+         * @param {ListSecretsPaginatedOrderEnum} [order] Direction to sort by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listSecretsPaginated(xDaytonaOrganizationID?: string, cursor?: string, limit?: number, name?: string, sort?: ListSecretsPaginatedSortEnum, order?: ListSecretsPaginatedOrderEnum, options?: RawAxiosRequestConfig): AxiosPromise<ListSecretsResponse> {
+            return localVarFp.listSecretsPaginated(xDaytonaOrganizationID, cursor, limit, name, sort, order, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -440,14 +543,31 @@ export class SecretApi extends BaseAPI {
     }
 
     /**
-     * 
+     * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
      * @summary List secrets
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
      * @param {*} [options] Override http request option.
+     * @deprecated
      * @throws {RequiredError}
      */
     public listSecrets(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SecretApiFp(this.configuration).listSecrets(xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List secrets with pagination
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {string} [cursor] Pagination cursor from a previous response
+     * @param {number} [limit] Number of results per page
+     * @param {string} [name] Filter by partial name match
+     * @param {ListSecretsPaginatedSortEnum} [sort] Field to sort by
+     * @param {ListSecretsPaginatedOrderEnum} [order] Direction to sort by
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listSecretsPaginated(xDaytonaOrganizationID?: string, cursor?: string, limit?: number, name?: string, sort?: ListSecretsPaginatedSortEnum, order?: ListSecretsPaginatedOrderEnum, options?: RawAxiosRequestConfig) {
+        return SecretApiFp(this.configuration).listSecretsPaginated(xDaytonaOrganizationID, cursor, limit, name, sort, order, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -464,3 +584,16 @@ export class SecretApi extends BaseAPI {
     }
 }
 
+export const ListSecretsPaginatedSortEnum = {
+    NAME: 'name',
+    CREATED_AT: 'createdAt',
+    UPDATED_AT: 'updatedAt',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+export type ListSecretsPaginatedSortEnum = typeof ListSecretsPaginatedSortEnum[keyof typeof ListSecretsPaginatedSortEnum];
+export const ListSecretsPaginatedOrderEnum = {
+    ASC: 'asc',
+    DESC: 'desc',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+export type ListSecretsPaginatedOrderEnum = typeof ListSecretsPaginatedOrderEnum[keyof typeof ListSecretsPaginatedOrderEnum];

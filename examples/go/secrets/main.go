@@ -40,10 +40,20 @@ func main() {
 	// The injected env var holds this opaque placeholder, never the plaintext value.
 	log.Printf("  Injected placeholder: %s\n", secret.Placeholder)
 
-	// List all secrets in the organization.
-	secrets, err := client.Secret.List(ctx)
-	if err != nil {
-		log.Fatalf("Failed to list secrets: %v", err)
+	// List all secrets in the organization, following the pagination cursor
+	// until there are no more pages.
+	query := &types.ListSecretsQuery{}
+	var secrets []*types.Secret
+	for {
+		page, err := client.Secret.List(ctx, query)
+		if err != nil {
+			log.Fatalf("Failed to list secrets: %v", err)
+		}
+		secrets = append(secrets, page.Items...)
+		if page.NextCursor == nil {
+			break
+		}
+		query.Cursor = page.NextCursor
 	}
 	log.Printf("Organization has %d secret(s)\n", len(secrets))
 

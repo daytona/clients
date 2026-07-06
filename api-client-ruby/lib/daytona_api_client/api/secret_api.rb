@@ -215,6 +215,7 @@ module DaytonaApiClient
     end
 
     # List secrets
+    # This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [Array<Secret>]
@@ -224,6 +225,7 @@ module DaytonaApiClient
     end
 
     # List secrets
+    # This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use &#x60;listSecretsPaginated&#x60; instead.
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [Array<(Array<Secret>, Integer, Hash)>] Array<Secret> data, response status code and response headers
@@ -268,6 +270,95 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: SecretApi#list_secrets\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # List secrets with pagination
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [String] :cursor Pagination cursor from a previous response
+    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [String] :name Filter by partial name match
+    # @option opts [String] :sort Field to sort by (default to 'createdAt')
+    # @option opts [String] :order Direction to sort by (default to 'desc')
+    # @return [ListSecretsResponse]
+    def list_secrets_paginated(opts = {})
+      data, _status_code, _headers = list_secrets_paginated_with_http_info(opts)
+      data
+    end
+
+    # List secrets with pagination
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [String] :cursor Pagination cursor from a previous response
+    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [String] :name Filter by partial name match
+    # @option opts [String] :sort Field to sort by (default to 'createdAt')
+    # @option opts [String] :order Direction to sort by (default to 'desc')
+    # @return [Array<(ListSecretsResponse, Integer, Hash)>] ListSecretsResponse data, response status code and response headers
+    def list_secrets_paginated_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SecretApi.list_secrets_paginated ...'
+      end
+      if @api_client.config.client_side_validation && !opts[:'limit'].nil? && opts[:'limit'] > 200
+        fail ArgumentError, 'invalid value for "opts[:"limit"]" when calling SecretApi.list_secrets_paginated, must be smaller than or equal to 200.'
+      end
+
+      if @api_client.config.client_side_validation && !opts[:'limit'].nil? && opts[:'limit'] < 1
+        fail ArgumentError, 'invalid value for "opts[:"limit"]" when calling SecretApi.list_secrets_paginated, must be greater than or equal to 1.'
+      end
+
+      allowable_values = ["name", "createdAt", "updatedAt", "unknown_default_open_api"]
+      if @api_client.config.client_side_validation && opts[:'sort'] && !allowable_values.include?(opts[:'sort'])
+        fail ArgumentError, "invalid value for \"sort\", must be one of #{allowable_values}"
+      end
+      allowable_values = ["asc", "desc", "unknown_default_open_api"]
+      if @api_client.config.client_side_validation && opts[:'order'] && !allowable_values.include?(opts[:'order'])
+        fail ArgumentError, "invalid value for \"order\", must be one of #{allowable_values}"
+      end
+      # resource path
+      local_var_path = '/secret/paginated'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'cursor'] = opts[:'cursor'] if !opts[:'cursor'].nil?
+      query_params[:'limit'] = opts[:'limit'] if !opts[:'limit'].nil?
+      query_params[:'name'] = opts[:'name'] if !opts[:'name'].nil?
+      query_params[:'sort'] = opts[:'sort'] if !opts[:'sort'].nil?
+      query_params[:'order'] = opts[:'order'] if !opts[:'order'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'ListSecretsResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SecretApi.list_secrets_paginated",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SecretApi#list_secrets_paginated\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

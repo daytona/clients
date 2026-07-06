@@ -95,6 +95,7 @@ daytona_api_client_async/models/keyboard_press_request.py
 daytona_api_client_async/models/keyboard_type_request.py
 daytona_api_client_async/models/list_branch_response.py
 daytona_api_client_async/models/list_sandboxes_response.py
+daytona_api_client_async/models/list_secrets_response.py
 daytona_api_client_async/models/log_entry.py
 daytona_api_client_async/models/lsp_completion_params.py
 daytona_api_client_async/models/lsp_document_request.py

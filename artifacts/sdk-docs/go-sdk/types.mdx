@@ -34,6 +34,8 @@ import "github.com/daytona/clients/sdk-go/pkg/types"
 - [type GitStatus](<#GitStatus>)
 - [type GpuType](<#GpuType>)
 - [type ImageParams](<#ImageParams>)
+- [type ListSecretsQuery](<#ListSecretsQuery>)
+- [type ListSecretsResponse](<#ListSecretsResponse>)
 - [type LspLanguageID](<#LspLanguageID>)
 - [type OutputMessage](<#OutputMessage>)
 - [type PaginatedSnapshots](<#PaginatedSnapshots>)
@@ -357,6 +359,41 @@ type ImageParams struct {
     SandboxBaseParams
     Image     any // string or *Image
     Resources *Resources
+}
+```
+
+<a name="ListSecretsQuery"></a>
+## type ListSecretsQuery
+
+ListSecretsQuery contains query parameters for filtering, sorting, and paginating when listing secrets. All fields are optional.
+
+```go
+type ListSecretsQuery struct {
+    // Pagination cursor from a previous response's NextCursor
+    Cursor *string
+    // Number of results per page (1-200, default 100)
+    Limit *int
+    // Filter by partial name match
+    Name *string
+    // Sort by field: "name", "createdAt", or "updatedAt" (default "createdAt")
+    Sort *string
+    // Sort direction: "asc" or "desc" (default "desc")
+    Order *string
+}
+```
+
+<a name="ListSecretsResponse"></a>
+## type ListSecretsResponse
+
+ListSecretsResponse represents a paginated list of secrets
+
+```go
+type ListSecretsResponse struct {
+    Items []*Secret
+    // Total number of secrets matching the filters
+    Total int
+    // Cursor for the next page of results; nil when there are no further pages
+    NextCursor *string
 }
 ```
 

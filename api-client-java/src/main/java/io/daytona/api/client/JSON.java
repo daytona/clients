@@ -163,6 +163,7 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.KeyboardTypeRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.ListBranchResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.ListSandboxesResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.ListSecretsResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.LogEntry.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.LspCompletionParams.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.LspDocumentRequest.CustomTypeAdapterFactory());

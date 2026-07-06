@@ -111,6 +111,7 @@ src/main/java/io/daytona/api/client/model/KeyboardPressRequest.java
 src/main/java/io/daytona/api/client/model/KeyboardTypeRequest.java
 src/main/java/io/daytona/api/client/model/ListBranchResponse.java
 src/main/java/io/daytona/api/client/model/ListSandboxesResponse.java
+src/main/java/io/daytona/api/client/model/ListSecretsResponse.java
 src/main/java/io/daytona/api/client/model/LogEntry.java
 src/main/java/io/daytona/api/client/model/LspCompletionParams.java
 src/main/java/io/daytona/api/client/model/LspDocumentRequest.java
@@ -321,6 +322,7 @@ src/test/java/io/daytona/api/client/model/KeyboardPressRequestTest.java
 src/test/java/io/daytona/api/client/model/KeyboardTypeRequestTest.java
 src/test/java/io/daytona/api/client/model/ListBranchResponseTest.java
 src/test/java/io/daytona/api/client/model/ListSandboxesResponseTest.java
+src/test/java/io/daytona/api/client/model/ListSecretsResponseTest.java
 src/test/java/io/daytona/api/client/model/LogEntryTest.java
 src/test/java/io/daytona/api/client/model/LspCompletionParamsTest.java
 src/test/java/io/daytona/api/client/model/LspDocumentRequestTest.java

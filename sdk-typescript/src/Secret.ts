@@ -4,7 +4,12 @@
  */
 
 import { SecretApi } from '@daytona/api-client'
-import type { Secret as SecretModel } from '@daytona/api-client'
+import type {
+  Secret as SecretModel,
+  ListSecretsResponse as ListSecretsResponseDto,
+  ListSecretsPaginatedSortEnum,
+  ListSecretsPaginatedOrderEnum,
+} from '@daytona/api-client'
 import { WithInstrumentation } from './utils/otel.decorator'
 
 /**
@@ -60,6 +65,35 @@ export interface UpdateSecretParams {
 }
 
 /**
+ * Query parameters for listing Secrets with pagination.
+ *
+ * @interface
+ * @property {string} [cursor] - Pagination cursor from a previous response. Omit to fetch the first page.
+ * @property {number} [limit] - Number of results per page (1-200). Defaults to 100.
+ * @property {string} [name] - Filters the results to Secrets whose name partially matches the value
+ * @property {ListSecretsPaginatedSortEnum} [sort] - Field to sort by. Defaults to `createdAt`.
+ * @property {ListSecretsPaginatedOrderEnum} [order] - Direction to sort by. Defaults to `desc`.
+ */
+export interface ListSecretsQuery {
+  cursor?: string
+  limit?: number
+  name?: string
+  sort?: ListSecretsPaginatedSortEnum
+  order?: ListSecretsPaginatedOrderEnum
+}
+
+/**
+ * Represents a paginated list of Daytona Secrets.
+ *
+ * @property {Secret[]} items - List of Secrets in the current page.
+ * @property {number} total - Total number of Secrets matching the filters.
+ * @property {string | null} nextCursor - Cursor for the next page of results. `null` when there are no more pages.
+ */
+export interface ListSecretsResponse extends Omit<ListSecretsResponseDto, 'items'> {
+  items: Secret[]
+}
+
+/**
  * Service for managing organization-scoped Daytona Secrets.
  *
  * This service provides methods to create, list, get, update, and delete Secrets. Secrets can be
@@ -73,20 +107,37 @@ export class SecretService {
   constructor(private secretApi: SecretApi) {}
 
   /**
-   * Lists all Secrets in the organization.
+   * Lists Secrets in the organization with cursor-based pagination.
    *
-   * @returns {Promise<Secret[]>} List of all Secrets in the organization
+   * @param {ListSecretsQuery} [query] - Optional filters, sorting, pagination cursor, and per-page size
+   * @returns {Promise<ListSecretsResponse>} A page of Secrets together with the total count and the
+   * cursor for the next page
    *
    * @example
    * const daytona = new Daytona();
-   * const secrets = await daytona.secret.list();
-   * console.log(`Found ${secrets.length} secrets`);
-   * secrets.forEach(secret => console.log(`${secret.name} (${secret.id})`));
+   * let cursor: string | undefined = undefined;
+   * do {
+   *   const page = await daytona.secret.list({ cursor, limit: 50 });
+   *   console.log(`Fetched ${page.items.length} of ${page.total} secrets`);
+   *   page.items.forEach(secret => console.log(`${secret.name} (${secret.id})`));
+   *   cursor = page.nextCursor ?? undefined;
+   * } while (cursor);
    */
   @WithInstrumentation()
-  async list(): Promise<Secret[]> {
-    const response = await this.secretApi.listSecrets()
-    return response.data as Secret[]
+  async list(query?: ListSecretsQuery): Promise<ListSecretsResponse> {
+    const response = await this.secretApi.listSecretsPaginated(
+      undefined,
+      query?.cursor,
+      query?.limit,
+      query?.name,
+      query?.sort,
+      query?.order,
+    )
+    return {
+      items: response.data.items.map((secret) => secret as Secret),
+      total: response.data.total,
+      nextCursor: response.data.nextCursor,
+    }
   }
 
   /**

@@ -63,14 +63,31 @@ type SecretAPI interface {
 	/*
 	ListSecrets List secrets
 
+	This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
+
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@return SecretAPIListSecretsRequest
+
+	Deprecated
 	*/
 	ListSecrets(ctx context.Context) SecretAPIListSecretsRequest
 
 	// ListSecretsExecute executes the request
 	//  @return []Secret
+	// Deprecated
 	ListSecretsExecute(r SecretAPIListSecretsRequest) ([]Secret, *http.Response, error)
+
+	/*
+	ListSecretsPaginated List secrets with pagination
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return SecretAPIListSecretsPaginatedRequest
+	*/
+	ListSecretsPaginated(ctx context.Context) SecretAPIListSecretsPaginatedRequest
+
+	// ListSecretsPaginatedExecute executes the request
+	//  @return ListSecretsResponse
+	ListSecretsPaginatedExecute(r SecretAPIListSecretsPaginatedRequest) (*ListSecretsResponse, *http.Response, error)
 
 	/*
 	UpdateSecret Update secret
@@ -437,8 +454,12 @@ func (r SecretAPIListSecretsRequest) Execute() ([]Secret, *http.Response, error)
 /*
 ListSecrets List secrets
 
+This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
+
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return SecretAPIListSecretsRequest
+
+Deprecated
 */
 func (a *SecretAPIService) ListSecrets(ctx context.Context) SecretAPIListSecretsRequest {
 	return SecretAPIListSecretsRequest{
@@ -449,6 +470,7 @@ func (a *SecretAPIService) ListSecrets(ctx context.Context) SecretAPIListSecrets
 
 // Execute executes the request
 //  @return []Secret
+// Deprecated
 func (a *SecretAPIService) ListSecretsExecute(r SecretAPIListSecretsRequest) ([]Secret, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
@@ -468,6 +490,175 @@ func (a *SecretAPIService) ListSecretsExecute(r SecretAPIListSecretsRequest) ([]
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type SecretAPIListSecretsPaginatedRequest struct {
+	ctx context.Context
+	ApiService SecretAPI
+	xDaytonaOrganizationID *string
+	cursor *string
+	limit *float32
+	name *string
+	sort *string
+	order *string
+}
+
+// Use with JWT to specify the organization ID
+func (r SecretAPIListSecretsPaginatedRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) SecretAPIListSecretsPaginatedRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+// Pagination cursor from a previous response
+func (r SecretAPIListSecretsPaginatedRequest) Cursor(cursor string) SecretAPIListSecretsPaginatedRequest {
+	r.cursor = &cursor
+	return r
+}
+
+// Number of results per page
+func (r SecretAPIListSecretsPaginatedRequest) Limit(limit float32) SecretAPIListSecretsPaginatedRequest {
+	r.limit = &limit
+	return r
+}
+
+// Filter by partial name match
+func (r SecretAPIListSecretsPaginatedRequest) Name(name string) SecretAPIListSecretsPaginatedRequest {
+	r.name = &name
+	return r
+}
+
+// Field to sort by
+func (r SecretAPIListSecretsPaginatedRequest) Sort(sort string) SecretAPIListSecretsPaginatedRequest {
+	r.sort = &sort
+	return r
+}
+
+// Direction to sort by
+func (r SecretAPIListSecretsPaginatedRequest) Order(order string) SecretAPIListSecretsPaginatedRequest {
+	r.order = &order
+	return r
+}
+
+func (r SecretAPIListSecretsPaginatedRequest) Execute() (*ListSecretsResponse, *http.Response, error) {
+	return r.ApiService.ListSecretsPaginatedExecute(r)
+}
+
+/*
+ListSecretsPaginated List secrets with pagination
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return SecretAPIListSecretsPaginatedRequest
+*/
+func (a *SecretAPIService) ListSecretsPaginated(ctx context.Context) SecretAPIListSecretsPaginatedRequest {
+	return SecretAPIListSecretsPaginatedRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return ListSecretsResponse
+func (a *SecretAPIService) ListSecretsPaginatedExecute(r SecretAPIListSecretsPaginatedRequest) (*ListSecretsResponse, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ListSecretsResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.ListSecretsPaginated")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/secret/paginated"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.cursor != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "cursor", r.cursor, "form", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	} else {
+		var defaultValue float32 = 100
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
+		r.limit = &defaultValue
+	}
+	if r.name != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
+	}
+	if r.sort != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "form", "")
+	} else {
+		var defaultValue string = "createdAt"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", defaultValue, "form", "")
+		r.sort = &defaultValue
+	}
+	if r.order != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "order", r.order, "form", "")
+	} else {
+		var defaultValue string = "desc"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "order", defaultValue, "form", "")
+		r.order = &defaultValue
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

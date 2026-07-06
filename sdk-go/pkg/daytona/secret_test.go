@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -30,21 +31,6 @@ func TestSecretServiceCreation(t *testing.T) {
 	ss := NewSecretService(client)
 	require.NotNil(t, ss)
 	require.NotNil(t, client.Secret)
-}
-
-func TestSecretListError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"message": "internal error"})
-	}))
-	defer server.Close()
-
-	client := createTestClientWithServer(t, server)
-
-	ctx := context.Background()
-	_, err := client.Secret.List(ctx)
-	require.Error(t, err)
 }
 
 func TestSecretGetError(t *testing.T) {
@@ -102,11 +88,15 @@ func TestSecretSuccessOperations(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:
-				if strings.Contains(r.URL.Path, "/secret/") {
-					writeJSONResponse(t, w, http.StatusOK, testSecretPayload("secret-1", "anthropic-prod"))
+				if strings.HasSuffix(r.URL.Path, "/secret/paginated") {
+					writeJSONResponse(t, w, http.StatusOK, map[string]any{
+						"items":      []any{testSecretPayload("secret-1", "anthropic-prod")},
+						"total":      1,
+						"nextCursor": nil,
+					})
 					return
 				}
-				writeJSONResponse(t, w, http.StatusOK, []any{testSecretPayload("secret-1", "anthropic-prod")})
+				writeJSONResponse(t, w, http.StatusOK, testSecretPayload("secret-1", "anthropic-prod"))
 			case http.MethodPost:
 				body, _ := io.ReadAll(r.Body)
 				require.NoError(t, json.Unmarshal(body, &lastCreateBody))
@@ -124,10 +114,10 @@ func TestSecretSuccessOperations(t *testing.T) {
 		client := createTestClientWithServer(t, server)
 		ctx := context.Background()
 
-		secrets, err := client.Secret.List(ctx)
+		page, err := client.Secret.List(ctx, nil)
 		require.NoError(t, err)
-		require.Len(t, secrets, 1)
-		assert.Equal(t, "anthropic-prod", secrets[0].Name)
+		require.Len(t, page.Items, 1)
+		assert.Equal(t, "anthropic-prod", page.Items[0].Name)
 
 		secret, err := client.Secret.Get(ctx, "secret-1")
 		require.NoError(t, err)
@@ -159,6 +149,99 @@ func TestSecretSuccessOperations(t *testing.T) {
 		assert.Equal(t, []string{"api.anthropic.com", "*.anthropic.com"}, lastUpdateBody.GetHosts())
 
 		require.NoError(t, client.Secret.Delete(ctx, "secret-1"))
+	})
+}
+
+func TestSecretList(t *testing.T) {
+	t.Run("query params are serialized correctly", func(t *testing.T) {
+		var lastQuery url.Values
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.True(t, strings.HasSuffix(r.URL.Path, "/secret/paginated"))
+			lastQuery = r.URL.Query()
+			writeJSONResponse(t, w, http.StatusOK, map[string]any{
+				"items":      []any{},
+				"total":      0,
+				"nextCursor": nil,
+			})
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+
+		_, err := client.Secret.List(context.Background(), &types.ListSecretsQuery{
+			Cursor: strPtr("cursor-abc"),
+			Limit:  intPtr(50),
+			Name:   strPtr("anthropic"),
+			Sort:   strPtr("name"),
+			Order:  strPtr("asc"),
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, "cursor-abc", lastQuery.Get("cursor"))
+		assert.Equal(t, "50", lastQuery.Get("limit"))
+		assert.Equal(t, "anthropic", lastQuery.Get("name"))
+		assert.Equal(t, "name", lastQuery.Get("sort"))
+		assert.Equal(t, "asc", lastQuery.Get("order"))
+	})
+
+	t.Run("response is mapped with nextCursor set", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeJSONResponse(t, w, http.StatusOK, map[string]any{
+				"items": []any{
+					testSecretPayload("secret-1", "anthropic-prod"),
+					testSecretPayload("secret-2", "anthropic-dev"),
+				},
+				"total":      42,
+				"nextCursor": "cursor-next",
+			})
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+
+		page, err := client.Secret.List(context.Background(), nil)
+		require.NoError(t, err)
+		require.Len(t, page.Items, 2)
+		assert.Equal(t, "secret-1", page.Items[0].ID)
+		assert.Equal(t, "anthropic-prod", page.Items[0].Name)
+		assert.Equal(t, "{{secret:secret-1}}", page.Items[0].Placeholder)
+		assert.Equal(t, "secret-2", page.Items[1].ID)
+		assert.Equal(t, 42, page.Total)
+		require.NotNil(t, page.NextCursor)
+		assert.Equal(t, "cursor-next", *page.NextCursor)
+	})
+
+	t.Run("nextCursor is nil on the last page", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeJSONResponse(t, w, http.StatusOK, map[string]any{
+				"items":      []any{testSecretPayload("secret-1", "anthropic-prod")},
+				"total":      1,
+				"nextCursor": nil,
+			})
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+
+		page, err := client.Secret.List(context.Background(), nil)
+		require.NoError(t, err)
+		require.Len(t, page.Items, 1)
+		assert.Equal(t, 1, page.Total)
+		assert.Nil(t, page.NextCursor)
+	})
+
+	t.Run("error responses are converted", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeJSONResponse(t, w, http.StatusInternalServerError, map[string]string{"message": "internal error"})
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+
+		_, err := client.Secret.List(context.Background(), nil)
+		require.Error(t, err)
 	})
 }
 

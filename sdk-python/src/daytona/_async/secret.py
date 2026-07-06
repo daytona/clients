@@ -6,7 +6,8 @@ from __future__ import annotations
 from daytona_api_client_async import CreateSecret, SecretApi, UpdateSecret
 
 from .._utils.otel_decorator import with_instrumentation
-from ..common.secret import CreateSecretParams, Secret, UpdateSecretParams
+from ..common.errors import DaytonaValidationError
+from ..common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
 
 
 class AsyncSecretService:
@@ -21,21 +22,55 @@ class AsyncSecretService:
     def __init__(self, secret_api: SecretApi):
         self.__secret_api = secret_api
 
-    async def list(self) -> list[Secret]:
-        """List all Secrets in the organization.
+    @with_instrumentation()
+    async def list(
+        self,
+        cursor: str | None = None,
+        limit: int | None = None,
+        name: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
+    ) -> ListSecretsResponse:
+        """List Secrets in the organization using cursor-based pagination.
+
+        Args:
+            cursor (str | None): Pagination cursor from a previous response. Omit to start
+                from the first page.
+            limit (int | None): Number of results per page (1-200). Defaults to 100.
+            name (str | None): Filter by partial name match.
+            sort (str | None): Field to sort by (``name``, ``createdAt`` or ``updatedAt``).
+                Defaults to ``createdAt``.
+            order (str | None): Direction to sort by (``asc`` or ``desc``). Defaults to ``desc``.
 
         Returns:
-            list[Secret]: List of all Secrets in the organization.
+            ListSecretsResponse: The current page of Secrets, the total number of Secrets
+                matching the filters and the cursor for the next page (``None`` when there
+                are no more pages).
 
         Example:
             ```python
             async with AsyncDaytona() as daytona:
-                secrets = await daytona.secret.list()
-                for secret in secrets:
-                    print(f"{secret.name} ({secret.id})")
+                cursor = None
+                while True:
+                    page = await daytona.secret.list(cursor=cursor, limit=50)
+                    for secret in page.items:
+                        print(f"{secret.name} ({secret.id})")
+                    if page.next_cursor is None:
+                        break
+                    cursor = page.next_cursor
             ```
         """
-        return [Secret.from_dto(secret) for secret in await self.__secret_api.list_secrets()]
+        if limit is not None and limit < 1:
+            raise DaytonaValidationError("limit must be a positive integer")
+
+        response = await self.__secret_api.list_secrets_paginated(
+            cursor=cursor, limit=limit, name=name, sort=sort, order=order
+        )
+        return ListSecretsResponse(
+            items=[Secret.from_dto(secret) for secret in response.items],
+            total=response.total,
+            next_cursor=response.next_cursor,
+        )
 
     @with_instrumentation()
     async def get(self, secret_id: str) -> Secret:

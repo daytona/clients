@@ -8,7 +8,7 @@ jest.mock('@daytona/api-client', () => ({}), { virtual: true })
 
 describe('SecretService', () => {
   const secretApi = {
-    listSecrets: jest.fn(),
+    listSecretsPaginated: jest.fn(),
     getSecret: jest.fn(),
     createSecret: jest.fn(),
     updateSecret: jest.fn(),
@@ -20,11 +20,31 @@ describe('SecretService', () => {
     jest.clearAllMocks()
   })
 
-  it('lists secrets', async () => {
-    secretApi.listSecrets.mockResolvedValue(createApiResponse([{ id: 's1', name: 'secret1' }]))
+  it('lists secrets and forwards all query params', async () => {
+    secretApi.listSecretsPaginated.mockResolvedValue(
+      createApiResponse({ items: [{ id: 's1', name: 'secret1' }], total: 42, nextCursor: 'cursor-2' }),
+    )
 
-    await expect(service.list()).resolves.toEqual([{ id: 's1', name: 'secret1' }])
-    expect(secretApi.listSecrets).toHaveBeenCalledWith()
+    await expect(
+      service.list({ cursor: 'cursor-1', limit: 50, name: 'secret', sort: 'name', order: 'asc' }),
+    ).resolves.toEqual({ items: [{ id: 's1', name: 'secret1' }], total: 42, nextCursor: 'cursor-2' })
+
+    expect(secretApi.listSecretsPaginated).toHaveBeenCalledWith(undefined, 'cursor-1', 50, 'secret', 'name', 'asc')
+  })
+
+  it('lists secrets without a query', async () => {
+    secretApi.listSecretsPaginated.mockResolvedValue(createApiResponse({ items: [], total: 0, nextCursor: null }))
+
+    await expect(service.list()).resolves.toEqual({ items: [], total: 0, nextCursor: null })
+
+    expect(secretApi.listSecretsPaginated).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    )
   })
 
   it('gets a secret by id', async () => {

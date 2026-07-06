@@ -60,6 +60,9 @@ module DaytonaApiClient
     # Maximum number of secrets
     attr_accessor :secret_quota
 
+    # Maximum number of secrets that can be mounted to a single sandbox
+    attr_accessor :max_secrets_per_sandbox
+
     # Time in minutes before an unused snapshot is deactivated
     attr_accessor :snapshot_deactivation_timeout_minutes
 
@@ -111,6 +114,7 @@ module DaytonaApiClient
         :'max_memory_per_sandbox' => :'maxMemoryPerSandbox',
         :'max_disk_per_sandbox' => :'maxDiskPerSandbox',
         :'secret_quota' => :'secretQuota',
+        :'max_secrets_per_sandbox' => :'maxSecretsPerSandbox',
         :'snapshot_deactivation_timeout_minutes' => :'snapshotDeactivationTimeoutMinutes',
         :'sandbox_limited_network_egress' => :'sandboxLimitedNetworkEgress',
         :'default_region_id' => :'defaultRegionId',
@@ -153,6 +157,7 @@ module DaytonaApiClient
         :'max_memory_per_sandbox' => :'Float',
         :'max_disk_per_sandbox' => :'Float',
         :'secret_quota' => :'Float',
+        :'max_secrets_per_sandbox' => :'Float',
         :'snapshot_deactivation_timeout_minutes' => :'Float',
         :'sandbox_limited_network_egress' => :'Boolean',
         :'default_region_id' => :'String',
@@ -286,6 +291,12 @@ module DaytonaApiClient
         self.secret_quota = nil
       end
 
+      if attributes.key?(:'max_secrets_per_sandbox')
+        self.max_secrets_per_sandbox = attributes[:'max_secrets_per_sandbox']
+      else
+        self.max_secrets_per_sandbox = nil
+      end
+
       if attributes.key?(:'snapshot_deactivation_timeout_minutes')
         self.snapshot_deactivation_timeout_minutes = attributes[:'snapshot_deactivation_timeout_minutes']
       else
@@ -416,6 +427,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "secret_quota", secret_quota cannot be nil.')
       end
 
+      if @max_secrets_per_sandbox.nil?
+        invalid_properties.push('invalid value for "max_secrets_per_sandbox", max_secrets_per_sandbox cannot be nil.')
+      end
+
       if @snapshot_deactivation_timeout_minutes.nil?
         invalid_properties.push('invalid value for "snapshot_deactivation_timeout_minutes", snapshot_deactivation_timeout_minutes cannot be nil.')
       end
@@ -450,6 +465,7 @@ module DaytonaApiClient
       return false if @max_memory_per_sandbox.nil?
       return false if @max_disk_per_sandbox.nil?
       return false if @secret_quota.nil?
+      return false if @max_secrets_per_sandbox.nil?
       return false if @snapshot_deactivation_timeout_minutes.nil?
       return false if @sandbox_limited_network_egress.nil?
       return false if @experimental_config.nil?
@@ -607,6 +623,16 @@ module DaytonaApiClient
     end
 
     # Custom attribute writer method with validation
+    # @param [Object] max_secrets_per_sandbox Value to be assigned
+    def max_secrets_per_sandbox=(max_secrets_per_sandbox)
+      if max_secrets_per_sandbox.nil?
+        fail ArgumentError, 'max_secrets_per_sandbox cannot be nil'
+      end
+
+      @max_secrets_per_sandbox = max_secrets_per_sandbox
+    end
+
+    # Custom attribute writer method with validation
     # @param [Object] snapshot_deactivation_timeout_minutes Value to be assigned
     def snapshot_deactivation_timeout_minutes=(snapshot_deactivation_timeout_minutes)
       if snapshot_deactivation_timeout_minutes.nil?
@@ -656,6 +682,7 @@ module DaytonaApiClient
           max_memory_per_sandbox == o.max_memory_per_sandbox &&
           max_disk_per_sandbox == o.max_disk_per_sandbox &&
           secret_quota == o.secret_quota &&
+          max_secrets_per_sandbox == o.max_secrets_per_sandbox &&
           snapshot_deactivation_timeout_minutes == o.snapshot_deactivation_timeout_minutes &&
           sandbox_limited_network_egress == o.sandbox_limited_network_egress &&
           default_region_id == o.default_region_id &&
@@ -678,7 +705,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, default_region_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
+      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, default_region_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
     end
 
     # Builds the object from hash

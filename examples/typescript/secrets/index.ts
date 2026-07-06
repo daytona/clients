@@ -16,8 +16,14 @@ async function main() {
   // The injected env var holds this opaque placeholder, never the plaintext value.
   console.log(`Injected placeholder: ${secret.placeholder}`)
 
-  // List all secrets in the organization
-  const secrets = await daytona.secret.list()
+  // List all secrets in the organization, following the pagination cursor page by page
+  const secrets = []
+  let cursor: string | undefined = undefined
+  do {
+    const page = await daytona.secret.list({ cursor, limit: 100 })
+    secrets.push(...page.items)
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
   console.log(`Organization has ${secrets.length} secret(s)`)
 
   // Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.

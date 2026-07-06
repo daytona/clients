@@ -124,6 +124,7 @@ if TYPE_CHECKING:
     from daytona_api_client.models.keyboard_type_request import KeyboardTypeRequest
     from daytona_api_client.models.list_branch_response import ListBranchResponse
     from daytona_api_client.models.list_sandboxes_response import ListSandboxesResponse
+    from daytona_api_client.models.list_secrets_response import ListSecretsResponse
     from daytona_api_client.models.log_entry import LogEntry
     from daytona_api_client.models.lsp_completion_params import LspCompletionParams
     from daytona_api_client.models.lsp_document_request import LspDocumentRequest
@@ -348,6 +349,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "KeyboardTypeRequest": "daytona_api_client.models.keyboard_type_request",
     "ListBranchResponse": "daytona_api_client.models.list_branch_response",
     "ListSandboxesResponse": "daytona_api_client.models.list_sandboxes_response",
+    "ListSecretsResponse": "daytona_api_client.models.list_secrets_response",
     "LogEntry": "daytona_api_client.models.log_entry",
     "LspCompletionParams": "daytona_api_client.models.lsp_completion_params",
     "LspDocumentRequest": "daytona_api_client.models.lsp_document_request",
@@ -586,6 +588,7 @@ __all__ = [
     "KeyboardTypeRequest",
     "ListBranchResponse",
     "ListSandboxesResponse",
+    "ListSecretsResponse",
     "LogEntry",
     "LspCompletionParams",
     "LspDocumentRequest",

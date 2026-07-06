@@ -32,8 +32,8 @@ import (
 //	    return err
 //	}
 //
-//	// List all secrets
-//	secrets, err := client.Secret.List(ctx)
+//	// List secrets page by page
+//	page, err := client.Secret.List(ctx, nil)
 type SecretService struct {
 	client *Client
 	otel   *otelState
@@ -51,36 +51,80 @@ func NewSecretService(client *Client) *SecretService {
 	}
 }
 
-// List returns all secrets in the organization.
+// List returns one page of the organization's secrets.
 //
 // The plaintext value is never returned; each secret carries only its opaque
-// placeholder.
+// placeholder. Pass the NextCursor of a response as the Cursor of the next
+// query to fetch the following page; a nil NextCursor means there are no
+// further pages.
+//
+// Parameters:
+//   - query: Optional filtering, sorting, and pagination parameters. May be
+//     nil, in which case the first page is returned with server defaults
+//     (100 results sorted by creation time, newest first).
 //
 // Example:
 //
-//	secrets, err := client.Secret.List(ctx)
-//	if err != nil {
-//	    return err
-//	}
-//	for _, secret := range secrets {
-//	    fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
+//	query := &types.ListSecretsQuery{}
+//	for {
+//	    page, err := client.Secret.List(ctx, query)
+//	    if err != nil {
+//	        return err
+//	    }
+//	    for _, secret := range page.Items {
+//	        fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
+//	    }
+//	    if page.NextCursor == nil {
+//	        break
+//	    }
+//	    query.Cursor = page.NextCursor
 //	}
 //
-// Returns a slice of [types.Secret] or an error if the request fails.
-func (s *SecretService) List(ctx context.Context) ([]*types.Secret, error) {
-	return withInstrumentation(ctx, s.otel, "Secret", "List", func(ctx context.Context) ([]*types.Secret, error) {
+// Returns a [types.ListSecretsResponse] holding the page's secrets, the total
+// number of secrets matching the filters, and the next-page cursor, or an
+// error if the request fails.
+func (s *SecretService) List(ctx context.Context, query *types.ListSecretsQuery) (*types.ListSecretsResponse, error) {
+	return withInstrumentation(ctx, s.otel, "Secret", "List", func(ctx context.Context) (*types.ListSecretsResponse, error) {
 		authCtx := s.client.getAuthContext(ctx)
-		secretDtos, httpResp, err := s.client.apiClient.SecretAPI.ListSecrets(authCtx).Execute()
+
+		req := s.client.apiClient.SecretAPI.ListSecretsPaginated(authCtx)
+		if query != nil {
+			if query.Cursor != nil {
+				req = req.Cursor(*query.Cursor)
+			}
+			if query.Limit != nil {
+				req = req.Limit(float32(*query.Limit))
+			}
+			if query.Name != nil {
+				req = req.Name(*query.Name)
+			}
+			if query.Sort != nil {
+				req = req.Sort(*query.Sort)
+			}
+			if query.Order != nil {
+				req = req.Order(*query.Order)
+			}
+		}
+
+		resp, httpResp, err := req.Execute()
 		if err != nil {
 			return nil, errors.ConvertAPIError(err, httpResp)
 		}
 
-		secrets := make([]*types.Secret, len(secretDtos))
-		for i := range secretDtos {
-			secrets[i] = secretDtoToSecret(&secretDtos[i])
+		items := make([]*types.Secret, len(resp.Items))
+		for i := range resp.Items {
+			items[i] = secretDtoToSecret(&resp.Items[i])
 		}
 
-		return secrets, nil
+		result := &types.ListSecretsResponse{
+			Items: items,
+			Total: int(resp.GetTotal()),
+		}
+		if nextCursor, ok := resp.GetNextCursorOk(); ok && nextCursor != nil {
+			result.NextCursor = nextCursor
+		}
+
+		return result, nil
 	})
 }
 

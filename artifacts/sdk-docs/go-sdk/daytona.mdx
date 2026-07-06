@@ -293,7 +293,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*SecretService\) Create\(ctx context.Context, params \*types.CreateSecretParams\) \(\*types.Secret, error\)](<#SecretService.Create>)
   - [func \(s \*SecretService\) Delete\(ctx context.Context, secretID string\) error](<#SecretService.Delete>)
   - [func \(s \*SecretService\) Get\(ctx context.Context, secretID string\) \(\*types.Secret, error\)](<#SecretService.Get>)
-  - [func \(s \*SecretService\) List\(ctx context.Context\) \(\[\]\*types.Secret, error\)](<#SecretService.List>)
+  - [func \(s \*SecretService\) List\(ctx context.Context, query \*types.ListSecretsQuery\) \(\*types.ListSecretsResponse, error\)](<#SecretService.List>)
   - [func \(s \*SecretService\) Update\(ctx context.Context, secretID string, params \*types.UpdateSecretParams\) \(\*types.Secret, error\)](<#SecretService.Update>)
 - [type SnapshotService](<#SnapshotService>)
   - [func NewSnapshotService\(client \*Client\) \*SnapshotService](<#NewSnapshotService>)
@@ -5094,8 +5094,8 @@ if err != nil {
     return err
 }
 
-// List all secrets
-secrets, err := client.Secret.List(ctx)
+// List secrets page by page
+page, err := client.Secret.List(ctx, nil)
 ```
 
 ```go
@@ -5204,26 +5204,37 @@ Returns the \[types.Secret\] or an error if the ID is unknown \(404\).
 ### func \(\*SecretService\) List
 
 ```go
-func (s *SecretService) List(ctx context.Context) ([]*types.Secret, error)
+func (s *SecretService) List(ctx context.Context, query *types.ListSecretsQuery) (*types.ListSecretsResponse, error)
 ```
 
-List returns all secrets in the organization.
+List returns one page of the organization's secrets.
 
-The plaintext value is never returned; each secret carries only its opaque placeholder.
+The plaintext value is never returned; each secret carries only its opaque placeholder. Pass the NextCursor of a response as the Cursor of the next query to fetch the following page; a nil NextCursor means there are no further pages.
+
+Parameters:
+
+- query: Optional filtering, sorting, and pagination parameters. May be nil, in which case the first page is returned with server defaults \(100 results sorted by creation time, newest first\).
 
 Example:
 
 ```
-secrets, err := client.Secret.List(ctx)
-if err != nil {
-    return err
-}
-for _, secret := range secrets {
-    fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
+query := &types.ListSecretsQuery{}
+for {
+    page, err := client.Secret.List(ctx, query)
+    if err != nil {
+        return err
+    }
+    for _, secret := range page.Items {
+        fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
+    }
+    if page.NextCursor == nil {
+        break
+    }
+    query.Cursor = page.NextCursor
 }
 ```
 
-Returns a slice of \[types.Secret\] or an error if the request fails.
+Returns a \[types.ListSecretsResponse\] holding the page's secrets, the total number of secrets matching the filters, and the next\-page cursor, or an error if the request fails.
 
 <a name="SecretService.Update"></a>
 ### func \(\*SecretService\) Update

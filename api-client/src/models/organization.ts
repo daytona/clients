@@ -79,6 +79,10 @@ export interface Organization {
      */
     'secretQuota': number;
     /**
+     * Maximum number of secrets that can be mounted to a single sandbox
+     */
+    'maxSecretsPerSandbox': number;
+    /**
      * Time in minutes before an unused snapshot is deactivated
      */
     'snapshotDeactivationTimeoutMinutes': number;

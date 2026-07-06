@@ -10,6 +10,8 @@ import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.model.CreateSecretParams;
+import io.daytona.sdk.model.ListSecretsQuery;
+import io.daytona.sdk.model.ListSecretsResponse;
 import io.daytona.sdk.model.Secret;
 import io.daytona.sdk.model.UpdateSecretParams;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +24,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -122,22 +125,73 @@ class SecretServiceTest {
     }
 
     @Test
-    void listMapsAllItems() {
-        when(secretApi.listSecrets(isNull())).thenReturn(Arrays.asList(
-                secret("sec-1", "anthropic-prod", "dtn_secret_sec-1", Arrays.asList("api.anthropic.com")),
-                secret("sec-2", "openai-prod", "dtn_secret_sec-2", Arrays.asList("api.openai.com"))
-        ));
+    void listPassesQueryParamsThrough() {
+        when(secretApi.listSecretsPaginated(isNull(), any(), any(), any(), any(), any()))
+                .thenReturn(paginatedResponse(Collections.<io.daytona.api.client.model.Secret>emptyList(), 0, null));
 
-        assertThat(service.list())
-                .extracting(Secret::getName)
-                .containsExactly("anthropic-prod", "openai-prod");
+        ListSecretsQuery query = new ListSecretsQuery();
+        query.setCursor("cursor-1");
+        query.setLimit(50);
+        query.setName("anthropic");
+        query.setSort("name");
+        query.setOrder("asc");
+
+        service.list(query);
+
+        verify(secretApi).listSecretsPaginated(isNull(), org.mockito.ArgumentMatchers.eq("cursor-1"),
+                org.mockito.ArgumentMatchers.eq(BigDecimal.valueOf(50)), org.mockito.ArgumentMatchers.eq("anthropic"),
+                org.mockito.ArgumentMatchers.eq("name"), org.mockito.ArgumentMatchers.eq("asc"));
     }
 
     @Test
-    void listReturnsEmptyListWhenApiReturnsNull() {
-        when(secretApi.listSecrets(isNull())).thenReturn(null);
+    void listPassesNullsWhenQueryOmitted() {
+        when(secretApi.listSecretsPaginated(isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(paginatedResponse(Collections.<io.daytona.api.client.model.Secret>emptyList(), 0, null));
 
-        assertThat(service.list()).isEqualTo(Collections.<Secret>emptyList());
+        service.list();
+
+        verify(secretApi).listSecretsPaginated(isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    void listMapsResponse() {
+        when(secretApi.listSecretsPaginated(isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(paginatedResponse(Arrays.asList(
+                        secret("sec-1", "anthropic-prod", "dtn_secret_sec-1", Arrays.asList("api.anthropic.com")),
+                        secret("sec-2", "openai-prod", "dtn_secret_sec-2", Arrays.asList("api.openai.com"))
+                ), 42, "cursor-next"));
+
+        ListSecretsResponse result = service.list();
+
+        assertThat(result.getItems())
+                .extracting(Secret::getName)
+                .containsExactly("anthropic-prod", "openai-prod");
+        assertThat(result.getTotal()).isEqualTo(42);
+        assertThat(result.getNextCursor()).isEqualTo("cursor-next");
+    }
+
+    @Test
+    void listPreservesNullNextCursor() {
+        when(secretApi.listSecretsPaginated(isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(paginatedResponse(Arrays.asList(
+                        secret("sec-1", "anthropic-prod", "dtn_secret_sec-1", Arrays.asList("api.anthropic.com"))
+                ), 1, null));
+
+        ListSecretsResponse result = service.list();
+
+        assertThat(result.getNextCursor()).isNull();
+    }
+
+    @Test
+    void listReturnsEmptyPageWhenApiReturnsNull() {
+        when(secretApi.listSecretsPaginated(isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(null);
+
+        ListSecretsResponse result = service.list();
+
+        assertThat(result.getItems()).isEmpty();
+        assertThat(result.getTotal()).isZero();
+        assertThat(result.getNextCursor()).isNull();
     }
 
     @Test
@@ -220,6 +274,15 @@ class SecretServiceTest {
                 Arguments.of(404, DaytonaNotFoundException.class),
                 Arguments.of(500, DaytonaServerException.class)
         );
+    }
+
+    private static io.daytona.api.client.model.ListSecretsResponse paginatedResponse(
+            java.util.List<io.daytona.api.client.model.Secret> items, int total, String nextCursor) {
+        io.daytona.api.client.model.ListSecretsResponse response = new io.daytona.api.client.model.ListSecretsResponse();
+        response.setItems(items);
+        response.setTotal(BigDecimal.valueOf(total));
+        response.setNextCursor(nextCursor);
+        return response;
     }
 
     private static io.daytona.api.client.model.Secret secret(String id, String name, String placeholder, java.util.List<String> hosts) {

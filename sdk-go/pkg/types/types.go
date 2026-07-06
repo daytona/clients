@@ -194,6 +194,30 @@ type UpdateSecretParams struct {
 	Hosts []string
 }
 
+// ListSecretsQuery contains query parameters for filtering, sorting, and
+// paginating when listing secrets. All fields are optional.
+type ListSecretsQuery struct {
+	// Pagination cursor from a previous response's NextCursor
+	Cursor *string
+	// Number of results per page (1-200, default 100)
+	Limit *int
+	// Filter by partial name match
+	Name *string
+	// Sort by field: "name", "createdAt", or "updatedAt" (default "createdAt")
+	Sort *string
+	// Sort direction: "asc" or "desc" (default "desc")
+	Order *string
+}
+
+// ListSecretsResponse represents a paginated list of secrets
+type ListSecretsResponse struct {
+	Items []*Secret
+	// Total number of secrets matching the filters
+	Total int
+	// Cursor for the next page of results; nil when there are no further pages
+	NextCursor *string
+}
+
 // Snapshot represents a Daytona snapshot
 type Snapshot struct {
 	ID             string     `json:"id"`
