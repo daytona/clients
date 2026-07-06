@@ -46,6 +46,7 @@ opts := options.Apply(
 - [func WithAuthProtocol\(protocol string\) func\(\*GitAuthenticate\)](<#WithAuthProtocol>)
 - [func WithBare\(bare bool\) func\(\*GitInit\)](<#WithBare>)
 - [func WithBranch\(branch string\) func\(\*GitClone\)](<#WithBranch>)
+- [func WithCloneDepth\(depth int32\) func\(\*GitClone\)](<#WithCloneDepth>)
 - [func WithCodeRunLanguage\(language types.CodeLanguage\) func\(\*CodeRun\)](<#WithCodeRunLanguage>)
 - [func WithCodeRunParams\(params types.CodeRunParams\) func\(\*CodeRun\)](<#WithCodeRunParams>)
 - [func WithCodeRunTimeout\(timeout time.Duration\) func\(\*CodeRun\)](<#WithCodeRunTimeout>)
@@ -199,6 +200,21 @@ Example:
 
 ```
 err := sandbox.Git.Clone(ctx, url, path, options.WithBranch("develop"))
+```
+
+<a name="WithCloneDepth"></a>
+## func WithCloneDepth
+
+```go
+func WithCloneDepth(depth int32) func(*GitClone)
+```
+
+WithCloneDepth creates a shallow clone truncated to the given number of commits.
+
+Example:
+
+```
+err := sandbox.Git.Clone(ctx, url, path, options.WithCloneDepth(1))
 ```
 
 <a name="WithCodeRunLanguage"></a>

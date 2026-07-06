@@ -116,9 +116,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to list files: %v", err)
 	}
-	log.Printf("\nFiles in /tmp:\n")
+	log.Printf("\nFiles in /tmp (shallow):\n")
 	for _, file := range files {
 		log.Printf("  - %s (%d bytes)\n", file.Name, file.Size)
+	}
+
+	if err := sandbox.FileSystem.UploadFile(ctx, []byte("nested"), folderPath+"/sub/nested.txt"); err != nil {
+		log.Fatalf("Failed to upload nested file: %v", err)
+	}
+
+	// Recursive listing: WithDepth expands the listing one level at a time and
+	// every entry carries its full path.
+	nested, err := sandbox.FileSystem.ListFiles(ctx, folderPath, options.WithDepth(3))
+	if err != nil {
+		log.Fatalf("Failed to list files recursively: %v", err)
+	}
+	log.Printf("\nFiles under %s (depth 3):\n", folderPath)
+	for _, file := range nested {
+		log.Printf("  - %s (dir=%t)\n", file.Path, file.IsDirectory)
 	}
 
 	log.Println("\n✓ All file operations completed successfully!")
