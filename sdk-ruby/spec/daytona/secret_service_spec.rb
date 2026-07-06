@@ -71,14 +71,42 @@ RSpec.describe Daytona::SecretService do
   end
 
   describe '#list' do
-    it 'returns an array of Secret models' do
+    it 'passes query params to the api client' do
+      response = instance_double(DaytonaApiClient::ListSecretsResponse, items: [], total: 0, next_cursor: nil)
+      allow(secret_api).to receive(:list_secrets_paginated).and_return(response)
+
+      service.list(cursor: 'cursor-1', limit: 50, name: 'prod', sort: 'name', order: 'asc')
+
+      expect(secret_api).to have_received(:list_secrets_paginated)
+        .with(cursor: 'cursor-1', limit: 50, name: 'prod', sort: 'name', order: 'asc')
+    end
+
+    it 'returns a ListSecretsResponse of Secret models' do
       dtos = [build_secret_dto(name: 's1'), build_secret_dto(name: 's2')]
-      allow(secret_api).to receive(:list_secrets).and_return(dtos)
+      response = instance_double(DaytonaApiClient::ListSecretsResponse, items: dtos, total: 2,
+                                                                        next_cursor: 'cursor-2')
+      allow(secret_api).to receive(:list_secrets_paginated).and_return(response)
 
-      secrets = service.list
+      result = service.list
 
-      expect(secrets).to all(be_a(Daytona::Secret))
-      expect(secrets.map(&:name)).to eq(%w[s1 s2])
+      expect(result).to be_a(Daytona::ListSecretsResponse)
+      expect(result.items).to all(be_a(Daytona::Secret))
+      expect(result.items.map(&:name)).to eq(%w[s1 s2])
+      expect(result.total).to eq(2)
+      expect(result.next_cursor).to eq('cursor-2')
+    end
+
+    it 'returns nil next_cursor on the last page' do
+      response = instance_double(DaytonaApiClient::ListSecretsResponse, items: [], total: 0, next_cursor: nil)
+      allow(secret_api).to receive(:list_secrets_paginated).and_return(response)
+
+      result = service.list
+
+      expect(result.next_cursor).to be_nil
+    end
+
+    it 'raises on invalid limit' do
+      expect { service.list(limit: 0) }.to raise_error(Daytona::Sdk::Error, /limit must be positive integer/)
     end
   end
 

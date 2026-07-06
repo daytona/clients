@@ -14,7 +14,9 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
+import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSecret;
+import io.daytona.api.client.model.ListSecretsResponse;
 import io.daytona.api.client.model.Secret;
 import io.daytona.api.client.model.UpdateSecret;
 import org.junit.jupiter.api.Disabled;
@@ -75,12 +77,31 @@ public class SecretApiTest {
     /**
      * List secrets
      *
+     * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use &#x60;listSecretsPaginated&#x60; instead.
+     *
      * @throws ApiException if the Api call fails
      */
     @Test
     public void listSecretsTest() throws ApiException {
         String xDaytonaOrganizationID = null;
         List<Secret> response = api.listSecrets(xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * List secrets with pagination
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listSecretsPaginatedTest() throws ApiException {
+        String xDaytonaOrganizationID = null;
+        String cursor = null;
+        BigDecimal limit = null;
+        String name = null;
+        String sort = null;
+        String order = null;
+        ListSecretsResponse response = api.listSecretsPaginated(xDaytonaOrganizationID, cursor, limit, name, sort, order);
         // TODO: test validations
     }
 

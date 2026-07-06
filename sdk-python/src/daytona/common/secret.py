@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from daytona_api_client import ListSecretsResponse as ListSecretsResponseDto
 from daytona_api_client import Secret as SecretDto
 from daytona_api_client_async import Secret as AsyncSecretDto
 
@@ -30,6 +31,17 @@ class Secret(SecretDto):
     @classmethod
     def from_dto(cls, dto: SecretDto | AsyncSecretDto) -> "Secret":
         return cls.model_validate(dto.model_dump())
+
+
+class ListSecretsResponse(ListSecretsResponseDto):
+    """Represents a paginated list of Daytona Secrets.
+
+    Attributes:
+        items (list[Secret]): List of Secret instances in the current page.
+        total (int): Total number of Secrets matching the filters.
+        next_cursor (str | None): Cursor for the next page of results, or ``None``
+            when there are no more pages.
+    """
 
 
 class CreateSecretParams(BaseModel):

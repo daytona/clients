@@ -86,6 +86,11 @@ public class UpdateOrganizationQuota {
   @javax.annotation.Nullable
   private BigDecimal secretQuota;
 
+  public static final String SERIALIZED_NAME_MAX_SECRETS_PER_SANDBOX = "maxSecretsPerSandbox";
+  @SerializedName(SERIALIZED_NAME_MAX_SECRETS_PER_SANDBOX)
+  @javax.annotation.Nullable
+  private BigDecimal maxSecretsPerSandbox;
+
   public static final String SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT = "authenticatedRateLimit";
   @SerializedName(SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT)
   @javax.annotation.Nullable
@@ -259,6 +264,25 @@ public class UpdateOrganizationQuota {
 
   public void setSecretQuota(@javax.annotation.Nullable BigDecimal secretQuota) {
     this.secretQuota = secretQuota;
+  }
+
+
+  public UpdateOrganizationQuota maxSecretsPerSandbox(@javax.annotation.Nullable BigDecimal maxSecretsPerSandbox) {
+    this.maxSecretsPerSandbox = maxSecretsPerSandbox;
+    return this;
+  }
+
+  /**
+   * Maximum number of secrets that can be mounted to a single sandbox
+   * @return maxSecretsPerSandbox
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getMaxSecretsPerSandbox() {
+    return maxSecretsPerSandbox;
+  }
+
+  public void setMaxSecretsPerSandbox(@javax.annotation.Nullable BigDecimal maxSecretsPerSandbox) {
+    this.maxSecretsPerSandbox = maxSecretsPerSandbox;
   }
 
 
@@ -475,6 +499,7 @@ public class UpdateOrganizationQuota {
         Objects.equals(this.maxSnapshotSize, updateOrganizationQuota.maxSnapshotSize) &&
         Objects.equals(this.volumeQuota, updateOrganizationQuota.volumeQuota) &&
         Objects.equals(this.secretQuota, updateOrganizationQuota.secretQuota) &&
+        Objects.equals(this.maxSecretsPerSandbox, updateOrganizationQuota.maxSecretsPerSandbox) &&
         Objects.equals(this.authenticatedRateLimit, updateOrganizationQuota.authenticatedRateLimit) &&
         Objects.equals(this.sandboxCreateRateLimit, updateOrganizationQuota.sandboxCreateRateLimit) &&
         Objects.equals(this.sandboxLifecycleRateLimit, updateOrganizationQuota.sandboxLifecycleRateLimit) &&
@@ -488,7 +513,7 @@ public class UpdateOrganizationQuota {
 
   @Override
   public int hashCode() {
-    return Objects.hash(maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, snapshotQuota, maxSnapshotSize, volumeQuota, secretQuota, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, snapshotDeactivationTimeoutMinutes, maxConcurrentSnapshotProcessing, additionalProperties);
+    return Objects.hash(maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, snapshotQuota, maxSnapshotSize, volumeQuota, secretQuota, maxSecretsPerSandbox, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, snapshotDeactivationTimeoutMinutes, maxConcurrentSnapshotProcessing, additionalProperties);
   }
 
   @Override
@@ -502,6 +527,7 @@ public class UpdateOrganizationQuota {
     sb.append("    maxSnapshotSize: ").append(toIndentedString(maxSnapshotSize)).append("\n");
     sb.append("    volumeQuota: ").append(toIndentedString(volumeQuota)).append("\n");
     sb.append("    secretQuota: ").append(toIndentedString(secretQuota)).append("\n");
+    sb.append("    maxSecretsPerSandbox: ").append(toIndentedString(maxSecretsPerSandbox)).append("\n");
     sb.append("    authenticatedRateLimit: ").append(toIndentedString(authenticatedRateLimit)).append("\n");
     sb.append("    sandboxCreateRateLimit: ").append(toIndentedString(sandboxCreateRateLimit)).append("\n");
     sb.append("    sandboxLifecycleRateLimit: ").append(toIndentedString(sandboxLifecycleRateLimit)).append("\n");
@@ -529,10 +555,10 @@ public class UpdateOrganizationQuota {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "secretQuota", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"));
+    openapiFields = new HashSet<String>(Arrays.asList("maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "secretQuota", "maxSecretsPerSandbox", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "secretQuota", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "secretQuota", "maxSecretsPerSandbox", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"));
   }
 
   /**

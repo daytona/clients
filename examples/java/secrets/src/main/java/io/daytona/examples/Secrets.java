@@ -8,6 +8,8 @@ import io.daytona.sdk.Sandbox;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.CreateSecretParams;
 import io.daytona.sdk.model.ExecuteResponse;
+import io.daytona.sdk.model.ListSecretsQuery;
+import io.daytona.sdk.model.ListSecretsResponse;
 import io.daytona.sdk.model.Secret;
 import io.daytona.sdk.model.UpdateSecretParams;
 
@@ -30,9 +32,19 @@ public class Secrets {
             // The injected env var holds this opaque placeholder, never the plaintext value.
             System.out.println("Injected placeholder: " + secret.getPlaceholder());
 
-            // List all secrets in the organization
-            List<Secret> secrets = daytona.secret().list();
-            System.out.println("Organization has " + secrets.size() + " secret(s)");
+            // List all secrets in the organization, one page at a time.
+            // nextCursor is null once there are no more pages.
+            int count = 0;
+            ListSecretsQuery listQuery = new ListSecretsQuery();
+            while (true) {
+                ListSecretsResponse page = daytona.secret().list(listQuery);
+                count += page.getItems().size();
+                if (page.getNextCursor() == null) {
+                    System.out.println("Organization has " + page.getTotal() + " secret(s); listed " + count);
+                    break;
+                }
+                listQuery.setCursor(page.getNextCursor());
+            }
 
             // Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.
             // The secrets map is { envVarName: existingSecretName }.

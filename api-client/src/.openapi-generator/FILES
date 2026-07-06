@@ -95,6 +95,7 @@ models/keyboard-press-request.ts
 models/keyboard-type-request.ts
 models/list-branch-response.ts
 models/list-sandboxes-response.ts
+models/list-secrets-response.ts
 models/log-entry.ts
 models/lsp-completion-params.ts
 models/lsp-document-request.ts

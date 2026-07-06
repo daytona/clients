@@ -93,6 +93,7 @@ model_keyboard_press_request.go
 model_keyboard_type_request.go
 model_list_branch_response.go
 model_list_sandboxes_response.go
+model_list_secrets_response.go
 model_log_entry.go
 model_lsp_completion_params.go
 model_lsp_document_request.go

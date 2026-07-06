@@ -17,8 +17,15 @@ puts "Created secret '#{secret.name}' (id: #{secret.id})"
 # The injected env var holds this opaque placeholder, never the plaintext value.
 puts "Injected placeholder: #{secret.placeholder}"
 
-# List all secrets in the organization
-secrets = daytona.secret.list
+# List all secrets in the organization, following the pagination cursor page by page.
+secrets = []
+cursor = nil
+loop do
+  page = daytona.secret.list(cursor:, limit: 100)
+  secrets.concat(page.items)
+  cursor = page.next_cursor
+  break if cursor.nil?
+end
 puts "Organization has #{secrets.length} secret(s)"
 
 # Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.

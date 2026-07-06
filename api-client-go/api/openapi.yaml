@@ -7912,6 +7912,9 @@ paths:
       - docker-registry
   /secret:
     get:
+      deprecated: true
+      description: This endpoint is deprecated and fails for organizations with more
+        than 1500 secrets. Use `listSecretsPaginated` instead.
       operationId: listSecrets
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -7971,6 +7974,87 @@ paths:
         - profile
         - email
       summary: Create secret
+      tags:
+      - secret
+  /secret/paginated:
+    get:
+      operationId: listSecretsPaginated
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Pagination cursor from a previous response
+        explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Number of results per page
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          maximum: 200
+          minimum: 1
+          type: number
+        style: form
+      - description: Filter by partial name match
+        explode: true
+        in: query
+        name: name
+        required: false
+        schema:
+          example: MY_API_KEY
+          type: string
+        style: form
+      - description: Field to sort by
+        explode: true
+        in: query
+        name: sort
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - name
+          - createdAt
+          - updatedAt
+          type: string
+        style: form
+      - description: Direction to sort by
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          default: desc
+          enum:
+          - asc
+          - desc
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSecretsResponse"
+          description: "Paginated list of secrets (metadata only, values are not returned)"
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List secrets with pagination
       tags:
       - secret
   /secret/{secretId}:
@@ -10148,25 +10232,26 @@ components:
     Organization:
       example:
         secretQuota: 5.637376656633329
-        sandboxCreateRateLimit: 9.301444243932576
-        sandboxLifecycleRateLimitTtlSeconds: 7.386281948385884
+        sandboxCreateRateLimit: 3.616076749251911
+        sandboxLifecycleRateLimitTtlSeconds: 1.2315135367772556
         createdAt: 2000-01-23T04:56:07.000+00:00
         sandboxLimitedNetworkEgress: true
         suspendedUntil: 2000-01-23T04:56:07.000+00:00
-        snapshotDeactivationTimeoutMinutes: 2.3021358869347655
+        snapshotDeactivationTimeoutMinutes: 7.061401241503109
         otelConfig: ""
-        authenticatedRateLimitTtlSeconds: 2.027123023002322
+        authenticatedRateLimitTtlSeconds: 4.145608029883936
         id: id
         experimentalConfig: "{}"
         updatedAt: 2000-01-23T04:56:07.000+00:00
         defaultRegionId: defaultRegionId
-        sandboxCreateRateLimitTtlSeconds: 4.145608029883936
+        sandboxCreateRateLimitTtlSeconds: 7.386281948385884
         suspensionReason: suspensionReason
-        sandboxLifecycleRateLimit: 3.616076749251911
+        sandboxLifecycleRateLimit: 2.027123023002322
         suspendedAt: 2000-01-23T04:56:07.000+00:00
         personal: true
         suspensionCleanupGracePeriodHours: 0.8008281904610115
-        authenticatedRateLimit: 7.061401241503109
+        maxSecretsPerSandbox: 2.3021358869347655
+        authenticatedRateLimit: 9.301444243932576
         suspended: true
         maxCpuPerSandbox: 6.027456183070403
         maxDiskPerSandbox: 5.962133916683182
@@ -10223,6 +10308,9 @@ components:
         secretQuota:
           description: Maximum number of secrets
           type: number
+        maxSecretsPerSandbox:
+          description: Maximum number of secrets that can be mounted to a single sandbox
+          type: number
         snapshotDeactivationTimeoutMinutes:
           default: 20160
           description: Time in minutes before an unused snapshot is deactivated
@@ -10275,6 +10363,7 @@ components:
       - maxCpuPerSandbox
       - maxDiskPerSandbox
       - maxMemoryPerSandbox
+      - maxSecretsPerSandbox
       - name
       - otelConfig
       - personal
@@ -10486,21 +10575,22 @@ components:
       type: object
     UpdateOrganizationQuota:
       example:
-        sandboxCreateRateLimitTtlSeconds: 7.386281948385884
-        sandboxLifecycleRateLimit: 2.027123023002322
+        sandboxCreateRateLimitTtlSeconds: 1.2315135367772556
+        sandboxLifecycleRateLimit: 4.145608029883936
         volumeQuota: 2.3021358869347655
         maxSnapshotSize: 5.637376656633329
-        authenticatedRateLimit: 9.301444243932576
+        maxSecretsPerSandbox: 9.301444243932576
+        authenticatedRateLimit: 3.616076749251911
         secretQuota: 7.061401241503109
-        sandboxCreateRateLimit: 3.616076749251911
+        sandboxCreateRateLimit: 2.027123023002322
         snapshotQuota: 5.962133916683182
-        sandboxLifecycleRateLimitTtlSeconds: 1.2315135367772556
+        sandboxLifecycleRateLimitTtlSeconds: 1.0246457001441578
         maxCpuPerSandbox: 0.8008281904610115
         maxDiskPerSandbox: 1.4658129805029452
-        maxConcurrentSnapshotProcessing: 1.4894159098541704
-        snapshotDeactivationTimeoutMinutes: 1.0246457001441578
+        maxConcurrentSnapshotProcessing: 6.84685269835264
+        snapshotDeactivationTimeoutMinutes: 1.4894159098541704
         maxMemoryPerSandbox: 6.027456183070403
-        authenticatedRateLimitTtlSeconds: 4.145608029883936
+        authenticatedRateLimitTtlSeconds: 7.386281948385884
       properties:
         maxCpuPerSandbox:
           nullable: true
@@ -10521,6 +10611,10 @@ components:
           nullable: true
           type: number
         secretQuota:
+          nullable: true
+          type: number
+        maxSecretsPerSandbox:
+          description: Maximum number of secrets that can be mounted to a single sandbox
           nullable: true
           type: number
         authenticatedRateLimit:
@@ -10557,6 +10651,7 @@ components:
       - maxCpuPerSandbox
       - maxDiskPerSandbox
       - maxMemoryPerSandbox
+      - maxSecretsPerSandbox
       - maxSnapshotSize
       - sandboxCreateRateLimit
       - sandboxCreateRateLimitTtlSeconds
@@ -15267,6 +15362,45 @@ components:
       - name
       - placeholder
       - updatedAt
+      type: object
+    ListSecretsResponse:
+      example:
+        nextCursor: nextCursor
+        total: 0.8008281904610115
+        items:
+        - createdAt: 2024-01-31T12:00:00Z
+          hosts:
+          - api.anthropic.com
+          name: MY_API_KEY
+          description: API key for external service
+          id: 123e4567-e89b-12d3-a456-426614174000
+          placeholder: dtn_secret_a7f3b2c1e9d4f6g8
+          updatedAt: 2024-01-31T12:00:00Z
+        - createdAt: 2024-01-31T12:00:00Z
+          hosts:
+          - api.anthropic.com
+          name: MY_API_KEY
+          description: API key for external service
+          id: 123e4567-e89b-12d3-a456-426614174000
+          placeholder: dtn_secret_a7f3b2c1e9d4f6g8
+          updatedAt: 2024-01-31T12:00:00Z
+      properties:
+        items:
+          description: List of results for the current page
+          items:
+            $ref: "#/components/schemas/Secret"
+          type: array
+        total:
+          description: Total number of secrets matching the filters
+          type: number
+        nextCursor:
+          description: Cursor for the next page of results
+          nullable: true
+          type: string
+      required:
+      - items
+      - nextCursor
+      - total
       type: object
     UpdateSecret:
       example:

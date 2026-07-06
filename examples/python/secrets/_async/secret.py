@@ -21,9 +21,16 @@ async def main():
         # The injected env var holds this opaque placeholder, never the plaintext value.
         print(f"Injected placeholder: {secret.placeholder}")
 
-        # List all secrets in the organization
-        secrets = await daytona.secret.list()
-        print(f"Organization has {len(secrets)} secret(s)")
+        # List all secrets in the organization, following the pagination cursor page by page
+        cursor = None
+        while True:
+            page = await daytona.secret.list(cursor=cursor, limit=100)
+            for item in page.items:
+                print(f"  - {item.name} (id: {item.id})")
+            if page.next_cursor is None:
+                break
+            cursor = page.next_cursor
+        print(f"Organization has {page.total} secret(s)")
 
         # Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.
         # The `secrets` map is {env_var_name: existing_secret_name}.

@@ -7,9 +7,12 @@ import io.daytona.api.client.api.SecretApi;
 import io.daytona.api.client.model.CreateSecret;
 import io.daytona.api.client.model.UpdateSecret;
 import io.daytona.sdk.model.CreateSecretParams;
+import io.daytona.sdk.model.ListSecretsQuery;
+import io.daytona.sdk.model.ListSecretsResponse;
 import io.daytona.sdk.model.Secret;
 import io.daytona.sdk.model.UpdateSecretParams;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,20 +56,44 @@ public class SecretService {
     }
 
     /**
-     * Lists all Secrets in the organization.
+     * Lists Secrets in the organization one page at a time, using default query parameters.
      *
-     * @return list of Secrets
+     * @return page of Secrets; {@code nextCursor} is {@code null} when there are no more pages
      * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
      */
-    public List<Secret> list() {
-        List<io.daytona.api.client.model.Secret> secrets = ExceptionMapper.callMain(() -> secretApi.listSecrets(null));
-        List<Secret> result = new ArrayList<Secret>();
-        if (secrets != null) {
-            for (io.daytona.api.client.model.Secret secret : secrets) {
-                result.add(toSecret(secret));
+    public ListSecretsResponse list() {
+        return list(null);
+    }
+
+    /**
+     * Lists Secrets in the organization one page at a time. Pass the {@code nextCursor} from a
+     * previous response as the query {@code cursor} to fetch the next page.
+     *
+     * @param query optional filter, sort, and pagination parameters; may be {@code null}
+     * @return page of Secrets; {@code nextCursor} is {@code null} when there are no more pages
+     * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
+     */
+    public ListSecretsResponse list(ListSecretsQuery query) {
+        String cursor = query == null ? null : query.getCursor();
+        BigDecimal limit = query == null || query.getLimit() == null ? null : BigDecimal.valueOf(query.getLimit());
+        String name = query == null ? null : query.getName();
+        String sort = query == null ? null : query.getSort();
+        String order = query == null ? null : query.getOrder();
+        io.daytona.api.client.model.ListSecretsResponse result = ExceptionMapper.callMain(
+                () -> secretApi.listSecretsPaginated(null, cursor, limit, name, sort, order)
+        );
+
+        ListSecretsResponse output = new ListSecretsResponse();
+        List<Secret> items = new ArrayList<Secret>();
+        if (result != null && result.getItems() != null) {
+            for (io.daytona.api.client.model.Secret secret : result.getItems()) {
+                items.add(toSecret(secret));
             }
         }
-        return result;
+        output.setItems(items);
+        output.setTotal(result != null && result.getTotal() != null ? result.getTotal().intValue() : 0);
+        output.setNextCursor(result == null ? null : result.getNextCursor());
+        return output;
     }
 
     /**

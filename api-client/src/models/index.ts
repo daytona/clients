@@ -68,6 +68,7 @@ export * from './keyboard-press-request';
 export * from './keyboard-type-request';
 export * from './list-branch-response';
 export * from './list-sandboxes-response';
+export * from './list-secrets-response';
 export * from './log-entry';
 export * from './lsp-completion-params';
 export * from './lsp-document-request';

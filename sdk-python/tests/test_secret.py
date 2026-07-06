@@ -8,7 +8,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from daytona.common.daytona import CreateSandboxFromSnapshotParams
-from daytona.common.secret import CreateSecretParams, Secret, UpdateSecretParams
+from daytona.common.errors import DaytonaValidationError
+from daytona.common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
+from daytona_api_client import ListSecretsResponse as ListSecretsResponseDto
 from daytona_api_client import Secret as SecretDto
 
 
@@ -24,6 +26,14 @@ def _make_secret_dto(name="test-secret", secret_id="secret-123"):
     )
 
 
+def _make_list_secrets_response_dto(items=None, total=1, next_cursor=None):
+    return ListSecretsResponseDto(
+        items=items if items is not None else [_make_secret_dto()],
+        total=total,
+        next_cursor=next_cursor,
+    )
+
+
 class TestSyncSecretService:
     def _make_service(self):
         from daytona._sync.secret import SecretService
@@ -33,10 +43,34 @@ class TestSyncSecretService:
 
     def test_list(self):
         service, api = self._make_service()
-        api.list_secrets.return_value = [_make_secret_dto()]
+        api.list_secrets_paginated.return_value = _make_list_secrets_response_dto(total=42, next_cursor="cursor-2")
+        result = service.list(cursor="cursor-1", limit=50, name="test", sort="name", order="asc")
+        assert isinstance(result, ListSecretsResponse)
+        assert len(result.items) == 1
+        assert isinstance(result.items[0], Secret)
+        assert result.total == 42
+        assert result.next_cursor == "cursor-2"
+        api.list_secrets_paginated.assert_called_once_with(
+            cursor="cursor-1", limit=50, name="test", sort="name", order="asc"
+        )
+
+    def test_list_defaults(self):
+        service, api = self._make_service()
+        api.list_secrets_paginated.return_value = _make_list_secrets_response_dto()
+        service.list()
+        api.list_secrets_paginated.assert_called_once_with(cursor=None, limit=None, name=None, sort=None, order=None)
+
+    def test_list_last_page_has_no_cursor(self):
+        service, api = self._make_service()
+        api.list_secrets_paginated.return_value = _make_list_secrets_response_dto(next_cursor=None)
         result = service.list()
-        assert len(result) == 1
-        assert isinstance(result[0], Secret)
+        assert result.next_cursor is None
+
+    def test_list_invalid_limit_raises(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError):
+            service.list(limit=0)
+        api.list_secrets_paginated.assert_not_called()
 
     def test_get(self):
         service, api = self._make_service()
@@ -109,10 +143,31 @@ class TestAsyncSecretService:
     @pytest.mark.asyncio
     async def test_list(self):
         service, api = self._make_service()
-        api.list_secrets.return_value = [_make_secret_dto()]
+        api.list_secrets_paginated.return_value = _make_list_secrets_response_dto(total=42, next_cursor="cursor-2")
+        result = await service.list(cursor="cursor-1", limit=50, name="test", sort="name", order="asc")
+        assert isinstance(result, ListSecretsResponse)
+        assert len(result.items) == 1
+        assert isinstance(result.items[0], Secret)
+        assert result.total == 42
+        assert result.next_cursor == "cursor-2"
+        api.list_secrets_paginated.assert_called_once_with(
+            cursor="cursor-1", limit=50, name="test", sort="name", order="asc"
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_last_page_has_no_cursor(self):
+        service, api = self._make_service()
+        api.list_secrets_paginated.return_value = _make_list_secrets_response_dto(next_cursor=None)
         result = await service.list()
-        assert len(result) == 1
-        assert isinstance(result[0], Secret)
+        assert result.next_cursor is None
+        api.list_secrets_paginated.assert_called_once_with(cursor=None, limit=None, name=None, sort=None, order=None)
+
+    @pytest.mark.asyncio
+    async def test_list_invalid_limit_raises(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError):
+            await service.list(limit=0)
+        api.list_secrets_paginated.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_get(self):

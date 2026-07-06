@@ -47,6 +47,7 @@ class Organization(BaseModel):
     max_memory_per_sandbox: Union[StrictFloat, StrictInt] = Field(description="Max memory per sandbox", serialization_alias="maxMemoryPerSandbox")
     max_disk_per_sandbox: Union[StrictFloat, StrictInt] = Field(description="Max disk per sandbox", serialization_alias="maxDiskPerSandbox")
     secret_quota: Union[StrictFloat, StrictInt] = Field(description="Maximum number of secrets", serialization_alias="secretQuota")
+    max_secrets_per_sandbox: Union[StrictFloat, StrictInt] = Field(description="Maximum number of secrets that can be mounted to a single sandbox", serialization_alias="maxSecretsPerSandbox")
     snapshot_deactivation_timeout_minutes: Union[StrictFloat, StrictInt] = Field(description="Time in minutes before an unused snapshot is deactivated", serialization_alias="snapshotDeactivationTimeoutMinutes")
     sandbox_limited_network_egress: StrictBool = Field(description="Sandbox default network block all", serialization_alias="sandboxLimitedNetworkEgress")
     default_region_id: Optional[StrictStr] = Field(default=None, description="Default region ID", serialization_alias="defaultRegionId")
@@ -59,7 +60,7 @@ class Organization(BaseModel):
     sandbox_create_rate_limit_ttl_seconds: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox create rate limit TTL in seconds", serialization_alias="sandboxCreateRateLimitTtlSeconds")
     sandbox_lifecycle_rate_limit_ttl_seconds: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox lifecycle rate limit TTL in seconds", serialization_alias="sandboxLifecycleRateLimitTtlSeconds")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "defaultRegionId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"]
+    __properties: ClassVar[List[str]] = ["id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "defaultRegionId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -171,6 +172,7 @@ class Organization(BaseModel):
             "max_memory_per_sandbox": obj.get("maxMemoryPerSandbox"),
             "max_disk_per_sandbox": obj.get("maxDiskPerSandbox"),
             "secret_quota": obj.get("secretQuota"),
+            "max_secrets_per_sandbox": obj.get("maxSecretsPerSandbox"),
             "snapshot_deactivation_timeout_minutes": obj.get("snapshotDeactivationTimeoutMinutes") if obj.get("snapshotDeactivationTimeoutMinutes") is not None else 20160,
             "sandbox_limited_network_egress": obj.get("sandboxLimitedNetworkEgress"),
             "default_region_id": obj.get("defaultRegionId"),

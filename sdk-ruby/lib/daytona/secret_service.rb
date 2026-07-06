@@ -50,11 +50,35 @@ module Daytona
     # @raise [DaytonaApiClient::ApiError] If no Secret with the given ID exists (404).
     def get(secret_id) = Secret.new(secret_api.get_secret(secret_id))
 
-    # List all Secrets.
+    # List Secrets with cursor-based pagination.
     #
-    # @return [Array<Daytona::Secret>]
-    def list
-      secret_api.list_secrets.map { |secret| Secret.new(secret) }
+    # @param cursor [String, nil] Pagination cursor from a previous response.
+    # @param limit [Integer, nil] Number of results per page (1-200, defaults to 100).
+    # @param name [String, nil] Filter by partial name match.
+    # @param sort [String, nil] Field to sort by: +name+, +createdAt+ or +updatedAt+
+    #   (defaults to +createdAt+).
+    # @param order [String, nil] Direction to sort by: +asc+ or +desc+ (defaults to +desc+).
+    # @return [Daytona::ListSecretsResponse]
+    # @raise [Daytona::Sdk::Error]
+    #
+    # @example
+    #   daytona = Daytona::Daytona.new
+    #   cursor = nil
+    #   loop do
+    #     page = daytona.secret.list(cursor:, limit: 100)
+    #     page.items.each { |secret| puts secret.name }
+    #     cursor = page.next_cursor
+    #     break if cursor.nil?
+    #   end
+    def list(cursor: nil, limit: nil, name: nil, sort: nil, order: nil)
+      raise Sdk::Error, 'limit must be positive integer' if limit && limit < 1
+
+      response = secret_api.list_secrets_paginated(cursor:, limit:, name:, sort:, order:)
+      ListSecretsResponse.new(
+        items: response.items.map { |secret| Secret.new(secret) },
+        total: response.total,
+        next_cursor: response.next_cursor
+      )
     end
 
     # Update a Secret.

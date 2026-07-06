@@ -37,6 +37,30 @@ module Daytona
     end
   end
 
+  # Cursor-paginated collection of Secrets returned by
+  # {Daytona::SecretService#list}. Pass +next_cursor+ back as the
+  # +cursor+ of the next call to fetch the following page; it is +nil+ when
+  # there are no more pages.
+  class ListSecretsResponse
+    # @return [Array<Daytona::Secret>]
+    attr_reader :items
+
+    # @return [Float]
+    attr_reader :total
+
+    # @return [String, nil]
+    attr_reader :next_cursor
+
+    # @param items [Array<Daytona::Secret>]
+    # @param total [Float]
+    # @param next_cursor [String, nil]
+    def initialize(items:, total:, next_cursor:)
+      @items = items
+      @total = total
+      @next_cursor = next_cursor
+    end
+  end
+
   # Query parameters for filtering and sorting when listing Sandboxes.
   #
   # All fields are optional and default to +nil+. Constructed via keyword

@@ -27,7 +27,9 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
+import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSecret;
+import io.daytona.api.client.model.ListSecretsResponse;
 import io.daytona.api.client.model.Secret;
 import io.daytona.api.client.model.UpdateSecret;
 
@@ -489,7 +491,9 @@ public class SecretApi {
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> List of all secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call listSecretsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
@@ -539,6 +543,7 @@ public class SecretApi {
         return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
+    @Deprecated
     @SuppressWarnings("rawtypes")
     private okhttp3.Call listSecretsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         return listSecretsCall(xDaytonaOrganizationID, _callback);
@@ -547,7 +552,7 @@ public class SecretApi {
 
     /**
      * List secrets
-     * 
+     * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use &#x60;listSecretsPaginated&#x60; instead.
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return List&lt;Secret&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -557,7 +562,9 @@ public class SecretApi {
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> List of all secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public List<Secret> listSecrets(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
         ApiResponse<List<Secret>> localVarResp = listSecretsWithHttpInfo(xDaytonaOrganizationID);
         return localVarResp.getData();
@@ -565,7 +572,7 @@ public class SecretApi {
 
     /**
      * List secrets
-     * 
+     * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use &#x60;listSecretsPaginated&#x60; instead.
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return ApiResponse&lt;List&lt;Secret&gt;&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -575,7 +582,9 @@ public class SecretApi {
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> List of all secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public ApiResponse<List<Secret>> listSecretsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
         okhttp3.Call localVarCall = listSecretsValidateBeforeCall(xDaytonaOrganizationID, null);
         Type localVarReturnType = new TypeToken<List<Secret>>(){}.getType();
@@ -584,7 +593,7 @@ public class SecretApi {
 
     /**
      * List secrets (asynchronously)
-     * 
+     * This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use &#x60;listSecretsPaginated&#x60; instead.
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
@@ -595,11 +604,179 @@ public class SecretApi {
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> List of all secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call listSecretsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<List<Secret>> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = listSecretsValidateBeforeCall(xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<List<Secret>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for listSecretsPaginated
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param cursor Pagination cursor from a previous response (optional)
+     * @param limit Number of results per page (optional, default to 100)
+     * @param name Filter by partial name match (optional)
+     * @param sort Field to sort by (optional, default to createdAt)
+     * @param order Direction to sort by (optional, default to desc)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listSecretsPaginatedCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/secret/paginated";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        if (cursor != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("cursor", cursor));
+        }
+
+        if (limit != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("limit", limit));
+        }
+
+        if (name != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("name", name));
+        }
+
+        if (sort != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("sort", sort));
+        }
+
+        if (order != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("order", order));
+        }
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listSecretsPaginatedValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+        return listSecretsPaginatedCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, _callback);
+
+    }
+
+    /**
+     * List secrets with pagination
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param cursor Pagination cursor from a previous response (optional)
+     * @param limit Number of results per page (optional, default to 100)
+     * @param name Filter by partial name match (optional)
+     * @param sort Field to sort by (optional, default to createdAt)
+     * @param order Direction to sort by (optional, default to desc)
+     * @return ListSecretsResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
+     </table>
+     */
+    public ListSecretsResponse listSecretsPaginated(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+        ApiResponse<ListSecretsResponse> localVarResp = listSecretsPaginatedWithHttpInfo(xDaytonaOrganizationID, cursor, limit, name, sort, order);
+        return localVarResp.getData();
+    }
+
+    /**
+     * List secrets with pagination
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param cursor Pagination cursor from a previous response (optional)
+     * @param limit Number of results per page (optional, default to 100)
+     * @param name Filter by partial name match (optional)
+     * @param sort Field to sort by (optional, default to createdAt)
+     * @param order Direction to sort by (optional, default to desc)
+     * @return ApiResponse&lt;ListSecretsResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ListSecretsResponse> listSecretsPaginatedWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+        okhttp3.Call localVarCall = listSecretsPaginatedValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, null);
+        Type localVarReturnType = new TypeToken<ListSecretsResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List secrets with pagination (asynchronously)
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param cursor Pagination cursor from a previous response (optional)
+     * @param limit Number of results per page (optional, default to 100)
+     * @param name Filter by partial name match (optional)
+     * @param sort Field to sort by (optional, default to createdAt)
+     * @param order Direction to sort by (optional, default to desc)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listSecretsPaginatedAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<ListSecretsResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listSecretsPaginatedValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, _callback);
+        Type localVarReturnType = new TypeToken<ListSecretsResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
