@@ -150,12 +150,16 @@ func login(ctx context.Context) (*oauth2.Token, error) {
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: config.GetAuth0ClientId()})
 
+	// Public client sends client_id in the token-request body; force it so oauth2 does not
+	// probe Basic auth first and burn the single-use authorization code on a failed retry.
+	endpoint := provider.Endpoint()
+	endpoint.AuthStyle = oauth2.AuthStyleInParams
+
 	oauth2Config := oauth2.Config{
-		ClientID:     config.GetAuth0ClientId(),
-		ClientSecret: config.GetAuth0ClientSecret(),
-		RedirectURL:  fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
-		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
+		ClientID:    config.GetAuth0ClientId(),
+		RedirectURL: fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
+		Endpoint:    endpoint,
+		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
 	}
 
 	state, err := auth.GenerateRandomState()
@@ -163,9 +167,13 @@ func login(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("failed to generate random state: %w", err)
 	}
 
+	// PKCE (RFC 7636) replaces the confidential client secret for this public client.
+	pkceVerifier := oauth2.GenerateVerifier()
+
 	authURL := oauth2Config.AuthCodeURL(
 		state,
 		oauth2.SetAuthURLParam("audience", config.GetAuth0Audience()),
+		oauth2.S256ChallengeOption(pkceVerifier),
 	)
 
 	view_common.RenderInfoMessageBold("Opening the browser for authentication ...")
@@ -181,7 +189,7 @@ func login(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
-	token, err := oauth2Config.Exchange(ctx, code)
+	token, err := oauth2Config.Exchange(ctx, code, oauth2.VerifierOption(pkceVerifier))
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}

@@ -255,15 +255,6 @@ func GetAuth0ClientId() string {
 	return auth0ClientId
 }
 
-func GetAuth0ClientSecret() string {
-	auth0ClientSecret := os.Getenv("DAYTONA_AUTH0_CLIENT_SECRET")
-	if auth0ClientSecret == "" {
-		auth0ClientSecret = internal.Auth0ClientSecret
-	}
-
-	return auth0ClientSecret
-}
-
 func GetAuth0CallbackPort() string {
 	auth0CallbackPort := os.Getenv("DAYTONA_AUTH0_CALLBACK_PORT")
 	if auth0CallbackPort == "" {

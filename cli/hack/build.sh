@@ -105,7 +105,6 @@ go build \
     -X 'github.com/daytona/clients/cli/internal.DaytonaApiUrl=${DAYTONA_API_URL}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0Domain=${DAYTONA_AUTH0_DOMAIN}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0ClientId=${DAYTONA_AUTH0_CLIENT_ID}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0ClientSecret=${DAYTONA_AUTH0_CLIENT_SECRET}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0CallbackPort=${DAYTONA_AUTH0_CALLBACK_PORT}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0Audience=${DAYTONA_AUTH0_AUDIENCE}'" \
     -o "${DIST_DIR}/dist/cli/${OUTPUT_FILE}" main.go

@@ -109,12 +109,16 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize OIDC provider: %w", err)
 	}
 
+	// Public client sends client_id in the token-request body; force it so oauth2 does not
+	// probe Basic auth first and burn the (rotating) refresh token on a failed retry.
+	endpoint := provider.Endpoint()
+	endpoint.AuthStyle = oauth2.AuthStyleInParams
+
 	oauth2Config := oauth2.Config{
-		ClientID:     config.GetAuth0ClientId(),
-		ClientSecret: config.GetAuth0ClientSecret(),
-		RedirectURL:  fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
-		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
+		ClientID:    config.GetAuth0ClientId(),
+		RedirectURL: fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
+		Endpoint:    endpoint,
+		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
 	}
 
 	token := &oauth2.Token{
