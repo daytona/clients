@@ -110,11 +110,10 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 	}
 
 	oauth2Config := oauth2.Config{
-		ClientID:     config.GetAuth0ClientId(),
-		ClientSecret: config.GetAuth0ClientSecret(),
-		RedirectURL:  fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
-		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
+		ClientID:    config.GetAuth0ClientId(),
+		RedirectURL: fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
+		Endpoint:    provider.Endpoint(),
+		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
 	}
 
 	token := &oauth2.Token{
