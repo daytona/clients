@@ -56,4 +56,12 @@ public class OtelConfigTest {
         // TODO: test headers
     }
 
+    /**
+     * Test the property 'organizationId'
+     */
+    @Test
+    public void organizationIdTest() {
+        // TODO: test organizationId
+    }
+
 }

@@ -62,12 +62,12 @@ type GitClone struct {
 	Depth           *int32  // Create a shallow clone truncated to the given number of commits
 }
 
-// WithDepth creates a shallow clone truncated to the given number of commits.
+// WithCloneDepth creates a shallow clone truncated to the given number of commits.
 //
 // Example:
 //
-//	err := sandbox.Git.Clone(ctx, url, path, options.WithDepth(1))
-func WithDepth(depth int32) func(*GitClone) {
+//	err := sandbox.Git.Clone(ctx, url, path, options.WithCloneDepth(1))
+func WithCloneDepth(depth int32) func(*GitClone) {
 	return func(opts *GitClone) {
 		opts.Depth = &depth
 	}

@@ -81,6 +81,72 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # Create organization for user
+    # @param admin_create_organization [AdminCreateOrganization] 
+    # @param [Hash] opts the optional parameters
+    # @return [Organization]
+    def admin_create_organization(admin_create_organization, opts = {})
+      data, _status_code, _headers = admin_create_organization_with_http_info(admin_create_organization, opts)
+      data
+    end
+
+    # Create organization for user
+    # @param admin_create_organization [AdminCreateOrganization] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Organization, Integer, Hash)>] Organization data, response status code and response headers
+    def admin_create_organization_with_http_info(admin_create_organization, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: AdminApi.admin_create_organization ...'
+      end
+      # verify the required parameter 'admin_create_organization' is set
+      if @api_client.config.client_side_validation && admin_create_organization.nil?
+        fail ArgumentError, "Missing the required parameter 'admin_create_organization' when calling AdminApi.admin_create_organization"
+      end
+      # resource path
+      local_var_path = '/admin/organizations'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(admin_create_organization)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Organization'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"AdminApi.admin_create_organization",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: AdminApi#admin_create_organization\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Create organization region quota
     # @param organization_id [String] Organization ID
     # @param region_id [String] ID of the region the new quota applies to

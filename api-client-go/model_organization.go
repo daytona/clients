@@ -50,6 +50,8 @@ type Organization struct {
 	MaxMemoryPerSandbox float32 `json:"maxMemoryPerSandbox"`
 	// Max disk per sandbox
 	MaxDiskPerSandbox float32 `json:"maxDiskPerSandbox"`
+	// Maximum number of secrets
+	SecretQuota float32 `json:"secretQuota"`
 	// Time in minutes before an unused snapshot is deactivated
 	SnapshotDeactivationTimeoutMinutes float32 `json:"snapshotDeactivationTimeoutMinutes"`
 	// Sandbox default network block all
@@ -81,7 +83,7 @@ type _Organization Organization
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, snapshotDeactivationTimeoutMinutes float32, sandboxLimitedNetworkEgress bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
+func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, secretQuota float32, snapshotDeactivationTimeoutMinutes float32, sandboxLimitedNetworkEgress bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
 	this := Organization{}
 	this.Id = id
 	this.Name = name
@@ -97,6 +99,7 @@ func NewOrganization(id string, name string, createdBy string, personal bool, cr
 	this.MaxCpuPerSandbox = maxCpuPerSandbox
 	this.MaxMemoryPerSandbox = maxMemoryPerSandbox
 	this.MaxDiskPerSandbox = maxDiskPerSandbox
+	this.SecretQuota = secretQuota
 	this.SnapshotDeactivationTimeoutMinutes = snapshotDeactivationTimeoutMinutes
 	this.SandboxLimitedNetworkEgress = sandboxLimitedNetworkEgress
 	this.AuthenticatedRateLimit = authenticatedRateLimit
@@ -456,6 +459,30 @@ func (o *Organization) SetMaxDiskPerSandbox(v float32) {
 	o.MaxDiskPerSandbox = v
 }
 
+// GetSecretQuota returns the SecretQuota field value
+func (o *Organization) GetSecretQuota() float32 {
+	if o == nil {
+		var ret float32
+		return ret
+	}
+
+	return o.SecretQuota
+}
+
+// GetSecretQuotaOk returns a tuple with the SecretQuota field value
+// and a boolean to check if the value has been set.
+func (o *Organization) GetSecretQuotaOk() (*float32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.SecretQuota, true
+}
+
+// SetSecretQuota sets field value
+func (o *Organization) SetSecretQuota(v float32) {
+	o.SecretQuota = v
+}
+
 // GetSnapshotDeactivationTimeoutMinutes returns the SnapshotDeactivationTimeoutMinutes field value
 func (o *Organization) GetSnapshotDeactivationTimeoutMinutes() float32 {
 	if o == nil {
@@ -766,6 +793,7 @@ func (o Organization) ToMap() (map[string]interface{}, error) {
 	toSerialize["maxCpuPerSandbox"] = o.MaxCpuPerSandbox
 	toSerialize["maxMemoryPerSandbox"] = o.MaxMemoryPerSandbox
 	toSerialize["maxDiskPerSandbox"] = o.MaxDiskPerSandbox
+	toSerialize["secretQuota"] = o.SecretQuota
 	toSerialize["snapshotDeactivationTimeoutMinutes"] = o.SnapshotDeactivationTimeoutMinutes
 	toSerialize["sandboxLimitedNetworkEgress"] = o.SandboxLimitedNetworkEgress
 	if !IsNil(o.DefaultRegionId) {
@@ -806,6 +834,7 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		"maxCpuPerSandbox",
 		"maxMemoryPerSandbox",
 		"maxDiskPerSandbox",
+		"secretQuota",
 		"snapshotDeactivationTimeoutMinutes",
 		"sandboxLimitedNetworkEgress",
 		"authenticatedRateLimit",
@@ -859,6 +888,7 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "maxCpuPerSandbox")
 		delete(additionalProperties, "maxMemoryPerSandbox")
 		delete(additionalProperties, "maxDiskPerSandbox")
+		delete(additionalProperties, "secretQuota")
 		delete(additionalProperties, "snapshotDeactivationTimeoutMinutes")
 		delete(additionalProperties, "sandboxLimitedNetworkEgress")
 		delete(additionalProperties, "defaultRegionId")

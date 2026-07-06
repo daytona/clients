@@ -23,5 +23,9 @@ export interface OtelConfig {
      * Headers
      */
     'headers'?: { [key: string]: string; } | null;
+    /**
+     * Organization ID the config belongs to
+     */
+    'organizationId'?: string;
 }
 

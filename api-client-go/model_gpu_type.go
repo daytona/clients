@@ -21,14 +21,20 @@ type GpuType string
 // List of GpuType
 const (
 	GPUTYPE_H100 GpuType = "H100"
+	GPUTYPE_H200 GpuType = "H200"
 	GPUTYPE_RTX_PRO_6000 GpuType = "RTX-PRO-6000"
+	GPUTYPE_RTX_4090 GpuType = "RTX-4090"
+	GPUTYPE_RTX_5090 GpuType = "RTX-5090"
 	GPUTYPE_UNKNOWN_DEFAULT_OPEN_API GpuType = "11184809"
 )
 
 // All allowed values of GpuType enum
 var AllowedGpuTypeEnumValues = []GpuType{
 	"H100",
+	"H200",
 	"RTX-PRO-6000",
+	"RTX-4090",
+	"RTX-5090",
 	"11184809",
 }
 

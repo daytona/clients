@@ -14,6 +14,7 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
+import io.daytona.api.client.model.AdminCreateOrganization;
 import io.daytona.api.client.model.AdminCreateRunner;
 import io.daytona.api.client.model.AdminGetWebhookStatus200Response;
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ import io.daytona.api.client.model.DateFilter;
 import io.daytona.api.client.model.DockerRegistry;
 import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
+import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.PaginatedAuditLogs;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.RunnerFull;
@@ -60,6 +62,18 @@ public class AdminApiTest {
     public void adminCanCleanupImageTest() throws ApiException {
         String imageName = null;
         Boolean response = api.adminCanCleanupImage(imageName);
+        // TODO: test validations
+    }
+
+    /**
+     * Create organization for user
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void adminCreateOrganizationTest() throws ApiException {
+        AdminCreateOrganization adminCreateOrganization = null;
+        Organization response = api.adminCreateOrganization(adminCreateOrganization);
         // TODO: test validations
     }
 

@@ -27,6 +27,8 @@ module DaytonaApiClient
 
     attr_accessor :volume_quota
 
+    attr_accessor :secret_quota
+
     attr_accessor :authenticated_rate_limit
 
     attr_accessor :sandbox_create_rate_limit
@@ -54,6 +56,7 @@ module DaytonaApiClient
         :'snapshot_quota' => :'snapshotQuota',
         :'max_snapshot_size' => :'maxSnapshotSize',
         :'volume_quota' => :'volumeQuota',
+        :'secret_quota' => :'secretQuota',
         :'authenticated_rate_limit' => :'authenticatedRateLimit',
         :'sandbox_create_rate_limit' => :'sandboxCreateRateLimit',
         :'sandbox_lifecycle_rate_limit' => :'sandboxLifecycleRateLimit',
@@ -84,6 +87,7 @@ module DaytonaApiClient
         :'snapshot_quota' => :'Float',
         :'max_snapshot_size' => :'Float',
         :'volume_quota' => :'Float',
+        :'secret_quota' => :'Float',
         :'authenticated_rate_limit' => :'Float',
         :'sandbox_create_rate_limit' => :'Float',
         :'sandbox_lifecycle_rate_limit' => :'Float',
@@ -104,6 +108,7 @@ module DaytonaApiClient
         :'snapshot_quota',
         :'max_snapshot_size',
         :'volume_quota',
+        :'secret_quota',
         :'authenticated_rate_limit',
         :'sandbox_create_rate_limit',
         :'sandbox_lifecycle_rate_limit',
@@ -165,6 +170,12 @@ module DaytonaApiClient
         self.volume_quota = attributes[:'volume_quota']
       else
         self.volume_quota = nil
+      end
+
+      if attributes.key?(:'secret_quota')
+        self.secret_quota = attributes[:'secret_quota']
+      else
+        self.secret_quota = nil
       end
 
       if attributes.key?(:'authenticated_rate_limit')
@@ -242,6 +253,7 @@ module DaytonaApiClient
           snapshot_quota == o.snapshot_quota &&
           max_snapshot_size == o.max_snapshot_size &&
           volume_quota == o.volume_quota &&
+          secret_quota == o.secret_quota &&
           authenticated_rate_limit == o.authenticated_rate_limit &&
           sandbox_create_rate_limit == o.sandbox_create_rate_limit &&
           sandbox_lifecycle_rate_limit == o.sandbox_lifecycle_rate_limit &&
@@ -261,7 +273,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, snapshot_quota, max_snapshot_size, volume_quota, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds, snapshot_deactivation_timeout_minutes, max_concurrent_snapshot_processing].hash
+      [max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, snapshot_quota, max_snapshot_size, volume_quota, secret_quota, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds, snapshot_deactivation_timeout_minutes, max_concurrent_snapshot_processing].hash
     end
 
     # Builds the object from hash

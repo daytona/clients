@@ -27,6 +27,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
+import io.daytona.api.client.model.AdminCreateOrganization;
 import io.daytona.api.client.model.AdminCreateRunner;
 import io.daytona.api.client.model.AdminGetWebhookStatus200Response;
 import java.math.BigDecimal;
@@ -37,6 +38,7 @@ import io.daytona.api.client.model.DateFilter;
 import io.daytona.api.client.model.DockerRegistry;
 import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
+import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.PaginatedAuditLogs;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.RunnerFull;
@@ -219,6 +221,133 @@ public class AdminApi {
 
         okhttp3.Call localVarCall = adminCanCleanupImageValidateBeforeCall(imageName, _callback);
         Type localVarReturnType = new TypeToken<Boolean>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for adminCreateOrganization
+     * @param adminCreateOrganization  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Organization created successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call adminCreateOrganizationCall(@javax.annotation.Nonnull AdminCreateOrganization adminCreateOrganization, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = adminCreateOrganization;
+
+        // create path and map variables
+        String localVarPath = "/admin/organizations";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call adminCreateOrganizationValidateBeforeCall(@javax.annotation.Nonnull AdminCreateOrganization adminCreateOrganization, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'adminCreateOrganization' is set
+        if (adminCreateOrganization == null) {
+            throw new ApiException("Missing the required parameter 'adminCreateOrganization' when calling adminCreateOrganization(Async)");
+        }
+
+        return adminCreateOrganizationCall(adminCreateOrganization, _callback);
+
+    }
+
+    /**
+     * Create organization for user
+     * 
+     * @param adminCreateOrganization  (required)
+     * @return Organization
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Organization created successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public Organization adminCreateOrganization(@javax.annotation.Nonnull AdminCreateOrganization adminCreateOrganization) throws ApiException {
+        ApiResponse<Organization> localVarResp = adminCreateOrganizationWithHttpInfo(adminCreateOrganization);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Create organization for user
+     * 
+     * @param adminCreateOrganization  (required)
+     * @return ApiResponse&lt;Organization&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Organization created successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Organization> adminCreateOrganizationWithHttpInfo(@javax.annotation.Nonnull AdminCreateOrganization adminCreateOrganization) throws ApiException {
+        okhttp3.Call localVarCall = adminCreateOrganizationValidateBeforeCall(adminCreateOrganization, null);
+        Type localVarReturnType = new TypeToken<Organization>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Create organization for user (asynchronously)
+     * 
+     * @param adminCreateOrganization  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Organization created successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call adminCreateOrganizationAsync(@javax.annotation.Nonnull AdminCreateOrganization adminCreateOrganization, final ApiCallback<Organization> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = adminCreateOrganizationValidateBeforeCall(adminCreateOrganization, _callback);
+        Type localVarReturnType = new TypeToken<Organization>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

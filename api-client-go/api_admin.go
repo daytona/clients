@@ -37,6 +37,18 @@ type AdminAPI interface {
 	AdminCanCleanupImageExecute(r AdminAPIAdminCanCleanupImageRequest) (bool, *http.Response, error)
 
 	/*
+	AdminCreateOrganization Create organization for user
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return AdminAPIAdminCreateOrganizationRequest
+	*/
+	AdminCreateOrganization(ctx context.Context) AdminAPIAdminCreateOrganizationRequest
+
+	// AdminCreateOrganizationExecute executes the request
+	//  @return Organization
+	AdminCreateOrganizationExecute(r AdminAPIAdminCreateOrganizationRequest) (*Organization, *http.Response, error)
+
+	/*
 	AdminCreateOrganizationRegionQuota Create organization region quota
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -376,6 +388,114 @@ func (a *AdminAPIService) AdminCanCleanupImageExecute(r AdminAPIAdminCanCleanupI
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type AdminAPIAdminCreateOrganizationRequest struct {
+	ctx context.Context
+	ApiService AdminAPI
+	adminCreateOrganization *AdminCreateOrganization
+}
+
+func (r AdminAPIAdminCreateOrganizationRequest) AdminCreateOrganization(adminCreateOrganization AdminCreateOrganization) AdminAPIAdminCreateOrganizationRequest {
+	r.adminCreateOrganization = &adminCreateOrganization
+	return r
+}
+
+func (r AdminAPIAdminCreateOrganizationRequest) Execute() (*Organization, *http.Response, error) {
+	return r.ApiService.AdminCreateOrganizationExecute(r)
+}
+
+/*
+AdminCreateOrganization Create organization for user
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return AdminAPIAdminCreateOrganizationRequest
+*/
+func (a *AdminAPIService) AdminCreateOrganization(ctx context.Context) AdminAPIAdminCreateOrganizationRequest {
+	return AdminAPIAdminCreateOrganizationRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return Organization
+func (a *AdminAPIService) AdminCreateOrganizationExecute(r AdminAPIAdminCreateOrganizationRequest) (*Organization, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Organization
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "AdminAPIService.AdminCreateOrganization")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/admin/organizations"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.adminCreateOrganization == nil {
+		return localVarReturnValue, nil, reportError("adminCreateOrganization is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.adminCreateOrganization
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

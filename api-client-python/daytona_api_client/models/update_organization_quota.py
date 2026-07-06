@@ -36,6 +36,7 @@ class UpdateOrganizationQuota(BaseModel):
     snapshot_quota: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="snapshotQuota")
     max_snapshot_size: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="maxSnapshotSize")
     volume_quota: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="volumeQuota")
+    secret_quota: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="secretQuota")
     authenticated_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="authenticatedRateLimit")
     sandbox_create_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="sandboxCreateRateLimit")
     sandbox_lifecycle_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(serialization_alias="sandboxLifecycleRateLimit")
@@ -45,7 +46,7 @@ class UpdateOrganizationQuota(BaseModel):
     snapshot_deactivation_timeout_minutes: Optional[Union[StrictFloat, StrictInt]] = Field(description="Time in minutes before an unused snapshot is deactivated", serialization_alias="snapshotDeactivationTimeoutMinutes")
     max_concurrent_snapshot_processing: Optional[Union[StrictFloat, StrictInt]] = Field(description="Maximum number of snapshots an organization can process (building or pulling) concurrently. Excess are queued. <= 0 means unlimited.", serialization_alias="maxConcurrentSnapshotProcessing")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"]
+    __properties: ClassVar[List[str]] = ["maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "secretQuota", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds", "snapshotDeactivationTimeoutMinutes", "maxConcurrentSnapshotProcessing"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -122,6 +123,11 @@ class UpdateOrganizationQuota(BaseModel):
         if self.volume_quota is None and "volume_quota" in self.model_fields_set:
             _dict['volumeQuota'] = None
 
+        # set to None if secret_quota (nullable) is None
+        # and model_fields_set contains the field
+        if self.secret_quota is None and "secret_quota" in self.model_fields_set:
+            _dict['secretQuota'] = None
+
         # set to None if authenticated_rate_limit (nullable) is None
         # and model_fields_set contains the field
         if self.authenticated_rate_limit is None and "authenticated_rate_limit" in self.model_fields_set:
@@ -180,6 +186,7 @@ class UpdateOrganizationQuota(BaseModel):
             "snapshot_quota": obj.get("snapshotQuota"),
             "max_snapshot_size": obj.get("maxSnapshotSize"),
             "volume_quota": obj.get("volumeQuota"),
+            "secret_quota": obj.get("secretQuota"),
             "authenticated_rate_limit": obj.get("authenticatedRateLimit"),
             "sandbox_create_rate_limit": obj.get("sandboxCreateRateLimit"),
             "sandbox_lifecycle_rate_limit": obj.get("sandboxLifecycleRateLimit"),

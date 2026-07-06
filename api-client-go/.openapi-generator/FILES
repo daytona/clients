@@ -24,6 +24,7 @@ configuration.go
 go.mod
 go.sum
 model_account_provider.go
+model_admin_create_organization.go
 model_admin_create_runner.go
 model_admin_get_webhook_status_200_response.go
 model_announcement.go

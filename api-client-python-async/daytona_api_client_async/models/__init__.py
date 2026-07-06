@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # import models into model package
     from daytona_api_client_async.models.account_provider import AccountProvider
+    from daytona_api_client_async.models.admin_create_organization import AdminCreateOrganization
     from daytona_api_client_async.models.admin_create_runner import AdminCreateRunner
     from daytona_api_client_async.models.admin_get_webhook_status200_response import AdminGetWebhookStatus200Response
     from daytona_api_client_async.models.announcement import Announcement
@@ -213,6 +214,7 @@ if TYPE_CHECKING:
 
 _DYNAMIC_IMPORTS: dict[str, str] = {
     "AccountProvider": "daytona_api_client_async.models.account_provider",
+    "AdminCreateOrganization": "daytona_api_client_async.models.admin_create_organization",
     "AdminCreateRunner": "daytona_api_client_async.models.admin_create_runner",
     "AdminGetWebhookStatus200Response": "daytona_api_client_async.models.admin_get_webhook_status200_response",
     "Announcement": "daytona_api_client_async.models.announcement",

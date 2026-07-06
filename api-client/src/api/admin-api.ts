@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { AdminCreateOrganization } from '../models';
+// @ts-ignore
 import type { AdminCreateRunner } from '../models';
 // @ts-ignore
 import type { AdminGetWebhookStatus200Response } from '../models';
@@ -37,6 +39,8 @@ import type { DateFilter } from '../models';
 import type { DockerRegistry } from '../models';
 // @ts-ignore
 import type { IntFilter } from '../models';
+// @ts-ignore
+import type { Organization } from '../models';
 // @ts-ignore
 import type { PaginatedAuditLogs } from '../models';
 // @ts-ignore
@@ -101,6 +105,47 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Create organization for user
+         * @param {AdminCreateOrganization} adminCreateOrganization 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        adminCreateOrganization: async (adminCreateOrganization: AdminCreateOrganization, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'adminCreateOrganization' is not null or undefined
+            assertParamExists('adminCreateOrganization', 'adminCreateOrganization', adminCreateOrganization)
+            const localVarPath = `/admin/organizations`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(adminCreateOrganization, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1100,6 +1145,19 @@ export const AdminApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Create organization for user
+         * @param {AdminCreateOrganization} adminCreateOrganization 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async adminCreateOrganization(adminCreateOrganization: AdminCreateOrganization, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Organization>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.adminCreateOrganization(adminCreateOrganization, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminApi.adminCreateOrganization']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Create organization region quota
          * @param {string} organizationId Organization ID
          * @param {string} regionId ID of the region the new quota applies to
@@ -1415,6 +1473,16 @@ export const AdminApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary Create organization for user
+         * @param {AdminCreateOrganization} adminCreateOrganization 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        adminCreateOrganization(adminCreateOrganization: AdminCreateOrganization, options?: RawAxiosRequestConfig): AxiosPromise<Organization> {
+            return localVarFp.adminCreateOrganization(adminCreateOrganization, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Create organization region quota
          * @param {string} organizationId Organization ID
          * @param {string} regionId ID of the region the new quota applies to
@@ -1662,6 +1730,17 @@ export class AdminApi extends BaseAPI {
      */
     public adminCanCleanupImage(imageName: string, options?: RawAxiosRequestConfig) {
         return AdminApiFp(this.configuration).adminCanCleanupImage(imageName, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Create organization for user
+     * @param {AdminCreateOrganization} adminCreateOrganization 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public adminCreateOrganization(adminCreateOrganization: AdminCreateOrganization, options?: RawAxiosRequestConfig) {
+        return AdminApiFp(this.configuration).adminCreateOrganization(adminCreateOrganization, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

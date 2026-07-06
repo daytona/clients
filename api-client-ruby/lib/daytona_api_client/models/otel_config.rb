@@ -21,11 +21,15 @@ module DaytonaApiClient
     # Headers
     attr_accessor :headers
 
+    # Organization ID the config belongs to
+    attr_accessor :organization_id
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'endpoint' => :'endpoint',
-        :'headers' => :'headers'
+        :'headers' => :'headers',
+        :'organization_id' => :'organizationId'
       }
     end
 
@@ -43,14 +47,15 @@ module DaytonaApiClient
     def self.openapi_types
       {
         :'endpoint' => :'String',
-        :'headers' => :'Hash<String, String>'
+        :'headers' => :'Hash<String, String>',
+        :'organization_id' => :'String'
       }
     end
 
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
-        :'headers'
+        :'headers',
       ])
     end
 
@@ -80,6 +85,10 @@ module DaytonaApiClient
         if (value = attributes[:'headers']).is_a?(Hash)
           self.headers = value
         end
+      end
+
+      if attributes.key?(:'organization_id')
+        self.organization_id = attributes[:'organization_id']
       end
     end
 
@@ -119,7 +128,8 @@ module DaytonaApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           endpoint == o.endpoint &&
-          headers == o.headers
+          headers == o.headers &&
+          organization_id == o.organization_id
     end
 
     # @see the `==` method
@@ -131,7 +141,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [endpoint, headers].hash
+      [endpoint, headers, organization_id].hash
     end
 
     # Builds the object from hash

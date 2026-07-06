@@ -126,7 +126,7 @@ func main() {
 	fmt.Println("a.txt after keep reset to HEAD~1:", cat("a.txt"))
 
 	section("Clone (shallow, depth=1)")
-	must(git.Clone(ctx, "https://github.com/panaverse/learn-typescript", "shallow", options.WithBranch("master"), options.WithDepth(1)), "clone")
+	must(git.Clone(ctx, "https://github.com/panaverse/learn-typescript", "shallow", options.WithBranch("master"), options.WithCloneDepth(1)), "clone")
 	count, _ := sandbox.Process.ExecuteCommand(ctx, "git rev-list --count HEAD", options.WithCwd("shallow"))
 	fmt.Println("shallow clone commit count (expect 1) =", strings.TrimSpace(count.Result))
 
