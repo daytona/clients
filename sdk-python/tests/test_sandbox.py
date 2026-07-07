@@ -17,7 +17,14 @@ from .conftest import make_sandbox_dto
 def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
     from daytona._sync.sandbox import Sandbox
 
-    return Sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api, "python", http_client=MagicMock())
+    return Sandbox(
+        sandbox_dto,
+        mock_toolbox_api_client,
+        mock_sandbox_api,
+        "python",
+        subscription_manager=MagicMock(),
+        http_client=MagicMock(),
+    )
 
 
 class TestSandboxInit:
@@ -185,5 +192,5 @@ class TestSandboxWaitForStart:
         error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="build failed")
         sandbox = make_sandbox(error_dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.return_value = error_dto
-        with pytest.raises(DaytonaError, match="failed to start"):
+        with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             sandbox.wait_for_sandbox_start(timeout=0)

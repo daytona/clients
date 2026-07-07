@@ -10,6 +10,8 @@ import io.daytona.api.client.model.CreateBuildInfo;
 import io.daytona.api.client.model.CreateSandbox;
 import io.daytona.api.client.model.SandboxVolume;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.internal.EventDispatcher;
+import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.model.CreateSandboxFromImageParams;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.ListSandboxesQuery;
@@ -52,6 +54,8 @@ public class Daytona implements AutoCloseable {
     private final SnapshotService snapshot;
     private final VolumeService volume;
     private final SecretService secret;
+    private final EventDispatcher eventDispatcher;
+    private final EventSubscriptionManager subscriptionManager;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Object analyticsApiUrlLock = new Object();
     private String analyticsApiUrl;
@@ -89,6 +93,11 @@ public class Daytona implements AutoCloseable {
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
+        String eventSdkVersion = Daytona.class.getPackage().getImplementationVersion();
+        this.eventDispatcher = new EventDispatcher(config.getApiUrl(), config.getApiKey(), null,
+                "sdk-java", eventSdkVersion != null ? eventSdkVersion : "dev");
+        this.eventDispatcher.ensureConnected();
+        this.subscriptionManager = new EventSubscriptionManager(eventDispatcher);
     }
 
     private String getAnalyticsApiUrl() {
@@ -149,7 +158,7 @@ public class Daytona implements AutoCloseable {
             body.setSnapshot(params.getSnapshot());
         }
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.createSandbox(body, null));
-        Sandbox sandbox = new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl);
+        Sandbox sandbox = new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl, subscriptionManager);
         sandbox.waitUntilStarted(timeoutSeconds);
         return sandbox;
     }
@@ -205,7 +214,7 @@ public class Daytona implements AutoCloseable {
 
         Sandbox sandbox = new Sandbox(sandboxApi, config,
                 ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null)),
-                this::getAnalyticsApiUrl);
+                this::getAnalyticsApiUrl, subscriptionManager);
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
         long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : timeoutSeconds;
         sandbox.waitUntilStarted(remaining);
@@ -221,7 +230,7 @@ public class Daytona implements AutoCloseable {
      */
     public Sandbox get(String sandboxIdOrName) {
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(sandboxIdOrName, null, null));
-        return new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl);
+        return new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl, subscriptionManager);
     }
 
     /**
@@ -407,7 +416,7 @@ public class Daytona implements AutoCloseable {
         List<Sandbox> items = new ArrayList<>();
         if (result != null && result.getItems() != null) {
             for (io.daytona.api.client.model.SandboxListItem item : result.getItems()) {
-                items.add(new Sandbox(sandboxApi, config, item, this::getAnalyticsApiUrl));
+                items.add(new Sandbox(sandboxApi, config, item, this::getAnalyticsApiUrl, subscriptionManager));
             }
         }
         String nextCursor = result != null ? result.getNextCursor() : null;
@@ -516,6 +525,12 @@ public class Daytona implements AutoCloseable {
      */
     @Override
     public void close() {
+        if (subscriptionManager != null) {
+            subscriptionManager.shutdown();
+        }
+        if (eventDispatcher != null) {
+            eventDispatcher.shutdown();
+        }
         shutdownHttpClient(apiClient.getHttpClient());
     }
 

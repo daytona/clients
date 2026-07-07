@@ -74,7 +74,10 @@ new Sandbox(
    getAnalyticsApiUrl: () => Promise<string>): Sandbox
 ```
 
-Creates a new Sandbox instance
+Creates a new Sandbox instance.
+
+Internal: obtain sandboxes via Daytona.create, Daytona.get, or
+Daytona.list rather than constructing directly.
 
 **Parameters**:
 
@@ -239,14 +242,15 @@ Creates an SSH access token for the sandbox.
 #### delete()
 
 ```ts
-delete(timeout: number): Promise<void>
+delete(timeout?: number): Promise<void>
 ```
 
-Deletes the Sandbox.
+Deletes the Sandbox and waits for it to reach the 'destroyed' state.
 
 **Parameters**:
 
-- `timeout` _number = 60_
+- `timeout?` _number = 60_ - Maximum time to wait in seconds. 0 means no timeout.
+    Defaults to 60-second timeout.
 
 
 **Returns**:

@@ -49,6 +49,17 @@ import { ComputerUse } from './ComputerUse'
 import type { AxiosInstance } from 'axios'
 import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
+import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
+
+function withEvents<This, Args extends unknown[], Return>(
+  target: (this: This, ...args: Args) => Return,
+  _context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
+): (this: This, ...args: Args) => Return {
+  return function (this: This, ...args: Args): Return {
+    ;(this as { ensureSubscribed(): void }).ensureSubscribed()
+    return target.apply(this, args)
+  }
+}
 
 /**
  * Represents a Daytona Sandbox.
@@ -143,11 +154,28 @@ export class Sandbox {
   private infoApi: InfoApi
   private serverApi: ServerApi
   private systemApi: SystemApi
+  private readonly stateWaiters: Array<{
+    targetStates: Set<SandboxState>
+    errorStates: Set<SandboxState>
+    resolve: (state: SandboxState) => void
+    reject: (err: Error) => void
+  }> = []
+  private readonly stateWaiterErrorMessageFns = new WeakMap<
+    (typeof this.stateWaiters)[number],
+    (state: string) => string
+  >()
+  private subId: string | undefined
 
   /**
-   * Creates a new Sandbox instance
+   * Creates a new Sandbox instance.
+   *
+   * Internal: obtain sandboxes via {@link Daytona.create}, {@link Daytona.get}, or
+   * {@link Daytona.list} rather than constructing directly.
    *
    * @param {SandboxDto} sandboxDto - The API Sandbox instance
+   * @param {SandboxApi} sandboxApi - API client for Sandbox operations
+   * @param {InfoApi} infoApi - API client for info operations
+   * @param {EventSubscriptionManager} subscriptionManager - Event subscription manager for real-time updates
    */
   constructor(
     sandboxDto: SandboxDto | SandboxListItemDto,
@@ -155,18 +183,10 @@ export class Sandbox {
     private readonly axiosInstance: AxiosInstance,
     private readonly sandboxApi: SandboxApi,
     private readonly getAnalyticsApiUrl: () => Promise<string | undefined>,
+    private readonly subscriptionManager: EventSubscriptionManager,
   ) {
     this.processSandboxDto(sandboxDto)
 
-    // Set the toolbox base URL
-    let baseUrl = this.toolboxProxyUrl
-    if (!baseUrl.endsWith('/')) {
-      baseUrl += '/'
-    }
-    this.axiosInstance.defaults.baseURL = baseUrl + this.id
-    this.clientConfig.basePath = this.axiosInstance.defaults.baseURL
-
-    // Initialize Services
     const getPreviewToken = async () => (await this.getPreviewLink(1)).token
 
     this.fs = new FileSystem(this.clientConfig, new FileSystemApi(this.clientConfig, '', this.axiosInstance))
@@ -187,6 +207,8 @@ export class Sandbox {
     this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
     this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
+
+    this.subscribeToEvents()
   }
 
   /**
@@ -199,6 +221,7 @@ export class Sandbox {
    * console.log(`Sandbox user home: ${userHomeDir}`);
    */
   @WithInstrumentation()
+  @withEvents
   public async getUserHomeDir(): Promise<string | undefined> {
     const response = await this.infoApi.getUserHomeDir()
     return response.data.dir
@@ -270,6 +293,7 @@ export class Sandbox {
    * @deprecated Use `getUserHomeDir` instead. This method will be removed in a future version.
    */
   @WithInstrumentation()
+  @withEvents
   public async getUserRootDir(): Promise<string | undefined> {
     return this.getUserHomeDir()
   }
@@ -285,6 +309,7 @@ export class Sandbox {
    * console.log(`Sandbox working directory: ${workDir}`);
    */
   @WithInstrumentation()
+  @withEvents
   public async getWorkDir(): Promise<string | undefined> {
     const response = await this.infoApi.getWorkDir()
     return response.data.dir
@@ -304,6 +329,7 @@ export class Sandbox {
    * const lsp = await sandbox.createLspServer('typescript', 'workspace/project');
    */
   @WithInstrumentation()
+  @withEvents
   public async createLspServer(languageId: LspLanguageId | string, pathToProject: string): Promise<LspServer> {
     return new LspServer(
       languageId as LspLanguageId,
@@ -329,6 +355,7 @@ export class Sandbox {
    * });
    */
   @WithInstrumentation()
+  @withEvents
   public async setLabels(labels: Record<string, string>): Promise<Record<string, string>> {
     this.labels = (await this.sandboxApi.replaceLabels(this.id, { labels })).data.labels
     return this.labels
@@ -350,6 +377,7 @@ export class Sandbox {
    * console.log('Sandbox started successfully');
    */
   @WithInstrumentation()
+  @withEvents
   public async start(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -375,6 +403,7 @@ export class Sandbox {
    * await sandbox.recover();
    * console.log('Sandbox recovered successfully');
    */
+  @withEvents
   public async recover(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -403,6 +432,7 @@ export class Sandbox {
    * console.log('Sandbox stopped successfully');
    */
   @WithInstrumentation()
+  @withEvents
   public async stop(timeout = 60, force = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -434,6 +464,7 @@ export class Sandbox {
    * console.log(`Forked sandbox: ${forked.id}`);
    */
   @WithInstrumentation()
+  @withEvents
   public async _experimental_fork(params?: { name?: string }, timeout = 60): Promise<Sandbox> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -445,17 +476,25 @@ export class Sandbox {
     })
     const sandboxDto = response.data
 
+    const sandboxWithProxyUrl = sandboxDto.toolboxProxyUrl
+      ? sandboxDto
+      : {
+          ...sandboxDto,
+          toolboxProxyUrl: (await this.sandboxApi.getToolboxProxyUrl(sandboxDto.id)).data.url,
+        }
+
     const forkedSandbox = new Sandbox(
-      sandboxDto,
+      sandboxWithProxyUrl,
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
       this.getAnalyticsApiUrl,
+      this.subscriptionManager,
     )
 
     const timeElapsed = Date.now() - startTime
-    await forkedSandbox.waitUntilStarted(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout)
-
+    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+    await forkedSandbox.waitUntilStarted(remainingTimeout)
     return forkedSandbox
   }
 
@@ -479,6 +518,7 @@ export class Sandbox {
    * console.log('Snapshot created successfully');
    */
   @WithInstrumentation()
+  @withEvents
   public async _experimental_createSnapshot(name: string, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -486,11 +526,11 @@ export class Sandbox {
 
     const startTime = Date.now()
     const req: CreateSandboxSnapshot = { name }
-    await this.sandboxApi.createSandboxSnapshot(this.id, req, undefined, {
+    const response = await this.sandboxApi.createSandboxSnapshot(this.id, req, undefined, {
       timeout: timeout * 1000,
     })
 
-    await this.refreshData()
+    this.processSandboxDto(response.data)
 
     const timeElapsed = Date.now() - startTime
     const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
@@ -498,32 +538,17 @@ export class Sandbox {
   }
 
   private async waitForSnapshotComplete(timeout: number) {
-    let checkInterval = 100
-    const startTime = Date.now()
+    const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+    const excludeStates = new Set<string>([SandboxState.SNAPSHOTTING, ...errorStates])
+    const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
 
-    while (this.state === SandboxState.SNAPSHOTTING) {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === SandboxState.ERROR || this.state === SandboxState.BUILD_FAILED) {
-        throw new DaytonaError(
-          `Sandbox ${this.id} snapshot failed with state: ${this.state}, error reason: ${this.errorReason}`,
-        )
-      }
-
-      if (this.state !== SandboxState.SNAPSHOTTING) {
-        return
-      }
-
-      if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
-        throw new DaytonaTimeoutError('Sandbox snapshot did not complete within the timeout period')
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, checkInterval))
-      if (Date.now() - startTime > 5000) {
-        checkInterval = Math.min(checkInterval * 1.1, 1000)
-      }
-    }
+    return this.waitForState(
+      targetStates,
+      errorStates,
+      timeout,
+      'Sandbox snapshot did not complete within the timeout period',
+      (state) => `Sandbox ${this.id} snapshot failed with state: ${state}, error reason: ${this.errorReason}`,
+    )
   }
 
   /**
@@ -545,6 +570,7 @@ export class Sandbox {
    * console.log('Sandbox paused successfully');
    */
   @WithInstrumentation()
+  @withEvents
   public async pause(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -559,40 +585,51 @@ export class Sandbox {
 
     const timeElapsed = Date.now() - startTime
     const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    await this.waitForPauseComplete(remainingTimeout)
-  }
-
-  private async waitForPauseComplete(timeout: number) {
-    let checkInterval = 100
-    const startTime = Date.now()
-
-    while (this.state === SandboxState.PAUSING) {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === SandboxState.ERROR) {
-        throw new DaytonaError(
-          `Sandbox ${this.id} pause failed with state: ${this.state}, error reason: ${this.errorReason}`,
-        )
-      }
-
-      if (timeout > 0 && (Date.now() - startTime) / 1000 >= timeout) {
-        throw new DaytonaError(`Sandbox ${this.id} failed to pause within ${timeout} seconds`)
-      }
-
-      await new Promise((resolve) => globalThis.setTimeout(resolve, checkInterval))
-      checkInterval = Math.min(checkInterval * 1.5, 1000)
-    }
+    await this.waitForState(
+      [SandboxState.PAUSED],
+      [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+      remainingTimeout,
+      'Sandbox failed to become paused within the timeout period',
+      (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
+    )
   }
 
   /**
-   * Deletes the Sandbox.
+   * Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+   *
+   * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
+   *                            Defaults to 60-second timeout.
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
+  @withEvents
   public async delete(timeout = 60): Promise<void> {
-    await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
-    this.refreshDataSafe()
+    if (timeout < 0) {
+      throw new DaytonaValidationError('Timeout must be a non-negative number')
+    }
+
+    const startTime = Date.now()
+    const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
+    this.processSandboxDto(response.data)
+
+    try {
+      if (this.state !== SandboxState.DESTROYED) {
+        const timeElapsed = Date.now() - startTime
+        await this.waitForState(
+          [SandboxState.DESTROYED],
+          [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+          timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout,
+          'Sandbox failed to be destroyed within the timeout period',
+          (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
+          true,
+        )
+      }
+    } finally {
+      if (this.subId) {
+        this.subscriptionManager.unsubscribe(this.subId)
+        this.subId = undefined
+      }
+    }
   }
 
   /**
@@ -607,36 +644,23 @@ export class Sandbox {
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox ends up in an error state or fails to start within the timeout period.
    */
   @WithInstrumentation()
+  @withEvents
   public async waitUntilStarted(timeout = 60) {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
     }
 
-    let checkInterval = 100
-    const startTime = Date.now()
-
-    while (this.state !== 'started') {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === 'started') {
-        return
-      }
-
-      if (this.state === 'error') {
-        const errMsg = `Sandbox ${this.id} failed to start with status: ${this.state}, error reason: ${this.errorReason}`
-        throw new DaytonaError(errMsg)
-      }
-
-      if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
-        throw new DaytonaTimeoutError('Sandbox failed to become ready within the timeout period')
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, checkInterval))
-      if (Date.now() - startTime > 5000) {
-        checkInterval = Math.min(checkInterval * 1.1, 1000)
-      }
+    if (this.state === SandboxState.STARTED) {
+      return
     }
+
+    return this.waitForState(
+      [SandboxState.STARTED],
+      [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+      timeout,
+      'Sandbox failed to become ready within the timeout period',
+      (state) => `Sandbox ${this.id} failed to start with status: ${state}, error reason: ${this.errorReason}`,
+    )
   }
 
   /**
@@ -651,37 +675,25 @@ export class Sandbox {
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox fails to stop within the timeout period.
    */
   @WithInstrumentation()
+  @withEvents
   public async waitUntilStopped(timeout = 60) {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
     }
 
-    let checkInterval = 100
-    const startTime = Date.now()
-
     // Treat destroyed as stopped to cover ephemeral sandboxes that are automatically deleted after stopping
-    while (this.state !== 'stopped' && this.state !== 'destroyed') {
-      this.refreshDataSafe()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === 'stopped' || this.state === 'destroyed') {
-        return
-      }
-
-      if (this.state === 'error') {
-        const errMsg = `Sandbox failed to stop with status: ${this.state}, error reason: ${this.errorReason}`
-        throw new DaytonaError(errMsg)
-      }
-
-      if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
-        throw new DaytonaTimeoutError('Sandbox failed to become stopped within the timeout period')
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, checkInterval))
-      if (Date.now() - startTime > 5000) {
-        checkInterval = Math.min(checkInterval * 1.1, 1000)
-      }
+    if (this.state === SandboxState.STOPPED || this.state === SandboxState.DESTROYED) {
+      return
     }
+
+    return this.waitForState(
+      [SandboxState.STOPPED, SandboxState.DESTROYED],
+      [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+      timeout,
+      'Sandbox failed to become stopped within the timeout period',
+      (state) => `Sandbox failed to stop with status: ${state}, error reason: ${this.errorReason}`,
+      true,
+    )
   }
 
   /**
@@ -696,6 +708,7 @@ export class Sandbox {
    * console.log(`Resources: ${sandbox.cpu} CPU, ${sandbox.memory} GiB RAM`);
    */
   @WithInstrumentation()
+  @withEvents
   public async refreshData(): Promise<void> {
     const response = await this.sandboxApi.getSandbox(this.id)
     this.processSandboxDto(response.data)
@@ -713,6 +726,7 @@ export class Sandbox {
    * // Keep sandbox activity alive
    * await sandbox.refreshActivity();
    */
+  @withEvents
   public async refreshActivity(): Promise<void> {
     await this.sandboxApi.updateLastActivity(this.id)
   }
@@ -736,6 +750,7 @@ export class Sandbox {
    * await sandbox.setAutostopInterval(0);
    */
   @WithInstrumentation()
+  @withEvents
   public async setAutostopInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaValidationError('autoStopInterval must be a non-negative integer')
@@ -795,6 +810,7 @@ export class Sandbox {
    * await sandbox.setAutoArchiveInterval(0);
    */
   @WithInstrumentation()
+  @withEvents
   public async setAutoArchiveInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaValidationError('autoArchiveInterval must be a non-negative integer')
@@ -822,6 +838,7 @@ export class Sandbox {
    * await sandbox.setAutoDeleteInterval(-1);
    */
   @WithInstrumentation()
+  @withEvents
   public async setAutoDeleteInterval(interval: number): Promise<void> {
     await this.sandboxApi.setAutoDeleteInterval(this.id, interval)
     this.autoDeleteInterval = interval
@@ -930,6 +947,7 @@ export class Sandbox {
    * console.log(`Token: ${previewLink.token}`);
    */
   @WithInstrumentation()
+  @withEvents
   public async getPreviewLink(port: number): Promise<PortPreviewUrl> {
     return (await this.sandboxApi.getPortPreviewUrl(this.id, port)).data
   }
@@ -941,6 +959,7 @@ export class Sandbox {
    * @param {number} [expiresInSeconds] - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds.
    * @returns {Promise<SignedPortPreviewUrl>} The response object for the signed preview url.
    */
+  @withEvents
   public async getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPortPreviewUrl> {
     return (await this.sandboxApi.getSignedPortPreviewUrl(this.id, port, undefined, expiresInSeconds)).data
   }
@@ -952,6 +971,7 @@ export class Sandbox {
    * @param {string} token - The token to expire the signed preview url on.
    * @returns {Promise<void>}
    */
+  @withEvents
   public async expireSignedPreviewUrl(port: number, token: string): Promise<void> {
     await this.sandboxApi.expireSignedPortPreviewUrl(this.id, port, token)
   }
@@ -963,6 +983,7 @@ export class Sandbox {
    * Sandbox must be stopped before archiving.
    */
   @WithInstrumentation()
+  @withEvents
   public async archive(): Promise<void> {
     await this.sandboxApi.archiveSandbox(this.id)
     await this.refreshData()
@@ -988,6 +1009,7 @@ export class Sandbox {
    * await sandbox.resize({ cpu: 2, memory: 4, disk: 30 })
    */
   @WithInstrumentation()
+  @withEvents
   public async resize(resources: Pick<Resources, 'cpu' | 'memory' | 'disk'>, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
@@ -1022,37 +1044,27 @@ export class Sandbox {
    * @throws {DaytonaError} - If the sandbox ends up in an error state or resize times out.
    */
   @WithInstrumentation()
+  @withEvents
   public async waitForResizeComplete(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
     }
 
-    let checkInterval = 100
-    const startTime = Date.now()
-
-    while (this.state === SandboxState.RESIZING) {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === SandboxState.ERROR || this.state === SandboxState.BUILD_FAILED) {
-        throw new DaytonaError(
-          `Sandbox ${this.id} resize failed with state: ${this.state}, error reason: ${this.errorReason}`,
-        )
-      }
-
-      if (this.state !== SandboxState.RESIZING) {
-        return
-      }
-
-      if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
-        throw new DaytonaTimeoutError('Sandbox resize did not complete within the timeout period')
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, checkInterval))
-      if (Date.now() - startTime > 5000) {
-        checkInterval = Math.min(checkInterval * 1.1, 1000)
-      }
+    if (this.state !== SandboxState.RESIZING) {
+      return
     }
+
+    const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+    const excludeStates = new Set<string>([SandboxState.RESIZING, ...errorStates])
+    const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
+
+    return this.waitForState(
+      targetStates,
+      errorStates,
+      timeout,
+      'Sandbox resize did not complete within the timeout period',
+      (state) => `Sandbox ${this.id} resize failed with state: ${state}, error reason: ${this.errorReason}`,
+    )
   }
 
   /**
@@ -1062,6 +1074,7 @@ export class Sandbox {
    * @returns {Promise<SshAccessDto>} The SSH access token.
    */
   @WithInstrumentation()
+  @withEvents
   public async createSshAccess(expiresInMinutes?: number): Promise<SshAccessDto> {
     return (await this.sandboxApi.createSshAccess(this.id, undefined, expiresInMinutes)).data
   }
@@ -1073,6 +1086,7 @@ export class Sandbox {
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
+  @withEvents
   public async revokeSshAccess(token: string): Promise<void> {
     await this.sandboxApi.revokeSshAccess(this.id, undefined, token)
   }
@@ -1084,8 +1098,147 @@ export class Sandbox {
    * @returns {Promise<SshAccessValidationDto>} The SSH access validation result.
    */
   @WithInstrumentation()
+  @withEvents
   public async validateSshAccess(token: string): Promise<SshAccessValidationDto> {
     return (await this.sandboxApi.validateSshAccess(token)).data
+  }
+
+  /**
+   * Subscribes to real-time events for this sandbox.
+   * Auto-updates sandbox metadata on every event.
+   */
+  private subscribeToEvents(): void {
+    if (this.subId) {
+      return
+    }
+
+    this.subId = this.subscriptionManager.subscribe(this.id, this.handleEvent.bind(this), [
+      'sandbox.state.updated',
+      'sandbox.created',
+    ])
+  }
+
+  private ensureSubscribed(): void {
+    if (this.subId) {
+      if (this.subscriptionManager.refresh(this.subId)) {
+        return
+      }
+
+      this.subId = undefined
+    }
+
+    this.subscribeToEvents()
+  }
+
+  private handleEvent(eventName: string, data: any): void {
+    if (!data || typeof data !== 'object') return
+    const raw = data.sandbox ?? data
+    if (!raw || typeof raw !== 'object') return
+
+    if (eventName === 'sandbox.created') {
+      this.processSandboxDto(raw as SandboxDto)
+      return
+    }
+
+    const newState = raw.state ?? data.newState
+    if (newState) {
+      this.applyState(newState)
+    }
+  }
+
+  /**
+   * Waits for the sandbox to reach one of the target states.
+   * Throws on error states or timeout.
+   *
+   * @param targetStates - States that indicate success.
+   * @param errorStates - States that indicate failure.
+   * @param timeout - Maximum time to wait in seconds. 0 means no timeout.
+   * @param timeoutMessage - Error message when timeout is reached.
+   * @param errorMessageFn - Function that produces an error message from the current state.
+   * @param safeRefresh - If true, use refreshDataSafe() for polling (for delete operations where 404 is expected).
+   */
+  private waitForState(
+    targetStates: SandboxState[],
+    errorStates: SandboxState[],
+    timeout: number,
+    timeoutMessage: string,
+    errorMessageFn: (state: string) => string,
+    safeRefresh = false,
+  ): Promise<void> {
+    this.ensureSubscribed()
+
+    return new Promise<void>((resolve, reject) => {
+      let timeoutTimer: ReturnType<typeof setTimeout> | null = null
+      let pollTimer: ReturnType<typeof setTimeout> | null = null
+      let settled = false
+
+      const waiter = {
+        targetStates: new Set(targetStates),
+        errorStates: new Set(errorStates),
+        resolve: (_: SandboxState) => {
+          if (settled) return
+          cleanup()
+          resolve()
+        },
+        reject: (err: Error) => {
+          if (settled) return
+          cleanup()
+          reject(err)
+        },
+      }
+
+      this.stateWaiters.push(waiter)
+      this.stateWaiterErrorMessageFns.set(waiter, errorMessageFn)
+
+      const cleanup = () => {
+        if (settled) return
+        settled = true
+        if (timeoutTimer) clearTimeout(timeoutTimer)
+        if (pollTimer) clearTimeout(pollTimer)
+        this.removeStateWaiter(waiter)
+      }
+
+      // Check if already in target/error state
+      if (this.checkStateWaiter(waiter, this.state)) {
+        return
+      }
+
+      if (timeout !== 0) {
+        timeoutTimer = setTimeout(() => {
+          if (!settled) {
+            cleanup()
+            reject(new DaytonaTimeoutError(timeoutMessage))
+          }
+        }, timeout * 1000)
+      }
+
+      // Periodic poll as safety net for missed events
+      const doPoll = async () => {
+        if (settled) return
+
+        try {
+          if (safeRefresh) {
+            await this.refreshDataSafe()
+          } else {
+            await this.refreshData()
+          }
+        } catch (error) {
+          waiter.reject(error instanceof Error ? error : new DaytonaError(String(error)))
+          return
+        }
+
+        if (!settled) {
+          pollTimer = setTimeout(() => {
+            void doPoll()
+          }, 1_000)
+        }
+      }
+
+      // Poll periodically as safety net for missed WebSocket events
+      pollTimer = setTimeout(() => {
+        void doPoll()
+      }, 1_000)
+    })
   }
 
   /**
@@ -1095,6 +1248,8 @@ export class Sandbox {
    * @returns {void}
    */
   private processSandboxDto(sandboxDto: SandboxDto | SandboxListItemDto) {
+    const newState = sandboxDto.state
+
     this.id = sandboxDto.id
     this.name = sandboxDto.name
     this.organizationId = sandboxDto.organizationId
@@ -1107,7 +1262,6 @@ export class Sandbox {
     this.gpu = sandboxDto.gpu
     this.memory = sandboxDto.memory
     this.disk = sandboxDto.disk
-    this.state = sandboxDto.state
     this.errorReason = sandboxDto.errorReason
     this.recoverable = sandboxDto.recoverable
     this.backupState = sandboxDto.backupState
@@ -1118,8 +1272,6 @@ export class Sandbox {
     this.createdAt = sandboxDto.createdAt
     this.updatedAt = sandboxDto.updatedAt
     this.lastActivityAt = sandboxDto.lastActivityAt
-    this.toolboxProxyUrl = sandboxDto.toolboxProxyUrl
-
     // Fields only present in the full SandboxDto (not returned by list endpoint)
     if ('env' in sandboxDto) {
       this.env = sandboxDto.env
@@ -1130,6 +1282,21 @@ export class Sandbox {
       this.volumes = sandboxDto.volumes
       this.buildInfo = sandboxDto.buildInfo
       this.backupCreatedAt = sandboxDto.backupCreatedAt
+    }
+
+    const newProxyUrl = sandboxDto.toolboxProxyUrl
+    if (newProxyUrl && newProxyUrl !== this.toolboxProxyUrl && this.axiosInstance) {
+      let baseUrl = newProxyUrl
+      if (!baseUrl.endsWith('/')) {
+        baseUrl += '/'
+      }
+      this.axiosInstance.defaults.baseURL = baseUrl + this.id
+      this.clientConfig.basePath = this.axiosInstance.defaults.baseURL
+    }
+    this.toolboxProxyUrl = newProxyUrl
+
+    if (newState) {
+      this.applyState(newState)
     }
   }
 
@@ -1144,9 +1311,53 @@ export class Sandbox {
       await this.refreshData()
     } catch (error) {
       if (error instanceof DaytonaNotFoundError) {
-        this.state = SandboxState.DESTROYED
+        this.applyState(SandboxState.DESTROYED)
+        return
       }
+
+      throw error
     }
+  }
+
+  private applyState(newState: string): void {
+    if (newState === this.state) {
+      return
+    }
+
+    this.state = newState as SandboxState
+
+    for (const waiter of [...this.stateWaiters]) {
+      this.checkStateWaiter(waiter, this.state)
+    }
+  }
+
+  private checkStateWaiter(waiter: (typeof this.stateWaiters)[number], state?: SandboxState): boolean {
+    if (!state) {
+      return false
+    }
+
+    if (waiter.targetStates.has(state)) {
+      waiter.resolve(state)
+      return true
+    }
+
+    if (waiter.errorStates.has(state)) {
+      const errorMessageFn = this.stateWaiterErrorMessageFns.get(waiter)
+      waiter.reject(
+        new DaytonaError(errorMessageFn ? errorMessageFn(state) : `Sandbox ${this.id} failed with state: ${state}`),
+      )
+      return true
+    }
+
+    return false
+  }
+
+  private removeStateWaiter(waiter: (typeof this.stateWaiters)[number]): void {
+    const index = this.stateWaiters.indexOf(waiter)
+    if (index !== -1) {
+      this.stateWaiters.splice(index, 1)
+    }
+    this.stateWaiterErrorMessageFns.delete(waiter)
   }
 }
 

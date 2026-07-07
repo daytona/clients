@@ -44,6 +44,8 @@ from ..common.daytona import (
 from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
 from ..common.image import Image
 from ..common.sandbox import ListSandboxesQuery
+from ..internal.event_dispatcher import SyncEventDispatcher
+from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.http_client import build_sync_http_client
 from ..internal.urllib3_retry import RemoteDisconnectedRetry
 from .sandbox import Sandbox
@@ -240,6 +242,16 @@ class Daytona:
             SnapshotsApi(self._api_client), self._object_storage_api, self._target
         )
         self.secret: SecretService = SecretService(SecretApi(self._api_client))
+
+        self._event_dispatcher: SyncEventDispatcher = SyncEventDispatcher(
+            self._api_url,
+            self._api_key or self._jwt_token or "",
+            self._organization_id,
+            "sdk-python",
+            sdk_version,
+        )
+        self._event_dispatcher.ensure_connected()
+        self._subscription_manager: SyncEventSubscriptionManager = SyncEventSubscriptionManager(self._event_dispatcher)
 
         # Initialize OpenTelemetry if enabled
         env = env_reader or DaytonaEnvReader()
@@ -537,6 +549,7 @@ class Daytona:
             self._toolbox_api_client,
             self._sandbox_api,
             validated_language.value,
+            subscription_manager=self._subscription_manager,
             http_client=self._http_client,
             analytics_api_url_provider=self._get_analytics_api_url,
         )
@@ -606,6 +619,7 @@ class Daytona:
             self._toolbox_api_client,
             self._sandbox_api,
             language,
+            subscription_manager=self._subscription_manager,
             http_client=self._http_client,
             analytics_api_url_provider=self._get_analytics_api_url,
         )
@@ -655,6 +669,7 @@ class Daytona:
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,
+                    subscription_manager=self._subscription_manager,
                     http_client=self._http_client,
                     analytics_api_url_provider=self._get_analytics_api_url,
                 )

@@ -8,7 +8,8 @@ hideTitleOnPage: true
 Represents a Daytona Sandbox instance.
 
 Exposes lifecycle controls and operation facades for process execution, file-system access,
-and Git.
+and Git. State changes are detected instantly via WebSocket events with periodic polling as a
+safety net.
 
 **Properties**:
 
@@ -119,15 +120,15 @@ Deletes this Sandbox with default timeout behavior.
 public void delete(long timeoutSeconds)
 ```
 
-Deletes this Sandbox.
+Deletes this Sandbox and waits for it to reach the `destroyed` state.
 
 **Parameters**:
 
-- `timeoutSeconds` _long_ - reserved timeout parameter for parity with other SDKs
+- `timeoutSeconds` _long_ - maximum seconds to wait; `0` disables timeout
 
 **Throws**:
 
-- `DaytonaException` - if deletion fails
+- `DaytonaException` - if deletion fails or times out
 
 #### setLabels()
 ```java
@@ -368,6 +369,21 @@ Waits until Sandbox reaches `started` state.
 **Throws**:
 
 - `DaytonaException` - if timeout is invalid, state becomes failure, or timeout expires
+
+#### waitForResizeComplete()
+```java
+public void waitForResizeComplete(long timeoutSeconds)
+```
+
+Waits for a resize operation to complete.
+
+**Parameters**:
+
+- `timeoutSeconds` _long_ - maximum seconds to wait; `0` disables timeout
+
+**Throws**:
+
+- `DaytonaException` - if resize times out or fails
 
 #### refreshData()
 ```java

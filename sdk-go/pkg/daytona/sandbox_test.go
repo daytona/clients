@@ -13,6 +13,7 @@ import (
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/common"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
@@ -357,7 +358,7 @@ func newSandboxForTest(client *Client, id string, sandboxName string, state apic
 		AutoArchiveInterval: &archive,
 		AutoDeleteInterval:  &del,
 	}
-	return NewSandbox(client, nil, dto, types.CodeLanguagePython)
+	return NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 }
 
 // newSandboxForToolboxTest builds a minimal Sandbox connected to a real toolbox
@@ -368,7 +369,7 @@ func newSandboxForToolboxTest(toolboxClient *toolbox.APIClient, id string, state
 		Name:  "name",
 		State: &state,
 	}
-	return NewSandbox(nil, toolboxClient, dto, types.CodeLanguagePython)
+	return NewSandbox(nil, toolboxClient, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 }
 
 func TestSandboxCreateLspServer(t *testing.T) {
@@ -457,11 +458,16 @@ func TestSandboxInfoMethods(t *testing.T) {
 func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 	t.Run("start stop and delete succeed", func(t *testing.T) {
 		var getCount int
+		var deleted bool
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodPost:
 				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
 			case http.MethodGet:
+				if deleted {
+					writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYED))
+					return
+				}
 				getCount++
 				state := apiclient.SANDBOXSTATE_STARTED
 				if getCount > 1 {
@@ -469,6 +475,7 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 				}
 				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
 			case http.MethodDelete:
+				deleted = true
 				w.WriteHeader(http.StatusOK)
 			default:
 				w.WriteHeader(http.StatusOK)
@@ -478,9 +485,9 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED, "us", 0, -1, false, nil)
-		require.NoError(t, sandbox.doStartWithTimeout(context.Background(), time.Second))
-		require.NoError(t, sandbox.doStopWithTimeout(context.Background(), time.Second, true))
-		require.NoError(t, sandbox.doDeleteWithTimeout(context.Background(), time.Second))
+		require.NoError(t, sandbox.doStartWithTimeout(context.Background(), 1500*time.Millisecond))
+		require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 1500*time.Millisecond, true))
+		require.NoError(t, sandbox.doDeleteWithTimeout(context.Background(), 1500*time.Millisecond))
 	})
 
 	t.Run("wait for start returns sandbox error state", func(t *testing.T) {
@@ -493,7 +500,7 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
-		err := sandbox.doWaitForStart(context.Background(), 500*time.Millisecond)
+		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Sandbox failed to start")
 	})
@@ -540,7 +547,7 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-		forked, err := sandbox.ExperimentalForkWithTimeout(context.Background(), strPtr("forked-name"), 2*time.Second)
+		forked, err := sandbox.ExperimentalForkWithTimeout(context.Background(), strPtr("forked-name"), 3*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "forked", forked.ID)
 	})
@@ -589,7 +596,7 @@ func TestSandboxResizeFlow(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-	require.NoError(t, sandbox.ResizeWithTimeout(context.Background(), &types.Resources{CPU: 2, Memory: 2048, Disk: 10}, 2*time.Second))
+	require.NoError(t, sandbox.ResizeWithTimeout(context.Background(), &types.Resources{CPU: 2, Memory: 2048, Disk: 10}, 3*time.Second))
 }
 
 func TestSandboxUpdateSecrets(t *testing.T) {

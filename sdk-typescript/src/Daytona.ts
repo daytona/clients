@@ -8,6 +8,8 @@ import {
   SnapshotsApi,
   ObjectStorageApi,
   SandboxApi,
+  type Sandbox as SandboxDto,
+  type SandboxListItem as SandboxListItemDto,
   SandboxState,
   SecretApi,
   VolumesApi,
@@ -30,6 +32,8 @@ import { SecretService } from './Secret'
 import { SnapshotService } from './Snapshot'
 import { VolumeService } from './Volume'
 import { getPackageInfo, dynamicRequire } from './utils/Import'
+import { EventDispatcher } from './utils/EventDispatcher'
+import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 
 const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
@@ -262,6 +266,8 @@ export class Daytona implements AsyncDisposable {
   private readonly organizationId?: string
   private readonly apiUrl: string
   private otelSdk?: NodeSDK
+  private eventDispatcher: EventDispatcher
+  private eventSubscriptionManager: EventSubscriptionManager
   public readonly volume: VolumeService
   public readonly snapshot: SnapshotService
   public readonly secret: SecretService
@@ -362,6 +368,16 @@ export class Daytona implements AsyncDisposable {
     )
     this.clientConfig = configuration
 
+    this.eventDispatcher = new EventDispatcher(
+      this.apiUrl,
+      this.apiKey || this.jwtToken,
+      this.organizationId,
+      sdkLabel,
+      packageJson.version,
+    )
+    this.eventSubscriptionManager = new EventSubscriptionManager(this.eventDispatcher)
+    this.eventDispatcher.ensureConnected()
+
     const env = envReader()
     const otelEnabled =
       config?.otelEnabled ||
@@ -413,6 +429,9 @@ export class Daytona implements AsyncDisposable {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
+    this.eventSubscriptionManager.shutdown()
+    this.eventDispatcher.disconnect()
+
     if (!this.otelSdk) {
       return
     }
@@ -666,11 +685,12 @@ export class Daytona implements AsyncDisposable {
       }
 
       const sandbox = new Sandbox(
-        sandboxInstance,
+        await this.ensureToolboxProxyUrl(sandboxInstance),
         new Configuration(structuredClone(this.clientConfig)),
         Daytona.createAxiosInstance(),
         this.sandboxApi,
         this.getAnalyticsApiUrl,
+        this.eventSubscriptionManager,
       )
 
       if (sandbox.state !== 'started') {
@@ -704,7 +724,7 @@ export class Daytona implements AsyncDisposable {
   @WithInstrumentation()
   public async get(sandboxIdOrName: string): Promise<Sandbox> {
     const response = await this.sandboxApi.getSandbox(sandboxIdOrName)
-    const sandboxInstance = response.data
+    const sandboxInstance = await this.ensureToolboxProxyUrl(response.data)
 
     return new Sandbox(
       sandboxInstance,
@@ -712,6 +732,7 @@ export class Daytona implements AsyncDisposable {
       Daytona.createAxiosInstance(),
       this.sandboxApi,
       this.getAnalyticsApiUrl,
+      this.eventSubscriptionManager,
     )
   }
 
@@ -727,8 +748,9 @@ export class Daytona implements AsyncDisposable {
    * }
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
-    const { sandboxApi, clientConfig } = this
+    const { sandboxApi, clientConfig, eventSubscriptionManager } = this
     const getAnalyticsApiUrl = this.getAnalyticsApiUrl
+    const ensureToolboxProxyUrl = this.ensureToolboxProxyUrl.bind(this)
     const tracer = trace.getTracer('')
 
     async function* generator(): AsyncGenerator<Sandbox> {
@@ -799,12 +821,14 @@ export class Daytona implements AsyncDisposable {
 
         for (const sandbox of response.data.items) {
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
+          const hydratedSandbox = await ensureToolboxProxyUrl(sandbox)
           yield new Sandbox(
-            sandbox,
+            hydratedSandbox,
             structuredClone(clientConfig),
             Daytona.createAxiosInstance(),
             sandboxApi,
             getAnalyticsApiUrl,
+            eventSubscriptionManager,
           )
         }
 
@@ -816,6 +840,18 @@ export class Daytona implements AsyncDisposable {
     }
 
     return generator()
+  }
+
+  private async ensureToolboxProxyUrl<T extends SandboxDto | SandboxListItemDto>(sandboxDto: T): Promise<T> {
+    if (sandboxDto.toolboxProxyUrl) {
+      return sandboxDto
+    }
+
+    const proxyUrl = await this.sandboxApi.getToolboxProxyUrl(sandboxDto.id)
+    return {
+      ...sandboxDto,
+      toolboxProxyUrl: proxyUrl.data.url,
+    }
   }
 
   /**

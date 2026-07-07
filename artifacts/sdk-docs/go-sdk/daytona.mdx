@@ -247,7 +247,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(r \*RecordingService\) Start\(ctx context.Context, label \*string\) \(\*toolbox.Recording, error\)](<#RecordingService.Start>)
   - [func \(r \*RecordingService\) Stop\(ctx context.Context, id string\) \(\*toolbox.Recording, error\)](<#RecordingService.Stop>)
 - [type Sandbox](<#Sandbox>)
-  - [func NewSandbox\(client \*Client, toolboxClient \*toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage\) \*Sandbox](<#NewSandbox>)
+  - [func NewSandbox\(client \*Client, toolboxClient \*toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage, subscriptionManager \*common.EventSubscriptionManager\) \*Sandbox](<#NewSandbox>)
   - [func \(s \*Sandbox\) Archive\(ctx context.Context\) error](<#Sandbox.Archive>)
   - [func \(s \*Sandbox\) CreateLspServer\(languageID types.LspLanguageID, pathToProject string\) \*LspServerService](<#Sandbox.CreateLspServer>)
   - [func \(s \*Sandbox\) Delete\(ctx context.Context\) error](<#Sandbox.Delete>)
@@ -4323,9 +4323,10 @@ type Sandbox struct {
     // Set to 0 to delete immediately upon stopping.
     AutoDeleteInterval int
 
-    CreatedAt      *string // When the sandbox was created
-    UpdatedAt      *string // When the sandbox was last updated
-    LastActivityAt *string // When the sandbox last had activity
+    CreatedAt       *string // When the sandbox was created
+    UpdatedAt       *string // When the sandbox was last updated
+    LastActivityAt  *string // When the sandbox last had activity
+    ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
 
     // Env contains environment variables set in the sandbox.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -4368,7 +4369,7 @@ type Sandbox struct {
 ### func NewSandbox
 
 ```go
-func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage) *Sandbox
+func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage, subscriptionManager *common.EventSubscriptionManager) *Sandbox
 ```
 
 NewSandbox creates a new Sandbox instance from an API DTO.
