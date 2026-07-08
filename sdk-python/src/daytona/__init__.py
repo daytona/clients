@@ -4,7 +4,18 @@
 from __future__ import annotations
 
 import importlib
+import warnings
 from typing import TYPE_CHECKING
+
+# The build publishes this code twice: as "daytona" and as the deprecated
+# "daytona_sdk" alias (same code, renamed dir). Warn only the alias's importers.
+if __name__ == "daytona_sdk":
+    warnings.warn(
+        "The 'daytona_sdk' package is deprecated and will eventually be discontinued. "
+        + "Please migrate to the 'daytona' package: pip install daytona, then `import daytona`.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 if TYPE_CHECKING:
     from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
