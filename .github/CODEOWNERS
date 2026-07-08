@@ -8,6 +8,9 @@
 SECURITY.md                @MDzaja
 CODE_OF_CONDUCT.md         @MDzaja
 
+# Contributor License Agreement (legal)
+CLA.md                     @MDzaja @aprojic
+
 # CI/CD pipelines and composite actions
 .github/workflows/         @MDzaja
 .github/actions/           @MDzaja
