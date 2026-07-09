@@ -10,19 +10,25 @@ binding document, so please read it carefully before agreeing to it.
 > assistant. When you open your first pull request to the `daytona/clients`
 > repository, the CLA assistant will comment with a link to this Agreement and
 > ask you to confirm your acceptance by posting the exact comment it provides. By
-> posting that comment, You intend to sign, and to be legally bound by, this
-> Agreement. If You are accepting on behalf of an entity (for example, Your
+> posting that comment, You affirmatively sign, and agree to be legally bound by,
+> this Agreement. If You are accepting on behalf of an entity (for example, Your
 > employer), by doing so You confirm that You are authorized to bind that entity
-> to this Agreement. Your GitHub identity and the date of your acceptance are recorded as
-> your signature. Signing once covers all of Your future Contributions to this
-> repository.
+> to this Agreement. If accepting on behalf of an entity, You must identify the
+> entity's legal name and Your role or title, or otherwise provide the information
+> requested by the CLA assistant to confirm the entity on whose behalf You are
+> accepting. Your GitHub identity and the date of your acceptance are recorded as
+> your signature. This Agreement applies to the Contributions included in the pull
+> request in which You accept this Agreement, and to all Contributions You Submit
+> to Us after that acceptance.
 
 ## 1. Definitions
 
 **"You"** (or **"Your"**) means the individual or legal entity that accepts this
 Agreement. For a legal entity, the entity on whose behalf a Contribution is
 Submitted is the Contributor, and the individual accepting this Agreement
-represents that they are authorized to bind that entity to it.
+represents that they are authorized to bind that entity to it. If the acceptance
+record identifies an entity, "You" means that entity; otherwise, "You" means the
+individual associated with the recorded GitHub account.
 
 **"Contribution"** means any original work of authorship, including any
 modifications or additions to an existing work, that is Submitted by You to Us in
@@ -44,31 +50,37 @@ Contribution is Submitted, specifically the `daytona/clients` repository.
 
 ## 2. Scope and Consideration
 
-This Agreement applies to all Contributions You Submit to Us. You grant the
-rights set out in this Agreement in consideration of, and as a condition of, the
-opportunity to participate in the Material and to have Your Contributions
-considered for inclusion in it. No monetary or other payment is or will be owed
-to You for Your Contributions or for entering into this Agreement. The
-representations in Section 6 apply to each Contribution You Submit, whether on
-Your own behalf or on behalf of an entity.
+This Agreement applies to the Contributions included in the pull request in which
+You accept this Agreement, and to all Contributions You Submit to Us after that
+acceptance. You grant the rights set out in this Agreement in consideration of,
+and as a condition of, the opportunity to participate in the Material and to have
+Your Contributions considered for inclusion in it. No monetary or other payment
+is or will be owed to You for Your Contributions or for entering into this
+Agreement. The representations in Section 6 apply to each Contribution You Submit,
+whether on Your own behalf or on behalf of an entity.
 
 ## 3. Grant of Copyright License
 
 Subject to the terms of this Agreement, You hereby grant to Us and to recipients
 of software distributed by Us a perpetual, worldwide, non-exclusive, no-charge,
-royalty-free, irrevocable license under Your Copyright to reproduce, prepare
-derivative works of, publicly display, publicly perform, sublicense, and
-distribute Your Contributions and such derivative works.
+royalty-free, irrevocable license, with the right to sublicense to recipients of
+software distributed by Us under terms We choose, under Your Copyright to
+reproduce, prepare derivative works of, publicly display, publicly perform,
+sublicense, and distribute Your Contributions and such derivative works. To the
+maximum extent permitted by law, You waive and agree not to assert any moral
+rights, neighboring rights, or similar rights in Your Contributions against Us,
+Our sublicensees, or recipients of software distributed by Us.
 
 ## 4. Grant of Patent License
 
 Subject to the terms of this Agreement, You hereby grant to Us and to recipients
 of software distributed by Us a perpetual, worldwide, non-exclusive, no-charge,
-royalty-free, irrevocable (except as stated in this section) patent license to
-make, have made, use, offer to sell, sell, import, and otherwise transfer the
-Material, where such license applies only to those patent claims licensable by
-You that are necessarily infringed by Your Contribution(s) alone or by
-combination of Your Contribution(s) with the Material to which such
+royalty-free, irrevocable (except as stated in this section) patent license, with
+the right to sublicense to recipients of software distributed by Us under terms
+We choose, to make, have made, use, offer to sell, sell, import, and otherwise
+transfer the Material, where such license applies only to those patent claims
+licensable by You that are necessarily infringed by Your Contribution(s) alone or
+by combination of Your Contribution(s) with the Material to which such
 Contribution(s) was Submitted. If any entity institutes patent litigation
 against You or any other entity (including a cross-claim or counterclaim in a
 lawsuit) alleging that Your Contribution, or the Material to which You have
@@ -84,26 +96,31 @@ and proprietary licenses. You acknowledge that We currently distribute the
 Material under the Apache License 2.0 (with the `cli/` directory under the GNU
 Affero General Public License v3.0 (AGPLv3)), and that We may, in addition, offer
 the Material and Your Contribution under separate commercial or proprietary
-terms, and may change the license or the visibility of the Material at any time,
-in Our sole discretion and without further notice to, consent from, or payment to
-You. Nothing in this Agreement requires Us to use Your Contribution in any product
-or under any license.
+terms, and may change the license or the visibility of the Material, for future
+versions, distributions, or releases, at any time, in Our sole discretion and
+without further notice to, consent from, or payment to You. Nothing in this
+Agreement requires Us to use Your Contribution in any product or under any
+license.
 
 ## 6. Your Representations
 
 You represent that:
 
-(a) You are legally entitled to grant the above licenses. If You are an
-individual and Your employer(s) has rights to intellectual property that You
-create that includes Your Contributions, You represent that You have received
-permission to make Contributions on behalf of that employer, that Your employer
-has waived such rights for Your Contributions to Us, or that Your employer has
-executed a separate Corporate CLA with Us.
+(a) You are legally entitled, and have the legal capacity, to enter into this
+Agreement and grant the above licenses. If You are an individual and Your
+employer(s) has rights to intellectual property that You create that includes
+Your Contributions, You represent that You have received permission to make
+Contributions on behalf of that employer, that Your employer has waived such
+rights for Your Contributions to Us, that Your employer has authorized You to
+accept this Agreement on its behalf, or that Your employer has otherwise entered
+into a written or electronic agreement with Us covering such Contributions.
 
 (b) If You are, or are accepting this Agreement on behalf of, a legal entity, You
 represent that You are authorized to enter into this Agreement on that entity's
 behalf, that it binds the entity, and that it covers Contributions Submitted to
-Us by the entity's employees and agents on its behalf.
+Us by the entity's employees and agents on its behalf, including Contributions
+submitted through the GitHub account recorded in the CLA assistant acceptance
+process.
 
 (c) Each of Your Contributions is Your original creation.
 
@@ -131,7 +148,7 @@ that would make these representations inaccurate in any respect.
 This Agreement will be governed by the laws of the State of Massachusetts,
 without regard to any provision of law that would require or permit the
 application of the substantive law of any other jurisdiction. In the event of a
-dispute, the federal or state courts of Massachusetts shall have exclusive
+dispute, the federal or state courts located in Massachusetts shall have exclusive
 jurisdiction.
 
 If any provision of this Agreement is, for any reason, held to be invalid or
@@ -149,8 +166,9 @@ Agreement, to carry out the intent of this Agreement.
 
 This Agreement constitutes the entire agreement between the parties with respect
 to Contributions Submitted through the electronic acceptance process described
-above, and does not amend, replace, or supersede any separate written contributor
-or corporate license agreement previously executed between You and Us, unless that
+above, and does not amend, replace, or supersede any separate written contributor,
+including any previously executed individual contributor license agreements, or
+corporate license agreement previously executed between You and Us, unless that
 agreement expressly states otherwise. This Agreement may only be amended in a
 writing signed by duly authorized representatives of the parties.
 

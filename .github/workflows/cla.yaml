@@ -52,8 +52,11 @@ jobs:
             Thank you for your contribution! Before we can merge it, we need you
             to sign the [Daytona Contributor License Agreement](https://github.com/daytona/clients/blob/main/CLA.md).
             You only need to do this once, and it will cover all of your future
-            contributions to this repository. Please read the CLA and, if you
-            agree, post the following comment on this PR:
+            contributions to this repository. If you are signing on behalf of an
+            entity (for example, your employer), please also reply with the
+            entity's legal name and your role or title, and confirm that you are
+            authorized to bind it. Please read the CLA and, if you agree, post the
+            following comment on this PR:
           custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
           custom-allsigned-prcomment: >-
             All contributors have signed the CLA. ✅ Thank you!
