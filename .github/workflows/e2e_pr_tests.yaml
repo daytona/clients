@@ -20,17 +20,16 @@ env:
   POETRY_VIRTUALENVS_IN_PROJECT: true
 
 jobs:
-  sdk-e2e-tests:
-    name: SDK E2E against Daytona API
+  # Centralized gate so every downstream job shares the same skip decision.
+  # Each language job below is independent, so a single failing language (or the
+  # runtime suite) can be re-run on its own via "Re-run this job" in the GitHub UI.
+  check-secret:
+    name: Check API key availability
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 30
+    outputs:
+      run_e2e: ${{ steps.e2e-secret-check.outputs.run_e2e }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: ./.github/actions/setup-toolchain
-      - name: Skip when API key is unavailable
+      - name: Determine whether E2E can run
         id: e2e-secret-check
         run: |
           if [ -z "$DAYTONA_API_KEY" ]; then
@@ -39,35 +38,160 @@ jobs:
           else
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
           fi
+
+  typescript-e2e:
+    name: TypeScript SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-python: 'false'
+          install-poetry: 'false'
+          install-ruby: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-poetry-install: 'false'
+          run-go-work-sync: 'false'
+      - name: Run TypeScript SDK E2E tests
+        run: yarn nx run sdk-typescript:test:e2e
+
+  python-e2e:
+    name: Python SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-ruby: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-go-work-sync: 'false'
       - name: Install Python test dependencies
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: |
           source "$(poetry env info --path)/bin/activate"
           pip install pytest pytest-asyncio pytest-timeout
+      - name: Run Python SDK E2E tests
+        run: yarn nx run sdk-python:test:e2e
+
+  ruby-e2e:
+    name: Ruby SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-python: 'false'
+          install-poetry: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-poetry-install: 'false'
+          run-go-work-sync: 'false'
+      - name: Run Ruby SDK E2E tests
+        run: yarn nx run sdk-ruby:test:e2e
+
+  go-e2e:
+    name: Go SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-python: 'false'
+          install-poetry: 'false'
+          install-ruby: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-poetry-install: 'false'
+      - name: Run Go SDK E2E tests
+        run: yarn nx run sdk-go:test:e2e
+
+  java-e2e:
+    name: Java SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-python: 'false'
+          install-poetry: 'false'
+          install-ruby: 'false'
+          install-swag: 'false'
+          run-poetry-install: 'false'
+          run-go-work-sync: 'false'
       - name: Publish Java API clients to Maven local
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: |
           (cd api-client-java && ./gradlew publishToMavenLocal -x test)
           (cd toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
-      - name: Run SDK E2E tests
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
-        run: yarn test:e2e
+      - name: Run Java SDK E2E tests
+        run: yarn nx run sdk-java:test:e2e
+
+  typescript-runtime:
+    name: TypeScript SDK runtime compatibility
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          install-go: 'false'
+          install-python: 'false'
+          install-poetry: 'false'
+          install-ruby: 'false'
+          install-java: 'false'
+          install-swag: 'false'
+          run-poetry-install: 'false'
+          run-go-work-sync: 'false'
       - name: Install Bun
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: latest
       - name: Install Deno
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282
         with:
           deno-version: v2.x
       - name: Install Azure Functions Core Tools
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
       - name: Install Playwright Chromium
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: npx --yes playwright@1.48 install --with-deps chromium
       - name: Run TypeScript SDK runtime compatibility tests
-        if: steps.e2e-secret-check.outputs.run_e2e == 'true'
         run: yarn nx run sdk-typescript:test:runtime
