@@ -326,16 +326,14 @@ module Daytona
     #
     # @param env [Hash<String, String>, nil] Env vars to set in the daemon's process environment
     # @param unset [Array<String>, nil] Environment variable names to remove
-    # @return [Hash<String, String>] The resulting environment
+    # @return [void]
     # @raise [Daytona::Sdk::Error]
     #
     # @example
-    #   env = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
+    #   sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
     def update_env(env: nil, unset: nil)
-      # The generated client parses JSON with symbolize_names, so stringify the
-      # keys to honor the documented Hash<String, String> return type.
-      result = @server_api.update_env(DaytonaToolboxApiClient::UpdateEnvRequest.new(set: env, unset:))
-      result.transform_keys(&:to_s)
+      @server_api.update_env(DaytonaToolboxApiClient::UpdateEnvRequest.new(set: env, unset:))
+      nil
     rescue StandardError => e
       raise Sdk::Error, "Failed to update environment: #{e.message}"
     end

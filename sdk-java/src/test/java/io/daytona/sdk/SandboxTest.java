@@ -35,7 +35,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -249,35 +248,33 @@ class SandboxTest {
     }
 
     @Test
-    void updateEnvSendsSetAndUnsetAndReturnsEnvironment() {
+    void updateEnvSendsSetAndUnset() {
         TestSupport.setField(sandbox, "serverApi", serverApi);
-        Map<String, String> resulting = new HashMap<>();
-        resulting.put("FOO", "bar");
-        when(serverApi.updateEnv(any(UpdateEnvRequest.class))).thenReturn(resulting);
+        // The daemon responds with a status message, which updateEnv discards.
+        when(serverApi.updateEnv(any(UpdateEnvRequest.class)))
+                .thenReturn(Collections.singletonMap("message", "Environment updated successfully"));
 
-        Map<String, String> env = sandbox.updateEnv(Collections.singletonMap("FOO", "bar"), Collections.singletonList("BAZ"));
+        sandbox.updateEnv(Collections.singletonMap("FOO", "bar"), Collections.singletonList("BAZ"));
 
         ArgumentCaptor<UpdateEnvRequest> captor = ArgumentCaptor.forClass(UpdateEnvRequest.class);
         verify(serverApi).updateEnv(captor.capture());
         assertThat(captor.getValue().getSet()).containsExactly(entry("FOO", "bar"));
         assertThat(captor.getValue().getUnset()).containsExactly("BAZ");
         assertThat(captor.getValue().getUnsetValuePrefix()).isNull();
-        assertThat(env).containsExactly(entry("FOO", "bar"));
     }
 
     @Test
-    void updateEnvSingleArgLeavesUnsetEmptyAndReturnsEmptyMapForNullResponse() {
+    void updateEnvSingleArgLeavesUnsetEmpty() {
         TestSupport.setField(sandbox, "serverApi", serverApi);
         when(serverApi.updateEnv(any(UpdateEnvRequest.class))).thenReturn(null);
 
-        Map<String, String> env = sandbox.updateEnv(Collections.singletonMap("FOO", "bar"));
+        sandbox.updateEnv(Collections.singletonMap("FOO", "bar"));
 
         ArgumentCaptor<UpdateEnvRequest> captor = ArgumentCaptor.forClass(UpdateEnvRequest.class);
         verify(serverApi).updateEnv(captor.capture());
         assertThat(captor.getValue().getSet()).containsExactly(entry("FOO", "bar"));
         assertThat(captor.getValue().getUnset()).isEmpty();
         assertThat(captor.getValue().getUnsetValuePrefix()).isNull();
-        assertThat(env).isEmpty();
     }
 
     @Test

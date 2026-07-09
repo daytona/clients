@@ -792,20 +792,18 @@ export class Sandbox {
    * @param {Record<string, string>} env - Map of environment variable names to values to set.
    * @param {object} [options] - Optional settings.
    * @param {string[]} [options.unset] - Names of environment variables to remove before `env` is applied.
-   * @returns {Promise<Record<string, string>>} The resulting environment map of the Sandbox daemon.
+   * @returns {Promise<void>}
    *
    * @example
    * // Set a variable and remove another
-   * const env = await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
-   * console.log(env.NODE_ENV);
+   * await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
    */
   @WithInstrumentation()
-  public async updateEnv(env: Record<string, string>, options?: { unset?: string[] }): Promise<Record<string, string>> {
-    const response = await this.serverApi.updateEnv({
+  public async updateEnv(env: Record<string, string>, options?: { unset?: string[] }): Promise<void> {
+    await this.serverApi.updateEnv({
       set: env,
       unset: options?.unset,
     })
-    return response.data
   }
 
   /**

@@ -370,11 +370,10 @@ public class Sandbox {
      * processes keep their environment.
      *
      * @param env environment variables to set in the daemon's process environment
-     * @return the resulting environment map
      * @throws DaytonaException if the update fails
      */
-    public Map<String, String> updateEnv(Map<String, String> env) {
-        return updateEnv(env, null);
+    public void updateEnv(Map<String, String> env) {
+        updateEnv(env, null);
     }
 
     /**
@@ -385,15 +384,14 @@ public class Sandbox {
      *
      * @param env environment variables to set in the daemon's process environment; {@code null} to set none
      * @param unset environment variable names to remove; {@code null} to remove none
-     * @return the resulting environment map
      * @throws DaytonaException if the update fails
      */
-    public Map<String, String> updateEnv(Map<String, String> env, List<String> unset) {
+    public void updateEnv(Map<String, String> env, List<String> unset) {
         io.daytona.toolbox.client.model.UpdateEnvRequest request = new io.daytona.toolbox.client.model.UpdateEnvRequest();
         if (env != null) request.set(env);
         if (unset != null) request.unset(unset);
-        Map<String, String> response = ExceptionMapper.callToolbox(() -> serverApi.updateEnv(request));
-        return response == null ? new HashMap<String, String>() : response;
+        // The daemon responds with a status message, not the resulting environment.
+        ExceptionMapper.callToolbox(() -> serverApi.updateEnv(request));
     }
 
     /**

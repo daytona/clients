@@ -657,7 +657,7 @@ and PTYs inherit the change; already-running processes keep their existing envir
 
 **Returns**:
 
-- `Hash\<String, String\>` - The resulting environment
+- `void`
 
 **Raises**:
 
@@ -666,7 +666,7 @@ and PTYs inherit the change; already-running processes keep their existing envir
 **Examples:**
 
 ```ruby
-env = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
+sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
 
 ```
 

@@ -1047,10 +1047,9 @@ func (s *Sandbox) doUpdateSecrets(ctx context.Context, secrets map[string]string
 // variables in env and removing the names in unset.
 //
 // Newly spawned processes, sessions, and PTYs inherit the change;
-// already-running processes keep their existing environment. It returns the
-// resulting environment map.
-func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []string) (map[string]string, error) {
-	return withInstrumentation(ctx, s.otel, "Sandbox", "UpdateEnv", func(ctx context.Context) (map[string]string, error) {
+// already-running processes keep their existing environment.
+func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []string) error {
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "UpdateEnv", func(ctx context.Context) error {
 		req := toolbox.NewUpdateEnvRequest()
 		if env != nil {
 			req.SetSet(env)
@@ -1059,12 +1058,13 @@ func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []
 			req.SetUnset(unset)
 		}
 
-		result, httpResp, err := s.ToolboxClient.ServerAPI.UpdateEnv(ctx).Request(*req).Execute()
+		// The daemon responds with a status message, not the resulting environment.
+		_, httpResp, err := s.ToolboxClient.ServerAPI.UpdateEnv(ctx).Request(*req).Execute()
 		if err != nil {
-			return nil, errors.ConvertToolboxError(err, httpResp)
+			return errors.ConvertToolboxError(err, httpResp)
 		}
 
-		return result, nil
+		return nil
 	})
 }
 

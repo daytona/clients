@@ -644,15 +644,14 @@ func TestSandboxUpdateEnv(t *testing.T) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Contains(t, r.URL.Path, "/env")
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-		writeJSONResponse(t, w, http.StatusOK, map[string]string{"FOO": "bar"})
+		// The daemon responds with a status message, not the resulting environment.
+		writeJSONResponse(t, w, http.StatusOK, map[string]string{"message": "Environment updated successfully"})
 	}))
 	defer server.Close()
 
 	sandbox := newSandboxForToolboxTest(createTestToolboxClient(server), "sb", apiclient.SANDBOXSTATE_STARTED)
 
-	result, err := sandbox.UpdateEnv(context.Background(), map[string]string{"FOO": "bar"}, []string{"OLD_VAR"})
-	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"FOO": "bar"}, result)
+	require.NoError(t, sandbox.UpdateEnv(context.Background(), map[string]string{"FOO": "bar"}, []string{"OLD_VAR"}))
 
 	assert.Equal(t, map[string]any{"FOO": "bar"}, body["set"])
 	assert.Equal(t, []any{"OLD_VAR"}, body["unset"])

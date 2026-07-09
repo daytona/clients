@@ -765,7 +765,7 @@ console.log('Sandbox stopped successfully');
 ```ts
 updateEnv(env: Record<string, string>, options?: {
   unset: string[];
-}): Promise<Record<string, string>>
+}): Promise<void>
 ```
 
 Updates the Sandbox daemon's process environment.
@@ -783,14 +783,13 @@ processes keep their environment.
 
 **Returns**:
 
-- `Promise<Record<string, string>>` - The resulting environment map of the Sandbox daemon.
+- `Promise<void>`
 
 **Example:**
 
 ```ts
 // Set a variable and remove another
-const env = await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
-console.log(env.NODE_ENV);
+await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
 ```
 
 ***

@@ -514,7 +514,7 @@ await sandbox.update_secrets({})  # detach all
 @with_instrumentation()
 async def update_env(env: dict[str, str],
                      *,
-                     unset: list[str] | None = None) -> dict[str, str]
+                     unset: list[str] | None = None) -> None
 ```
 
 Updates the Sandbox daemon's process environment.
@@ -528,16 +528,10 @@ keep their environment.
 - `unset` _list[str] | None_ - Environment variable names to remove before `env` is applied.
   
 
-**Returns**:
-
-  dict[str, str]: The daemon's resulting environment map.
-  
-
 **Example**:
 
 ```python
-env = await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
-print(env)
+await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
 ```
 
 #### AsyncSandbox.get\_preview\_link

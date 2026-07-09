@@ -261,7 +261,7 @@ Returns current working directory path.
 
 #### updateEnv()
 ```java
-public Map<String, String> updateEnv(Map<String, String> env)
+public void updateEnv(Map<String, String> env)
 ```
 
 Updates the Sandbox daemon's process environment.
@@ -273,17 +273,13 @@ processes keep their environment.
 
 - `env` _Map\<String, String\>_ - environment variables to set in the daemon's process environment
 
-**Returns**:
-
-- `Map\<String, String\>` - the resulting environment map
-
 **Throws**:
 
 - `DaytonaException` - if the update fails
 
 #### updateEnv()
 ```java
-public Map<String, String> updateEnv(Map<String, String> env, List<String> unset)
+public void updateEnv(Map<String, String> env, List<String> unset)
 ```
 
 Updates the Sandbox daemon's process environment.
@@ -295,10 +291,6 @@ processes keep their environment.
 
 - `env` _Map\<String, String\>_ - environment variables to set in the daemon's process environment; `null` to set none
 - `unset` _List\<String\>_ - environment variable names to remove; `null` to remove none
-
-**Returns**:
-
-- `Map\<String, String\>` - the resulting environment map
 
 **Throws**:
 

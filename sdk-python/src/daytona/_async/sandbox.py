@@ -579,7 +579,7 @@ class AsyncSandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to update environment: ")
     @with_instrumentation()
-    async def update_env(self, env: dict[str, str], *, unset: list[str] | None = None) -> dict[str, str]:
+    async def update_env(self, env: dict[str, str], *, unset: list[str] | None = None) -> None:
         """Updates the Sandbox daemon's process environment.
 
         Newly spawned processes, sessions and PTYs inherit the change; already-running processes
@@ -589,17 +589,13 @@ class AsyncSandbox(SandboxDto):
             env (dict[str, str]): Environment variables to set.
             unset (list[str] | None): Environment variable names to remove before `env` is applied.
 
-        Returns:
-            dict[str, str]: The daemon's resulting environment map.
-
         Example:
             ```python
-            env = await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
-            print(env)
+            await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
             ```
         """
         request = UpdateEnvRequest(set=env, unset=unset)
-        return await self._server_api.update_env(request=request)
+        _ = await self._server_api.update_env(request=request)
 
     @intercept_errors(message_prefix="Failed to get preview link: ")
     @with_instrumentation()

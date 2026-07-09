@@ -154,11 +154,14 @@ class TestSandboxOperations:
 
     def test_update_env(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        sandbox._server_api = MagicMock(update_env=MagicMock(return_value={"A": "1"}))
+        # The daemon responds with a status message, which update_env discards.
+        sandbox._server_api = MagicMock(
+            update_env=MagicMock(return_value={"message": "Environment updated successfully"})
+        )
 
         result = sandbox.update_env({"A": "1"}, unset=["B"])
 
-        assert result == {"A": "1"}
+        assert result is None
         sandbox._server_api.update_env.assert_called_once()
         request = sandbox._server_api.update_env.call_args.kwargs["request"]
         assert request.set == {"A": "1"}

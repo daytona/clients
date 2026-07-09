@@ -257,15 +257,13 @@ describe('Sandbox', () => {
     expect(sandbox.env).toEqual({ FOO: 'placeholder-foo', BAR: 'placeholder-bar' })
   })
 
-  it('updates the daemon environment and returns the resulting env map', async () => {
+  it('updates the daemon environment', async () => {
     const { sandbox } = makeSandbox()
     const serverApi = (sandbox as unknown as { serverApi: { updateEnv: jest.Mock } }).serverApi
-    serverApi.updateEnv.mockResolvedValue(createApiResponse({ NODE_ENV: 'production', HOME: '/home/daytona' }))
+    // The daemon responds with a status message, not the resulting environment.
+    serverApi.updateEnv.mockResolvedValue(createApiResponse({ message: 'Environment updated successfully' }))
 
-    await expect(sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] })).resolves.toEqual({
-      NODE_ENV: 'production',
-      HOME: '/home/daytona',
-    })
+    await expect(sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] })).resolves.toBeUndefined()
 
     expect(serverApi.updateEnv).toHaveBeenCalledWith({ set: { NODE_ENV: 'production' }, unset: ['DEBUG'] })
   })
