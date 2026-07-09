@@ -5,4 +5,4 @@
 /.nx/workspace-data
 *.md
 
-libs/*api-client*/**
+*api-client*/**

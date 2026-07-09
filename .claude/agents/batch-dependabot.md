@@ -83,7 +83,7 @@ Pay special attention to these internal dependencies:
 
 If any dependency had a MAJOR version bump (e.g., buildkit 0.22 -> 0.28, nodemailer 7 -> 8):
 
-- Try building the affected app: `nix develop .#go --command bash -c "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./apps/<app>/..."`
+- Try building the affected Go module: `nix develop .#go --command bash -c "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cli/..."`
 - If it fails, inspect the error, read the new API, and fix the code
 - For TypeScript major bumps, check if corresponding `@types/*` packages need updating
 
@@ -103,8 +103,16 @@ This ensures all indirect dependencies are consistent across the monorepo.
 ### 3e. Verify builds
 
 ```bash
-# Go apps (cross-compile to avoid CGO issues on macOS)
-nix develop .#go --command bash -c "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./apps/runner/..."
+# Go modules (cross-compile to avoid CGO issues on macOS).
+# Build every workspace module so a bump is validated where it actually lands,
+# not just in cli.
+nix develop .#go --command bash -c '
+  set -e
+  for mod in api-client-go cli examples/go sdk-go toolbox-api-client-go; do
+    echo "→ building $mod"
+    (cd "$mod" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./...)
+  done
+'
 
 # Node apps
 nix develop .#node --command yarn install
