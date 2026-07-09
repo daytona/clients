@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from daytona.common.errors import DaytonaError, DaytonaValidationError
-from daytona_api_client import SandboxState
+from daytona_api_client import SandboxState, UpdateSandboxSecrets
 
 from .conftest import make_sandbox_dto
 
@@ -128,6 +128,42 @@ class TestSandboxOperations:
         mock_sandbox_api.get_port_preview_url.assert_called_once_with(sandbox.id, 3000)
         mock_sandbox_api.revoke_ssh_access.assert_called_once_with(sandbox.id, "token")
         mock_sandbox_api.update_last_activity.assert_called_once_with(sandbox.id)
+
+    def test_update_secrets(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.update_sandbox_secrets.return_value = make_sandbox_dto(env={"FOO": "placeholder"})
+
+        sandbox.update_secrets({"FOO": "foo-secret", "BAR": "bar"})
+
+        mock_sandbox_api.update_sandbox_secrets.assert_called_once()
+        sandbox_id, body = mock_sandbox_api.update_sandbox_secrets.call_args.args
+        assert sandbox_id == sandbox.id
+        assert isinstance(body, UpdateSandboxSecrets)
+        assert body.secrets == [{"FOO": "foo-secret"}, {"BAR": "bar"}]
+        assert sandbox.env == {"FOO": "placeholder"}
+
+    def test_update_secrets_empty_dict_detaches_all(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.update_sandbox_secrets.return_value = make_sandbox_dto(env={})
+
+        sandbox.update_secrets({})
+
+        mock_sandbox_api.update_sandbox_secrets.assert_called_once()
+        _, body = mock_sandbox_api.update_sandbox_secrets.call_args.args
+        assert body.secrets == []
+
+    def test_update_env(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        sandbox._server_api = MagicMock(update_env=MagicMock(return_value={"A": "1"}))
+
+        result = sandbox.update_env({"A": "1"}, unset=["B"])
+
+        assert result == {"A": "1"}
+        sandbox._server_api.update_env.assert_called_once()
+        request = sandbox._server_api.update_env.call_args.kwargs["request"]
+        assert request.set == {"A": "1"}
+        assert request.unset == ["B"]
+        assert request.unset_value_prefix is None
 
 
 class TestSandboxWaitForStart:

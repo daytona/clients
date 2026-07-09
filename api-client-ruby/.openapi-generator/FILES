@@ -206,6 +206,7 @@ lib/daytona_api_client/models/update_organization_region_quota.rb
 lib/daytona_api_client/models/update_organization_role.rb
 lib/daytona_api_client/models/update_region.rb
 lib/daytona_api_client/models/update_sandbox_network_settings.rb
+lib/daytona_api_client/models/update_sandbox_secrets.rb
 lib/daytona_api_client/models/update_sandbox_state_dto.rb
 lib/daytona_api_client/models/update_secret.rb
 lib/daytona_api_client/models/url.rb

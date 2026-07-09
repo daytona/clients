@@ -99,6 +99,7 @@ export * from './start-recording-request';
 export * from './status';
 export * from './stop-recording-request';
 export * from './system-metrics';
+export * from './update-env-request';
 export * from './user-home-dir-response';
 export * from './window-info';
 export * from './windows-response';

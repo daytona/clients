@@ -159,6 +159,7 @@ module Daytona
       computer_use_api = DaytonaToolboxApiClient::ComputerUseApi.new(create_authenticated_client.call)
       interpreter_api = DaytonaToolboxApiClient::InterpreterApi.new(create_authenticated_client.call)
       info_api = DaytonaToolboxApiClient::InfoApi.new(create_authenticated_client.call)
+      server_api = DaytonaToolboxApiClient::ServerApi.new(create_authenticated_client.call)
 
       @process = Process.new(
         sandbox_id: id,
@@ -178,6 +179,7 @@ module Daytona
       )
       @lsp_api = lsp_api
       @info_api = info_api
+      @server_api = server_api
     end
 
     # Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -240,6 +242,27 @@ module Daytona
       @domain_allow_list = data.domain_allow_list
     end
 
+    # Replaces the set of organization vault secrets mounted in the Sandbox. Pass an empty
+    # hash to detach all secrets. Rotated, attached or detached secrets take effect for
+    # outbound requests within seconds. New environment variables are only visible to
+    # processes spawned after the update; a Sandbox created without any secrets must be
+    # restarted for newly attached secrets to work.
+    #
+    # @param secrets [Hash<String, String>] Mapping of environment variable name to
+    #   organization vault secret name
+    # @return [void]
+    # @raise [Daytona::Sdk::Error]
+    #
+    # @example
+    #   sandbox.update_secrets({ 'API_KEY' => 'my-vault-secret' })
+    def update_secrets(secrets)
+      body = DaytonaApiClient::UpdateSandboxSecrets.new(
+        secrets: secrets.map { |env_var, secret_name| { env_var.to_s => secret_name.to_s } }
+      )
+      data = sandbox_api.update_sandbox_secrets(id, body)
+      process_response(data)
+    end
+
     # Sets the auto-stop interval for the Sandbox.
     # The Sandbox will automatically stop after being idle (no new events) for the specified interval.
     # Events include any state changes or interactions with the Sandbox through the SDK.
@@ -296,6 +319,22 @@ module Daytona
       @info_api.get_work_dir.dir
     rescue StandardError => e
       raise Sdk::Error, "Failed to get working directory path: #{e.message}"
+    end
+
+    # Updates the Sandbox daemon's process environment. Newly spawned processes, sessions
+    # and PTYs inherit the change; already-running processes keep their existing environment.
+    #
+    # @param env [Hash<String, String>, nil] Env vars to set in the daemon's process environment
+    # @param unset [Array<String>, nil] Environment variable names to remove
+    # @return [Hash<String, String>] The resulting environment
+    # @raise [Daytona::Sdk::Error]
+    #
+    # @example
+    #   env = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
+    def update_env(env: nil, unset: nil)
+      @server_api.update_env(DaytonaToolboxApiClient::UpdateEnvRequest.new(set: env, unset:))
+    rescue StandardError => e
+      raise Sdk::Error, "Failed to update environment: #{e.message}"
     end
 
     # Sets labels for the Sandbox.
@@ -570,7 +609,7 @@ module Daytona
     end
 
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=,
-               :update_network_settings,
+               :update_network_settings, :update_secrets, :update_env,
                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :labels=,
                :preview_url, :create_signed_preview_url, :expire_signed_preview_url,
                :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,

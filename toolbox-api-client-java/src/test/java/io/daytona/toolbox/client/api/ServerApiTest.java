@@ -15,6 +15,7 @@ package io.daytona.toolbox.client.api;
 
 import io.daytona.toolbox.client.ApiException;
 import io.daytona.toolbox.client.model.InitializeRequest;
+import io.daytona.toolbox.client.model.UpdateEnvRequest;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,20 @@ public class ServerApiTest {
     public void initializeTest() throws ApiException {
         InitializeRequest request = null;
         Map<String, String> response = api.initialize(request);
+        // TODO: test validations
+    }
+
+    /**
+     * Update process environment
+     *
+     * Update the daemon&#39;s process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateEnvTest() throws ApiException {
+        UpdateEnvRequest request = null;
+        Map<String, String> response = api.updateEnv(request);
         // TODO: test validations
     }
 

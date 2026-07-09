@@ -66,6 +66,11 @@ public class CreateOrganizationQuota {
   @javax.annotation.Nullable
   private BigDecimal totalDiskQuota;
 
+  public static final String SERIALIZED_NAME_TOTAL_GPU_QUOTA = "totalGpuQuota";
+  @SerializedName(SERIALIZED_NAME_TOTAL_GPU_QUOTA)
+  @javax.annotation.Nullable
+  private BigDecimal totalGpuQuota;
+
   public static final String SERIALIZED_NAME_MAX_CPU_PER_SANDBOX = "maxCpuPerSandbox";
   @SerializedName(SERIALIZED_NAME_MAX_CPU_PER_SANDBOX)
   @javax.annotation.Nullable
@@ -158,6 +163,25 @@ public class CreateOrganizationQuota {
 
   public void setTotalDiskQuota(@javax.annotation.Nullable BigDecimal totalDiskQuota) {
     this.totalDiskQuota = totalDiskQuota;
+  }
+
+
+  public CreateOrganizationQuota totalGpuQuota(@javax.annotation.Nullable BigDecimal totalGpuQuota) {
+    this.totalGpuQuota = totalGpuQuota;
+    return this;
+  }
+
+  /**
+   * Get totalGpuQuota
+   * @return totalGpuQuota
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getTotalGpuQuota() {
+    return totalGpuQuota;
+  }
+
+  public void setTotalGpuQuota(@javax.annotation.Nullable BigDecimal totalGpuQuota) {
+    this.totalGpuQuota = totalGpuQuota;
   }
 
 
@@ -351,6 +375,7 @@ public class CreateOrganizationQuota {
     return Objects.equals(this.totalCpuQuota, createOrganizationQuota.totalCpuQuota) &&
         Objects.equals(this.totalMemoryQuota, createOrganizationQuota.totalMemoryQuota) &&
         Objects.equals(this.totalDiskQuota, createOrganizationQuota.totalDiskQuota) &&
+        Objects.equals(this.totalGpuQuota, createOrganizationQuota.totalGpuQuota) &&
         Objects.equals(this.maxCpuPerSandbox, createOrganizationQuota.maxCpuPerSandbox) &&
         Objects.equals(this.maxMemoryPerSandbox, createOrganizationQuota.maxMemoryPerSandbox) &&
         Objects.equals(this.maxDiskPerSandbox, createOrganizationQuota.maxDiskPerSandbox) &&
@@ -363,7 +388,7 @@ public class CreateOrganizationQuota {
 
   @Override
   public int hashCode() {
-    return Objects.hash(totalCpuQuota, totalMemoryQuota, totalDiskQuota, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, snapshotQuota, maxSnapshotSize, volumeQuota, maxConcurrentSnapshotProcessing, additionalProperties);
+    return Objects.hash(totalCpuQuota, totalMemoryQuota, totalDiskQuota, totalGpuQuota, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, snapshotQuota, maxSnapshotSize, volumeQuota, maxConcurrentSnapshotProcessing, additionalProperties);
   }
 
   @Override
@@ -373,6 +398,7 @@ public class CreateOrganizationQuota {
     sb.append("    totalCpuQuota: ").append(toIndentedString(totalCpuQuota)).append("\n");
     sb.append("    totalMemoryQuota: ").append(toIndentedString(totalMemoryQuota)).append("\n");
     sb.append("    totalDiskQuota: ").append(toIndentedString(totalDiskQuota)).append("\n");
+    sb.append("    totalGpuQuota: ").append(toIndentedString(totalGpuQuota)).append("\n");
     sb.append("    maxCpuPerSandbox: ").append(toIndentedString(maxCpuPerSandbox)).append("\n");
     sb.append("    maxMemoryPerSandbox: ").append(toIndentedString(maxMemoryPerSandbox)).append("\n");
     sb.append("    maxDiskPerSandbox: ").append(toIndentedString(maxDiskPerSandbox)).append("\n");
@@ -399,7 +425,7 @@ public class CreateOrganizationQuota {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "maxConcurrentSnapshotProcessing"));
+    openapiFields = new HashSet<String>(Arrays.asList("totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "maxConcurrentSnapshotProcessing"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

@@ -23,6 +23,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
 import type { InitializeRequest } from '../models';
+// @ts-ignore
+import type { UpdateEnvRequest } from '../models';
 /**
  * ServerApi - axios parameter creator
  */
@@ -39,6 +41,41 @@ export const ServerApiAxiosParamCreator = function (configuration?: Configuratio
             // verify required parameter 'request' is not null or undefined
             assertParamExists('initialize', 'request', request)
             const localVarPath = `/init`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Update the daemon\'s process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+         * @summary Update process environment
+         * @param {UpdateEnvRequest} request Environment update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateEnv: async (request: UpdateEnvRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('updateEnv', 'request', request)
+            const localVarPath = `/env`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -85,6 +122,19 @@ export const ServerApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ServerApi.initialize']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Update the daemon\'s process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+         * @summary Update process environment
+         * @param {UpdateEnvRequest} request Environment update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateEnv(request: UpdateEnvRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateEnv(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServerApi.updateEnv']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -104,6 +154,16 @@ export const ServerApiFactory = function (configuration?: Configuration, basePat
         initialize(request: InitializeRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
             return localVarFp.initialize(request, options).then((request) => request(axios, basePath));
         },
+        /**
+         * Update the daemon\'s process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+         * @summary Update process environment
+         * @param {UpdateEnvRequest} request Environment update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateEnv(request: UpdateEnvRequest, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.updateEnv(request, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -120,6 +180,17 @@ export class ServerApi extends BaseAPI {
      */
     public initialize(request: InitializeRequest, options?: RawAxiosRequestConfig) {
         return ServerApiFp(this.configuration).initialize(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Update the daemon\'s process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+     * @summary Update process environment
+     * @param {UpdateEnvRequest} request Environment update request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public updateEnv(request: UpdateEnvRequest, options?: RawAxiosRequestConfig) {
+        return ServerApiFp(this.configuration).updateEnv(request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

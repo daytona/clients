@@ -23,6 +23,7 @@ type CreateOrganizationQuota struct {
 	TotalCpuQuota *float32 `json:"totalCpuQuota,omitempty"`
 	TotalMemoryQuota *float32 `json:"totalMemoryQuota,omitempty"`
 	TotalDiskQuota *float32 `json:"totalDiskQuota,omitempty"`
+	TotalGpuQuota *float32 `json:"totalGpuQuota,omitempty"`
 	MaxCpuPerSandbox *float32 `json:"maxCpuPerSandbox,omitempty"`
 	MaxMemoryPerSandbox *float32 `json:"maxMemoryPerSandbox,omitempty"`
 	MaxDiskPerSandbox *float32 `json:"maxDiskPerSandbox,omitempty"`
@@ -147,6 +148,38 @@ func (o *CreateOrganizationQuota) HasTotalDiskQuota() bool {
 // SetTotalDiskQuota gets a reference to the given float32 and assigns it to the TotalDiskQuota field.
 func (o *CreateOrganizationQuota) SetTotalDiskQuota(v float32) {
 	o.TotalDiskQuota = &v
+}
+
+// GetTotalGpuQuota returns the TotalGpuQuota field value if set, zero value otherwise.
+func (o *CreateOrganizationQuota) GetTotalGpuQuota() float32 {
+	if o == nil || IsNil(o.TotalGpuQuota) {
+		var ret float32
+		return ret
+	}
+	return *o.TotalGpuQuota
+}
+
+// GetTotalGpuQuotaOk returns a tuple with the TotalGpuQuota field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateOrganizationQuota) GetTotalGpuQuotaOk() (*float32, bool) {
+	if o == nil || IsNil(o.TotalGpuQuota) {
+		return nil, false
+	}
+	return o.TotalGpuQuota, true
+}
+
+// HasTotalGpuQuota returns a boolean if a field has been set.
+func (o *CreateOrganizationQuota) HasTotalGpuQuota() bool {
+	if o != nil && !IsNil(o.TotalGpuQuota) {
+		return true
+	}
+
+	return false
+}
+
+// SetTotalGpuQuota gets a reference to the given float32 and assigns it to the TotalGpuQuota field.
+func (o *CreateOrganizationQuota) SetTotalGpuQuota(v float32) {
+	o.TotalGpuQuota = &v
 }
 
 // GetMaxCpuPerSandbox returns the MaxCpuPerSandbox field value if set, zero value otherwise.
@@ -392,6 +425,9 @@ func (o CreateOrganizationQuota) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.TotalDiskQuota) {
 		toSerialize["totalDiskQuota"] = o.TotalDiskQuota
 	}
+	if !IsNil(o.TotalGpuQuota) {
+		toSerialize["totalGpuQuota"] = o.TotalGpuQuota
+	}
 	if !IsNil(o.MaxCpuPerSandbox) {
 		toSerialize["maxCpuPerSandbox"] = o.MaxCpuPerSandbox
 	}
@@ -438,6 +474,7 @@ func (o *CreateOrganizationQuota) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "totalCpuQuota")
 		delete(additionalProperties, "totalMemoryQuota")
 		delete(additionalProperties, "totalDiskQuota")
+		delete(additionalProperties, "totalGpuQuota")
 		delete(additionalProperties, "maxCpuPerSandbox")
 		delete(additionalProperties, "maxMemoryPerSandbox")
 		delete(additionalProperties, "maxDiskPerSandbox")

@@ -1002,6 +1002,67 @@ func (s *Sandbox) doUpdateNetworkSettings(ctx context.Context, settings apiclien
 	return nil
 }
 
+// UpdateSecrets replaces the set of vault secrets mounted in this sandbox.
+//
+// Each key is an environment variable name and each value is the name of an
+// existing organization secret (see the Secrets field on
+// [types.SandboxBaseParams]). Pass an empty map to detach all secrets.
+//
+// Attached, detached, and rotated secrets take effect for outbound requests
+// within seconds. New environment variables only become visible to processes
+// spawned after the update, and a sandbox created without any secrets must be
+// restarted before newly attached secrets work.
+func (s *Sandbox) UpdateSecrets(ctx context.Context, secrets map[string]string) error {
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "UpdateSecrets", func(ctx context.Context) error {
+		return s.doUpdateSecrets(ctx, secrets)
+	})
+}
+
+func (s *Sandbox) doUpdateSecrets(ctx context.Context, secrets map[string]string) error {
+	// Convert the SDK secrets map (env var name -> secret name) to the API
+	// shape: an array of single-key maps. The wire field is required and an
+	// empty array detaches all secrets, so always send a non-nil slice.
+	apiSecrets := make([]map[string]string, 0, len(secrets))
+	for envVar, secretName := range secrets {
+		apiSecrets = append(apiSecrets, map[string]string{envVar: secretName})
+	}
+
+	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.UpdateSandboxSecrets(s.client.getAuthContext(ctx), s.ID).
+		UpdateSandboxSecrets(apiclient.UpdateSandboxSecrets{Secrets: apiSecrets}).
+		Execute()
+	if err != nil {
+		return errors.ConvertAPIError(err, httpResp)
+	}
+
+	s.populateFromDTO(sandboxResp)
+	return nil
+}
+
+// UpdateEnv updates the sandbox daemon's process environment, setting the
+// variables in env and removing the names in unset.
+//
+// Newly spawned processes, sessions, and PTYs inherit the change;
+// already-running processes keep their existing environment. It returns the
+// resulting environment map.
+func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []string) (map[string]string, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "UpdateEnv", func(ctx context.Context) (map[string]string, error) {
+		req := toolbox.NewUpdateEnvRequest()
+		if env != nil {
+			req.SetSet(env)
+		}
+		if len(unset) > 0 {
+			req.SetUnset(unset)
+		}
+
+		result, httpResp, err := s.ToolboxClient.ServerAPI.UpdateEnv(ctx).Request(*req).Execute()
+		if err != nil {
+			return nil, errors.ConvertToolboxError(err, httpResp)
+		}
+
+		return result, nil
+	})
+}
+
 // ExperimentalFork forks the sandbox with a default timeout of 60 seconds,
 // creating a new sandbox with an identical filesystem.
 //

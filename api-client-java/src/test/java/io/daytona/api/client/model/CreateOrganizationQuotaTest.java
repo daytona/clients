@@ -63,6 +63,14 @@ public class CreateOrganizationQuotaTest {
     }
 
     /**
+     * Test the property 'totalGpuQuota'
+     */
+    @Test
+    public void totalGpuQuotaTest() {
+        // TODO: test totalGpuQuota
+    }
+
+    /**
      * Test the property 'maxCpuPerSandbox'
      */
     @Test

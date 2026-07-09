@@ -55,6 +55,7 @@ export const ApiKeyResponsePermissionsEnum = {
     READ_AUDIT_LOGS: 'read:audit_logs',
     MANAGE_API_KEYS: 'manage:api_keys',
     MANAGE_SECRETS: 'manage:secrets',
+    READ_LIMITS: 'read:limits',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 

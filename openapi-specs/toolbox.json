@@ -1217,6 +1217,37 @@
         }
       }
     },
+    "/env": {
+      "post": {
+        "description": "Update the daemon's process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.",
+        "produces": ["application/json"],
+        "tags": ["server"],
+        "summary": "Update process environment",
+        "operationId": "UpdateEnv",
+        "parameters": [
+          {
+            "description": "Environment update request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateEnvRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
     "/files": {
       "get": {
         "description": "List files and directories in the specified path. Use the optional depth\nparameter to list recursively: depth=1 (default) lists the directory's\nentries, depth=2 also includes their children, and so on.",
@@ -4833,6 +4864,29 @@
         "timestampUnix": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "UpdateEnvRequest": {
+      "type": "object",
+      "properties": {
+        "set": {
+          "description": "Set maps env var names to values applied to the daemon's process env, so\nprocesses spawned after the call (exec, sessions, PTYs) inherit them.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "unset": {
+          "description": "Unset lists env var names to remove before Set is applied.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unsetValuePrefix": {
+          "description": "UnsetValuePrefix removes every env var whose value has this prefix and\nwhose name is not a key of Set, before Set is applied. Used to reconcile\nsecret placeholder vars without the caller knowing the daemon's env.",
+          "type": "string"
         }
       }
     },

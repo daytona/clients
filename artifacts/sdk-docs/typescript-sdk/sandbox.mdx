@@ -760,6 +760,41 @@ console.log('Sandbox stopped successfully');
 
 ***
 
+#### updateEnv()
+
+```ts
+updateEnv(env: Record<string, string>, options?: {
+  unset: string[];
+}): Promise<Record<string, string>>
+```
+
+Updates the Sandbox daemon's process environment.
+
+Variables in `env` are set (added or overwritten) and variables listed in `options.unset`
+are removed. Newly spawned processes, sessions and PTYs inherit the change; already-running
+processes keep their environment.
+
+**Parameters**:
+
+- `env` _Record\<string, string\>_ - Map of environment variable names to values to set.
+- `options?` _Optional settings._
+- `unset?` _string\[\]_ - Names of environment variables to remove before `env` is applied.
+
+
+**Returns**:
+
+- `Promise<Record<string, string>>` - The resulting environment map of the Sandbox daemon.
+
+**Example:**
+
+```ts
+// Set a variable and remove another
+const env = await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
+console.log(env.NODE_ENV);
+```
+
+***
+
 #### updateNetworkSettings()
 
 ```ts
@@ -792,6 +827,44 @@ await sandbox.updateNetworkSettings({ networkBlockAll: true });
 await sandbox.updateNetworkSettings({ networkBlockAll: false });
 // Allow only specific domains
 await sandbox.updateNetworkSettings({ domainAllowList: 'example.com,*.daytona.io' });
+```
+
+***
+
+#### updateSecrets()
+
+```ts
+updateSecrets(secrets: Record<string, string>): Promise<void>
+```
+
+Replaces the set of vault secrets mounted in the Sandbox.
+
+Each key is an environment variable name and each value is the name of an existing
+organization Secret to mount under that name. The provided map replaces the previously
+mounted set — pass an empty object to detach all secrets.
+
+Attached, detached, or rotated secrets take effect for outbound requests within seconds.
+However, newly attached env vars only become visible to processes spawned after the update;
+already-running processes keep their environment. A Sandbox created without any secrets
+must be restarted for newly attached secrets to work.
+
+**Parameters**:
+
+- `secrets` _Record\<string, string\>_ - Map of environment variable name to the name of an
+    existing organization Secret. Every referenced Secret name must already exist in the organization.
+
+
+**Returns**:
+
+- `Promise<void>`
+
+**Example:**
+
+```ts
+// Mount two secrets
+await sandbox.updateSecrets({ API_KEY: 'my-api-key', DB_PASSWORD: 'prod-db-password' });
+// Detach all secrets
+await sandbox.updateSecrets({});
 ```
 
 ***

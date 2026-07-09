@@ -12,9 +12,11 @@ import io.daytona.api.client.model.SandboxListItem;
 import io.daytona.api.client.model.SandboxVolume;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
+import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,7 @@ public class Sandbox {
     private final DaytonaConfig config;
     private final io.daytona.toolbox.client.ApiClient toolboxApiClient;
     private final io.daytona.toolbox.client.api.InfoApi infoApi;
+    private final io.daytona.toolbox.client.api.ServerApi serverApi;
     private final String apiKey;
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
@@ -86,6 +89,7 @@ public class Sandbox {
         populateFromDTO(data);
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
+        this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -100,6 +104,7 @@ public class Sandbox {
         populateFromDTO(data);
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
+        this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -313,6 +318,30 @@ public class Sandbox {
     }
 
     /**
+     * Replaces the set of vault secrets mounted in this Sandbox.
+     *
+     * <p>Each key is an environment variable name and each value is the name of an existing
+     * organization Secret. Pass an empty map to detach all secrets. Attached, detached, and
+     * rotated secrets take effect for outbound requests within seconds. New environment
+     * variables are only visible to processes spawned after the update; a Sandbox created
+     * without secrets must be restarted for newly attached secrets to work.
+     *
+     * @param secrets map of environment variable name to organization Secret name
+     * @throws DaytonaException if the update fails
+     */
+    public void updateSecrets(Map<String, String> secrets) {
+        List<Map<String, String>> wireList = new ArrayList<Map<String, String>>();
+        for (Map.Entry<String, String> entry : secrets.entrySet()) {
+            wireList.add(Collections.singletonMap(entry.getKey(), entry.getValue()));
+        }
+        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(
+                () -> sandboxApi.updateSandboxSecrets(id, new UpdateSandboxSecrets().secrets(wireList), null));
+        if (response != null) {
+            populateFromDTO(response);
+        }
+    }
+
+    /**
      * Returns home directory path for Sandbox user.
      *
      * @return absolute home directory path
@@ -332,6 +361,39 @@ public class Sandbox {
     public String getWorkDir() {
         io.daytona.toolbox.client.model.WorkDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getWorkDir());
         return value == null ? "" : asString(value.getDir());
+    }
+
+    /**
+     * Updates the Sandbox daemon's process environment.
+     *
+     * <p>Newly spawned processes, sessions, and PTYs inherit the change; already-running
+     * processes keep their environment.
+     *
+     * @param env environment variables to set in the daemon's process environment
+     * @return the resulting environment map
+     * @throws DaytonaException if the update fails
+     */
+    public Map<String, String> updateEnv(Map<String, String> env) {
+        return updateEnv(env, null);
+    }
+
+    /**
+     * Updates the Sandbox daemon's process environment.
+     *
+     * <p>Newly spawned processes, sessions, and PTYs inherit the change; already-running
+     * processes keep their environment.
+     *
+     * @param env environment variables to set in the daemon's process environment; {@code null} to set none
+     * @param unset environment variable names to remove; {@code null} to remove none
+     * @return the resulting environment map
+     * @throws DaytonaException if the update fails
+     */
+    public Map<String, String> updateEnv(Map<String, String> env, List<String> unset) {
+        io.daytona.toolbox.client.model.UpdateEnvRequest request = new io.daytona.toolbox.client.model.UpdateEnvRequest();
+        if (env != null) request.set(env);
+        if (unset != null) request.unset(unset);
+        Map<String, String> response = ExceptionMapper.callToolbox(() -> serverApi.updateEnv(request));
+        return response == null ? new HashMap<String, String>() : response;
     }
 
     /**

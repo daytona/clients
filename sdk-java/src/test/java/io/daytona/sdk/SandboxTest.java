@@ -9,6 +9,7 @@ import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.ToolboxProxyUrl;
+import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaBadRequestException;
 import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
@@ -17,6 +18,8 @@ import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaValidationException;
 import io.daytona.toolbox.client.api.InfoApi;
+import io.daytona.toolbox.client.api.ServerApi;
+import io.daytona.toolbox.client.model.UpdateEnvRequest;
 import io.daytona.toolbox.client.model.UserHomeDirResponse;
 import io.daytona.toolbox.client.model.WorkDirResponse;
 import okhttp3.Call;
@@ -38,6 +41,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -52,6 +56,9 @@ class SandboxTest {
 
     @Mock
     private InfoApi infoApi;
+
+    @Mock
+    private ServerApi serverApi;
 
     private Sandbox sandbox;
 
@@ -213,6 +220,64 @@ class SandboxTest {
         assertThat(sandbox.getAutoStopInterval()).isEqualTo(1);
         assertThat(sandbox.getAutoArchiveInterval()).isEqualTo(2);
         assertThat(sandbox.getAutoDeleteInterval()).isEqualTo(3);
+    }
+
+    @Test
+    void updateSecretsSendsSingletonMapListAndUpdatesLocalState() {
+        io.daytona.api.client.model.Sandbox refreshed = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        refreshed.setLabels(Collections.singletonMap("team", "sdk"));
+        when(sandboxApi.updateSandboxSecrets(eq("sb-1"), any(UpdateSandboxSecrets.class), isNull())).thenReturn(refreshed);
+
+        sandbox.updateSecrets(Collections.singletonMap("FOO", "foo-secret"));
+
+        ArgumentCaptor<UpdateSandboxSecrets> captor = ArgumentCaptor.forClass(UpdateSandboxSecrets.class);
+        verify(sandboxApi).updateSandboxSecrets(eq("sb-1"), captor.capture(), isNull());
+        assertThat(captor.getValue().getSecrets()).containsExactly(Collections.singletonMap("FOO", "foo-secret"));
+        assertThat(sandbox.getLabels()).containsEntry("team", "sdk");
+    }
+
+    @Test
+    void updateSecretsWithEmptyMapSendsEmptyListAndIgnoresNullResponse() {
+        when(sandboxApi.updateSandboxSecrets(eq("sb-1"), any(UpdateSandboxSecrets.class), isNull())).thenReturn(null);
+
+        sandbox.updateSecrets(Collections.<String, String>emptyMap());
+
+        ArgumentCaptor<UpdateSandboxSecrets> captor = ArgumentCaptor.forClass(UpdateSandboxSecrets.class);
+        verify(sandboxApi).updateSandboxSecrets(eq("sb-1"), captor.capture(), isNull());
+        assertThat(captor.getValue().getSecrets()).isEmpty();
+        assertThat(sandbox.getName()).isEqualTo("sandbox-sb-1");
+    }
+
+    @Test
+    void updateEnvSendsSetAndUnsetAndReturnsEnvironment() {
+        TestSupport.setField(sandbox, "serverApi", serverApi);
+        Map<String, String> resulting = new HashMap<>();
+        resulting.put("FOO", "bar");
+        when(serverApi.updateEnv(any(UpdateEnvRequest.class))).thenReturn(resulting);
+
+        Map<String, String> env = sandbox.updateEnv(Collections.singletonMap("FOO", "bar"), Collections.singletonList("BAZ"));
+
+        ArgumentCaptor<UpdateEnvRequest> captor = ArgumentCaptor.forClass(UpdateEnvRequest.class);
+        verify(serverApi).updateEnv(captor.capture());
+        assertThat(captor.getValue().getSet()).containsExactly(entry("FOO", "bar"));
+        assertThat(captor.getValue().getUnset()).containsExactly("BAZ");
+        assertThat(captor.getValue().getUnsetValuePrefix()).isNull();
+        assertThat(env).containsExactly(entry("FOO", "bar"));
+    }
+
+    @Test
+    void updateEnvSingleArgLeavesUnsetEmptyAndReturnsEmptyMapForNullResponse() {
+        TestSupport.setField(sandbox, "serverApi", serverApi);
+        when(serverApi.updateEnv(any(UpdateEnvRequest.class))).thenReturn(null);
+
+        Map<String, String> env = sandbox.updateEnv(Collections.singletonMap("FOO", "bar"));
+
+        ArgumentCaptor<UpdateEnvRequest> captor = ArgumentCaptor.forClass(UpdateEnvRequest.class);
+        verify(serverApi).updateEnv(captor.capture());
+        assertThat(captor.getValue().getSet()).containsExactly(entry("FOO", "bar"));
+        assertThat(captor.getValue().getUnset()).isEmpty();
+        assertThat(captor.getValue().getUnsetValuePrefix()).isNull();
+        assertThat(env).isEmpty();
     }
 
     @Test

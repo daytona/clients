@@ -21,6 +21,8 @@ module DaytonaApiClient
 
     attr_accessor :total_disk_quota
 
+    attr_accessor :total_gpu_quota
+
     attr_accessor :max_cpu_per_sandbox
 
     attr_accessor :max_memory_per_sandbox
@@ -42,6 +44,7 @@ module DaytonaApiClient
         :'total_cpu_quota' => :'totalCpuQuota',
         :'total_memory_quota' => :'totalMemoryQuota',
         :'total_disk_quota' => :'totalDiskQuota',
+        :'total_gpu_quota' => :'totalGpuQuota',
         :'max_cpu_per_sandbox' => :'maxCpuPerSandbox',
         :'max_memory_per_sandbox' => :'maxMemoryPerSandbox',
         :'max_disk_per_sandbox' => :'maxDiskPerSandbox',
@@ -68,6 +71,7 @@ module DaytonaApiClient
         :'total_cpu_quota' => :'Float',
         :'total_memory_quota' => :'Float',
         :'total_disk_quota' => :'Float',
+        :'total_gpu_quota' => :'Float',
         :'max_cpu_per_sandbox' => :'Float',
         :'max_memory_per_sandbox' => :'Float',
         :'max_disk_per_sandbox' => :'Float',
@@ -110,6 +114,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'total_disk_quota')
         self.total_disk_quota = attributes[:'total_disk_quota']
+      end
+
+      if attributes.key?(:'total_gpu_quota')
+        self.total_gpu_quota = attributes[:'total_gpu_quota']
       end
 
       if attributes.key?(:'max_cpu_per_sandbox')
@@ -164,6 +172,7 @@ module DaytonaApiClient
           total_cpu_quota == o.total_cpu_quota &&
           total_memory_quota == o.total_memory_quota &&
           total_disk_quota == o.total_disk_quota &&
+          total_gpu_quota == o.total_gpu_quota &&
           max_cpu_per_sandbox == o.max_cpu_per_sandbox &&
           max_memory_per_sandbox == o.max_memory_per_sandbox &&
           max_disk_per_sandbox == o.max_disk_per_sandbox &&
@@ -182,7 +191,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [total_cpu_quota, total_memory_quota, total_disk_quota, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, snapshot_quota, max_snapshot_size, volume_quota, max_concurrent_snapshot_processing].hash
+      [total_cpu_quota, total_memory_quota, total_disk_quota, total_gpu_quota, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, snapshot_quota, max_snapshot_size, volume_quota, max_concurrent_snapshot_processing].hash
     end
 
     # Builds the object from hash

@@ -21,6 +21,7 @@ from daytona_api_client import (
     SshAccessDto,
     SshAccessValidationDto,
     UpdateSandboxNetworkSettings,
+    UpdateSandboxSecrets,
 )
 from daytona_toolbox_api_client import (
     ApiClient,
@@ -31,6 +32,8 @@ from daytona_toolbox_api_client import (
     InterpreterApi,
     LspApi,
     ProcessApi,
+    ServerApi,
+    UpdateEnvRequest,
 )
 
 from .._utils.errors import intercept_errors
@@ -148,6 +151,7 @@ class Sandbox(SandboxDto):
             http_client=http_client,
         )
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
+        self._server_api: ServerApi = ServerApi(self._toolbox_api)
 
     @property
     def fs(self) -> FileSystem:
@@ -563,6 +567,53 @@ class Sandbox(SandboxDto):
         self.network_block_all = updated.network_block_all
         self.network_allow_list = updated.network_allow_list
         self.domain_allow_list = updated.domain_allow_list
+
+    @intercept_errors(message_prefix="Failed to update secrets: ")
+    @with_instrumentation()
+    def update_secrets(self, secrets: dict[str, str]) -> None:
+        """Updates the set of vault secrets mounted in the Sandbox, replacing the previously mounted set.
+
+        Attached, detached and rotated secrets take effect for outbound requests within seconds.
+        New environment variables only become visible to processes spawned after the update, and a
+        Sandbox created without any secrets must be restarted for newly attached secrets to work.
+
+        Args:
+            secrets (dict[str, str]): Map of environment variable name to the name of an existing
+                organization Secret. Pass an empty dict to detach all secrets.
+
+        Example:
+            ```python
+            sandbox.update_secrets({"ANTHROPIC_API_KEY": "anthropic-prod"})
+            sandbox.update_secrets({})  # detach all
+            ```
+        """
+        body = UpdateSandboxSecrets(secrets=[{env_var: secret_name} for env_var, secret_name in secrets.items()])
+        updated = self._sandbox_api.update_sandbox_secrets(self.id, body)
+        self.__process_sandbox_dto(updated)
+
+    @intercept_errors(message_prefix="Failed to update environment: ")
+    @with_instrumentation()
+    def update_env(self, env: dict[str, str], *, unset: list[str] | None = None) -> dict[str, str]:
+        """Updates the Sandbox daemon's process environment.
+
+        Newly spawned processes, sessions and PTYs inherit the change; already-running processes
+        keep their environment.
+
+        Args:
+            env (dict[str, str]): Environment variables to set.
+            unset (list[str] | None): Environment variable names to remove before `env` is applied.
+
+        Returns:
+            dict[str, str]: The daemon's resulting environment map.
+
+        Example:
+            ```python
+            env = sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
+            print(env)
+            ```
+        """
+        request = UpdateEnvRequest(set=env, unset=unset)
+        return self._server_api.update_env(request=request)
 
     @intercept_errors(message_prefix="Failed to get preview link: ")
     @with_instrumentation()
