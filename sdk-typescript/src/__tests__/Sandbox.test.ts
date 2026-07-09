@@ -59,6 +59,7 @@ const baseDto: SandboxDto = {
 
 const makeSandbox = (
   overrides: Partial<SandboxDto> = {},
+  subscribeReturns = 'sub-1',
 ): { sandbox: import('../Sandbox').Sandbox; sandboxApi: Record<string, jest.Mock> } => {
   const { Sandbox } = require('../Sandbox') as typeof import('../Sandbox')
   const sandboxApi = {
@@ -85,7 +86,7 @@ const makeSandbox = (
     updateSandboxSecrets: jest.fn(),
   }
   const subscriptionManager = {
-    subscribe: jest.fn(() => 'sub-1'),
+    subscribe: jest.fn(() => subscribeReturns),
     refresh: jest.fn(() => true),
     unsubscribe: jest.fn(),
   }
@@ -364,6 +365,37 @@ describe('Sandbox', () => {
       ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('stopped')
     })
     await sandbox.waitUntilStopped(5)
+  })
+
+  it('polling mode (no event subscription) polls with a ~100ms initial backoff', async () => {
+    const { sandbox } = makeSandbox({ state: 'starting' }, '')
+    const times: number[] = []
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      times.push(Date.now())
+      if (times.length >= 3) {
+        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+      }
+    })
+
+    const start = Date.now()
+    await sandbox.waitUntilStarted(5)
+
+    expect(times.length).toBeGreaterThanOrEqual(3)
+    expect(times[0] - start).toBeLessThan(400)
+  })
+
+  it('event-streaming mode polls at the ~1s safety-net cadence', async () => {
+    const { sandbox } = makeSandbox({ state: 'starting' }, 'sub-1')
+    const times: number[] = []
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      times.push(Date.now())
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+    })
+
+    const start = Date.now()
+    await sandbox.waitUntilStarted(5)
+
+    expect(times[0] - start).toBeGreaterThan(800)
   })
 
   it('exposes user/work directories and creates LSP server', async () => {

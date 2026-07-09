@@ -1113,11 +1113,12 @@ class Sandbox(SandboxDto):
                     return
                 self._sub_id = None
 
-            self._sub_id = self._subscription_manager.subscribe(
+            subscription_id = self._subscription_manager.subscribe(
                 self.id,
                 self._handle_event,
                 events=["sandbox.state.updated", "sandbox.created"],
             )
+            self._sub_id = subscription_id or None
 
     def _handle_event(self, event_name: str, data: Any) -> None:
         if not isinstance(data, dict):
@@ -1174,6 +1175,9 @@ class Sandbox(SandboxDto):
         if self.state in error_states:
             raise DaytonaError(f"Sandbox {self.id} is in error state: {self.state}, error reason: {self.error_reason}")
 
+        subscribed = self._sub_id is not None
+        poll_interval = 1.0 if subscribed else 0.1
+        poll_start = time.monotonic()
         state_resolved = threading.Event()
         resolve_lock = threading.Lock()
         result_state: SandboxState | None = None
@@ -1196,9 +1200,7 @@ class Sandbox(SandboxDto):
             _waiter(self.state)
 
             while not state_resolved.is_set():
-                # Wait for event or poll interval, whichever comes first
-                # (timeout is handled by outer @with_timeout decorator)
-                is_set = state_resolved.wait(timeout=1)
+                is_set = state_resolved.wait(timeout=poll_interval)
 
                 if is_set:
                     break
@@ -1207,6 +1209,9 @@ class Sandbox(SandboxDto):
                     self.__refresh_data_safe()
                 else:
                     self.refresh_data()
+
+                if subscribed or time.monotonic() - poll_start > 5.0:
+                    poll_interval = min(poll_interval * 1.1, 1.0)
 
             if result_state in error_states:
                 raise DaytonaError(

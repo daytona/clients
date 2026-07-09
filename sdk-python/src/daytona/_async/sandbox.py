@@ -1127,11 +1127,12 @@ class AsyncSandbox(SandboxDto):
                 return
             self._sub_id = None
 
-        self._sub_id = self._subscription_manager.subscribe(
+        subscription_id = self._subscription_manager.subscribe(
             self.id,
             self._handle_event,
             events=["sandbox.state.updated", "sandbox.created"],
         )
+        self._sub_id = subscription_id or None
 
     def _handle_event(self, event_name: str, data: Any) -> None:
         if not isinstance(data, dict):
@@ -1186,6 +1187,10 @@ class AsyncSandbox(SandboxDto):
         if self.state in error_states:
             raise DaytonaError(f"Sandbox {self.id} is in error state: {self.state}, error reason: {self.error_reason}")
 
+        subscribed = self._sub_id is not None
+        poll_interval = 1.0 if subscribed else 0.1
+        loop = asyncio.get_running_loop()
+        poll_start = loop.time()
         state_resolved = asyncio.Event()
         result_state: SandboxState | None = None
 
@@ -1202,10 +1207,9 @@ class AsyncSandbox(SandboxDto):
         try:
             _waiter(self.state)
 
-            # Poll periodically as safety net for missed WebSocket events
             while not state_resolved.is_set():
                 try:
-                    _ = await asyncio.wait_for(state_resolved.wait(), timeout=1)
+                    _ = await asyncio.wait_for(state_resolved.wait(), timeout=poll_interval)
                     break
                 except asyncio.TimeoutError:
                     pass  # Ignore timeout error and fetch sandbox
@@ -1214,6 +1218,9 @@ class AsyncSandbox(SandboxDto):
                     await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
+
+                if subscribed or loop.time() - poll_start > 5.0:
+                    poll_interval = min(poll_interval * 1.1, 1.0)
 
             if result_state in error_states:
                 raise DaytonaError(

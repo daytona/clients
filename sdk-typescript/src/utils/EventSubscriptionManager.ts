@@ -28,11 +28,11 @@ export class EventSubscriptionManager {
   private readonly subscriptions = new Map<string, ManagedSubscription>()
   private _closed = false
 
-  constructor(private readonly dispatcher: EventDispatcher) {}
+  constructor(private readonly dispatcher: EventDispatcher | null) {}
 
   subscribe(resourceId: string, handler: EventHandler, events: string[]): string {
-    // Reject operations after shutdown to prevent use-after-close.
-    if (this._closed) {
+    // No-op when shut down or when streaming is disabled (no dispatcher) — callers poll.
+    if (this._closed || !this.dispatcher) {
       return ''
     }
 

@@ -466,6 +466,55 @@ RSpec.describe Daytona::Sandbox do
       end.to raise_error(Daytona::Sdk::Error,
                          /entered error state: error, error reason: boom/i)
     end
+
+    it 'uses origin/main polling cadence when no event subscription is active' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      condition = instance_double(ConditionVariable, signal: nil)
+      waits = []
+
+      allow(subscription_manager).to receive(:refresh).and_return(false)
+      allow(subscription_manager).to receive(:subscribe).and_return(nil)
+      allow(ConditionVariable).to receive(:new).and_return(condition)
+      allow(condition).to receive(:wait) do |_mutex, interval|
+        waits << interval
+      end
+      allow(pending_sandbox).to receive(:refresh) do
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED)
+      end
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(waits.first).to eq(0.1)
+    end
+
+    it 'keeps a sparse 1s polling safety net when an event subscription is active' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      condition = instance_double(ConditionVariable, signal: nil)
+      waits = []
+
+      allow(subscription_manager).to receive(:refresh).and_return(true)
+      allow(ConditionVariable).to receive(:new).and_return(condition)
+      allow(condition).to receive(:wait) do |_mutex, interval|
+        waits << interval
+      end
+      allow(pending_sandbox).to receive(:refresh) do
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED)
+      end
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(waits.first).to eq(1.0)
+    end
   end
 
   describe '#wait_for_sandbox_stop' do

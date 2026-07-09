@@ -11,6 +11,7 @@ RSpec.describe Daytona::Config do
       DAYTONA_API_URL
       DAYTONA_TARGET
       DAYTONA_ORGANIZATION_ID
+      DAYTONA_EVENT_STREAMING
       DAYTONA_CUSTOM_VAR
     ]
     saved = env_keys.to_h { |key| [key, ENV.delete(key)] }
@@ -88,6 +89,28 @@ RSpec.describe Daytona::Config do
       config = described_class.new(api_key: 'k', _experimental: { 'otel_enabled' => true })
 
       expect(config._experimental).to eq({ 'otel_enabled' => true })
+    end
+
+    it 'defaults event_streaming to false' do
+      config = described_class.new(api_key: 'k')
+
+      expect(config.event_streaming).to be(false)
+    end
+
+    it 'reads event_streaming from ENV when explicit args are missing' do
+      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
+
+      config = described_class.new(api_key: 'k')
+
+      expect(config.event_streaming).to be(true)
+    end
+
+    it 'keeps event_streaming disabled when explicit config is false even if ENV is true' do
+      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
+
+      config = described_class.new(api_key: 'k', event_streaming: false)
+
+      expect(config.event_streaming).to be(false)
     end
   end
 

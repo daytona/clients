@@ -173,6 +173,48 @@ describe('Daytona', () => {
     expect(mockSnapshotServiceCtor).toHaveBeenCalledTimes(1)
   })
 
+  it('does not create an EventDispatcher by default (polling mode)', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeUndefined()
+  })
+
+  it('creates and connects an EventDispatcher when eventStreaming is enabled', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', eventStreaming: true })
+
+    expect(EventDispatcher).toHaveBeenCalledTimes(1)
+    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeDefined()
+  })
+
+  it('enables eventStreaming via the DAYTONA_EVENT_STREAMING env var', async () => {
+    process.env.DAYTONA_EVENT_STREAMING = 'true'
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    expect(EventDispatcher).toHaveBeenCalledTimes(1)
+    delete process.env.DAYTONA_EVENT_STREAMING
+  })
+
+  it('lets an explicit eventStreaming=false win over the env var', async () => {
+    process.env.DAYTONA_EVENT_STREAMING = 'true'
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', eventStreaming: false })
+
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    delete process.env.DAYTONA_EVENT_STREAMING
+  })
+
   it('reads constructor values from env when config omitted', async () => {
     process.env.DAYTONA_API_KEY = 'env-key'
     process.env.DAYTONA_API_URL = 'https://env.daytona/api'

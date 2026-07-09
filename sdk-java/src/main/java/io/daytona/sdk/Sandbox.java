@@ -50,8 +50,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Represents a Daytona Sandbox instance.
  *
  * <p>Exposes lifecycle controls and operation facades for process execution, file-system access,
- * and Git. State changes are detected instantly via WebSocket events with periodic polling as a
- * safety net.
+ * and Git. State changes are detected via opt-in WebSocket events with polling as a safety net,
+ * or by polling only when event streaming is disabled.
  */
 public class Sandbox {
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
@@ -68,7 +68,8 @@ public class Sandbox {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static final long POLL_SAFETY_INTERVAL_SECONDS = 1;
+    private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
+    private static final long POLL_STREAMING_INTERVAL_MILLIS = 1000;
     private static final Set<String> STARTED_STATES = Collections.singleton("started");
     private static final Set<String> STOPPED_STATES = new HashSet<>(Arrays.asList("stopped", "destroyed"));
     private static final Set<String> DESTROYED_STATES = Collections.singleton("destroyed");
@@ -849,6 +850,7 @@ public class Sandbox {
     private void waitForState(Set<String> targetStates, Set<String> errorStates,
                               long timeoutSeconds, boolean safeRefresh) {
         ensureSubscribed();
+        boolean subscribed = hasActiveSubscription();
         StateWaiter waiter = new StateWaiter(targetStates, errorStates);
         stateWaiters.add(waiter);
 
@@ -862,12 +864,13 @@ public class Sandbox {
                 return;
             }
 
+            long pollIntervalMillis = subscribed ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
             ScheduledFuture<?> pollFuture = POLL_SCHEDULER.scheduleAtFixedRate(() -> {
                 if (waiter.isResolved()) {
                     return;
                 }
                 runPollingRefresh(waiter, safeRefresh);
-            }, POLL_SAFETY_INTERVAL_SECONDS, POLL_SAFETY_INTERVAL_SECONDS, TimeUnit.SECONDS);
+            }, pollIntervalMillis, pollIntervalMillis, TimeUnit.MILLISECONDS);
 
             try {
                 boolean completed;
@@ -910,6 +913,12 @@ public class Sandbox {
             }
         } catch (Exception e) {
             waiter.onPollError(e instanceof RuntimeException ? (RuntimeException) e : new DaytonaException(e.getMessage(), e));
+        }
+    }
+
+    private boolean hasActiveSubscription() {
+        synchronized (subscriptionLock) {
+            return subId != null;
         }
     }
 

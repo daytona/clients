@@ -60,6 +60,15 @@ of instrumentation landing in a future release.
 
 - `boolean` - `true` if OpenTelemetry tracing is enabled
 
+#### isEventStreaming()
+```java
+public boolean isEventStreaming()
+```
+
+**Returns**:
+
+- `boolean` -
+
 ## DaytonaConfig.Builder
 
 Builder for creating immutable `DaytonaConfig` instances.
@@ -129,6 +138,19 @@ of instrumentation landing in a future release.
 **Returns**:
 
 - `Builder` - this builder instance
+
+#### eventStreaming()
+```java
+public Builder eventStreaming(boolean eventStreaming)
+```
+
+**Parameters**:
+
+- `eventStreaming` _boolean_ -
+
+**Returns**:
+
+- `Builder` -
 
 #### build()
 ```java

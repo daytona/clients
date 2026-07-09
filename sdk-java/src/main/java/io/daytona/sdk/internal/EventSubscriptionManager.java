@@ -39,7 +39,7 @@ public class EventSubscriptionManager {
     }
 
     public String subscribe(String resourceId, BiConsumer<String, JsonNode> handler, List<String> events) {
-        if (closed) {
+        if (closed || dispatcher == null) {
             return null; // Reject after shutdown to prevent use-after-close
         }
 

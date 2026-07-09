@@ -14,6 +14,7 @@ public final class DaytonaConfig {
     private final String apiUrl;
     private final String target;
     private final boolean otelEnabled;
+    private final boolean eventStreaming;
 
     private DaytonaConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -22,6 +23,9 @@ public final class DaytonaConfig {
                 : builder.apiUrl;
         this.target = builder.target;
         this.otelEnabled = builder.otelEnabled;
+        this.eventStreaming = builder.eventStreaming != null
+                ? builder.eventStreaming
+                : "true".equals(System.getenv("DAYTONA_EVENT_STREAMING"));
     }
 
     /**
@@ -64,6 +68,10 @@ public final class DaytonaConfig {
         return otelEnabled;
     }
 
+    public boolean isEventStreaming() {
+        return eventStreaming;
+    }
+
     /**
      * Builder for creating immutable {@link DaytonaConfig} instances.
      */
@@ -72,6 +80,7 @@ public final class DaytonaConfig {
         private String apiUrl;
         private String target;
         private boolean otelEnabled;
+        private Boolean eventStreaming;
 
         /**
          * Sets the API key used for authenticating SDK requests.
@@ -118,6 +127,11 @@ public final class DaytonaConfig {
          */
         public Builder otelEnabled(boolean otelEnabled) {
             this.otelEnabled = otelEnabled;
+            return this;
+        }
+
+        public Builder eventStreaming(boolean eventStreaming) {
+            this.eventStreaming = eventStreaming;
             return this;
         }
 

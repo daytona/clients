@@ -55,18 +55,25 @@ module Daytona
       @secret = SecretService.new(DaytonaApiClient::SecretApi.new(api_client), otel_state:)
       @object_storage_api = DaytonaApiClient::ObjectStorageApi.new(api_client)
       @snapshots_api = DaytonaApiClient::SnapshotsApi.new(api_client)
-      @snapshot = SnapshotService.new(snapshots_api:, object_storage_api:, default_region_id: config.target,
-                                      otel_state:)
+      @snapshot = SnapshotService.new(
+        snapshots_api:,
+        object_storage_api:,
+        default_region_id: config.target,
+        otel_state:
+      )
       token = config.api_key || config.jwt_token
 
-      @event_dispatcher = EventDispatcher.new(
-        api_url: config.api_url,
-        token: token,
-        organization_id: config.organization_id,
-        source: SOURCE_RUBY,
-        sdk_version: Sdk::VERSION
-      )
-      @event_dispatcher.ensure_connected
+      if config.event_streaming
+        @event_dispatcher = EventDispatcher.new(
+          api_url: config.api_url,
+          token: token,
+          organization_id: config.organization_id,
+          source: SOURCE_RUBY,
+          sdk_version: Sdk::VERSION
+        )
+        @event_dispatcher.ensure_connected
+      end
+
       @subscription_manager = EventSubscriptionManager.new(@event_dispatcher)
     end
 

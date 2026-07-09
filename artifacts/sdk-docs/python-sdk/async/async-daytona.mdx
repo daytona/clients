@@ -442,6 +442,9 @@ Configuration options for initializing the Daytona client.
   recommended when running many concurrent long-lived operations like `process.exec`.
 - `otel_enabled` _bool | None_ - Enable OpenTelemetry tracing for SDK operations. Defaults
   to `None`, which falls back to the `DAYTONA_OTEL_ENABLED` environment variable.
+- `event_streaming` _bool | None_ - Opt into sandbox event streaming over WebSocket.
+  Defaults to `False` unless explicitly enabled here or via
+  `DAYTONA_EVENT_STREAMING=true`.
 - `_experimental` _dict[str, any] | None_ - Configuration for experimental features.
   
 

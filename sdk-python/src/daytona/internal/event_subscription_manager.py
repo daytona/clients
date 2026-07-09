@@ -36,17 +36,17 @@ class AsyncEventSubscriptionManager:
     Multiple callers subscribing to the same resource_id get independent sub_ids.
     """
 
-    _dispatcher: AsyncEventDispatcher
+    _dispatcher: AsyncEventDispatcher | None
     _subscriptions: dict[str, _Subscription]
     _closed: bool
 
-    def __init__(self, dispatcher: AsyncEventDispatcher) -> None:
+    def __init__(self, dispatcher: AsyncEventDispatcher | None) -> None:
         self._dispatcher = dispatcher
         self._subscriptions = {}
         self._closed = False
 
     @property
-    def dispatcher(self) -> AsyncEventDispatcher:
+    def dispatcher(self) -> AsyncEventDispatcher | None:
         return self._dispatcher
 
     def subscribe(
@@ -55,7 +55,7 @@ class AsyncEventSubscriptionManager:
         handler: AsyncEventHandler,
         events: list[str],
     ) -> str:
-        if self._closed:
+        if self._closed or self._dispatcher is None:
             return ""
 
         unsubscribe_fn = self._dispatcher.subscribe(resource_id, handler, events)
@@ -119,19 +119,19 @@ class AsyncEventSubscriptionManager:
 class SyncEventSubscriptionManager:
     """Thread-safe variant of AsyncEventSubscriptionManager."""
 
-    _dispatcher: SyncEventDispatcher
+    _dispatcher: SyncEventDispatcher | None
     _subscriptions: dict[str, _Subscription]
     _lock: threading.Lock
     _closed: bool
 
-    def __init__(self, dispatcher: SyncEventDispatcher) -> None:
+    def __init__(self, dispatcher: SyncEventDispatcher | None) -> None:
         self._dispatcher = dispatcher
         self._subscriptions = {}
         self._lock = threading.Lock()
         self._closed = False
 
     @property
-    def dispatcher(self) -> SyncEventDispatcher:
+    def dispatcher(self) -> SyncEventDispatcher | None:
         return self._dispatcher
 
     def subscribe(
@@ -140,7 +140,7 @@ class SyncEventSubscriptionManager:
         handler: EventHandler,
         events: list[str],
     ) -> str:
-        if self._closed:
+        if self._closed or self._dispatcher is None:
             return ""
 
         unsubscribe_fn = self._dispatcher.subscribe(resource_id, handler, events)

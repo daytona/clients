@@ -274,18 +274,33 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	client.Volume = NewVolumeService(client)
 	client.Snapshot = NewSnapshotService(client)
 	client.Secret = NewSecretService(client)
+	client.subscriptionManager = common.NewEventSubscriptionManager(nil)
 
 	token := client.apiKey
 	if token == "" {
 		token = client.jwtToken
 	}
-	if token != "" {
+	if token != "" && isEventStreamingEnabled(config) {
 		client.eventDispatcher = common.NewEventDispatcher(client.apiURL, token, client.organizationID, sdkSource, Version)
 		client.subscriptionManager = common.NewEventSubscriptionManager(client.eventDispatcher)
 		client.eventDispatcher.EnsureConnected()
 	}
 
 	return client, nil
+}
+
+func isEventStreamingEnabled(config *types.DaytonaConfig) bool {
+	envEnabled := os.Getenv("DAYTONA_EVENT_STREAMING") == "true"
+
+	if config != nil {
+		if config.EventStreaming != nil {
+			return *config.EventStreaming
+		}
+
+		return envEnabled
+	}
+
+	return envEnabled
 }
 
 // Close shuts down the client and releases resources.

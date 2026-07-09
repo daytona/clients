@@ -39,6 +39,11 @@ module Daytona
     # @return [Boolean, nil]
     attr_accessor :otel_enabled
 
+    # Stream sandbox events over WebSocket instead of polling.
+    #
+    # @return [Boolean]
+    attr_accessor :event_streaming
+
     # Experimental configuration options
     #
     # @return [Hash, nil] Experimental configuration hash
@@ -52,6 +57,7 @@ module Daytona
     # @param organization_id [String, nil] Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
     # @param target [String, nil] Daytona target. Defaults to ENV['DAYTONA_TARGET'].
     # @param otel_enabled [Boolean, nil] Enable OpenTelemetry tracing for SDK operations.
+    # @param event_streaming [Boolean, nil] Enable WebSocket sandbox event streaming.
     # @param _experimental [Hash, nil] Experimental configuration options.
     def initialize( # rubocop:disable Metrics/ParameterLists
       api_key: nil,
@@ -60,6 +66,7 @@ module Daytona
       organization_id: nil,
       target: nil,
       otel_enabled: nil,
+      event_streaming: nil,
       _experimental: nil
     )
       @env_reader = daytona_env_reader
@@ -71,6 +78,7 @@ module Daytona
       @organization_id = organization_id || @env_reader.call('DAYTONA_ORGANIZATION_ID')
       @otel_enabled = otel_enabled
       @_experimental = _experimental
+      @event_streaming = resolve_event_streaming(event_streaming)
     end
 
     # Reads a DAYTONA_-prefixed environment variable using the same precedence
@@ -104,6 +112,12 @@ module Daytona
 
     def daytona_filter(env_hash)
       env_hash.select { |k, _| k.start_with?('DAYTONA_') }
+    end
+
+    def resolve_event_streaming(event_streaming)
+      return event_streaming unless event_streaming.nil?
+
+      @env_reader.call('DAYTONA_EVENT_STREAMING') == 'true'
     end
   end
 end

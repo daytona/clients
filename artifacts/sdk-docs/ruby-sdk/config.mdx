@@ -12,7 +12,7 @@ Main class for a new Daytona::Config object.
 #### new Config()
 
 ```ruby
-def initialize(api_key: nil, jwt_token: nil, api_url: nil, organization_id: nil, target: nil, otel_enabled: nil, _experimental: nil)
+def initialize(api_key: nil, jwt_token: nil, api_url: nil, organization_id: nil, target: nil, otel_enabled: nil, event_streaming: nil, _experimental: nil)
 
 ```
 
@@ -26,6 +26,7 @@ Initializes a new Daytona::Config object.
 - `organization_id` _String, nil_ - Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
 - `target` _String, nil_ - Daytona target. Defaults to ENV['DAYTONA_TARGET'].
 - `otel_enabled` _Boolean, nil_ - Enable OpenTelemetry tracing for SDK operations.
+- `event_streaming` _Boolean, nil_ - Enable WebSocket sandbox event streaming.
 - `_experimental` _Hash, nil_ - Experimental configuration options.
 
 **Returns**:
@@ -189,6 +190,32 @@ Enable OpenTelemetry tracing for SDK operations.
 **Returns**:
 
 - `Boolean, nil`
+
+#### event_streaming()
+
+```ruby
+def event_streaming()
+
+```
+
+Stream sandbox events over WebSocket instead of polling.
+
+**Returns**:
+
+- `Boolean`
+
+#### event_streaming=()
+
+```ruby
+def event_streaming=(value)
+
+```
+
+Stream sandbox events over WebSocket instead of polling.
+
+**Returns**:
+
+- `Boolean`
 
 #### _experimental()
 

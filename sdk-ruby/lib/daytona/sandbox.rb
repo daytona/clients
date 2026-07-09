@@ -1020,9 +1020,12 @@ module Daytona
     # @raise [Daytona::Sdk::Error]
     def wait_for_state(target_states:, error_states:, safe_refresh: false) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       ensure_subscribed
+      subscribed = !@sub_id.nil?
 
       target_strings = target_states.map(&:to_s)
       error_strings = error_states.map(&:to_s)
+      started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+      poll_interval = subscribed ? MAX_POLL_INTERVAL : INITIAL_POLL_INTERVAL
 
       mutex = Mutex.new
       state_changed = ConditionVariable.new
@@ -1054,8 +1057,7 @@ module Daytona
           should_refresh = mutex.synchronize do
             next false if result_state
 
-            # Wait 1s for WebSocket event, then poll as safety net
-            state_changed.wait(mutex, POLL_SAFETY_INTERVAL)
+            state_changed.wait(mutex, poll_interval)
             result_state.nil?
           end
 
@@ -1072,6 +1074,12 @@ module Daytona
           else
             refresh
           end
+
+          poll_interval = next_wait_for_state_poll_interval(
+            current_interval: poll_interval,
+            started_at: started_at,
+            subscribed: subscribed
+          )
         end
 
         if result_state && error_strings.include?(result_state)
@@ -1132,8 +1140,26 @@ module Daytona
       @sub_id = nil
     end
 
-    POLL_SAFETY_INTERVAL = 1
-    private_constant :POLL_SAFETY_INTERVAL
+    def next_wait_for_state_poll_interval(current_interval:, started_at:, subscribed:)
+      return [current_interval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL].min if subscribed
+
+      elapsed = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at
+      return current_interval if elapsed <= POLL_BACKOFF_DELAY
+
+      [current_interval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL].min
+    end
+
+    INITIAL_POLL_INTERVAL = 0.1
+    private_constant :INITIAL_POLL_INTERVAL
+
+    MAX_POLL_INTERVAL = 1.0
+    private_constant :MAX_POLL_INTERVAL
+
+    BACKOFF_MULTIPLIER = 1.1
+    private_constant :BACKOFF_MULTIPLIER
+
+    POLL_BACKOFF_DELAY = 5.0
+    private_constant :POLL_BACKOFF_DELAY
 
     NO_TIMEOUT = 0
     private_constant :NO_TIMEOUT

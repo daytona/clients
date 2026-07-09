@@ -20,6 +20,9 @@ RSpec.describe Daytona::Daytona do
   let(:subscription_manager) do
     instance_double(Daytona::EventSubscriptionManager, shutdown: nil)
   end
+  let(:event_dispatcher) do
+    instance_double(Daytona::EventDispatcher, ensure_connected: nil, disconnect: nil)
+  end
   let(:sandbox_dto) { build_sandbox_dto }
   let(:sandbox) { instance_double(Daytona::Sandbox, id: 'sandbox-123', state: DaytonaApiClient::SandboxState::STARTED) }
 
@@ -32,6 +35,7 @@ RSpec.describe Daytona::Daytona do
     allow(DaytonaApiClient::ObjectStorageApi).to receive(:new).and_return(object_storage_api)
     allow(DaytonaApiClient::SnapshotsApi).to receive(:new).and_return(snapshots_api)
     allow(Daytona::EventSubscriptionManager).to receive(:new).and_return(subscription_manager)
+    allow(Daytona::EventDispatcher).to receive(:new).and_return(event_dispatcher)
     allow(Daytona::Sandbox).to receive(:new).and_return(sandbox)
   end
 
@@ -43,6 +47,50 @@ RSpec.describe Daytona::Daytona do
       expect(daytona.volume).to be_a(Daytona::VolumeService)
       expect(daytona.secret).to be_a(Daytona::SecretService)
       expect(daytona.snapshot).to be_a(Daytona::SnapshotService)
+    end
+
+    it 'defaults event streaming to polling and skips dispatcher startup' do
+      described_class.new(config)
+
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(nil)
+    end
+
+    it 'creates and connects an event dispatcher when event_streaming is enabled in config' do
+      described_class.new(build_config(event_streaming: true))
+
+      expect(Daytona::EventDispatcher).to have_received(:new).with(
+        api_url: 'https://api.example.com',
+        token: 'test-api-key',
+        organization_id: nil,
+        source: 'sdk-ruby',
+        sdk_version: Daytona::Sdk::VERSION
+      )
+      expect(event_dispatcher).to have_received(:ensure_connected)
+      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(event_dispatcher)
+    end
+
+    it 'creates and connects an event dispatcher when DAYTONA_EVENT_STREAMING is set' do
+      original = ENV.fetch('DAYTONA_EVENT_STREAMING', nil)
+      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
+
+      described_class.new(build_config)
+
+      expect(Daytona::EventDispatcher).to have_received(:new)
+      expect(event_dispatcher).to have_received(:ensure_connected)
+    ensure
+      original ? ENV['DAYTONA_EVENT_STREAMING'] = original : ENV.delete('DAYTONA_EVENT_STREAMING')
+    end
+
+    it 'does not create an event dispatcher when config sets event_streaming false even if ENV is true' do
+      original = ENV.fetch('DAYTONA_EVENT_STREAMING', nil)
+      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
+
+      described_class.new(build_config(event_streaming: false))
+
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+    ensure
+      original ? ENV['DAYTONA_EVENT_STREAMING'] = original : ENV.delete('DAYTONA_EVENT_STREAMING')
     end
 
     it 'configures API client headers and user agent' do

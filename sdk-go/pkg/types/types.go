@@ -57,6 +57,7 @@ type DaytonaConfig struct {
 	APIUrl         string
 	Target         string
 	OtelEnabled    bool // Enable OpenTelemetry tracing for SDK operations.
+	EventStreaming *bool
 	Experimental   *ExperimentalConfig
 }
 

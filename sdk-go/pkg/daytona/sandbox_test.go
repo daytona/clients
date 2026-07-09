@@ -393,6 +393,22 @@ func TestSandboxCreateLspServer(t *testing.T) {
 	require.Same(t, sandbox.otel, lsp.otel)
 }
 
+func TestNextWaitForStatePollInterval(t *testing.T) {
+	t.Run("polling mode stays fast for first five seconds", func(t *testing.T) {
+		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second, false))
+	})
+
+	t.Run("polling mode backs off like origin main after five seconds", func(t *testing.T) {
+		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second, false))
+		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second, false))
+	})
+
+	t.Run("streaming mode keeps sparse one second safety polling", func(t *testing.T) {
+		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 10*time.Second, true))
+		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStateStreamingSafetyInterval, 10*time.Second, true))
+	})
+}
+
 func TestSandboxRefreshDataSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		payload := testSandboxPayload("sb-1", "refreshed", apiclient.SANDBOXSTATE_STARTED)

@@ -98,6 +98,12 @@ export interface DaytonaConfig {
   target?: string
   /** Enable OpenTelemetry tracing for SDK operations. */
   otelEnabled?: boolean
+  /**
+   * Stream sandbox state changes over WebSocket instead of polling. Defaults to
+   * `false`, where state is observed by polling (prior SDK behavior). Can also be
+   * enabled via the `DAYTONA_EVENT_STREAMING` environment variable.
+   */
+  eventStreaming?: boolean
   /** Configuration for experimental features */
   _experimental?: Record<string, any>
 }
@@ -266,7 +272,7 @@ export class Daytona implements AsyncDisposable {
   private readonly organizationId?: string
   private readonly apiUrl: string
   private otelSdk?: NodeSDK
-  private eventDispatcher: EventDispatcher
+  private eventDispatcher?: EventDispatcher
   private eventSubscriptionManager: EventSubscriptionManager
   public readonly volume: VolumeService
   public readonly snapshot: SnapshotService
@@ -368,15 +374,19 @@ export class Daytona implements AsyncDisposable {
     )
     this.clientConfig = configuration
 
-    this.eventDispatcher = new EventDispatcher(
-      this.apiUrl,
-      this.apiKey || this.jwtToken,
-      this.organizationId,
-      sdkLabel,
-      packageJson.version,
-    )
-    this.eventSubscriptionManager = new EventSubscriptionManager(this.eventDispatcher)
-    this.eventDispatcher.ensureConnected()
+    const eventStreamingEnabled = config?.eventStreaming ?? envReader()?.get('DAYTONA_EVENT_STREAMING') === 'true'
+
+    if (eventStreamingEnabled) {
+      this.eventDispatcher = new EventDispatcher(
+        this.apiUrl,
+        this.apiKey || this.jwtToken,
+        this.organizationId,
+        sdkLabel,
+        packageJson.version,
+      )
+      this.eventDispatcher.ensureConnected()
+    }
+    this.eventSubscriptionManager = new EventSubscriptionManager(this.eventDispatcher ?? null)
 
     const env = envReader()
     const otelEnabled =
@@ -430,7 +440,7 @@ export class Daytona implements AsyncDisposable {
 
   async [Symbol.asyncDispose](): Promise<void> {
     this.eventSubscriptionManager.shutdown()
-    this.eventDispatcher.disconnect()
+    this.eventDispatcher?.disconnect()
 
     if (!this.otelSdk) {
       return

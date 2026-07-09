@@ -10,7 +10,7 @@ module Daytona
     SUBSCRIPTION_TTL = 300
     private_constant :SUBSCRIPTION_TTL
 
-    def initialize(dispatcher)
+    def initialize(dispatcher = nil)
       @dispatcher = dispatcher
       @subscriptions = {}
       @mutex = Mutex.new
@@ -19,8 +19,7 @@ module Daytona
 
     def subscribe(resource_id:, handler:, events:)
       @mutex.synchronize do
-        # Reject after shutdown to prevent use-after-close
-        return nil if @closed
+        return nil if @closed || @dispatcher.nil?
       end
 
       unsubscribe = @dispatcher.subscribe(resource_id, events:, &handler)

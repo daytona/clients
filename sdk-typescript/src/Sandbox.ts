@@ -1212,7 +1212,12 @@ export class Sandbox {
         }, timeout * 1000)
       }
 
-      // Periodic poll as safety net for missed events
+      // Poll as a safety net for missed state changes. With an active event subscription
+      // a sparse 1s cadence suffices; without events (polling mode) replicate main's
+      // cadence exactly: 100ms steady for the first 5s, then exponential backoff capped at 1s.
+      const streaming = !!this.subId
+      const pollStart = Date.now()
+      let pollInterval = streaming ? 1000 : 100
       const doPoll = async () => {
         if (settled) return
 
@@ -1228,16 +1233,18 @@ export class Sandbox {
         }
 
         if (!settled) {
+          if (!streaming && Date.now() - pollStart > 5000) {
+            pollInterval = Math.min(pollInterval * 1.1, 1000)
+          }
           pollTimer = setTimeout(() => {
             void doPoll()
-          }, 1_000)
+          }, pollInterval)
         }
       }
 
-      // Poll periodically as safety net for missed WebSocket events
       pollTimer = setTimeout(() => {
         void doPoll()
-      }, 1_000)
+      }, pollInterval)
     })
   }
 

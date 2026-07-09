@@ -136,6 +136,14 @@ type Sandbox struct {
 	ComputerUse     *ComputerUseService     // Desktop automation
 }
 
+const (
+	waitForStatePollingInitialInterval  = 100 * time.Millisecond
+	waitForStateStreamingSafetyInterval = 1 * time.Second
+	waitForStatePollingBackoffDelay     = 5 * time.Second
+	waitForStatePollingBackoffFactor    = 1.1
+	waitForStatePollingBackoffMax       = 1 * time.Second
+)
+
 // sandboxDTO is the common subset of fields exposed by both [apiclient.Sandbox]
 // (returned by single-sandbox endpoints) and [apiclient.SandboxListItem]
 // (returned by the list endpoint). It lets [NewSandbox] and
@@ -415,6 +423,10 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 }
 
 func (s *Sandbox) ensureSubscribed() {
+	if s.subscriptionManager == nil {
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -429,6 +441,10 @@ func (s *Sandbox) ensureSubscribed() {
 }
 
 func (s *Sandbox) subscribeToEventsLocked() {
+	if s.subscriptionManager == nil {
+		return
+	}
+
 	if s.subID != "" {
 		return
 	}
@@ -438,6 +454,30 @@ func (s *Sandbox) subscribeToEventsLocked() {
 		s.handleEvent,
 		[]string{"sandbox.state.updated", "sandbox.created"},
 	)
+}
+
+func (s *Sandbox) hasActiveSubscription() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.subID != ""
+}
+
+func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration, subscribed bool) time.Duration {
+	if subscribed {
+		return waitForStateStreamingSafetyInterval
+	}
+
+	if elapsed <= waitForStatePollingBackoffDelay {
+		return current
+	}
+
+	next := time.Duration(float64(current) * waitForStatePollingBackoffFactor)
+	if next > waitForStatePollingBackoffMax {
+		return waitForStatePollingBackoffMax
+	}
+
+	return next
 }
 
 func (s *Sandbox) handleEvent(event common.SandboxEvent) {
@@ -520,10 +560,6 @@ func (s *Sandbox) updateFromAPIResponse(resp *apiclient.Sandbox) {
 	s.applyStateLocked(resp.GetState())
 }
 
-// waitForState waits for the sandbox to reach a target state using WebSocket events
-// with periodic polling as a safety net for missed events.
-// When safeRefresh is true, polling errors are ignored (useful for delete operations
-// where the sandbox may return 404 during polling).
 func (s *Sandbox) waitForState(
 	ctx context.Context,
 	targetStates []apiclient.SandboxState,
@@ -531,6 +567,7 @@ func (s *Sandbox) waitForState(
 	safeRefresh bool,
 ) error {
 	s.ensureSubscribed()
+	subscribed := s.hasActiveSubscription()
 
 	stateCh := make(chan apiclient.SandboxState, 1)
 	s.mu.Lock()
@@ -559,8 +596,13 @@ func (s *Sandbox) waitForState(
 		return nil
 	}
 
-	pollTicker := time.NewTicker(1 * time.Second)
-	defer pollTicker.Stop()
+	pollInterval := waitForStatePollingInitialInterval
+	if subscribed {
+		pollInterval = waitForStateStreamingSafetyInterval
+	}
+	pollTimer := time.NewTimer(pollInterval)
+	defer pollTimer.Stop()
+	startTime := time.Now()
 
 	for {
 		select {
@@ -573,17 +615,19 @@ func (s *Sandbox) waitForState(
 			if containsSandboxState(targetStates, newState) {
 				return nil
 			}
-		case <-pollTicker.C:
+		case <-pollTimer.C:
 			if safeRefresh {
 				if err := s.refreshDataSafe(ctx); err != nil {
 					return err
 				}
-				continue
+			} else {
+				if err := s.doRefreshData(ctx); err != nil {
+					return err
+				}
 			}
 
-			if err := s.doRefreshData(ctx); err != nil {
-				return err
-			}
+			pollInterval = nextWaitForStatePollInterval(pollInterval, time.Since(startTime), subscribed)
+			pollTimer.Reset(pollInterval)
 		}
 	}
 }

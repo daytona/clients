@@ -143,6 +143,21 @@ class SandboxTest {
     }
 
     @Test
+    void waitUntilStartedFallsBackToPollingWhenEventStreamingIsDisabled() {
+        Sandbox pollingSandbox = new Sandbox(
+                sandboxApi,
+                TestSupport.config(),
+                TestSupport.mainSandbox("sb-poll", SandboxState.STARTING),
+                new EventSubscriptionManager(null));
+        when(sandboxApi.getSandbox("sb-poll", null, null)).thenReturn(TestSupport.mainSandbox("sb-poll", SandboxState.STARTED));
+
+        pollingSandbox.waitUntilStarted(2);
+
+        assertThat(pollingSandbox.getState()).isEqualTo("started");
+        assertThat(TestSupport.getField(pollingSandbox, "subId", String.class)).isNull();
+    }
+
+    @Test
     void stopRefreshesAndWaitsUntilStopped() {
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STOPPED));
 

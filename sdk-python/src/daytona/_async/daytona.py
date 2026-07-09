@@ -54,6 +54,7 @@ from ..common.daytona import (
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
     DaytonaConfig,
+    resolve_opt_in_flag,
 )
 from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
 from ..common.image import Image
@@ -152,6 +153,7 @@ class AsyncDaytona:
     _api_url: str
     _target: str | None = None
     _tracer_provider: TracerProvider | None = None
+    _event_dispatcher: AsyncEventDispatcher | None = None
 
     def __init__(self, config: DaytonaConfig | None = None):
         """Initializes Daytona instance with optional configuration.
@@ -311,14 +313,21 @@ class AsyncDaytona:
         )
         self.secret: AsyncSecretService = AsyncSecretService(SecretApi(self._api_client))
 
-        self._event_dispatcher: AsyncEventDispatcher = AsyncEventDispatcher(
-            self._api_url,
-            self._api_key or self._jwt_token or "",
-            self._organization_id,
-            "sdk-python-async",
-            sdk_version,
+        event_streaming_enabled = resolve_opt_in_flag(
+            config.event_streaming if config else None,
+            env_reader.get("DAYTONA_EVENT_STREAMING"),
         )
-        self._event_dispatcher.ensure_connected()
+
+        if event_streaming_enabled:
+            self._event_dispatcher = AsyncEventDispatcher(
+                self._api_url,
+                self._api_key or self._jwt_token or "",
+                self._organization_id,
+                "sdk-python-async",
+                sdk_version,
+            )
+            self._event_dispatcher.ensure_connected()
+
         self._subscription_manager: AsyncEventSubscriptionManager = AsyncEventSubscriptionManager(
             self._event_dispatcher
         )

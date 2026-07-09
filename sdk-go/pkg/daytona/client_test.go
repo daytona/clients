@@ -14,6 +14,7 @@ import (
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/common"
 	"github.com/daytona/clients/sdk-go/pkg/options"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -247,6 +248,53 @@ func TestNewClientWithConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewClientEventStreamingDefaultsToPolling(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+	t.Setenv("DAYTONA_EVENT_STREAMING", "")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientEventStreamingEnabledViaConfig(t *testing.T) {
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", EventStreaming: boolPtr(true)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
+}
+
+func TestNewClientEventStreamingEnabledViaEnv(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
+}
+
+func TestNewClientEventStreamingUnsetFallsBackToEnv(t *testing.T) {
+	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
+
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key"})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
+}
+
+func TestNewClientEventStreamingExplicitFalseDisablesEnv(t *testing.T) {
+	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
+
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", EventStreaming: boolPtr(false)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
 }
 
 // TestGetAuthContext tests the getAuthContext method
