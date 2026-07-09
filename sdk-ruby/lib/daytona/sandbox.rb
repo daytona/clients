@@ -332,7 +332,10 @@ module Daytona
     # @example
     #   env = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
     def update_env(env: nil, unset: nil)
-      @server_api.update_env(DaytonaToolboxApiClient::UpdateEnvRequest.new(set: env, unset:))
+      # The generated client parses JSON with symbolize_names, so stringify the
+      # keys to honor the documented Hash<String, String> return type.
+      result = @server_api.update_env(DaytonaToolboxApiClient::UpdateEnvRequest.new(set: env, unset:))
+      result.transform_keys(&:to_s)
     rescue StandardError => e
       raise Sdk::Error, "Failed to update environment: #{e.message}"
     end

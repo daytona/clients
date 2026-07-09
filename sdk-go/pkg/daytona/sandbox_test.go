@@ -617,7 +617,8 @@ func TestSandboxUpdateSecrets(t *testing.T) {
 	require.NoError(t, sandbox.UpdateSecrets(ctx, map[string]string{}))
 	assert.Equal(t, map[string]any{"secrets": []any{}}, body)
 
-	os.Clearenv()
+	// A nil map is rejected so an uninitialized map can't silently detach all secrets.
+	require.Error(t, sandbox.UpdateSecrets(ctx, nil))
 }
 
 func TestSandboxUpdateSecretsAPIError(t *testing.T) {
@@ -635,8 +636,6 @@ func TestSandboxUpdateSecretsAPIError(t *testing.T) {
 	ctx := context.Background()
 	err := sandbox.doUpdateSecrets(ctx, map[string]string{"FOO": "foo-secret"})
 	require.Error(t, err)
-
-	os.Clearenv()
 }
 
 func TestSandboxUpdateEnv(t *testing.T) {

@@ -199,8 +199,9 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#update_env' do
-    it 'sends the set and unset values and returns the resulting environment' do
-      allow(server_api).to receive(:update_env).and_return({ 'FOO' => 'bar' })
+    it 'sends the set and unset values and returns the resulting environment with string keys' do
+      # The generated client symbolizes JSON keys; update_env must stringify them.
+      allow(server_api).to receive(:update_env).and_return({ FOO: 'bar' })
 
       result = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
 

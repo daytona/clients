@@ -1006,7 +1006,8 @@ func (s *Sandbox) doUpdateNetworkSettings(ctx context.Context, settings apiclien
 //
 // Each key is an environment variable name and each value is the name of an
 // existing organization secret (see the Secrets field on
-// [types.SandboxBaseParams]). Pass an empty map to detach all secrets.
+// [types.SandboxBaseParams]). Pass an empty map to detach all secrets; a nil
+// map is rejected so an uninitialized map can't detach them by accident.
 //
 // Attached, detached, and rotated secrets take effect for outbound requests
 // within seconds. New environment variables only become visible to processes
@@ -1019,6 +1020,10 @@ func (s *Sandbox) UpdateSecrets(ctx context.Context, secrets map[string]string) 
 }
 
 func (s *Sandbox) doUpdateSecrets(ctx context.Context, secrets map[string]string) error {
+	if secrets == nil {
+		return errors.NewDaytonaError("secrets cannot be nil; pass an empty map to detach all secrets", 0, nil)
+	}
+
 	// Convert the SDK secrets map (env var name -> secret name) to the API
 	// shape: an array of single-key maps. The wire field is required and an
 	// empty array detaches all secrets, so always send a non-nil slice.

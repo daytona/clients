@@ -4895,7 +4895,7 @@ func (s *Sandbox) UpdateSecrets(ctx context.Context, secrets map[string]string) 
 
 UpdateSecrets replaces the set of vault secrets mounted in this sandbox.
 
-Each key is an environment variable name and each value is the name of an existing organization secret \(see the Secrets field on \[types.SandboxBaseParams\]\). Pass an empty map to detach all secrets.
+Each key is an environment variable name and each value is the name of an existing organization secret \(see the Secrets field on \[types.SandboxBaseParams\]\). Pass an empty map to detach all secrets; a nil map is rejected so an uninitialized map can't detach them by accident.
 
 Attached, detached, and rotated secrets take effect for outbound requests within seconds. New environment variables only become visible to processes spawned after the update, and a sandbox created without any secrets must be restarted before newly attached secrets work.
 
