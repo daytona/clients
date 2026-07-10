@@ -148,7 +148,7 @@ export interface Resources {
  * @property {Record<string, string>} [labels] - Sandbox labels
  * @property {boolean} [public] - Is the Sandbox port preview public
  * @property {number} [autoStopInterval] - Auto-stop interval in minutes (0 means disabled). Default is 15 minutes (for sandbox classes that support pausing, auto-pause defaults to 60 minutes instead and auto-stop is disabled).
- * @property {number} [autoPauseInterval] - Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval. For sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+ * @property {number} [autoPauseInterval] - Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. At most one of autoStopInterval and autoPauseInterval may be non-zero. For sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes (0 means the maximum interval will be used). Default is 7 days.
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox

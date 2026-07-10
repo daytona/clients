@@ -133,7 +133,7 @@ public class CreateSandboxParams {
     /**
      * Returns auto-pause interval in minutes (0 means disabled).
      * Only supported for sandbox classes that support pausing.
-     * Mutually exclusive with autoStopInterval.
+     * At most one of autoStopInterval and autoPauseInterval may be non-zero.
      *
      * @return inactivity timeout before pausing
      */
@@ -142,7 +142,7 @@ public class CreateSandboxParams {
     /**
      * Sets auto-pause interval in minutes (0 means disabled).
      * Only supported for sandbox classes that support pausing.
-     * Mutually exclusive with autoStopInterval. For sandbox classes that support pausing,
+     * At most one of autoStopInterval and autoPauseInterval may be non-zero. For sandbox classes that support pausing,
      * the server defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
      *
      * @param autoPauseInterval minutes of inactivity before pause

@@ -145,9 +145,15 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		createSandbox.SetTarget(*args.Target)
 	}
 
+	if args.AutoPauseInterval != nil && args.AutoStopInterval != nil && *args.AutoPauseInterval > 0 && *args.AutoStopInterval > 0 {
+		return nil, fmt.Errorf("autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value")
+	}
+
 	if args.AutoPauseInterval != nil {
 		createSandbox.SetAutoPauseInterval(*args.AutoPauseInterval)
-	} else if args.AutoStopInterval != nil {
+	}
+
+	if args.AutoStopInterval != nil {
 		createSandbox.SetAutoStopInterval(*args.AutoStopInterval)
 	}
 

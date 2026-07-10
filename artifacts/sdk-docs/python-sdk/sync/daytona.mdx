@@ -416,9 +416,9 @@ Base parameters for creating a new Sandbox.
   and auto-stop is disabled). 0 means no auto-stop.
 - `auto_pause_interval` _int | None_ - Auto-pause interval in minutes (0 means disabled).
   Only supported for sandbox classes that support pausing.
-  Mutually exclusive with auto_stop_interval. For sandbox classes that support
-  pausing, defaults to 60 minutes (with auto-stop disabled) when neither
-  interval is provided.
+  At most one of auto_stop_interval and auto_pause_interval may be non-zero.
+  For sandbox classes that support pausing, defaults to 60 minutes (with
+  auto-stop disabled) when neither interval is provided.
 - `auto_archive_interval` _int | None_ - Interval in minutes after which a continuously stopped Sandbox will
   automatically archive. Default is 7 days.
   0 means the maximum interval will be used.

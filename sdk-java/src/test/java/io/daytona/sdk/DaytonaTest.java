@@ -218,6 +218,16 @@ class DaytonaTest {
     }
 
     @Test
+    void createRejectsNegativeAutoPauseInterval() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setAutoPauseInterval(-1);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("autoPauseInterval must be a non-negative integer");
+    }
+
+    @Test
     void createRejectsMutuallyExclusiveAutoStopAndAutoPause() {
         CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
         params.setAutoStopInterval(10);

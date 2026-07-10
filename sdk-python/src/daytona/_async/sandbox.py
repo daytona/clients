@@ -85,7 +85,7 @@ class AsyncSandbox(SandboxDto):
         auto_stop_interval (int | None): Auto-stop interval in minutes.
         auto_pause_interval (int | None): Auto-pause interval in minutes (0 means disabled).
             Only supported for sandbox classes that support pausing.
-            Mutually exclusive with auto_stop_interval.
+            At most one of auto_stop_interval and auto_pause_interval may be non-zero.
         auto_archive_interval (int | None): Auto-archive interval in minutes.
         auto_delete_interval (int | None): Auto-delete interval in minutes.
         volumes (list[SandboxVolume] | None): Volumes attached to the Sandbox (not returned by list

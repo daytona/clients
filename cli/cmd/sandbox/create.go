@@ -85,8 +85,14 @@ var CreateCmd = &cobra.Command{
 			createSandbox.SetDisk(diskFlag)
 		}
 		if cmd.Flags().Changed("auto-pause") {
+			if autoPauseFlag < 0 {
+				return fmt.Errorf("auto-pause interval must be a non-negative integer")
+			}
 			createSandbox.SetAutoPauseInterval(autoPauseFlag)
 		} else if cmd.Flags().Changed("auto-stop") {
+			if autoStopFlag < 0 {
+				return fmt.Errorf("auto-stop interval must be a non-negative integer")
+			}
 			createSandbox.SetAutoStopInterval(autoStopFlag)
 		}
 		if autoArchiveFlag >= 0 {

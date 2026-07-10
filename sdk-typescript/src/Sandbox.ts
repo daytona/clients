@@ -678,11 +678,13 @@ export class Sandbox {
    * Events include any state changes or interactions with the Sandbox through the sdk.
    * Interactions using Sandbox Previews are not included.
    *
-   * Only supported for sandbox classes that support pausing. Mutually exclusive with the
-   * auto-stop interval - disable auto-stop first by setting its interval to 0.
+   * Only supported for sandbox classes that support pausing. At most one of the auto-stop
+   * and auto-pause intervals may be non-zero, so disable auto-stop first by setting its
+   * interval to 0.
    *
    * @param {number} interval - Number of minutes of inactivity before auto-pausing.
-   *                           Set to 0 to disable auto-pause. Disabled by default.
+   *                           Set to 0 to disable auto-pause. For pause-supporting sandbox
+   *                           classes, creation defaults to 60 minutes when neither interval is provided.
    * @returns {Promise<void>}
    * @throws {DaytonaError} - `DaytonaError` - If interval is not a non-negative integer
    *

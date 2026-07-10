@@ -42,7 +42,7 @@ Represents a Daytona Sandbox.
 - `auto_stop_interval` _int | None_ - Auto-stop interval in minutes.
 - `auto_pause_interval` _int | None_ - Auto-pause interval in minutes (0 means disabled).
   Only supported for sandbox classes that support pausing.
-  Mutually exclusive with auto_stop_interval.
+  At most one of auto_stop_interval and auto_pause_interval may be non-zero.
 - `auto_archive_interval` _int | None_ - Auto-archive interval in minutes.
 - `auto_delete_interval` _int | None_ - Auto-delete interval in minutes.
 - `volumes` _list[SandboxVolume] | None_ - Volumes attached to the Sandbox (not returned by list

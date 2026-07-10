@@ -68,7 +68,8 @@ module Daytona
     #
     # @param params [Daytona::CreateSandboxFromSnapshotParams, Daytona::CreateSandboxFromImageParams, Nil] Sandbox creation parameters
     # @return [Daytona::Sandbox] The created sandbox
-    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative
+    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative,
+    #   or if auto_stop_interval and auto_pause_interval are both non-zero
     def create(params = nil, on_snapshot_create_logs: nil)
       if params.nil?
         params = CreateSandboxFromSnapshotParams.new(language: CodeLanguage::PYTHON)
@@ -192,7 +193,8 @@ module Daytona
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @param on_snapshot_create_logs [Proc]
     # @return [Daytona::Sandbox] The created sandbox
-    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative
+    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative,
+    #   or if auto_stop_interval and auto_pause_interval are both non-zero
     def _create(params, timeout: 60, on_snapshot_create_logs: nil)
       raise Sdk::Error, 'Timeout must be a non-negative number' if timeout.negative?
 
