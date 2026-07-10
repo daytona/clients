@@ -157,12 +157,15 @@ module Daytona
     #
     # @return [void]
     def handle_ephemeral_auto_delete_conflict
-      return unless ephemeral && auto_delete_interval && !auto_delete_interval.zero?
+      return unless ephemeral
 
-      warn(
-        "'ephemeral' and 'auto_delete_interval' cannot be used together. " \
-        'If ephemeral is true, auto_delete_interval will be ignored and set to 0.'
-      )
+      if auto_delete_interval && !auto_delete_interval.zero?
+        warn(
+          "'ephemeral' and 'auto_delete_interval' cannot be used together. " \
+          'If ephemeral is true, auto_delete_interval will be ignored and set to 0.'
+        )
+      end
+
       @auto_delete_interval = 0
     end
   end

@@ -26,6 +26,15 @@ RSpec.describe Daytona::CreateSandboxBaseParams do
         described_class.new(ephemeral: true, auto_delete_interval: 0)
       end.not_to output.to_stderr
     end
+
+    it 'forces auto_delete_interval to zero for ephemeral sandboxes without warning when unset' do
+      params = nil
+      expect do
+        params = described_class.new(ephemeral: true)
+      end.not_to output.to_stderr
+
+      expect(params.auto_delete_interval).to eq(0)
+    end
   end
 end
 
