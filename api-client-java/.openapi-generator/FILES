@@ -49,6 +49,7 @@ src/main/java/io/daytona/api/client/model/Announcement.java
 src/main/java/io/daytona/api/client/model/ApiKeyList.java
 src/main/java/io/daytona/api/client/model/ApiKeyResponse.java
 src/main/java/io/daytona/api/client/model/AuditLog.java
+src/main/java/io/daytona/api/client/model/AvailableSandboxClass.java
 src/main/java/io/daytona/api/client/model/BuildInfo.java
 src/main/java/io/daytona/api/client/model/Command.java
 src/main/java/io/daytona/api/client/model/CompletionContext.java
@@ -134,6 +135,7 @@ src/main/java/io/daytona/api/client/model/MouseScrollResponse.java
 src/main/java/io/daytona/api/client/model/OidcConfig.java
 src/main/java/io/daytona/api/client/model/Organization.java
 src/main/java/io/daytona/api/client/model/OrganizationInvitation.java
+src/main/java/io/daytona/api/client/model/OrganizationPreviewWarning.java
 src/main/java/io/daytona/api/client/model/OrganizationRole.java
 src/main/java/io/daytona/api/client/model/OrganizationSandboxDefaultLimitedNetworkEgress.java
 src/main/java/io/daytona/api/client/model/OrganizationSuspension.java
@@ -150,6 +152,7 @@ src/main/java/io/daytona/api/client/model/PollJobsResponse.java
 src/main/java/io/daytona/api/client/model/PortPreviewUrl.java
 src/main/java/io/daytona/api/client/model/Position.java
 src/main/java/io/daytona/api/client/model/PosthogConfig.java
+src/main/java/io/daytona/api/client/model/PreviewWarning.java
 src/main/java/io/daytona/api/client/model/ProcessErrorsResponse.java
 src/main/java/io/daytona/api/client/model/ProcessLogsResponse.java
 src/main/java/io/daytona/api/client/model/ProcessRestartResponse.java
@@ -261,6 +264,7 @@ src/test/java/io/daytona/api/client/model/AnnouncementTest.java
 src/test/java/io/daytona/api/client/model/ApiKeyListTest.java
 src/test/java/io/daytona/api/client/model/ApiKeyResponseTest.java
 src/test/java/io/daytona/api/client/model/AuditLogTest.java
+src/test/java/io/daytona/api/client/model/AvailableSandboxClassTest.java
 src/test/java/io/daytona/api/client/model/BuildInfoTest.java
 src/test/java/io/daytona/api/client/model/CommandTest.java
 src/test/java/io/daytona/api/client/model/CompletionContextTest.java
@@ -345,6 +349,7 @@ src/test/java/io/daytona/api/client/model/MouseScrollRequestTest.java
 src/test/java/io/daytona/api/client/model/MouseScrollResponseTest.java
 src/test/java/io/daytona/api/client/model/OidcConfigTest.java
 src/test/java/io/daytona/api/client/model/OrganizationInvitationTest.java
+src/test/java/io/daytona/api/client/model/OrganizationPreviewWarningTest.java
 src/test/java/io/daytona/api/client/model/OrganizationRoleTest.java
 src/test/java/io/daytona/api/client/model/OrganizationSandboxDefaultLimitedNetworkEgressTest.java
 src/test/java/io/daytona/api/client/model/OrganizationSuspensionTest.java
@@ -362,6 +367,7 @@ src/test/java/io/daytona/api/client/model/PollJobsResponseTest.java
 src/test/java/io/daytona/api/client/model/PortPreviewUrlTest.java
 src/test/java/io/daytona/api/client/model/PositionTest.java
 src/test/java/io/daytona/api/client/model/PosthogConfigTest.java
+src/test/java/io/daytona/api/client/model/PreviewWarningTest.java
 src/test/java/io/daytona/api/client/model/ProcessErrorsResponseTest.java
 src/test/java/io/daytona/api/client/model/ProcessLogsResponseTest.java
 src/test/java/io/daytona/api/client/model/ProcessRestartResponseTest.java

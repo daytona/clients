@@ -26,6 +26,7 @@ import io.daytona.api.client.model.DockerRegistry;
 import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
 import io.daytona.api.client.model.Organization;
+import io.daytona.api.client.model.OrganizationPreviewWarning;
 import io.daytona.api.client.model.PaginatedAuditLogs;
 import io.daytona.api.client.model.RegionQuota;
 import io.daytona.api.client.model.RunnerFull;
@@ -323,6 +324,19 @@ public class AdminApiTest {
         String id = null;
         SetSnapshotGeneralStatusDto setSnapshotGeneralStatusDto = null;
         SnapshotDto response = api.adminSetSnapshotGeneralStatus(id, setSnapshotGeneralStatusDto);
+        // TODO: test validations
+    }
+
+    /**
+     * Update organization preview warning
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void adminUpdateOrganizationPreviewWarningTest() throws ApiException {
+        String organizationId = null;
+        OrganizationPreviewWarning organizationPreviewWarning = null;
+        api.adminUpdateOrganizationPreviewWarning(organizationId, organizationPreviewWarning);
         // TODO: test validations
     }
 

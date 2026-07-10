@@ -14,6 +14,7 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
+import io.daytona.api.client.model.AvailableSandboxClass;
 import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateOrganization;
 import io.daytona.api.client.model.CreateOrganizationInvitation;
@@ -22,6 +23,7 @@ import io.daytona.api.client.model.CreateRegion;
 import io.daytona.api.client.model.CreateRegionResponse;
 import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.OrganizationInvitation;
+import io.daytona.api.client.model.OrganizationPreviewWarning;
 import io.daytona.api.client.model.OrganizationRole;
 import io.daytona.api.client.model.OrganizationSandboxDefaultLimitedNetworkEgress;
 import io.daytona.api.client.model.OrganizationSuspension;
@@ -302,6 +304,18 @@ public class OrganizationsApiTest {
     }
 
     /**
+     * List available sandbox classes for organization
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listAvailableSandboxClassesTest() throws ApiException {
+        String organizationId = null;
+        List<AvailableSandboxClass> response = api.listAvailableSandboxClasses(organizationId);
+        // TODO: test validations
+    }
+
+    /**
      * List pending organization invitations
      *
      * @throws ApiException if the Api call fails
@@ -487,6 +501,19 @@ public class OrganizationsApiTest {
         String organizationId = null;
         OtelConfig otelConfig = null;
         api.updateOrganizationOtelConfig(organizationId, otelConfig);
+        // TODO: test validations
+    }
+
+    /**
+     * Update organization preview warning
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateOrganizationPreviewWarningTest() throws ApiException {
+        String organizationId = null;
+        OrganizationPreviewWarning organizationPreviewWarning = null;
+        api.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning);
         // TODO: test validations
     }
 

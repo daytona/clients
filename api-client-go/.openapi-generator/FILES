@@ -31,6 +31,7 @@ model_announcement.go
 model_api_key_list.go
 model_api_key_response.go
 model_audit_log.go
+model_available_sandbox_class.go
 model_build_info.go
 model_command.go
 model_completion_context.go
@@ -116,6 +117,7 @@ model_mouse_scroll_response.go
 model_oidc_config.go
 model_organization.go
 model_organization_invitation.go
+model_organization_preview_warning.go
 model_organization_role.go
 model_organization_sandbox_default_limited_network_egress.go
 model_organization_suspension.go
@@ -132,6 +134,7 @@ model_poll_jobs_response.go
 model_port_preview_url.go
 model_position.go
 model_posthog_config.go
+model_preview_warning.go
 model_process_errors_response.go
 model_process_logs_response.go
 model_process_restart_response.go

@@ -7,6 +7,10 @@ require 'json'
 require 'observer'
 
 module Daytona
+  # Capability token advertised on PTY WebSocket connects so the daemon sends the
+  # "exited" control message; clients that don't send it only get the close frame.
+  PTY_EXIT_CONTROL_SUBPROTOCOL = 'X-Daytona-Pty-Exit-Control'
+
   class PtySize
     # @return [Integer] Number of terminal rows (height)
     attr_reader :rows
@@ -68,6 +72,7 @@ module Daytona
       @handle_kill = handle_kill
       @exit_code = nil
       @error = nil
+      @exited = false
       @logger = Sdk.logger
 
       @status = Status::INIT
@@ -77,21 +82,23 @@ module Daytona
     # Check if connected to the PTY session
     #
     # @return [Boolean] true if connected, false otherwise
-    def connected? = websocket.open?
+    # A PTY that has exited is not usable even while the socket briefly stays
+    # open before the close frame, so treat it as disconnected.
+    def connected? = websocket.open? && !@exited
 
     # Wait for the PTY connection to be established
     #
     # @param timeout [Float] Maximum time in seconds to wait for connection. Defaults to 10.0
     # @return [void]
     # @raise [Daytona::Sdk::Error] If connection timeout is exceeded
-    def wait_for_connection(timeout: DEFAULT_TIMEOUT)
-      return if status == Status::CONNECTED
+    def wait_for_connection(timeout: DEFAULT_TIMEOUT) # rubocop:disable Metrics/CyclomaticComplexity
+      return if status == Status::CONNECTED || @exited
 
       start_time = Time.now
 
-      sleep(SLEEP_INTERVAL) until status == Status::CONNECTED || (Time.now - start_time) > timeout
+      sleep(SLEEP_INTERVAL) until status == Status::CONNECTED || @exited || (Time.now - start_time) > timeout
 
-      raise Sdk::Error, 'PTY connection timeout' unless status == Status::CONNECTED
+      raise Sdk::Error, 'PTY connection timeout' unless status == Status::CONNECTED || @exited
     end
 
     # Send input to the PTY session
@@ -127,8 +134,9 @@ module Daytona
     #
     # @param on_data [Proc, nil] Optional callback to handle output data
     # @return [Daytona::PtyResult] Result containing exit code and error information
-    def wait(timeout: nil, &on_data)
+    def wait(timeout: nil, &on_data) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/AbcSize
       timeout ||= Float::INFINITY
+      return PtyResult.new(exit_code:, error:) if @exited
       return unless status == Status::CONNECTED
 
       start_time = Time.now
@@ -239,11 +247,17 @@ module Daytona
 
     # @param data [WebSocket::Frame::Data]
     # @return [void]
-    def process_websocket_control_message(data) # rubocop:disable Metrics/MethodLength
+    def process_websocket_control_message(data) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
       case data[:status]
       when WebSocketControlStatus::CONNECTED
         logger.debug('[control] connected')
         @status = Status::CONNECTED
+      when WebSocketControlStatus::EXITED
+        logger.debug("[control] exited: code=#{data[:exitCode]}")
+        @exit_code = data[:exitCode]
+        @error = data[:exitReason] if data[:exitReason]
+        @exited = true
+        @status = Status::CLOSED
       when WebSocketControlStatus::ERROR
         logger.debug("[control] error: #{error.inspect}")
         @status = Status::ERROR
@@ -302,6 +316,7 @@ module Daytona
     module WebSocketControlStatus
       ALL = [
         CONNECTED = 'connected',
+        EXITED = 'exited',
         ERROR = 'error'
       ].freeze
     end

@@ -10,7 +10,6 @@ import type {
   SessionExecuteRequest,
   SessionExecuteResponse as ApiSessionExecuteResponse,
   CodeRunRequest,
-  PtyCreateRequest,
   PtySessionInfo,
 } from '@daytona/toolbox-api-client'
 import type { ExecuteResponse } from './types/ExecuteResponse'
@@ -19,12 +18,17 @@ import { stdDemuxStream } from './utils/Stream'
 import { PtyHandle } from './PtyHandle'
 import type { PtyCreateOptions, PtyConnectOptions } from './types/Pty'
 import { createSandboxWebSocket } from './utils/WebSocket'
+import { toBuffer } from './utils/Binary'
 import { WithInstrumentation } from './utils/otel.decorator'
 
 // 3-byte multiplexing markers inserted by the shell labelers
 export const STDOUT_PREFIX_BYTES = new Uint8Array([0x01, 0x01, 0x01])
 export const STDERR_PREFIX_BYTES = new Uint8Array([0x02, 0x02, 0x02])
 export const MAX_PREFIX_LEN = Math.max(STDOUT_PREFIX_BYTES.length, STDERR_PREFIX_BYTES.length)
+
+// Capability token advertised on PTY WebSocket connects so the daemon sends the
+// "exited" control message; clients that don't send it only get the close frame.
+const PTY_EXIT_CONTROL_SUBPROTOCOL = 'X-Daytona-Pty-Exit-Control'
 
 /**
  * Parameters for code execution.
@@ -531,18 +535,54 @@ export class Process {
    */
   @WithInstrumentation()
   public async createPty(options?: PtyCreateOptions & PtyConnectOptions): Promise<PtyHandle> {
-    const request: PtyCreateRequest = {
-      id: options.id,
-      cwd: options.cwd,
-      envs: options.envs,
-      cols: options.cols,
-      rows: options.rows,
-      lazyStart: true,
+    const id = options.id
+    const cols = options.cols ?? 80
+    const rows = options.rows ?? 24
+
+    // Build query params for the combined create-connect endpoint (single round-trip)
+    const params = new URLSearchParams({
+      id,
+      cols: String(cols),
+      rows: String(rows),
+    })
+    if (options.cwd) params.set('cwd', options.cwd)
+
+    const wsUrl = `${this.clientConfig.basePath.replace(/^http/, 'ws')}/process/pty/create-connect?${params.toString()}`
+
+    // Envs are passed via a WebSocket subprotocol token (base64url, no padding, of the JSON object)
+    // rather than the query string or a header, so they forward uniformly across browser/Deno/serverless
+    // runtimes and match the daemon's create-connect protocol.
+    const headers: Record<string, any> = { ...(this.clientConfig.baseOptions?.headers || {}) }
+    const subprotocols: string[] = []
+    if (options.envs && Object.keys(options.envs).length) {
+      const b64url = toBuffer(new TextEncoder().encode(JSON.stringify(options.envs)))
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '')
+      subprotocols.push(`X-Daytona-Pty-Envs~${b64url}`)
+    }
+    subprotocols.push(PTY_EXIT_CONTROL_SUBPROTOCOL)
+
+    const ws = await createSandboxWebSocket(wsUrl, headers, this.getPreviewToken, subprotocols)
+
+    const handle = new PtyHandle(
+      ws,
+      (handleCols: number, handleRows: number) => this.resizePtySession(id, handleCols, handleRows),
+      () => this.killPtySession(id),
+      options.onData,
+      id,
+    )
+    // Close the socket if the handshake never completes so a failed create
+    // does not leak the underlying WebSocket connection.
+    try {
+      await handle.waitForConnection()
+    } catch (e) {
+      await handle.disconnect()
+      throw e
     }
 
-    const response = await this.apiClient.createPtySession(request)
-
-    return await this.connectPty(response.data.sessionId, options)
+    return handle
   }
 
   /**
@@ -584,7 +624,9 @@ export class Process {
   public async connectPty(sessionId: string, options?: PtyConnectOptions): Promise<PtyHandle> {
     const url = `${this.clientConfig.basePath.replace(/^http/, 'ws')}/process/pty/${sessionId}/connect`
 
-    const ws = await createSandboxWebSocket(url, this.clientConfig.baseOptions?.headers || {}, this.getPreviewToken)
+    const ws = await createSandboxWebSocket(url, this.clientConfig.baseOptions?.headers || {}, this.getPreviewToken, [
+      PTY_EXIT_CONTROL_SUBPROTOCOL,
+    ])
 
     const handle = new PtyHandle(
       ws,
@@ -593,7 +635,12 @@ export class Process {
       options.onData,
       sessionId,
     )
-    await handle.waitForConnection()
+    try {
+      await handle.waitForConnection()
+    } catch (e) {
+      await handle.disconnect()
+      throw e
+    }
     return handle
   }
 

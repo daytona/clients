@@ -88,6 +88,19 @@ describe('PtyHandle', () => {
     expect(handle.isConnected()).toBe(true)
   })
 
+  it('resolves all concurrent waitForConnection callers on connect', async () => {
+    jest.useFakeTimers()
+    const { handle, ws } = await makeHandle()
+
+    const waiters = [handle.waitForConnection(), handle.waitForConnection(), handle.waitForConnection()]
+    ws.readyState = 1
+    await ws.handlers.open?.()
+    await ws.handlers.message?.({ data: JSON.stringify({ type: 'control', status: 'connected' }) })
+    await jest.runOnlyPendingTimersAsync()
+
+    await expect(Promise.all(waiters)).resolves.toEqual([undefined, undefined, undefined])
+  })
+
   it('returns immediately when the connection is already established', async () => {
     const { handle, ws } = await makeHandle()
 
@@ -261,6 +274,35 @@ describe('PtyHandle', () => {
     await expect(handle.wait()).resolves.toEqual({ exitCode: 17, error: 'pty gone' })
     expect(handle.exitCode).toBe(17)
     expect(handle.error).toBe('pty gone')
+  })
+
+  it('unblocks waitForConnection when the PTY exits instantly', async () => {
+    jest.useFakeTimers()
+    const { handle, ws } = await makeHandle()
+
+    const waitPromise = handle.waitForConnection()
+    await ws.handlers.message?.({
+      data: JSON.stringify({ type: 'control', status: 'exited', exitCode: 0 }),
+    })
+    await jest.runOnlyPendingTimersAsync()
+
+    await expect(waitPromise).resolves.toBeUndefined()
+    await expect(handle.wait()).resolves.toEqual({ exitCode: 0, error: undefined })
+  })
+
+  it('resolves all concurrent wait() callers when the PTY exits', async () => {
+    const { handle, ws } = await makeHandle()
+
+    const waiters = [handle.wait(), handle.wait(), handle.wait()]
+    await ws.handlers.message?.({
+      data: JSON.stringify({ type: 'control', status: 'exited', exitCode: 42 }),
+    })
+
+    await expect(Promise.all(waiters)).resolves.toEqual([
+      { exitCode: 42, error: undefined },
+      { exitCode: 42, error: undefined },
+      { exitCode: 42, error: undefined },
+    ])
   })
 
   it('throws for unsupported websocket implementations', async () => {

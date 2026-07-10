@@ -35,6 +35,7 @@ lib/daytona_api_client/models/announcement.rb
 lib/daytona_api_client/models/api_key_list.rb
 lib/daytona_api_client/models/api_key_response.rb
 lib/daytona_api_client/models/audit_log.rb
+lib/daytona_api_client/models/available_sandbox_class.rb
 lib/daytona_api_client/models/build_info.rb
 lib/daytona_api_client/models/command.rb
 lib/daytona_api_client/models/completion_context.rb
@@ -120,6 +121,7 @@ lib/daytona_api_client/models/mouse_scroll_response.rb
 lib/daytona_api_client/models/oidc_config.rb
 lib/daytona_api_client/models/organization.rb
 lib/daytona_api_client/models/organization_invitation.rb
+lib/daytona_api_client/models/organization_preview_warning.rb
 lib/daytona_api_client/models/organization_role.rb
 lib/daytona_api_client/models/organization_sandbox_default_limited_network_egress.rb
 lib/daytona_api_client/models/organization_suspension.rb
@@ -136,6 +138,7 @@ lib/daytona_api_client/models/poll_jobs_response.rb
 lib/daytona_api_client/models/port_preview_url.rb
 lib/daytona_api_client/models/position.rb
 lib/daytona_api_client/models/posthog_config.rb
+lib/daytona_api_client/models/preview_warning.rb
 lib/daytona_api_client/models/process_errors_response.rb
 lib/daytona_api_client/models/process_logs_response.rb
 lib/daytona_api_client/models/process_restart_response.rb

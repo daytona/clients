@@ -6,7 +6,11 @@ package daytona
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
 
 	"github.com/daytona/clients/sdk-go/pkg/common"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
@@ -23,6 +27,10 @@ var (
 )
 
 const maxPrefixLen = 3
+
+// ptyExitControlSubprotocol is advertised on PTY WebSocket connects so the daemon
+// sends the "exited" control message; clients that don't send it only get the close frame.
+const ptyExitControlSubprotocol = "X-Daytona-Pty-Exit-Control"
 
 // ProcessService provides process execution operations for a sandbox.
 //
@@ -973,7 +981,11 @@ func (p *ProcessService) ConnectPty(ctx context.Context, sessionID string) (*Pty
 			headers[key] = []string{value}
 		}
 
-		conn, _, err := websocket.DefaultDialer.DialContext(ctx, fmt.Sprintf("%s/process/pty/%s/connect", wsURL, sessionID), headers)
+		// gorilla/websocket's DefaultDialer is a shared global; copy it before mutating.
+		dialer := *websocket.DefaultDialer
+		dialer.Subprotocols = []string{ptyExitControlSubprotocol}
+
+		conn, _, err := dialer.DialContext(ctx, fmt.Sprintf("%s/process/pty/%s/connect", wsURL, sessionID), headers)
 		if err != nil {
 			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to connect to PTY: %v", err), 0, nil)
 		}
@@ -1036,22 +1048,55 @@ func (p *ProcessService) CreatePty(ctx context.Context, id string, opts ...func(
 	return withInstrumentation(ctx, p.otel, "Process", "CreatePty", func(ctx context.Context) (*PtyHandle, error) {
 		createOpts := options.Apply(opts...)
 
-		// Convert to CreatePtySession options
-		sessionOpts := []func(*options.PtySession){}
+		// Build query params for single-roundtrip create-connect endpoint
+		cols := 80
+		rows := 24
 		if createOpts.PtySize != nil {
-			sessionOpts = append(sessionOpts, options.WithPtySize(*createOpts.PtySize))
-		}
-		if createOpts.Env != nil {
-			sessionOpts = append(sessionOpts, options.WithPtyEnv(createOpts.Env))
+			cols = createOpts.PtySize.Cols
+			rows = createOpts.PtySize.Rows
 		}
 
-		// Create the PTY session
-		_, err := p.CreatePtySession(ctx, id, sessionOpts...)
+		httpURL := p.toolboxClient.GetConfig().Servers[0].URL
+		wsURL := common.ConvertToWebSocketURL(httpURL)
+
+		values := url.Values{}
+		values.Set("id", id)
+		values.Set("cols", strconv.Itoa(cols))
+		values.Set("rows", strconv.Itoa(rows))
+
+		headers := make(map[string][]string)
+		cfg := p.toolboxClient.GetConfig()
+		for key, value := range cfg.DefaultHeader {
+			headers[key] = []string{value}
+		}
+
+		// Advertise the exit-control capability; pass envs via a WebSocket subprotocol
+		// token (base64url-no-padding JSON) instead of a header.
+		subprotocols := []string{ptyExitControlSubprotocol}
+		if len(createOpts.Env) > 0 {
+			envJSON, err := json.Marshal(createOpts.Env)
+			if err != nil {
+				return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to encode PTY envs: %v", err), 0, nil)
+			}
+			subprotocols = append(subprotocols, "X-Daytona-Pty-Envs~"+base64.RawURLEncoding.EncodeToString(envJSON))
+		}
+
+		// gorilla/websocket's DefaultDialer is a shared global; copy it before mutating.
+		dialer := *websocket.DefaultDialer
+		dialer.Subprotocols = subprotocols
+
+		conn, _, err := dialer.DialContext(ctx, fmt.Sprintf("%s/process/pty/create-connect?%s", wsURL, values.Encode()), headers)
 		if err != nil {
-			return nil, err
+			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to create and connect PTY: %v", err), 0, nil)
 		}
 
-		// Connect to the session
-		return p.ConnectPty(ctx, id)
+		resizeHandler := func(ctx context.Context, c, r int) (*types.PtySessionInfo, error) {
+			return p.ResizePtySession(ctx, id, types.PtySize{Cols: c, Rows: r})
+		}
+		killHandler := func(ctx context.Context) error {
+			return p.KillPtySession(ctx, id)
+		}
+
+		return newPtyHandle(conn, id, resizeHandler, killHandler), nil
 	})
 }

@@ -46,6 +46,8 @@ export class PtyHandle {
   private _error?: string
   private connected = false
   private connectionEstablished = false // Track control message received
+  private _connectionResolvers: { resolve: () => void; reject: (err: Error) => void }[] = []
+  private _exitResolvers: ((value: PtyResult) => void)[] = []
 
   constructor(
     private readonly ws: WebSocket,
@@ -92,25 +94,63 @@ export class PtyHandle {
       return
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
+      // Each caller registers its own entry so concurrent waitForConnection()
+      // callers are all resolved/rejected together instead of overwriting one
+      // another (which left earlier callers hanging until their own timeout).
+      const entry = {
+        resolve: () => {
+          clearTimeout(timeout)
+          resolve()
+        },
+        reject: (err: Error) => {
+          clearTimeout(timeout)
+          reject(err)
+        },
+      }
       const timeout = setTimeout(() => {
+        this._connectionResolvers = this._connectionResolvers.filter((r) => r !== entry)
         reject(new DaytonaTimeoutError('PTY connection timeout'))
       }, 10000) // 10 second timeout
 
-      const checkConnection = () => {
-        if (this.connectionEstablished) {
-          clearTimeout(timeout)
-          resolve()
-        } else if (this.ws.readyState === WebSocket.CLOSED || this._error) {
-          clearTimeout(timeout)
-          reject(new DaytonaConnectionError(this._error || 'Connection failed'))
-        } else {
-          setTimeout(checkConnection, 100)
-        }
+      // Check if already connected (race: message arrived before we set up handlers)
+      if (this.connectionEstablished) {
+        clearTimeout(timeout)
+        resolve()
+        return
       }
 
-      checkConnection()
+      // Check if already failed
+      if (this.ws.readyState === WebSocket.CLOSED || this._error) {
+        clearTimeout(timeout)
+        reject(new DaytonaConnectionError(this._error || 'Connection failed'))
+        return
+      }
+
+      this._connectionResolvers.push(entry)
     })
+  }
+
+  /**
+   * Resolve all pending waitForConnection() callers and clear them.
+   */
+  private resolveConnection(): void {
+    const resolvers = this._connectionResolvers
+    this._connectionResolvers = []
+    for (const r of resolvers) {
+      r.resolve()
+    }
+  }
+
+  /**
+   * Reject all pending waitForConnection() callers and clear them.
+   */
+  private rejectConnection(err: Error): void {
+    const resolvers = this._connectionResolvers
+    this._connectionResolvers = []
+    for (const r of resolvers) {
+      r.reject(err)
+    }
   }
 
   /**
@@ -213,30 +253,42 @@ export class PtyHandle {
    */
   @WithInstrumentation()
   async wait(): Promise<PtyResult> {
+    if (this._exitCode !== undefined) {
+      return { exitCode: this._exitCode, error: this._error }
+    }
+
     return new Promise((resolve, reject) => {
+      // Check again in case it resolved between the sync check and the promise setup
       if (this._exitCode !== undefined) {
-        resolve({
-          exitCode: this._exitCode,
-          error: this._error,
-        })
+        resolve({ exitCode: this._exitCode, error: this._error })
         return
       }
 
-      const checkExit = () => {
-        if (this._exitCode !== undefined) {
-          resolve({
-            exitCode: this._exitCode,
-            error: this._error,
-          })
-        } else if (this._error) {
-          reject(new DaytonaError(this._error))
-        } else {
-          setTimeout(checkExit, 100)
-        }
+      // If there's already an error and no exit code, reject
+      if (this._error && this._exitCode === undefined) {
+        reject(new DaytonaError(this._error))
+        return
       }
 
-      checkExit()
+      // Register this caller; all pending callers are resolved together on exit so
+      // concurrent wait() calls do not overwrite each other and hang forever.
+      this._exitResolvers.push(resolve)
     })
+  }
+
+  /**
+   * Resolve all pending wait() callers with the current exit result and clear them.
+   */
+  private resolveExit(): void {
+    if (this._exitResolvers.length === 0) {
+      return
+    }
+    const result: PtyResult = { exitCode: this._exitCode, error: this._error }
+    const resolvers = this._exitResolvers
+    this._exitResolvers = []
+    for (const resolve of resolvers) {
+      resolve(result)
+    }
   }
 
   /**
@@ -283,10 +335,26 @@ export class PtyHandle {
             if (controlMsg.type === 'control') {
               if (controlMsg.status === 'connected') {
                 this.connectionEstablished = true
+                this.resolveConnection()
+                return
+              } else if (controlMsg.status === 'exited') {
+                this._exitCode = controlMsg.exitCode ?? undefined
+                if (controlMsg.exitReason) {
+                  this._error = controlMsg.exitReason
+                }
+                // An instantly-exiting PTY still means the connection was established;
+                // unblock any pending waitForConnection() so it does not hang/reject.
+                this.connectionEstablished = true
+                // The PTY has exited: mark disconnected so isConnected() does not
+                // report true for a dead session between 'exited' and the WS close.
+                this.connected = false
+                this.resolveConnection()
+                this.resolveExit()
                 return
               } else if (controlMsg.status === 'error') {
                 this._error = controlMsg.error || 'Unknown connection error'
                 this.connected = false
+                this.rejectConnection(new DaytonaConnectionError(this._error))
                 return
               }
             }
@@ -336,14 +404,17 @@ export class PtyHandle {
 
       this._error = errorMessage
       this.connected = false
+
+      // Reject pending waitForConnection() if still waiting
+      this.rejectConnection(new DaytonaConnectionError(errorMessage))
     }
 
     // Handle WebSocket close - parse structured exit data
     const handleClose = async (event: CloseEvent | any) => {
       this.connected = false
 
-      // Parse structured exit data from close reason
-      if (event && event.reason) {
+      // Parse structured exit data from close reason (only if not already set by control message)
+      if (this._exitCode === undefined && event && event.reason) {
         try {
           const exitData = JSON.parse(event.reason)
           if (typeof exitData.exitCode === 'number') {
@@ -368,6 +439,12 @@ export class PtyHandle {
       if (this._exitCode === undefined && event && event.code === 1000) {
         this._exitCode = 0
       }
+
+      // Resolve pending wait() if not already resolved by control message
+      this.resolveExit()
+
+      // Reject pending waitForConnection() if still waiting
+      this.rejectConnection(new DaytonaConnectionError(this._error || 'Connection closed'))
     }
 
     // Attach event listeners based on WebSocket implementation

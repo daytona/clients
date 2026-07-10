@@ -473,6 +473,36 @@ paths:
       summary: Get organization current usage overview
       tags:
       - organizations
+  /organizations/{organizationId}/available-sandbox-classes:
+    get:
+      operationId: listAvailableSandboxClasses
+      parameters:
+      - description: Organization ID
+        explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/AvailableSandboxClass"
+                type: array
+          description: Available sandbox classes
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List available sandbox classes for organization
+      tags:
+      - organizations
   /organizations/{organizationId}/quota:
     patch:
       operationId: updateOrganizationQuota
@@ -755,6 +785,36 @@ paths:
         - profile
         - email
       summary: Update sandbox default limited network egress
+      tags:
+      - organizations
+  /organizations/{organizationId}/preview-warning:
+    post:
+      operationId: updateOrganizationPreviewWarning
+      parameters:
+      - description: Organization ID
+        explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationPreviewWarning"
+        required: true
+      responses:
+        "204":
+          description: Preview warning updated successfully
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Update organization preview warning
       tags:
       - organizations
   /organizations/{organizationId}/experimental-config:
@@ -7315,6 +7375,44 @@ paths:
       summary: Check if sandbox is public
       tags:
       - preview
+  /preview/{sandboxId}/preview-warning:
+    get:
+      operationId: isPreviewWarningEnabled
+      parameters:
+      - description: "ID of the sandbox, or a signed preview URL token (requires the\
+          \ port query param)"
+        explode: false
+        in: path
+        name: sandboxId
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Port the signed preview URL token was issued for. Required when
+          sandboxId is a signed token.
+        explode: true
+        in: query
+        name: port
+        required: false
+        schema:
+          type: number
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewWarning"
+          description: Whether the preview warning page is enabled for the sandbox
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Check if the preview warning page is enabled for the sandbox
+      tags:
+      - preview
   /preview/{sandboxId}/validate/{authToken}:
     get:
       operationId: isValidAuthToken
@@ -8994,6 +9092,36 @@ paths:
       summary: Get organization region quota
       tags:
       - admin
+  /admin/organizations/{organizationId}/preview-warning:
+    post:
+      operationId: adminUpdateOrganizationPreviewWarning
+      parameters:
+      - description: Organization ID
+        explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationPreviewWarning"
+        required: true
+      responses:
+        "204":
+          description: Preview warning updated successfully
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Update organization preview warning
+      tags:
+      - admin
   /webhooks/organizations/{organizationId}/app-portal-access:
     post:
       operationId: WebhookController_getAppPortalAccess
@@ -10292,6 +10420,7 @@ components:
         createdAt: 2000-01-23T04:56:07.000+00:00
         sandboxLimitedNetworkEgress: true
         suspendedUntil: 2000-01-23T04:56:07.000+00:00
+        previewWarningEnabled: true
         snapshotDeactivationTimeoutMinutes: 7.061401241503109
         otelConfig: ""
         authenticatedRateLimitTtlSeconds: 4.145608029883936
@@ -10373,6 +10502,10 @@ components:
         sandboxLimitedNetworkEgress:
           description: Sandbox default network block all
           type: boolean
+        previewWarningEnabled:
+          description: Whether the proxy shows the preview URL warning page for this
+            organization
+          type: boolean
         defaultRegionId:
           description: Default region ID
           type: string
@@ -10422,6 +10555,7 @@ components:
       - name
       - otelConfig
       - personal
+      - previewWarningEnabled
       - sandboxCreateRateLimit
       - sandboxCreateRateLimitTtlSeconds
       - sandboxLifecycleRateLimit
@@ -10628,6 +10762,31 @@ components:
       - totalSnapshotQuota
       - totalVolumeQuota
       type: object
+    AvailableSandboxClass:
+      example:
+        gpuAvailable: true
+        regionId: regionId
+        allowedGpuTypes:
+        - H100
+        - H100
+        sandboxClass: ""
+      properties:
+        regionId:
+          type: string
+        sandboxClass:
+          allOf:
+          - $ref: "#/components/schemas/SandboxClass"
+        gpuAvailable:
+          type: boolean
+        allowedGpuTypes:
+          items:
+            $ref: "#/components/schemas/GpuType"
+          type: array
+      required:
+      - gpuAvailable
+      - regionId
+      - sandboxClass
+      type: object
     UpdateOrganizationQuota:
       example:
         sandboxCreateRateLimitTtlSeconds: 1.2315135367772556
@@ -10812,6 +10971,17 @@ components:
           type: boolean
       required:
       - sandboxDefaultLimitedNetworkEgress
+      type: object
+    OrganizationPreviewWarning:
+      example:
+        previewWarningEnabled: true
+      properties:
+        previewWarningEnabled:
+          description: Whether the proxy shows the preview URL warning page for this
+            organization
+          type: boolean
+      required:
+      - previewWarningEnabled
       type: object
     CreateOrganizationRole:
       example:
@@ -14931,6 +15101,16 @@ components:
       - page
       - total
       - totalPages
+      type: object
+    PreviewWarning:
+      example:
+        enabled: true
+      properties:
+        enabled:
+          description: Whether the preview warning page is enabled for the sandbox
+          type: boolean
+      required:
+      - enabled
       type: object
     VolumeState:
       description: Volume state

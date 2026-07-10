@@ -75,12 +75,17 @@ public class PtyHandle {
             throw new DaytonaException("Interrupted while waiting for PTY connection", e);
         }
 
+        // A connection that was established and then exited still connected successfully;
+        // the close frame may carry an exitReason (-> error), but that is an exit signal
+        // reported via waitForExit, not a connection failure. Only treat error as a
+        // connection failure when the connection was never established.
+        if (connectionEstablished) {
+            return;
+        }
         if (error != null && !error.isEmpty()) {
             throw new DaytonaException("PTY connection failed: " + error, failure);
         }
-        if (!connectionEstablished) {
-            throw new DaytonaException("PTY connection was not established");
-        }
+        throw new DaytonaException("PTY connection was not established");
     }
 
     /**
@@ -224,6 +229,23 @@ public class PtyHandle {
                     if ("connected".equals(status)) {
                         connectionEstablished = true;
                         connectionLatch.countDown();
+                        return;
+                    }
+                    if ("exited".equals(status)) {
+                        if (node.has("exitCode") && !node.get("exitCode").isNull()) {
+                            exitCode = node.get("exitCode").asInt();
+                        }
+                        if (node.has("exitReason") && !node.get("exitReason").isNull()) {
+                            error = node.get("exitReason").asText();
+                        }
+                        // An instantly-exiting PTY may never emit "connected"; unblock
+                        // waitForConnection so it doesn't time out.
+                        connectionEstablished = true;
+                        // The PTY has exited: mark disconnected so isConnected() does
+                        // not report true for a dead session before the WS close.
+                        connected = false;
+                        connectionLatch.countDown();
+                        exitLatch.countDown();
                         return;
                     }
                     if ("error".equals(status)) {
