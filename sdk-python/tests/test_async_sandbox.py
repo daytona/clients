@@ -144,9 +144,9 @@ class TestAsyncSandboxOperations:
         await sandbox.revoke_ssh_access("token")
         await sandbox.refresh_activity()
 
-        mock_async_sandbox_api.get_port_preview_url.assert_awaited_once_with(sandbox.id, 3000)
-        mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(sandbox.id, "token")
-        mock_async_sandbox_api.update_last_activity.assert_awaited_once_with(sandbox.id)
+        mock_async_sandbox_api.get_port_preview_url.assert_awaited_once_with(sandbox.id, 3000, _request_timeout=None)
+        mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(sandbox.id, "token", _request_timeout=None)
+        mock_async_sandbox_api.update_last_activity.assert_awaited_once_with(sandbox.id, _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_update_secrets(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):

@@ -85,7 +85,7 @@ class TestAsyncComputerUse:
         ).size_bytes == 123
         assert (await computer_use.screenshot.take_compressed_region(region)).size_bytes == 456
 
-        api_client.take_screenshot.assert_awaited_once_with(show_cursor=True)
+        api_client.take_screenshot.assert_awaited_once_with(show_cursor=True, _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_display_and_recording_methods_delegate_to_api(self, tmp_path: Path):
@@ -168,7 +168,7 @@ class TestAsyncComputerUse:
         assert (await computer_use.get_process_logs("xvfb")).logs == ["line"]
         assert (await computer_use.get_process_errors("xvfb")).errors == ["err"]
 
-        api_client.get_process_status.assert_awaited_once_with(process_name="xvfb")
+        api_client.get_process_status.assert_awaited_once_with(process_name="xvfb", _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_accessibility_methods_delegate_to_api(self):
@@ -193,8 +193,8 @@ class TestAsyncComputerUse:
         await computer_use.accessibility.invoke_node("node-2", action="click")
         await computer_use.accessibility.set_node_value("node-3", "hello")
 
-        api_client.get_accessibility_tree.assert_any_await(scope=None, pid=None, max_depth=None)
-        api_client.get_accessibility_tree.assert_any_await(scope="pid", pid=123, max_depth=0)
+        api_client.get_accessibility_tree.assert_any_await(scope=None, pid=None, max_depth=None, _request_timeout=None)
+        api_client.get_accessibility_tree.assert_any_await(scope="pid", pid=123, max_depth=0, _request_timeout=None)
         find_request = api_client.find_accessibility_nodes.call_args.kwargs["request"]
         assert find_request.to_dict() == {
             "scope": "all",

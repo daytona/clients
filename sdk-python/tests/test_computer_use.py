@@ -93,10 +93,18 @@ class TestComputerUse:
         )
         assert computer_use.screenshot.take_compressed_region(region).size_bytes == 456
 
-        api_client.take_screenshot.assert_called_once_with(show_cursor=True)
-        api_client.take_region_screenshot.assert_called_once_with(height=200, width=300, y=20, x=10, show_cursor=False)
+        api_client.take_screenshot.assert_called_once_with(show_cursor=True, _request_timeout=None)
+        api_client.take_region_screenshot.assert_called_once_with(
+            height=200, width=300, y=20, x=10, show_cursor=False, _request_timeout=None
+        )
         compressed_kwargs = api_client.take_compressed_screenshot.call_args_list[1].kwargs
-        assert compressed_kwargs == {"scale": 0.5, "quality": 90, "format": "jpeg", "show_cursor": True}
+        assert compressed_kwargs == {
+            "scale": 0.5,
+            "quality": 90,
+            "format": "jpeg",
+            "show_cursor": True,
+            "_request_timeout": None,
+        }
         compressed_region_kwargs = api_client.take_compressed_region_screenshot.call_args.kwargs
         assert compressed_region_kwargs["width"] == 300
 
@@ -123,7 +131,7 @@ class TestComputerUse:
 
         assert api_client.start_recording.call_args.kwargs["request"].label == "label"
         assert api_client.stop_recording.call_args.kwargs["request"].id == "rec-1"
-        api_client.delete_recording.assert_called_once_with(id="rec-1")
+        api_client.delete_recording.assert_called_once_with(id="rec-1", _request_timeout=None)
 
         stream_response = MagicMock()
         stream_response.__enter__.return_value = stream_response
@@ -170,8 +178,8 @@ class TestComputerUse:
         assert computer_use.get_process_logs("xvfb").logs == ["line"]
         assert computer_use.get_process_errors("xvfb").errors == ["err"]
 
-        api_client.get_process_status.assert_called_once_with(process_name="xvfb")
-        api_client.restart_process.assert_called_once_with(process_name="xvfb")
+        api_client.get_process_status.assert_called_once_with(process_name="xvfb", _request_timeout=None)
+        api_client.restart_process.assert_called_once_with(process_name="xvfb", _request_timeout=None)
 
     def test_accessibility_methods_delegate_to_api(self):
         computer_use, api_client = _make_computer_use()
@@ -198,8 +206,8 @@ class TestComputerUse:
         computer_use.accessibility.invoke_node("node-2", action="click")
         computer_use.accessibility.set_node_value("node-3", "hello")
 
-        api_client.get_accessibility_tree.assert_any_call(scope=None, pid=None, max_depth=None)
-        api_client.get_accessibility_tree.assert_any_call(scope="pid", pid=123, max_depth=0)
+        api_client.get_accessibility_tree.assert_any_call(scope=None, pid=None, max_depth=None, _request_timeout=None)
+        api_client.get_accessibility_tree.assert_any_call(scope="pid", pid=123, max_depth=0, _request_timeout=None)
         find_request = api_client.find_accessibility_nodes.call_args.kwargs["request"]
         assert find_request.to_dict() == {
             "scope": "all",

@@ -294,7 +294,8 @@ await daytona.delete(sandbox)  # Clean up when done
 ```python
 @intercept_errors(message_prefix="Failed to get sandbox: ")
 @with_instrumentation()
-async def get(sandbox_id_or_name: str) -> AsyncSandbox
+async def get(sandbox_id_or_name: str,
+              request_timeout: float | None = None) -> AsyncSandbox
 ```
 
 Gets a Sandbox by its ID or name.
@@ -302,6 +303,10 @@ Gets a Sandbox by its ID or name.
 **Arguments**:
 
 - `sandbox_id_or_name` _str_ - The ID or name of the Sandbox to retrieve.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Returns**:
@@ -327,8 +332,8 @@ print(sandbox.state)
 @intercept_errors(message_prefix="Failed to list sandboxes: ")
 @with_instrumentation()
 async def list(
-        query: ListSandboxesQuery | None = None
-) -> AsyncIterator[AsyncSandbox]
+        query: ListSandboxesQuery | None = None,
+        request_timeout: float | None = None) -> AsyncIterator[AsyncSandbox]
 ```
 
 Iterates over Sandboxes matching the given query.
@@ -336,6 +341,10 @@ Iterates over Sandboxes matching the given query.
 **Arguments**:
 
 - `query` - Optional filters, sorting, and per-page size.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Yields**:

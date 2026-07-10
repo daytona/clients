@@ -153,19 +153,19 @@ class TestSyncFileSystem:
         fs, api = self._make_fs()
         api.create_folder.return_value = None
         fs.create_folder("workspace/data", "755")
-        api.create_folder.assert_called_once_with(path="workspace/data", mode="755")
+        api.create_folder.assert_called_once_with(path="workspace/data", mode="755", _request_timeout=None)
 
     def test_delete_file(self):
         fs, api = self._make_fs()
         api.delete_file.return_value = None
         fs.delete_file("workspace/file.txt")
-        api.delete_file.assert_called_once_with(path="workspace/file.txt", recursive=False)
+        api.delete_file.assert_called_once_with(path="workspace/file.txt", recursive=False, _request_timeout=None)
 
     def test_delete_file_recursive(self):
         fs, api = self._make_fs()
         api.delete_file.return_value = None
         fs.delete_file("workspace/dir", recursive=True)
-        api.delete_file.assert_called_once_with(path="workspace/dir", recursive=True)
+        api.delete_file.assert_called_once_with(path="workspace/dir", recursive=True, _request_timeout=None)
 
     def test_find_files(self):
         fs, api = self._make_fs()
@@ -176,7 +176,7 @@ class TestSyncFileSystem:
         api.find_in_files.return_value = [mock_match]
         result = fs.find_files("workspace/src", "TODO:")
         assert len(result) == 1
-        api.find_in_files.assert_called_once_with(path="workspace/src", pattern="TODO:")
+        api.find_in_files.assert_called_once_with(path="workspace/src", pattern="TODO:", _request_timeout=None)
 
     def test_get_file_info(self):
         fs, api = self._make_fs()
@@ -202,7 +202,7 @@ class TestSyncFileSystem:
         fs, api = self._make_fs()
         api.move_file.return_value = None
         fs.move_files("old/path.txt", "new/path.txt")
-        api.move_file.assert_called_once_with(source="old/path.txt", destination="new/path.txt")
+        api.move_file.assert_called_once_with(source="old/path.txt", destination="new/path.txt", _request_timeout=None)
 
     def test_replace_in_files(self):
         fs, api = self._make_fs()
@@ -226,7 +226,11 @@ class TestSyncFileSystem:
         api.set_file_permissions.return_value = None
         fs.set_file_permissions("workspace/script.sh", mode="755", owner="daytona")
         api.set_file_permissions.assert_called_once_with(
-            path="workspace/script.sh", mode="755", owner="daytona", group=None
+            path="workspace/script.sh",
+            mode="755",
+            owner="daytona",
+            group=None,
+            _request_timeout=None,
         )
 
     def test_download_file_returns_bytes(self):
@@ -413,13 +417,13 @@ class TestAsyncFileSystem:
     async def test_create_folder(self):
         fs, api = self._make_fs()
         await fs.create_folder("workspace/data", "755")
-        api.create_folder.assert_called_once_with(path="workspace/data", mode="755")
+        api.create_folder.assert_called_once_with(path="workspace/data", mode="755", _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_delete_file(self):
         fs, api = self._make_fs()
         await fs.delete_file("workspace/file.txt")
-        api.delete_file.assert_called_once_with(path="workspace/file.txt", recursive=False)
+        api.delete_file.assert_called_once_with(path="workspace/file.txt", recursive=False, _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_find_files(self):
@@ -448,7 +452,7 @@ class TestAsyncFileSystem:
     async def test_move_files(self):
         fs, api = self._make_fs()
         await fs.move_files("src.txt", "dst.txt")
-        api.move_file.assert_called_once_with(source="src.txt", destination="dst.txt")
+        api.move_file.assert_called_once_with(source="src.txt", destination="dst.txt", _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_search_files(self):
@@ -463,7 +467,9 @@ class TestAsyncFileSystem:
     async def test_set_file_permissions(self):
         fs, api = self._make_fs()
         await fs.set_file_permissions("script.sh", mode="755")
-        api.set_file_permissions.assert_called_once_with(path="script.sh", mode="755", owner=None, group=None)
+        api.set_file_permissions.assert_called_once_with(
+            path="script.sh", mode="755", owner=None, group=None, _request_timeout=None
+        )
 
     @pytest.mark.asyncio
     async def test_download_file_returns_bytes(self):

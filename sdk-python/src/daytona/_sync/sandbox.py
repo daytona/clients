@@ -175,8 +175,14 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to refresh sandbox data: ")
     @with_instrumentation()
-    def refresh_data(self) -> None:
+    def refresh_data(self, request_timeout: float | None = None) -> None:
         """Refreshes the Sandbox data from the API.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -186,7 +192,7 @@ class Sandbox(SandboxDto):
             print(f"Resources: {sandbox.cpu} CPU, {sandbox.memory} GiB RAM")
             ```
         """
-        instance = self._sandbox_api.get_sandbox(self.id)
+        instance = self._sandbox_api.get_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
         self.__process_sandbox_dto(instance)
 
     @intercept_errors(message_prefix="Failed to get user home directory: ")
@@ -261,13 +267,17 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to set labels: ")
     @with_instrumentation()
-    def set_labels(self, labels: dict[str, str]) -> dict[str, str]:
+    def set_labels(self, labels: dict[str, str], request_timeout: float | None = None) -> dict[str, str]:
         """Sets labels for the Sandbox.
 
         Labels are key-value pairs that can be used to organize and identify Sandboxes.
 
         Args:
             labels (dict[str, str]): Dictionary of key-value pairs representing Sandbox labels.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             dict[str, str]: Dictionary containing the updated Sandbox labels.
@@ -282,7 +292,11 @@ class Sandbox(SandboxDto):
             print(f"Updated labels: {new_labels}")
             ```
         """
-        self.labels = (self._sandbox_api.replace_labels(self.id, SandboxLabels(labels=labels))).labels
+        self.labels = (
+            self._sandbox_api.replace_labels(
+                self.id, SandboxLabels(labels=labels), _request_timeout=http_timeout(request_timeout)
+            )
+        ).labels
         return self.labels
 
     @intercept_errors(message_prefix="Failed to start sandbox: ")
@@ -446,7 +460,7 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to set auto-stop interval: ")
     @with_instrumentation()
-    def set_autostop_interval(self, interval: int) -> None:
+    def set_autostop_interval(self, interval: int, request_timeout: float | None = None) -> None:
         """Sets the auto-stop interval for the Sandbox.
 
         The Sandbox will automatically stop after being idle (no new events) for the specified interval.
@@ -456,6 +470,10 @@ class Sandbox(SandboxDto):
         Args:
             interval (int): Number of minutes of inactivity before auto-stopping.
                 Set to 0 to disable auto-stop. Defaults to 15.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaValidationError: If interval is negative
@@ -471,12 +489,12 @@ class Sandbox(SandboxDto):
         if interval < 0:
             raise DaytonaValidationError("Auto-stop interval must be a non-negative integer")
 
-        _ = self._sandbox_api.set_autostop_interval(self.id, interval)
+        _ = self._sandbox_api.set_autostop_interval(self.id, interval, _request_timeout=http_timeout(request_timeout))
         self.auto_stop_interval = interval
 
     @intercept_errors(message_prefix="Failed to set auto-archive interval: ")
     @with_instrumentation()
-    def set_auto_archive_interval(self, interval: int) -> None:
+    def set_auto_archive_interval(self, interval: int, request_timeout: float | None = None) -> None:
         """Sets the auto-archive interval for the Sandbox.
 
         The Sandbox will automatically archive after being continuously stopped for the specified interval.
@@ -484,6 +502,10 @@ class Sandbox(SandboxDto):
         Args:
             interval (int): Number of minutes after which a continuously stopped Sandbox will be auto-archived.
                 Set to 0 for the maximum interval. Default is 7 days.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaValidationError: If interval is negative
@@ -499,12 +521,14 @@ class Sandbox(SandboxDto):
         if interval < 0:
             raise DaytonaValidationError("Auto-archive interval must be a non-negative integer")
 
-        _ = self._sandbox_api.set_auto_archive_interval(self.id, interval)
+        _ = self._sandbox_api.set_auto_archive_interval(
+            self.id, interval, _request_timeout=http_timeout(request_timeout)
+        )
         self.auto_archive_interval = interval
 
     @intercept_errors(message_prefix="Failed to set auto-delete interval: ")
     @with_instrumentation()
-    def set_auto_delete_interval(self, interval: int) -> None:
+    def set_auto_delete_interval(self, interval: int, request_timeout: float | None = None) -> None:
         """Sets the auto-delete interval for the Sandbox.
 
         The Sandbox will automatically delete after being continuously stopped for the specified interval.
@@ -513,6 +537,10 @@ class Sandbox(SandboxDto):
             interval (int): Number of minutes after which a continuously stopped Sandbox will be auto-deleted.
                 Set to negative value to disable auto-delete. Set to 0 to delete immediately upon stopping.
                 By default, auto-delete is disabled.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -524,7 +552,9 @@ class Sandbox(SandboxDto):
             sandbox.set_auto_delete_interval(-1)
             ```
         """
-        _ = self._sandbox_api.set_auto_delete_interval(self.id, interval)
+        _ = self._sandbox_api.set_auto_delete_interval(
+            self.id, interval, _request_timeout=http_timeout(request_timeout)
+        )
         self.auto_delete_interval = interval
 
     @intercept_errors(message_prefix="Failed to update network settings: ")
@@ -535,6 +565,7 @@ class Sandbox(SandboxDto):
         network_block_all: bool | None = None,
         network_allow_list: str | None = None,
         domain_allow_list: str | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Updates outbound network policy on the runner (block all, restore access, or CIDR allow list).
 
@@ -543,6 +574,10 @@ class Sandbox(SandboxDto):
                 outbound access (and clears a stored allow list).
             network_allow_list: Comma-separated IPv4 CIDRs to allow; implies not blocking all.
             domain_allow_list: Comma-separated domains to allow; implies not blocking all.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaValidationError: If neither argument is set.
@@ -563,7 +598,9 @@ class Sandbox(SandboxDto):
             network_allow_list=network_allow_list,
             domain_allow_list=domain_allow_list,
         )
-        updated = self._sandbox_api.update_network_settings(self.id, body)
+        updated = self._sandbox_api.update_network_settings(
+            self.id, body, _request_timeout=http_timeout(request_timeout)
+        )
         self.network_block_all = updated.network_block_all
         self.network_allow_list = updated.network_allow_list
         self.domain_allow_list = updated.domain_allow_list
@@ -613,13 +650,17 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to get preview link: ")
     @with_instrumentation()
-    def get_preview_link(self, port: int) -> PortPreviewUrl:
+    def get_preview_link(self, port: int, request_timeout: float | None = None) -> PortPreviewUrl:
         """Retrieves the preview link for the sandbox at the specified port. If the port is closed,
         it will be opened automatically. For private sandboxes, a token is included to grant access
         to the URL.
 
         Args:
             port (int): The port to open the preview link on.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             PortPreviewUrl: The response object for the preview link, which includes the `url`
@@ -632,43 +673,63 @@ class Sandbox(SandboxDto):
             print(f"Token: {preview_link.token}")
             ```
         """
-        return self._sandbox_api.get_port_preview_url(self.id, port)
+        return self._sandbox_api.get_port_preview_url(self.id, port, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to create signed preview url: ")
-    def create_signed_preview_url(self, port: int, expires_in_seconds: int | None = None) -> SignedPortPreviewUrl:
+    def create_signed_preview_url(
+        self, port: int, expires_in_seconds: int | None = None, request_timeout: float | None = None
+    ) -> SignedPortPreviewUrl:
         """Creates a signed preview URL for the sandbox at the specified port.
 
         Args:
             port (int): The port to open the preview link on.
             expires_in_seconds (int | None): The number of seconds the signed preview
                 url will be valid for. Defaults to 60 seconds.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             SignedPortPreviewUrl: The response object for the signed preview url.
         """
-        return self._sandbox_api.get_signed_port_preview_url(self.id, port, expires_in_seconds=expires_in_seconds)
+        return self._sandbox_api.get_signed_port_preview_url(
+            self.id, port, expires_in_seconds=expires_in_seconds, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to expire signed preview url: ")
-    def expire_signed_preview_url(self, port: int, token: str) -> None:
+    def expire_signed_preview_url(self, port: int, token: str, request_timeout: float | None = None) -> None:
         """Expires a signed preview URL for the sandbox at the specified port.
 
         Args:
             port (int): The port to expire the signed preview url on.
             token (str): The token to expire the signed preview url on.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
         """
-        self._sandbox_api.expire_signed_port_preview_url(self.id, port, token)
+        self._sandbox_api.expire_signed_port_preview_url(
+            self.id, port, token, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to archive sandbox: ")
     @with_instrumentation()
-    def archive(self) -> None:
+    def archive(self, request_timeout: float | None = None) -> None:
         """Archives the sandbox, making it inactive and preserving its state. When sandboxes are
         archived, the entire filesystem state is moved to cost-effective object storage, making it
         possible to keep sandboxes available for an extended period. The tradeoff between archived
         and stopped states is that starting an archived sandbox takes more time, depending on its size.
         Sandbox must be stopped before archiving.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = self._sandbox_api.archive_sandbox(self.id)
-        self.refresh_data()
+        _ = self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
+        self.refresh_data(request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to resize sandbox: ")
     @with_timeout()
@@ -747,47 +808,69 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to create SSH access: ")
     @with_instrumentation()
-    def create_ssh_access(self, expires_in_minutes: int | None = None) -> SshAccessDto:
+    def create_ssh_access(
+        self, expires_in_minutes: int | None = None, request_timeout: float | None = None
+    ) -> SshAccessDto:
         """Creates an SSH access token for the sandbox.
 
         Args:
             expires_in_minutes (int | None): The number of minutes the SSH access token will be valid for.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
         """
-        return self._sandbox_api.create_ssh_access(self.id, expires_in_minutes=expires_in_minutes)
+        return self._sandbox_api.create_ssh_access(
+            self.id, expires_in_minutes=expires_in_minutes, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to revoke SSH access: ")
     @with_instrumentation()
-    def revoke_ssh_access(self, token: str) -> None:
+    def revoke_ssh_access(self, token: str, request_timeout: float | None = None) -> None:
         """Revokes an SSH access token for the sandbox.
 
         Args:
             token (str): The token to revoke.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = self._sandbox_api.revoke_ssh_access(self.id, token)
+        _ = self._sandbox_api.revoke_ssh_access(self.id, token, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to validate SSH access: ")
     @with_instrumentation()
-    def validate_ssh_access(self, token: str) -> SshAccessValidationDto:
+    def validate_ssh_access(self, token: str, request_timeout: float | None = None) -> SshAccessValidationDto:
         """Validates an SSH access token for the sandbox.
 
         Args:
             token (str): The token to validate.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
         """
-        return self._sandbox_api.validate_ssh_access(token)
+        return self._sandbox_api.validate_ssh_access(token, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to refresh sandbox activity: ")
-    def refresh_activity(self) -> None:
+    def refresh_activity(self, request_timeout: float | None = None) -> None:
         """Refreshes the sandbox activity to reset the timer for automated lifecycle management actions.
 
         This method updates the sandbox's last activity timestamp without changing its state.
         It is useful for keeping long-running sessions alive while there is still user activity.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
             sandbox.refresh_activity()
             ```
         """
-        self._sandbox_api.update_last_activity(self.id)
+        self._sandbox_api.update_last_activity(self.id, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to fork sandbox: ")
     @with_timeout()

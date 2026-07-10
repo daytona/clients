@@ -51,7 +51,7 @@ class TestSandboxLifecycleSettings:
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         sandbox.set_autostop_interval(30)
         assert sandbox.auto_stop_interval == 30
-        mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30)
+        mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30, _request_timeout=None)
 
     def test_negative_auto_archive_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
@@ -125,9 +125,9 @@ class TestSandboxOperations:
         sandbox.revoke_ssh_access("token")
         sandbox.refresh_activity()
 
-        mock_sandbox_api.get_port_preview_url.assert_called_once_with(sandbox.id, 3000)
-        mock_sandbox_api.revoke_ssh_access.assert_called_once_with(sandbox.id, "token")
-        mock_sandbox_api.update_last_activity.assert_called_once_with(sandbox.id)
+        mock_sandbox_api.get_port_preview_url.assert_called_once_with(sandbox.id, 3000, _request_timeout=None)
+        mock_sandbox_api.revoke_ssh_access.assert_called_once_with(sandbox.id, "token", _request_timeout=None)
+        mock_sandbox_api.update_last_activity.assert_called_once_with(sandbox.id, _request_timeout=None)
 
     def test_update_secrets(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)

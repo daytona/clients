@@ -115,7 +115,7 @@ class TestSyncProcessSessions:
     def test_delete_session(self):
         proc, api = self._make_process()
         proc.delete_session("my-session")
-        api.delete_session.assert_called_once_with(session_id="my-session")
+        api.delete_session.assert_called_once_with(session_id="my-session", _request_timeout=None)
 
     def test_get_entrypoint_session(self):
         proc, api = self._make_process()
@@ -190,7 +190,7 @@ class TestAsyncProcessExec:
         request = api.create_session.call_args.kwargs["request"]
         assert request.session_id == "my-session"
         await proc.delete_session("my-session")
-        api.delete_session.assert_called_once_with(session_id="my-session")
+        api.delete_session.assert_called_once_with(session_id="my-session", _request_timeout=None)
 
     @pytest.mark.asyncio
     async def test_execute_session_command(self):
