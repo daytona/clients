@@ -208,6 +208,27 @@ Updates outbound network policy on the runner (block all, restore access, or CID
 
 - `DaytonaException` - if the update fails
 
+#### updateSecrets()
+```java
+public void updateSecrets(Map<String, String> secrets)
+```
+
+Replaces the set of vault secrets mounted in this Sandbox.
+
+Each key is an environment variable name and each value is the name of an existing
+organization Secret. Pass an empty map to detach all secrets. Attached, detached, and
+rotated secrets take effect for outbound requests within seconds. New environment
+variables are only visible to processes spawned after the update; a Sandbox created
+without secrets must be restarted for newly attached secrets to work.
+
+**Parameters**:
+
+- `secrets` _Map\<String, String\>_ - map of environment variable name to organization Secret name
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
+
 #### getUserHomeDir()
 ```java
 public String getUserHomeDir()
@@ -237,6 +258,43 @@ Returns current working directory path.
 **Throws**:
 
 - `DaytonaException` - if the request fails
+
+#### updateEnv()
+```java
+public void updateEnv(Map<String, String> env)
+```
+
+Updates the Sandbox daemon's process environment.
+
+Newly spawned processes, sessions, and PTYs inherit the change; already-running
+processes keep their environment.
+
+**Parameters**:
+
+- `env` _Map\<String, String\>_ - environment variables to set in the daemon's process environment
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
+
+#### updateEnv()
+```java
+public void updateEnv(Map<String, String> env, List<String> unset)
+```
+
+Updates the Sandbox daemon's process environment.
+
+Newly spawned processes, sessions, and PTYs inherit the change; already-running
+processes keep their environment.
+
+**Parameters**:
+
+- `env` _Map\<String, String\>_ - environment variables to set in the daemon's process environment; `null` to set none
+- `unset` _List\<String\>_ - environment variable names to remove; `null` to remove none
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
 
 #### waitUntilStarted()
 ```java

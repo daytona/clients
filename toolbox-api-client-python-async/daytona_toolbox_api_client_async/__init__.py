@@ -145,6 +145,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.status import Status
     from daytona_toolbox_api_client_async.models.stop_recording_request import StopRecordingRequest
     from daytona_toolbox_api_client_async.models.system_metrics import SystemMetrics
+    from daytona_toolbox_api_client_async.models.update_env_request import UpdateEnvRequest
     from daytona_toolbox_api_client_async.models.user_home_dir_response import UserHomeDirResponse
     from daytona_toolbox_api_client_async.models.window_info import WindowInfo
     from daytona_toolbox_api_client_async.models.windows_response import WindowsResponse
@@ -274,6 +275,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Status": "daytona_toolbox_api_client_async.models.status",
     "StopRecordingRequest": "daytona_toolbox_api_client_async.models.stop_recording_request",
     "SystemMetrics": "daytona_toolbox_api_client_async.models.system_metrics",
+    "UpdateEnvRequest": "daytona_toolbox_api_client_async.models.update_env_request",
     "UserHomeDirResponse": "daytona_toolbox_api_client_async.models.user_home_dir_response",
     "WindowInfo": "daytona_toolbox_api_client_async.models.window_info",
     "WindowsResponse": "daytona_toolbox_api_client_async.models.windows_response",
@@ -417,6 +419,7 @@ __all__ = [
     "Status",
     "StopRecordingRequest",
     "SystemMetrics",
+    "UpdateEnvRequest",
     "UserHomeDirResponse",
     "WindowInfo",
     "WindowsResponse",

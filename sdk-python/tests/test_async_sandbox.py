@@ -10,6 +10,8 @@ import pytest
 
 from daytona.common.errors import DaytonaError, DaytonaValidationError
 from daytona_api_client import SandboxState
+from daytona_api_client_async import Sandbox as AsyncSandboxDto
+from daytona_api_client_async import UpdateSandboxSecrets
 
 from .conftest import make_sandbox_dto
 
@@ -145,6 +147,52 @@ class TestAsyncSandboxOperations:
         mock_async_sandbox_api.get_port_preview_url.assert_awaited_once_with(sandbox.id, 3000)
         mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(sandbox.id, "token")
         mock_async_sandbox_api.update_last_activity.assert_awaited_once_with(sandbox.id)
+
+    @pytest.mark.asyncio
+    async def test_update_secrets(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        updated_dto = AsyncSandboxDto(**make_sandbox_dto(env={"FOO": "placeholder"}).model_dump())
+        mock_async_sandbox_api.update_sandbox_secrets = AsyncMock(return_value=updated_dto)
+
+        await sandbox.update_secrets({"FOO": "foo-secret", "BAR": "bar"})
+
+        mock_async_sandbox_api.update_sandbox_secrets.assert_awaited_once()
+        sandbox_id, body = mock_async_sandbox_api.update_sandbox_secrets.call_args.args
+        assert sandbox_id == sandbox.id
+        assert isinstance(body, UpdateSandboxSecrets)
+        assert body.secrets == [{"FOO": "foo-secret"}, {"BAR": "bar"}]
+        assert sandbox.env == {"FOO": "placeholder"}
+
+    @pytest.mark.asyncio
+    async def test_update_secrets_empty_dict_detaches_all(
+        self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        updated_dto = AsyncSandboxDto(**make_sandbox_dto(env={}).model_dump())
+        mock_async_sandbox_api.update_sandbox_secrets = AsyncMock(return_value=updated_dto)
+
+        await sandbox.update_secrets({})
+
+        mock_async_sandbox_api.update_sandbox_secrets.assert_awaited_once()
+        _, body = mock_async_sandbox_api.update_sandbox_secrets.call_args.args
+        assert body.secrets == []
+
+    @pytest.mark.asyncio
+    async def test_update_env(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        # The daemon responds with a status message, which update_env discards.
+        sandbox._server_api = AsyncMock(
+            update_env=AsyncMock(return_value={"message": "Environment updated successfully"})
+        )
+
+        result = await sandbox.update_env({"A": "1"}, unset=["B"])
+
+        assert result is None
+        sandbox._server_api.update_env.assert_awaited_once()
+        request = sandbox._server_api.update_env.call_args.kwargs["request"]
+        assert request.set == {"A": "1"}
+        assert request.unset == ["B"]
+        assert request.unset_value_prefix is None
 
 
 class TestAsyncSandboxWaitForStart:

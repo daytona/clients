@@ -3854,6 +3854,64 @@
         "tags": ["sandbox"]
       }
     },
+    "/sandbox/{sandboxIdOrName}/secrets": {
+      "put": {
+        "description": "Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.",
+        "operationId": "updateSandboxSecrets",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxIdOrName",
+            "required": true,
+            "in": "path",
+            "description": "ID or name of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSandboxSecrets"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox secrets have been updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": ["openid", "profile", "email"]
+          }
+        ],
+        "summary": "Update sandbox secrets",
+        "tags": ["sandbox"]
+      }
+    },
     "/sandbox/{sandboxIdOrName}/archive": {
       "post": {
         "operationId": "archiveSandbox",
@@ -12761,7 +12819,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -12780,7 +12839,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           },
@@ -12835,7 +12895,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -12854,7 +12915,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           },
@@ -12909,7 +12971,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -12928,7 +12991,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           },
@@ -12991,7 +13055,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13010,7 +13075,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           },
@@ -13661,7 +13727,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13680,7 +13747,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           }
@@ -13722,7 +13790,8 @@
                 "delete:runners",
                 "read:audit_logs",
                 "manage:api_keys",
-                "manage:secrets"
+                "manage:secrets",
+                "read:limits"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -13741,7 +13810,8 @@
                 "DELETE_RUNNERS",
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
-                "MANAGE_SECRETS"
+                "MANAGE_SECRETS",
+                "READ_LIMITS"
               ]
             }
           }
@@ -14954,6 +15024,30 @@
             "example": "example.com,*.daytona.io"
           }
         }
+      },
+      "UpdateSandboxSecrets": {
+        "type": "object",
+        "properties": {
+          "secrets": {
+            "type": "array",
+            "description": "Secrets to mount in this sandbox, replacing the previously mounted set. Each entry maps an env var name to a vault secret name. Pass an empty array to detach all secrets.",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "example": [
+              {
+                "ANTHROPIC_API_KEY": "anthropic-prod"
+              },
+              {
+                "DB_PASSWORD": "DB_PASSWORD"
+              }
+            ]
+          }
+        },
+        "required": ["secrets"]
       },
       "PortPreviewUrl": {
         "type": "object",
@@ -17350,6 +17444,7 @@
           "INSPECT_SNAPSHOT_IN_REGISTRY",
           "REMOVE_SNAPSHOT",
           "UPDATE_SANDBOX_NETWORK_SETTINGS",
+          "UPDATE_SANDBOX_SECRETS",
           "SNAPSHOT_SANDBOX",
           "FORK_SANDBOX",
           "PAUSE_SANDBOX"
@@ -17803,6 +17898,9 @@
             "type": "number"
           },
           "totalDiskQuota": {
+            "type": "number"
+          },
+          "totalGpuQuota": {
             "type": "number"
           },
           "maxCpuPerSandbox": {

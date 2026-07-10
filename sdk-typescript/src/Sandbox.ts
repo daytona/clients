@@ -29,6 +29,7 @@ import {
   InfoApi,
   ComputerUseApi,
   InterpreterApi,
+  ServerApi,
 } from '@daytona/toolbox-api-client'
 import { FileSystem } from './FileSystem'
 import { Git } from './Git'
@@ -130,6 +131,7 @@ export class Sandbox {
   public toolboxProxyUrl: string
 
   private infoApi: InfoApi
+  private serverApi: ServerApi
 
   /**
    * Creates a new Sandbox instance
@@ -171,6 +173,7 @@ export class Sandbox {
     )
     this.computerUse = new ComputerUse(new ComputerUseApi(this.clientConfig, '', this.axiosInstance))
     this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
+    this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
   }
 
   /**
@@ -747,6 +750,60 @@ export class Sandbox {
     }
     const response = await this.sandboxApi.updateNetworkSettings(this.id, settings)
     this.processSandboxDto(response.data)
+  }
+
+  /**
+   * Replaces the set of vault secrets mounted in the Sandbox.
+   *
+   * Each key is an environment variable name and each value is the name of an existing
+   * organization Secret to mount under that name. The provided map replaces the previously
+   * mounted set — pass an empty object to detach all secrets.
+   *
+   * Attached, detached, or rotated secrets take effect for outbound requests within seconds.
+   * However, newly attached env vars only become visible to processes spawned after the update;
+   * already-running processes keep their environment. A Sandbox created without any secrets
+   * must be restarted for newly attached secrets to work.
+   *
+   * @param {Record<string, string>} secrets - Map of environment variable name to the name of an
+   *   existing organization Secret. Every referenced Secret name must already exist in the organization.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * // Mount two secrets
+   * await sandbox.updateSecrets({ API_KEY: 'my-api-key', DB_PASSWORD: 'prod-db-password' });
+   * // Detach all secrets
+   * await sandbox.updateSecrets({});
+   */
+  @WithInstrumentation()
+  public async updateSecrets(secrets: Record<string, string>): Promise<void> {
+    const response = await this.sandboxApi.updateSandboxSecrets(this.id, {
+      secrets: Object.entries(secrets).map(([envVar, secretName]) => ({ [envVar]: secretName })),
+    })
+    this.processSandboxDto(response.data)
+  }
+
+  /**
+   * Updates the Sandbox daemon's process environment.
+   *
+   * Variables in `env` are set (added or overwritten) and variables listed in `options.unset`
+   * are removed. Newly spawned processes, sessions and PTYs inherit the change; already-running
+   * processes keep their environment.
+   *
+   * @param {Record<string, string>} env - Map of environment variable names to values to set.
+   * @param {object} [options] - Optional settings.
+   * @param {string[]} [options.unset] - Names of environment variables to remove before `env` is applied.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * // Set a variable and remove another
+   * await sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] });
+   */
+  @WithInstrumentation()
+  public async updateEnv(env: Record<string, string>, options?: { unset?: string[] }): Promise<void> {
+    await this.serverApi.updateEnv({
+      set: env,
+      unset: options?.unset,
+    })
   }
 
   /**

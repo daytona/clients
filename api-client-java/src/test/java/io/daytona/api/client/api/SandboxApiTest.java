@@ -41,6 +41,7 @@ import io.daytona.api.client.model.SshAccessValidationDto;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.TraceSpan;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
+import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.api.client.model.UpdateSandboxStateDto;
 import io.daytona.api.client.model.Url;
 import org.junit.jupiter.api.Disabled;
@@ -669,6 +670,22 @@ public class SandboxApiTest {
         Boolean isPublic = null;
         String xDaytonaOrganizationID = null;
         Sandbox response = api.updatePublicStatus(sandboxIdOrName, isPublic, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Update sandbox secrets
+     *
+     * Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateSandboxSecretsTest() throws ApiException {
+        String sandboxIdOrName = null;
+        UpdateSandboxSecrets updateSandboxSecrets = null;
+        String xDaytonaOrganizationID = null;
+        Sandbox response = api.updateSandboxSecrets(sandboxIdOrName, updateSandboxSecrets, xDaytonaOrganizationID);
         // TODO: test validations
     }
 

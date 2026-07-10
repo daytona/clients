@@ -19,6 +19,7 @@ RSpec.describe Daytona::Sandbox do
   let(:computer_use_api) { instance_double(DaytonaToolboxApiClient::ComputerUseApi) }
   let(:interpreter_api) { instance_double(DaytonaToolboxApiClient::InterpreterApi) }
   let(:info_api) { instance_double(DaytonaToolboxApiClient::InfoApi) }
+  let(:server_api) { instance_double(DaytonaToolboxApiClient::ServerApi) }
 
   before do
     allow(DaytonaToolboxApiClient::ApiClient).to receive(:new).and_return(toolbox_client)
@@ -29,6 +30,7 @@ RSpec.describe Daytona::Sandbox do
     allow(DaytonaToolboxApiClient::ComputerUseApi).to receive(:new).and_return(computer_use_api)
     allow(DaytonaToolboxApiClient::InterpreterApi).to receive(:new).and_return(interpreter_api)
     allow(DaytonaToolboxApiClient::InfoApi).to receive(:new).and_return(info_api)
+    allow(DaytonaToolboxApiClient::ServerApi).to receive(:new).and_return(server_api)
   end
 
   let(:sandbox) do
@@ -167,6 +169,56 @@ RSpec.describe Daytona::Sandbox do
                                                                                               message: 'boom'))
 
       expect { sandbox.delete }.to raise_error(DaytonaApiClient::ApiError)
+    end
+  end
+
+  describe '#update_secrets' do
+    it 'converts the hash to an array of single-entry hashes and refreshes state' do
+      allow(sandbox_api).to receive(:update_sandbox_secrets)
+        .and_return(build_sandbox_dto(env: { 'FOO' => 'placeholder' }))
+
+      sandbox.update_secrets({ 'FOO' => 'foo-secret', 'BAR' => 'bar-secret' })
+
+      expect(sandbox_api).to have_received(:update_sandbox_secrets) do |id, request|
+        expect(id).to eq('sandbox-123')
+        expect(request).to be_a(DaytonaApiClient::UpdateSandboxSecrets)
+        expect(request.secrets).to eq([{ 'FOO' => 'foo-secret' }, { 'BAR' => 'bar-secret' }])
+      end
+      expect(sandbox.env).to eq({ 'FOO' => 'placeholder' })
+    end
+
+    it 'sends an empty array to detach all secrets' do
+      allow(sandbox_api).to receive(:update_sandbox_secrets).and_return(build_sandbox_dto)
+
+      sandbox.update_secrets({})
+
+      expect(sandbox_api).to have_received(:update_sandbox_secrets) do |_id, request|
+        expect(request.secrets).to eq([])
+      end
+    end
+  end
+
+  describe '#update_env' do
+    it 'sends the set and unset values' do
+      # The daemon responds with a status message, which update_env discards.
+      allow(server_api).to receive(:update_env).and_return({ message: 'Environment updated successfully' })
+
+      result = sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
+
+      expect(result).to be_nil
+      expect(server_api).to have_received(:update_env) do |request|
+        expect(request).to be_a(DaytonaToolboxApiClient::UpdateEnvRequest)
+        expect(request.set).to eq({ 'FOO' => 'bar' })
+        expect(request.unset).to eq(['OLD_VAR'])
+        expect(request.unset_value_prefix).to be_nil
+      end
+    end
+
+    it 'wraps errors in Sdk::Error' do
+      allow(server_api).to receive(:update_env).and_raise(StandardError, 'daemon unreachable')
+
+      expect { sandbox.update_env(env: { 'FOO' => 'bar' }) }
+        .to raise_error(Daytona::Sdk::Error, /Failed to update environment: daemon unreachable/)
     end
   end
 

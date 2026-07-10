@@ -512,6 +512,39 @@ Updates outbound network policy on the runner (block all, restore access, or CID
 
 - `Daytona:Sdk:Error` -
 
+#### update_secrets()
+
+```ruby
+def update_secrets(secrets)
+
+```
+
+Replaces the set of organization vault secrets mounted in the Sandbox. Pass an empty
+hash to detach all secrets. Rotated, attached or detached secrets take effect for
+outbound requests within seconds. New environment variables are only visible to
+processes spawned after the update; a Sandbox created without any secrets must be
+restarted for newly attached secrets to work.
+
+**Parameters**:
+
+- `secrets` _Hash\<String, String\>_ - Mapping of environment variable name to
+organization vault secret name
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` -
+
+**Examples:**
+
+```ruby
+sandbox.update_secrets({ 'API_KEY' => 'my-vault-secret' })
+
+```
+
 #### auto_stop_interval=()
 
 ```ruby
@@ -604,6 +637,36 @@ in the Dockerfile if present, or falling back to the user's home directory if no
 ```ruby
 work_dir = sandbox.get_work_dir
 puts "Sandbox working directory: #{work_dir}"
+
+```
+
+#### update_env()
+
+```ruby
+def update_env(env: nil, unset: nil)
+
+```
+
+Updates the Sandbox daemon's process environment. Newly spawned processes, sessions
+and PTYs inherit the change; already-running processes keep their existing environment.
+
+**Parameters**:
+
+- `env` _Hash\<String, String\>, nil_ - Env vars to set in the daemon's process environment
+- `unset` _Array\<String\>, nil_ - Environment variable names to remove
+
+**Returns**:
+
+- `void`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` -
+
+**Examples:**
+
+```ruby
+sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
 
 ```
 

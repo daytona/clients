@@ -18,6 +18,7 @@ export interface CreateOrganizationQuota {
     'totalCpuQuota'?: number;
     'totalMemoryQuota'?: number;
     'totalDiskQuota'?: number;
+    'totalGpuQuota'?: number;
     'maxCpuPerSandbox'?: number;
     'maxMemoryPerSandbox'?: number;
     'maxDiskPerSandbox'?: number;

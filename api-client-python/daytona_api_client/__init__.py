@@ -233,6 +233,7 @@ if TYPE_CHECKING:
     from daytona_api_client.models.update_organization_role import UpdateOrganizationRole
     from daytona_api_client.models.update_region import UpdateRegion
     from daytona_api_client.models.update_sandbox_network_settings import UpdateSandboxNetworkSettings
+    from daytona_api_client.models.update_sandbox_secrets import UpdateSandboxSecrets
     from daytona_api_client.models.update_sandbox_state_dto import UpdateSandboxStateDto
     from daytona_api_client.models.update_secret import UpdateSecret
     from daytona_api_client.models.url import Url
@@ -458,6 +459,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateOrganizationRole": "daytona_api_client.models.update_organization_role",
     "UpdateRegion": "daytona_api_client.models.update_region",
     "UpdateSandboxNetworkSettings": "daytona_api_client.models.update_sandbox_network_settings",
+    "UpdateSandboxSecrets": "daytona_api_client.models.update_sandbox_secrets",
     "UpdateSandboxStateDto": "daytona_api_client.models.update_sandbox_state_dto",
     "UpdateSecret": "daytona_api_client.models.update_secret",
     "Url": "daytona_api_client.models.url",
@@ -697,6 +699,7 @@ __all__ = [
     "UpdateOrganizationRole",
     "UpdateRegion",
     "UpdateSandboxNetworkSettings",
+    "UpdateSandboxSecrets",
     "UpdateSandboxStateDto",
     "UpdateSecret",
     "Url",

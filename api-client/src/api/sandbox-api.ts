@@ -72,6 +72,8 @@ import type { TraceSpan } from '../models';
 // @ts-ignore
 import type { UpdateSandboxNetworkSettings } from '../models';
 // @ts-ignore
+import type { UpdateSandboxSecrets } from '../models';
+// @ts-ignore
 import type { UpdateSandboxStateDto } from '../models';
 // @ts-ignore
 import type { Url } from '../models';
@@ -2256,6 +2258,55 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+         * @summary Update sandbox secrets
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {UpdateSandboxSecrets} updateSandboxSecrets 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateSandboxSecrets: async (sandboxIdOrName: string, updateSandboxSecrets: UpdateSandboxSecrets, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('updateSandboxSecrets', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'updateSandboxSecrets' is not null or undefined
+            assertParamExists('updateSandboxSecrets', 'updateSandboxSecrets', updateSandboxSecrets)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/secrets`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(updateSandboxSecrets, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * 
          * @summary Update sandbox state
          * @param {string} sandboxId ID of the sandbox
@@ -2999,6 +3050,21 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+         * @summary Update sandbox secrets
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {UpdateSandboxSecrets} updateSandboxSecrets 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateSandboxSecrets(sandboxIdOrName: string, updateSandboxSecrets: UpdateSandboxSecrets, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Sandbox>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateSandboxSecrets(sandboxIdOrName, updateSandboxSecrets, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.updateSandboxSecrets']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * 
          * @summary Update sandbox state
          * @param {string} sandboxId ID of the sandbox
@@ -3554,6 +3620,18 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          */
         updatePublicStatus(sandboxIdOrName: string, isPublic: boolean, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
             return localVarFp.updatePublicStatus(sandboxIdOrName, isPublic, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+         * @summary Update sandbox secrets
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {UpdateSandboxSecrets} updateSandboxSecrets 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateSandboxSecrets(sandboxIdOrName: string, updateSandboxSecrets: UpdateSandboxSecrets, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
+            return localVarFp.updateSandboxSecrets(sandboxIdOrName, updateSandboxSecrets, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4142,6 +4220,19 @@ export class SandboxApi extends BaseAPI {
      */
     public updatePublicStatus(sandboxIdOrName: string, isPublic: boolean, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).updatePublicStatus(sandboxIdOrName, isPublic, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+     * @summary Update sandbox secrets
+     * @param {string} sandboxIdOrName ID or name of the sandbox
+     * @param {UpdateSandboxSecrets} updateSandboxSecrets 
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public updateSandboxSecrets(sandboxIdOrName: string, updateSandboxSecrets: UpdateSandboxSecrets, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).updateSandboxSecrets(sandboxIdOrName, updateSandboxSecrets, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

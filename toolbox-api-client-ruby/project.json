@@ -31,7 +31,7 @@
       "options": {
         "commands": [
           "rm -rf toolbox-api-client-ruby/lib",
-          "yarn run openapi-generator-cli generate -i openapi-specs/toolbox.json -g ruby -t hack/ruby-client/openapi-templates --name-mappings hash=_hash --model-name-mappings computeruse.AccessibilityNode=ComputerUseAccessibilityNode --additional-properties=gemAuthor=daytona,gemAuthorEmail=support@daytona.io,gemDescription=\\\"Daytona Toolbox API Client\\\",gemHomepage=\\\"https://github.com/daytona/clients\\\",gemVersion=$DEFAULT_GEM_VERSION,gemName=daytona_toolbox_api_client,enumUnknownDefaultCase=true -o toolbox-api-client-ruby",
+          "yarn run openapi-generator-cli generate -i openapi-specs/toolbox.json -g ruby -t hack/ruby-client/openapi-templates --name-mappings hash=_hash --model-name-mappings computeruse.AccessibilityNode=ComputerUseAccessibilityNode --operation-id-name-mappings Initialize=initialize_server --additional-properties=gemAuthor=daytona,gemAuthorEmail=support@daytona.io,gemDescription=\\\"Daytona Toolbox API Client\\\",gemHomepage=\\\"https://github.com/daytona/clients\\\",gemVersion=$DEFAULT_GEM_VERSION,gemName=daytona_toolbox_api_client,enumUnknownDefaultCase=true -o toolbox-api-client-ruby",
           "bash toolbox-api-client-ruby/fix-gemspec.sh",
           "sed -i 's|OpenAPI-Generator/#{VERSION}/ruby|toolbox-api-client-ruby/#{VERSION}|' toolbox-api-client-ruby/lib/daytona_toolbox_api_client/api_client.rb",
           "cd toolbox-api-client-ruby && BUNDLE_GEMFILE=Gemfile bundle install"

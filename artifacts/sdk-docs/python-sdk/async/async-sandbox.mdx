@@ -480,6 +480,60 @@ await sandbox.update_network_settings(network_block_all=True)
 await sandbox.update_network_settings(network_block_all=False)
 ```
 
+#### AsyncSandbox.update\_secrets
+
+```python
+@intercept_errors(message_prefix="Failed to update secrets: ")
+@with_instrumentation()
+async def update_secrets(secrets: dict[str, str]) -> None
+```
+
+Updates the set of vault secrets mounted in the Sandbox, replacing the previously mounted set.
+
+Attached, detached and rotated secrets take effect for outbound requests within seconds.
+New environment variables only become visible to processes spawned after the update, and a
+Sandbox created without any secrets must be restarted for newly attached secrets to work.
+
+**Arguments**:
+
+- `secrets` _dict[str, str]_ - Map of environment variable name to the name of an existing
+  organization Secret. Pass an empty dict to detach all secrets.
+  
+
+**Example**:
+
+```python
+await sandbox.update_secrets({"ANTHROPIC_API_KEY": "anthropic-prod"})
+await sandbox.update_secrets({})  # detach all
+```
+
+#### AsyncSandbox.update\_env
+
+```python
+@intercept_errors(message_prefix="Failed to update environment: ")
+@with_instrumentation()
+async def update_env(env: dict[str, str],
+                     *,
+                     unset: list[str] | None = None) -> None
+```
+
+Updates the Sandbox daemon's process environment.
+
+Newly spawned processes, sessions and PTYs inherit the change; already-running processes
+keep their environment.
+
+**Arguments**:
+
+- `env` _dict[str, str]_ - Environment variables to set.
+- `unset` _list[str] | None_ - Environment variable names to remove before `env` is applied.
+  
+
+**Example**:
+
+```python
+await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
+```
+
 #### AsyncSandbox.get\_preview\_link
 
 ```python

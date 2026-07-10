@@ -591,3 +591,70 @@ func TestSandboxResizeFlow(t *testing.T) {
 	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
 	require.NoError(t, sandbox.ResizeWithTimeout(context.Background(), &types.Resources{CPU: 2, Memory: 2048, Disk: 10}, 2*time.Second))
 }
+
+func TestSandboxUpdateSecrets(t *testing.T) {
+	var body map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+		assert.Contains(t, r.URL.Path, "/secrets")
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "refreshed-name", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED, "us", 0, -1, false, nil)
+
+	ctx := context.Background()
+	require.NoError(t, sandbox.UpdateSecrets(ctx, map[string]string{"FOO": "foo-secret"}))
+	assert.Equal(t, map[string]any{"secrets": []any{map[string]any{"FOO": "foo-secret"}}}, body)
+	// The sandbox is refreshed from the response DTO.
+	assert.Equal(t, "refreshed-name", sandbox.Name)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+
+	// An empty map must send an explicit empty array (detaches all secrets),
+	// not omit the required field.
+	require.NoError(t, sandbox.UpdateSecrets(ctx, map[string]string{}))
+	assert.Equal(t, map[string]any{"secrets": []any{}}, body)
+
+	// A nil map is rejected so an uninitialized map can't silently detach all secrets.
+	require.Error(t, sandbox.UpdateSecrets(ctx, nil))
+}
+
+func TestSandboxUpdateSecretsAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "server error"})
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+
+	sandbox := newSandboxForTest(client, "test-id", "test", apiclient.SANDBOXSTATE_STARTED, "us-east-1", 60, -1, false, nil)
+
+	ctx := context.Background()
+	err := sandbox.doUpdateSecrets(ctx, map[string]string{"FOO": "foo-secret"})
+	require.Error(t, err)
+}
+
+func TestSandboxUpdateEnv(t *testing.T) {
+	var body map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Contains(t, r.URL.Path, "/env")
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		// The daemon responds with a status message, not the resulting environment.
+		writeJSONResponse(t, w, http.StatusOK, map[string]string{"message": "Environment updated successfully"})
+	}))
+	defer server.Close()
+
+	sandbox := newSandboxForToolboxTest(createTestToolboxClient(server), "sb", apiclient.SANDBOXSTATE_STARTED)
+
+	require.NoError(t, sandbox.UpdateEnv(context.Background(), map[string]string{"FOO": "bar"}, []string{"OLD_VAR"}))
+
+	assert.Equal(t, map[string]any{"FOO": "bar"}, body["set"])
+	assert.Equal(t, []any{"OLD_VAR"}, body["unset"])
+	// UnsetValuePrefix is an internal reconciliation knob and must never be sent.
+	assert.NotContains(t, body, "unsetValuePrefix")
+}

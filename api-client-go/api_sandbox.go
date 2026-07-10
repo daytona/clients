@@ -570,6 +570,21 @@ type SandboxAPI interface {
 	UpdatePublicStatusExecute(r SandboxAPIUpdatePublicStatusRequest) (*Sandbox, *http.Response, error)
 
 	/*
+	UpdateSandboxSecrets Update sandbox secrets
+
+	Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param sandboxIdOrName ID or name of the sandbox
+	@return SandboxAPIUpdateSandboxSecretsRequest
+	*/
+	UpdateSandboxSecrets(ctx context.Context, sandboxIdOrName string) SandboxAPIUpdateSandboxSecretsRequest
+
+	// UpdateSandboxSecretsExecute executes the request
+	//  @return Sandbox
+	UpdateSandboxSecretsExecute(r SandboxAPIUpdateSandboxSecretsRequest) (*Sandbox, *http.Response, error)
+
+	/*
 	UpdateSandboxState Update sandbox state
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -5856,6 +5871,130 @@ func (a *SandboxAPIService) UpdatePublicStatusExecute(r SandboxAPIUpdatePublicSt
 	if r.xDaytonaOrganizationID != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type SandboxAPIUpdateSandboxSecretsRequest struct {
+	ctx context.Context
+	ApiService SandboxAPI
+	sandboxIdOrName string
+	updateSandboxSecrets *UpdateSandboxSecrets
+	xDaytonaOrganizationID *string
+}
+
+func (r SandboxAPIUpdateSandboxSecretsRequest) UpdateSandboxSecrets(updateSandboxSecrets UpdateSandboxSecrets) SandboxAPIUpdateSandboxSecretsRequest {
+	r.updateSandboxSecrets = &updateSandboxSecrets
+	return r
+}
+
+// Use with JWT to specify the organization ID
+func (r SandboxAPIUpdateSandboxSecretsRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) SandboxAPIUpdateSandboxSecretsRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r SandboxAPIUpdateSandboxSecretsRequest) Execute() (*Sandbox, *http.Response, error) {
+	return r.ApiService.UpdateSandboxSecretsExecute(r)
+}
+
+/*
+UpdateSandboxSecrets Update sandbox secrets
+
+Replaces the set of vault secrets mounted in the sandbox. Attached, detached and rotated secrets take effect for outbound requests within seconds. New env vars become visible to processes spawned after the update; a sandbox created without any secrets must be restarted for newly attached secrets to work.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param sandboxIdOrName ID or name of the sandbox
+ @return SandboxAPIUpdateSandboxSecretsRequest
+*/
+func (a *SandboxAPIService) UpdateSandboxSecrets(ctx context.Context, sandboxIdOrName string) SandboxAPIUpdateSandboxSecretsRequest {
+	return SandboxAPIUpdateSandboxSecretsRequest{
+		ApiService: a,
+		ctx: ctx,
+		sandboxIdOrName: sandboxIdOrName,
+	}
+}
+
+// Execute executes the request
+//  @return Sandbox
+func (a *SandboxAPIService) UpdateSandboxSecretsExecute(r SandboxAPIUpdateSandboxSecretsRequest) (*Sandbox, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Sandbox
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SandboxAPIService.UpdateSandboxSecrets")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/secrets"
+	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.updateSandboxSecrets == nil {
+		return localVarReturnValue, nil, reportError("updateSandboxSecrets is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.updateSandboxSecrets
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

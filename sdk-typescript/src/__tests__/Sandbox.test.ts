@@ -26,6 +26,7 @@ jest.mock(
     ProcessApi: jest.fn(() => ({})),
     LspApi: jest.fn(() => ({})),
     InfoApi: jest.fn(() => ({ getUserHomeDir: jest.fn(), getWorkDir: jest.fn() })),
+    ServerApi: jest.fn(() => ({ updateEnv: jest.fn() })),
     ComputerUseApi: jest.fn(() => ({})),
     InterpreterApi: jest.fn(() => ({})),
   }),
@@ -74,6 +75,7 @@ const makeSandbox = (
     createSshAccess: jest.fn(),
     revokeSshAccess: jest.fn(),
     validateSshAccess: jest.fn(),
+    updateSandboxSecrets: jest.fn(),
   }
 
   const cfg: Configuration = {
@@ -239,6 +241,31 @@ describe('Sandbox', () => {
 
     await expect(runtime.getUserRootDir()).resolves.toBe('/home/daytona')
     expect(infoApi.getUserHomeDir).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates sandbox secrets and refreshes instance state from the returned dto', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    sandboxApi.updateSandboxSecrets.mockResolvedValue(
+      createApiResponse({ ...baseDto, env: { FOO: 'placeholder-foo', BAR: 'placeholder-bar' } }),
+    )
+
+    await sandbox.updateSecrets({ FOO: 'foo-secret', BAR: 'bar-secret' })
+
+    expect(sandboxApi.updateSandboxSecrets).toHaveBeenCalledWith('sb-1', {
+      secrets: [{ FOO: 'foo-secret' }, { BAR: 'bar-secret' }],
+    })
+    expect(sandbox.env).toEqual({ FOO: 'placeholder-foo', BAR: 'placeholder-bar' })
+  })
+
+  it('updates the daemon environment', async () => {
+    const { sandbox } = makeSandbox()
+    const serverApi = (sandbox as unknown as { serverApi: { updateEnv: jest.Mock } }).serverApi
+    // The daemon responds with a status message, not the resulting environment.
+    serverApi.updateEnv.mockResolvedValue(createApiResponse({ message: 'Environment updated successfully' }))
+
+    await expect(sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] })).resolves.toBeUndefined()
+
+    expect(serverApi.updateEnv).toHaveBeenCalledWith({ set: { NODE_ENV: 'production' }, unset: ['DEBUG'] })
   })
 
   it('creates sandbox snapshots and waits for completion', async () => {

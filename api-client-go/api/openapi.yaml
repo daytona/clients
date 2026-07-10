@@ -2999,6 +2999,53 @@ paths:
       summary: Update sandbox network settings
       tags:
       - sandbox
+  /sandbox/{sandboxIdOrName}/secrets:
+    put:
+      description: "Replaces the set of vault secrets mounted in the sandbox. Attached,\
+        \ detached and rotated secrets take effect for outbound requests within seconds.\
+        \ New env vars become visible to processes spawned after the update; a sandbox\
+        \ created without any secrets must be restarted for newly attached secrets\
+        \ to work."
+      operationId: updateSandboxSecrets
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID or name of the sandbox
+        explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSandboxSecrets"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sandbox"
+          description: Sandbox secrets have been updated
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Update sandbox secrets
+      tags:
+      - sandbox
   /sandbox/{sandboxIdOrName}/archive:
     post:
       operationId: archiveSandbox
@@ -9815,6 +9862,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9834,6 +9882,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9890,6 +9939,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9909,6 +9959,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
         expiresAt:
           description: When the API key expires
@@ -9970,6 +10021,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -9989,6 +10041,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
         lastUsedAt:
           description: When the API key was last used
@@ -10057,6 +10110,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -10076,6 +10130,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
         isGlobal:
           description: Global role flag
@@ -10795,6 +10850,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -10814,6 +10870,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
       required:
       - description
@@ -10857,6 +10914,7 @@ components:
             - read:audit_logs
             - manage:api_keys
             - manage:secrets
+            - read:limits
             type: string
             x-enum-varnames:
             - WRITE_REGISTRIES
@@ -10876,6 +10934,7 @@ components:
             - READ_AUDIT_LOGS
             - MANAGE_API_KEYS
             - MANAGE_SECRETS
+            - READ_LIMITS
           type: array
       required:
       - description
@@ -12310,6 +12369,27 @@ components:
           description: Comma-separated list of allowed domains for the sandbox
           example: "example.com,*.daytona.io"
           type: string
+      type: object
+    UpdateSandboxSecrets:
+      example:
+        secrets:
+        - ANTHROPIC_API_KEY: anthropic-prod
+        - DB_PASSWORD: DB_PASSWORD
+      properties:
+        secrets:
+          description: "Secrets to mount in this sandbox, replacing the previously\
+            \ mounted set. Each entry maps an env var name to a vault secret name.\
+            \ Pass an empty array to detach all secrets."
+          example:
+          - ANTHROPIC_API_KEY: anthropic-prod
+          - DB_PASSWORD: DB_PASSWORD
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+      required:
+      - secrets
       type: object
     PortPreviewUrl:
       example:
@@ -14949,6 +15029,7 @@ components:
       - INSPECT_SNAPSHOT_IN_REGISTRY
       - REMOVE_SNAPSHOT
       - UPDATE_SANDBOX_NETWORK_SETTINGS
+      - UPDATE_SANDBOX_SECRETS
       - SNAPSHOT_SANDBOX
       - FORK_SANDBOX
       - PAUSE_SANDBOX
@@ -15490,15 +15571,16 @@ components:
       type: object
     CreateOrganizationQuota:
       example:
-        snapshotQuota: 7.061401241503109
+        snapshotQuota: 9.301444243932576
         totalCpuQuota: 0.8008281904610115
-        maxCpuPerSandbox: 5.962133916683182
-        maxDiskPerSandbox: 2.3021358869347655
-        maxConcurrentSnapshotProcessing: 2.027123023002322
-        maxMemoryPerSandbox: 5.637376656633329
-        volumeQuota: 3.616076749251911
+        maxCpuPerSandbox: 5.637376656633329
+        maxDiskPerSandbox: 7.061401241503109
+        maxConcurrentSnapshotProcessing: 4.145608029883936
+        maxMemoryPerSandbox: 2.3021358869347655
+        volumeQuota: 2.027123023002322
+        totalGpuQuota: 5.962133916683182
         totalMemoryQuota: 6.027456183070403
-        maxSnapshotSize: 9.301444243932576
+        maxSnapshotSize: 3.616076749251911
         totalDiskQuota: 1.4658129805029452
       properties:
         totalCpuQuota:
@@ -15506,6 +15588,8 @@ components:
         totalMemoryQuota:
           type: number
         totalDiskQuota:
+          type: number
+        totalGpuQuota:
           type: number
         maxCpuPerSandbox:
           type: number
@@ -15532,15 +15616,16 @@ components:
         personalOrganizationDefaultRegionId: personalOrganizationDefaultRegionId
         id: id
         personalOrganizationQuota:
-          snapshotQuota: 7.061401241503109
+          snapshotQuota: 9.301444243932576
           totalCpuQuota: 0.8008281904610115
-          maxCpuPerSandbox: 5.962133916683182
-          maxDiskPerSandbox: 2.3021358869347655
-          maxConcurrentSnapshotProcessing: 2.027123023002322
-          maxMemoryPerSandbox: 5.637376656633329
-          volumeQuota: 3.616076749251911
+          maxCpuPerSandbox: 5.637376656633329
+          maxDiskPerSandbox: 7.061401241503109
+          maxConcurrentSnapshotProcessing: 4.145608029883936
+          maxMemoryPerSandbox: 2.3021358869347655
+          volumeQuota: 2.027123023002322
+          totalGpuQuota: 5.962133916683182
           totalMemoryQuota: 6.027456183070403
-          maxSnapshotSize: 9.301444243932576
+          maxSnapshotSize: 3.616076749251911
           totalDiskQuota: 1.4658129805029452
         email: email
       properties:

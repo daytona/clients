@@ -33,6 +33,7 @@ class CreateOrganizationQuota(BaseModel):
     total_cpu_quota: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="totalCpuQuota")
     total_memory_quota: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="totalMemoryQuota")
     total_disk_quota: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="totalDiskQuota")
+    total_gpu_quota: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="totalGpuQuota")
     max_cpu_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxCpuPerSandbox")
     max_memory_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxMemoryPerSandbox")
     max_disk_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="maxDiskPerSandbox")
@@ -41,7 +42,7 @@ class CreateOrganizationQuota(BaseModel):
     volume_quota: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, serialization_alias="volumeQuota")
     max_concurrent_snapshot_processing: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Maximum number of snapshots an organization can process (building or pulling) concurrently. Excess are queued. <= 0 means unlimited.", serialization_alias="maxConcurrentSnapshotProcessing")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "maxConcurrentSnapshotProcessing"]
+    __properties: ClassVar[List[str]] = ["totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "snapshotQuota", "maxSnapshotSize", "volumeQuota", "maxConcurrentSnapshotProcessing"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -103,6 +104,7 @@ class CreateOrganizationQuota(BaseModel):
             "total_cpu_quota": obj.get("totalCpuQuota"),
             "total_memory_quota": obj.get("totalMemoryQuota"),
             "total_disk_quota": obj.get("totalDiskQuota"),
+            "total_gpu_quota": obj.get("totalGpuQuota"),
             "max_cpu_per_sandbox": obj.get("maxCpuPerSandbox"),
             "max_memory_per_sandbox": obj.get("maxMemoryPerSandbox"),
             "max_disk_per_sandbox": obj.get("maxDiskPerSandbox"),

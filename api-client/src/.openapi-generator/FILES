@@ -204,6 +204,7 @@ models/update-organization-region-quota.ts
 models/update-organization-role.ts
 models/update-region.ts
 models/update-sandbox-network-settings.ts
+models/update-sandbox-secrets.ts
 models/update-sandbox-state-dto.ts
 models/update-secret.ts
 models/url.ts

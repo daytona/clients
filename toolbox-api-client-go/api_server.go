@@ -34,6 +34,20 @@ type ServerAPI interface {
 	// InitializeExecute executes the request
 	//  @return map[string]string
 	InitializeExecute(r ServerAPIInitializeRequest) (map[string]string, *http.Response, error)
+
+	/*
+	UpdateEnv Update process environment
+
+	Update the daemon's process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return ServerAPIUpdateEnvRequest
+	*/
+	UpdateEnv(ctx context.Context) ServerAPIUpdateEnvRequest
+
+	// UpdateEnvExecute executes the request
+	//  @return map[string]string
+	UpdateEnvExecute(r ServerAPIUpdateEnvRequest) (map[string]string, *http.Response, error)
 }
 
 // ServerAPIService ServerAPI service
@@ -86,6 +100,117 @@ func (a *ServerAPIService) InitializeExecute(r ServerAPIInitializeRequest) (map[
 	}
 
 	localVarPath := localBasePath + "/init"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.request == nil {
+		return localVarReturnValue, nil, reportError("request is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.request
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ServerAPIUpdateEnvRequest struct {
+	ctx context.Context
+	ApiService ServerAPI
+	request *UpdateEnvRequest
+}
+
+// Environment update request
+func (r ServerAPIUpdateEnvRequest) Request(request UpdateEnvRequest) ServerAPIUpdateEnvRequest {
+	r.request = &request
+	return r
+}
+
+func (r ServerAPIUpdateEnvRequest) Execute() (map[string]string, *http.Response, error) {
+	return r.ApiService.UpdateEnvExecute(r)
+}
+
+/*
+UpdateEnv Update process environment
+
+Update the daemon's process environment. Newly spawned processes, sessions and PTYs inherit the change; already-running processes keep their environment.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ServerAPIUpdateEnvRequest
+*/
+func (a *ServerAPIService) UpdateEnv(ctx context.Context) ServerAPIUpdateEnvRequest {
+	return ServerAPIUpdateEnvRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return map[string]string
+func (a *ServerAPIService) UpdateEnvExecute(r ServerAPIUpdateEnvRequest) (map[string]string, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  map[string]string
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ServerAPIService.UpdateEnv")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/env"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
