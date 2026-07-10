@@ -116,3 +116,29 @@ class TestErrorFactories:
 
         assert isinstance(error, DaytonaNotFoundError)
         assert error.error_code == "NOT_FOUND"
+
+
+class TestTransportErrorMapping:
+    def test_urllib3_read_timeout_maps_to_daytona_timeout_error(self):
+        import urllib3.exceptions
+
+        from daytona._utils.errors import intercept_errors
+
+        @intercept_errors(message_prefix="Failed to add files: ")
+        def raises_urllib3_read_timeout():
+            raise urllib3.exceptions.ReadTimeoutError(None, "/process/session", "Read timed out. (read timeout=1.0)")
+
+        with pytest.raises(DaytonaTimeoutError, match="Failed to add files: "):
+            raises_urllib3_read_timeout()
+
+    def test_urllib3_connect_timeout_maps_to_daytona_timeout_error(self):
+        import urllib3.exceptions
+
+        from daytona._utils.errors import intercept_errors
+
+        @intercept_errors(message_prefix="Failed to get session: ")
+        def raises_urllib3_connect_timeout():
+            raise urllib3.exceptions.ConnectTimeoutError("Connection timed out")
+
+        with pytest.raises(DaytonaTimeoutError, match="Failed to get session: "):
+            raises_urllib3_connect_timeout()
