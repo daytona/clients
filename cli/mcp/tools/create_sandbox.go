@@ -30,6 +30,7 @@ type CreateSandboxArgs struct {
 	Memory              *int32                     `json:"memory,omitempty"`
 	Disk                *int32                     `json:"disk,omitempty"`
 	AutoStopInterval    *int32                     `json:"autoStopInterval,omitempty"`
+	AutoPauseInterval   *int32                     `json:"autoPauseInterval,omitempty"`
 	AutoArchiveInterval *int32                     `json:"autoArchiveInterval,omitempty"`
 	AutoDeleteInterval  *int32                     `json:"autoDeleteInterval,omitempty"`
 	Volumes             *[]apiclient.SandboxVolume `json:"volumes,omitempty"`
@@ -54,6 +55,7 @@ func GetCreateSandboxTool() mcp.Tool {
 		mcp.WithNumber("memory", mcp.Description("Memory allocated to the sandbox in GB. Cannot specify sandbox resources when using a snapshot."), mcp.Max(8)),
 		mcp.WithNumber("disk", mcp.Description("Disk space allocated to the sandbox in GB. Cannot specify sandbox resources when using a snapshot."), mcp.Max(10)),
 		mcp.WithNumber("autoStopInterval", mcp.DefaultNumber(15), mcp.Min(0), mcp.Description("Auto-stop interval in minutes (0 means disabled) for the sandbox.")),
+		mcp.WithNumber("autoPauseInterval", mcp.Min(0), mcp.Description("Auto-pause interval in minutes (0 means disabled) for the sandbox. Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval.")),
 		mcp.WithNumber("autoArchiveInterval", mcp.DefaultNumber(10080), mcp.Min(0), mcp.Description("Auto-archive interval in minutes (0 means the maximum interval will be used) for the sandbox.")),
 		mcp.WithNumber("autoDeleteInterval", mcp.DefaultNumber(-1), mcp.Description("Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping) for the sandbox.")),
 		mcp.WithArray("volumes", mcp.Description("Volumes to attach to the sandbox."), mcp.Items(map[string]any{"type": "object", "properties": map[string]any{"volumeId": map[string]any{"type": "string"}, "mountPath": map[string]any{"type": "string"}}})),
@@ -143,7 +145,9 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		createSandbox.SetTarget(*args.Target)
 	}
 
-	if args.AutoStopInterval != nil {
+	if args.AutoPauseInterval != nil {
+		createSandbox.SetAutoPauseInterval(*args.AutoPauseInterval)
+	} else if args.AutoStopInterval != nil {
 		createSandbox.SetAutoStopInterval(*args.AutoStopInterval)
 	}
 

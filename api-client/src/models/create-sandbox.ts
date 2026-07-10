@@ -89,6 +89,10 @@ export interface CreateSandbox {
      */
     'autoStopInterval'?: number;
     /**
+     * Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval. For sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+     */
+    'autoPauseInterval'?: number;
+    /**
      * Auto-archive interval in minutes (0 means the maximum interval will be used)
      */
     'autoArchiveInterval'?: number;

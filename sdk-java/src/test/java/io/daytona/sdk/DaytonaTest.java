@@ -203,6 +203,48 @@ class DaytonaTest {
     }
 
     @Test
+    void createFromSnapshotWiresAutoPauseInterval() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-ap", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setAutoPauseInterval(15);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getAutoPauseInterval()).isEqualTo(15);
+        assertThat(captor.getValue().getAutoStopInterval()).isNull();
+    }
+
+    @Test
+    void createRejectsMutuallyExclusiveAutoStopAndAutoPause() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setAutoStopInterval(10);
+        params.setAutoPauseInterval(20);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("autoStopInterval and autoPauseInterval are mutually exclusive");
+    }
+
+    @Test
+    void createAllowsAutoStopAndAutoPauseWhenOneIsZero() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-z", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setAutoStopInterval(10);
+        params.setAutoPauseInterval(0);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getAutoStopInterval()).isEqualTo(10);
+        assertThat(captor.getValue().getAutoPauseInterval()).isEqualTo(0);
+    }
+
+    @Test
     void createFromSnapshotRejectsUnsupportedLanguage() {
         CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
         params.setLanguage("ruby");

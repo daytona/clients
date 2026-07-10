@@ -84,7 +84,9 @@ var CreateCmd = &cobra.Command{
 		if diskFlag > 0 {
 			createSandbox.SetDisk(diskFlag)
 		}
-		if autoStopFlag >= 0 {
+		if cmd.Flags().Changed("auto-pause") {
+			createSandbox.SetAutoPauseInterval(autoPauseFlag)
+		} else if cmd.Flags().Changed("auto-stop") {
 			createSandbox.SetAutoStopInterval(autoStopFlag)
 		}
 		if autoArchiveFlag >= 0 {
@@ -202,6 +204,7 @@ var (
 	memoryFlag           int32
 	diskFlag             int32
 	autoStopFlag         int32
+	autoPauseFlag        int32
 	autoArchiveFlag      int32
 	autoDeleteFlag       int32
 	volumesFlag          []string
@@ -223,7 +226,8 @@ func init() {
 	CreateCmd.Flags().Int32Var(&gpuFlag, "gpu", 0, "GPU units allocated to the sandbox")
 	CreateCmd.Flags().Int32Var(&memoryFlag, "memory", 0, "Memory allocated to the sandbox in MB")
 	CreateCmd.Flags().Int32Var(&diskFlag, "disk", 0, "Disk space allocated to the sandbox in GB")
-	CreateCmd.Flags().Int32Var(&autoStopFlag, "auto-stop", 15, "Auto-stop interval in minutes (0 means disabled)")
+	CreateCmd.Flags().Int32Var(&autoStopFlag, "auto-stop", 15, "Auto-stop interval in minutes (0 means disabled). Server default: 15, except for sandbox classes that support pausing where auto-pause defaults to 60 instead")
+	CreateCmd.Flags().Int32Var(&autoPauseFlag, "auto-pause", 60, "Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with --auto-stop")
 	CreateCmd.Flags().Int32Var(&autoArchiveFlag, "auto-archive", 10080, "Auto-archive interval in minutes (0 means the maximum interval will be used)")
 	CreateCmd.Flags().Int32Var(&autoDeleteFlag, "auto-delete", -1, "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)")
 	CreateCmd.Flags().StringArrayVarP(&volumesFlag, "volume", "v", []string{}, "Volumes to mount (format: VOLUME_ID_OR_NAME:MOUNT_PATH)")
@@ -234,4 +238,5 @@ func init() {
 
 	CreateCmd.MarkFlagsMutuallyExclusive("snapshot", "dockerfile")
 	CreateCmd.MarkFlagsMutuallyExclusive("snapshot", "context")
+	CreateCmd.MarkFlagsMutuallyExclusive("auto-stop", "auto-pause")
 }

@@ -127,8 +127,14 @@ class CreateSandboxBaseParams(BaseModel):
         public (bool | None): Whether the Sandbox should be public.
         timeout (float | None): Timeout in seconds for Sandbox to be created and started.
         auto_stop_interval (int | None): Interval in minutes after which Sandbox will
-            automatically stop if no Sandbox event occurs during that time. Default is 15 minutes.
-            0 means no auto-stop.
+            automatically stop if no Sandbox event occurs during that time. Default is 15 minutes
+            (for sandbox classes that support pausing, auto-pause defaults to 60 minutes instead
+            and auto-stop is disabled). 0 means no auto-stop.
+        auto_pause_interval (int | None): Auto-pause interval in minutes (0 means disabled).
+            Only supported for sandbox classes that support pausing.
+            Mutually exclusive with auto_stop_interval. For sandbox classes that support
+            pausing, defaults to 60 minutes (with auto-stop disabled) when neither
+            interval is provided.
         auto_archive_interval (int | None): Interval in minutes after which a continuously stopped Sandbox will
             automatically archive. Default is 7 days.
             0 means the maximum interval will be used.
@@ -159,6 +165,7 @@ class CreateSandboxBaseParams(BaseModel):
     labels: dict[str, str] | None = None
     public: bool | None = None
     auto_stop_interval: int | None = None
+    auto_pause_interval: int | None = None
     auto_archive_interval: int | None = None
     auto_delete_interval: int | None = None
     volumes: list[VolumeMount] | None = None

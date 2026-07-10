@@ -71,6 +71,7 @@ import { WithInstrumentation } from './utils/otel.decorator'
  * @property {string} [backupCreatedAt] - When the backup was created (not returned by list results;
  * call `refreshData()` on each item to populate)
  * @property {number} [autoStopInterval] - Auto-stop interval in minutes
+ * @property {number} [autoPauseInterval] - Auto-pause interval in minutes
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes
  * @property {Array<SandboxVolume>} [volumes] - Volumes attached to the Sandbox (not returned by
@@ -117,6 +118,7 @@ export class Sandbox {
   public backupState?: SandboxBackupStateEnum
   public backupCreatedAt?: string
   public autoStopInterval?: number
+  public autoPauseInterval?: number
   public autoArchiveInterval?: number
   public autoDeleteInterval?: number
   public volumes?: Array<SandboxVolume>
@@ -670,6 +672,37 @@ export class Sandbox {
   }
 
   /**
+   * Set the auto-pause interval for the Sandbox.
+   *
+   * The Sandbox will automatically pause after being idle (no new events) for the specified interval.
+   * Events include any state changes or interactions with the Sandbox through the sdk.
+   * Interactions using Sandbox Previews are not included.
+   *
+   * Only supported for sandbox classes that support pausing. Mutually exclusive with the
+   * auto-stop interval - disable auto-stop first by setting its interval to 0.
+   *
+   * @param {number} interval - Number of minutes of inactivity before auto-pausing.
+   *                           Set to 0 to disable auto-pause. Disabled by default.
+   * @returns {Promise<void>}
+   * @throws {DaytonaError} - `DaytonaError` - If interval is not a non-negative integer
+   *
+   * @example
+   * // Auto-pause after 1 hour
+   * await sandbox.setAutoPauseInterval(60);
+   * // Or disable auto-pause
+   * await sandbox.setAutoPauseInterval(0);
+   */
+  @WithInstrumentation()
+  public async setAutoPauseInterval(interval: number): Promise<void> {
+    if (!Number.isInteger(interval) || interval < 0) {
+      throw new DaytonaValidationError('autoPauseInterval must be a non-negative integer')
+    }
+
+    await this.sandboxApi.setAutoPauseInterval(this.id, interval)
+    this.autoPauseInterval = interval
+  }
+
+  /**
    * Set the auto-archive interval for the Sandbox.
    *
    * The Sandbox will automatically archive after being continuously stopped for the specified interval.
@@ -1003,6 +1036,7 @@ export class Sandbox {
     this.recoverable = sandboxDto.recoverable
     this.backupState = sandboxDto.backupState
     this.autoStopInterval = sandboxDto.autoStopInterval
+    this.autoPauseInterval = sandboxDto.autoPauseInterval
     this.autoArchiveInterval = sandboxDto.autoArchiveInterval
     this.autoDeleteInterval = sandboxDto.autoDeleteInterval
     this.createdAt = sandboxDto.createdAt

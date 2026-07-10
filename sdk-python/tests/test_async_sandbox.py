@@ -56,6 +56,21 @@ class TestAsyncSandboxLifecycleSettings:
         assert sandbox.auto_stop_interval == 30
 
     @pytest.mark.asyncio
+    async def test_negative_autopause_interval_raises(
+        self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        with pytest.raises(DaytonaValidationError, match="Auto-pause interval must be a non-negative"):
+            await sandbox.set_auto_pause_interval(-1)
+
+    @pytest.mark.asyncio
+    async def test_valid_autopause_interval(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.set_auto_pause_interval = AsyncMock(return_value=None)
+        await sandbox.set_auto_pause_interval(30)
+        assert sandbox.auto_pause_interval == 30
+
+    @pytest.mark.asyncio
     async def test_negative_auto_archive_interval_raises(
         self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api
     ):

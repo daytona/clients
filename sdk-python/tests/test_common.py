@@ -116,6 +116,7 @@ class TestCreateSandboxParams:
         assert params.snapshot is None
         assert params.language is None
         assert params.auto_stop_interval is None
+        assert params.auto_pause_interval is None
 
     def test_snapshot_params_with_values(self):
         params = CreateSandboxFromSnapshotParams(
@@ -127,6 +128,15 @@ class TestCreateSandboxParams:
         assert params.snapshot == "my-snapshot"
         assert params.env_vars == {"DEBUG": "1"}
         assert params.auto_stop_interval == 30
+
+    def test_snapshot_params_with_auto_pause_interval(self):
+        params = CreateSandboxFromSnapshotParams(
+            snapshot="my-snapshot",
+            language="python",
+            auto_pause_interval=45,
+        )
+        assert params.auto_pause_interval == 45
+        assert params.auto_stop_interval is None
 
     def test_image_params(self):
         params = CreateSandboxFromImageParams(image="python:3.12", resources=Resources(cpu=2, memory=4))

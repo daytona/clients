@@ -588,6 +588,20 @@ public class SandboxApiTest {
     }
 
     /**
+     * Set sandbox auto-pause interval
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void setAutoPauseIntervalTest() throws ApiException {
+        String sandboxIdOrName = null;
+        BigDecimal interval = null;
+        String xDaytonaOrganizationID = null;
+        Sandbox response = api.setAutoPauseInterval(sandboxIdOrName, interval, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
      * Set sandbox auto-stop interval
      *
      * @throws ApiException if the Api call fails

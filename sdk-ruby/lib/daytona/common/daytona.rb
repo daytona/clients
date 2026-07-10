@@ -28,6 +28,10 @@ module Daytona
     # @return [Integer, nil] Auto-stop interval in minutes
     attr_accessor :auto_stop_interval
 
+    # @return [Integer, nil] Auto-pause interval in minutes (nil = server default: 60 for
+    #   pause-supporting sandbox classes with auto-stop disabled; 0 = disabled)
+    attr_accessor :auto_pause_interval
+
     # @return [Integer, nil] Auto-archive interval in minutes
     attr_accessor :auto_archive_interval
 
@@ -69,6 +73,7 @@ module Daytona
     # @param public [Boolean, nil] Whether the Sandbox should be public
     # @param timeout [Float, nil] Timeout in seconds for Sandbox to be created and started
     # @param auto_stop_interval [Integer, nil] Auto-stop interval in minutes
+    # @param auto_pause_interval [Integer, nil] Auto-pause interval in minutes
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
@@ -87,6 +92,7 @@ module Daytona
       public: nil,
       timeout: nil,
       auto_stop_interval: nil,
+      auto_pause_interval: nil,
       auto_archive_interval: nil,
       auto_delete_interval: nil,
       volumes: nil,
@@ -104,6 +110,7 @@ module Daytona
       @public = public
       @timeout = timeout
       @auto_stop_interval = auto_stop_interval
+      @auto_pause_interval = auto_pause_interval
       @auto_archive_interval = auto_archive_interval
       @auto_delete_interval = auto_delete_interval
       @volumes = volumes
@@ -130,6 +137,7 @@ module Daytona
         public:,
         timeout:,
         auto_stop_interval:,
+        auto_pause_interval:,
         auto_archive_interval:,
         auto_delete_interval:,
         volumes:,
@@ -178,6 +186,7 @@ module Daytona
     # @param public [Boolean, nil] Whether the Sandbox should be public
     # @param timeout [Float, nil] Timeout in seconds for Sandbox to be created and started
     # @param auto_stop_interval [Integer, nil] Auto-stop interval in minutes
+    # @param auto_pause_interval [Integer, nil] Auto-pause interval in minutes
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
@@ -219,6 +228,7 @@ module Daytona
     # @param public [Boolean, nil] Whether the Sandbox should be public
     # @param timeout [Float, nil] Timeout in seconds for Sandbox to be created and started
     # @param auto_stop_interval [Integer, nil] Auto-stop interval in minutes
+    # @param auto_pause_interval [Integer, nil] Auto-pause interval in minutes
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox

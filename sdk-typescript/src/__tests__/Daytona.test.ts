@@ -287,10 +287,20 @@ describe('Daytona', () => {
   })
 
   test.each<
-    [{ timeout?: number }, string, { language?: string; autoStopInterval?: number; autoArchiveInterval?: number }]
+    [
+      { timeout?: number },
+      string,
+      { language?: string; autoStopInterval?: number; autoPauseInterval?: number; autoArchiveInterval?: number },
+    ]
   >([
     [{ timeout: -1 }, 'Timeout must be a non-negative number', { language: 'python' }],
     [{}, 'autoStopInterval must be a non-negative integer', { autoStopInterval: -1 }],
+    [{}, 'autoPauseInterval must be a non-negative integer', { autoPauseInterval: -1 }],
+    [
+      {},
+      'autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value',
+      { autoStopInterval: 15, autoPauseInterval: 60 },
+    ],
     [{}, 'autoArchiveInterval must be a non-negative integer', { autoArchiveInterval: -1 }],
   ])('validates create input %#', async (optionsPart, message, params) => {
     const { Daytona } = await import('../Daytona')

@@ -52,6 +52,8 @@ type CreateSandbox struct {
 	Disk *int32 `json:"disk,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *int32 `json:"autoStopInterval,omitempty"`
+	// Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval. For sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+	AutoPauseInterval *int32 `json:"autoPauseInterval,omitempty"`
 	// Auto-archive interval in minutes (0 means the maximum interval will be used)
 	AutoArchiveInterval *int32 `json:"autoArchiveInterval,omitempty"`
 	// Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
@@ -598,6 +600,38 @@ func (o *CreateSandbox) SetAutoStopInterval(v int32) {
 	o.AutoStopInterval = &v
 }
 
+// GetAutoPauseInterval returns the AutoPauseInterval field value if set, zero value otherwise.
+func (o *CreateSandbox) GetAutoPauseInterval() int32 {
+	if o == nil || IsNil(o.AutoPauseInterval) {
+		var ret int32
+		return ret
+	}
+	return *o.AutoPauseInterval
+}
+
+// GetAutoPauseIntervalOk returns a tuple with the AutoPauseInterval field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetAutoPauseIntervalOk() (*int32, bool) {
+	if o == nil || IsNil(o.AutoPauseInterval) {
+		return nil, false
+	}
+	return o.AutoPauseInterval, true
+}
+
+// HasAutoPauseInterval returns a boolean if a field has been set.
+func (o *CreateSandbox) HasAutoPauseInterval() bool {
+	if o != nil && !IsNil(o.AutoPauseInterval) {
+		return true
+	}
+
+	return false
+}
+
+// SetAutoPauseInterval gets a reference to the given int32 and assigns it to the AutoPauseInterval field.
+func (o *CreateSandbox) SetAutoPauseInterval(v int32) {
+	o.AutoPauseInterval = &v
+}
+
 // GetAutoArchiveInterval returns the AutoArchiveInterval field value if set, zero value otherwise.
 func (o *CreateSandbox) GetAutoArchiveInterval() int32 {
 	if o == nil || IsNil(o.AutoArchiveInterval) {
@@ -848,6 +882,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AutoStopInterval) {
 		toSerialize["autoStopInterval"] = o.AutoStopInterval
 	}
+	if !IsNil(o.AutoPauseInterval) {
+		toSerialize["autoPauseInterval"] = o.AutoPauseInterval
+	}
 	if !IsNil(o.AutoArchiveInterval) {
 		toSerialize["autoArchiveInterval"] = o.AutoArchiveInterval
 	}
@@ -904,6 +941,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")
 		delete(additionalProperties, "autoStopInterval")
+		delete(additionalProperties, "autoPauseInterval")
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
 		delete(additionalProperties, "volumes")

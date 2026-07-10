@@ -83,6 +83,9 @@ class AsyncSandbox(SandboxDto):
         backup_created_at (str | None): When the backup was created (not returned by list results;
             call `refresh_data()` on each item to populate).
         auto_stop_interval (int | None): Auto-stop interval in minutes.
+        auto_pause_interval (int | None): Auto-pause interval in minutes (0 means disabled).
+            Only supported for sandbox classes that support pausing.
+            Mutually exclusive with auto_stop_interval.
         auto_archive_interval (int | None): Auto-archive interval in minutes.
         auto_delete_interval (int | None): Auto-delete interval in minutes.
         volumes (list[SandboxVolume] | None): Volumes attached to the Sandbox (not returned by list
@@ -459,6 +462,35 @@ class AsyncSandbox(SandboxDto):
 
         _ = await self._sandbox_api.set_autostop_interval(self.id, interval)
         self.auto_stop_interval = interval
+
+    @intercept_errors(message_prefix="Failed to set auto-pause interval: ")
+    @with_instrumentation()
+    async def set_auto_pause_interval(self, interval: int) -> None:
+        """Sets the auto-pause interval for the Sandbox.
+
+        The Sandbox will automatically pause after being idle (no new events) for the specified interval.
+        Only supported for sandbox classes that support pausing.
+
+        Args:
+            interval (int): Number of minutes of inactivity before auto-pausing.
+                Set to 0 to disable auto-pause.
+
+        Raises:
+            DaytonaValidationError: If interval is negative
+
+        Example:
+            ```python
+            # Auto-pause after 1 hour
+            await sandbox.set_auto_pause_interval(60)
+            # Or disable auto-pause
+            await sandbox.set_auto_pause_interval(0)
+            ```
+        """
+        if interval < 0:
+            raise DaytonaValidationError("Auto-pause interval must be a non-negative integer")
+
+        _ = await self._sandbox_api.set_auto_pause_interval(self.id, interval)
+        self.auto_pause_interval = interval
 
     @intercept_errors(message_prefix="Failed to set auto-archive interval: ")
     @with_instrumentation()
@@ -922,6 +954,7 @@ class AsyncSandbox(SandboxDto):
         self.recoverable: bool | None = sandbox_dto.recoverable
         self.backup_state: str | None = sandbox_dto.backup_state
         self.auto_stop_interval: float | int | None = sandbox_dto.auto_stop_interval
+        self.auto_pause_interval: float | int | None = sandbox_dto.auto_pause_interval
         self.auto_archive_interval: float | int | None = sandbox_dto.auto_archive_interval
         self.auto_delete_interval: float | int | None = sandbox_dto.auto_delete_interval
         self.created_at: str | None = sandbox_dto.created_at

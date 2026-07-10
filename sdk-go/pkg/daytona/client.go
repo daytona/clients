@@ -440,6 +440,13 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.AutoStopInterval != nil && *baseParams.AutoStopInterval < 0 {
 		return nil, errors.NewDaytonaError("autoStopInterval must be a non-negative integer", 0, nil)
 	}
+	if baseParams.AutoPauseInterval != nil && *baseParams.AutoPauseInterval < 0 {
+		return nil, errors.NewDaytonaError("autoPauseInterval must be a non-negative integer", 0, nil)
+	}
+	if baseParams.AutoStopInterval != nil && *baseParams.AutoStopInterval != 0 &&
+		baseParams.AutoPauseInterval != nil && *baseParams.AutoPauseInterval != 0 {
+		return nil, errors.NewDaytonaError("autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value", 0, nil)
+	}
 	if baseParams.AutoArchiveInterval != nil && *baseParams.AutoArchiveInterval < 0 {
 		return nil, errors.NewDaytonaError("autoArchiveInterval must be a non-negative integer", 0, nil)
 	}
@@ -474,6 +481,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 	if baseParams.AutoStopInterval != nil {
 		createReq.SetAutoStopInterval(int32(*baseParams.AutoStopInterval))
+	}
+	if baseParams.AutoPauseInterval != nil {
+		createReq.SetAutoPauseInterval(int32(*baseParams.AutoPauseInterval))
 	}
 	if baseParams.AutoArchiveInterval != nil {
 		createReq.SetAutoArchiveInterval(int32(*baseParams.AutoArchiveInterval))

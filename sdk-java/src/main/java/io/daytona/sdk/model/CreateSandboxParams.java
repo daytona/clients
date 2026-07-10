@@ -23,6 +23,7 @@ public class CreateSandboxParams {
     private Map<String, String> labels;
     private Boolean isPublic;
     private Integer autoStopInterval;
+    private Integer autoPauseInterval;
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
     private List<VolumeMount> volumes;
@@ -128,6 +129,25 @@ public class CreateSandboxParams {
      * @param autoStopInterval minutes of inactivity before stop
      */
     public void setAutoStopInterval(Integer autoStopInterval) { this.autoStopInterval = autoStopInterval; }
+
+    /**
+     * Returns auto-pause interval in minutes (0 means disabled).
+     * Only supported for sandbox classes that support pausing.
+     * Mutually exclusive with autoStopInterval.
+     *
+     * @return inactivity timeout before pausing
+     */
+    public Integer getAutoPauseInterval() { return autoPauseInterval; }
+
+    /**
+     * Sets auto-pause interval in minutes (0 means disabled).
+     * Only supported for sandbox classes that support pausing.
+     * Mutually exclusive with autoStopInterval. For sandbox classes that support pausing,
+     * the server defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+     *
+     * @param autoPauseInterval minutes of inactivity before pause
+     */
+    public void setAutoPauseInterval(Integer autoPauseInterval) { this.autoPauseInterval = autoPauseInterval; }
 
     /**
      * Returns auto-archive interval in minutes.

@@ -53,6 +53,17 @@ class TestSandboxLifecycleSettings:
         assert sandbox.auto_stop_interval == 30
         mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30)
 
+    def test_negative_autopause_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        with pytest.raises(DaytonaValidationError, match="Auto-pause interval must be a non-negative"):
+            sandbox.set_auto_pause_interval(-1)
+
+    def test_valid_autopause_interval(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        sandbox.set_auto_pause_interval(30)
+        assert sandbox.auto_pause_interval == 30
+        mock_sandbox_api.set_auto_pause_interval.assert_called_once_with(sandbox.id, 30)
+
     def test_negative_auto_archive_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         with pytest.raises(DaytonaValidationError, match="Auto-archive interval must be a non-negative"):

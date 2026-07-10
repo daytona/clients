@@ -40,6 +40,9 @@ Represents a Daytona Sandbox.
 - `backup_created_at` _str | None_ - When the backup was created (not returned by list results;
   call `refresh_data()` on each item to populate).
 - `auto_stop_interval` _int | None_ - Auto-stop interval in minutes.
+- `auto_pause_interval` _int | None_ - Auto-pause interval in minutes (0 means disabled).
+  Only supported for sandbox classes that support pausing.
+  Mutually exclusive with auto_stop_interval.
 - `auto_archive_interval` _int | None_ - Auto-archive interval in minutes.
 - `auto_delete_interval` _int | None_ - Auto-delete interval in minutes.
 - `volumes` _list[SandboxVolume] | None_ - Volumes attached to the Sandbox (not returned by list
@@ -399,6 +402,39 @@ Interactions using Sandbox Previews are not included.
 sandbox.set_autostop_interval(60)
 # Or disable auto-stop
 sandbox.set_autostop_interval(0)
+```
+
+#### Sandbox.set\_auto\_pause\_interval
+
+```python
+@intercept_errors(message_prefix="Failed to set auto-pause interval: ")
+@with_instrumentation()
+def set_auto_pause_interval(interval: int) -> None
+```
+
+Sets the auto-pause interval for the Sandbox.
+
+The Sandbox will automatically pause after being idle (no new events) for the specified interval.
+Only supported for sandbox classes that support pausing.
+
+**Arguments**:
+
+- `interval` _int_ - Number of minutes of inactivity before auto-pausing.
+  Set to 0 to disable auto-pause.
+  
+
+**Raises**:
+
+- `DaytonaValidationError` - If interval is negative
+  
+
+**Example**:
+
+```python
+# Auto-pause after 1 hour
+sandbox.set_auto_pause_interval(60)
+# Or disable auto-pause
+sandbox.set_auto_pause_interval(0)
 ```
 
 #### Sandbox.set\_auto\_archive\_interval

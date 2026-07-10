@@ -203,20 +203,24 @@ class SandboxTest {
         io.daytona.api.client.model.Sandbox refreshed = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
         refreshed.setLabels(Collections.singletonMap("team", "sdk"));
         refreshed.setAutoStopInterval(BigDecimal.ONE);
+        refreshed.setAutoPauseInterval(BigDecimal.valueOf(4));
         refreshed.setAutoArchiveInterval(BigDecimal.valueOf(2));
         refreshed.setAutoDeleteInterval(BigDecimal.valueOf(3));
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(refreshed);
         when(sandboxApi.setAutostopInterval("sb-1", BigDecimal.valueOf(1), null)).thenReturn(refreshed);
+        when(sandboxApi.setAutoPauseInterval("sb-1", BigDecimal.valueOf(4), null)).thenReturn(refreshed);
         when(sandboxApi.setAutoArchiveInterval("sb-1", BigDecimal.valueOf(2), null)).thenReturn(refreshed);
         when(sandboxApi.setAutoDeleteInterval("sb-1", BigDecimal.valueOf(3), null)).thenReturn(refreshed);
 
         Map<String, String> labels = sandbox.setLabels(Collections.singletonMap("team", "sdk"));
         sandbox.setAutostopInterval(1);
+        sandbox.setAutoPauseInterval(4);
         sandbox.setAutoArchiveInterval(2);
         sandbox.setAutoDeleteInterval(3);
 
         assertThat(labels).containsEntry("team", "sdk");
         assertThat(sandbox.getAutoStopInterval()).isEqualTo(1);
+        assertThat(sandbox.getAutoPauseInterval()).isEqualTo(4);
         assertThat(sandbox.getAutoArchiveInterval()).isEqualTo(2);
         assertThat(sandbox.getAutoDeleteInterval()).isEqualTo(3);
     }

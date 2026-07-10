@@ -163,6 +163,21 @@ Sets Sandbox auto-stop interval.
 
 - `DaytonaException` - if the update fails
 
+#### setAutoPauseInterval()
+```java
+public void setAutoPauseInterval(int minutes)
+```
+
+Sets Sandbox auto-pause interval.
+
+**Parameters**:
+
+- `minutes` _int_ - idle minutes before automatic pause (0 means disabled)
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
+
 #### setAutoArchiveInterval()
 ```java
 public void setAutoArchiveInterval(int minutes)
@@ -573,6 +588,15 @@ public Integer getAutoStopInterval()
 **Returns**:
 
 - `Integer` - auto-stop interval in minutes (0 means disabled).
+
+#### getAutoPauseInterval()
+```java
+public Integer getAutoPauseInterval()
+```
+
+**Returns**:
+
+- `Integer` - auto-pause interval in minutes (0 means disabled).
 
 #### getAutoArchiveInterval()
 ```java
