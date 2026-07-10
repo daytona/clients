@@ -52,7 +52,7 @@ type CreateSandbox struct {
 	Disk *int32 `json:"disk,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *int32 `json:"autoStopInterval,omitempty"`
-	// Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval. For sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+	// Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
 	AutoPauseInterval *int32 `json:"autoPauseInterval,omitempty"`
 	// Auto-archive interval in minutes (0 means the maximum interval will be used)
 	AutoArchiveInterval *int32 `json:"autoArchiveInterval,omitempty"`

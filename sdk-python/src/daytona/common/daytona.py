@@ -132,9 +132,10 @@ class CreateSandboxBaseParams(BaseModel):
             and auto-stop is disabled). 0 means no auto-stop.
         auto_pause_interval (int | None): Auto-pause interval in minutes (0 means disabled).
             Only supported for sandbox classes that support pausing.
-            At most one of auto_stop_interval and auto_pause_interval may be non-zero.
-            For sandbox classes that support pausing, defaults to 60 minutes (with
-            auto-stop disabled) when neither interval is provided.
+            Not allowed for ephemeral sandboxes. At most one of auto_stop_interval and
+            auto_pause_interval may be non-zero. For non-ephemeral sandbox classes that
+            support pausing, defaults to 60 minutes (with auto-stop disabled) when
+            neither interval is provided.
         auto_archive_interval (int | None): Interval in minutes after which a continuously stopped Sandbox will
             automatically archive. Default is 7 days.
             0 means the maximum interval will be used.

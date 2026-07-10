@@ -29,7 +29,8 @@ module Daytona
     attr_accessor :auto_stop_interval
 
     # @return [Integer, nil] Auto-pause interval in minutes (nil = server default: 60 for
-    #   pause-supporting sandbox classes with auto-stop disabled; 0 = disabled)
+    #   non-ephemeral pause-supporting sandbox classes with auto-stop disabled; 0 = disabled).
+    #   Not allowed for ephemeral sandboxes
     attr_accessor :auto_pause_interval
 
     # @return [Integer, nil] Auto-archive interval in minutes

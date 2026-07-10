@@ -55,7 +55,7 @@ func GetCreateSandboxTool() mcp.Tool {
 		mcp.WithNumber("memory", mcp.Description("Memory allocated to the sandbox in GB. Cannot specify sandbox resources when using a snapshot."), mcp.Max(8)),
 		mcp.WithNumber("disk", mcp.Description("Disk space allocated to the sandbox in GB. Cannot specify sandbox resources when using a snapshot."), mcp.Max(10)),
 		mcp.WithNumber("autoStopInterval", mcp.DefaultNumber(15), mcp.Min(0), mcp.Description("Auto-stop interval in minutes (0 means disabled) for the sandbox.")),
-		mcp.WithNumber("autoPauseInterval", mcp.Min(0), mcp.Description("Auto-pause interval in minutes (0 means disabled) for the sandbox. Only supported for sandbox classes that support pausing. Mutually exclusive with autoStopInterval.")),
+		mcp.WithNumber("autoPauseInterval", mcp.Min(0), mcp.Description("Auto-pause interval in minutes (0 means disabled) for the sandbox. Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. Mutually exclusive with autoStopInterval.")),
 		mcp.WithNumber("autoArchiveInterval", mcp.DefaultNumber(10080), mcp.Min(0), mcp.Description("Auto-archive interval in minutes (0 means the maximum interval will be used) for the sandbox.")),
 		mcp.WithNumber("autoDeleteInterval", mcp.DefaultNumber(-1), mcp.Description("Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping) for the sandbox.")),
 		mcp.WithArray("volumes", mcp.Description("Volumes to attach to the sandbox."), mcp.Items(map[string]any{"type": "object", "properties": map[string]any{"volumeId": map[string]any{"type": "string"}, "mountPath": map[string]any{"type": "string"}}})),
@@ -145,8 +145,20 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		createSandbox.SetTarget(*args.Target)
 	}
 
+	if args.AutoPauseInterval != nil && *args.AutoPauseInterval < 0 {
+		return nil, fmt.Errorf("autoPauseInterval must be a non-negative integer")
+	}
+
+	if args.AutoStopInterval != nil && *args.AutoStopInterval < 0 {
+		return nil, fmt.Errorf("autoStopInterval must be a non-negative integer")
+	}
+
 	if args.AutoPauseInterval != nil && args.AutoStopInterval != nil && *args.AutoPauseInterval > 0 && *args.AutoStopInterval > 0 {
 		return nil, fmt.Errorf("autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value")
+	}
+
+	if args.AutoPauseInterval != nil && *args.AutoPauseInterval > 0 && args.AutoDeleteInterval != nil && *args.AutoDeleteInterval == 0 {
+		return nil, fmt.Errorf("ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0")
 	}
 
 	if args.AutoPauseInterval != nil {

@@ -202,6 +202,15 @@ RSpec.describe Daytona::Daytona do
                         /auto_stop_interval and auto_pause_interval are mutually exclusive/)
     end
 
+    it 'raises when ephemeral sandbox has non-zero auto_pause_interval' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python,
+                                                            ephemeral: true, auto_pause_interval: 60)
+
+      expect { described_class.new(config).create(params) }
+        .to raise_error(Daytona::Sdk::Error,
+                        /Ephemeral sandboxes cannot have auto-pause enabled/)
+    end
+
     it 'raises on negative auto archive interval' do
       params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python,
                                                             auto_archive_interval: -1)

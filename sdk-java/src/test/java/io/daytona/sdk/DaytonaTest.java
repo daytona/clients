@@ -228,6 +228,17 @@ class DaytonaTest {
     }
 
     @Test
+    void createRejectsEphemeralWithAutoPause() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setAutoDeleteInterval(0);
+        params.setAutoPauseInterval(60);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Ephemeral sandboxes cannot have auto-pause enabled");
+    }
+
+    @Test
     void createRejectsMutuallyExclusiveAutoStopAndAutoPause() {
         CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
         params.setAutoStopInterval(10);

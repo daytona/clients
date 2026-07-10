@@ -537,6 +537,11 @@ class AsyncDaytona:
                 + " Set at most one of them to a non-zero value"
             )
 
+        if params.auto_pause_interval and params.auto_delete_interval == 0:
+            raise DaytonaValidationError(
+                "Ephemeral sandboxes cannot have auto-pause enabled. Set auto_pause_interval to 0"
+            )
+
         if params.auto_archive_interval is not None and params.auto_archive_interval < 0:
             raise DaytonaValidationError("auto_archive_interval must be a non-negative integer")
 

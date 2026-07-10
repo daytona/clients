@@ -457,6 +457,11 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 		baseParams.AutoDeleteInterval = &zero
 	}
 
+	if baseParams.AutoPauseInterval != nil && *baseParams.AutoPauseInterval != 0 &&
+		baseParams.AutoDeleteInterval != nil && *baseParams.AutoDeleteInterval == 0 {
+		return nil, errors.NewDaytonaError("ephemeral sandboxes cannot have auto-pause enabled. Set AutoPauseInterval to 0", 0, nil)
+	}
+
 	// Build CreateSandbox request using api-client-go
 	createReq := apiclient.NewCreateSandbox()
 

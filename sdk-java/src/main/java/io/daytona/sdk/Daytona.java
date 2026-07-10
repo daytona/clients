@@ -525,6 +525,11 @@ public class Daytona implements AutoCloseable {
                     "autoStopInterval and autoPauseInterval are mutually exclusive."
                     + " Set at most one of them to a non-zero value");
         }
+        if (params.getAutoPauseInterval() != null && params.getAutoPauseInterval() != 0
+                && params.getAutoDeleteInterval() != null && params.getAutoDeleteInterval() == 0) {
+            throw new IllegalArgumentException(
+                    "Ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0");
+        }
         if (params.getAutoStopInterval() != null) body.setAutoStopInterval(params.getAutoStopInterval());
         if (params.getAutoPauseInterval() != null) body.setAutoPauseInterval(params.getAutoPauseInterval());
         if (params.getAutoArchiveInterval() != null) body.setAutoArchiveInterval(params.getAutoArchiveInterval());

@@ -88,6 +88,9 @@ var CreateCmd = &cobra.Command{
 			if autoPauseFlag < 0 {
 				return fmt.Errorf("auto-pause interval must be a non-negative integer")
 			}
+			if autoPauseFlag > 0 && autoDeleteFlag == 0 {
+				return fmt.Errorf("ephemeral sandboxes cannot have auto-pause enabled. Set --auto-pause to 0")
+			}
 			createSandbox.SetAutoPauseInterval(autoPauseFlag)
 		} else if cmd.Flags().Changed("auto-stop") {
 			if autoStopFlag < 0 {
@@ -233,7 +236,7 @@ func init() {
 	CreateCmd.Flags().Int32Var(&memoryFlag, "memory", 0, "Memory allocated to the sandbox in MB")
 	CreateCmd.Flags().Int32Var(&diskFlag, "disk", 0, "Disk space allocated to the sandbox in GB")
 	CreateCmd.Flags().Int32Var(&autoStopFlag, "auto-stop", 15, "Auto-stop interval in minutes (0 means disabled). Server default: 15, except for sandbox classes that support pausing where auto-pause defaults to 60 instead")
-	CreateCmd.Flags().Int32Var(&autoPauseFlag, "auto-pause", 60, "Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Mutually exclusive with --auto-stop")
+	CreateCmd.Flags().Int32Var(&autoPauseFlag, "auto-pause", 60, "Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. Mutually exclusive with --auto-stop")
 	CreateCmd.Flags().Int32Var(&autoArchiveFlag, "auto-archive", 10080, "Auto-archive interval in minutes (0 means the maximum interval will be used)")
 	CreateCmd.Flags().Int32Var(&autoDeleteFlag, "auto-delete", -1, "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)")
 	CreateCmd.Flags().StringArrayVarP(&volumesFlag, "volume", "v", []string{}, "Volumes to mount (format: VOLUME_ID_OR_NAME:MOUNT_PATH)")

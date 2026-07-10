@@ -515,6 +515,18 @@ func TestCreateValidation(t *testing.T) {
 			errorContains: "autoStopInterval and autoPauseInterval are mutually exclusive",
 		},
 		{
+			name: "ephemeral with non-zero auto pause interval",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					Ephemeral:         true,
+					AutoPauseInterval: intPtr(60),
+				},
+				Image: "test-image",
+			},
+			expectedError: true,
+			errorContains: "ephemeral sandboxes cannot have auto-pause enabled",
+		},
+		{
 			name: "auto stop and auto pause both zero is valid",
 			params: types.ImageParams{
 				SandboxBaseParams: types.SandboxBaseParams{

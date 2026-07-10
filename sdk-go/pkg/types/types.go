@@ -85,7 +85,7 @@ type SandboxBaseParams struct {
 	Labels              map[string]string
 	Public              bool
 	AutoStopInterval    *int // nil = no auto-stop, 0 = immediate stop
-	AutoPauseInterval   *int // nil = server default when AutoStopInterval is also nil (60 for pause-supporting classes, with auto-stop disabled), 0 = disabled. Only supported for sandbox classes that support pausing. At most one of AutoPauseInterval and AutoStopInterval may be non-zero.
+	AutoPauseInterval   *int // nil = server default when AutoStopInterval is also nil (60 for non-ephemeral pause-supporting classes, with auto-stop disabled), 0 = disabled. Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of AutoPauseInterval and AutoStopInterval may be non-zero.
 	AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
 	AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
 	Volumes             []VolumeMount

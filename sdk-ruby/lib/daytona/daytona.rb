@@ -209,6 +209,10 @@ module Daytona
               'auto_stop_interval and auto_pause_interval are mutually exclusive. Set at most one of them to a non-zero value'
       end
 
+      if params.auto_pause_interval&.positive? && params.auto_delete_interval&.zero?
+        raise Sdk::Error, 'Ephemeral sandboxes cannot have auto-pause enabled. Set auto_pause_interval to 0'
+      end
+
       if params.auto_archive_interval&.negative?
         raise Sdk::Error, 'auto_archive_interval must be a non-negative integer'
       end
