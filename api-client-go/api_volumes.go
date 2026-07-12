@@ -36,6 +36,19 @@ type VolumesAPI interface {
 	CreateVolumeExecute(r VolumesAPICreateVolumeRequest) (*VolumeDto, *http.Response, error)
 
 	/*
+	CreateVolumeMountToken Create a mount token for a hotmount volume
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param volumeId ID of the volume
+	@return VolumesAPICreateVolumeMountTokenRequest
+	*/
+	CreateVolumeMountToken(ctx context.Context, volumeId string) VolumesAPICreateVolumeMountTokenRequest
+
+	// CreateVolumeMountTokenExecute executes the request
+	//  @return VolumeMountTokenDto
+	CreateVolumeMountTokenExecute(r VolumesAPICreateVolumeMountTokenRequest) (*VolumeMountTokenDto, *http.Response, error)
+
+	/*
 	DeleteVolume Delete volume
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -72,6 +85,30 @@ type VolumesAPI interface {
 	// GetVolumeByNameExecute executes the request
 	//  @return VolumeDto
 	GetVolumeByNameExecute(r VolumesAPIGetVolumeByNameRequest) (*VolumeDto, *http.Response, error)
+
+	/*
+	ListBlockmountRegions List regions where blockmount volumes can be created
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return VolumesAPIListBlockmountRegionsRequest
+	*/
+	ListBlockmountRegions(ctx context.Context) VolumesAPIListBlockmountRegionsRequest
+
+	// ListBlockmountRegionsExecute executes the request
+	//  @return []Region
+	ListBlockmountRegionsExecute(r VolumesAPIListBlockmountRegionsRequest) ([]Region, *http.Response, error)
+
+	/*
+	ListHotmountRegions List available hotmount regions
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return VolumesAPIListHotmountRegionsRequest
+	*/
+	ListHotmountRegions(ctx context.Context) VolumesAPIListHotmountRegionsRequest
+
+	// ListHotmountRegionsExecute executes the request
+	//  @return []HotmountRegion
+	ListHotmountRegionsExecute(r VolumesAPIListHotmountRegionsRequest) ([]HotmountRegion, *http.Response, error)
 
 	/*
 	ListVolumes List all volumes
@@ -170,6 +207,125 @@ func (a *VolumesAPIService) CreateVolumeExecute(r VolumesAPICreateVolumeRequest)
 	}
 	// body params
 	localVarPostBody = r.createVolume
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type VolumesAPICreateVolumeMountTokenRequest struct {
+	ctx context.Context
+	ApiService VolumesAPI
+	volumeId string
+	xDaytonaOrganizationID *string
+	createVolumeMountToken *CreateVolumeMountToken
+}
+
+// Use with JWT to specify the organization ID
+func (r VolumesAPICreateVolumeMountTokenRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) VolumesAPICreateVolumeMountTokenRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r VolumesAPICreateVolumeMountTokenRequest) CreateVolumeMountToken(createVolumeMountToken CreateVolumeMountToken) VolumesAPICreateVolumeMountTokenRequest {
+	r.createVolumeMountToken = &createVolumeMountToken
+	return r
+}
+
+func (r VolumesAPICreateVolumeMountTokenRequest) Execute() (*VolumeMountTokenDto, *http.Response, error) {
+	return r.ApiService.CreateVolumeMountTokenExecute(r)
+}
+
+/*
+CreateVolumeMountToken Create a mount token for a hotmount volume
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param volumeId ID of the volume
+ @return VolumesAPICreateVolumeMountTokenRequest
+*/
+func (a *VolumesAPIService) CreateVolumeMountToken(ctx context.Context, volumeId string) VolumesAPICreateVolumeMountTokenRequest {
+	return VolumesAPICreateVolumeMountTokenRequest{
+		ApiService: a,
+		ctx: ctx,
+		volumeId: volumeId,
+	}
+}
+
+// Execute executes the request
+//  @return VolumeMountTokenDto
+func (a *VolumesAPIService) CreateVolumeMountTokenExecute(r VolumesAPICreateVolumeMountTokenRequest) (*VolumeMountTokenDto, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *VolumeMountTokenDto
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "VolumesAPIService.CreateVolumeMountToken")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/volumes/{volumeId}/mount-token"
+	localVarPath = strings.Replace(localVarPath, "{"+"volumeId"+"}", url.PathEscape(parameterValueToString(r.volumeId, "volumeId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	// body params
+	localVarPostBody = r.createVolumeMountToken
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -467,6 +623,220 @@ func (a *VolumesAPIService) GetVolumeByNameExecute(r VolumesAPIGetVolumeByNameRe
 
 	localVarPath := localBasePath + "/volumes/by-name/{name}"
 	localVarPath = strings.Replace(localVarPath, "{"+"name"+"}", url.PathEscape(parameterValueToString(r.name, "name")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type VolumesAPIListBlockmountRegionsRequest struct {
+	ctx context.Context
+	ApiService VolumesAPI
+	xDaytonaOrganizationID *string
+}
+
+// Use with JWT to specify the organization ID
+func (r VolumesAPIListBlockmountRegionsRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) VolumesAPIListBlockmountRegionsRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r VolumesAPIListBlockmountRegionsRequest) Execute() ([]Region, *http.Response, error) {
+	return r.ApiService.ListBlockmountRegionsExecute(r)
+}
+
+/*
+ListBlockmountRegions List regions where blockmount volumes can be created
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return VolumesAPIListBlockmountRegionsRequest
+*/
+func (a *VolumesAPIService) ListBlockmountRegions(ctx context.Context) VolumesAPIListBlockmountRegionsRequest {
+	return VolumesAPIListBlockmountRegionsRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []Region
+func (a *VolumesAPIService) ListBlockmountRegionsExecute(r VolumesAPIListBlockmountRegionsRequest) ([]Region, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []Region
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "VolumesAPIService.ListBlockmountRegions")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/volumes/blockmount-regions"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type VolumesAPIListHotmountRegionsRequest struct {
+	ctx context.Context
+	ApiService VolumesAPI
+	xDaytonaOrganizationID *string
+}
+
+// Use with JWT to specify the organization ID
+func (r VolumesAPIListHotmountRegionsRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) VolumesAPIListHotmountRegionsRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r VolumesAPIListHotmountRegionsRequest) Execute() ([]HotmountRegion, *http.Response, error) {
+	return r.ApiService.ListHotmountRegionsExecute(r)
+}
+
+/*
+ListHotmountRegions List available hotmount regions
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return VolumesAPIListHotmountRegionsRequest
+*/
+func (a *VolumesAPIService) ListHotmountRegions(ctx context.Context) VolumesAPIListHotmountRegionsRequest {
+	return VolumesAPIListHotmountRegionsRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []HotmountRegion
+func (a *VolumesAPIService) ListHotmountRegionsExecute(r VolumesAPIListHotmountRegionsRequest) ([]HotmountRegion, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []HotmountRegion
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "VolumesAPIService.ListHotmountRegions")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/volumes/hotmount-regions"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

@@ -50,6 +50,7 @@ src/main/java/io/daytona/api/client/model/ApiKeyList.java
 src/main/java/io/daytona/api/client/model/ApiKeyResponse.java
 src/main/java/io/daytona/api/client/model/AuditLog.java
 src/main/java/io/daytona/api/client/model/AvailableSandboxClass.java
+src/main/java/io/daytona/api/client/model/BlockmountConflict.java
 src/main/java/io/daytona/api/client/model/BuildInfo.java
 src/main/java/io/daytona/api/client/model/Command.java
 src/main/java/io/daytona/api/client/model/CompletionContext.java
@@ -79,6 +80,7 @@ src/main/java/io/daytona/api/client/model/CreateSessionRequest.java
 src/main/java/io/daytona/api/client/model/CreateSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateUser.java
 src/main/java/io/daytona/api/client/model/CreateVolume.java
+src/main/java/io/daytona/api/client/model/CreateVolumeMountToken.java
 src/main/java/io/daytona/api/client/model/DateFilter.java
 src/main/java/io/daytona/api/client/model/DaytonaConfiguration.java
 src/main/java/io/daytona/api/client/model/DisplayInfoResponse.java
@@ -103,6 +105,7 @@ src/main/java/io/daytona/api/client/model/GpuType.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck200Response.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck200ResponseInfoValue.java
 src/main/java/io/daytona/api/client/model/HealthControllerCheck503Response.java
+src/main/java/io/daytona/api/client/model/HotmountRegion.java
 src/main/java/io/daytona/api/client/model/IntFilter.java
 src/main/java/io/daytona/api/client/model/Job.java
 src/main/java/io/daytona/api/client/model/JobStatus.java
@@ -231,7 +234,9 @@ src/main/java/io/daytona/api/client/model/User.java
 src/main/java/io/daytona/api/client/model/UserHomeDirResponse.java
 src/main/java/io/daytona/api/client/model/UserPublicKey.java
 src/main/java/io/daytona/api/client/model/VolumeDto.java
+src/main/java/io/daytona/api/client/model/VolumeMountTokenDto.java
 src/main/java/io/daytona/api/client/model/VolumeState.java
+src/main/java/io/daytona/api/client/model/VolumeType.java
 src/main/java/io/daytona/api/client/model/WebhookAppPortalAccess.java
 src/main/java/io/daytona/api/client/model/WebhookEvent.java
 src/main/java/io/daytona/api/client/model/WebhookInitializationStatus.java
@@ -265,6 +270,7 @@ src/test/java/io/daytona/api/client/model/ApiKeyListTest.java
 src/test/java/io/daytona/api/client/model/ApiKeyResponseTest.java
 src/test/java/io/daytona/api/client/model/AuditLogTest.java
 src/test/java/io/daytona/api/client/model/AvailableSandboxClassTest.java
+src/test/java/io/daytona/api/client/model/BlockmountConflictTest.java
 src/test/java/io/daytona/api/client/model/BuildInfoTest.java
 src/test/java/io/daytona/api/client/model/CommandTest.java
 src/test/java/io/daytona/api/client/model/CompletionContextTest.java
@@ -293,6 +299,7 @@ src/test/java/io/daytona/api/client/model/CreateSecretTest.java
 src/test/java/io/daytona/api/client/model/CreateSessionRequestTest.java
 src/test/java/io/daytona/api/client/model/CreateSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateUserTest.java
+src/test/java/io/daytona/api/client/model/CreateVolumeMountTokenTest.java
 src/test/java/io/daytona/api/client/model/CreateVolumeTest.java
 src/test/java/io/daytona/api/client/model/DateFilterTest.java
 src/test/java/io/daytona/api/client/model/DaytonaConfigurationTest.java
@@ -318,6 +325,7 @@ src/test/java/io/daytona/api/client/model/GpuTypeTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck200ResponseInfoValueTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck200ResponseTest.java
 src/test/java/io/daytona/api/client/model/HealthControllerCheck503ResponseTest.java
+src/test/java/io/daytona/api/client/model/HotmountRegionTest.java
 src/test/java/io/daytona/api/client/model/IntFilterTest.java
 src/test/java/io/daytona/api/client/model/JobStatusTest.java
 src/test/java/io/daytona/api/client/model/JobTest.java
@@ -446,7 +454,9 @@ src/test/java/io/daytona/api/client/model/UserHomeDirResponseTest.java
 src/test/java/io/daytona/api/client/model/UserPublicKeyTest.java
 src/test/java/io/daytona/api/client/model/UserTest.java
 src/test/java/io/daytona/api/client/model/VolumeDtoTest.java
+src/test/java/io/daytona/api/client/model/VolumeMountTokenDtoTest.java
 src/test/java/io/daytona/api/client/model/VolumeStateTest.java
+src/test/java/io/daytona/api/client/model/VolumeTypeTest.java
 src/test/java/io/daytona/api/client/model/WebhookAppPortalAccessTest.java
 src/test/java/io/daytona/api/client/model/WebhookEventTest.java
 src/test/java/io/daytona/api/client/model/WebhookInitializationStatusTest.java

@@ -88,6 +88,77 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # Create a mount token for a hotmount volume
+    # @param volume_id [String] ID of the volume
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [CreateVolumeMountToken] :create_volume_mount_token 
+    # @return [VolumeMountTokenDto]
+    def create_volume_mount_token(volume_id, opts = {})
+      data, _status_code, _headers = create_volume_mount_token_with_http_info(volume_id, opts)
+      data
+    end
+
+    # Create a mount token for a hotmount volume
+    # @param volume_id [String] ID of the volume
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [CreateVolumeMountToken] :create_volume_mount_token 
+    # @return [Array<(VolumeMountTokenDto, Integer, Hash)>] VolumeMountTokenDto data, response status code and response headers
+    def create_volume_mount_token_with_http_info(volume_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: VolumesApi.create_volume_mount_token ...'
+      end
+      # verify the required parameter 'volume_id' is set
+      if @api_client.config.client_side_validation && volume_id.nil?
+        fail ArgumentError, "Missing the required parameter 'volume_id' when calling VolumesApi.create_volume_mount_token"
+      end
+      # resource path
+      local_var_path = '/volumes/{volumeId}/mount-token'.sub('{' + 'volumeId' + '}', CGI.escape(volume_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(opts[:'create_volume_mount_token'])
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'VolumeMountTokenDto'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"VolumesApi.create_volume_mount_token",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: VolumesApi#create_volume_mount_token\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Delete volume
     # @param volume_id [String] ID of the volume
     # @param [Hash] opts the optional parameters
@@ -274,6 +345,122 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: VolumesApi#get_volume_by_name\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # List regions where blockmount volumes can be created
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<Region>]
+    def list_blockmount_regions(opts = {})
+      data, _status_code, _headers = list_blockmount_regions_with_http_info(opts)
+      data
+    end
+
+    # List regions where blockmount volumes can be created
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(Array<Region>, Integer, Hash)>] Array<Region> data, response status code and response headers
+    def list_blockmount_regions_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: VolumesApi.list_blockmount_regions ...'
+      end
+      # resource path
+      local_var_path = '/volumes/blockmount-regions'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<Region>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"VolumesApi.list_blockmount_regions",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: VolumesApi#list_blockmount_regions\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # List available hotmount regions
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<HotmountRegion>]
+    def list_hotmount_regions(opts = {})
+      data, _status_code, _headers = list_hotmount_regions_with_http_info(opts)
+      data
+    end
+
+    # List available hotmount regions
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(Array<HotmountRegion>, Integer, Hash)>] Array<HotmountRegion> data, response status code and response headers
+    def list_hotmount_regions_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: VolumesApi.list_hotmount_regions ...'
+      end
+      # resource path
+      local_var_path = '/volumes/hotmount-regions'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<HotmountRegion>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"VolumesApi.list_hotmount_regions",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: VolumesApi#list_hotmount_regions\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

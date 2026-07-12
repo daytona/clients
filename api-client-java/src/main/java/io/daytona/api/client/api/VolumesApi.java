@@ -28,7 +28,11 @@ import java.io.IOException;
 
 
 import io.daytona.api.client.model.CreateVolume;
+import io.daytona.api.client.model.CreateVolumeMountToken;
+import io.daytona.api.client.model.HotmountRegion;
+import io.daytona.api.client.model.Region;
 import io.daytona.api.client.model.VolumeDto;
+import io.daytona.api.client.model.VolumeMountTokenDto;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -206,6 +210,147 @@ public class VolumesApi {
 
         okhttp3.Call localVarCall = createVolumeValidateBeforeCall(createVolume, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<VolumeDto>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for createVolumeMountToken
+     * @param volumeId ID of the volume (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param createVolumeMountToken  (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The mount token has been successfully created. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createVolumeMountTokenCall(@javax.annotation.Nonnull String volumeId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable CreateVolumeMountToken createVolumeMountToken, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = createVolumeMountToken;
+
+        // create path and map variables
+        String localVarPath = "/volumes/{volumeId}/mount-token"
+            .replace("{" + "volumeId" + "}", localVarApiClient.escapeString(volumeId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call createVolumeMountTokenValidateBeforeCall(@javax.annotation.Nonnull String volumeId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable CreateVolumeMountToken createVolumeMountToken, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'volumeId' is set
+        if (volumeId == null) {
+            throw new ApiException("Missing the required parameter 'volumeId' when calling createVolumeMountToken(Async)");
+        }
+
+        return createVolumeMountTokenCall(volumeId, xDaytonaOrganizationID, createVolumeMountToken, _callback);
+
+    }
+
+    /**
+     * Create a mount token for a hotmount volume
+     * 
+     * @param volumeId ID of the volume (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param createVolumeMountToken  (optional)
+     * @return VolumeMountTokenDto
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The mount token has been successfully created. </td><td>  -  </td></tr>
+     </table>
+     */
+    public VolumeMountTokenDto createVolumeMountToken(@javax.annotation.Nonnull String volumeId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable CreateVolumeMountToken createVolumeMountToken) throws ApiException {
+        ApiResponse<VolumeMountTokenDto> localVarResp = createVolumeMountTokenWithHttpInfo(volumeId, xDaytonaOrganizationID, createVolumeMountToken);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Create a mount token for a hotmount volume
+     * 
+     * @param volumeId ID of the volume (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param createVolumeMountToken  (optional)
+     * @return ApiResponse&lt;VolumeMountTokenDto&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The mount token has been successfully created. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<VolumeMountTokenDto> createVolumeMountTokenWithHttpInfo(@javax.annotation.Nonnull String volumeId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable CreateVolumeMountToken createVolumeMountToken) throws ApiException {
+        okhttp3.Call localVarCall = createVolumeMountTokenValidateBeforeCall(volumeId, xDaytonaOrganizationID, createVolumeMountToken, null);
+        Type localVarReturnType = new TypeToken<VolumeMountTokenDto>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Create a mount token for a hotmount volume (asynchronously)
+     * 
+     * @param volumeId ID of the volume (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param createVolumeMountToken  (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The mount token has been successfully created. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createVolumeMountTokenAsync(@javax.annotation.Nonnull String volumeId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable CreateVolumeMountToken createVolumeMountToken, final ApiCallback<VolumeMountTokenDto> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = createVolumeMountTokenValidateBeforeCall(volumeId, xDaytonaOrganizationID, createVolumeMountToken, _callback);
+        Type localVarReturnType = new TypeToken<VolumeMountTokenDto>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -613,6 +758,258 @@ public class VolumesApi {
 
         okhttp3.Call localVarCall = getVolumeByNameValidateBeforeCall(name, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<VolumeDto>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for listBlockmountRegions
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of regions that support blockmount volumes </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listBlockmountRegionsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/volumes/blockmount-regions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listBlockmountRegionsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        return listBlockmountRegionsCall(xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * List regions where blockmount volumes can be created
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return List&lt;Region&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of regions that support blockmount volumes </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<Region> listBlockmountRegions(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<List<Region>> localVarResp = listBlockmountRegionsWithHttpInfo(xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * List regions where blockmount volumes can be created
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;List&lt;Region&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of regions that support blockmount volumes </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<Region>> listBlockmountRegionsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = listBlockmountRegionsValidateBeforeCall(xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<List<Region>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List regions where blockmount volumes can be created (asynchronously)
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of regions that support blockmount volumes </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listBlockmountRegionsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<List<Region>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listBlockmountRegionsValidateBeforeCall(xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<List<Region>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for listHotmountRegions
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of active hotmount regions selectable at volume creation </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listHotmountRegionsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/volumes/hotmount-regions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listHotmountRegionsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        return listHotmountRegionsCall(xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * List available hotmount regions
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return List&lt;HotmountRegion&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of active hotmount regions selectable at volume creation </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<HotmountRegion> listHotmountRegions(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<List<HotmountRegion>> localVarResp = listHotmountRegionsWithHttpInfo(xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * List available hotmount regions
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;List&lt;HotmountRegion&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of active hotmount regions selectable at volume creation </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<HotmountRegion>> listHotmountRegionsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = listHotmountRegionsValidateBeforeCall(xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<List<HotmountRegion>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List available hotmount regions (asynchronously)
+     * 
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> List of active hotmount regions selectable at volume creation </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listHotmountRegionsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<List<HotmountRegion>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listHotmountRegionsValidateBeforeCall(xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<List<HotmountRegion>>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

@@ -42,6 +42,9 @@ module DaytonaApiClient
     # Snapshot Manager URL for the region
     attr_accessor :snapshot_manager_url
 
+    # Whether blockmount volumes are supported in this region
+    attr_accessor :blockmount_enabled
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -75,7 +78,8 @@ module DaytonaApiClient
         :'updated_at' => :'updatedAt',
         :'proxy_url' => :'proxyUrl',
         :'ssh_gateway_url' => :'sshGatewayUrl',
-        :'snapshot_manager_url' => :'snapshotManagerUrl'
+        :'snapshot_manager_url' => :'snapshotManagerUrl',
+        :'blockmount_enabled' => :'blockmountEnabled'
       }
     end
 
@@ -100,7 +104,8 @@ module DaytonaApiClient
         :'updated_at' => :'String',
         :'proxy_url' => :'String',
         :'ssh_gateway_url' => :'String',
-        :'snapshot_manager_url' => :'String'
+        :'snapshot_manager_url' => :'String',
+        :'blockmount_enabled' => :'Boolean'
       }
     end
 
@@ -110,7 +115,7 @@ module DaytonaApiClient
         :'organization_id',
         :'proxy_url',
         :'ssh_gateway_url',
-        :'snapshot_manager_url'
+        :'snapshot_manager_url',
       ])
     end
 
@@ -175,6 +180,12 @@ module DaytonaApiClient
       if attributes.key?(:'snapshot_manager_url')
         self.snapshot_manager_url = attributes[:'snapshot_manager_url']
       end
+
+      if attributes.key?(:'blockmount_enabled')
+        self.blockmount_enabled = attributes[:'blockmount_enabled']
+      else
+        self.blockmount_enabled = nil
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -202,6 +213,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "updated_at", updated_at cannot be nil.')
       end
 
+      if @blockmount_enabled.nil?
+        invalid_properties.push('invalid value for "blockmount_enabled", blockmount_enabled cannot be nil.')
+      end
+
       invalid_properties
     end
 
@@ -214,6 +229,7 @@ module DaytonaApiClient
       return false if @region_type.nil?
       return false if @created_at.nil?
       return false if @updated_at.nil?
+      return false if @blockmount_enabled.nil?
       true
     end
 
@@ -267,6 +283,16 @@ module DaytonaApiClient
       @updated_at = updated_at
     end
 
+    # Custom attribute writer method with validation
+    # @param [Object] blockmount_enabled Value to be assigned
+    def blockmount_enabled=(blockmount_enabled)
+      if blockmount_enabled.nil?
+        fail ArgumentError, 'blockmount_enabled cannot be nil'
+      end
+
+      @blockmount_enabled = blockmount_enabled
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -280,7 +306,8 @@ module DaytonaApiClient
           updated_at == o.updated_at &&
           proxy_url == o.proxy_url &&
           ssh_gateway_url == o.ssh_gateway_url &&
-          snapshot_manager_url == o.snapshot_manager_url
+          snapshot_manager_url == o.snapshot_manager_url &&
+          blockmount_enabled == o.blockmount_enabled
     end
 
     # @see the `==` method
@@ -292,7 +319,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, organization_id, region_type, created_at, updated_at, proxy_url, ssh_gateway_url, snapshot_manager_url].hash
+      [id, name, organization_id, region_type, created_at, updated_at, proxy_url, ssh_gateway_url, snapshot_manager_url, blockmount_enabled].hash
     end
 
     # Builds the object from hash

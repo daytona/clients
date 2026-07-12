@@ -17,10 +17,40 @@ module DaytonaApiClient
   class CreateVolume < ApiModelBase
     attr_accessor :name
 
+    # The type of the volume. Defaults to legacy.
+    attr_accessor :type
+
+    # The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume's data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization's default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume's region is fixed for its lifetime.
+    attr_accessor :region
+
+    class EnumAttributeValidator
+      attr_reader :datatype
+      attr_reader :allowable_values
+
+      def initialize(datatype, allowable_values)
+        @allowable_values = allowable_values.map do |value|
+          case datatype.to_s
+          when /Integer/i
+            value.to_i
+          when /Float/i
+            value.to_f
+          else
+            value
+          end
+        end
+      end
+
+      def valid?(value)
+        !value || allowable_values.include?(value)
+      end
+    end
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
-        :'name' => :'name'
+        :'name' => :'name',
+        :'type' => :'type',
+        :'region' => :'region'
       }
     end
 
@@ -37,7 +67,9 @@ module DaytonaApiClient
     # Attribute type mapping.
     def self.openapi_types
       {
-        :'name' => :'String'
+        :'name' => :'String',
+        :'type' => :'VolumeType',
+        :'region' => :'String'
       }
     end
 
@@ -67,6 +99,14 @@ module DaytonaApiClient
         self.name = attributes[:'name']
       else
         self.name = nil
+      end
+
+      if attributes.key?(:'type')
+        self.type = attributes[:'type']
+      end
+
+      if attributes.key?(:'region')
+        self.region = attributes[:'region']
       end
     end
 
@@ -105,7 +145,9 @@ module DaytonaApiClient
     def ==(o)
       return true if self.equal?(o)
       self.class == o.class &&
-          name == o.name
+          name == o.name &&
+          type == o.type &&
+          region == o.region
     end
 
     # @see the `==` method
@@ -117,7 +159,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name].hash
+      [name, type, region].hash
     end
 
     # Builds the object from hash

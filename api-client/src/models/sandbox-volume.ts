@@ -13,6 +13,9 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { VolumeType } from './volume-type';
 
 export interface SandboxVolume {
     /**
@@ -27,5 +30,43 @@ export interface SandboxVolume {
      * Optional subpath within the volume to mount. When specified, only this S3 prefix will be accessible. When omitted, the entire volume is mounted.
      */
     'subpath'?: string;
+    /**
+     * The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.
+     */
+    'volumeType'?: VolumeType;
+    /**
+     * The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.
+     */
+    'organizationId'?: string;
+    /**
+     * The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.
+     */
+    'sizeInGb'?: number;
+    /**
+     * The region the blockmount volume\'s data lives in. Forwarded to the runner so it can fetch the region\'s store credentials over its authenticated channel. Set only for blockmount volumes.
+     */
+    'region'?: string;
+    /**
+     * The S3 endpoint of the CAS store the blockmount volume\'s data lives in, resolved from the volume\'s region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume\'s region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes.
+     */
+    's3Endpoint'?: string;
+    /**
+     * The S3 region of the CAS store the blockmount volume\'s data lives in. Set only for blockmount volumes.
+     */
+    's3Region'?: string;
+    /**
+     * The S3 bucket of the CAS store the blockmount volume\'s data lives in. Set only for blockmount volumes.
+     */
+    's3Bucket'?: string;
+    /**
+     * The S3 key prefix of the CAS store the blockmount volume\'s data lives in. Set only for blockmount volumes.
+     */
+    's3Prefix'?: string;
+    /**
+     * Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes.
+     */
+    's3PathStyle'?: boolean;
 }
+
+
 

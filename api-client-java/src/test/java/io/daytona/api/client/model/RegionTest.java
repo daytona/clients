@@ -111,4 +111,12 @@ public class RegionTest {
         // TODO: test snapshotManagerUrl
     }
 
+    /**
+     * Test the property 'blockmountEnabled'
+     */
+    @Test
+    public void blockmountEnabledTest() {
+        // TODO: test blockmountEnabled
+    }
+
 }

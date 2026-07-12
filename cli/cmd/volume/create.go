@@ -27,9 +27,23 @@ var CreateCmd = &cobra.Command{
 			return err
 		}
 
-		volume, res, err := apiClient.VolumesAPI.CreateVolume(ctx).CreateVolume(apiclient.CreateVolume{
+		createVolume := apiclient.CreateVolume{
 			Name: args[0],
-		}).Execute()
+		}
+
+		if typeFlag != "" {
+			volumeType, err := apiclient.NewVolumeTypeFromValue(typeFlag)
+			if err != nil {
+				return fmt.Errorf("invalid volume type %q: must be one of legacy, hotmount, blockmount", typeFlag)
+			}
+			createVolume.Type = volumeType
+		}
+
+		if cmd.Flags().Changed("region") {
+			createVolume.Region = &regionFlag
+		}
+
+		volume, res, err := apiClient.VolumesAPI.CreateVolume(ctx).CreateVolume(createVolume).Execute()
 		if err != nil {
 			return apiclient_cli.HandleErrorResponse(res, err)
 		}
@@ -39,8 +53,12 @@ var CreateCmd = &cobra.Command{
 	},
 }
 
-var sizeFlag int32
+var (
+	typeFlag   string
+	regionFlag string
+)
 
 func init() {
-	CreateCmd.Flags().Int32VarP(&sizeFlag, "size", "s", 10, "Size of the volume in GB")
+	CreateCmd.Flags().StringVarP(&typeFlag, "type", "t", "", "Volume type (legacy, hotmount, blockmount)")
+	CreateCmd.Flags().StringVarP(&regionFlag, "region", "r", "", "Region to create the volume in (blockmount: selects the region-local store its data lives in, defaults to the org's default region; sandboxes in any region can attach it. Selects the deployment region for hotmount)")
 }

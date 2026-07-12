@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona_api_client_async.models.region_type import RegionType
 from pydantic import TypeAdapter
@@ -40,8 +40,9 @@ class Region(BaseModel):
     proxy_url: Optional[StrictStr] = Field(default=None, description="Proxy URL for the region", serialization_alias="proxyUrl")
     ssh_gateway_url: Optional[StrictStr] = Field(default=None, description="SSH Gateway URL for the region", serialization_alias="sshGatewayUrl")
     snapshot_manager_url: Optional[StrictStr] = Field(default=None, description="Snapshot Manager URL for the region", serialization_alias="snapshotManagerUrl")
+    blockmount_enabled: StrictBool = Field(description="Whether blockmount volumes are supported in this region", serialization_alias="blockmountEnabled")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "organizationId", "regionType", "createdAt", "updatedAt", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl"]
+    __properties: ClassVar[List[str]] = ["id", "name", "organizationId", "regionType", "createdAt", "updatedAt", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl", "blockmountEnabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -128,7 +129,8 @@ class Region(BaseModel):
             "updated_at": obj.get("updatedAt"),
             "proxy_url": obj.get("proxyUrl"),
             "ssh_gateway_url": obj.get("sshGatewayUrl"),
-            "snapshot_manager_url": obj.get("snapshotManagerUrl")
+            "snapshot_manager_url": obj.get("snapshotManagerUrl"),
+            "blockmount_enabled": obj.get("blockmountEnabled")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

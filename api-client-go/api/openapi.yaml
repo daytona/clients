@@ -7583,6 +7583,66 @@ paths:
       summary: Create a new volume
       tags:
       - volumes
+  /volumes/hotmount-regions:
+    get:
+      operationId: listHotmountRegions
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/HotmountRegion"
+                type: array
+          description: List of active hotmount regions selectable at volume creation
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List available hotmount regions
+      tags:
+      - volumes
+  /volumes/blockmount-regions:
+    get:
+      operationId: listBlockmountRegions
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Region"
+                type: array
+          description: List of regions that support blockmount volumes
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List regions where blockmount volumes can be created
+      tags:
+      - volumes
   /volumes/{volumeId}:
     delete:
       operationId: deleteVolume
@@ -7650,6 +7710,48 @@ paths:
         - profile
         - email
       summary: Get volume details
+      tags:
+      - volumes
+  /volumes/{volumeId}/mount-token:
+    post:
+      operationId: createVolumeMountToken
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID of the volume
+        explode: false
+        in: path
+        name: volumeId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVolumeMountToken"
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolumeMountTokenDto"
+          description: The mount token has been successfully created.
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Create a mount token for a hotmount volume
       tags:
       - volumes
   /volumes/by-name/{name}:
@@ -11285,6 +11387,7 @@ components:
         snapshotManagerUrl: http://snapshot-manager.example.com
         regionType: shared
         proxyUrl: https://proxy.example.com
+        blockmountEnabled: false
         name: us-east-1
         sshGatewayUrl: http://ssh-gateway.example.com
         id: "123456789012"
@@ -11331,7 +11434,12 @@ components:
           example: http://snapshot-manager.example.com
           nullable: true
           type: string
+        blockmountEnabled:
+          description: Whether blockmount volumes are supported in this region
+          example: false
+          type: boolean
       required:
+      - blockmountEnabled
       - createdAt
       - id
       - name
@@ -11827,11 +11935,29 @@ components:
       - items
       - nextCursor
       type: object
+    VolumeType:
+      description: The type of the volume. Resolved from the referenced volume on
+        sandbox create; the runner uses it to choose how to mount the volume. Absent
+        values are treated as legacy.
+      enum:
+      - legacy
+      - hotmount
+      - blockmount
+      type: string
     SandboxVolume:
       example:
+        organizationId: org_123
+        volumeType: legacy
         mountPath: /data
+        s3Endpoint: s3Endpoint
+        s3Region: s3Region
+        sizeInGb: 10
         volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
         subpath: users/alice
+        s3PathStyle: true
+        region: us
+        s3Prefix: s3Prefix
+        s3Bucket: s3Bucket
       properties:
         volumeId:
           description: The ID or name of the volume. Resolved to the volume ID on
@@ -11848,6 +11974,53 @@ components:
             \ is mounted."
           example: users/alice
           type: string
+        volumeType:
+          allOf:
+          - $ref: "#/components/schemas/VolumeType"
+          description: The type of the volume. Resolved from the referenced volume
+            on sandbox create; the runner uses it to choose how to mount the volume.
+            Absent values are treated as legacy.
+          example: legacy
+        organizationId:
+          description: The organization that owns the volume. Forwarded to the runner
+            to isolate the S3 prefix. Set only for blockmount volumes.
+          example: org_123
+          type: string
+        sizeInGb:
+          description: "The logical size of the volume in gigabytes, used by the runner\
+            \ as the per-sandbox scratch quota. Set only for blockmount volumes."
+          example: 10
+          type: number
+        region:
+          description: The region the blockmount volume's data lives in. Forwarded
+            to the runner so it can fetch the region's store credentials over its
+            authenticated channel. Set only for blockmount volumes.
+          example: us
+          type: string
+        s3Endpoint:
+          description: "The S3 endpoint of the CAS store the blockmount volume's data\
+            \ lives in, resolved from the volume's region. Forwarded to the runner\
+            \ so cross-region attaches reach the right bucket. Omitted when the volume's\
+            \ region has no store configured (runner falls back to its env store).\
+            \ Credentials are never sent here — the runner fetches them by region.\
+            \ Set only for blockmount volumes."
+          type: string
+        s3Region:
+          description: The S3 region of the CAS store the blockmount volume's data
+            lives in. Set only for blockmount volumes.
+          type: string
+        s3Bucket:
+          description: The S3 bucket of the CAS store the blockmount volume's data
+            lives in. Set only for blockmount volumes.
+          type: string
+        s3Prefix:
+          description: The S3 key prefix of the CAS store the blockmount volume's
+            data lives in. Set only for blockmount volumes.
+          type: string
+        s3PathStyle:
+          description: Whether the CAS store uses path-style S3 addressing. Set only
+            for blockmount volumes.
+          type: boolean
       required:
       - mountPath
       - volumeId
@@ -11912,12 +12085,30 @@ components:
         desiredState: destroyed
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
         volumes:
-        - mountPath: /data
+        - organizationId: org_123
+          volumeType: legacy
+          mountPath: /data
+          s3Endpoint: s3Endpoint
+          s3Region: s3Region
+          sizeInGb: 10
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
-        - mountPath: /data
+          s3PathStyle: true
+          region: us
+          s3Prefix: s3Prefix
+          s3Bucket: s3Bucket
+        - organizationId: org_123
+          volumeType: legacy
+          mountPath: /data
+          s3Endpoint: s3Endpoint
+          s3Region: s3Region
+          sizeInGb: 10
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
+          s3PathStyle: true
+          region: us
+          s3Prefix: s3Prefix
+          s3Bucket: s3Bucket
         cpu: 2
         recoverable: true
         env:
@@ -12152,12 +12343,30 @@ components:
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
           volumes:
-          - mountPath: /data
+          - organizationId: org_123
+            volumeType: legacy
+            mountPath: /data
+            s3Endpoint: s3Endpoint
+            s3Region: s3Region
+            sizeInGb: 10
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
             subpath: users/alice
-          - mountPath: /data
+            s3PathStyle: true
+            region: us
+            s3Prefix: s3Prefix
+            s3Bucket: s3Bucket
+          - organizationId: org_123
+            volumeType: legacy
+            mountPath: /data
+            s3Endpoint: s3Endpoint
+            s3Region: s3Region
+            sizeInGb: 10
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
             subpath: users/alice
+            s3PathStyle: true
+            region: us
+            s3Prefix: s3Prefix
+            s3Bucket: s3Bucket
           cpu: 2
           recoverable: true
           env:
@@ -12196,12 +12405,30 @@ components:
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
           volumes:
-          - mountPath: /data
+          - organizationId: org_123
+            volumeType: legacy
+            mountPath: /data
+            s3Endpoint: s3Endpoint
+            s3Region: s3Region
+            sizeInGb: 10
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
             subpath: users/alice
-          - mountPath: /data
+            s3PathStyle: true
+            region: us
+            s3Prefix: s3Prefix
+            s3Bucket: s3Bucket
+          - organizationId: org_123
+            volumeType: legacy
+            mountPath: /data
+            s3Endpoint: s3Endpoint
+            s3Region: s3Region
+            sizeInGb: 10
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
             subpath: users/alice
+            s3PathStyle: true
+            region: us
+            s3Prefix: s3Prefix
+            s3Bucket: s3Bucket
           cpu: 2
           recoverable: true
           env:
@@ -12263,12 +12490,30 @@ components:
         buildInfo: ""
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
         volumes:
-        - mountPath: /data
+        - organizationId: org_123
+          volumeType: legacy
+          mountPath: /data
+          s3Endpoint: s3Endpoint
+          s3Region: s3Region
+          sizeInGb: 10
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
-        - mountPath: /data
+          s3PathStyle: true
+          region: us
+          s3Prefix: s3Prefix
+          s3Bucket: s3Bucket
+        - organizationId: org_123
+          volumeType: legacy
+          mountPath: /data
+          s3Endpoint: s3Endpoint
+          s3Region: s3Region
+          sizeInGb: 10
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
+          s3PathStyle: true
+          region: us
+          s3Prefix: s3Prefix
+          s3Bucket: s3Bucket
         cpu: 2
         env:
           NODE_ENV: production
@@ -15112,6 +15357,41 @@ components:
       required:
       - enabled
       type: object
+    BlockmountConflict:
+      example:
+        path: path
+        reason: mtime
+        winner: ours
+        oursSha: oursSha
+        theirsSha: theirsSha
+      properties:
+        path:
+          description: The path (relative to the volume root) that was concurrently
+            modified
+          type: string
+        winner:
+          description: "Which side won the merge: \"ours\" (the committing writer)\
+            \ or \"theirs\" (the state already in latest)"
+          example: ours
+          type: string
+        reason:
+          description: "Why the winner won: \"mtime\" (newer change), \"tie\" (equal\
+            \ mtimes, committer won), \"modify-over-delete\", or \"type\""
+          example: mtime
+          type: string
+        oursSha:
+          description: "Content hash of the committing writer’s version, when both\
+            \ sides were files"
+          type: string
+        theirsSha:
+          description: "Content hash of the concurrent version found in latest, when\
+            \ both sides were files"
+          type: string
+      required:
+      - path
+      - reason
+      - winner
+      type: object
     VolumeState:
       description: Volume state
       enum:
@@ -15125,13 +15405,29 @@ components:
       type: string
     VolumeDto:
       example:
+        shared: false
+        type: legacy
+        lastManifestId: lastManifestId
         organizationId: 123e4567-e89b-12d3-a456-426614174000
         createdAt: 2023-01-01T00:00:00.000Z
         lastUsedAt: 2023-01-01T00:00:00.000Z
+        sizeInGb: 10
         errorReason: Error processing volume
         name: my-volume
+        conflicts:
+        - path: path
+          reason: mtime
+          winner: ours
+          oursSha: oursSha
+          theirsSha: theirsSha
+        - path: path
+          reason: mtime
+          winner: ours
+          oursSha: oursSha
+          theirsSha: theirsSha
         id: vol-12345678
         state: ready
+        region: us
         updatedAt: 2023-01-01T00:00:00.000Z
       properties:
         id:
@@ -15146,6 +15442,46 @@ components:
           description: Organization ID
           example: 123e4567-e89b-12d3-a456-426614174000
           type: string
+        type:
+          allOf:
+          - $ref: "#/components/schemas/VolumeType"
+          description: Volume type
+          example: legacy
+        sizeInGb:
+          description: The per-sandbox scratch quota in GB. Set only for blockmount
+            volumes.
+          example: 10
+          nullable: true
+          type: number
+        region:
+          description: "The region the volume's data lives in. For blockmount volumes\
+            \ this selects the region-local CAS store (a performance/placement knob\
+            \ — sandboxes in any region can attach it, colocation is just faster).\
+            \ For hotmount volumes this is the hotmount deployment region. Set for\
+            \ blockmount and hotmount volumes."
+          example: us
+          nullable: true
+          type: string
+        shared:
+          description: "The hotmount sharing mode (false = single-writer write-back,\
+            \ true = multi-writer synchronous). Set only for hotmount volumes."
+          example: false
+          nullable: true
+          type: boolean
+        lastManifestId:
+          description: "The id of the most recent committed manifest, read-through\
+            \ from the reconciliation store. Set only for blockmount volumes that\
+            \ have been committed at least once."
+          nullable: true
+          type: string
+        conflicts:
+          description: Conflicts recorded on the latest manifest — concurrent same-path
+            modifications the store resolved (last-change-wins). Read-through from
+            the store. Set only for blockmount volumes.
+          items:
+            $ref: "#/components/schemas/BlockmountConflict"
+          nullable: true
+          type: array
         state:
           allOf:
           - $ref: "#/components/schemas/VolumeState"
@@ -15176,16 +15512,122 @@ components:
       - name
       - organizationId
       - state
+      - type
       - updatedAt
       type: object
     CreateVolume:
       example:
         name: name
+        type: legacy
+        region: us
       properties:
         name:
           type: string
+        type:
+          allOf:
+          - $ref: "#/components/schemas/VolumeType"
+          default: legacy
+          description: The type of the volume. Defaults to legacy.
+          example: legacy
+        region:
+          description: "The region to create the volume in. For blockmount volumes\
+            \ it selects the region-local CAS store the volume's data lives in — a\
+            \ performance/placement knob, not an attach restriction, so sandboxes\
+            \ in any region can attach the volume (colocation is just faster). Optional\
+            \ for blockmount: when omitted it defaults to the organization's default\
+            \ region (or the first region that offers blockmount). For hotmount volumes\
+            \ it selects the hotmount deployment region and defaults to an active\
+            \ region. Not allowed for legacy volumes. The volume's region is fixed\
+            \ for its lifetime."
+          example: us
+          type: string
       required:
       - name
+      type: object
+    HotmountRegion:
+      example:
+        geo: us
+        label: "US (OCI, Ashburn)"
+        region: oci-us
+      properties:
+        region:
+          description: Stable region id
+          example: oci-us
+          type: string
+        label:
+          description: User-facing region name
+          example: "US (OCI, Ashburn)"
+          type: string
+        geo:
+          description: Geo hint used for default region selection
+          example: us
+          type: string
+      required:
+      - geo
+      - label
+      - region
+      type: object
+    CreateVolumeMountToken:
+      example:
+        mode: rw
+      properties:
+        mode:
+          default: rw
+          description: The access mode for the mount. Defaults to rw.
+          enum:
+          - rw
+          - ro
+          example: rw
+          type: string
+      type: object
+    VolumeMountTokenDto:
+      example:
+        gatewayHttp: https://hotmount-gw-oci-us.trydaytona.com:443
+        gatewayGrpc: hotmount-gw-oci-us.trydaytona.com:18443
+        region: oci-us
+        binariesUrl: https://hotmount-binaries-446539620565.s3.amazonaws.com
+        version: v0.4.65
+        expiresAt: 2023-01-01T00:00:00.000Z
+        token: BASE64_MACAROON
+      properties:
+        token:
+          description: The short-lived macaroon token the in-sandbox agent uses to
+            mount the volume
+          example: BASE64_MACAROON
+          type: string
+        expiresAt:
+          description: The token expiration timestamp
+          example: 2023-01-01T00:00:00.000Z
+          type: string
+        region:
+          description: The hotmount region the volume lives in
+          example: oci-us
+          type: string
+        gatewayGrpc:
+          description: The gateway gRPC endpoint (SEAWEED_GATEWAY_GRPC)
+          example: hotmount-gw-oci-us.trydaytona.com:18443
+          type: string
+        gatewayHttp:
+          description: The gateway HTTPS endpoint (SEAWEED_GATEWAY_HTTP)
+          example: https://hotmount-gw-oci-us.trydaytona.com:443
+          type: string
+        binariesUrl:
+          description: The binaries bucket base URL used to bootstrap the mount (SEAWEED_BINARIES_URL)
+          example: https://hotmount-binaries-446539620565.s3.amazonaws.com
+          type: string
+        version:
+          description: "The pinned client binary version to use (SEAWEED_VERSION),\
+            \ when the region pins one"
+          example: v0.4.65
+          nullable: true
+          type: string
+      required:
+      - binariesUrl
+      - expiresAt
+      - gatewayGrpc
+      - gatewayHttp
+      - region
+      - token
       type: object
     JobStatus:
       enum:

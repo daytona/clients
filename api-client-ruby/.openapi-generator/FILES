@@ -36,6 +36,7 @@ lib/daytona_api_client/models/api_key_list.rb
 lib/daytona_api_client/models/api_key_response.rb
 lib/daytona_api_client/models/audit_log.rb
 lib/daytona_api_client/models/available_sandbox_class.rb
+lib/daytona_api_client/models/blockmount_conflict.rb
 lib/daytona_api_client/models/build_info.rb
 lib/daytona_api_client/models/command.rb
 lib/daytona_api_client/models/completion_context.rb
@@ -65,6 +66,7 @@ lib/daytona_api_client/models/create_session_request.rb
 lib/daytona_api_client/models/create_snapshot.rb
 lib/daytona_api_client/models/create_user.rb
 lib/daytona_api_client/models/create_volume.rb
+lib/daytona_api_client/models/create_volume_mount_token.rb
 lib/daytona_api_client/models/date_filter.rb
 lib/daytona_api_client/models/daytona_configuration.rb
 lib/daytona_api_client/models/display_info_response.rb
@@ -89,6 +91,7 @@ lib/daytona_api_client/models/gpu_type.rb
 lib/daytona_api_client/models/health_controller_check200_response.rb
 lib/daytona_api_client/models/health_controller_check200_response_info_value.rb
 lib/daytona_api_client/models/health_controller_check503_response.rb
+lib/daytona_api_client/models/hotmount_region.rb
 lib/daytona_api_client/models/int_filter.rb
 lib/daytona_api_client/models/job.rb
 lib/daytona_api_client/models/job_status.rb
@@ -217,7 +220,9 @@ lib/daytona_api_client/models/user.rb
 lib/daytona_api_client/models/user_home_dir_response.rb
 lib/daytona_api_client/models/user_public_key.rb
 lib/daytona_api_client/models/volume_dto.rb
+lib/daytona_api_client/models/volume_mount_token_dto.rb
 lib/daytona_api_client/models/volume_state.rb
+lib/daytona_api_client/models/volume_type.rb
 lib/daytona_api_client/models/webhook_app_portal_access.rb
 lib/daytona_api_client/models/webhook_event.rb
 lib/daytona_api_client/models/webhook_initialization_status.rb

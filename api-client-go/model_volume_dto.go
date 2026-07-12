@@ -27,6 +27,18 @@ type VolumeDto struct {
 	Name string `json:"name"`
 	// Organization ID
 	OrganizationId string `json:"organizationId"`
+	// Volume type
+	Type VolumeType `json:"type"`
+	// The per-sandbox scratch quota in GB. Set only for blockmount volumes.
+	SizeInGb NullableFloat32 `json:"sizeInGb,omitempty"`
+	// The region the volume's data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.
+	Region NullableString `json:"region,omitempty"`
+	// The hotmount sharing mode (false = single-writer write-back, true = multi-writer synchronous). Set only for hotmount volumes.
+	Shared NullableBool `json:"shared,omitempty"`
+	// The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.
+	LastManifestId NullableString `json:"lastManifestId,omitempty"`
+	// Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.
+	Conflicts []BlockmountConflict `json:"conflicts,omitempty"`
 	// Volume state
 	State VolumeState `json:"state"`
 	// Creation timestamp
@@ -46,11 +58,12 @@ type _VolumeDto VolumeDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewVolumeDto(id string, name string, organizationId string, state VolumeState, createdAt string, updatedAt string, errorReason NullableString) *VolumeDto {
+func NewVolumeDto(id string, name string, organizationId string, type_ VolumeType, state VolumeState, createdAt string, updatedAt string, errorReason NullableString) *VolumeDto {
 	this := VolumeDto{}
 	this.Id = id
 	this.Name = name
 	this.OrganizationId = organizationId
+	this.Type = type_
 	this.State = state
 	this.CreatedAt = createdAt
 	this.UpdatedAt = updatedAt
@@ -136,6 +149,231 @@ func (o *VolumeDto) GetOrganizationIdOk() (*string, bool) {
 // SetOrganizationId sets field value
 func (o *VolumeDto) SetOrganizationId(v string) {
 	o.OrganizationId = v
+}
+
+// GetType returns the Type field value
+func (o *VolumeDto) GetType() VolumeType {
+	if o == nil {
+		var ret VolumeType
+		return ret
+	}
+
+	return o.Type
+}
+
+// GetTypeOk returns a tuple with the Type field value
+// and a boolean to check if the value has been set.
+func (o *VolumeDto) GetTypeOk() (*VolumeType, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Type, true
+}
+
+// SetType sets field value
+func (o *VolumeDto) SetType(v VolumeType) {
+	o.Type = v
+}
+
+// GetSizeInGb returns the SizeInGb field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *VolumeDto) GetSizeInGb() float32 {
+	if o == nil || IsNil(o.SizeInGb.Get()) {
+		var ret float32
+		return ret
+	}
+	return *o.SizeInGb.Get()
+}
+
+// GetSizeInGbOk returns a tuple with the SizeInGb field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *VolumeDto) GetSizeInGbOk() (*float32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SizeInGb.Get(), o.SizeInGb.IsSet()
+}
+
+// HasSizeInGb returns a boolean if a field has been set.
+func (o *VolumeDto) HasSizeInGb() bool {
+	if o != nil && o.SizeInGb.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSizeInGb gets a reference to the given NullableFloat32 and assigns it to the SizeInGb field.
+func (o *VolumeDto) SetSizeInGb(v float32) {
+	o.SizeInGb.Set(&v)
+}
+// SetSizeInGbNil sets the value for SizeInGb to be an explicit nil
+func (o *VolumeDto) SetSizeInGbNil() {
+	o.SizeInGb.Set(nil)
+}
+
+// UnsetSizeInGb ensures that no value is present for SizeInGb, not even an explicit nil
+func (o *VolumeDto) UnsetSizeInGb() {
+	o.SizeInGb.Unset()
+}
+
+// GetRegion returns the Region field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *VolumeDto) GetRegion() string {
+	if o == nil || IsNil(o.Region.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.Region.Get()
+}
+
+// GetRegionOk returns a tuple with the Region field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *VolumeDto) GetRegionOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.Region.Get(), o.Region.IsSet()
+}
+
+// HasRegion returns a boolean if a field has been set.
+func (o *VolumeDto) HasRegion() bool {
+	if o != nil && o.Region.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetRegion gets a reference to the given NullableString and assigns it to the Region field.
+func (o *VolumeDto) SetRegion(v string) {
+	o.Region.Set(&v)
+}
+// SetRegionNil sets the value for Region to be an explicit nil
+func (o *VolumeDto) SetRegionNil() {
+	o.Region.Set(nil)
+}
+
+// UnsetRegion ensures that no value is present for Region, not even an explicit nil
+func (o *VolumeDto) UnsetRegion() {
+	o.Region.Unset()
+}
+
+// GetShared returns the Shared field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *VolumeDto) GetShared() bool {
+	if o == nil || IsNil(o.Shared.Get()) {
+		var ret bool
+		return ret
+	}
+	return *o.Shared.Get()
+}
+
+// GetSharedOk returns a tuple with the Shared field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *VolumeDto) GetSharedOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.Shared.Get(), o.Shared.IsSet()
+}
+
+// HasShared returns a boolean if a field has been set.
+func (o *VolumeDto) HasShared() bool {
+	if o != nil && o.Shared.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetShared gets a reference to the given NullableBool and assigns it to the Shared field.
+func (o *VolumeDto) SetShared(v bool) {
+	o.Shared.Set(&v)
+}
+// SetSharedNil sets the value for Shared to be an explicit nil
+func (o *VolumeDto) SetSharedNil() {
+	o.Shared.Set(nil)
+}
+
+// UnsetShared ensures that no value is present for Shared, not even an explicit nil
+func (o *VolumeDto) UnsetShared() {
+	o.Shared.Unset()
+}
+
+// GetLastManifestId returns the LastManifestId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *VolumeDto) GetLastManifestId() string {
+	if o == nil || IsNil(o.LastManifestId.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.LastManifestId.Get()
+}
+
+// GetLastManifestIdOk returns a tuple with the LastManifestId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *VolumeDto) GetLastManifestIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.LastManifestId.Get(), o.LastManifestId.IsSet()
+}
+
+// HasLastManifestId returns a boolean if a field has been set.
+func (o *VolumeDto) HasLastManifestId() bool {
+	if o != nil && o.LastManifestId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetLastManifestId gets a reference to the given NullableString and assigns it to the LastManifestId field.
+func (o *VolumeDto) SetLastManifestId(v string) {
+	o.LastManifestId.Set(&v)
+}
+// SetLastManifestIdNil sets the value for LastManifestId to be an explicit nil
+func (o *VolumeDto) SetLastManifestIdNil() {
+	o.LastManifestId.Set(nil)
+}
+
+// UnsetLastManifestId ensures that no value is present for LastManifestId, not even an explicit nil
+func (o *VolumeDto) UnsetLastManifestId() {
+	o.LastManifestId.Unset()
+}
+
+// GetConflicts returns the Conflicts field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *VolumeDto) GetConflicts() []BlockmountConflict {
+	if o == nil {
+		var ret []BlockmountConflict
+		return ret
+	}
+	return o.Conflicts
+}
+
+// GetConflictsOk returns a tuple with the Conflicts field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *VolumeDto) GetConflictsOk() ([]BlockmountConflict, bool) {
+	if o == nil || IsNil(o.Conflicts) {
+		return nil, false
+	}
+	return o.Conflicts, true
+}
+
+// HasConflicts returns a boolean if a field has been set.
+func (o *VolumeDto) HasConflicts() bool {
+	if o != nil && !IsNil(o.Conflicts) {
+		return true
+	}
+
+	return false
+}
+
+// SetConflicts gets a reference to the given []BlockmountConflict and assigns it to the Conflicts field.
+func (o *VolumeDto) SetConflicts(v []BlockmountConflict) {
+	o.Conflicts = v
 }
 
 // GetState returns the State field value
@@ -291,6 +529,22 @@ func (o VolumeDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["id"] = o.Id
 	toSerialize["name"] = o.Name
 	toSerialize["organizationId"] = o.OrganizationId
+	toSerialize["type"] = o.Type
+	if o.SizeInGb.IsSet() {
+		toSerialize["sizeInGb"] = o.SizeInGb.Get()
+	}
+	if o.Region.IsSet() {
+		toSerialize["region"] = o.Region.Get()
+	}
+	if o.Shared.IsSet() {
+		toSerialize["shared"] = o.Shared.Get()
+	}
+	if o.LastManifestId.IsSet() {
+		toSerialize["lastManifestId"] = o.LastManifestId.Get()
+	}
+	if o.Conflicts != nil {
+		toSerialize["conflicts"] = o.Conflicts
+	}
 	toSerialize["state"] = o.State
 	toSerialize["createdAt"] = o.CreatedAt
 	toSerialize["updatedAt"] = o.UpdatedAt
@@ -314,6 +568,7 @@ func (o *VolumeDto) UnmarshalJSON(data []byte) (err error) {
 		"id",
 		"name",
 		"organizationId",
+		"type",
 		"state",
 		"createdAt",
 		"updatedAt",
@@ -350,6 +605,12 @@ func (o *VolumeDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "id")
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "organizationId")
+		delete(additionalProperties, "type")
+		delete(additionalProperties, "sizeInGb")
+		delete(additionalProperties, "region")
+		delete(additionalProperties, "shared")
+		delete(additionalProperties, "lastManifestId")
+		delete(additionalProperties, "conflicts")
 		delete(additionalProperties, "state")
 		delete(additionalProperties, "createdAt")
 		delete(additionalProperties, "updatedAt")

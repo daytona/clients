@@ -132,11 +132,12 @@ module Daytona
     # @params sandbox_api [DaytonaApiClient::SandboxApi]
     # @params sandbox_dto [DaytonaApiClient::Sandbox, DaytonaApiClient::SandboxListItem]
     # @params otel_state [Daytona::OtelState, nil]
-    def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil) # rubocop:disable Metrics/MethodLength
+    def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil, volume_service: nil) # rubocop:disable Metrics/MethodLength
       process_response(sandbox_dto)
       @config = config
       @sandbox_api = sandbox_api
       @otel_state = otel_state
+      @volume_service = volume_service
 
       # Create toolbox API clients with dynamic configuration
       toolbox_api_config = build_toolbox_api_config
@@ -180,6 +181,7 @@ module Daytona
       @lsp_api = lsp_api
       @info_api = info_api
       @server_api = server_api
+      @toolbox_client = create_authenticated_client.call
     end
 
     # Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -336,6 +338,72 @@ module Daytona
       nil
     rescue StandardError => e
       raise Sdk::Error, "Failed to update environment: #{e.message}"
+    end
+
+    # Mounts a hotmount Volume into the running Sandbox on the fly.
+    #
+    # Unlike legacy and blockmount volumes (which are attached at Sandbox creation), hotmount
+    # volumes are mounted at runtime: this method requests a short-lived mount token from the API
+    # and bootstraps the hotmount agent inside the Sandbox (downloading and running the region's
+    # +init.sh+), mounting the filesystem at the given path.
+    #
+    # The Sandbox must have +/dev/fuse+ available, outbound access to the region gateway and
+    # binaries bucket, and passwordless sudo (or run as root).
+    #
+    # @param volume [Daytona::Volume] The hotmount Volume to mount. Must be of type hotmount.
+    # @param mount_path [String] The absolute path inside the Sandbox to mount the Volume at.
+    # @return [void]
+    #
+    # @example
+    #   volume = daytona.volume.get('shared-fs')
+    #   sandbox.mount_volume(volume, '/mnt/shared')
+    def mount_volume(volume, mount_path)
+      unless volume.type == DaytonaApiClient::VolumeType::HOTMOUNT
+        raise Sdk::Error,
+              "Only hotmount volumes can be mounted on the fly. Volume '#{volume.name}' is of type '#{volume.type}'."
+      end
+
+      raise Sdk::Error, 'Volume service is not available for this Sandbox instance.' if @volume_service.nil?
+
+      mount_token = @volume_service.get_mount_token(volume)
+      command = build_hotmount_mount_command(mount_token, mount_path)
+      response = process.exec(command:)
+      return if response.exit_code.zero?
+
+      raise Sdk::Error, "Failed to mount hotmount volume '#{volume.name}': #{response.result}"
+    end
+
+    # Pulls the latest state of the Sandbox's blockmount Volumes into the running Sandbox.
+    #
+    # Blockmount volumes reconcile in the background: each sandbox writes to a private scratch
+    # that is committed to the shared store periodically, but other sandboxes' commits only
+    # appear locally on re-materialize. This method makes them appear immediately, without
+    # stopping the Sandbox: it commits this Sandbox's local changes (so they participate in the
+    # merge), then applies the volume's latest merged state in place. Files modified locally
+    # after another sandbox's change keep the local version (last-change-wins by mtime).
+    #
+    # @param volume [Daytona::Volume, nil] The blockmount Volume to pull; nil pulls every
+    #   blockmount Volume attached to the Sandbox.
+    # @return [Array<Hash>] per-volume pull results
+    #
+    # @example
+    #   # sandbox B picks up what sandbox A committed, while both keep running
+    #   results = sandbox.pull_volumes
+    def pull_volumes(volume = nil)
+      if volume && volume.type != DaytonaApiClient::VolumeType::BLOCKMOUNT
+        raise Sdk::Error,
+              "Only blockmount volumes can be pulled. Volume '#{volume.name}' is of type '#{volume.type}'."
+      end
+
+      payload = volume ? { volumeId: volume.id } : {}
+      data, _status, _headers = @toolbox_client.call_api(
+        :POST, '/volumes/pull',
+        header_params: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
+        body: payload.to_json,
+        return_type: 'Object'
+      )
+      results = data.is_a?(Hash) ? (data[:results] || data['results']) : nil
+      results || []
     end
 
     # Sets labels for the Sandbox.
@@ -623,6 +691,40 @@ module Daytona
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state
+
+    # Build the shell command that bootstraps the hotmount agent and mounts the volume inside a
+    # Sandbox. It exports the SEAWEED_* environment contract and runs the region's +init.sh+, using
+    # passwordless sudo when not already root (sudo strips env, so the vars are passed via +env+).
+    #
+    # @param mount_token [DaytonaApiClient::VolumeMountTokenDto]
+    # @param mount_path [String]
+    # @return [String]
+    def build_hotmount_mount_command(mount_token, mount_path)
+      env_vars = {
+        'SEAWEED_TOKEN' => mount_token.token,
+        'SEAWEED_GATEWAY_GRPC' => mount_token.gateway_grpc,
+        'SEAWEED_GATEWAY_HTTP' => mount_token.gateway_http,
+        'SEAWEED_BINARIES_URL' => mount_token.binaries_url,
+        'SEAWEED_MOUNT_DIR' => mount_path,
+        'SEAWEED_VERSION' => mount_token.version
+      }
+      env_assignments = env_vars.reject { |_, value| value.nil? || value.empty? }
+                                .map { |key, value| "#{key}='#{value}'" }
+                                .join(' ')
+      # The bootstrap (and init.sh itself) requires curl. Fail loudly if it is missing or the
+      # download fails, rather than letting a broken `curl ... | bash` pipe exit 0 and mount nothing.
+      inner = [
+        'set -e',
+        'if ! command -v curl >/dev/null 2>&1; then echo "hotmount: curl is required to ' \
+        'bootstrap the agent but was not found in the sandbox" >&2; exit 1; fi',
+        'mkdir -p "$SEAWEED_MOUNT_DIR"',
+        'init_script="$(curl -fsSL "$SEAWEED_BINARIES_URL/init.sh")"',
+        'printf %s "$init_script" | bash'
+      ].join('; ')
+      'if [ "$(id -u)" != 0 ]; then SUDO="sudo -n"; else SUDO=""; fi; ' \
+        "$SUDO env #{env_assignments} " \
+        "bash -c '#{inner}'"
+    end
 
     # Build toolbox API configuration with dynamic base URL from preview link
     # @return [DaytonaToolboxApiClient::Configuration]

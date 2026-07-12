@@ -33,6 +33,7 @@ models/api-key-list.ts
 models/api-key-response.ts
 models/audit-log.ts
 models/available-sandbox-class.ts
+models/blockmount-conflict.ts
 models/build-info.ts
 models/command.ts
 models/completion-context.ts
@@ -61,6 +62,7 @@ models/create-secret.ts
 models/create-session-request.ts
 models/create-snapshot.ts
 models/create-user.ts
+models/create-volume-mount-token.ts
 models/create-volume.ts
 models/date-filter.ts
 models/daytona-configuration.ts
@@ -86,6 +88,7 @@ models/gpu-type.ts
 models/health-controller-check200-response-info-value.ts
 models/health-controller-check200-response.ts
 models/health-controller-check503-response.ts
+models/hotmount-region.ts
 models/index.ts
 models/int-filter.ts
 models/job-status.ts
@@ -215,7 +218,9 @@ models/user-home-dir-response.ts
 models/user-public-key.ts
 models/user.ts
 models/volume-dto.ts
+models/volume-mount-token-dto.ts
 models/volume-state.ts
+models/volume-type.ts
 models/webhook-app-portal-access.ts
 models/webhook-event.ts
 models/webhook-initialization-status.ts

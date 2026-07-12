@@ -18,9 +18,11 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
+from daytona_api_client.models.blockmount_conflict import BlockmountConflict
 from daytona_api_client.models.volume_state import VolumeState
+from daytona_api_client.models.volume_type import VolumeType
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -34,13 +36,19 @@ class VolumeDto(BaseModel):
     id: StrictStr = Field(description="Volume ID")
     name: StrictStr = Field(description="Volume name")
     organization_id: StrictStr = Field(description="Organization ID", serialization_alias="organizationId")
+    type: VolumeType = Field(description="Volume type")
+    size_in_gb: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="The per-sandbox scratch quota in GB. Set only for blockmount volumes.", serialization_alias="sizeInGb")
+    region: Optional[StrictStr] = Field(default=None, description="The region the volume's data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.")
+    shared: Optional[StrictBool] = Field(default=None, description="The hotmount sharing mode (false = single-writer write-back, true = multi-writer synchronous). Set only for hotmount volumes.")
+    last_manifest_id: Optional[StrictStr] = Field(default=None, description="The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.", serialization_alias="lastManifestId")
+    conflicts: Optional[List[BlockmountConflict]] = Field(default=None, description="Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.")
     state: VolumeState = Field(description="Volume state")
     created_at: StrictStr = Field(description="Creation timestamp", serialization_alias="createdAt")
     updated_at: StrictStr = Field(description="Last update timestamp", serialization_alias="updatedAt")
     last_used_at: Optional[StrictStr] = Field(default=None, description="Last used timestamp", serialization_alias="lastUsedAt")
     error_reason: Optional[StrictStr] = Field(description="The error reason of the volume", serialization_alias="errorReason")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "organizationId", "state", "createdAt", "updatedAt", "lastUsedAt", "errorReason"]
+    __properties: ClassVar[List[str]] = ["id", "name", "organizationId", "type", "sizeInGb", "region", "shared", "lastManifestId", "conflicts", "state", "createdAt", "updatedAt", "lastUsedAt", "errorReason"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,10 +90,42 @@ class VolumeDto(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in conflicts (list)
+        _items = []
+        if self.conflicts:
+            for _item_conflicts in self.conflicts:
+                if _item_conflicts:
+                    _items.append(_item_conflicts.to_dict())
+            _dict['conflicts'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
+
+        # set to None if size_in_gb (nullable) is None
+        # and model_fields_set contains the field
+        if self.size_in_gb is None and "size_in_gb" in self.model_fields_set:
+            _dict['sizeInGb'] = None
+
+        # set to None if region (nullable) is None
+        # and model_fields_set contains the field
+        if self.region is None and "region" in self.model_fields_set:
+            _dict['region'] = None
+
+        # set to None if shared (nullable) is None
+        # and model_fields_set contains the field
+        if self.shared is None and "shared" in self.model_fields_set:
+            _dict['shared'] = None
+
+        # set to None if last_manifest_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.last_manifest_id is None and "last_manifest_id" in self.model_fields_set:
+            _dict['lastManifestId'] = None
+
+        # set to None if conflicts (nullable) is None
+        # and model_fields_set contains the field
+        if self.conflicts is None and "conflicts" in self.model_fields_set:
+            _dict['conflicts'] = None
 
         # set to None if last_used_at (nullable) is None
         # and model_fields_set contains the field
@@ -112,6 +152,12 @@ class VolumeDto(BaseModel):
             "id": obj.get("id"),
             "name": obj.get("name"),
             "organization_id": obj.get("organizationId"),
+            "type": obj.get("type"),
+            "size_in_gb": obj.get("sizeInGb"),
+            "region": obj.get("region"),
+            "shared": obj.get("shared"),
+            "last_manifest_id": obj.get("lastManifestId"),
+            "conflicts": [BlockmountConflict.from_dict(_item) for _item in obj["conflicts"]] if obj.get("conflicts") is not None else None,
             "state": obj.get("state"),
             "created_at": obj.get("createdAt"),
             "updated_at": obj.get("updatedAt"),

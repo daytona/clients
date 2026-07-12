@@ -18,7 +18,9 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.VolumeType;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -59,6 +61,78 @@ public class SandboxVolumeTest {
     @Test
     public void subpathTest() {
         // TODO: test subpath
+    }
+
+    /**
+     * Test the property 'volumeType'
+     */
+    @Test
+    public void volumeTypeTest() {
+        // TODO: test volumeType
+    }
+
+    /**
+     * Test the property 'organizationId'
+     */
+    @Test
+    public void organizationIdTest() {
+        // TODO: test organizationId
+    }
+
+    /**
+     * Test the property 'sizeInGb'
+     */
+    @Test
+    public void sizeInGbTest() {
+        // TODO: test sizeInGb
+    }
+
+    /**
+     * Test the property 'region'
+     */
+    @Test
+    public void regionTest() {
+        // TODO: test region
+    }
+
+    /**
+     * Test the property 's3Endpoint'
+     */
+    @Test
+    public void s3EndpointTest() {
+        // TODO: test s3Endpoint
+    }
+
+    /**
+     * Test the property 's3Region'
+     */
+    @Test
+    public void s3RegionTest() {
+        // TODO: test s3Region
+    }
+
+    /**
+     * Test the property 's3Bucket'
+     */
+    @Test
+    public void s3BucketTest() {
+        // TODO: test s3Bucket
+    }
+
+    /**
+     * Test the property 's3Prefix'
+     */
+    @Test
+    public void s3PrefixTest() {
+        // TODO: test s3Prefix
+    }
+
+    /**
+     * Test the property 's3PathStyle'
+     */
+    @Test
+    public void s3PathStyleTest() {
+        // TODO: test s3PathStyle
     }
 
 }

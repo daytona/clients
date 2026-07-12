@@ -15,6 +15,14 @@ public class Volume {
     private String id;
     @JsonProperty("name")
     private String name;
+    @JsonProperty("type")
+    private String type;
+    @JsonProperty("sizeInGb")
+    private java.math.BigDecimal sizeInGb;
+    @JsonProperty("region")
+    private String region;
+    @JsonProperty("shared")
+    private Boolean shared;
     @JsonProperty("state")
     private String state;
 
@@ -45,6 +53,62 @@ public class Volume {
      * @param name volume name
      */
     public void setName(String name) { this.name = name; }
+
+    /**
+     * Returns volume type.
+     *
+     * @return volume type (legacy, hotmount, or blockmount)
+     */
+    public String getType() { return type; }
+
+    /**
+     * Sets volume type.
+     *
+     * @param type volume type
+     */
+    public void setType(String type) { this.type = type; }
+
+    /**
+     * Returns the per-sandbox scratch quota in GB.
+     *
+     * @return size in GB, or null for volume types that do not use it
+     */
+    public java.math.BigDecimal getSizeInGb() { return sizeInGb; }
+
+    /**
+     * Sets the per-sandbox scratch quota in GB.
+     *
+     * @param sizeInGb size in GB
+     */
+    public void setSizeInGb(java.math.BigDecimal sizeInGb) { this.sizeInGb = sizeInGb; }
+
+    /**
+     * Returns the hotmount region the volume lives in.
+     *
+     * @return region id, or null for non-hotmount volumes
+     */
+    public String getRegion() { return region; }
+
+    /**
+     * Sets the hotmount region the volume lives in.
+     *
+     * @param region region id
+     */
+    public void setRegion(String region) { this.region = region; }
+
+    /**
+     * Returns the hotmount sharing mode.
+     *
+     * @return sharing mode, or null for non-hotmount volumes
+     */
+    public Boolean getShared() { return shared; }
+
+    /**
+     * Sets the hotmount sharing mode.
+     *
+     * @param shared sharing mode
+     */
+    public void setShared(Boolean shared) { this.shared = shared; }
 
     /**
      * Returns volume state.

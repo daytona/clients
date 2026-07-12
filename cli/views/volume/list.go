@@ -14,6 +14,7 @@ import (
 
 type RowData struct {
 	Name    string
+	Type    string
 	State   string
 	Size    string
 	Created string
@@ -27,7 +28,7 @@ func ListVolumes(volumeList []apiclient.VolumeDto, activeOrganizationName *strin
 
 	SortVolumes(&volumeList)
 
-	headers := []string{"Volume", "State", "Size", "Created"}
+	headers := []string{"Volume", "Type", "State", "Size", "Created"}
 
 	data := [][]string{}
 
@@ -60,8 +61,14 @@ func SortVolumes(volumeList *[]apiclient.VolumeDto) {
 }
 
 func getTableRowData(volume apiclient.VolumeDto) *RowData {
-	rowData := RowData{"", "", "", ""}
+	rowData := RowData{"", "", "", "", ""}
 	rowData.Name = volume.Name + util.AdditionalPropertyPadding
+	rowData.Type = string(volume.Type)
+	if volume.SizeInGb.IsSet() && volume.SizeInGb.Get() != nil {
+		rowData.Size = fmt.Sprintf("%g GB", *volume.SizeInGb.Get())
+	} else {
+		rowData.Size = "-"
+	}
 	rowData.State = getStateLabel(volume.State)
 	rowData.Created = util.GetTimeSinceLabelFromString(volume.CreatedAt)
 	return &rowData
@@ -80,6 +87,7 @@ func renderUnstyledList(volumeList []apiclient.VolumeDto) {
 func getRowFromRowData(rowData RowData) []string {
 	row := []string{
 		common.NameStyle.Render(rowData.Name),
+		common.DefaultRowDataStyle.Render(rowData.Type),
 		rowData.State,
 		common.DefaultRowDataStyle.Render(rowData.Size),
 		common.DefaultRowDataStyle.Render(rowData.Created),

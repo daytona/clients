@@ -15,6 +15,12 @@ module Daytona
     attr_reader :organization_id
 
     # @return [String]
+    attr_reader :type
+
+    # @return [Integer, nil]
+    attr_reader :size_in_gb
+
+    # @return [String]
     attr_reader :state
 
     # @return [String]
@@ -36,6 +42,8 @@ module Daytona
       @id = volume_dto.id
       @name = volume_dto.name
       @organization_id = volume_dto.organization_id
+      @type = volume_dto.type
+      @size_in_gb = volume_dto.size_in_gb
       @state = volume_dto.state
       @created_at = volume_dto.created_at
       @updated_at = volume_dto.updated_at

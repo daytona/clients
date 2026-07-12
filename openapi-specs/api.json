@@ -10910,6 +10910,100 @@
         ]
       }
     },
+    "/volumes/hotmount-regions": {
+      "get": {
+        "operationId": "listHotmountRegions",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of active hotmount regions selectable at volume creation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HotmountRegion"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "List available hotmount regions",
+        "tags": [
+          "volumes"
+        ]
+      }
+    },
+    "/volumes/blockmount-regions": {
+      "get": {
+        "operationId": "listBlockmountRegions",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of regions that support blockmount volumes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Region"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "List regions where blockmount volumes can be created",
+        "tags": [
+          "volumes"
+        ]
+      }
+    },
     "/volumes/{volumeId}": {
       "get": {
         "operationId": "getVolume",
@@ -11005,6 +11099,69 @@
           }
         ],
         "summary": "Delete volume",
+        "tags": [
+          "volumes"
+        ]
+      }
+    },
+    "/volumes/{volumeId}/mount-token": {
+      "post": {
+        "operationId": "createVolumeMountToken",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "volumeId",
+            "required": true,
+            "in": "path",
+            "description": "ID of the volume",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVolumeMountToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The mount token has been successfully created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeMountTokenDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Create a mount token for a hotmount volume",
         "tags": [
           "volumes"
         ]
@@ -15824,6 +15981,11 @@
             "description": "Snapshot Manager URL for the region",
             "example": "http://snapshot-manager.example.com",
             "nullable": true
+          },
+          "blockmountEnabled": {
+            "type": "boolean",
+            "description": "Whether blockmount volumes are supported in this region",
+            "example": false
           }
         },
         "required": [
@@ -15831,7 +15993,8 @@
           "name",
           "regionType",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "blockmountEnabled"
         ]
       },
       "CreateRegion": {
@@ -16305,6 +16468,15 @@
           "nextCursor"
         ]
       },
+      "VolumeType": {
+        "type": "string",
+        "enum": [
+          "legacy",
+          "hotmount",
+          "blockmount"
+        ],
+        "description": "The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy."
+      },
       "SandboxVolume": {
         "type": "object",
         "properties": {
@@ -16322,6 +16494,50 @@
             "type": "string",
             "description": "Optional subpath within the volume to mount. When specified, only this S3 prefix will be accessible. When omitted, the entire volume is mounted.",
             "example": "users/alice"
+          },
+          "volumeType": {
+            "description": "The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.",
+            "example": "legacy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VolumeType"
+              }
+            ]
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.",
+            "example": "org_123"
+          },
+          "sizeInGb": {
+            "type": "number",
+            "description": "The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.",
+            "example": 10
+          },
+          "region": {
+            "type": "string",
+            "description": "The region the blockmount volume's data lives in. Forwarded to the runner so it can fetch the region's store credentials over its authenticated channel. Set only for blockmount volumes.",
+            "example": "us"
+          },
+          "s3Endpoint": {
+            "type": "string",
+            "description": "The S3 endpoint of the CAS store the blockmount volume's data lives in, resolved from the volume's region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume's region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes."
+          },
+          "s3Region": {
+            "type": "string",
+            "description": "The S3 region of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes."
+          },
+          "s3Bucket": {
+            "type": "string",
+            "description": "The S3 bucket of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes."
+          },
+          "s3Prefix": {
+            "type": "string",
+            "description": "The S3 key prefix of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes."
+          },
+          "s3PathStyle": {
+            "type": "boolean",
+            "description": "Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes."
           }
         },
         "required": [
@@ -19586,6 +19802,38 @@
           "enabled"
         ]
       },
+      "BlockmountConflict": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The path (relative to the volume root) that was concurrently modified"
+          },
+          "winner": {
+            "type": "string",
+            "description": "Which side won the merge: \"ours\" (the committing writer) or \"theirs\" (the state already in latest)",
+            "example": "ours"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the winner won: \"mtime\" (newer change), \"tie\" (equal mtimes, committer won), \"modify-over-delete\", or \"type\"",
+            "example": "mtime"
+          },
+          "oursSha": {
+            "type": "string",
+            "description": "Content hash of the committing writer’s version, when both sides were files"
+          },
+          "theirsSha": {
+            "type": "string",
+            "description": "Content hash of the concurrent version found in latest, when both sides were files"
+          }
+        },
+        "required": [
+          "path",
+          "winner",
+          "reason"
+        ]
+      },
       "VolumeState": {
         "type": "string",
         "enum": [
@@ -19616,6 +19864,46 @@
             "type": "string",
             "description": "Organization ID",
             "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "type": {
+            "description": "Volume type",
+            "example": "legacy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VolumeType"
+              }
+            ]
+          },
+          "sizeInGb": {
+            "type": "number",
+            "description": "The per-sandbox scratch quota in GB. Set only for blockmount volumes.",
+            "example": 10,
+            "nullable": true
+          },
+          "region": {
+            "type": "string",
+            "description": "The region the volume's data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.",
+            "example": "us",
+            "nullable": true
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "The hotmount sharing mode (false = single-writer write-back, true = multi-writer synchronous). Set only for hotmount volumes.",
+            "example": false,
+            "nullable": true
+          },
+          "lastManifestId": {
+            "type": "string",
+            "description": "The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.",
+            "nullable": true
+          },
+          "conflicts": {
+            "description": "Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.",
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlockmountConflict"
+            }
           },
           "state": {
             "description": "Volume state",
@@ -19653,6 +19941,7 @@
           "id",
           "name",
           "organizationId",
+          "type",
           "state",
           "createdAt",
           "updatedAt",
@@ -19664,10 +19953,114 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "type": {
+            "description": "The type of the volume. Defaults to legacy.",
+            "default": "legacy",
+            "example": "legacy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VolumeType"
+              }
+            ]
+          },
+          "region": {
+            "type": "string",
+            "description": "The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume's data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization's default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume's region is fixed for its lifetime.",
+            "example": "us"
           }
         },
         "required": [
           "name"
+        ]
+      },
+      "HotmountRegion": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Stable region id",
+            "example": "oci-us"
+          },
+          "label": {
+            "type": "string",
+            "description": "User-facing region name",
+            "example": "US (OCI, Ashburn)"
+          },
+          "geo": {
+            "type": "string",
+            "description": "Geo hint used for default region selection",
+            "example": "us"
+          }
+        },
+        "required": [
+          "region",
+          "label",
+          "geo"
+        ]
+      },
+      "CreateVolumeMountToken": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "The access mode for the mount. Defaults to rw.",
+            "enum": [
+              "rw",
+              "ro"
+            ],
+            "default": "rw",
+            "example": "rw"
+          }
+        }
+      },
+      "VolumeMountTokenDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The short-lived macaroon token the in-sandbox agent uses to mount the volume",
+            "example": "BASE64_MACAROON"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "The token expiration timestamp",
+            "example": "2023-01-01T00:00:00.000Z"
+          },
+          "region": {
+            "type": "string",
+            "description": "The hotmount region the volume lives in",
+            "example": "oci-us"
+          },
+          "gatewayGrpc": {
+            "type": "string",
+            "description": "The gateway gRPC endpoint (SEAWEED_GATEWAY_GRPC)",
+            "example": "hotmount-gw-oci-us.trydaytona.com:18443"
+          },
+          "gatewayHttp": {
+            "type": "string",
+            "description": "The gateway HTTPS endpoint (SEAWEED_GATEWAY_HTTP)",
+            "example": "https://hotmount-gw-oci-us.trydaytona.com:443"
+          },
+          "binariesUrl": {
+            "type": "string",
+            "description": "The binaries bucket base URL used to bootstrap the mount (SEAWEED_BINARIES_URL)",
+            "example": "https://hotmount-binaries-446539620565.s3.amazonaws.com"
+          },
+          "version": {
+            "type": "string",
+            "description": "The pinned client binary version to use (SEAWEED_VERSION), when the region pins one",
+            "example": "v0.4.65",
+            "nullable": true
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt",
+          "region",
+          "gatewayGrpc",
+          "gatewayHttp",
+          "binariesUrl"
         ]
       },
       "JobStatus": {

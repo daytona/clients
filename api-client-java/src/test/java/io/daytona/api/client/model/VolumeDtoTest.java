@@ -18,9 +18,14 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.BlockmountConflict;
 import io.daytona.api.client.model.VolumeState;
+import io.daytona.api.client.model.VolumeType;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -61,6 +66,54 @@ public class VolumeDtoTest {
     @Test
     public void organizationIdTest() {
         // TODO: test organizationId
+    }
+
+    /**
+     * Test the property 'type'
+     */
+    @Test
+    public void typeTest() {
+        // TODO: test type
+    }
+
+    /**
+     * Test the property 'sizeInGb'
+     */
+    @Test
+    public void sizeInGbTest() {
+        // TODO: test sizeInGb
+    }
+
+    /**
+     * Test the property 'region'
+     */
+    @Test
+    public void regionTest() {
+        // TODO: test region
+    }
+
+    /**
+     * Test the property 'shared'
+     */
+    @Test
+    public void sharedTest() {
+        // TODO: test shared
+    }
+
+    /**
+     * Test the property 'lastManifestId'
+     */
+    @Test
+    public void lastManifestIdTest() {
+        // TODO: test lastManifestId
+    }
+
+    /**
+     * Test the property 'conflicts'
+     */
+    @Test
+    public void conflictsTest() {
+        // TODO: test conflicts
     }
 
     /**

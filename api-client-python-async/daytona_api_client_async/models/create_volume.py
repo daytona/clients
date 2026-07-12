@@ -18,8 +18,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from daytona_api_client_async.models.volume_type import VolumeType
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -31,8 +32,10 @@ class CreateVolume(BaseModel):
     CreateVolume
     """ # noqa: E501
     name: StrictStr
+    type: Optional[VolumeType] = Field(default=None, description="The type of the volume. Defaults to legacy.")
+    region: Optional[StrictStr] = Field(default=None, description="The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume's data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization's default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume's region is fixed for its lifetime.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name"]
+    __properties: ClassVar[List[str]] = ["name", "type", "region"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,7 +94,9 @@ class CreateVolume(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name")
+            "name": obj.get("name"),
+            "type": obj.get("type"),
+            "region": obj.get("region")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
