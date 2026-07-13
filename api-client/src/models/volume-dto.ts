@@ -15,7 +15,13 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { BlockmountConflict } from './blockmount-conflict';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { VolumeState } from './volume-state';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { VolumeType } from './volume-type';
 
 export interface VolumeDto {
     /**
@@ -30,6 +36,30 @@ export interface VolumeDto {
      * Organization ID
      */
     'organizationId': string;
+    /**
+     * Volume type
+     */
+    'type': VolumeType;
+    /**
+     * The per-sandbox scratch quota in GB. Set only for blockmount volumes.
+     */
+    'sizeInGb'?: number | null;
+    /**
+     * The region the volume\'s data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.
+     */
+    'region'?: string | null;
+    /**
+     * The hotmount sharing mode (false = single-writer write-back, true = multi-writer synchronous). Set only for hotmount volumes.
+     */
+    'shared'?: boolean | null;
+    /**
+     * The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.
+     */
+    'lastManifestId'?: string | null;
+    /**
+     * Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.
+     */
+    'conflicts'?: Array<BlockmountConflict> | null;
     /**
      * Volume state
      */

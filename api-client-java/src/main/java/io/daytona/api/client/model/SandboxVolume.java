@@ -19,7 +19,9 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.VolumeType;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Arrays;
 
 import com.google.gson.Gson;
@@ -64,6 +66,51 @@ public class SandboxVolume {
   @SerializedName(SERIALIZED_NAME_SUBPATH)
   @javax.annotation.Nullable
   private String subpath;
+
+  public static final String SERIALIZED_NAME_VOLUME_TYPE = "volumeType";
+  @SerializedName(SERIALIZED_NAME_VOLUME_TYPE)
+  @javax.annotation.Nullable
+  private VolumeType volumeType;
+
+  public static final String SERIALIZED_NAME_ORGANIZATION_ID = "organizationId";
+  @SerializedName(SERIALIZED_NAME_ORGANIZATION_ID)
+  @javax.annotation.Nullable
+  private String organizationId;
+
+  public static final String SERIALIZED_NAME_SIZE_IN_GB = "sizeInGb";
+  @SerializedName(SERIALIZED_NAME_SIZE_IN_GB)
+  @javax.annotation.Nullable
+  private BigDecimal sizeInGb;
+
+  public static final String SERIALIZED_NAME_REGION = "region";
+  @SerializedName(SERIALIZED_NAME_REGION)
+  @javax.annotation.Nullable
+  private String region;
+
+  public static final String SERIALIZED_NAME_S3_ENDPOINT = "s3Endpoint";
+  @SerializedName(SERIALIZED_NAME_S3_ENDPOINT)
+  @javax.annotation.Nullable
+  private String s3Endpoint;
+
+  public static final String SERIALIZED_NAME_S3_REGION = "s3Region";
+  @SerializedName(SERIALIZED_NAME_S3_REGION)
+  @javax.annotation.Nullable
+  private String s3Region;
+
+  public static final String SERIALIZED_NAME_S3_BUCKET = "s3Bucket";
+  @SerializedName(SERIALIZED_NAME_S3_BUCKET)
+  @javax.annotation.Nullable
+  private String s3Bucket;
+
+  public static final String SERIALIZED_NAME_S3_PREFIX = "s3Prefix";
+  @SerializedName(SERIALIZED_NAME_S3_PREFIX)
+  @javax.annotation.Nullable
+  private String s3Prefix;
+
+  public static final String SERIALIZED_NAME_S3_PATH_STYLE = "s3PathStyle";
+  @SerializedName(SERIALIZED_NAME_S3_PATH_STYLE)
+  @javax.annotation.Nullable
+  private Boolean s3PathStyle;
 
   public SandboxVolume() {
   }
@@ -124,6 +171,177 @@ public class SandboxVolume {
     this.subpath = subpath;
   }
 
+
+  public SandboxVolume volumeType(@javax.annotation.Nullable VolumeType volumeType) {
+    this.volumeType = volumeType;
+    return this;
+  }
+
+  /**
+   * The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.
+   * @return volumeType
+   */
+  @javax.annotation.Nullable
+  public VolumeType getVolumeType() {
+    return volumeType;
+  }
+
+  public void setVolumeType(@javax.annotation.Nullable VolumeType volumeType) {
+    this.volumeType = volumeType;
+  }
+
+
+  public SandboxVolume organizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
+    return this;
+  }
+
+  /**
+   * The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.
+   * @return organizationId
+   */
+  @javax.annotation.Nullable
+  public String getOrganizationId() {
+    return organizationId;
+  }
+
+  public void setOrganizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
+  }
+
+
+  public SandboxVolume sizeInGb(@javax.annotation.Nullable BigDecimal sizeInGb) {
+    this.sizeInGb = sizeInGb;
+    return this;
+  }
+
+  /**
+   * The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.
+   * @return sizeInGb
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getSizeInGb() {
+    return sizeInGb;
+  }
+
+  public void setSizeInGb(@javax.annotation.Nullable BigDecimal sizeInGb) {
+    this.sizeInGb = sizeInGb;
+  }
+
+
+  public SandboxVolume region(@javax.annotation.Nullable String region) {
+    this.region = region;
+    return this;
+  }
+
+  /**
+   * The region the blockmount volume&#39;s data lives in. Forwarded to the runner so it can fetch the region&#39;s store credentials over its authenticated channel. Set only for blockmount volumes.
+   * @return region
+   */
+  @javax.annotation.Nullable
+  public String getRegion() {
+    return region;
+  }
+
+  public void setRegion(@javax.annotation.Nullable String region) {
+    this.region = region;
+  }
+
+
+  public SandboxVolume s3Endpoint(@javax.annotation.Nullable String s3Endpoint) {
+    this.s3Endpoint = s3Endpoint;
+    return this;
+  }
+
+  /**
+   * The S3 endpoint of the CAS store the blockmount volume&#39;s data lives in, resolved from the volume&#39;s region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume&#39;s region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes.
+   * @return s3Endpoint
+   */
+  @javax.annotation.Nullable
+  public String getS3Endpoint() {
+    return s3Endpoint;
+  }
+
+  public void setS3Endpoint(@javax.annotation.Nullable String s3Endpoint) {
+    this.s3Endpoint = s3Endpoint;
+  }
+
+
+  public SandboxVolume s3Region(@javax.annotation.Nullable String s3Region) {
+    this.s3Region = s3Region;
+    return this;
+  }
+
+  /**
+   * The S3 region of the CAS store the blockmount volume&#39;s data lives in. Set only for blockmount volumes.
+   * @return s3Region
+   */
+  @javax.annotation.Nullable
+  public String getS3Region() {
+    return s3Region;
+  }
+
+  public void setS3Region(@javax.annotation.Nullable String s3Region) {
+    this.s3Region = s3Region;
+  }
+
+
+  public SandboxVolume s3Bucket(@javax.annotation.Nullable String s3Bucket) {
+    this.s3Bucket = s3Bucket;
+    return this;
+  }
+
+  /**
+   * The S3 bucket of the CAS store the blockmount volume&#39;s data lives in. Set only for blockmount volumes.
+   * @return s3Bucket
+   */
+  @javax.annotation.Nullable
+  public String getS3Bucket() {
+    return s3Bucket;
+  }
+
+  public void setS3Bucket(@javax.annotation.Nullable String s3Bucket) {
+    this.s3Bucket = s3Bucket;
+  }
+
+
+  public SandboxVolume s3Prefix(@javax.annotation.Nullable String s3Prefix) {
+    this.s3Prefix = s3Prefix;
+    return this;
+  }
+
+  /**
+   * The S3 key prefix of the CAS store the blockmount volume&#39;s data lives in. Set only for blockmount volumes.
+   * @return s3Prefix
+   */
+  @javax.annotation.Nullable
+  public String getS3Prefix() {
+    return s3Prefix;
+  }
+
+  public void setS3Prefix(@javax.annotation.Nullable String s3Prefix) {
+    this.s3Prefix = s3Prefix;
+  }
+
+
+  public SandboxVolume s3PathStyle(@javax.annotation.Nullable Boolean s3PathStyle) {
+    this.s3PathStyle = s3PathStyle;
+    return this;
+  }
+
+  /**
+   * Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes.
+   * @return s3PathStyle
+   */
+  @javax.annotation.Nullable
+  public Boolean getS3PathStyle() {
+    return s3PathStyle;
+  }
+
+  public void setS3PathStyle(@javax.annotation.Nullable Boolean s3PathStyle) {
+    this.s3PathStyle = s3PathStyle;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -181,13 +399,22 @@ public class SandboxVolume {
     SandboxVolume sandboxVolume = (SandboxVolume) o;
     return Objects.equals(this.volumeId, sandboxVolume.volumeId) &&
         Objects.equals(this.mountPath, sandboxVolume.mountPath) &&
-        Objects.equals(this.subpath, sandboxVolume.subpath)&&
+        Objects.equals(this.subpath, sandboxVolume.subpath) &&
+        Objects.equals(this.volumeType, sandboxVolume.volumeType) &&
+        Objects.equals(this.organizationId, sandboxVolume.organizationId) &&
+        Objects.equals(this.sizeInGb, sandboxVolume.sizeInGb) &&
+        Objects.equals(this.region, sandboxVolume.region) &&
+        Objects.equals(this.s3Endpoint, sandboxVolume.s3Endpoint) &&
+        Objects.equals(this.s3Region, sandboxVolume.s3Region) &&
+        Objects.equals(this.s3Bucket, sandboxVolume.s3Bucket) &&
+        Objects.equals(this.s3Prefix, sandboxVolume.s3Prefix) &&
+        Objects.equals(this.s3PathStyle, sandboxVolume.s3PathStyle)&&
         Objects.equals(this.additionalProperties, sandboxVolume.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(volumeId, mountPath, subpath, additionalProperties);
+    return Objects.hash(volumeId, mountPath, subpath, volumeType, organizationId, sizeInGb, region, s3Endpoint, s3Region, s3Bucket, s3Prefix, s3PathStyle, additionalProperties);
   }
 
   @Override
@@ -197,6 +424,15 @@ public class SandboxVolume {
     sb.append("    volumeId: ").append(toIndentedString(volumeId)).append("\n");
     sb.append("    mountPath: ").append(toIndentedString(mountPath)).append("\n");
     sb.append("    subpath: ").append(toIndentedString(subpath)).append("\n");
+    sb.append("    volumeType: ").append(toIndentedString(volumeType)).append("\n");
+    sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
+    sb.append("    sizeInGb: ").append(toIndentedString(sizeInGb)).append("\n");
+    sb.append("    region: ").append(toIndentedString(region)).append("\n");
+    sb.append("    s3Endpoint: ").append(toIndentedString(s3Endpoint)).append("\n");
+    sb.append("    s3Region: ").append(toIndentedString(s3Region)).append("\n");
+    sb.append("    s3Bucket: ").append(toIndentedString(s3Bucket)).append("\n");
+    sb.append("    s3Prefix: ").append(toIndentedString(s3Prefix)).append("\n");
+    sb.append("    s3PathStyle: ").append(toIndentedString(s3PathStyle)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -216,7 +452,7 @@ public class SandboxVolume {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("volumeId", "mountPath", "subpath"));
+    openapiFields = new HashSet<String>(Arrays.asList("volumeId", "mountPath", "subpath", "volumeType", "organizationId", "sizeInGb", "region", "s3Endpoint", "s3Region", "s3Bucket", "s3Prefix", "s3PathStyle"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("volumeId", "mountPath"));
@@ -250,6 +486,28 @@ public class SandboxVolume {
       }
       if ((jsonObj.get("subpath") != null && !jsonObj.get("subpath").isJsonNull()) && !jsonObj.get("subpath").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `subpath` to be a primitive type in the JSON string but got `%s`", jsonObj.get("subpath").toString()));
+      }
+      // validate the optional field `volumeType`
+      if (jsonObj.get("volumeType") != null && !jsonObj.get("volumeType").isJsonNull()) {
+        VolumeType.validateJsonElement(jsonObj.get("volumeType"));
+      }
+      if ((jsonObj.get("organizationId") != null && !jsonObj.get("organizationId").isJsonNull()) && !jsonObj.get("organizationId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `organizationId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("organizationId").toString()));
+      }
+      if ((jsonObj.get("region") != null && !jsonObj.get("region").isJsonNull()) && !jsonObj.get("region").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `region` to be a primitive type in the JSON string but got `%s`", jsonObj.get("region").toString()));
+      }
+      if ((jsonObj.get("s3Endpoint") != null && !jsonObj.get("s3Endpoint").isJsonNull()) && !jsonObj.get("s3Endpoint").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `s3Endpoint` to be a primitive type in the JSON string but got `%s`", jsonObj.get("s3Endpoint").toString()));
+      }
+      if ((jsonObj.get("s3Region") != null && !jsonObj.get("s3Region").isJsonNull()) && !jsonObj.get("s3Region").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `s3Region` to be a primitive type in the JSON string but got `%s`", jsonObj.get("s3Region").toString()));
+      }
+      if ((jsonObj.get("s3Bucket") != null && !jsonObj.get("s3Bucket").isJsonNull()) && !jsonObj.get("s3Bucket").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `s3Bucket` to be a primitive type in the JSON string but got `%s`", jsonObj.get("s3Bucket").toString()));
+      }
+      if ((jsonObj.get("s3Prefix") != null && !jsonObj.get("s3Prefix").isJsonNull()) && !jsonObj.get("s3Prefix").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `s3Prefix` to be a primitive type in the JSON string but got `%s`", jsonObj.get("s3Prefix").toString()));
       }
   }
 

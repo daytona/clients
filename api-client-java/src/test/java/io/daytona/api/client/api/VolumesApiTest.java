@@ -15,7 +15,11 @@ package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
 import io.daytona.api.client.model.CreateVolume;
+import io.daytona.api.client.model.CreateVolumeMountToken;
+import io.daytona.api.client.model.HotmountRegion;
+import io.daytona.api.client.model.Region;
 import io.daytona.api.client.model.VolumeDto;
+import io.daytona.api.client.model.VolumeMountTokenDto;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +46,20 @@ public class VolumesApiTest {
         CreateVolume createVolume = null;
         String xDaytonaOrganizationID = null;
         VolumeDto response = api.createVolume(createVolume, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Create a mount token for a hotmount volume
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void createVolumeMountTokenTest() throws ApiException {
+        String volumeId = null;
+        String xDaytonaOrganizationID = null;
+        CreateVolumeMountToken createVolumeMountToken = null;
+        VolumeMountTokenDto response = api.createVolumeMountToken(volumeId, xDaytonaOrganizationID, createVolumeMountToken);
         // TODO: test validations
     }
 
@@ -81,6 +99,30 @@ public class VolumesApiTest {
         String name = null;
         String xDaytonaOrganizationID = null;
         VolumeDto response = api.getVolumeByName(name, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * List regions where blockmount volumes can be created
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listBlockmountRegionsTest() throws ApiException {
+        String xDaytonaOrganizationID = null;
+        List<Region> response = api.listBlockmountRegions(xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * List available hotmount regions
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listHotmountRegionsTest() throws ApiException {
+        String xDaytonaOrganizationID = null;
+        List<HotmountRegion> response = api.listHotmountRegions(xDaytonaOrganizationID);
         // TODO: test validations
     }
 

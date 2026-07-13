@@ -19,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.VolumeType;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -55,6 +56,16 @@ public class CreateVolume {
   @javax.annotation.Nonnull
   private String name;
 
+  public static final String SERIALIZED_NAME_TYPE = "type";
+  @SerializedName(SERIALIZED_NAME_TYPE)
+  @javax.annotation.Nullable
+  private VolumeType type = VolumeType.LEGACY;
+
+  public static final String SERIALIZED_NAME_REGION = "region";
+  @SerializedName(SERIALIZED_NAME_REGION)
+  @javax.annotation.Nullable
+  private String region;
+
   public CreateVolume() {
   }
 
@@ -74,6 +85,44 @@ public class CreateVolume {
 
   public void setName(@javax.annotation.Nonnull String name) {
     this.name = name;
+  }
+
+
+  public CreateVolume type(@javax.annotation.Nullable VolumeType type) {
+    this.type = type;
+    return this;
+  }
+
+  /**
+   * The type of the volume. Defaults to legacy.
+   * @return type
+   */
+  @javax.annotation.Nullable
+  public VolumeType getType() {
+    return type;
+  }
+
+  public void setType(@javax.annotation.Nullable VolumeType type) {
+    this.type = type;
+  }
+
+
+  public CreateVolume region(@javax.annotation.Nullable String region) {
+    this.region = region;
+    return this;
+  }
+
+  /**
+   * The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume&#39;s data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization&#39;s default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume&#39;s region is fixed for its lifetime.
+   * @return region
+   */
+  @javax.annotation.Nullable
+  public String getRegion() {
+    return region;
+  }
+
+  public void setRegion(@javax.annotation.Nullable String region) {
+    this.region = region;
   }
 
   /**
@@ -131,13 +180,15 @@ public class CreateVolume {
       return false;
     }
     CreateVolume createVolume = (CreateVolume) o;
-    return Objects.equals(this.name, createVolume.name)&&
+    return Objects.equals(this.name, createVolume.name) &&
+        Objects.equals(this.type, createVolume.type) &&
+        Objects.equals(this.region, createVolume.region)&&
         Objects.equals(this.additionalProperties, createVolume.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, additionalProperties);
+    return Objects.hash(name, type, region, additionalProperties);
   }
 
   @Override
@@ -145,6 +196,8 @@ public class CreateVolume {
     StringBuilder sb = new StringBuilder();
     sb.append("class CreateVolume {\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
+    sb.append("    type: ").append(toIndentedString(type)).append("\n");
+    sb.append("    region: ").append(toIndentedString(region)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -164,7 +217,7 @@ public class CreateVolume {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "type", "region"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("name"));
@@ -192,6 +245,13 @@ public class CreateVolume {
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       if (!jsonObj.get("name").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `name` to be a primitive type in the JSON string but got `%s`", jsonObj.get("name").toString()));
+      }
+      // validate the optional field `type`
+      if (jsonObj.get("type") != null && !jsonObj.get("type").isJsonNull()) {
+        VolumeType.validateJsonElement(jsonObj.get("type"));
+      }
+      if ((jsonObj.get("region") != null && !jsonObj.get("region").isJsonNull()) && !jsonObj.get("region").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `region` to be a primitive type in the JSON string but got `%s`", jsonObj.get("region").toString()));
       }
   }
 

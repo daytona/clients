@@ -18,8 +18,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
+from daytona_api_client.models.volume_type import VolumeType
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,8 +34,17 @@ class SandboxVolume(BaseModel):
     volume_id: StrictStr = Field(description="The ID or name of the volume. Resolved to the volume ID on sandbox create.", serialization_alias="volumeId")
     mount_path: StrictStr = Field(description="The mount path for the volume", serialization_alias="mountPath")
     subpath: Optional[StrictStr] = Field(default=None, description="Optional subpath within the volume to mount. When specified, only this S3 prefix will be accessible. When omitted, the entire volume is mounted.")
+    volume_type: Optional[VolumeType] = Field(default=None, description="The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.", serialization_alias="volumeType")
+    organization_id: Optional[StrictStr] = Field(default=None, description="The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.", serialization_alias="organizationId")
+    size_in_gb: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.", serialization_alias="sizeInGb")
+    region: Optional[StrictStr] = Field(default=None, description="The region the blockmount volume's data lives in. Forwarded to the runner so it can fetch the region's store credentials over its authenticated channel. Set only for blockmount volumes.")
+    s3_endpoint: Optional[StrictStr] = Field(default=None, description="The S3 endpoint of the CAS store the blockmount volume's data lives in, resolved from the volume's region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume's region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes.", serialization_alias="s3Endpoint")
+    s3_region: Optional[StrictStr] = Field(default=None, description="The S3 region of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.", serialization_alias="s3Region")
+    s3_bucket: Optional[StrictStr] = Field(default=None, description="The S3 bucket of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.", serialization_alias="s3Bucket")
+    s3_prefix: Optional[StrictStr] = Field(default=None, description="The S3 key prefix of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.", serialization_alias="s3Prefix")
+    s3_path_style: Optional[StrictBool] = Field(default=None, description="Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes.", serialization_alias="s3PathStyle")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["volumeId", "mountPath", "subpath"]
+    __properties: ClassVar[List[str]] = ["volumeId", "mountPath", "subpath", "volumeType", "organizationId", "sizeInGb", "region", "s3Endpoint", "s3Region", "s3Bucket", "s3Prefix", "s3PathStyle"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,7 +105,16 @@ class SandboxVolume(BaseModel):
         _obj = cls.model_validate({
             "volume_id": obj.get("volumeId"),
             "mount_path": obj.get("mountPath"),
-            "subpath": obj.get("subpath")
+            "subpath": obj.get("subpath"),
+            "volume_type": obj.get("volumeType"),
+            "organization_id": obj.get("organizationId"),
+            "size_in_gb": obj.get("sizeInGb"),
+            "region": obj.get("region"),
+            "s3_endpoint": obj.get("s3Endpoint"),
+            "s3_region": obj.get("s3Region"),
+            "s3_bucket": obj.get("s3Bucket"),
+            "s3_prefix": obj.get("s3Prefix"),
+            "s3_path_style": obj.get("s3PathStyle")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

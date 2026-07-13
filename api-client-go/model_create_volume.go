@@ -22,6 +22,10 @@ var _ MappedNullable = &CreateVolume{}
 // CreateVolume struct for CreateVolume
 type CreateVolume struct {
 	Name string `json:"name"`
+	// The type of the volume. Defaults to legacy.
+	Type *VolumeType `json:"type,omitempty"`
+	// The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume's data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization's default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume's region is fixed for its lifetime.
+	Region *string `json:"region,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -34,6 +38,8 @@ type _CreateVolume CreateVolume
 func NewCreateVolume(name string) *CreateVolume {
 	this := CreateVolume{}
 	this.Name = name
+	var type_ VolumeType = VOLUMETYPE_LEGACY
+	this.Type = &type_
 	return &this
 }
 
@@ -42,6 +48,8 @@ func NewCreateVolume(name string) *CreateVolume {
 // but it doesn't guarantee that properties required by API are set
 func NewCreateVolumeWithDefaults() *CreateVolume {
 	this := CreateVolume{}
+	var type_ VolumeType = VOLUMETYPE_LEGACY
+	this.Type = &type_
 	return &this
 }
 
@@ -69,6 +77,70 @@ func (o *CreateVolume) SetName(v string) {
 	o.Name = v
 }
 
+// GetType returns the Type field value if set, zero value otherwise.
+func (o *CreateVolume) GetType() VolumeType {
+	if o == nil || IsNil(o.Type) {
+		var ret VolumeType
+		return ret
+	}
+	return *o.Type
+}
+
+// GetTypeOk returns a tuple with the Type field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateVolume) GetTypeOk() (*VolumeType, bool) {
+	if o == nil || IsNil(o.Type) {
+		return nil, false
+	}
+	return o.Type, true
+}
+
+// HasType returns a boolean if a field has been set.
+func (o *CreateVolume) HasType() bool {
+	if o != nil && !IsNil(o.Type) {
+		return true
+	}
+
+	return false
+}
+
+// SetType gets a reference to the given VolumeType and assigns it to the Type field.
+func (o *CreateVolume) SetType(v VolumeType) {
+	o.Type = &v
+}
+
+// GetRegion returns the Region field value if set, zero value otherwise.
+func (o *CreateVolume) GetRegion() string {
+	if o == nil || IsNil(o.Region) {
+		var ret string
+		return ret
+	}
+	return *o.Region
+}
+
+// GetRegionOk returns a tuple with the Region field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateVolume) GetRegionOk() (*string, bool) {
+	if o == nil || IsNil(o.Region) {
+		return nil, false
+	}
+	return o.Region, true
+}
+
+// HasRegion returns a boolean if a field has been set.
+func (o *CreateVolume) HasRegion() bool {
+	if o != nil && !IsNil(o.Region) {
+		return true
+	}
+
+	return false
+}
+
+// SetRegion gets a reference to the given string and assigns it to the Region field.
+func (o *CreateVolume) SetRegion(v string) {
+	o.Region = &v
+}
+
 func (o CreateVolume) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -80,6 +152,12 @@ func (o CreateVolume) MarshalJSON() ([]byte, error) {
 func (o CreateVolume) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["name"] = o.Name
+	if !IsNil(o.Type) {
+		toSerialize["type"] = o.Type
+	}
+	if !IsNil(o.Region) {
+		toSerialize["region"] = o.Region
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -124,6 +202,8 @@ func (o *CreateVolume) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "name")
+		delete(additionalProperties, "type")
+		delete(additionalProperties, "region")
 		o.AdditionalProperties = additionalProperties
 	}
 

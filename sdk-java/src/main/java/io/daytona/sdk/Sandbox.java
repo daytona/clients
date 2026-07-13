@@ -4,6 +4,7 @@
 package io.daytona.sdk;
 
 import io.daytona.api.client.api.SandboxApi;
+import io.daytona.api.client.api.VolumesApi;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
@@ -13,7 +14,11 @@ import io.daytona.api.client.model.SandboxVolume;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
+import io.daytona.api.client.model.VolumeMountTokenDto;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.model.ExecuteResponse;
+import io.daytona.sdk.model.Volume;
+import io.daytona.sdk.model.VolumePullResult;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -34,6 +39,7 @@ public class Sandbox {
     private final io.daytona.toolbox.client.ApiClient toolboxApiClient;
     private final io.daytona.toolbox.client.api.InfoApi infoApi;
     private final io.daytona.toolbox.client.api.ServerApi serverApi;
+    private final VolumeService volumeService;
     private final String apiKey;
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
@@ -90,6 +96,7 @@ public class Sandbox {
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
         this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
+        this.volumeService = new VolumeService(new VolumesApi(sandboxApi.getApiClient()));
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -105,6 +112,7 @@ public class Sandbox {
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
         this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
+        this.volumeService = new VolumeService(new VolumesApi(sandboxApi.getApiClient()));
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -361,6 +369,127 @@ public class Sandbox {
     public String getWorkDir() {
         io.daytona.toolbox.client.model.WorkDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getWorkDir());
         return value == null ? "" : asString(value.getDir());
+    }
+
+    /**
+     * Mounts a hotmount volume into this Sandbox on the fly.
+     *
+     * <p>Requests a short-lived mount token from the API and bootstraps the hotmount agent inside
+     * the Sandbox (downloading and running the region's {@code init.sh}), mounting the collaborative
+     * realtime filesystem at {@code mountPath}. Only hotmount volumes can be mounted this way; legacy
+     * and blockmount volumes are attached at Sandbox creation instead.
+     *
+     * <p>The Sandbox must have {@code /dev/fuse} available, outbound access to the region gateway
+     * and binaries bucket, and passwordless sudo (or run as root).
+     *
+     * @param volume the hotmount volume to mount
+     * @param mountPath absolute path inside the Sandbox to mount the volume at
+     * @throws DaytonaException if the volume is not a hotmount volume or the mount command fails
+     */
+    public void mountVolume(Volume volume, String mountPath) {
+        if (volume == null) {
+            throw new DaytonaException("Volume must not be null");
+        }
+        if (!"hotmount".equals(volume.getType())) {
+            throw new DaytonaException(
+                    "Only hotmount volumes can be mounted at runtime; volume '" + volume.getName()
+                            + "' is of type '" + volume.getType() + "'");
+        }
+        VolumeMountTokenDto mountToken = volumeService.getMountToken(volume.getId());
+        String command = buildHotmountMountCommand(mountToken, mountPath);
+        ExecuteResponse response = process.executeCommand(command);
+        Integer exitCode = response == null ? null : response.getExitCode();
+        if (exitCode == null || exitCode != 0) {
+            throw new DaytonaException(
+                    "Failed to mount hotmount volume '" + volume.getName() + "': "
+                            + (response == null ? "" : response.getResult()));
+        }
+    }
+
+    /**
+     * Pulls the latest state of the Sandbox's blockmount volumes into the running Sandbox.
+     *
+     * <p>Blockmount volumes reconcile in the background: each sandbox writes to a private scratch
+     * that is committed to the shared store periodically, but other sandboxes' commits only appear
+     * locally on re-materialize. This method makes them appear immediately, without stopping the
+     * Sandbox: it commits this Sandbox's local changes (so they participate in the merge), then
+     * applies the volume's latest merged state in place. Files modified locally after another
+     * sandbox's change keep the local version (last-change-wins by mtime).
+     *
+     * @param volume the blockmount volume to pull; {@code null} pulls every blockmount volume
+     *     attached to the Sandbox
+     * @return per-volume pull results
+     * @throws DaytonaException if the volume is not a blockmount volume or the pull fails
+     */
+    public List<VolumePullResult> pullVolumes(Volume volume) {
+        if (volume != null && !"blockmount".equals(volume.getType())) {
+            throw new DaytonaException(
+                    "Only blockmount volumes can be pulled; volume '" + volume.getName()
+                            + "' is of type '" + volume.getType() + "'");
+        }
+        Map<String, String> payload = new HashMap<>();
+        if (volume != null) {
+            payload.put("volumeId", volume.getId());
+        }
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        headers.put("Accept", "application/json");
+        try {
+            okhttp3.Call call = toolboxApiClient.buildCall(
+                    null,
+                    "/volumes/pull",
+                    "POST",
+                    new java.util.ArrayList<>(),
+                    new java.util.ArrayList<>(),
+                    payload,
+                    headers,
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    new String[0],
+                    null);
+            io.daytona.toolbox.client.ApiResponse<PullVolumesResponse> response =
+                    toolboxApiClient.execute(call, PullVolumesResponse.class);
+            PullVolumesResponse data = response.getData();
+            if (data == null || data.results == null) {
+                return Collections.emptyList();
+            }
+            return data.results;
+        } catch (io.daytona.toolbox.client.ApiException e) {
+            throw new DaytonaException("Failed to pull volumes: " + e.getResponseBody(), e);
+        }
+    }
+
+    /** Wire shape of the toolbox volumes/pull response. */
+    private static final class PullVolumesResponse {
+        private List<VolumePullResult> results;
+    }
+
+    private static String buildHotmountMountCommand(VolumeMountTokenDto mountToken, String mountPath) {
+        StringBuilder env = new StringBuilder();
+        appendEnvVar(env, "SEAWEED_TOKEN", mountToken.getToken());
+        appendEnvVar(env, "SEAWEED_GATEWAY_GRPC", mountToken.getGatewayGrpc());
+        appendEnvVar(env, "SEAWEED_GATEWAY_HTTP", mountToken.getGatewayHttp());
+        appendEnvVar(env, "SEAWEED_BINARIES_URL", mountToken.getBinariesUrl());
+        appendEnvVar(env, "SEAWEED_MOUNT_DIR", mountPath);
+        appendEnvVar(env, "SEAWEED_VERSION", mountToken.getVersion());
+        // The bootstrap (and init.sh itself) requires curl. Fail loudly if it is missing or the
+        // download fails, rather than letting a broken `curl ... | bash` pipe exit 0 and mount nothing.
+        String inner = "set -e; "
+                + "if ! command -v curl >/dev/null 2>&1; then echo \"hotmount: curl is required to "
+                + "bootstrap the agent but was not found in the sandbox\" >&2; exit 1; fi; "
+                + "mkdir -p \"$SEAWEED_MOUNT_DIR\"; "
+                + "init_script=\"$(curl -fsSL \"$SEAWEED_BINARIES_URL/init.sh\")\"; "
+                + "printf %s \"$init_script\" | bash";
+        return "if [ \"$(id -u)\" != 0 ]; then SUDO=\"sudo -n\"; else SUDO=\"\"; fi; "
+                + "$SUDO env " + env.toString().trim() + " "
+                + "bash -c '" + inner + "'";
+    }
+
+    private static void appendEnvVar(StringBuilder builder, String key, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        builder.append(key).append("='").append(value).append("' ");
     }
 
     /**

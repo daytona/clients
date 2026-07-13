@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     from .common.sandbox import ListSandboxesQuery, Resources
     from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
     from .common.snapshot import CreateSnapshotParams
-    from .common.volume import VolumeMount
+    from .common.volume import Volume, VolumeMount, VolumeMountTokenDto, VolumePullResult, VolumeType
 
 __all__ = [
     "Daytona",
@@ -108,7 +108,11 @@ __all__ = [
     "UploadProgress",
     "CancelEvent",
     "FileUpload",
+    "Volume",
     "VolumeMount",
+    "VolumeMountTokenDto",
+    "VolumePullResult",
+    "VolumeType",
     "Secret",
     "CreateSecretParams",
     "UpdateSecretParams",
@@ -229,7 +233,11 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     # common.snapshot
     "CreateSnapshotParams": "common.snapshot",
     # common.volume
+    "Volume": "common.volume",
     "VolumeMount": "common.volume",
+    "VolumeMountTokenDto": "common.volume",
+    "VolumePullResult": "common.volume",
+    "VolumeType": "common.volume",
     # common.secret
     "Secret": "common.secret",
     "CreateSecretParams": "common.secret",

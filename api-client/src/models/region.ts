@@ -54,6 +54,10 @@ export interface Region {
      * Snapshot Manager URL for the region
      */
     'snapshotManagerUrl'?: string | null;
+    /**
+     * Whether blockmount volumes are supported in this region
+     */
+    'blockmountEnabled': boolean;
 }
 
 

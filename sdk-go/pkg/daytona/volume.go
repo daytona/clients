@@ -115,6 +115,7 @@ func (v *VolumeService) Get(ctx context.Context, name string) (*types.Volume, er
 //
 // Parameters:
 //   - name: Unique name for the volume
+//   - opts: Optional volume type and hotmount region.
 //
 // Example:
 //
@@ -126,18 +127,116 @@ func (v *VolumeService) Get(ctx context.Context, name string) (*types.Volume, er
 //	// Wait for volume to be ready
 //	volume, err = client.Volumes.WaitForReady(ctx, volume, 60*time.Second)
 //
+//	// Create a shared high-performance block volume
+//	volume, err = client.Volumes.Create(ctx, "fast-data", types.CreateVolumeOptions{
+//	    Type: types.VolumeTypeBlockmount,
+//	})
+//
 // Returns the created [types.Volume] or an error.
-func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume, error) {
+func (v *VolumeService) Create(ctx context.Context, name string, opts ...types.CreateVolumeOptions) (*types.Volume, error) {
 	return withInstrumentation(ctx, v.otel, "Volume", "Create", func(ctx context.Context) (*types.Volume, error) {
 		authCtx := v.client.getAuthContext(ctx)
 
 		req := apiclient.NewCreateVolume(name)
+		if len(opts) > 0 {
+			if opts[0].Type != "" {
+				volumeType, err := apiclient.NewVolumeTypeFromValue(opts[0].Type)
+				if err != nil {
+					return nil, err
+				}
+				req.SetType(*volumeType)
+			}
+			if opts[0].Region != "" {
+				req.SetRegion(opts[0].Region)
+			}
+		}
 		volumeDto, httpResp, err := v.client.apiClient.VolumesAPI.CreateVolume(authCtx).CreateVolume(*req).Execute()
 		if err != nil {
 			return nil, errors.ConvertAPIError(err, httpResp)
 		}
 
 		return volumeDtoToVolume(volumeDto), nil
+	})
+}
+
+// GetMountToken creates a short-lived mount token for a hotmount volume.
+//
+// The token, together with the returned region gateway/binaries endpoints, is used to bootstrap
+// the hotmount agent (inside a sandbox or on customer infrastructure) and mount the volume on the
+// fly. Only hotmount volumes support this.
+//
+// Parameters:
+//   - volume: The hotmount volume to obtain a mount token for
+//
+// Returns the [types.VolumeMountToken] or an error.
+func (v *VolumeService) GetMountToken(ctx context.Context, volume *types.Volume) (*types.VolumeMountToken, error) {
+	return withInstrumentation(ctx, v.otel, "Volume", "GetMountToken", func(ctx context.Context) (*types.VolumeMountToken, error) {
+		authCtx := v.client.getAuthContext(ctx)
+		tokenDto, httpResp, err := v.client.apiClient.VolumesAPI.CreateVolumeMountToken(authCtx, volume.ID).Execute()
+		if err != nil {
+			return nil, errors.ConvertAPIError(err, httpResp)
+		}
+
+		return &types.VolumeMountToken{
+			Token:       tokenDto.GetToken(),
+			ExpiresAt:   tokenDto.GetExpiresAt(),
+			Region:      tokenDto.GetRegion(),
+			GatewayGrpc: tokenDto.GetGatewayGrpc(),
+			GatewayHTTP: tokenDto.GetGatewayHttp(),
+			BinariesURL: tokenDto.GetBinariesUrl(),
+			Version:     tokenDto.GetVersion(),
+		}, nil
+	})
+}
+
+// ListHotmountRegions returns the hotmount regions available for volume creation.
+//
+// Returns a slice of [types.HotmountRegion] or an error if the request fails.
+func (v *VolumeService) ListHotmountRegions(ctx context.Context) ([]*types.HotmountRegion, error) {
+	return withInstrumentation(ctx, v.otel, "Volume", "ListHotmountRegions", func(ctx context.Context) ([]*types.HotmountRegion, error) {
+		authCtx := v.client.getAuthContext(ctx)
+		regionDtos, httpResp, err := v.client.apiClient.VolumesAPI.ListHotmountRegions(authCtx).Execute()
+		if err != nil {
+			return nil, errors.ConvertAPIError(err, httpResp)
+		}
+
+		regions := make([]*types.HotmountRegion, len(regionDtos))
+		for i, dto := range regionDtos {
+			regions[i] = &types.HotmountRegion{
+				Region: dto.GetRegion(),
+				Label:  dto.GetLabel(),
+				Geo:    dto.GetGeo(),
+			}
+		}
+
+		return regions, nil
+	})
+}
+
+// ListBlockmountRegions returns the regions where blockmount volumes can be created.
+//
+// A blockmount volume's data lives in the region it is created in (a performance/placement knob —
+// sandboxes in any region can attach it, colocation is just faster). Only regions a superadmin has
+// enabled for blockmount are returned.
+//
+// Returns a slice of [types.BlockmountRegion] or an error if the request fails.
+func (v *VolumeService) ListBlockmountRegions(ctx context.Context) ([]*types.BlockmountRegion, error) {
+	return withInstrumentation(ctx, v.otel, "Volume", "ListBlockmountRegions", func(ctx context.Context) ([]*types.BlockmountRegion, error) {
+		authCtx := v.client.getAuthContext(ctx)
+		regionDtos, httpResp, err := v.client.apiClient.VolumesAPI.ListBlockmountRegions(authCtx).Execute()
+		if err != nil {
+			return nil, errors.ConvertAPIError(err, httpResp)
+		}
+
+		regions := make([]*types.BlockmountRegion, len(regionDtos))
+		for i, dto := range regionDtos {
+			regions[i] = &types.BlockmountRegion{
+				ID:   dto.GetId(),
+				Name: dto.GetName(),
+			}
+		}
+
+		return regions, nil
 	})
 }
 
@@ -246,9 +345,23 @@ func volumeDtoToVolume(dto *apiclient.VolumeDto) *types.Volume {
 		ID:             dto.GetId(),
 		Name:           dto.GetName(),
 		OrganizationID: dto.GetOrganizationId(),
+		Type:           string(dto.GetType()),  // Convert VolumeType enum to string
 		State:          string(dto.GetState()), // Convert VolumeState enum to string
 		CreatedAt:      createdAt,
 		UpdatedAt:      updatedAt,
+	}
+
+	// Handle nullable SizeInGb
+	if dto.SizeInGb.IsSet() {
+		volume.SizeInGb = dto.SizeInGb.Get()
+	}
+
+	// Handle hotmount-only Region/Shared
+	if dto.Region.IsSet() {
+		volume.Region = dto.Region.Get()
+	}
+	if dto.Shared.IsSet() {
+		volume.Shared = dto.Shared.Get()
 	}
 
 	// Handle nullable LastUsedAt

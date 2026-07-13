@@ -633,6 +633,7 @@ export class Daytona implements AsyncDisposable {
         new Configuration(structuredClone(this.clientConfig)),
         Daytona.createAxiosInstance(),
         this.sandboxApi,
+        this.volume,
       )
 
       if (sandbox.state !== 'started') {
@@ -673,6 +674,7 @@ export class Daytona implements AsyncDisposable {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.volume,
     )
   }
 
@@ -688,7 +690,7 @@ export class Daytona implements AsyncDisposable {
    * }
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
-    const { sandboxApi, clientConfig } = this
+    const { sandboxApi, clientConfig, volume } = this
     const tracer = trace.getTracer('')
 
     async function* generator(): AsyncGenerator<Sandbox> {
@@ -759,7 +761,7 @@ export class Daytona implements AsyncDisposable {
 
         for (const sandbox of response.data.items) {
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          yield new Sandbox(sandbox, structuredClone(clientConfig), Daytona.createAxiosInstance(), sandboxApi)
+          yield new Sandbox(sandbox, structuredClone(clientConfig), Daytona.createAxiosInstance(), sandboxApi, volume)
         }
 
         cursor = response.data.nextCursor ?? undefined

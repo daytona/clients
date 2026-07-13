@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
+from typing import TYPE_CHECKING, Optional
 
 from deprecated import deprecated
 from pydantic import ConfigDict, PrivateAttr
@@ -42,6 +44,7 @@ from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
 from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
 from ..common.sandbox import Resources
+from ..common.volume import Volume, VolumePullResult, VolumeType, build_hotmount_mount_command
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
 from .code_interpreter import AsyncCodeInterpreter
@@ -50,6 +53,9 @@ from .filesystem import AsyncFileSystem
 from .git import AsyncGit
 from .lsp_server import AsyncLspServer
 from .process import AsyncProcess
+
+if TYPE_CHECKING:
+    from .volume import AsyncVolumeService
 
 
 class AsyncSandbox(SandboxDto):
@@ -109,6 +115,7 @@ class AsyncSandbox(SandboxDto):
     _process: AsyncProcess = PrivateAttr()
     _computer_use: AsyncComputerUse = PrivateAttr()
     _code_interpreter: AsyncCodeInterpreter = PrivateAttr()
+    _volume_service: Optional["AsyncVolumeService"] = PrivateAttr(default=None)
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
@@ -120,10 +127,12 @@ class AsyncSandbox(SandboxDto):
         sandbox_api: SandboxApi,
         language: str,
         pool_tracker: AsyncPoolSaturationTracker | None = None,
+        volume_service: Optional["AsyncVolumeService"] = None,
     ):
         super().__init__(**sandbox_dto.model_dump())
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
+        self._volume_service = volume_service
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
         self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
             toolbox_api, self.id, self.toolbox_proxy_url, pool_tracker
@@ -222,6 +231,85 @@ class AsyncSandbox(SandboxDto):
         """
         response = await self._info_api.get_work_dir()
         return response.dir
+
+    @with_instrumentation()
+    async def mount_volume(self, volume: Volume, mount_path: str) -> None:
+        """Mounts a hotmount Volume into the running Sandbox on the fly.
+
+        Unlike legacy and blockmount volumes (which are attached at Sandbox creation), hotmount
+        volumes are mounted at runtime: this method requests a short-lived mount token from the API
+        and bootstraps the hotmount agent inside the Sandbox (downloading and running the region's
+        ``init.sh``), mounting the filesystem at the given path.
+
+        The Sandbox must have ``/dev/fuse`` available, outbound access to the region gateway and
+        binaries bucket, and passwordless sudo (or run as root).
+
+        Args:
+            volume (Volume): The hotmount Volume to mount. Must be of type ``VolumeType.HOTMOUNT``.
+            mount_path (str): The absolute path inside the Sandbox to mount the Volume at.
+
+        Example:
+            ```python
+            volume = await daytona.volume.get("shared-fs")
+            await sandbox.mount_volume(volume, "/mnt/shared")
+            ```
+        """
+        if volume.type != VolumeType.HOTMOUNT:
+            raise DaytonaValidationError(
+                f"Only hotmount volumes can be mounted on the fly. Volume '{volume.name}' is of type '{volume.type}'."
+            )
+
+        if self._volume_service is None:
+            raise DaytonaError("Volume service is not available for this Sandbox instance.")
+
+        mount_token = await self._volume_service.get_mount_token(volume)
+        command = build_hotmount_mount_command(mount_token, mount_path)
+        response = await self._process.exec(command)
+        if response.exit_code != 0:
+            raise DaytonaError(f"Failed to mount hotmount volume '{volume.name}': {response.result}")
+
+    @with_instrumentation()
+    async def pull_volumes(self, volume: Volume | None = None) -> list[VolumePullResult]:
+        """Pulls the latest state of the Sandbox's blockmount Volumes into the running Sandbox.
+
+        Blockmount volumes reconcile in the background: each sandbox writes to a private scratch
+        that is committed to the shared store periodically, but other sandboxes' commits only
+        appear locally on re-materialize. This method makes them appear immediately, without
+        stopping the Sandbox: it commits this Sandbox's local changes (so they participate in the
+        merge), then applies the volume's latest merged state in place. Files modified locally
+        after another sandbox's change keep the local version (last-change-wins by mtime).
+
+        Args:
+            volume (Volume | None): The blockmount Volume to pull. Omit to pull every blockmount
+                Volume attached to the Sandbox.
+
+        Returns:
+            list[VolumePullResult]: Per-volume pull results.
+
+        Example:
+            ```python
+            # sandbox B picks up what sandbox A committed, while both keep running
+            results = await sandbox.pull_volumes()
+            ```
+        """
+        if volume is not None and volume.type != VolumeType.BLOCKMOUNT:
+            raise DaytonaValidationError(
+                f"Only blockmount volumes can be pulled. Volume '{volume.name}' is of type '{volume.type}'."
+            )
+
+        payload: dict[str, str] = {"volumeId": volume.id} if volume is not None else {}
+        method, url, header_params, body, _ = self._toolbox_api.param_serialize(
+            method="POST",
+            resource_path="/volumes/pull",
+            header_params={"Content-Type": "application/json", "Accept": "application/json"},
+            body=payload,
+        )
+        response = await self._toolbox_api.call_api(method, url, header_params=header_params, body=body)
+        await response.read()
+        if response.status != 200:
+            raise DaytonaError(f"Failed to pull volumes: {response.data.decode('utf-8', errors='replace')}")
+        parsed: dict[str, list[dict[str, object]]] = json.loads(response.data)
+        return [VolumePullResult.model_validate(item) for item in parsed.get("results") or []]
 
     @with_instrumentation()
     def create_lsp_server(

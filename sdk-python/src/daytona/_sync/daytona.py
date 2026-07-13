@@ -506,6 +506,7 @@ class Daytona:
             self._sandbox_api,
             validated_language.value,
             http_client=self._http_client,
+            volume_service=self.volume,
         )
 
         if sandbox.state != SandboxState.STARTED:
@@ -574,6 +575,7 @@ class Daytona:
             self._sandbox_api,
             language,
             http_client=self._http_client,
+            volume_service=self.volume,
         )
 
     @intercept_errors(message_prefix="Failed to list sandboxes: ")
@@ -622,6 +624,7 @@ class Daytona:
                     self._sandbox_api,
                     language,
                     http_client=self._http_client,
+                    volume_service=self.volume,
                 )
             cursor = response.next_cursor or None
 

@@ -139,14 +139,84 @@ type PaginatedSnapshots struct {
 
 // Volume represents a Daytona volume
 type Volume struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	OrganizationID string    `json:"organizationId"`
-	State          string    `json:"state"`
-	ErrorReason    *string   `json:"errorReason,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-	LastUsedAt     time.Time `json:"lastUsedAt,omitempty"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	OrganizationID string   `json:"organizationId"`
+	Type           string   `json:"type"`
+	SizeInGb       *float32 `json:"sizeInGb,omitempty"`
+	// Region is the hotmount region the volume lives in. Set only for hotmount volumes.
+	Region *string `json:"region,omitempty"`
+	// Shared is the hotmount sharing mode. Set only for hotmount volumes.
+	Shared      *bool     `json:"shared,omitempty"`
+	State       string    `json:"state"`
+	ErrorReason *string   `json:"errorReason,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	LastUsedAt  time.Time `json:"lastUsedAt,omitempty"`
+}
+
+// Volume type constants mirror the API's volume types.
+const (
+	VolumeTypeLegacy     = "legacy"
+	VolumeTypeHotmount   = "hotmount"
+	VolumeTypeBlockmount = "blockmount"
+)
+
+// CreateVolumeOptions contains optional parameters for creating a volume.
+type CreateVolumeOptions struct {
+	// Type is the volume type. Empty defaults to legacy.
+	Type string
+	// Region is the region to create the volume in. For blockmount volumes it selects the
+	// region-local store the volume's data lives in — a performance/placement knob, not an attach
+	// restriction, so sandboxes in any region can attach it (colocation is just faster); optional
+	// for blockmount, defaulting to the organization's default region (or the first region offering
+	// blockmount) when omitted. For hotmount volumes it selects the deployment region (defaults to
+	// an active region). Not allowed for legacy volumes. The region is fixed for the volume's
+	// lifetime.
+	Region string
+}
+
+// VolumeMountToken is a short-lived token used to bootstrap the hotmount agent and mount a
+// hotmount volume on the fly. It carries the region gateway/binaries endpoints (the SEAWEED_*
+// bootstrap contract) alongside the macaroon token.
+type VolumeMountToken struct {
+	Token       string `json:"token"`
+	ExpiresAt   string `json:"expiresAt"`
+	Region      string `json:"region"`
+	GatewayGrpc string `json:"gatewayGrpc"`
+	GatewayHTTP string `json:"gatewayHttp"`
+	BinariesURL string `json:"binariesUrl"`
+	Version     string `json:"version,omitempty"`
+}
+
+// HotmountRegion is a hotmount region selectable at volume creation.
+type HotmountRegion struct {
+	Region string `json:"region"`
+	Label  string `json:"label"`
+	Geo    string `json:"geo"`
+}
+
+// BlockmountRegion is a region where blockmount volumes can be created. A blockmount volume's data
+// lives in its region (a performance/placement knob — sandboxes in any region can attach it,
+// colocation is just faster).
+type BlockmountRegion struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// VolumePullResult reports what an explicit blockmount volume pull did for one volume of a
+// running sandbox.
+type VolumePullResult struct {
+	VolumeID   string `json:"volumeId"`
+	ManifestID string `json:"manifestId,omitempty"`
+	// UpToDate is true when the sandbox already reflected the volume's latest merged state.
+	UpToDate     bool `json:"upToDate"`
+	FilesWritten int  `json:"filesWritten"`
+	Deleted      int  `json:"deleted"`
+	// SkippedLocalNewer counts paths left untouched because the sandbox has a strictly newer
+	// local modification; the next commit's last-change-wins merge resolves them.
+	SkippedLocalNewer int   `json:"skippedLocalNewer"`
+	BytesFetched      int64 `json:"bytesFetched"`
 }
 
 // Secret represents an organization-scoped secret.

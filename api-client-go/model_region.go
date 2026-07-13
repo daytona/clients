@@ -39,6 +39,8 @@ type Region struct {
 	SshGatewayUrl NullableString `json:"sshGatewayUrl,omitempty"`
 	// Snapshot Manager URL for the region
 	SnapshotManagerUrl NullableString `json:"snapshotManagerUrl,omitempty"`
+	// Whether blockmount volumes are supported in this region
+	BlockmountEnabled bool `json:"blockmountEnabled"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -48,13 +50,14 @@ type _Region Region
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRegion(id string, name string, regionType RegionType, createdAt string, updatedAt string) *Region {
+func NewRegion(id string, name string, regionType RegionType, createdAt string, updatedAt string, blockmountEnabled bool) *Region {
 	this := Region{}
 	this.Id = id
 	this.Name = name
 	this.RegionType = regionType
 	this.CreatedAt = createdAt
 	this.UpdatedAt = updatedAt
+	this.BlockmountEnabled = blockmountEnabled
 	return &this
 }
 
@@ -354,6 +357,30 @@ func (o *Region) UnsetSnapshotManagerUrl() {
 	o.SnapshotManagerUrl.Unset()
 }
 
+// GetBlockmountEnabled returns the BlockmountEnabled field value
+func (o *Region) GetBlockmountEnabled() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.BlockmountEnabled
+}
+
+// GetBlockmountEnabledOk returns a tuple with the BlockmountEnabled field value
+// and a boolean to check if the value has been set.
+func (o *Region) GetBlockmountEnabledOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.BlockmountEnabled, true
+}
+
+// SetBlockmountEnabled sets field value
+func (o *Region) SetBlockmountEnabled(v bool) {
+	o.BlockmountEnabled = v
+}
+
 func (o Region) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -381,6 +408,7 @@ func (o Region) ToMap() (map[string]interface{}, error) {
 	if o.SnapshotManagerUrl.IsSet() {
 		toSerialize["snapshotManagerUrl"] = o.SnapshotManagerUrl.Get()
 	}
+	toSerialize["blockmountEnabled"] = o.BlockmountEnabled
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -399,6 +427,7 @@ func (o *Region) UnmarshalJSON(data []byte) (err error) {
 		"regionType",
 		"createdAt",
 		"updatedAt",
+		"blockmountEnabled",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -437,6 +466,7 @@ func (o *Region) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "proxyUrl")
 		delete(additionalProperties, "sshGatewayUrl")
 		delete(additionalProperties, "snapshotManagerUrl")
+		delete(additionalProperties, "blockmountEnabled")
 		o.AdditionalProperties = additionalProperties
 	}
 

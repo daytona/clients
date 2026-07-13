@@ -622,6 +622,7 @@ class AsyncDaytona:
             self._sandbox_api,
             validated_language.value,
             self._pool_tracker,
+            volume_service=self.volume,
         )
 
         if sandbox.state != SandboxState.STARTED:
@@ -690,6 +691,7 @@ class AsyncDaytona:
             self._sandbox_api,
             language,
             self._pool_tracker,
+            volume_service=self.volume,
         )
 
     @intercept_errors(message_prefix="Failed to list sandboxes: ")
@@ -738,6 +740,7 @@ class AsyncDaytona:
                     self._sandbox_api,
                     language,
                     self._pool_tracker,
+                    volume_service=self.volume,
                 )
             cursor = response.next_cursor or None
 

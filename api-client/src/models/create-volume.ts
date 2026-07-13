@@ -13,8 +13,21 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { VolumeType } from './volume-type';
 
 export interface CreateVolume {
     'name': string;
+    /**
+     * The type of the volume. Defaults to legacy.
+     */
+    'type'?: VolumeType;
+    /**
+     * The region to create the volume in. For blockmount volumes it selects the region-local CAS store the volume\'s data lives in — a performance/placement knob, not an attach restriction, so sandboxes in any region can attach the volume (colocation is just faster). Optional for blockmount: when omitted it defaults to the organization\'s default region (or the first region that offers blockmount). For hotmount volumes it selects the hotmount deployment region and defaults to an active region. Not allowed for legacy volumes. The volume\'s region is fixed for its lifetime.
+     */
+    'region'?: string;
 }
+
+
 

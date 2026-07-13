@@ -24,6 +24,24 @@ module DaytonaApiClient
     # Organization ID
     attr_accessor :organization_id
 
+    # Volume type
+    attr_accessor :type
+
+    # The per-sandbox scratch quota in GB. Set only for blockmount volumes.
+    attr_accessor :size_in_gb
+
+    # The region the volume's data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.
+    attr_accessor :region
+
+    # The hotmount sharing mode (false = single-writer write-back, true = multi-writer synchronous). Set only for hotmount volumes.
+    attr_accessor :shared
+
+    # The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.
+    attr_accessor :last_manifest_id
+
+    # Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.
+    attr_accessor :conflicts
+
     # Volume state
     attr_accessor :state
 
@@ -67,6 +85,12 @@ module DaytonaApiClient
         :'id' => :'id',
         :'name' => :'name',
         :'organization_id' => :'organizationId',
+        :'type' => :'type',
+        :'size_in_gb' => :'sizeInGb',
+        :'region' => :'region',
+        :'shared' => :'shared',
+        :'last_manifest_id' => :'lastManifestId',
+        :'conflicts' => :'conflicts',
         :'state' => :'state',
         :'created_at' => :'createdAt',
         :'updated_at' => :'updatedAt',
@@ -91,6 +115,12 @@ module DaytonaApiClient
         :'id' => :'String',
         :'name' => :'String',
         :'organization_id' => :'String',
+        :'type' => :'VolumeType',
+        :'size_in_gb' => :'Float',
+        :'region' => :'String',
+        :'shared' => :'Boolean',
+        :'last_manifest_id' => :'String',
+        :'conflicts' => :'Array<BlockmountConflict>',
         :'state' => :'VolumeState',
         :'created_at' => :'String',
         :'updated_at' => :'String',
@@ -102,6 +132,11 @@ module DaytonaApiClient
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'size_in_gb',
+        :'region',
+        :'shared',
+        :'last_manifest_id',
+        :'conflicts',
         :'last_used_at',
         :'error_reason'
       ])
@@ -139,6 +174,34 @@ module DaytonaApiClient
         self.organization_id = attributes[:'organization_id']
       else
         self.organization_id = nil
+      end
+
+      if attributes.key?(:'type')
+        self.type = attributes[:'type']
+      else
+        self.type = nil
+      end
+
+      if attributes.key?(:'size_in_gb')
+        self.size_in_gb = attributes[:'size_in_gb']
+      end
+
+      if attributes.key?(:'region')
+        self.region = attributes[:'region']
+      end
+
+      if attributes.key?(:'shared')
+        self.shared = attributes[:'shared']
+      end
+
+      if attributes.key?(:'last_manifest_id')
+        self.last_manifest_id = attributes[:'last_manifest_id']
+      end
+
+      if attributes.key?(:'conflicts')
+        if (value = attributes[:'conflicts']).is_a?(Array)
+          self.conflicts = value
+        end
       end
 
       if attributes.key?(:'state')
@@ -187,6 +250,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "organization_id", organization_id cannot be nil.')
       end
 
+      if @type.nil?
+        invalid_properties.push('invalid value for "type", type cannot be nil.')
+      end
+
       if @state.nil?
         invalid_properties.push('invalid value for "state", state cannot be nil.')
       end
@@ -209,6 +276,7 @@ module DaytonaApiClient
       return false if @id.nil?
       return false if @name.nil?
       return false if @organization_id.nil?
+      return false if @type.nil?
       return false if @state.nil?
       return false if @created_at.nil?
       return false if @updated_at.nil?
@@ -243,6 +311,16 @@ module DaytonaApiClient
       end
 
       @organization_id = organization_id
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] type Value to be assigned
+    def type=(type)
+      if type.nil?
+        fail ArgumentError, 'type cannot be nil'
+      end
+
+      @type = type
     end
 
     # Custom attribute writer method with validation
@@ -283,6 +361,12 @@ module DaytonaApiClient
           id == o.id &&
           name == o.name &&
           organization_id == o.organization_id &&
+          type == o.type &&
+          size_in_gb == o.size_in_gb &&
+          region == o.region &&
+          shared == o.shared &&
+          last_manifest_id == o.last_manifest_id &&
+          conflicts == o.conflicts &&
           state == o.state &&
           created_at == o.created_at &&
           updated_at == o.updated_at &&
@@ -299,7 +383,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, organization_id, state, created_at, updated_at, last_used_at, error_reason].hash
+      [id, name, organization_id, type, size_in_gb, region, shared, last_manifest_id, conflicts, state, created_at, updated_at, last_used_at, error_reason].hash
     end
 
     # Builds the object from hash

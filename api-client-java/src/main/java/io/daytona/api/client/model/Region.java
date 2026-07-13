@@ -97,6 +97,11 @@ public class Region {
   @javax.annotation.Nullable
   private String snapshotManagerUrl;
 
+  public static final String SERIALIZED_NAME_BLOCKMOUNT_ENABLED = "blockmountEnabled";
+  @SerializedName(SERIALIZED_NAME_BLOCKMOUNT_ENABLED)
+  @javax.annotation.Nonnull
+  private Boolean blockmountEnabled;
+
   public Region() {
   }
 
@@ -270,6 +275,25 @@ public class Region {
     this.snapshotManagerUrl = snapshotManagerUrl;
   }
 
+
+  public Region blockmountEnabled(@javax.annotation.Nonnull Boolean blockmountEnabled) {
+    this.blockmountEnabled = blockmountEnabled;
+    return this;
+  }
+
+  /**
+   * Whether blockmount volumes are supported in this region
+   * @return blockmountEnabled
+   */
+  @javax.annotation.Nonnull
+  public Boolean getBlockmountEnabled() {
+    return blockmountEnabled;
+  }
+
+  public void setBlockmountEnabled(@javax.annotation.Nonnull Boolean blockmountEnabled) {
+    this.blockmountEnabled = blockmountEnabled;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -333,7 +357,8 @@ public class Region {
         Objects.equals(this.updatedAt, region.updatedAt) &&
         Objects.equals(this.proxyUrl, region.proxyUrl) &&
         Objects.equals(this.sshGatewayUrl, region.sshGatewayUrl) &&
-        Objects.equals(this.snapshotManagerUrl, region.snapshotManagerUrl)&&
+        Objects.equals(this.snapshotManagerUrl, region.snapshotManagerUrl) &&
+        Objects.equals(this.blockmountEnabled, region.blockmountEnabled)&&
         Objects.equals(this.additionalProperties, region.additionalProperties);
   }
 
@@ -343,7 +368,7 @@ public class Region {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, organizationId, regionType, createdAt, updatedAt, proxyUrl, sshGatewayUrl, snapshotManagerUrl, additionalProperties);
+    return Objects.hash(id, name, organizationId, regionType, createdAt, updatedAt, proxyUrl, sshGatewayUrl, snapshotManagerUrl, blockmountEnabled, additionalProperties);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -366,6 +391,7 @@ public class Region {
     sb.append("    proxyUrl: ").append(toIndentedString(proxyUrl)).append("\n");
     sb.append("    sshGatewayUrl: ").append(toIndentedString(sshGatewayUrl)).append("\n");
     sb.append("    snapshotManagerUrl: ").append(toIndentedString(snapshotManagerUrl)).append("\n");
+    sb.append("    blockmountEnabled: ").append(toIndentedString(blockmountEnabled)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -385,10 +411,10 @@ public class Region {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "regionType", "createdAt", "updatedAt", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "regionType", "createdAt", "updatedAt", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl", "blockmountEnabled"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "regionType", "createdAt", "updatedAt"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "regionType", "createdAt", "updatedAt", "blockmountEnabled"));
   }
 
   /**

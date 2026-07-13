@@ -32,6 +32,7 @@ model_api_key_list.go
 model_api_key_response.go
 model_audit_log.go
 model_available_sandbox_class.go
+model_blockmount_conflict.go
 model_build_info.go
 model_command.go
 model_completion_context.go
@@ -61,6 +62,7 @@ model_create_session_request.go
 model_create_snapshot.go
 model_create_user.go
 model_create_volume.go
+model_create_volume_mount_token.go
 model_date_filter.go
 model_daytona_configuration.go
 model_display_info_response.go
@@ -85,6 +87,7 @@ model_gpu_type.go
 model_health_controller_check_200_response.go
 model_health_controller_check_200_response_info_value.go
 model_health_controller_check_503_response.go
+model_hotmount_region.go
 model_int_filter.go
 model_job.go
 model_job_status.go
@@ -213,7 +216,9 @@ model_user.go
 model_user_home_dir_response.go
 model_user_public_key.go
 model_volume_dto.go
+model_volume_mount_token_dto.go
 model_volume_state.go
+model_volume_type.go
 model_webhook_app_portal_access.go
 model_webhook_event.go
 model_webhook_initialization_status.go

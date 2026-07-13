@@ -27,6 +27,24 @@ type SandboxVolume struct {
 	MountPath string `json:"mountPath"`
 	// Optional subpath within the volume to mount. When specified, only this S3 prefix will be accessible. When omitted, the entire volume is mounted.
 	Subpath *string `json:"subpath,omitempty"`
+	// The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.
+	VolumeType *VolumeType `json:"volumeType,omitempty"`
+	// The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.
+	OrganizationId *string `json:"organizationId,omitempty"`
+	// The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.
+	SizeInGb *float32 `json:"sizeInGb,omitempty"`
+	// The region the blockmount volume's data lives in. Forwarded to the runner so it can fetch the region's store credentials over its authenticated channel. Set only for blockmount volumes.
+	Region *string `json:"region,omitempty"`
+	// The S3 endpoint of the CAS store the blockmount volume's data lives in, resolved from the volume's region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume's region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes.
+	S3Endpoint *string `json:"s3Endpoint,omitempty"`
+	// The S3 region of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+	S3Region *string `json:"s3Region,omitempty"`
+	// The S3 bucket of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+	S3Bucket *string `json:"s3Bucket,omitempty"`
+	// The S3 key prefix of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+	S3Prefix *string `json:"s3Prefix,omitempty"`
+	// Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes.
+	S3PathStyle *bool `json:"s3PathStyle,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -131,6 +149,294 @@ func (o *SandboxVolume) SetSubpath(v string) {
 	o.Subpath = &v
 }
 
+// GetVolumeType returns the VolumeType field value if set, zero value otherwise.
+func (o *SandboxVolume) GetVolumeType() VolumeType {
+	if o == nil || IsNil(o.VolumeType) {
+		var ret VolumeType
+		return ret
+	}
+	return *o.VolumeType
+}
+
+// GetVolumeTypeOk returns a tuple with the VolumeType field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetVolumeTypeOk() (*VolumeType, bool) {
+	if o == nil || IsNil(o.VolumeType) {
+		return nil, false
+	}
+	return o.VolumeType, true
+}
+
+// HasVolumeType returns a boolean if a field has been set.
+func (o *SandboxVolume) HasVolumeType() bool {
+	if o != nil && !IsNil(o.VolumeType) {
+		return true
+	}
+
+	return false
+}
+
+// SetVolumeType gets a reference to the given VolumeType and assigns it to the VolumeType field.
+func (o *SandboxVolume) SetVolumeType(v VolumeType) {
+	o.VolumeType = &v
+}
+
+// GetOrganizationId returns the OrganizationId field value if set, zero value otherwise.
+func (o *SandboxVolume) GetOrganizationId() string {
+	if o == nil || IsNil(o.OrganizationId) {
+		var ret string
+		return ret
+	}
+	return *o.OrganizationId
+}
+
+// GetOrganizationIdOk returns a tuple with the OrganizationId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetOrganizationIdOk() (*string, bool) {
+	if o == nil || IsNil(o.OrganizationId) {
+		return nil, false
+	}
+	return o.OrganizationId, true
+}
+
+// HasOrganizationId returns a boolean if a field has been set.
+func (o *SandboxVolume) HasOrganizationId() bool {
+	if o != nil && !IsNil(o.OrganizationId) {
+		return true
+	}
+
+	return false
+}
+
+// SetOrganizationId gets a reference to the given string and assigns it to the OrganizationId field.
+func (o *SandboxVolume) SetOrganizationId(v string) {
+	o.OrganizationId = &v
+}
+
+// GetSizeInGb returns the SizeInGb field value if set, zero value otherwise.
+func (o *SandboxVolume) GetSizeInGb() float32 {
+	if o == nil || IsNil(o.SizeInGb) {
+		var ret float32
+		return ret
+	}
+	return *o.SizeInGb
+}
+
+// GetSizeInGbOk returns a tuple with the SizeInGb field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetSizeInGbOk() (*float32, bool) {
+	if o == nil || IsNil(o.SizeInGb) {
+		return nil, false
+	}
+	return o.SizeInGb, true
+}
+
+// HasSizeInGb returns a boolean if a field has been set.
+func (o *SandboxVolume) HasSizeInGb() bool {
+	if o != nil && !IsNil(o.SizeInGb) {
+		return true
+	}
+
+	return false
+}
+
+// SetSizeInGb gets a reference to the given float32 and assigns it to the SizeInGb field.
+func (o *SandboxVolume) SetSizeInGb(v float32) {
+	o.SizeInGb = &v
+}
+
+// GetRegion returns the Region field value if set, zero value otherwise.
+func (o *SandboxVolume) GetRegion() string {
+	if o == nil || IsNil(o.Region) {
+		var ret string
+		return ret
+	}
+	return *o.Region
+}
+
+// GetRegionOk returns a tuple with the Region field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetRegionOk() (*string, bool) {
+	if o == nil || IsNil(o.Region) {
+		return nil, false
+	}
+	return o.Region, true
+}
+
+// HasRegion returns a boolean if a field has been set.
+func (o *SandboxVolume) HasRegion() bool {
+	if o != nil && !IsNil(o.Region) {
+		return true
+	}
+
+	return false
+}
+
+// SetRegion gets a reference to the given string and assigns it to the Region field.
+func (o *SandboxVolume) SetRegion(v string) {
+	o.Region = &v
+}
+
+// GetS3Endpoint returns the S3Endpoint field value if set, zero value otherwise.
+func (o *SandboxVolume) GetS3Endpoint() string {
+	if o == nil || IsNil(o.S3Endpoint) {
+		var ret string
+		return ret
+	}
+	return *o.S3Endpoint
+}
+
+// GetS3EndpointOk returns a tuple with the S3Endpoint field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetS3EndpointOk() (*string, bool) {
+	if o == nil || IsNil(o.S3Endpoint) {
+		return nil, false
+	}
+	return o.S3Endpoint, true
+}
+
+// HasS3Endpoint returns a boolean if a field has been set.
+func (o *SandboxVolume) HasS3Endpoint() bool {
+	if o != nil && !IsNil(o.S3Endpoint) {
+		return true
+	}
+
+	return false
+}
+
+// SetS3Endpoint gets a reference to the given string and assigns it to the S3Endpoint field.
+func (o *SandboxVolume) SetS3Endpoint(v string) {
+	o.S3Endpoint = &v
+}
+
+// GetS3Region returns the S3Region field value if set, zero value otherwise.
+func (o *SandboxVolume) GetS3Region() string {
+	if o == nil || IsNil(o.S3Region) {
+		var ret string
+		return ret
+	}
+	return *o.S3Region
+}
+
+// GetS3RegionOk returns a tuple with the S3Region field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetS3RegionOk() (*string, bool) {
+	if o == nil || IsNil(o.S3Region) {
+		return nil, false
+	}
+	return o.S3Region, true
+}
+
+// HasS3Region returns a boolean if a field has been set.
+func (o *SandboxVolume) HasS3Region() bool {
+	if o != nil && !IsNil(o.S3Region) {
+		return true
+	}
+
+	return false
+}
+
+// SetS3Region gets a reference to the given string and assigns it to the S3Region field.
+func (o *SandboxVolume) SetS3Region(v string) {
+	o.S3Region = &v
+}
+
+// GetS3Bucket returns the S3Bucket field value if set, zero value otherwise.
+func (o *SandboxVolume) GetS3Bucket() string {
+	if o == nil || IsNil(o.S3Bucket) {
+		var ret string
+		return ret
+	}
+	return *o.S3Bucket
+}
+
+// GetS3BucketOk returns a tuple with the S3Bucket field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetS3BucketOk() (*string, bool) {
+	if o == nil || IsNil(o.S3Bucket) {
+		return nil, false
+	}
+	return o.S3Bucket, true
+}
+
+// HasS3Bucket returns a boolean if a field has been set.
+func (o *SandboxVolume) HasS3Bucket() bool {
+	if o != nil && !IsNil(o.S3Bucket) {
+		return true
+	}
+
+	return false
+}
+
+// SetS3Bucket gets a reference to the given string and assigns it to the S3Bucket field.
+func (o *SandboxVolume) SetS3Bucket(v string) {
+	o.S3Bucket = &v
+}
+
+// GetS3Prefix returns the S3Prefix field value if set, zero value otherwise.
+func (o *SandboxVolume) GetS3Prefix() string {
+	if o == nil || IsNil(o.S3Prefix) {
+		var ret string
+		return ret
+	}
+	return *o.S3Prefix
+}
+
+// GetS3PrefixOk returns a tuple with the S3Prefix field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetS3PrefixOk() (*string, bool) {
+	if o == nil || IsNil(o.S3Prefix) {
+		return nil, false
+	}
+	return o.S3Prefix, true
+}
+
+// HasS3Prefix returns a boolean if a field has been set.
+func (o *SandboxVolume) HasS3Prefix() bool {
+	if o != nil && !IsNil(o.S3Prefix) {
+		return true
+	}
+
+	return false
+}
+
+// SetS3Prefix gets a reference to the given string and assigns it to the S3Prefix field.
+func (o *SandboxVolume) SetS3Prefix(v string) {
+	o.S3Prefix = &v
+}
+
+// GetS3PathStyle returns the S3PathStyle field value if set, zero value otherwise.
+func (o *SandboxVolume) GetS3PathStyle() bool {
+	if o == nil || IsNil(o.S3PathStyle) {
+		var ret bool
+		return ret
+	}
+	return *o.S3PathStyle
+}
+
+// GetS3PathStyleOk returns a tuple with the S3PathStyle field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxVolume) GetS3PathStyleOk() (*bool, bool) {
+	if o == nil || IsNil(o.S3PathStyle) {
+		return nil, false
+	}
+	return o.S3PathStyle, true
+}
+
+// HasS3PathStyle returns a boolean if a field has been set.
+func (o *SandboxVolume) HasS3PathStyle() bool {
+	if o != nil && !IsNil(o.S3PathStyle) {
+		return true
+	}
+
+	return false
+}
+
+// SetS3PathStyle gets a reference to the given bool and assigns it to the S3PathStyle field.
+func (o *SandboxVolume) SetS3PathStyle(v bool) {
+	o.S3PathStyle = &v
+}
+
 func (o SandboxVolume) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -145,6 +451,33 @@ func (o SandboxVolume) ToMap() (map[string]interface{}, error) {
 	toSerialize["mountPath"] = o.MountPath
 	if !IsNil(o.Subpath) {
 		toSerialize["subpath"] = o.Subpath
+	}
+	if !IsNil(o.VolumeType) {
+		toSerialize["volumeType"] = o.VolumeType
+	}
+	if !IsNil(o.OrganizationId) {
+		toSerialize["organizationId"] = o.OrganizationId
+	}
+	if !IsNil(o.SizeInGb) {
+		toSerialize["sizeInGb"] = o.SizeInGb
+	}
+	if !IsNil(o.Region) {
+		toSerialize["region"] = o.Region
+	}
+	if !IsNil(o.S3Endpoint) {
+		toSerialize["s3Endpoint"] = o.S3Endpoint
+	}
+	if !IsNil(o.S3Region) {
+		toSerialize["s3Region"] = o.S3Region
+	}
+	if !IsNil(o.S3Bucket) {
+		toSerialize["s3Bucket"] = o.S3Bucket
+	}
+	if !IsNil(o.S3Prefix) {
+		toSerialize["s3Prefix"] = o.S3Prefix
+	}
+	if !IsNil(o.S3PathStyle) {
+		toSerialize["s3PathStyle"] = o.S3PathStyle
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -193,6 +526,15 @@ func (o *SandboxVolume) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "volumeId")
 		delete(additionalProperties, "mountPath")
 		delete(additionalProperties, "subpath")
+		delete(additionalProperties, "volumeType")
+		delete(additionalProperties, "organizationId")
+		delete(additionalProperties, "sizeInGb")
+		delete(additionalProperties, "region")
+		delete(additionalProperties, "s3Endpoint")
+		delete(additionalProperties, "s3Region")
+		delete(additionalProperties, "s3Bucket")
+		delete(additionalProperties, "s3Prefix")
+		delete(additionalProperties, "s3PathStyle")
 		o.AdditionalProperties = additionalProperties
 	}
 

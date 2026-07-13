@@ -41,6 +41,43 @@ import { ComputerUse } from './ComputerUse'
 import type { AxiosInstance } from 'axios'
 import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
+import { VolumeType } from '@daytona/api-client'
+import type { VolumeMountTokenDto } from '@daytona/api-client'
+import type { Volume, VolumePullResult, VolumeService } from './Volume'
+
+/**
+ * Builds the shell command that bootstraps the hotmount agent and mounts the volume inside a
+ * Sandbox. It exports the SEAWEED_* environment contract and runs the region's `init.sh`, using
+ * passwordless sudo when not already root (sudo strips env, so the vars are passed via `env`).
+ */
+function buildHotmountMountCommand(mountToken: VolumeMountTokenDto, mountPath: string): string {
+  const envVars: Record<string, string | undefined> = {
+    SEAWEED_TOKEN: mountToken.token,
+    SEAWEED_GATEWAY_GRPC: mountToken.gatewayGrpc,
+    SEAWEED_GATEWAY_HTTP: mountToken.gatewayHttp,
+    SEAWEED_BINARIES_URL: mountToken.binariesUrl,
+    SEAWEED_MOUNT_DIR: mountPath,
+    SEAWEED_VERSION: mountToken.version,
+  }
+  const envAssignments = Object.entries(envVars)
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => `${key}='${value}'`)
+    .join(' ')
+
+  // The bootstrap (and init.sh itself) requires curl. Fail loudly if it is missing or the
+  // download fails, rather than letting a broken `curl … | bash` pipe exit 0 and mount nothing.
+  const inner = [
+    'set -e',
+    'if ! command -v curl >/dev/null 2>&1; then echo "hotmount: curl is required to bootstrap the agent but was not found in the sandbox" >&2; exit 1; fi',
+    'mkdir -p "$SEAWEED_MOUNT_DIR"',
+    'init_script="$(curl -fsSL "$SEAWEED_BINARIES_URL/init.sh")"',
+    'printf %s "$init_script" | bash',
+  ].join('; ')
+
+  return (
+    `if [ "$(id -u)" != 0 ]; then SUDO="sudo -n"; else SUDO=""; fi; ` + `$SUDO env ${envAssignments} bash -c '${inner}'`
+  )
+}
 
 /**
  * Represents a Daytona Sandbox.
@@ -143,6 +180,7 @@ export class Sandbox {
     private readonly clientConfig: Configuration,
     private readonly axiosInstance: AxiosInstance,
     private readonly sandboxApi: SandboxApi,
+    private readonly volumeService?: VolumeService,
   ) {
     this.processSandboxDto(sandboxDto)
 
@@ -213,6 +251,86 @@ export class Sandbox {
   public async getWorkDir(): Promise<string | undefined> {
     const response = await this.infoApi.getWorkDir()
     return response.data.dir
+  }
+
+  /**
+   * Mounts a hotmount Volume into the running Sandbox on the fly.
+   *
+   * Unlike legacy and blockmount volumes (which are attached at Sandbox creation), hotmount
+   * volumes are mounted at runtime: this method requests a short-lived mount token from the API
+   * and bootstraps the hotmount agent inside the Sandbox (downloading and running the region's
+   * `init.sh`), mounting the filesystem at the given path.
+   *
+   * The Sandbox must have `/dev/fuse` available, outbound access to the region gateway (ports
+   * 443 and 18443) and binaries bucket, and passwordless sudo (or run as root).
+   *
+   * @param {Volume} volume - The hotmount Volume to mount. Must be of type `VolumeType.HOTMOUNT`.
+   * @param {string} mountPath - The absolute path inside the Sandbox to mount the Volume at
+   * @returns {Promise<void>}
+   * @throws {DaytonaError} If the Volume is not a hotmount volume, or if mounting fails
+   *
+   * @example
+   * const volume = await daytona.volume.get("shared-fs");
+   * await sandbox.mountVolume(volume, "/mnt/shared");
+   */
+  @WithInstrumentation()
+  public async mountVolume(volume: Volume, mountPath: string): Promise<void> {
+    if (volume.type !== VolumeType.HOTMOUNT) {
+      throw new DaytonaValidationError(
+        `Only hotmount volumes can be mounted on the fly. Volume '${volume.name}' is of type '${volume.type}'.`,
+      )
+    }
+
+    if (!this.volumeService) {
+      throw new DaytonaError('Volume service is not available for this Sandbox instance.')
+    }
+
+    const mountToken = await this.volumeService.getMountToken(volume)
+
+    const command = buildHotmountMountCommand(mountToken, mountPath)
+    const response = await this.process.executeCommand(command)
+    if (response.exitCode !== 0) {
+      throw new DaytonaError(`Failed to mount hotmount volume '${volume.name}': ${response.result}`)
+    }
+  }
+
+  /**
+   * Pulls the latest state of the Sandbox's blockmount Volumes into the running Sandbox.
+   *
+   * Blockmount volumes reconcile in the background: each sandbox writes to a private scratch
+   * that is committed to the shared store periodically, but other sandboxes' commits only
+   * appear locally on re-materialize. This method makes them appear immediately, without
+   * stopping the Sandbox: it commits this Sandbox's local changes (so they participate in the
+   * merge), then applies the volume's latest merged state in place. Files modified locally
+   * after another sandbox's change keep the local version (last-change-wins by mtime).
+   *
+   * @param {Volume} [volume] - The blockmount Volume to pull. Omit to pull every blockmount
+   * Volume attached to the Sandbox.
+   * @returns {Promise<VolumePullResult[]>} Per-volume pull results
+   * @throws {DaytonaError} If the Sandbox has no matching mounted blockmount Volume
+   *
+   * @example
+   * // sandbox B picks up what sandbox A committed, while both keep running
+   * const results = await sandbox.pullVolumes();
+   * console.log(results); // [{ volumeId, upToDate, filesWritten, deleted, ... }]
+   */
+  @WithInstrumentation()
+  public async pullVolumes(volume?: Volume): Promise<VolumePullResult[]> {
+    if (volume && volume.type !== VolumeType.BLOCKMOUNT) {
+      throw new DaytonaValidationError(
+        `Only blockmount volumes can be pulled. Volume '${volume.name}' is of type '${volume.type}'.`,
+      )
+    }
+    // Raw toolbox call (the daemon's generated client has no pull op — the runner intercepts
+    // this path), so replicate what the generated clients do: resolve against this sandbox's
+    // clientConfig.basePath (the shared axios instance's default baseURL is mutated by every
+    // Sandbox construction and may point at another sandbox) and inject the auth headers.
+    const response = await this.axiosInstance.post(
+      `${this.clientConfig.basePath}/volumes/pull`,
+      volume ? { volumeId: volume.id } : {},
+      { headers: this.clientConfig.baseOptions?.headers },
+    )
+    return response.data.results ?? []
   }
 
   /**

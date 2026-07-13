@@ -21,6 +21,16 @@ func RenderInfo(volume *apiclient.VolumeDto, forceUnstyled bool) {
 	output += "\n"
 	output += getInfoLine(nameLabel, volume.Name) + "\n"
 	output += getInfoLine("ID", volume.Id) + "\n"
+	output += getInfoLine("Type", string(volume.Type)) + "\n"
+	if volume.SizeInGb.IsSet() && volume.SizeInGb.Get() != nil {
+		output += getInfoLine("Size", fmt.Sprintf("%g GB", *volume.SizeInGb.Get())) + "\n"
+	}
+	if volume.Region.IsSet() && volume.Region.Get() != nil {
+		output += getInfoLine("Region", *volume.Region.Get()) + "\n"
+	}
+	if volume.Shared.IsSet() && volume.Shared.Get() != nil {
+		output += getInfoLine("Shared", fmt.Sprintf("%t", *volume.Shared.Get())) + "\n"
+	}
 	output += getInfoLine("State", getStateLabel(volume.State)) + "\n"
 
 	output += getInfoLine("Created", util.GetTimeSinceLabelFromString(volume.CreatedAt)) + "\n"

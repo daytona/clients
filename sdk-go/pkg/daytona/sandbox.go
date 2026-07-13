@@ -4,8 +4,13 @@
 package daytona
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -453,6 +458,152 @@ func (s *Sandbox) GetWorkingDir(ctx context.Context) (string, error) {
 
 		return resp.GetDir(), nil
 	})
+}
+
+// MountVolume mounts a hotmount volume into the running sandbox on the fly.
+//
+// Unlike legacy and blockmount volumes (which are attached at sandbox creation), hotmount
+// volumes are mounted at runtime: this method requests a short-lived mount token from the API
+// and bootstraps the hotmount agent inside the sandbox (downloading and running the region's
+// init.sh), mounting the filesystem at the given path.
+//
+// The sandbox must have /dev/fuse available, outbound access to the region gateway and binaries
+// bucket, and passwordless sudo (or run as root).
+//
+// Parameters:
+//   - volume: The hotmount volume to mount. Must be of type [types.VolumeTypeHotmount].
+//   - mountPath: The absolute path inside the sandbox to mount the volume at.
+//
+// Returns an error if the volume is not a hotmount volume or if mounting fails.
+func (s *Sandbox) MountVolume(ctx context.Context, volume *types.Volume, mountPath string) error {
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "MountVolume", func(ctx context.Context) error {
+		if volume.Type != types.VolumeTypeHotmount {
+			return errors.NewDaytonaError(fmt.Sprintf("only hotmount volumes can be mounted on the fly; volume %q is of type %q", volume.Name, volume.Type), 0, nil)
+		}
+
+		mountToken, err := s.client.Volume.GetMountToken(ctx, volume)
+		if err != nil {
+			return err
+		}
+
+		command := buildHotmountMountCommand(mountToken, mountPath)
+		resp, err := s.Process.ExecuteCommand(ctx, command)
+		if err != nil {
+			return err
+		}
+		if resp.ExitCode != 0 {
+			return errors.NewDaytonaError(fmt.Sprintf("failed to mount hotmount volume %q: %s", volume.Name, resp.Result), 0, nil)
+		}
+
+		return nil
+	})
+}
+
+// PullVolumes pulls the latest state of the sandbox's blockmount volumes into the running
+// sandbox.
+//
+// Blockmount volumes reconcile in the background: each sandbox writes to a private scratch
+// that is committed to the shared store periodically, but other sandboxes' commits only
+// appear locally on re-materialize. This method makes them appear immediately, without
+// stopping the sandbox: it commits this sandbox's local changes (so they participate in the
+// merge), then applies the volume's latest merged state in place. Files modified locally
+// after another sandbox's change keep the local version (last-change-wins by mtime).
+//
+// Parameters:
+//   - volume: The blockmount volume to pull. Pass nil to pull every blockmount volume
+//     attached to the sandbox.
+//
+// Returns per-volume pull results.
+func (s *Sandbox) PullVolumes(ctx context.Context, volume *types.Volume) ([]types.VolumePullResult, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "PullVolumes", func(ctx context.Context) ([]types.VolumePullResult, error) {
+		if volume != nil && volume.Type != types.VolumeTypeBlockmount {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("only blockmount volumes can be pulled; volume %q is of type %q", volume.Name, volume.Type), 0, nil)
+		}
+
+		payload := map[string]string{}
+		if volume != nil {
+			payload["volumeId"] = volume.ID
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to serialize pull request: %s", err), 0, nil)
+		}
+
+		cfg := s.ToolboxClient.GetConfig()
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(cfg.Servers[0].URL, "/")+"/volumes/pull", bytes.NewReader(body))
+		if err != nil {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to build pull request: %s", err), 0, nil)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		for k, v := range cfg.DefaultHeader {
+			req.Header.Set(k, v)
+		}
+
+		httpClient := cfg.HTTPClient
+		if httpClient == nil {
+			httpClient = http.DefaultClient
+		}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to pull volumes: %s", err), 0, nil)
+		}
+		defer resp.Body.Close()
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to read pull response: %s", err), 0, nil)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to pull volumes: %s", strings.TrimSpace(string(respBody))), resp.StatusCode, nil)
+		}
+
+		var parsed struct {
+			Results []types.VolumePullResult `json:"results"`
+		}
+		if err := json.Unmarshal(respBody, &parsed); err != nil {
+			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to parse pull response: %s", err), 0, nil)
+		}
+		return parsed.Results, nil
+	})
+}
+
+// buildHotmountMountCommand builds the shell command that bootstraps the hotmount agent and
+// mounts the volume inside a sandbox. It exports the SEAWEED_* environment contract and runs the
+// region's init.sh, using passwordless sudo when not already root (sudo strips env, so the vars
+// are passed via env).
+func buildHotmountMountCommand(mountToken *types.VolumeMountToken, mountPath string) string {
+	envVars := [][2]string{
+		{"SEAWEED_TOKEN", mountToken.Token},
+		{"SEAWEED_GATEWAY_GRPC", mountToken.GatewayGrpc},
+		{"SEAWEED_GATEWAY_HTTP", mountToken.GatewayHTTP},
+		{"SEAWEED_BINARIES_URL", mountToken.BinariesURL},
+		{"SEAWEED_MOUNT_DIR", mountPath},
+		{"SEAWEED_VERSION", mountToken.Version},
+	}
+	assignments := make([]string, 0, len(envVars))
+	for _, kv := range envVars {
+		if kv[1] == "" {
+			continue
+		}
+		assignments = append(assignments, fmt.Sprintf("%s='%s'", kv[0], kv[1]))
+	}
+
+	// The bootstrap (and init.sh itself) requires curl. Fail loudly if it is missing or the
+	// download fails, rather than letting a broken `curl ... | bash` pipe exit 0 and mount nothing.
+	inner := strings.Join([]string{
+		"set -e",
+		`if ! command -v curl >/dev/null 2>&1; then echo "hotmount: curl is required to bootstrap the agent but was not found in the sandbox" >&2; exit 1; fi`,
+		`mkdir -p "$SEAWEED_MOUNT_DIR"`,
+		`init_script="$(curl -fsSL "$SEAWEED_BINARIES_URL/init.sh")"`,
+		`printf %s "$init_script" | bash`,
+	}, "; ")
+
+	return fmt.Sprintf(
+		`if [ "$(id -u)" != 0 ]; then SUDO="sudo -n"; else SUDO=""; fi; `+
+			`$SUDO env %s bash -c '%s'`,
+		strings.Join(assignments, " "),
+		inner,
+	)
 }
 
 // CreateLspServer creates a Language Server Protocol (LSP) server scoped to a

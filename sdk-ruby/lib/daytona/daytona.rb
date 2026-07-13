@@ -322,7 +322,8 @@ module Daytona
         sandbox_dto:,
         config:,
         sandbox_api:,
-        otel_state: @otel_state
+        otel_state: @otel_state,
+        volume_service: @volume
       )
     end
 

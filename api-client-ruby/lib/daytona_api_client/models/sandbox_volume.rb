@@ -24,12 +24,70 @@ module DaytonaApiClient
     # Optional subpath within the volume to mount. When specified, only this S3 prefix will be accessible. When omitted, the entire volume is mounted.
     attr_accessor :subpath
 
+    # The type of the volume. Resolved from the referenced volume on sandbox create; the runner uses it to choose how to mount the volume. Absent values are treated as legacy.
+    attr_accessor :volume_type
+
+    # The organization that owns the volume. Forwarded to the runner to isolate the S3 prefix. Set only for blockmount volumes.
+    attr_accessor :organization_id
+
+    # The logical size of the volume in gigabytes, used by the runner as the per-sandbox scratch quota. Set only for blockmount volumes.
+    attr_accessor :size_in_gb
+
+    # The region the blockmount volume's data lives in. Forwarded to the runner so it can fetch the region's store credentials over its authenticated channel. Set only for blockmount volumes.
+    attr_accessor :region
+
+    # The S3 endpoint of the CAS store the blockmount volume's data lives in, resolved from the volume's region. Forwarded to the runner so cross-region attaches reach the right bucket. Omitted when the volume's region has no store configured (runner falls back to its env store). Credentials are never sent here — the runner fetches them by region. Set only for blockmount volumes.
+    attr_accessor :s3_endpoint
+
+    # The S3 region of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+    attr_accessor :s3_region
+
+    # The S3 bucket of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+    attr_accessor :s3_bucket
+
+    # The S3 key prefix of the CAS store the blockmount volume's data lives in. Set only for blockmount volumes.
+    attr_accessor :s3_prefix
+
+    # Whether the CAS store uses path-style S3 addressing. Set only for blockmount volumes.
+    attr_accessor :s3_path_style
+
+    class EnumAttributeValidator
+      attr_reader :datatype
+      attr_reader :allowable_values
+
+      def initialize(datatype, allowable_values)
+        @allowable_values = allowable_values.map do |value|
+          case datatype.to_s
+          when /Integer/i
+            value.to_i
+          when /Float/i
+            value.to_f
+          else
+            value
+          end
+        end
+      end
+
+      def valid?(value)
+        !value || allowable_values.include?(value)
+      end
+    end
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'volume_id' => :'volumeId',
         :'mount_path' => :'mountPath',
-        :'subpath' => :'subpath'
+        :'subpath' => :'subpath',
+        :'volume_type' => :'volumeType',
+        :'organization_id' => :'organizationId',
+        :'size_in_gb' => :'sizeInGb',
+        :'region' => :'region',
+        :'s3_endpoint' => :'s3Endpoint',
+        :'s3_region' => :'s3Region',
+        :'s3_bucket' => :'s3Bucket',
+        :'s3_prefix' => :'s3Prefix',
+        :'s3_path_style' => :'s3PathStyle'
       }
     end
 
@@ -48,7 +106,16 @@ module DaytonaApiClient
       {
         :'volume_id' => :'String',
         :'mount_path' => :'String',
-        :'subpath' => :'String'
+        :'subpath' => :'String',
+        :'volume_type' => :'VolumeType',
+        :'organization_id' => :'String',
+        :'size_in_gb' => :'Float',
+        :'region' => :'String',
+        :'s3_endpoint' => :'String',
+        :'s3_region' => :'String',
+        :'s3_bucket' => :'String',
+        :'s3_prefix' => :'String',
+        :'s3_path_style' => :'Boolean'
       }
     end
 
@@ -88,6 +155,42 @@ module DaytonaApiClient
 
       if attributes.key?(:'subpath')
         self.subpath = attributes[:'subpath']
+      end
+
+      if attributes.key?(:'volume_type')
+        self.volume_type = attributes[:'volume_type']
+      end
+
+      if attributes.key?(:'organization_id')
+        self.organization_id = attributes[:'organization_id']
+      end
+
+      if attributes.key?(:'size_in_gb')
+        self.size_in_gb = attributes[:'size_in_gb']
+      end
+
+      if attributes.key?(:'region')
+        self.region = attributes[:'region']
+      end
+
+      if attributes.key?(:'s3_endpoint')
+        self.s3_endpoint = attributes[:'s3_endpoint']
+      end
+
+      if attributes.key?(:'s3_region')
+        self.s3_region = attributes[:'s3_region']
+      end
+
+      if attributes.key?(:'s3_bucket')
+        self.s3_bucket = attributes[:'s3_bucket']
+      end
+
+      if attributes.key?(:'s3_prefix')
+        self.s3_prefix = attributes[:'s3_prefix']
+      end
+
+      if attributes.key?(:'s3_path_style')
+        self.s3_path_style = attributes[:'s3_path_style']
       end
     end
 
@@ -143,7 +246,16 @@ module DaytonaApiClient
       self.class == o.class &&
           volume_id == o.volume_id &&
           mount_path == o.mount_path &&
-          subpath == o.subpath
+          subpath == o.subpath &&
+          volume_type == o.volume_type &&
+          organization_id == o.organization_id &&
+          size_in_gb == o.size_in_gb &&
+          region == o.region &&
+          s3_endpoint == o.s3_endpoint &&
+          s3_region == o.s3_region &&
+          s3_bucket == o.s3_bucket &&
+          s3_prefix == o.s3_prefix &&
+          s3_path_style == o.s3_path_style
     end
 
     # @see the `==` method
@@ -155,7 +267,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [volume_id, mount_path, subpath].hash
+      [volume_id, mount_path, subpath, volume_type, organization_id, size_in_gb, region, s3_endpoint, s3_region, s3_bucket, s3_prefix, s3_path_style].hash
     end
 
     # Builds the object from hash

@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.api_key_response import ApiKeyResponse
     from daytona_api_client_async.models.audit_log import AuditLog
     from daytona_api_client_async.models.available_sandbox_class import AvailableSandboxClass
+    from daytona_api_client_async.models.blockmount_conflict import BlockmountConflict
     from daytona_api_client_async.models.build_info import BuildInfo
     from daytona_api_client_async.models.command import Command
     from daytona_api_client_async.models.completion_context import CompletionContext
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
     from daytona_api_client_async.models.create_user import CreateUser
     from daytona_api_client_async.models.create_volume import CreateVolume
+    from daytona_api_client_async.models.create_volume_mount_token import CreateVolumeMountToken
     from daytona_api_client_async.models.date_filter import DateFilter
     from daytona_api_client_async.models.daytona_configuration import DaytonaConfiguration
     from daytona_api_client_async.models.display_info_response import DisplayInfoResponse
@@ -82,6 +84,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.health_controller_check200_response import HealthControllerCheck200Response
     from daytona_api_client_async.models.health_controller_check200_response_info_value import HealthControllerCheck200ResponseInfoValue
     from daytona_api_client_async.models.health_controller_check503_response import HealthControllerCheck503Response
+    from daytona_api_client_async.models.hotmount_region import HotmountRegion
     from daytona_api_client_async.models.int_filter import IntFilter
     from daytona_api_client_async.models.job import Job
     from daytona_api_client_async.models.job_status import JobStatus
@@ -210,7 +213,9 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.user_home_dir_response import UserHomeDirResponse
     from daytona_api_client_async.models.user_public_key import UserPublicKey
     from daytona_api_client_async.models.volume_dto import VolumeDto
+    from daytona_api_client_async.models.volume_mount_token_dto import VolumeMountTokenDto
     from daytona_api_client_async.models.volume_state import VolumeState
+    from daytona_api_client_async.models.volume_type import VolumeType
     from daytona_api_client_async.models.webhook_app_portal_access import WebhookAppPortalAccess
     from daytona_api_client_async.models.webhook_event import WebhookEvent
     from daytona_api_client_async.models.webhook_initialization_status import WebhookInitializationStatus
@@ -227,6 +232,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "ApiKeyResponse": "daytona_api_client_async.models.api_key_response",
     "AuditLog": "daytona_api_client_async.models.audit_log",
     "AvailableSandboxClass": "daytona_api_client_async.models.available_sandbox_class",
+    "BlockmountConflict": "daytona_api_client_async.models.blockmount_conflict",
     "BuildInfo": "daytona_api_client_async.models.build_info",
     "Command": "daytona_api_client_async.models.command",
     "CompletionContext": "daytona_api_client_async.models.completion_context",
@@ -256,6 +262,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
     "CreateUser": "daytona_api_client_async.models.create_user",
     "CreateVolume": "daytona_api_client_async.models.create_volume",
+    "CreateVolumeMountToken": "daytona_api_client_async.models.create_volume_mount_token",
     "DateFilter": "daytona_api_client_async.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client_async.models.daytona_configuration",
     "DisplayInfoResponse": "daytona_api_client_async.models.display_info_response",
@@ -280,6 +287,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "HealthControllerCheck200Response": "daytona_api_client_async.models.health_controller_check200_response",
     "HealthControllerCheck200ResponseInfoValue": "daytona_api_client_async.models.health_controller_check200_response_info_value",
     "HealthControllerCheck503Response": "daytona_api_client_async.models.health_controller_check503_response",
+    "HotmountRegion": "daytona_api_client_async.models.hotmount_region",
     "IntFilter": "daytona_api_client_async.models.int_filter",
     "Job": "daytona_api_client_async.models.job",
     "JobStatus": "daytona_api_client_async.models.job_status",
@@ -408,7 +416,9 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UserHomeDirResponse": "daytona_api_client_async.models.user_home_dir_response",
     "UserPublicKey": "daytona_api_client_async.models.user_public_key",
     "VolumeDto": "daytona_api_client_async.models.volume_dto",
+    "VolumeMountTokenDto": "daytona_api_client_async.models.volume_mount_token_dto",
     "VolumeState": "daytona_api_client_async.models.volume_state",
+    "VolumeType": "daytona_api_client_async.models.volume_type",
     "WebhookAppPortalAccess": "daytona_api_client_async.models.webhook_app_portal_access",
     "WebhookEvent": "daytona_api_client_async.models.webhook_event",
     "WebhookInitializationStatus": "daytona_api_client_async.models.webhook_initialization_status",

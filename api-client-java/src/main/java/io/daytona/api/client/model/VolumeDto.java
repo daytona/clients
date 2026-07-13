@@ -19,9 +19,14 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.BlockmountConflict;
 import io.daytona.api.client.model.VolumeState;
+import io.daytona.api.client.model.VolumeType;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
@@ -66,6 +71,36 @@ public class VolumeDto {
   @SerializedName(SERIALIZED_NAME_ORGANIZATION_ID)
   @javax.annotation.Nonnull
   private String organizationId;
+
+  public static final String SERIALIZED_NAME_TYPE = "type";
+  @SerializedName(SERIALIZED_NAME_TYPE)
+  @javax.annotation.Nonnull
+  private VolumeType type;
+
+  public static final String SERIALIZED_NAME_SIZE_IN_GB = "sizeInGb";
+  @SerializedName(SERIALIZED_NAME_SIZE_IN_GB)
+  @javax.annotation.Nullable
+  private BigDecimal sizeInGb;
+
+  public static final String SERIALIZED_NAME_REGION = "region";
+  @SerializedName(SERIALIZED_NAME_REGION)
+  @javax.annotation.Nullable
+  private String region;
+
+  public static final String SERIALIZED_NAME_SHARED = "shared";
+  @SerializedName(SERIALIZED_NAME_SHARED)
+  @javax.annotation.Nullable
+  private Boolean shared;
+
+  public static final String SERIALIZED_NAME_LAST_MANIFEST_ID = "lastManifestId";
+  @SerializedName(SERIALIZED_NAME_LAST_MANIFEST_ID)
+  @javax.annotation.Nullable
+  private String lastManifestId;
+
+  public static final String SERIALIZED_NAME_CONFLICTS = "conflicts";
+  @SerializedName(SERIALIZED_NAME_CONFLICTS)
+  @javax.annotation.Nullable
+  private List<BlockmountConflict> conflicts;
 
   public static final String SERIALIZED_NAME_STATE = "state";
   @SerializedName(SERIALIZED_NAME_STATE)
@@ -149,6 +184,128 @@ public class VolumeDto {
 
   public void setOrganizationId(@javax.annotation.Nonnull String organizationId) {
     this.organizationId = organizationId;
+  }
+
+
+  public VolumeDto type(@javax.annotation.Nonnull VolumeType type) {
+    this.type = type;
+    return this;
+  }
+
+  /**
+   * Volume type
+   * @return type
+   */
+  @javax.annotation.Nonnull
+  public VolumeType getType() {
+    return type;
+  }
+
+  public void setType(@javax.annotation.Nonnull VolumeType type) {
+    this.type = type;
+  }
+
+
+  public VolumeDto sizeInGb(@javax.annotation.Nullable BigDecimal sizeInGb) {
+    this.sizeInGb = sizeInGb;
+    return this;
+  }
+
+  /**
+   * The per-sandbox scratch quota in GB. Set only for blockmount volumes.
+   * @return sizeInGb
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getSizeInGb() {
+    return sizeInGb;
+  }
+
+  public void setSizeInGb(@javax.annotation.Nullable BigDecimal sizeInGb) {
+    this.sizeInGb = sizeInGb;
+  }
+
+
+  public VolumeDto region(@javax.annotation.Nullable String region) {
+    this.region = region;
+    return this;
+  }
+
+  /**
+   * The region the volume&#39;s data lives in. For blockmount volumes this selects the region-local CAS store (a performance/placement knob — sandboxes in any region can attach it, colocation is just faster). For hotmount volumes this is the hotmount deployment region. Set for blockmount and hotmount volumes.
+   * @return region
+   */
+  @javax.annotation.Nullable
+  public String getRegion() {
+    return region;
+  }
+
+  public void setRegion(@javax.annotation.Nullable String region) {
+    this.region = region;
+  }
+
+
+  public VolumeDto shared(@javax.annotation.Nullable Boolean shared) {
+    this.shared = shared;
+    return this;
+  }
+
+  /**
+   * The hotmount sharing mode (false &#x3D; single-writer write-back, true &#x3D; multi-writer synchronous). Set only for hotmount volumes.
+   * @return shared
+   */
+  @javax.annotation.Nullable
+  public Boolean getShared() {
+    return shared;
+  }
+
+  public void setShared(@javax.annotation.Nullable Boolean shared) {
+    this.shared = shared;
+  }
+
+
+  public VolumeDto lastManifestId(@javax.annotation.Nullable String lastManifestId) {
+    this.lastManifestId = lastManifestId;
+    return this;
+  }
+
+  /**
+   * The id of the most recent committed manifest, read-through from the reconciliation store. Set only for blockmount volumes that have been committed at least once.
+   * @return lastManifestId
+   */
+  @javax.annotation.Nullable
+  public String getLastManifestId() {
+    return lastManifestId;
+  }
+
+  public void setLastManifestId(@javax.annotation.Nullable String lastManifestId) {
+    this.lastManifestId = lastManifestId;
+  }
+
+
+  public VolumeDto conflicts(@javax.annotation.Nullable List<BlockmountConflict> conflicts) {
+    this.conflicts = conflicts;
+    return this;
+  }
+
+  public VolumeDto addConflictsItem(BlockmountConflict conflictsItem) {
+    if (this.conflicts == null) {
+      this.conflicts = new ArrayList<>();
+    }
+    this.conflicts.add(conflictsItem);
+    return this;
+  }
+
+  /**
+   * Conflicts recorded on the latest manifest — concurrent same-path modifications the store resolved (last-change-wins). Read-through from the store. Set only for blockmount volumes.
+   * @return conflicts
+   */
+  @javax.annotation.Nullable
+  public List<BlockmountConflict> getConflicts() {
+    return conflicts;
+  }
+
+  public void setConflicts(@javax.annotation.Nullable List<BlockmountConflict> conflicts) {
+    this.conflicts = conflicts;
   }
 
 
@@ -304,6 +461,12 @@ public class VolumeDto {
     return Objects.equals(this.id, volumeDto.id) &&
         Objects.equals(this.name, volumeDto.name) &&
         Objects.equals(this.organizationId, volumeDto.organizationId) &&
+        Objects.equals(this.type, volumeDto.type) &&
+        Objects.equals(this.sizeInGb, volumeDto.sizeInGb) &&
+        Objects.equals(this.region, volumeDto.region) &&
+        Objects.equals(this.shared, volumeDto.shared) &&
+        Objects.equals(this.lastManifestId, volumeDto.lastManifestId) &&
+        Objects.equals(this.conflicts, volumeDto.conflicts) &&
         Objects.equals(this.state, volumeDto.state) &&
         Objects.equals(this.createdAt, volumeDto.createdAt) &&
         Objects.equals(this.updatedAt, volumeDto.updatedAt) &&
@@ -318,7 +481,7 @@ public class VolumeDto {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, organizationId, state, createdAt, updatedAt, lastUsedAt, errorReason, additionalProperties);
+    return Objects.hash(id, name, organizationId, type, sizeInGb, region, shared, lastManifestId, conflicts, state, createdAt, updatedAt, lastUsedAt, errorReason, additionalProperties);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -335,6 +498,12 @@ public class VolumeDto {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
+    sb.append("    type: ").append(toIndentedString(type)).append("\n");
+    sb.append("    sizeInGb: ").append(toIndentedString(sizeInGb)).append("\n");
+    sb.append("    region: ").append(toIndentedString(region)).append("\n");
+    sb.append("    shared: ").append(toIndentedString(shared)).append("\n");
+    sb.append("    lastManifestId: ").append(toIndentedString(lastManifestId)).append("\n");
+    sb.append("    conflicts: ").append(toIndentedString(conflicts)).append("\n");
     sb.append("    state: ").append(toIndentedString(state)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
@@ -359,10 +528,10 @@ public class VolumeDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "state", "createdAt", "updatedAt", "lastUsedAt", "errorReason"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "type", "sizeInGb", "region", "shared", "lastManifestId", "conflicts", "state", "createdAt", "updatedAt", "lastUsedAt", "errorReason"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "state", "createdAt", "updatedAt", "errorReason"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "organizationId", "type", "state", "createdAt", "updatedAt", "errorReason"));
   }
 
   /**
@@ -393,6 +562,28 @@ public class VolumeDto {
       }
       if (!jsonObj.get("organizationId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `organizationId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("organizationId").toString()));
+      }
+      // validate the required field `type`
+      VolumeType.validateJsonElement(jsonObj.get("type"));
+      if ((jsonObj.get("region") != null && !jsonObj.get("region").isJsonNull()) && !jsonObj.get("region").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `region` to be a primitive type in the JSON string but got `%s`", jsonObj.get("region").toString()));
+      }
+      if ((jsonObj.get("lastManifestId") != null && !jsonObj.get("lastManifestId").isJsonNull()) && !jsonObj.get("lastManifestId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `lastManifestId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("lastManifestId").toString()));
+      }
+      if (jsonObj.get("conflicts") != null && !jsonObj.get("conflicts").isJsonNull()) {
+        JsonArray jsonArrayconflicts = jsonObj.getAsJsonArray("conflicts");
+        if (jsonArrayconflicts != null) {
+          // ensure the json data is an array
+          if (!jsonObj.get("conflicts").isJsonArray()) {
+            throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `conflicts` to be an array in the JSON string but got `%s`", jsonObj.get("conflicts").toString()));
+          }
+
+          // validate the optional field `conflicts` (array)
+          for (int i = 0; i < jsonArrayconflicts.size(); i++) {
+            BlockmountConflict.validateJsonElement(jsonArrayconflicts.get(i));
+          };
+        }
       }
       // validate the required field `state`
       VolumeState.validateJsonElement(jsonObj.get("state"));

@@ -34,6 +34,7 @@ daytona_api_client/models/api_key_list.py
 daytona_api_client/models/api_key_response.py
 daytona_api_client/models/audit_log.py
 daytona_api_client/models/available_sandbox_class.py
+daytona_api_client/models/blockmount_conflict.py
 daytona_api_client/models/build_info.py
 daytona_api_client/models/command.py
 daytona_api_client/models/completion_context.py
@@ -63,6 +64,7 @@ daytona_api_client/models/create_session_request.py
 daytona_api_client/models/create_snapshot.py
 daytona_api_client/models/create_user.py
 daytona_api_client/models/create_volume.py
+daytona_api_client/models/create_volume_mount_token.py
 daytona_api_client/models/date_filter.py
 daytona_api_client/models/daytona_configuration.py
 daytona_api_client/models/display_info_response.py
@@ -87,6 +89,7 @@ daytona_api_client/models/gpu_type.py
 daytona_api_client/models/health_controller_check200_response.py
 daytona_api_client/models/health_controller_check200_response_info_value.py
 daytona_api_client/models/health_controller_check503_response.py
+daytona_api_client/models/hotmount_region.py
 daytona_api_client/models/int_filter.py
 daytona_api_client/models/job.py
 daytona_api_client/models/job_status.py
@@ -215,7 +218,9 @@ daytona_api_client/models/user.py
 daytona_api_client/models/user_home_dir_response.py
 daytona_api_client/models/user_public_key.py
 daytona_api_client/models/volume_dto.py
+daytona_api_client/models/volume_mount_token_dto.py
 daytona_api_client/models/volume_state.py
+daytona_api_client/models/volume_type.py
 daytona_api_client/models/webhook_app_portal_access.py
 daytona_api_client/models/webhook_event.py
 daytona_api_client/models/webhook_initialization_status.py

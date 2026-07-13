@@ -24,7 +24,15 @@ import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError
 // @ts-ignore
 import type { CreateVolume } from '../models';
 // @ts-ignore
+import type { CreateVolumeMountToken } from '../models';
+// @ts-ignore
+import type { HotmountRegion } from '../models';
+// @ts-ignore
+import type { Region } from '../models';
+// @ts-ignore
 import type { VolumeDto } from '../models';
+// @ts-ignore
+import type { VolumeMountTokenDto } from '../models';
 /**
  * VolumesApi - axios parameter creator
  */
@@ -69,6 +77,53 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(createVolume, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Create a mount token for a hotmount volume
+         * @param {string} volumeId ID of the volume
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {CreateVolumeMountToken} [createVolumeMountToken] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createVolumeMountToken: async (volumeId: string, xDaytonaOrganizationID?: string, createVolumeMountToken?: CreateVolumeMountToken, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'volumeId' is not null or undefined
+            assertParamExists('createVolumeMountToken', 'volumeId', volumeId)
+            const localVarPath = `/volumes/{volumeId}/mount-token`
+                .replace(`{${"volumeId"}}`, encodeURIComponent(String(volumeId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(createVolumeMountToken, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -208,6 +263,86 @@ export const VolumesApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary List regions where blockmount volumes can be created
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listBlockmountRegions: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/volumes/blockmount-regions`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List available hotmount regions
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listHotmountRegions: async (xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/volumes/hotmount-regions`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary List all volumes
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {boolean} [includeDeleted] Include deleted volumes in the response
@@ -276,6 +411,21 @@ export const VolumesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Create a mount token for a hotmount volume
+         * @param {string} volumeId ID of the volume
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {CreateVolumeMountToken} [createVolumeMountToken] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createVolumeMountToken(volumeId: string, xDaytonaOrganizationID?: string, createVolumeMountToken?: CreateVolumeMountToken, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<VolumeMountTokenDto>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createVolumeMountToken(volumeId, xDaytonaOrganizationID, createVolumeMountToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['VolumesApi.createVolumeMountToken']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Delete volume
          * @param {string} volumeId ID of the volume
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -318,6 +468,32 @@ export const VolumesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary List regions where blockmount volumes can be created
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listBlockmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Region>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listBlockmountRegions(xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['VolumesApi.listBlockmountRegions']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List available hotmount regions
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listHotmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<HotmountRegion>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listHotmountRegions(xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['VolumesApi.listHotmountRegions']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary List all volumes
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {boolean} [includeDeleted] Include deleted volumes in the response
@@ -349,6 +525,18 @@ export const VolumesApiFactory = function (configuration?: Configuration, basePa
          */
         createVolume(createVolume: CreateVolume, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<VolumeDto> {
             return localVarFp.createVolume(createVolume, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Create a mount token for a hotmount volume
+         * @param {string} volumeId ID of the volume
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {CreateVolumeMountToken} [createVolumeMountToken] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createVolumeMountToken(volumeId: string, xDaytonaOrganizationID?: string, createVolumeMountToken?: CreateVolumeMountToken, options?: RawAxiosRequestConfig): AxiosPromise<VolumeMountTokenDto> {
+            return localVarFp.createVolumeMountToken(volumeId, xDaytonaOrganizationID, createVolumeMountToken, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -385,6 +573,26 @@ export const VolumesApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary List regions where blockmount volumes can be created
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listBlockmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Region>> {
+            return localVarFp.listBlockmountRegions(xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List available hotmount regions
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listHotmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<HotmountRegion>> {
+            return localVarFp.listHotmountRegions(xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary List all volumes
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {boolean} [includeDeleted] Include deleted volumes in the response
@@ -411,6 +619,19 @@ export class VolumesApi extends BaseAPI {
      */
     public createVolume(createVolume: CreateVolume, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return VolumesApiFp(this.configuration).createVolume(createVolume, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Create a mount token for a hotmount volume
+     * @param {string} volumeId ID of the volume
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {CreateVolumeMountToken} [createVolumeMountToken] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createVolumeMountToken(volumeId: string, xDaytonaOrganizationID?: string, createVolumeMountToken?: CreateVolumeMountToken, options?: RawAxiosRequestConfig) {
+        return VolumesApiFp(this.configuration).createVolumeMountToken(volumeId, xDaytonaOrganizationID, createVolumeMountToken, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -447,6 +668,28 @@ export class VolumesApi extends BaseAPI {
      */
     public getVolumeByName(name: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return VolumesApiFp(this.configuration).getVolumeByName(name, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List regions where blockmount volumes can be created
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listBlockmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return VolumesApiFp(this.configuration).listBlockmountRegions(xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List available hotmount regions
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listHotmountRegions(xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return VolumesApiFp(this.configuration).listHotmountRegions(xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
