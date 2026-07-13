@@ -29,8 +29,8 @@ from .._utils.timeout import http_timeout
 from ..common.errors import DaytonaError
 from ..common.file_transfer import (
     create_multipart_parser,
-    parse_content_type_boundary,
     parse_content_disposition,
+    parse_content_type_boundary,
     raise_if_multipart_truncated,
     serialize_download_request,
 )
