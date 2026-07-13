@@ -67,8 +67,12 @@
 
         # Ruby — sdk-ruby, api-client-ruby, toolbox-api-client-ruby (root Gemfile path gems).
         rubyPkgs = with pkgs; [ ruby_3_4 ] ++ darwinDeps;
+        # Headers/libs for compiling native gem extensions during `bundle install`
+        # (e.g. psych→libyaml, openssl, zlib, ffi→libffi). Placed in buildInputs so
+        # their include/lib dirs land on the compiler/linker search path out of the box.
+        rubyBuildInputs = with pkgs; [ libyaml openssl zlib libffi ];
         rubyShellHook = ''
-          export RUBYLIB="$PWD/sdk-ruby/lib:$PWD/api-client-ruby/lib:$PWD/toolbox-api-client-ruby/lib"
+          export RUBYLIB="$PWD/sdk-ruby/lib:$PWD/api-client-ruby/lib:$PWD/toolbox-api-client-ruby/lib:$PWD/analytics-api-client-ruby/lib"
           export BUNDLE_GEMFILE="$PWD/Gemfile"
           export BUNDLE_PATH="$PWD/.bundle"
           # Never skip the development group: rubocop (used by the lint-staged
@@ -108,6 +112,7 @@
           default = pkgs.mkShell {
             name = "daytona-clients";
             packages = commonPkgs ++ goPkgs ++ nodePkgs ++ pythonPkgs ++ rubyPkgs ++ javaPkgs;
+            buildInputs = rubyBuildInputs;
             shellHook = ''
               ${goShellHook}
               ${nodeShellHook}
@@ -139,6 +144,7 @@
           ruby = pkgs.mkShell {
             name = "daytona-clients-ruby";
             packages = commonPkgs ++ rubyPkgs;
+            buildInputs = rubyBuildInputs;
             shellHook = rubyShellHook;
           };
 

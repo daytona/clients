@@ -30,6 +30,7 @@ import io.daytona.toolbox.client.model.LspSymbol;
 import io.daytona.toolbox.client.model.PtySessionInfo;
 import io.daytona.toolbox.client.model.ReplaceRequest;
 import io.daytona.toolbox.client.model.ReplaceResult;
+import io.daytona.sdk.model.SandboxMetrics;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -535,6 +536,22 @@ class E2ETest {
         assertThat(preview.getToken()).isNotBlank();
         assertThat(signed.getUrl()).contains("http");
         assertThat(signed.getToken()).isNotBlank();
+    }
+
+    @Test
+    @Order(17)
+    void getMetricsReturnsLiveSnapshot() {
+        SandboxMetrics metrics = sandbox.getMetricsLatest();
+
+        assertThat(metrics).isNotNull();
+        assertThat(metrics.getTimestamp()).isNotNull();
+        // Daemon-reported values vary by deployed daemon version; assert shape + non-negativity, not positivity.
+        assertThat(metrics.getCpuCount()).isGreaterThanOrEqualTo(0);
+        assertThat(metrics.getCpuUsedPct()).isGreaterThanOrEqualTo(0.0);
+        assertThat(metrics.getMemTotal()).isGreaterThanOrEqualTo(0L);
+        assertThat(metrics.getMemUsed()).isGreaterThanOrEqualTo(0L);
+        assertThat(metrics.getDiskTotal()).isGreaterThanOrEqualTo(0L);
+        assertThat(metrics.getDiskUsed()).isGreaterThanOrEqualTo(0L);
     }
 
     @Test

@@ -1,4 +1,10 @@
 PATH
+  remote: analytics-api-client-ruby
+  specs:
+    daytona_analytics_api_client (0.0.0.pre.dev)
+      typhoeus (~> 1.0, >= 1.0.1)
+
+PATH
   remote: api-client-ruby
   specs:
     daytona_api_client (0.0.0.pre.dev)
@@ -285,6 +291,7 @@ PLATFORMS
 
 DEPENDENCIES
   daytona (>= 0.0.0.pre.dev)!
+  daytona_analytics_api_client (>= 0.0.0.pre.dev)!
   daytona_api_client (>= 0.0.0.pre.dev)!
   daytona_toolbox_api_client (>= 0.0.0.pre.dev)!
   pry (~> 0.15)

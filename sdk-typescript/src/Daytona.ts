@@ -237,6 +237,23 @@ export class Daytona implements AsyncDisposable {
   private readonly sandboxApi: SandboxApi
   private readonly objectStorageApi: ObjectStorageApi
   private readonly configApi: ConfigApi
+  private analyticsApiUrlPromise?: Promise<string | undefined>
+
+  /**
+   * Resolves the deployment's Analytics API URL via `/config`, cached for the client's
+   * lifetime. The in-flight promise is shared by concurrent callers; a rejected lookup
+   * is evicted so the next call retries.
+   */
+  private readonly getAnalyticsApiUrl = (): Promise<string | undefined> => {
+    this.analyticsApiUrlPromise ??= this.configApi
+      .configControllerGetConfig()
+      .then((response) => response.data.analyticsApiUrl)
+      .catch((error: unknown) => {
+        this.analyticsApiUrlPromise = undefined
+        throw error
+      })
+    return this.analyticsApiUrlPromise
+  }
   private readonly target?: string
   private readonly apiKey?: string
   private readonly jwtToken?: string
@@ -633,6 +650,7 @@ export class Daytona implements AsyncDisposable {
         new Configuration(structuredClone(this.clientConfig)),
         Daytona.createAxiosInstance(),
         this.sandboxApi,
+        this.getAnalyticsApiUrl,
       )
 
       if (sandbox.state !== 'started') {
@@ -673,6 +691,7 @@ export class Daytona implements AsyncDisposable {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.getAnalyticsApiUrl,
     )
   }
 
@@ -689,6 +708,7 @@ export class Daytona implements AsyncDisposable {
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
     const { sandboxApi, clientConfig } = this
+    const getAnalyticsApiUrl = this.getAnalyticsApiUrl
     const tracer = trace.getTracer('')
 
     async function* generator(): AsyncGenerator<Sandbox> {
@@ -759,7 +779,13 @@ export class Daytona implements AsyncDisposable {
 
         for (const sandbox of response.data.items) {
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          yield new Sandbox(sandbox, structuredClone(clientConfig), Daytona.createAxiosInstance(), sandboxApi)
+          yield new Sandbox(
+            sandbox,
+            structuredClone(clientConfig),
+            Daytona.createAxiosInstance(),
+            sandboxApi,
+            getAnalyticsApiUrl,
+          )
         }
 
         cursor = response.data.nextCursor ?? undefined

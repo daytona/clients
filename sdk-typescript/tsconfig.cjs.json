@@ -7,7 +7,8 @@
     "baseUrl": ".",
     "paths": {
       "@daytona/api-client": ["../dist/api-client/src"],
-      "@daytona/toolbox-api-client": ["../dist/toolbox-api-client/src"]
+      "@daytona/toolbox-api-client": ["../dist/toolbox-api-client/src"],
+      "@daytona/analytics-api-client": ["../dist/analytics-api-client/src"]
     }
   }
 }

@@ -1,12 +1,15 @@
 go 1.25.5
 
 use (
+	./analytics-api-client-go
 	./api-client-go
 	./cli
 	./examples/go
 	./sdk-go
 	./toolbox-api-client-go
 )
+
+replace github.com/daytona/clients/analytics-api-client-go v0.192.0 => ./analytics-api-client-go
 
 replace github.com/daytona/clients/api-client-go v0.192.0 => ./api-client-go
 

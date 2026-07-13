@@ -137,6 +137,48 @@ work_dir = await sandbox.get_work_dir()
 print(f"Sandbox working directory: {work_dir}")
 ```
 
+#### AsyncSandbox.get\_metrics\_latest
+
+```python
+@intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+@with_instrumentation()
+async def get_metrics_latest() -> SandboxMetrics
+```
+
+Gets the most recent resource usage sample directly from the Sandbox daemon.
+
+Unlike :meth:`get_metrics`, which returns aggregated historical samples, this returns
+the single current reading without going through the telemetry backend.
+
+**Returns**:
+
+- `SandboxMetrics` - The current CPU, memory, and disk usage sample for the Sandbox.
+
+#### AsyncSandbox.get\_metrics
+
+```python
+@intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+@with_instrumentation()
+async def get_metrics(start: datetime | None = None,
+                      end: datetime | None = None) -> list[SandboxMetrics]
+```
+
+Gets historical time-series resource usage metrics for the Sandbox.
+
+When the deployment runs a dedicated Analytics API, metrics are fetched from it
+directly; otherwise they are fetched through the control-plane telemetry proxy.
+
+**Arguments**:
+
+- `start` _datetime | None_ - Start of the time range. Defaults to the Sandbox
+  creation time.
+- `end` _datetime | None_ - End of the time range. Defaults to the current time.
+  
+
+**Returns**:
+
+- `list[SandboxMetrics]` - Time-ordered usage samples over the requested range.
+
 #### AsyncSandbox.create\_lsp\_server
 
 ```python
@@ -830,4 +872,47 @@ Query parameters for filtering and sorting when listing Sandboxes.
 - `last_activity_before` _datetime_ - Include sandboxes with last activity before this timestamp.
 - `sort` - Field to sort by.
 - `order` - Sort direction.
+
+## SandboxMetrics
+
+```python
+@dataclass
+class SandboxMetrics()
+```
+
+A single point-in-time sample of historical Sandbox resource usage.
+
+Each instance corresponds to one aggregation bucket returned by the telemetry
+backend. Use :meth:`Sandbox.get_metrics` to fetch a time-ordered list of these,
+or :meth:`Sandbox.get_metrics_latest` for the current sample.
+
+**Attributes**:
+
+- `cpu_count` _int_ - Number of CPU cores allocated to the Sandbox.
+- `cpu_used_pct` _float_ - CPU utilization as a percentage of the allocated limit.
+- `disk_total` _int_ - Total disk space in bytes.
+- `disk_used` _int_ - Used disk space in bytes.
+- `mem_total` _int_ - Total memory in bytes.
+- `mem_used` _int_ - Used memory in bytes.
+- `mem_cache` _int_ - Memory used by the page cache in bytes.
+- `timestamp` _datetime_ - Timestamp of this sample.
+
+#### sandbox\_metrics\_from\_system\_metrics
+
+```python
+def sandbox_metrics_from_system_metrics(
+        system_metrics: _SystemMetrics) -> SandboxMetrics
+```
+
+Converts a live daemon ``SystemMetrics`` snapshot into a ``SandboxMetrics`` sample.
+
+#### pivot\_sandbox\_metrics
+
+```python
+def pivot_sandbox_metrics(
+    points: Iterable[tuple[str | None, str | None, float | None]]
+) -> list[SandboxMetrics]
+```
+
+Buckets ``(metric_name, timestamp, value)`` triples by timestamp into ``SandboxMetrics`` samples.
 

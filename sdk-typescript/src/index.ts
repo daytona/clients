@@ -44,7 +44,7 @@ export {
 } from './errors/DaytonaError'
 export { Image } from './Image'
 export { Sandbox } from './Sandbox'
-export type { ListSandboxesQuery } from './Sandbox'
+export type { ListSandboxesQuery, SandboxMetrics } from './Sandbox'
 export type { Secret, CreateSecretParams, UpdateSecretParams, ListSecretsQuery, ListSecretsResponse } from './Secret'
 export type { CreateSnapshotParams } from './Snapshot'
 export { ComputerUse, Mouse, Keyboard, Screenshot, Display, Accessibility } from './ComputerUse'

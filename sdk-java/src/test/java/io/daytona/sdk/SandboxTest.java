@@ -63,7 +63,7 @@ class SandboxTest {
 
     @BeforeEach
     void setUp() {
-        sandbox = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        sandbox = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null);
     }
 
     @Test
@@ -86,7 +86,7 @@ class SandboxTest {
         model.setToolboxProxyUrl("");
         when(sandboxApi.getToolboxProxyUrl("sb-2", null)).thenReturn(new ToolboxProxyUrl().url("https://proxy.example"));
 
-        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model);
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
 
         assertThat(loaded.getToolboxProxyUrl()).isEmpty();
         assertThat(loaded.getToolboxApiClient().getBasePath()).isEqualTo("https://proxy.example/sb-2");
@@ -100,7 +100,7 @@ class SandboxTest {
         model.setLabels(Collections.singletonMap(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL, "javascript"));
         model.setToolboxProxyUrl("https://proxy.example/");
 
-        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model);
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
 
         assertThat(loaded.getLanguage()).isEqualTo("javascript");
         assertThat(loaded.getName()).isEmpty();

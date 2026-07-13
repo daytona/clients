@@ -288,7 +288,8 @@ RSpec.describe Daytona::Daytona do
         sandbox_dto: sandbox_dto,
         config: config,
         sandbox_api: sandbox_api,
-        otel_state: nil
+        otel_state: nil,
+        analytics_api_url_provider: kind_of(Method)
       )
     end
   end

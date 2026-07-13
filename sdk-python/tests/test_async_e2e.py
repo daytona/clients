@@ -21,6 +21,7 @@ import time
 import uuid
 from collections import Counter
 from collections.abc import AsyncIterator
+from datetime import datetime
 
 import pytest
 import pytest_asyncio
@@ -91,6 +92,24 @@ async def test_async_sandbox_refresh_data_preserves_id(async_sandbox):
     await async_sandbox.refresh_data()
     assert async_sandbox.id == old_id
     assert async_sandbox.state is not None
+
+
+# ===========================================================================
+# System Metrics
+# ===========================================================================
+
+
+async def test_async_get_metrics_latest_returns_current_sample(async_sandbox):
+    m = await async_sandbox.get_metrics_latest()
+    assert m is not None
+    assert isinstance(m.timestamp, datetime), "timestamp should be a datetime"
+    # Daemon-reported values vary by deployed daemon version; assert shape + non-negativity, not positivity.
+    assert m.cpu_count >= 0
+    assert m.cpu_used_pct >= 0
+    assert m.mem_total >= 0
+    assert m.mem_used >= 0
+    assert m.disk_total >= 0
+    assert m.disk_used >= 0
 
 
 # ===========================================================================

@@ -244,6 +244,49 @@ Returns home directory path for Sandbox user.
 
 - `DaytonaException` - if the request fails
 
+#### getMetricsLatest()
+```java
+public SandboxMetrics getMetricsLatest()
+```
+
+Gets the most recent resource usage sample directly from the sandbox daemon.
+
+Unlike `#getMetrics`, which returns aggregated historical samples, this returns
+the single current reading without going through the telemetry backend.
+
+**Returns**:
+
+- `SandboxMetrics` - the current resource usage sample for the sandbox
+
+**Throws**:
+
+- `DaytonaException` - if the request fails
+
+#### getMetrics()
+```java
+public List<SandboxMetrics> getMetrics(OffsetDateTime start, OffsetDateTime end)
+```
+
+Gets historical time-series resource usage metrics for the sandbox.
+
+When the deployment runs a dedicated Analytics API, metrics are fetched from it directly;
+otherwise they are fetched through the control-plane telemetry proxy. A `null` start
+defaults to the sandbox creation time; a `null` end defaults to the current time.
+Samples are returned ordered ascending by timestamp.
+
+**Parameters**:
+
+- `start` _OffsetDateTime_ - start of the time range, or `null` for the sandbox creation time
+- `end` _OffsetDateTime_ - end of the time range, or `null` for the current time
+
+**Returns**:
+
+- `List\<SandboxMetrics\>` - time-ordered usage samples over the requested range
+
+**Throws**:
+
+- `DaytonaException` - if the request fails
+
 #### getWorkDir()
 ```java
 public String getWorkDir()

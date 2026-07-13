@@ -53,7 +53,7 @@ class DaytonaUtilitiesTest {
         io.daytona.api.client.api.SandboxApi sandboxApi =
                 org.mockito.Mockito.mock(io.daytona.api.client.api.SandboxApi.class);
 
-        Sandbox sandbox = new Sandbox(sandboxApi, TestSupport.config(), model);
+        Sandbox sandbox = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
 
         assertThat(sandbox.getId()).isEqualTo("sb-utility");
         assertThat(sandbox.getState()).isEmpty();

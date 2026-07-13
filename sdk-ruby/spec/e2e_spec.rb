@@ -766,6 +766,21 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
     end
   end
 
+  context 'System Metrics', order: :defined do
+    it 'get_metrics_latest returns the current sample' do
+      m = @sandbox.get_metrics_latest
+      expect(m).not_to be_nil
+      expect(m.timestamp).to be_a(Time)
+      # Daemon-reported values vary by deployed daemon version; assert shape + non-negativity, not positivity.
+      expect(m.cpu_count).to be >= 0
+      expect(m.cpu_used_pct).to be >= 0
+      expect(m.mem_total).to be >= 0
+      expect(m.mem_used).to be >= 0
+      expect(m.disk_total).to be >= 0
+      expect(m.disk_used).to be >= 0
+    end
+  end
+
   context 'Volume Management', order: :defined do
     it 'creates a volume' do
       vol = @daytona.volume.create(@volume_name)
@@ -816,11 +831,19 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
     end
 
     it 'gets snapshot by name' do
-      list_result = @daytona.snapshot.list(page: 1, limit: 1)
-      expect(list_result.items).not_to be_empty
-
-      snapshot_name = list_result.items.first.name
-      snapshot = @daytona.snapshot.get(snapshot_name)
+      snapshot = nil
+      snapshot_name = nil
+      3.times do
+        list_result = @daytona.snapshot.list(page: 1, limit: 1)
+        expect(list_result.items).not_to be_empty
+        snapshot_name = list_result.items.first.name
+        begin
+          snapshot = @daytona.snapshot.get(snapshot_name)
+          break
+        rescue Daytona::Sdk::Error
+          sleep 2 # a concurrent e2e run may delete the snapshot between list and get
+        end
+      end
       expect(snapshot).to be_a(Daytona::Snapshot)
       expect(snapshot.name).to eq(snapshot_name)
     end

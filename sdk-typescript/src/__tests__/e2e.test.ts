@@ -930,6 +930,23 @@ describe('TypeScript SDK E2E (real Daytona API)', () => {
     })
   })
 
+  describe('System Metrics', () => {
+    test('getMetricsLatest returns the current sample', async () => {
+      console.log('[E2E][Metrics] Getting system metrics...')
+      const m = await sandbox.getMetricsLatest()
+      expect(m).toBeDefined()
+      expect(m.timestamp).toBeInstanceOf(Date)
+      // Daemon-reported values vary by deployed daemon version; assert shape + non-negativity, not positivity.
+      expect(m.cpuCount).toBeGreaterThanOrEqual(0)
+      expect(m.cpuUsedPct).toBeGreaterThanOrEqual(0)
+      expect(m.cpuUsedPct).toBeLessThanOrEqual(100)
+      expect(m.memTotal).toBeGreaterThanOrEqual(0)
+      expect(m.memUsed).toBeGreaterThanOrEqual(0)
+      expect(m.diskTotal).toBeGreaterThanOrEqual(0)
+      expect(m.diskUsed).toBeGreaterThanOrEqual(0)
+    })
+  })
+
   // ──────────────────────────────────────────────
   // Volume Operations
   // ──────────────────────────────────────────────

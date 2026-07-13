@@ -24,6 +24,7 @@ repositories {
 dependencies {
     api("io.daytona:api-client:$depVersion")
     api("io.daytona:toolbox-api-client:$depVersion")
+    api("io.daytona:analytics-api-client:$depVersion")
     api("com.squareup.okhttp3:okhttp:4.12.0")
     api("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     api("com.fasterxml.jackson.core:jackson-annotations:2.17.2")

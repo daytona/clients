@@ -63,6 +63,9 @@ module DaytonaApiClient
     # Auto-stop interval in minutes (0 means disabled)
     attr_accessor :auto_stop_interval
 
+    # Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
+    attr_accessor :auto_pause_interval
+
     # Auto-archive interval in minutes (0 means the maximum interval will be used)
     attr_accessor :auto_archive_interval
 
@@ -100,6 +103,7 @@ module DaytonaApiClient
         :'memory' => :'memory',
         :'disk' => :'disk',
         :'auto_stop_interval' => :'autoStopInterval',
+        :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'volumes' => :'volumes',
@@ -138,6 +142,7 @@ module DaytonaApiClient
         :'memory' => :'Integer',
         :'disk' => :'Integer',
         :'auto_stop_interval' => :'Integer',
+        :'auto_pause_interval' => :'Integer',
         :'auto_archive_interval' => :'Integer',
         :'auto_delete_interval' => :'Integer',
         :'volumes' => :'Array<SandboxVolume>',
@@ -239,6 +244,10 @@ module DaytonaApiClient
         self.auto_stop_interval = attributes[:'auto_stop_interval']
       end
 
+      if attributes.key?(:'auto_pause_interval')
+        self.auto_pause_interval = attributes[:'auto_pause_interval']
+      end
+
       if attributes.key?(:'auto_archive_interval')
         self.auto_archive_interval = attributes[:'auto_archive_interval']
       end
@@ -304,6 +313,7 @@ module DaytonaApiClient
           memory == o.memory &&
           disk == o.disk &&
           auto_stop_interval == o.auto_stop_interval &&
+          auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
           volumes == o.volumes &&
@@ -321,7 +331,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

@@ -8,6 +8,7 @@ import os
 import threading
 import time
 import uuid
+from datetime import datetime
 
 import pytest
 
@@ -102,6 +103,24 @@ def test_get_user_home_dir_returns_path(sandbox):
 def test_get_work_dir_returns_path(sandbox):
     work = sandbox.get_work_dir()
     assert isinstance(work, str) and work.startswith("/"), f"Expected absolute path, got {work!r}"
+
+
+# ===========================================================================
+# System Metrics
+# ===========================================================================
+
+
+def test_get_metrics_latest_returns_current_sample(sandbox):
+    m = sandbox.get_metrics_latest()
+    assert m is not None
+    assert isinstance(m.timestamp, datetime), "timestamp should be a datetime"
+    # Daemon-reported values vary by deployed daemon version; assert shape + non-negativity, not positivity.
+    assert m.cpu_count >= 0
+    assert m.cpu_used_pct >= 0
+    assert m.mem_total >= 0
+    assert m.mem_used >= 0
+    assert m.disk_total >= 0
+    assert m.disk_used >= 0
 
 
 def test_set_labels_returns_updated_labels(sandbox):

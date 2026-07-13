@@ -30,9 +30,10 @@ fi
 DIST_LIBS="$(cd "$DIST/../" && pwd)"
 API_CLIENT_DIST="$DIST_LIBS/api-client"
 TOOLBOX_DIST="$DIST_LIBS/toolbox-api-client"
+ANALYTICS_DIST="$DIST_LIBS/analytics-api-client"
 
-if [ ! -f "$API_CLIENT_DIST/package.json" ] || [ ! -f "$TOOLBOX_DIST/package.json" ]; then
-  echo "ERROR: api-client or toolbox-api-client not built. Run: yarn nx build sdk-typescript" >&2
+if [ ! -f "$API_CLIENT_DIST/package.json" ] || [ ! -f "$TOOLBOX_DIST/package.json" ] || [ ! -f "$ANALYTICS_DIST/package.json" ]; then
+  echo "ERROR: api-client, toolbox-api-client, or analytics-api-client not built. Run: yarn nx build sdk-typescript" >&2
   exit 1
 fi
 
@@ -51,16 +52,19 @@ pack_pkg() {
   rm -rf "$pack_dir"
 }
 
-echo "==> Packing api-client, toolbox-api-client, and sdk"
+echo "==> Packing api-client, toolbox-api-client, analytics-api-client, and sdk"
 API_TARBALL="$ROOT/.api-client.tgz"
 TOOLBOX_TARBALL="$ROOT/.toolbox-api-client.tgz"
+ANALYTICS_TARBALL="$ROOT/.analytics-api-client.tgz"
 TARBALL="$ROOT/.sdk.tgz"
 pack_pkg "$API_CLIENT_DIST" "$API_TARBALL" "@daytona/api-client"
 pack_pkg "$TOOLBOX_DIST" "$TOOLBOX_TARBALL" "@daytona/toolbox-api-client"
+pack_pkg "$ANALYTICS_DIST" "$ANALYTICS_TARBALL" "@daytona/analytics-api-client"
 pack_pkg "$DIST" "$TARBALL" "@daytona/sdk"
 export SDK_TARBALL="$TARBALL"
 export API_CLIENT_TARBALL="$API_TARBALL"
 export TOOLBOX_API_CLIENT_TARBALL="$TOOLBOX_TARBALL"
+export ANALYTICS_API_CLIENT_TARBALL="$ANALYTICS_TARBALL"
 echo "    Tarball: $TARBALL"
 echo
 
@@ -109,7 +113,7 @@ for runtime in "${RUNTIMES[@]}"; do
   echo
 done
 
-rm -f "$TARBALL" "$API_TARBALL" "$TOOLBOX_TARBALL"
+rm -f "$TARBALL" "$API_TARBALL" "$TOOLBOX_TARBALL" "$ANALYTICS_TARBALL"
 
 echo "================================================================"
 echo "Summary"

@@ -16,6 +16,8 @@ daytona_api_client = {path = "api-client-python", develop = true}
 daytona_api_client_async = {path = "api-client-python-async", develop = true}
 daytona_toolbox_api_client = {path = "toolbox-api-client-python", develop = true}
 daytona_toolbox_api_client_async = {path = "toolbox-api-client-python-async", develop = true}
+daytona_analytics_api_client = {path = "analytics-api-client-python", develop = true}
+daytona_analytics_api_client_async = {path = "analytics-api-client-python-async", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pydoc-markdown = ">=4.8.0,<5.0.0"
@@ -58,7 +60,7 @@ reportMissingTypeStubs = "none"
 reportExplicitAny = "none"
 
 [tool.isort]
-known_first_party = ["daytona", "daytona_api_client", "daytona_api_client_async", "daytona_toolbox_api_client", "daytona_toolbox_api_client_async"]
+known_first_party = ["daytona", "daytona_api_client", "daytona_api_client_async", "daytona_toolbox_api_client", "daytona_toolbox_api_client_async", "daytona_analytics_api_client", "daytona_analytics_api_client_async"]
 
 [tool.black]
 target-version = ['py310']
