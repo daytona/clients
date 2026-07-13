@@ -1572,10 +1572,7 @@ func (s *Sandbox) doUpdateSecrets(ctx context.Context, secrets map[string]string
 		return errors.ConvertAPIError(err, httpResp)
 	}
 
-	s.populateFromDTO(sandboxResp)
-	// populateFromDTO does not set State on this branch; route it through
-	// applyState so any active waiters observe the transition.
-	s.applyState(sandboxResp.GetState())
+	s.updateFromAPIResponse(sandboxResp)
 	return nil
 }
 
