@@ -35,7 +35,7 @@ def _parse_content_disposition_parameters(header: str) -> dict[str, str]:
     position = header.find(";")
     length = len(header)
 
-    while position >= 0 and position < length:
+    while 0 <= position < length:
         position += 1
         while position < length and header[position].isspace():
             position += 1
