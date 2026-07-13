@@ -4232,6 +4232,68 @@
         ]
       }
     },
+    "/sandbox/{sandboxIdOrName}/autopause/{interval}": {
+      "post": {
+        "operationId": "setAutoPauseInterval",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxIdOrName",
+            "required": true,
+            "in": "path",
+            "description": "ID or name of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "interval",
+            "required": true,
+            "in": "path",
+            "description": "Auto-pause interval in minutes (0 to disable)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Auto-pause interval has been set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Set sandbox auto-pause interval",
+        "tags": [
+          "sandbox"
+        ]
+      }
+    },
     "/sandbox/{sandboxIdOrName}/autoarchive/{interval}": {
       "post": {
         "operationId": "setAutoArchiveInterval",
