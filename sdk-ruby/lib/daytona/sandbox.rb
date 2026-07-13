@@ -362,11 +362,17 @@ module Daytona
       sandbox_api.create_ssh_access(id, { expires_in_minutes: })
     end
 
-    # Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+    # Deletes the Sandbox.
+    #
+    # By default returns as soon as the deletion request is accepted (matching
+    # origin/main behavior). Pass +wait: true+ to block until the Sandbox
+    # reaches the +destroyed+ state.
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
+    #   Only meaningful when +wait+ is true.
+    # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
-    def delete(timeout = DEFAULT_TIMEOUT)
+    def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/MethodLength
       begin
         process_response(sandbox_api.delete_sandbox(id))
       rescue DaytonaApiClient::ApiError => e
@@ -375,6 +381,9 @@ module Daytona
         apply_state(DaytonaApiClient::SandboxState::DESTROYED)
       end
 
+      refresh_data_safe
+
+      return unless wait
       return if state.to_s == DaytonaApiClient::SandboxState::DESTROYED.to_s
 
       with_timeout(
@@ -772,7 +781,8 @@ module Daytona
     end
 
     # Pauses the Sandbox, freezing all running processes.
-    # The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+    # Completes when the Sandbox has left the +pausing+ state (paused, stopped,
+    # archived, etc.); error states still raise.
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s)
     # @return [void]
@@ -785,10 +795,11 @@ module Daytona
           refresh
         }
       ) do
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::PAUSED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
-        )
+        error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
+        exclude = [DaytonaApiClient::SandboxState::PAUSING] + error_states
+        target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
+
+        wait_for_state(target_states:, error_states:)
       end
     end
 
@@ -1010,12 +1021,12 @@ module Daytona
       )
     end
 
-    # Waits for the Sandbox to reach the one of the target states via WebSocket events
+    # Waits for the Sandbox to reach one of the target states via WebSocket events
     # with periodic polling safety net.
     #
     # @param target_states [Array<DaytonaApiClient::SandboxState>] States that indicate success.
     # @param error_states [Array<DaytonaApiClient::SandboxState>] States that indicate failure.
-    # @param safe_refresh [Boolean] If true, wrap refresh in rescue for delete operations (404s).
+    # @param safe_refresh [Boolean] If true, use refresh_data_safe for polling (swallows transient errors).
     # @return [void]
     # @raise [Daytona::Sdk::Error]
     def wait_for_state(target_states:, error_states:, safe_refresh: false) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -1049,30 +1060,30 @@ module Daytona
         @state_waiters << waiter
 
         current_state = state.to_s
-        result_state = current_state if waiter[:matches].call(current_state)
+        result_state = current_state if target_strings.include?(current_state)
       end
 
       begin
+        first_poll = true
         until mutex.synchronize { result_state }
-          should_refresh = mutex.synchronize do
-            next false if result_state
+          unless first_poll
+            should_refresh = mutex.synchronize do
+              next false if result_state
 
-            state_changed.wait(mutex, poll_interval)
-            result_state.nil?
-          end
-
-          next unless should_refresh
-
-          if safe_refresh
-            begin
-              refresh
-            rescue DaytonaApiClient::ApiError => e
-              raise unless e.code == 404
-
-              apply_state(DaytonaApiClient::SandboxState::DESTROYED)
+              state_changed.wait(mutex, poll_interval)
+              result_state.nil?
             end
-          else
-            refresh
+            next unless should_refresh
+          end
+          first_poll = false
+
+          safe_refresh ? refresh_data_safe : refresh
+
+          mutex.synchronize do
+            next if result_state
+
+            current = state.to_s
+            result_state = current if target_strings.include?(current) || error_strings.include?(current)
           end
 
           poll_interval = next_wait_for_state_poll_interval(
@@ -1086,11 +1097,33 @@ module Daytona
           raise Sdk::Error,
                 "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
         end
+      rescue Sdk::TimeoutError
+        safe_refresh ? refresh_data_safe : refresh
+        evaluate_state(target_strings, error_strings)
       ensure
         @waiter_mutex.synchronize do
           @state_waiters.delete(waiter)
         end
       end
+    end
+
+    def evaluate_state(target_strings, error_strings)
+      current = state.to_s
+      return if target_strings.include?(current)
+
+      if error_strings.include?(current)
+        raise Sdk::Error,
+              "Sandbox #{id} entered error state: #{current}, error reason: #{error_reason}"
+      end
+
+      raise Sdk::TimeoutError, "Sandbox #{id} did not reach target state in time"
+    end
+
+    def refresh_data_safe
+      refresh
+    rescue DaytonaApiClient::ApiError => e
+      apply_state(DaytonaApiClient::SandboxState::DESTROYED) if e.code == 404
+    rescue StandardError # rubocop:disable Lint/SuppressedException
     end
 
     def ensure_subscribed

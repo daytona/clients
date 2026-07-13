@@ -920,6 +920,7 @@ export class Daytona implements AsyncDisposable {
    *
    * @param {Sandbox} sandbox - The Sandbox to delete
    * @param {number} timeout - Timeout in seconds (0 means no timeout, default is 60)
+   * @param {boolean} wait - If true, wait until the Sandbox is destroyed (default is false)
    * @returns {Promise<void>}
    *
    * @example
@@ -927,8 +928,8 @@ export class Daytona implements AsyncDisposable {
    * await daytona.delete(sandbox);
    */
   @WithInstrumentation()
-  public async delete(sandbox: Sandbox, timeout = 60) {
-    await sandbox.delete(timeout)
+  public async delete(sandbox: Sandbox, timeout = 60, wait = false) {
+    await sandbox.delete(timeout, wait)
   }
 
   /**

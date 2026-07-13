@@ -39,6 +39,9 @@ const (
 	SandboxStateResizing         = apiclient.SANDBOXSTATE_RESIZING
 	SandboxStateSnapshotting     = apiclient.SANDBOXSTATE_SNAPSHOTTING
 	SandboxStateForking          = apiclient.SANDBOXSTATE_FORKING
+	SandboxStatePausing          = apiclient.SANDBOXSTATE_PAUSING
+	SandboxStatePaused           = apiclient.SANDBOXSTATE_PAUSED
+	SandboxStateResuming         = apiclient.SANDBOXSTATE_RESUMING
 )
 
 const (

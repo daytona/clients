@@ -242,15 +242,21 @@ Creates an SSH access token for the sandbox.
 #### delete()
 
 ```ts
-delete(timeout?: number): Promise<void>
+delete(timeout?: number, wait?: boolean): Promise<void>
 ```
 
-Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+Deletes the Sandbox.
+
+By default this returns as soon as the deletion request is accepted (matching
+historical behavior). Pass `wait = true` to block until the Sandbox reaches
+the 'destroyed' state.
 
 **Parameters**:
 
-- `timeout?` _number = 60_ - Maximum time to wait in seconds. 0 means no timeout.
+- `timeout?` _number = 60_ - Timeout in seconds for the request — and, when
+    `wait` is true, for reaching 'destroyed'. 0 means no timeout.
     Defaults to 60-second timeout.
+- `wait?` _boolean = false_ - If true, wait until the Sandbox is destroyed. Defaults to false.
 
 
 **Returns**:

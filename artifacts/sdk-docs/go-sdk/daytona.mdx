@@ -251,6 +251,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*Sandbox\) Archive\(ctx context.Context\) error](<#Sandbox.Archive>)
   - [func \(s \*Sandbox\) CreateLspServer\(languageID types.LspLanguageID, pathToProject string\) \*LspServerService](<#Sandbox.CreateLspServer>)
   - [func \(s \*Sandbox\) Delete\(ctx context.Context\) error](<#Sandbox.Delete>)
+  - [func \(s \*Sandbox\) DeleteAndWait\(ctx context.Context, timeout time.Duration\) error](<#Sandbox.DeleteAndWait>)
   - [func \(s \*Sandbox\) DeleteWithTimeout\(ctx context.Context, timeout time.Duration\) error](<#Sandbox.DeleteWithTimeout>)
   - [func \(s \*Sandbox\) ExperimentalCreateSnapshot\(ctx context.Context, name string\) error](<#Sandbox.ExperimentalCreateSnapshot>)
   - [func \(s \*Sandbox\) ExperimentalCreateSnapshotWithTimeout\(ctx context.Context, name string, timeout time.Duration\) error](<#Sandbox.ExperimentalCreateSnapshotWithTimeout>)
@@ -343,6 +344,9 @@ const (
     SandboxStateResizing         = apiclient.SANDBOXSTATE_RESIZING
     SandboxStateSnapshotting     = apiclient.SANDBOXSTATE_SNAPSHOTTING
     SandboxStateForking          = apiclient.SANDBOXSTATE_FORKING
+    SandboxStatePausing          = apiclient.SANDBOXSTATE_PAUSING
+    SandboxStatePaused           = apiclient.SANDBOXSTATE_PAUSED
+    SandboxStateResuming         = apiclient.SANDBOXSTATE_RESUMING
 )
 ```
 
@@ -4429,12 +4433,27 @@ func (s *Sandbox) Delete(ctx context.Context) error
 
 Delete deletes the sandbox with a default timeout of 60 seconds.
 
-This operation is irreversible. All data in the sandbox will be lost. For custom timeout, use [Sandbox.DeleteWithTimeout](<#Sandbox.DeleteWithTimeout>).
+The method issues the delete API call and returns immediately without waiting for the sandbox to reach the "destroyed" state. This matches the historical behavior. Use [Sandbox.DeleteAndWait](<#Sandbox.DeleteAndWait>) to block until destruction.
 
 Example:
 
 ```
 err := sandbox.Delete(ctx)
+```
+
+<a name="Sandbox.DeleteAndWait"></a>
+### func \(\*Sandbox\) DeleteAndWait
+
+```go
+func (s *Sandbox) DeleteAndWait(ctx context.Context, timeout time.Duration) error
+```
+
+DeleteAndWait deletes the sandbox and blocks until it reaches the "destroyed" state or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.DeleteAndWait(ctx, 60*time.Second)
 ```
 
 <a name="Sandbox.DeleteWithTimeout"></a>
@@ -4444,7 +4463,9 @@ err := sandbox.Delete(ctx)
 func (s *Sandbox) DeleteWithTimeout(ctx context.Context, timeout time.Duration) error
 ```
 
-DeleteWithTimeout deletes the sandbox with a custom timeout. 0 means no timeout.
+DeleteWithTimeout deletes the sandbox with a custom timeout for the API call. 0 means no timeout.
+
+Like [Sandbox.Delete](<#Sandbox.Delete>), this returns as soon as the API call completes without waiting for the "destroyed" state. Use [Sandbox.DeleteAndWait](<#Sandbox.DeleteAndWait>) to block until destruction.
 
 Example:
 

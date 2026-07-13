@@ -109,22 +109,45 @@ Waits until Sandbox reaches `stopped` (or `destroyed`) state.
 public void delete()
 ```
 
-Deletes this Sandbox with default timeout behavior.
+Deletes this Sandbox.
+
+Fires the delete API call and returns immediately without waiting for the
+Sandbox to reach the `destroyed` state. Use `#delete(long, boolean)`
+with `wait=true` to block until destruction completes.
 
 **Throws**:
 
-- `DaytonaException` - if deletion fails
+- `DaytonaException` - if the delete API call fails
 
 #### delete()
 ```java
 public void delete(long timeoutSeconds)
 ```
 
-Deletes this Sandbox and waits for it to reach the `destroyed` state.
+Deletes this Sandbox.
+
+Fires the delete API call and returns immediately. Use
+`#delete(long, boolean)` with `wait=true` to block until destroyed.
 
 **Parameters**:
 
-- `timeoutSeconds` _long_ - maximum seconds to wait; `0` disables timeout
+- `timeoutSeconds` _long_ - timeout for the HTTP request (and for waiting when `wait` is true in `#delete(long, boolean)`)
+
+**Throws**:
+
+- `DaytonaException` - if the delete API call fails
+
+#### delete()
+```java
+public void delete(long timeoutSeconds, boolean wait)
+```
+
+Deletes this Sandbox, optionally waiting for it to reach the `destroyed` state.
+
+**Parameters**:
+
+- `timeoutSeconds` _long_ - maximum seconds to wait when `wait` is true; `0` disables timeout. Ignored when `wait` is false.
+- `wait` _boolean_ - if `true`, block until the Sandbox is destroyed
 
 **Throws**:
 
@@ -485,7 +508,8 @@ public void pause(long timeoutSeconds) throws DaytonaException
 ```
 
 Pauses the Sandbox, freezing all running processes.
-The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+Completes when the Sandbox has left the `pausing` state — any non-error
+terminal state (paused, stopped, archived, etc.) is accepted.
 
 **Parameters**:
 

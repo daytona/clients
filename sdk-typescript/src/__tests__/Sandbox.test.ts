@@ -15,6 +15,9 @@ jest.mock(
       STOPPED: 'stopped',
       SNAPSHOTTING: 'snapshotting',
       RESIZING: 'resizing',
+      PAUSING: 'pausing',
+      PAUSED: 'paused',
+      ARCHIVED: 'archived',
       ERROR: 'error',
       BUILD_FAILED: 'build_failed',
       DESTROYED: 'destroyed',
@@ -384,18 +387,84 @@ describe('Sandbox', () => {
     expect(times[0] - start).toBeLessThan(400)
   })
 
-  it('event-streaming mode polls at the ~1s safety-net cadence', async () => {
+  it('event-streaming mode polls immediately, then at the ~1s safety-net cadence', async () => {
     const { sandbox } = makeSandbox({ state: 'starting' }, 'sub-1')
     const times: number[] = []
     jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
       times.push(Date.now())
-      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+      if (times.length >= 2) {
+        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+      }
     })
 
     const start = Date.now()
     await sandbox.waitUntilStarted(5)
 
-    expect(times[0] - start).toBeGreaterThan(800)
+    expect(times[0] - start).toBeLessThan(400)
+    expect(times[1] - times[0]).toBeGreaterThan(800)
+  })
+
+  it('waitUntilStarted refreshes before failing on a stale cached error state', async () => {
+    const { sandbox } = makeSandbox({ state: 'error' }, '')
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+    })
+
+    await expect(sandbox.waitUntilStarted(5)).resolves.toBeUndefined()
+  })
+
+  it('waitUntilStopped tolerates transient refresh errors while polling', async () => {
+    const { sandbox } = makeSandbox({ state: 'stopping' }, '')
+    let calls = 0
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      calls++
+      if (calls === 1) {
+        throw new Error('Bad Gateway (502)')
+      }
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('stopped')
+    })
+
+    await expect(sandbox.waitUntilStopped(5)).resolves.toBeUndefined()
+    expect(calls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a near-zero timeout still performs a final refresh before timing out', async () => {
+    const { sandbox } = makeSandbox({ state: 'starting' }, '')
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+    })
+
+    await expect(sandbox.waitUntilStarted(0.001)).resolves.toBeUndefined()
+  })
+
+  it('pause resolves when the sandbox leaves pausing without landing on paused', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' }, '')
+    sandboxApi.pauseSandbox = jest.fn().mockResolvedValue(createApiResponse(undefined))
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('stopped')
+    })
+
+    await expect(sandbox.pause(5)).resolves.toBeUndefined()
+  })
+
+  it('delete is fire-and-forget by default', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' }, '')
+    sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+
+    await expect(sandbox.delete(5)).resolves.toBeUndefined()
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+  })
+
+  it('delete waits for destroyed when wait is true', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' }, '')
+    sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+    const refreshSpy = jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('destroyed')
+    })
+
+    await expect(sandbox.delete(5, true)).resolves.toBeUndefined()
+    expect(refreshSpy).toHaveBeenCalled()
+    expect(sandbox.state).toBe('destroyed')
   })
 
   it('exposes user/work directories and creates LSP server', async () => {

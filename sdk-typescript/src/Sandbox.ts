@@ -585,9 +585,14 @@ export class Sandbox {
 
     const timeElapsed = Date.now() - startTime
     const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+    // Main's contract: pause completes when the sandbox has *left* PAUSING
+    // (paused, stopped, archived, ...), not only on exactly PAUSED.
+    const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+    const excludeStates = new Set<string>([SandboxState.PAUSING, ...errorStates])
+    const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
     await this.waitForState(
-      [SandboxState.PAUSED],
-      [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+      targetStates,
+      errorStates,
       remainingTimeout,
       'Sandbox failed to become paused within the timeout period',
       (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
@@ -595,15 +600,21 @@ export class Sandbox {
   }
 
   /**
-   * Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+   * Deletes the Sandbox.
    *
-   * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
+   * By default this returns as soon as the deletion request is accepted (matching
+   * historical behavior). Pass `wait = true` to block until the Sandbox reaches
+   * the 'destroyed' state.
+   *
+   * @param {number} [timeout] - Timeout in seconds for the request — and, when
+   *                            `wait` is true, for reaching 'destroyed'. 0 means no timeout.
    *                            Defaults to 60-second timeout.
+   * @param {boolean} [wait] - If true, wait until the Sandbox is destroyed. Defaults to false.
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
   @withEvents
-  public async delete(timeout = 60): Promise<void> {
+  public async delete(timeout = 60, wait = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
     }
@@ -613,7 +624,7 @@ export class Sandbox {
     this.processSandboxDto(response.data)
 
     try {
-      if (this.state !== SandboxState.DESTROYED) {
+      if (wait && this.state !== SandboxState.DESTROYED) {
         const timeElapsed = Date.now() - startTime
         await this.waitForState(
           [SandboxState.DESTROYED],
@@ -1198,17 +1209,34 @@ export class Sandbox {
         this.removeStateWaiter(waiter)
       }
 
-      // Check if already in target/error state
-      if (this.checkStateWaiter(waiter, this.state)) {
+      // Fast-path only on cached *target* states (parity with main's pre-check).
+      // Cached error states are deliberately NOT evaluated here — main always
+      // refreshed before failing, so a stale ERROR must survive one refresh.
+      if (this.state && waiter.targetStates.has(this.state)) {
+        waiter.resolve(this.state)
         return
       }
 
       if (timeout !== 0) {
         timeoutTimer = setTimeout(() => {
-          if (!settled) {
-            cleanup()
-            reject(new DaytonaTimeoutError(timeoutMessage))
-          }
+          void (async () => {
+            if (settled) return
+            // Parity with main: complete one final refresh-then-evaluate before
+            // rejecting, so a clamped/short timeout still observes the latest state.
+            try {
+              if (safeRefresh) {
+                await this.refreshDataSafe()
+              } else {
+                await this.refreshData()
+              }
+            } catch {
+              // fall through to the timeout rejection below
+            }
+            if (!settled) {
+              cleanup()
+              reject(new DaytonaTimeoutError(timeoutMessage))
+            }
+          })()
         }, timeout * 1000)
       }
 
@@ -1242,9 +1270,8 @@ export class Sandbox {
         }
       }
 
-      pollTimer = setTimeout(() => {
-        void doPoll()
-      }, pollInterval)
+      // First poll runs immediately (main refreshed before any state evaluation).
+      void doPoll()
     })
   }
 
@@ -1319,10 +1346,9 @@ export class Sandbox {
     } catch (error) {
       if (error instanceof DaytonaNotFoundError) {
         this.applyState(SandboxState.DESTROYED)
-        return
       }
-
-      throw error
+      // Other errors are deliberately swallowed (parity with main): transient
+      // failures (e.g. 502) mid-poll must not abort stop()/delete() waits.
     }
   }
 

@@ -585,15 +585,42 @@ func (s *Sandbox) waitForState(
 		}
 	}()
 
+	// Fast-path only on cached *target* states (parity with main's pre-check).
+	// Cached error states are deliberately NOT evaluated here — main always
+	// refreshed before failing, so a stale ERROR must survive one refresh.
 	s.mu.RLock()
 	currentState := s.State
 	s.mu.RUnlock()
 
-	if containsSandboxState(errorStates, currentState) {
-		return fmt.Errorf("sandbox entered error state: %s", currentState)
-	}
 	if containsSandboxState(targetStates, currentState) {
 		return nil
+	}
+
+	refresh := func() (done bool, err error) {
+		if safeRefresh {
+			if rerr := s.refreshDataSafe(ctx); rerr != nil {
+				return false, rerr
+			}
+		} else {
+			if rerr := s.doRefreshData(ctx); rerr != nil {
+				return false, rerr
+			}
+		}
+		s.mu.RLock()
+		st := s.State
+		s.mu.RUnlock()
+		if containsSandboxState(targetStates, st) {
+			return true, nil
+		}
+		if containsSandboxState(errorStates, st) {
+			return true, fmt.Errorf("sandbox entered error state: %s", st)
+		}
+		return false, nil
+	}
+
+	// First poll runs immediately (main refreshed at t=0 before any wait).
+	if done, err := refresh(); done || err != nil {
+		return err
 	}
 
 	pollInterval := waitForStatePollingInitialInterval
@@ -607,6 +634,12 @@ func (s *Sandbox) waitForState(
 	for {
 		select {
 		case <-ctx.Done():
+			// Parity with main: complete one final refresh-then-evaluate before
+			// returning a timeout error, so a clamped/short timeout still
+			// observes the latest state.
+			if done, err := refresh(); done {
+				return err
+			}
 			return ctx.Err()
 		case newState := <-stateCh:
 			if containsSandboxState(errorStates, newState) {
@@ -616,14 +649,8 @@ func (s *Sandbox) waitForState(
 				return nil
 			}
 		case <-pollTimer.C:
-			if safeRefresh {
-				if err := s.refreshDataSafe(ctx); err != nil {
-					return err
-				}
-			} else {
-				if err := s.doRefreshData(ctx); err != nil {
-					return err
-				}
+			if done, err := refresh(); done || err != nil {
+				return err
 			}
 
 			pollInterval = nextWaitForStatePollInterval(pollInterval, time.Since(startTime), subscribed)
@@ -1058,32 +1085,69 @@ func (s *Sandbox) doStopWithTimeout(ctx context.Context, timeout time.Duration, 
 
 // Delete deletes the sandbox with a default timeout of 60 seconds.
 //
-// This operation is irreversible. All data in the sandbox will be lost.
-// For custom timeout, use [Sandbox.DeleteWithTimeout].
+// The method issues the delete API call and returns immediately without
+// waiting for the sandbox to reach the "destroyed" state. This matches the
+// historical behavior. Use [Sandbox.DeleteAndWait] to block until destruction.
 //
 // Example:
 //
 //	err := sandbox.Delete(ctx)
 func (s *Sandbox) Delete(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Delete", func(ctx context.Context) error {
 		return s.DeleteWithTimeout(ctx, 60*time.Second)
 	})
 }
 
-// DeleteWithTimeout deletes the sandbox with a custom timeout. 0 means no timeout.
+// DeleteWithTimeout deletes the sandbox with a custom timeout for the API call.
+// 0 means no timeout.
+//
+// Like [Sandbox.Delete], this returns as soon as the API call completes
+// without waiting for the "destroyed" state. Use [Sandbox.DeleteAndWait]
+// to block until destruction.
 //
 // Example:
 //
 //	err := sandbox.DeleteWithTimeout(ctx, 2*time.Minute)
 func (s *Sandbox) DeleteWithTimeout(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "DeleteWithTimeout", func(ctx context.Context) error {
 		return s.doDeleteWithTimeout(ctx, timeout)
 	})
 }
 
 func (s *Sandbox) doDeleteWithTimeout(ctx context.Context, timeout time.Duration) error {
+	if timeout < 0 {
+		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
+	}
+
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	authCtx := s.client.getAuthContext(ctx)
+	_, httpResp, err := s.client.apiClient.SandboxAPI.DeleteSandbox(authCtx, s.ID).Execute()
+	if err != nil {
+		return errors.ConvertAPIError(err, httpResp)
+	}
+
+	return nil
+}
+
+// DeleteAndWait deletes the sandbox and blocks until it reaches the "destroyed"
+// state or the timeout is exceeded. 0 means no timeout.
+//
+// Example:
+//
+//	err := sandbox.DeleteAndWait(ctx, 60*time.Second)
+func (s *Sandbox) DeleteAndWait(ctx context.Context, timeout time.Duration) error {
+	s.ensureSubscribed()
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "DeleteAndWait", func(ctx context.Context) error {
+		return s.doDeleteAndWait(ctx, timeout)
+	})
+}
+
+func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) error {
 	if timeout < 0 {
 		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
 	}
@@ -1736,12 +1800,21 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		return err
 	}
 
-	return s.waitForState(
-		ctx,
-		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_PAUSED},
-		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
-		false,
-	)
+	// Main's contract: pause completes when the sandbox has *left* PAUSING
+	// (paused, stopped, archived, …), not only on exactly PAUSED.
+	errorStates := []apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED}
+	excludeSet := map[apiclient.SandboxState]bool{apiclient.SANDBOXSTATE_PAUSING: true}
+	for _, st := range errorStates {
+		excludeSet[st] = true
+	}
+	var targetStates []apiclient.SandboxState
+	for _, st := range apiclient.AllowedSandboxStateEnumValues {
+		if !excludeSet[st] {
+			targetStates = append(targetStates, st)
+		}
+	}
+
+	return s.waitForState(ctx, targetStates, errorStates, false)
 }
 
 // Resize resizes the sandbox resources with a default timeout of 60 seconds.

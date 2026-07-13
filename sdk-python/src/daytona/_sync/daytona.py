@@ -571,13 +571,17 @@ class Daytona:
         return sandbox
 
     @with_instrumentation()
-    def delete(self, sandbox: Sandbox, timeout: float = 60) -> None:
+    def delete(self, sandbox: Sandbox, timeout: float = 60, wait: bool = False) -> None:
         """Deletes a Sandbox.
+
+        By default returns as soon as the deletion request is accepted (fire-and-forget).
+        Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
 
         Args:
             sandbox (Sandbox): The Sandbox instance to delete.
-            timeout (float): Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-                Default is 60 seconds.
+            timeout (float): Timeout (in seconds) for the request and, when ``wait``
+                is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+            wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
 
         Raises:
             DaytonaError: If sandbox fails to delete or times out
@@ -589,7 +593,7 @@ class Daytona:
             daytona.delete(sandbox)  # Clean up when done
             ```
         """
-        return sandbox.delete(timeout)
+        return sandbox.delete(timeout, wait=wait)
 
     @intercept_errors(message_prefix="Failed to get sandbox: ")
     @with_instrumentation()

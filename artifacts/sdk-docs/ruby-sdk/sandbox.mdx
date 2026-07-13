@@ -639,15 +639,21 @@ Creates an SSH access token for the sandbox.
 #### delete()
 
 ```ruby
-def delete(timeout = DEFAULT_TIMEOUT)
+def delete(timeout = DEFAULT_TIMEOUT, wait: false)
 
 ```
 
-Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+Deletes the Sandbox.
+
+By default returns as soon as the deletion request is accepted (matching
+origin/main behavior). Pass +wait: true+ to block until the Sandbox
+reaches the +destroyed+ state.
 
 **Parameters**:
 
 - `timeout` _Numeric_ - Maximum wait time in seconds (defaults to 60 s).
+Only meaningful when +wait+ is true.
+- `wait` _Boolean_ - When +true+, block until the Sandbox is destroyed.
 
 **Returns**:
 
@@ -1157,7 +1163,8 @@ def pause(timeout: DEFAULT_TIMEOUT)
 ```
 
 Pauses the Sandbox, freezing all running processes.
-The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+Completes when the Sandbox has left the +pausing+ state (paused, stopped,
+archived, etc.); error states still raise.
 
 **Parameters**:
 

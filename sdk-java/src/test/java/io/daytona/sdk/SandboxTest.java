@@ -190,17 +190,24 @@ class SandboxTest {
     }
 
     @Test
-    void deleteAndRefreshDelegate() {
+    void deleteDefaultDoesNotWaitForDestroyed() {
+        sandbox.delete(5);
+
+        verify(sandboxApi).deleteSandbox("sb-1", null);
+        verify(sandboxApi, org.mockito.Mockito.never()).getSandbox("sb-1", null, null);
+    }
+
+    @Test
+    void deleteWithWaitBlocksUntilDestroyed() {
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(
-                TestSupport.mainSandbox("sb-1", SandboxState.STARTED),
+                TestSupport.mainSandbox("sb-1", SandboxState.DESTROYING),
                 TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED)
         );
 
-        sandbox.refreshData();
-        sandbox.delete(5);
+        sandbox.delete(5, true);
 
-        verify(sandboxApi, org.mockito.Mockito.times(2)).getSandbox("sb-1", null, null);
         verify(sandboxApi).deleteSandbox("sb-1", null);
+        assertThat(sandbox.getState()).isEqualTo("destroyed");
     }
 
     @Test
@@ -390,6 +397,81 @@ class SandboxTest {
                 Arguments.of(429, DaytonaRateLimitException.class),
                 Arguments.of(500, DaytonaServerException.class)
         );
+    }
+
+    @Test
+    void cachedErrorStateRecoverAfterRefresh() {
+        TestSupport.setField(sandbox, "state", "error");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        sandbox.waitUntilStarted(2);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+    }
+
+    @Test
+    void nearZeroTimeoutStillPerformsOneRefresh() {
+        TestSupport.setField(sandbox, "state", "starting");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        sandbox.waitUntilStarted(1);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+    }
+
+    @Test
+    void pauseLandingInStoppedResolves() {
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STOPPED));
+
+        sandbox.pause(2);
+
+        verify(sandboxApi).pauseSandbox("sb-1", null);
+        assertThat(sandbox.getState()).isEqualTo("stopped");
+    }
+
+    @Test
+    void pauseLandingInArchivedResolves() {
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.ARCHIVED));
+
+        sandbox.pause(2);
+
+        verify(sandboxApi).pauseSandbox("sb-1", null);
+        assertThat(sandbox.getState()).isEqualTo("archived");
+    }
+
+    @Test
+    void concurrentWaitersAllComplete() throws Exception {
+        int waiterCount = 5;
+        Thread[] threads = new Thread[waiterCount];
+        Throwable[] errors = new Throwable[waiterCount];
+
+        for (int i = 0; i < waiterCount; i++) {
+            final int idx = i;
+            String sbId = "sb-concurrent-" + i;
+            SandboxApi localApi = mock(SandboxApi.class);
+            when(localApi.getSandbox(sbId, null, null)).thenAnswer(inv -> {
+                Thread.sleep(50);
+                return TestSupport.mainSandbox(sbId, SandboxState.STARTED);
+            });
+
+            Sandbox sb = new Sandbox(localApi, TestSupport.config(),
+                    TestSupport.mainSandbox(sbId, SandboxState.STARTING), mockSubscriptionManager());
+
+            threads[i] = new Thread(() -> {
+                try {
+                    sb.waitUntilStarted(5);
+                } catch (Throwable e) {
+                    errors[idx] = e;
+                }
+            });
+        }
+
+        for (Thread t : threads) t.start();
+        for (Thread t : threads) t.join(10_000);
+
+        for (int i = 0; i < waiterCount; i++) {
+            assertThat(errors[i]).as("waiter-%d should complete without error", i).isNull();
+        }
     }
 
     private EventSubscriptionManager mockSubscriptionManager() {

@@ -264,16 +264,22 @@ sandbox = await daytona.create(
 
 ```python
 @with_instrumentation()
-async def delete(sandbox: AsyncSandbox, timeout: float = 60) -> None
+async def delete(sandbox: AsyncSandbox,
+                 timeout: float = 60,
+                 wait: bool = False) -> None
 ```
 
 Deletes a Sandbox.
 
+By default returns as soon as the deletion request is accepted (fire-and-forget).
+Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
+
 **Arguments**:
 
 - `sandbox` _Sandbox_ - The Sandbox instance to delete.
-- `timeout` _float_ - Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-  Default is 60 seconds.
+- `timeout` _float_ - Timeout (in seconds) for the request and, when ``wait``
+  is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+- `wait` _bool_ - If True, wait until the Sandbox is destroyed. Defaults to False.
   
 
 **Raises**:

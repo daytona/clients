@@ -40,10 +40,12 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -77,6 +79,7 @@ public class Sandbox {
     private static final Set<String> ERROR_STATES = new HashSet<>(Arrays.asList("error", "build_failed"));
     private static final Set<String> RESIZE_TARGET_STATES;
     private static final Set<String> SNAPSHOT_TARGET_STATES;
+    private static final Set<String> PAUSE_TARGET_STATES;
     static {
         Set<String> allStates = new HashSet<>();
         for (io.daytona.api.client.model.SandboxState s : io.daytona.api.client.model.SandboxState.values()) {
@@ -91,10 +94,22 @@ public class Sandbox {
         Set<String> snapshotStates = new HashSet<>(allStates);
         snapshotStates.remove("snapshotting");
         SNAPSHOT_TARGET_STATES = Collections.unmodifiableSet(snapshotStates);
+
+        Set<String> pauseStates = new HashSet<>(allStates);
+        pauseStates.remove("pausing");
+        PAUSE_TARGET_STATES = Collections.unmodifiableSet(pauseStates);
     }
 
     private static final ScheduledExecutorService POLL_SCHEDULER = Executors.newScheduledThreadPool(2, r -> {
         Thread t = new Thread(r, "daytona-sandbox-poller");
+        t.setDaemon(true);
+        return t;
+    });
+
+    // Unbounded cached pool for blocking HTTP refreshes — prevents starvation
+    // on the fixed-size POLL_SCHEDULER when 3+ sandboxes poll concurrently.
+    private static final ExecutorService REFRESH_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "daytona-sandbox-refresh");
         t.setDaemon(true);
         return t;
     });
@@ -322,22 +337,41 @@ public class Sandbox {
     }
 
     /**
-     * Deletes this Sandbox with default timeout behavior.
+     * Deletes this Sandbox.
      *
-     * @throws DaytonaException if deletion fails
+     * <p>Fires the delete API call and returns immediately without waiting for the
+     * Sandbox to reach the {@code destroyed} state. Use {@link #delete(long, boolean)}
+     * with {@code wait=true} to block until destruction completes.
+     *
+     * @throws DaytonaException if the delete API call fails
      */
     public void delete() {
-        ensureSubscribed();
         delete(60);
     }
 
     /**
-     * Deletes this Sandbox and waits for it to reach the {@code destroyed} state.
+     * Deletes this Sandbox.
      *
-     * @param timeoutSeconds maximum seconds to wait; {@code 0} disables timeout
-     * @throws DaytonaException if deletion fails or times out
+     * <p>Fires the delete API call and returns immediately. Use
+     * {@link #delete(long, boolean)} with {@code wait=true} to block until destroyed.
+     *
+     * @param timeoutSeconds timeout for the HTTP request (and for waiting when
+     *                       {@code wait} is true in {@link #delete(long, boolean)})
+     * @throws DaytonaException if the delete API call fails
      */
     public void delete(long timeoutSeconds) {
+        delete(timeoutSeconds, false);
+    }
+
+    /**
+     * Deletes this Sandbox, optionally waiting for it to reach the {@code destroyed} state.
+     *
+     * @param timeoutSeconds maximum seconds to wait when {@code wait} is true;
+     *                       {@code 0} disables timeout. Ignored when {@code wait} is false.
+     * @param wait if {@code true}, block until the Sandbox is destroyed
+     * @throws DaytonaException if deletion fails or times out
+     */
+    public void delete(long timeoutSeconds, boolean wait) {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -346,11 +380,13 @@ public class Sandbox {
         ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
 
         try {
-            refreshDataSafe();
-            if (!"destroyed".equalsIgnoreCase(state)) {
-                long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-                long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-                waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true);
+            if (wait) {
+                refreshDataSafe();
+                if (!"destroyed".equalsIgnoreCase(state)) {
+                    long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+                    long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
+                    waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true);
+                }
             }
         } finally {
             synchronized (subscriptionLock) {
@@ -856,21 +892,26 @@ public class Sandbox {
 
         try {
             String current = state;
-            if (current != null) {
-                waiter.onStateChanged(current);
-            }
-            if (waiter.isResolved()) {
-                waiter.throwIfError();
+            if (current != null && targetStates.contains(current)) {
                 return;
             }
 
             long pollIntervalMillis = subscribed ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
+            AtomicBoolean refreshInFlight = new AtomicBoolean(false);
             ScheduledFuture<?> pollFuture = POLL_SCHEDULER.scheduleAtFixedRate(() -> {
                 if (waiter.isResolved()) {
                     return;
                 }
-                runPollingRefresh(waiter, safeRefresh);
-            }, pollIntervalMillis, pollIntervalMillis, TimeUnit.MILLISECONDS);
+                if (refreshInFlight.compareAndSet(false, true)) {
+                    REFRESH_EXECUTOR.submit(() -> {
+                        try {
+                            runPollingRefresh(waiter, safeRefresh);
+                        } finally {
+                            refreshInFlight.set(false);
+                        }
+                    });
+                }
+            }, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
 
             try {
                 boolean completed;
@@ -882,6 +923,19 @@ public class Sandbox {
                 }
 
                 if (!completed) {
+                    pollFuture.cancel(false);
+                    try {
+                        if (safeRefresh) {
+                            refreshDataSafe();
+                        } else {
+                            refreshData();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    if (waiter.isResolved()) {
+                        waiter.throwIfError();
+                        return;
+                    }
                     throw new DaytonaTimeoutException("Sandbox " + id + " did not reach target state within " + timeoutSeconds + " seconds");
                 }
                 waiter.throwIfError();
@@ -1084,7 +1138,8 @@ public class Sandbox {
 
     /**
      * Pauses the Sandbox, freezing all running processes.
-     * The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+     * Completes when the Sandbox has left the {@code pausing} state — any non-error
+     * terminal state (paused, stopped, archived, etc.) is accepted.
      *
      * @param timeoutSeconds maximum time to wait in seconds (0 = no timeout)
      * @throws DaytonaException if timeout is negative or the operation fails/times out
@@ -1097,12 +1152,12 @@ public class Sandbox {
         long startTime = System.currentTimeMillis();
         ExceptionMapper.callMain(() -> sandboxApi.pauseSandbox(id, null));
         refreshData();
-        if (PAUSED_STATES.contains(state)) {
+        if (PAUSE_TARGET_STATES.contains(state)) {
             return;
         }
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
         long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-        waitForState(PAUSED_STATES, ERROR_STATES, remaining, false);
+        waitForState(PAUSE_TARGET_STATES, ERROR_STATES, remaining, false);
     }
 
     /** @return Sandbox ID. */

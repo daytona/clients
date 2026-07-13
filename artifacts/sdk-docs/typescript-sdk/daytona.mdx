@@ -232,7 +232,10 @@ const sandbox = await daytona.create(params, { timeout: 100, onSnapshotCreateLog
 #### delete()
 
 ```ts
-delete(sandbox: Sandbox, timeout: number): Promise<void>
+delete(
+   sandbox: Sandbox, 
+   timeout: number, 
+wait: boolean): Promise<void>
 ```
 
 Deletes a Sandbox.
@@ -241,6 +244,7 @@ Deletes a Sandbox.
 
 - `sandbox` _Sandbox_ - The Sandbox to delete
 - `timeout` _number = 60_ - Timeout in seconds (0 means no timeout, default is 60)
+- `wait` _boolean = false_ - If true, wait until the Sandbox is destroyed (default is false)
 
 
 **Returns**:

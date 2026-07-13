@@ -224,3 +224,62 @@ class TestAsyncSandboxWaitForStart:
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=error_dto)
         with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             await sandbox.wait_for_sandbox_start(timeout=0)
+
+
+class TestAsyncSandboxPollingSemantics:
+    @pytest.mark.asyncio
+    async def test_cached_error_recovers_after_refresh(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient")
+        sandbox = make_async_sandbox(error_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTED))
+        await sandbox.wait_for_sandbox_start(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    @pytest.mark.asyncio
+    async def test_transient_error_tolerated_during_stop_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[
+                Exception("502 Bad Gateway"),
+                make_sandbox_dto(state=SandboxState.STOPPED),
+            ]
+        )
+        await sandbox.wait_for_sandbox_stop(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_delete_default_does_not_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYING))
+        mock_async_sandbox_api.get_sandbox = AsyncMock()
+        await sandbox.delete(timeout=0)
+        mock_async_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.DESTROYING
+
+    @pytest.mark.asyncio
+    async def test_delete_wait_true_blocks_until_destroyed(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYING))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYED))
+        await sandbox.delete(timeout=0, wait=True)
+        mock_async_sandbox_api.get_sandbox.assert_called()
+        assert sandbox.state == SandboxState.DESTROYED
+
+    @pytest.mark.asyncio
+    async def test_pause_resolves_on_stopped(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.pause_sandbox = AsyncMock(return_value=None)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[
+                make_sandbox_dto(state=SandboxState.PAUSING),
+                make_sandbox_dto(state=SandboxState.STOPPED),
+            ]
+        )
+        await sandbox.pause(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED

@@ -194,3 +194,50 @@ class TestSandboxWaitForStart:
         mock_sandbox_api.get_sandbox.return_value = error_dto
         with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             sandbox.wait_for_sandbox_start(timeout=0)
+
+
+class TestSandboxPollingSemantics:
+    def test_cached_error_recovers_after_refresh(self, mock_toolbox_api_client, mock_sandbox_api):
+        error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient")
+        sandbox = make_sandbox(error_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox.wait_for_sandbox_start(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    def test_transient_error_tolerated_during_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            Exception("502 Bad Gateway"),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+        sandbox.wait_for_sandbox_stop(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_delete_default_does_not_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+        sandbox.delete(timeout=0)
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.DESTROYING
+
+    def test_delete_wait_true_blocks_until_destroyed(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYED)
+        sandbox.delete(timeout=0, wait=True)
+        mock_sandbox_api.get_sandbox.assert_called()
+        assert sandbox.state == SandboxState.DESTROYED
+
+    def test_pause_resolves_on_stopped(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.pause_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.PAUSING),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+        sandbox.pause(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED

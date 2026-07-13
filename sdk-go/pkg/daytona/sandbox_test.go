@@ -681,3 +681,111 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	// UnsetValuePrefix is an internal reconciliation knob and must never be sent.
 	assert.NotContains(t, body, "unsetValuePrefix")
 }
+
+func TestWaitForStateCachedErrorRecoversAfterRefresh(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_ERROR, "us", 0, -1, false, nil)
+
+	err := sandbox.waitForState(
+		context.Background(),
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STARTED},
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
+		false,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+}
+
+func TestWaitForStateNearZeroTimeoutRefreshes(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_CREATING, "us", 0, -1, false, nil)
+
+	err := sandbox.doWaitForStart(context.Background(), 50*time.Millisecond)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+}
+
+func TestPauseLandingInStoppedResolves(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+		case http.MethodGet:
+			getCount++
+			state := apiclient.SANDBOXSTATE_PAUSING
+			if getCount > 1 {
+				state = apiclient.SANDBOXSTATE_STOPPED
+			}
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doPauseWithTimeout(context.Background(), 2*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.State)
+}
+
+func TestDeleteFireAndForget(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			getCount++
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doDeleteWithTimeout(context.Background(), 5*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, 0, getCount, "Delete must not poll for state")
+}
+
+func TestDeleteAndWaitBlocksUntilDestroyed(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING))
+		case http.MethodGet:
+			getCount++
+			state := apiclient.SANDBOXSTATE_DESTROYING
+			if getCount > 1 {
+				state = apiclient.SANDBOXSTATE_DESTROYED
+			}
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doDeleteAndWait(context.Background(), 3*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_DESTROYED, sandbox.State)
+	assert.Greater(t, getCount, 0, "DeleteAndWait must poll for state")
+}

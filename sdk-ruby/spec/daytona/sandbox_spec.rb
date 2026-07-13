@@ -171,17 +171,18 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#delete' do
-    it 'calls sandbox_api.delete_sandbox and refreshes' do
+    it 'returns without blocking by default' do
       allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
-      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'destroyed'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: 'destroying'))
 
       sandbox.delete
 
       expect(sandbox_api).to have_received(:delete_sandbox).with('sandbox-123')
-      expect(sandbox.state).to eq('destroyed')
+      expect(sandbox.state).to eq('destroying')
     end
 
-    it 'sets state to destroyed on 404' do
+    it 'sets state to destroyed when refresh returns 404' do
       allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
       allow(sandbox_api).to receive(:get_sandbox).and_raise(
         DaytonaApiClient::ApiError.new(code: 404, message: 'Not found')
@@ -192,11 +193,37 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.state).to eq('destroyed')
     end
 
-    it 're-raises non-404 API errors' do
+    it 're-raises non-404 API errors from delete call' do
       allow(sandbox_api).to receive(:delete_sandbox).and_raise(DaytonaApiClient::ApiError.new(code: 500,
                                                                                               message: 'boom'))
 
       expect { sandbox.delete }.to raise_error(DaytonaApiClient::ApiError)
+    end
+
+    it 'blocks until destroyed with wait: true' do
+      allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::DESTROYED))
+
+      sandbox.delete(5, wait: true)
+
+      expect(sandbox_api).to have_received(:delete_sandbox).with('sandbox-123')
+      expect(sandbox.state).to eq('destroyed')
+    end
+
+    it 'tolerates transient 502 during wait: true polling' do
+      call_count = 0
+      allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        call_count += 1
+        raise DaytonaApiClient::ApiError.new(code: 502, message: 'Bad Gateway') if call_count <= 2
+
+        build_sandbox_dto(state: DaytonaApiClient::SandboxState::DESTROYED)
+      end
+
+      sandbox.delete(5, wait: true)
+
+      expect(sandbox.state).to eq('destroyed')
     end
   end
 
@@ -453,18 +480,36 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#wait_for_sandbox_start' do
-    it 'raises when the sandbox enters an error state' do
+    it 'raises after one refresh when cached state is error' do
       errored = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'boom'),
         config: config,
         sandbox_api: sandbox_api,
         subscription_manager: subscription_manager
       )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(
+                                                               state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'boom'
+                                                             ))
 
       expect do
         errored.wait_for_sandbox_start
       end.to raise_error(Daytona::Sdk::Error,
                          /entered error state: error, error reason: boom/i)
+    end
+
+    it 'recovers from stale cached ERROR when refresh returns started' do
+      errored = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'stale'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
+
+      expect { errored.wait_for_sandbox_start }.not_to raise_error
+      expect(errored.state).to eq('started')
     end
 
     it 'uses origin/main polling cadence when no event subscription is active' do
@@ -476,6 +521,7 @@ RSpec.describe Daytona::Sandbox do
       )
       condition = instance_double(ConditionVariable, signal: nil)
       waits = []
+      refresh_count = 0
 
       allow(subscription_manager).to receive(:refresh).and_return(false)
       allow(subscription_manager).to receive(:subscribe).and_return(nil)
@@ -484,7 +530,8 @@ RSpec.describe Daytona::Sandbox do
         waits << interval
       end
       allow(pending_sandbox).to receive(:refresh) do
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED)
+        refresh_count += 1
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
       end
 
       pending_sandbox.wait_for_sandbox_start
@@ -501,6 +548,7 @@ RSpec.describe Daytona::Sandbox do
       )
       condition = instance_double(ConditionVariable, signal: nil)
       waits = []
+      refresh_count = 0
 
       allow(subscription_manager).to receive(:refresh).and_return(true)
       allow(ConditionVariable).to receive(:new).and_return(condition)
@@ -508,12 +556,42 @@ RSpec.describe Daytona::Sandbox do
         waits << interval
       end
       allow(pending_sandbox).to receive(:refresh) do
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED)
+        refresh_count += 1
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
       end
 
       pending_sandbox.wait_for_sandbox_start
 
       expect(waits.first).to eq(1.0)
+    end
+
+    it 'enforces timeout (deliberate keep)' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: 'pending'))
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start(0.15)
+      end.to raise_error(Daytona::Sdk::TimeoutError)
+    end
+
+    it 'near-zero timeout still performs one refresh before raising' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
+
+      expect { pending_sandbox.wait_for_sandbox_start(0.001) }.not_to raise_error
+      expect(pending_sandbox.state).to eq('started')
     end
   end
 
@@ -527,6 +605,57 @@ RSpec.describe Daytona::Sandbox do
       )
 
       expect { destroyed.wait_for_sandbox_stop }.not_to raise_error
+    end
+
+    it 'enforces timeout (deliberate keep)' do
+      stopping = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'stopping'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: 'stopping'))
+
+      expect do
+        stopping.wait_for_sandbox_stop(0.15)
+      end.to raise_error(Daytona::Sdk::TimeoutError)
+    end
+  end
+
+  describe '#pause' do
+    it 'resolves when landing in stopped state (left-pausing semantics)' do
+      pausing = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::PAUSING),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:pause_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STOPPED))
+
+      expect { pausing.pause(timeout: 5) }.not_to raise_error
+      expect(pausing.state).to eq('stopped')
+    end
+
+    it 'resolves when landing in paused state' do
+      allow(sandbox_api).to receive(:pause_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::PAUSED))
+
+      expect { sandbox.pause(timeout: 5) }.not_to raise_error
+      expect(sandbox.state).to eq('paused')
+    end
+
+    it 'raises on error state during pause' do
+      allow(sandbox_api).to receive(:pause_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(
+                                                               state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'oom'
+                                                             ))
+
+      expect { sandbox.pause(timeout: 5) }.to raise_error(Daytona::Sdk::Error, /error state/)
     end
   end
 

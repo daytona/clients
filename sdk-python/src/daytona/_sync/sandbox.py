@@ -411,7 +411,9 @@ class Sandbox(SandboxDto):
         """
         self.labels = (
             self._sandbox_api.replace_labels(
-                self.id, SandboxLabels(labels=labels), _request_timeout=http_timeout(request_timeout)
+                self.id,
+                SandboxLabels(labels=labels),
+                _request_timeout=http_timeout(request_timeout),
             )
         ).labels
         return self.labels
@@ -498,18 +500,23 @@ class Sandbox(SandboxDto):
     def delete(
         self,
         timeout: float | None = 60,  # pylint: disable=unused-argument
+        wait: bool = False,
     ) -> None:
-        """Deletes the Sandbox and waits for it to reach the 'destroyed' state.
+        """Deletes the Sandbox.
+
+        By default returns as soon as the deletion request is accepted (fire-and-forget).
+        Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
 
         Args:
-            timeout (float | None): Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-                Default is 60 seconds.
+            timeout (float | None): Timeout (in seconds) for the request and, when ``wait``
+                is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+            wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
         sandbox = self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
         self.__process_sandbox_dto(sandbox)
 
         try:
-            if self.state != SandboxState.DESTROYED:
+            if wait and self.state != SandboxState.DESTROYED:
                 self._wait_for_state(
                     [SandboxState.DESTROYED],
                     [SandboxState.ERROR, SandboxState.BUILD_FAILED],
@@ -814,7 +821,10 @@ class Sandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failed to create signed preview url: ")
     def create_signed_preview_url(
-        self, port: int, expires_in_seconds: int | None = None, request_timeout: float | None = None
+        self,
+        port: int,
+        expires_in_seconds: int | None = None,
+        request_timeout: float | None = None,
     ) -> SignedPortPreviewUrl:
         """Creates a signed preview URL for the sandbox at the specified port.
 
@@ -831,7 +841,10 @@ class Sandbox(SandboxDto):
             SignedPortPreviewUrl: The response object for the signed preview url.
         """
         return self._sandbox_api.get_signed_port_preview_url(
-            self.id, port, expires_in_seconds=expires_in_seconds, _request_timeout=http_timeout(request_timeout)
+            self.id,
+            port,
+            expires_in_seconds=expires_in_seconds,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to expire signed preview url: ")
@@ -937,7 +950,9 @@ class Sandbox(SandboxDto):
     @intercept_errors(message_prefix="Failed to create SSH access: ")
     @with_instrumentation()
     def create_ssh_access(
-        self, expires_in_minutes: int | None = None, request_timeout: float | None = None
+        self,
+        expires_in_minutes: int | None = None,
+        request_timeout: float | None = None,
     ) -> SshAccessDto:
         """Creates an SSH access token for the sandbox.
 
@@ -949,7 +964,9 @@ class Sandbox(SandboxDto):
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
         return self._sandbox_api.create_ssh_access(
-            self.id, expires_in_minutes=expires_in_minutes, _request_timeout=http_timeout(request_timeout)
+            self.id,
+            expires_in_minutes=expires_in_minutes,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to revoke SSH access: ")
@@ -1069,7 +1086,9 @@ class Sandbox(SandboxDto):
             ```
         """
         response = self._sandbox_api.create_sandbox_snapshot(
-            self.id, CreateSandboxSnapshot(name=name), _request_timeout=http_timeout(timeout)
+            self.id,
+            CreateSandboxSnapshot(name=name),
+            _request_timeout=http_timeout(timeout),
         )
         self.__process_sandbox_dto(response)
 
@@ -1101,10 +1120,10 @@ class Sandbox(SandboxDto):
 
         _ = self._sandbox_api.pause_sandbox(self.id, _request_timeout=timeout if timeout > 0 else None)
         self.refresh_data()
-        self._wait_for_state(
-            [SandboxState.PAUSED],
-            [SandboxState.ERROR, SandboxState.BUILD_FAILED],
-        )
+        error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+        exclude = {SandboxState.PAUSING} | set(error_states)
+        target_states = [s for s in SandboxState if s not in exclude]
+        self._wait_for_state(target_states, error_states)
 
     def _ensure_subscribed(self) -> None:
         with self._state_waiters_lock:
@@ -1170,10 +1189,11 @@ class Sandbox(SandboxDto):
         """
         self._ensure_subscribed()
 
+        # Fast-path only on cached *target* states (parity with main's pre-check).
+        # Cached error states are deliberately NOT evaluated here — main always
+        # refreshed before failing, so a stale ERROR must survive one refresh.
         if self.state in target_states:
             return
-        if self.state in error_states:
-            raise DaytonaError(f"Sandbox {self.id} is in error state: {self.state}, error reason: {self.error_reason}")
 
         subscribed = self._sub_id is not None
         poll_interval = 1.0 if subscribed else 0.1
@@ -1197,6 +1217,12 @@ class Sandbox(SandboxDto):
         with self._state_waiters_lock:
             self._state_waiters.append(_waiter)
         try:
+            # First poll runs immediately (main always refreshed before state evaluation).
+            if safe_refresh:
+                self.__refresh_data_safe()
+            else:
+                self.refresh_data()
+
             _waiter(self.state)
 
             while not state_resolved.is_set():
@@ -1217,6 +1243,25 @@ class Sandbox(SandboxDto):
                 raise DaytonaError(
                     f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
                 )
+        except BaseException as exc:
+            # Parity with main: complete one final refresh-then-evaluate before
+            # propagating, so a clamped/short timeout still observes the latest state.
+            if not state_resolved.is_set():
+                try:
+                    if safe_refresh:
+                        self.__refresh_data_safe()
+                    else:
+                        self.refresh_data()
+                except Exception:
+                    pass  # fall through to re-raise below
+                if state_resolved.is_set():
+                    if result_state in error_states:
+                        message = (
+                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
+                        )
+                        raise DaytonaError(message) from exc
+                    return  # Target state reached — suppress the timeout
+            raise
         finally:
             with self._state_waiters_lock:
                 if _waiter in self._state_waiters:
@@ -1265,10 +1310,10 @@ class Sandbox(SandboxDto):
         self._apply_state(sandbox_dto.state)
 
     def __refresh_data_safe(self) -> None:
-        """Refreshes the Sandbox data from the API, but does not throw an error if the sandbox has been deleted.
-        Instead, it sets the state to destroyed.
-        """
+        """Refreshes sandbox data, treating 404 as DESTROYED and swallowing transient errors."""
         try:
             self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
+        except Exception:
+            pass

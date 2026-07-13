@@ -634,6 +634,6 @@ describe('Daytona', () => {
 
     expect(sandboxFromGet.start).toHaveBeenCalled()
     expect(sandboxFromGet.stop).toHaveBeenCalled()
-    expect(sandboxFromGet.delete).toHaveBeenCalledWith(33)
+    expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
   })
 })

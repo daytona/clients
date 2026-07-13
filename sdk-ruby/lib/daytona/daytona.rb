@@ -113,8 +113,9 @@ module Daytona
     # Deletes a Sandbox.
     #
     # @param sandbox [Daytona::Sandbox]
+    # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
-    def delete(sandbox) = sandbox.delete
+    def delete(sandbox, wait: false) = sandbox.delete(wait:)
 
     # Gets a Sandbox by its ID.
     #
