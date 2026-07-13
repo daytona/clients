@@ -43,6 +43,7 @@ from daytona_toolbox_api_client import (
 
 from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
+from .._utils.timeout import http_timeout
 from ..common.computer_use import ScreenshotOptions, ScreenshotRegion
 from ..internal.http_client import request_timeout as _request_timeout
 
@@ -55,8 +56,14 @@ class Mouse:
 
     @intercept_errors(message_prefix="Failed to get mouse position: ")
     @with_instrumentation()
-    def get_position(self) -> MousePositionResponse:
+    def get_position(self, request_timeout: float | None = None) -> MousePositionResponse:
         """Gets the current mouse cursor position.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             MousePositionResponse: Current mouse position with x and y coordinates.
@@ -67,17 +74,21 @@ class Mouse:
             print(f"Mouse is at: {position.x}, {position.y}")
             ```
         """
-        response = self._api_client.get_mouse_position()
+        response = self._api_client.get_mouse_position(_request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to move mouse: ")
     @with_instrumentation()
-    def move(self, x: int, y: int) -> MousePositionResponse:
+    def move(self, x: int, y: int, request_timeout: float | None = None) -> MousePositionResponse:
         """Moves the mouse cursor to the specified coordinates.
 
         Args:
             x (int): The x coordinate to move to.
             y (int): The y coordinate to move to.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             MousePositionResponse: Position after move.
@@ -89,12 +100,14 @@ class Mouse:
             ```
         """
         request = MouseMoveRequest(x=x, y=y)
-        response = self._api_client.move_mouse(request)
+        response = self._api_client.move_mouse(request, _request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to click mouse: ")
     @with_instrumentation()
-    def click(self, x: int, y: int, button: str = "left", double: bool = False) -> MouseClickResponse:
+    def click(
+        self, x: int, y: int, button: str = "left", double: bool = False, request_timeout: float | None = None
+    ) -> MouseClickResponse:
         """Clicks the mouse at the specified coordinates.
 
         Args:
@@ -102,6 +115,10 @@ class Mouse:
             y (int): The y coordinate to click at.
             button (str): The mouse button to click ('left', 'right', 'middle').
             double (bool): Whether to perform a double-click.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             MouseClickResponse: Click operation result.
@@ -119,12 +136,20 @@ class Mouse:
             ```
         """
         request = MouseClickRequest(x=x, y=y, button=button, double=double)
-        response = self._api_client.click(request)
+        response = self._api_client.click(request, _request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to drag mouse: ")
     @with_instrumentation()
-    def drag(self, start_x: int, start_y: int, end_x: int, end_y: int, button: str = "left") -> MouseDragResponse:
+    def drag(
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        button: str = "left",
+        request_timeout: float | None = None,
+    ) -> MouseDragResponse:
         """Drags the mouse from start coordinates to end coordinates.
 
         Args:
@@ -133,6 +158,10 @@ class Mouse:
             end_x (int): The ending x coordinate.
             end_y (int): The ending y coordinate.
             button (str): The mouse button to use for dragging.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             MouseDragResponse: Drag operation result.
@@ -144,12 +173,12 @@ class Mouse:
             ```
         """
         request = MouseDragRequest(start_x=start_x, start_y=start_y, end_x=end_x, end_y=end_y, button=button)
-        response = self._api_client.drag(request=request)
+        response = self._api_client.drag(request=request, _request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to scroll mouse: ")
     @with_instrumentation()
-    def scroll(self, x: int, y: int, direction: str, amount: int = 1) -> bool:
+    def scroll(self, x: int, y: int, direction: str, amount: int = 1, request_timeout: float | None = None) -> bool:
         """Scrolls the mouse wheel at the specified coordinates.
 
         Args:
@@ -157,6 +186,10 @@ class Mouse:
             y (int): The y coordinate to scroll at.
             direction (str): The direction to scroll ('up' or 'down').
             amount (int): The amount to scroll.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             bool: Whether the scroll operation was successful.
@@ -171,7 +204,7 @@ class Mouse:
             ```
         """
         request = MouseScrollRequest(x=x, y=y, direction=direction, amount=amount)
-        response = self._api_client.scroll(request=request)
+        response = self._api_client.scroll(request=request, _request_timeout=http_timeout(request_timeout))
         return response.success is True
 
 
@@ -183,12 +216,16 @@ class Keyboard:
 
     @intercept_errors(message_prefix="Failed to type text: ")
     @with_instrumentation()
-    def type(self, text: str, delay: int | None = None) -> None:
+    def type(self, text: str, delay: int | None = None, request_timeout: float | None = None) -> None:
         """Types the specified text.
 
         Args:
             text (str): The text to type.
             delay (int): Delay between characters in milliseconds.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the type operation fails.
@@ -210,11 +247,11 @@ class Keyboard:
             ```
         """
         request = KeyboardTypeRequest(text=text, delay=delay)
-        _ = self._api_client.type_text(request=request)
+        _ = self._api_client.type_text(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to press key: ")
     @with_instrumentation()
-    def press(self, key: str, modifiers: list[str] | None = None) -> None:
+    def press(self, key: str, modifiers: list[str] | None = None, request_timeout: float | None = None) -> None:
         """Presses a key with optional modifiers.
 
         Args:
@@ -226,6 +263,10 @@ class Keyboard:
             modifiers (list[str]): Canonical modifier names are 'ctrl', 'alt',
                 'shift', and 'cmd'. Common aliases such as 'control', 'option',
                 'meta', and 'win' are normalized.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the press operation fails.
@@ -253,17 +294,21 @@ class Keyboard:
             ```
         """
         request = KeyboardPressRequest(key=key, modifiers=modifiers or [])
-        _ = self._api_client.press_key(request=request)
+        _ = self._api_client.press_key(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to press hotkey: ")
     @with_instrumentation()
-    def hotkey(self, keys: str) -> None:
+    def hotkey(self, keys: str, request_timeout: float | None = None) -> None:
         """Presses a hotkey combination.
 
         Args:
             keys (str): A single atomic hotkey chord (e.g., 'ctrl+c', 'alt+tab',
                 'cmd+shift+t', 'ctrl + c', 'shift'). Uses the same normalized key
                 contract as ``press()``.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the hotkey operation fails.
@@ -293,7 +338,7 @@ class Keyboard:
             ```
         """
         request = KeyboardHotkeyRequest(keys=keys)
-        _ = self._api_client.press_hotkey(request=request)
+        _ = self._api_client.press_hotkey(request=request, _request_timeout=http_timeout(request_timeout))
 
 
 class Screenshot:
@@ -304,11 +349,15 @@ class Screenshot:
 
     @intercept_errors(message_prefix="Failed to take screenshot: ")
     @with_instrumentation()
-    def take_full_screen(self, show_cursor: bool = False) -> ScreenshotResponse:
+    def take_full_screen(self, show_cursor: bool = False, request_timeout: float | None = None) -> ScreenshotResponse:
         """Takes a screenshot of the entire screen.
 
         Args:
             show_cursor (bool): Whether to show the cursor in the screenshot.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ScreenshotResponse: Screenshot data with base64 encoded image.
@@ -322,17 +371,25 @@ class Screenshot:
             with_cursor = sandbox.computer_use.screenshot.take_full_screen(True)
             ```
         """
-        response = self._api_client.take_screenshot(show_cursor=show_cursor)
+        response = self._api_client.take_screenshot(
+            show_cursor=show_cursor, _request_timeout=http_timeout(request_timeout)
+        )
         return response
 
     @intercept_errors(message_prefix="Failed to take region screenshot: ")
     @with_instrumentation()
-    def take_region(self, region: ScreenshotRegion, show_cursor: bool = False) -> ScreenshotResponse:
+    def take_region(
+        self, region: ScreenshotRegion, show_cursor: bool = False, request_timeout: float | None = None
+    ) -> ScreenshotResponse:
         """Takes a screenshot of a specific region.
 
         Args:
             region (ScreenshotRegion): The region to capture.
             show_cursor (bool): Whether to show the cursor in the screenshot.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ScreenshotResponse: Screenshot data with base64 encoded image.
@@ -345,17 +402,28 @@ class Screenshot:
             ```
         """
         response = self._api_client.take_region_screenshot(
-            height=region.height, width=region.width, y=region.y, x=region.x, show_cursor=show_cursor
+            height=region.height,
+            width=region.width,
+            y=region.y,
+            x=region.x,
+            show_cursor=show_cursor,
+            _request_timeout=http_timeout(request_timeout),
         )
         return response
 
     @intercept_errors(message_prefix="Failed to take compressed screenshot: ")
     @with_instrumentation()
-    def take_compressed(self, options: ScreenshotOptions | None = None) -> ScreenshotResponse:
+    def take_compressed(
+        self, options: ScreenshotOptions | None = None, request_timeout: float | None = None
+    ) -> ScreenshotResponse:
         """Takes a compressed screenshot of the entire screen.
 
         Args:
             options (ScreenshotOptions | None): Compression and display options.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ScreenshotResponse: Compressed screenshot data.
@@ -384,19 +452,24 @@ class Screenshot:
             quality=options.quality,
             format=options.fmt,
             show_cursor=options.show_cursor,
+            _request_timeout=http_timeout(request_timeout),
         )
         return response
 
     @intercept_errors(message_prefix="Failed to take compressed region screenshot: ")
     @with_instrumentation()
     def take_compressed_region(
-        self, region: ScreenshotRegion, options: ScreenshotOptions | None = None
+        self, region: ScreenshotRegion, options: ScreenshotOptions | None = None, request_timeout: float | None = None
     ) -> ScreenshotResponse:
         """Takes a compressed screenshot of a specific region.
 
         Args:
             region (ScreenshotRegion): The region to capture.
             options (ScreenshotOptions | None): Compression and display options.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ScreenshotResponse: Compressed screenshot data.
@@ -423,6 +496,7 @@ class Screenshot:
             quality=options.quality,
             format=options.fmt,
             show_cursor=options.show_cursor,
+            _request_timeout=http_timeout(request_timeout),
         )
         return response
 
@@ -435,8 +509,14 @@ class Display:
 
     @intercept_errors(message_prefix="Failed to get display info: ")
     @with_instrumentation()
-    def get_info(self) -> DisplayInfoResponse:
+    def get_info(self, request_timeout: float | None = None) -> DisplayInfoResponse:
         """Gets information about the displays.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             DisplayInfoResponse: Display information including primary display and all available displays.
@@ -450,13 +530,19 @@ class Display:
                 print(f"Display {i}: {display.width}x{display.height} at {display.x},{display.y}")
             ```
         """
-        response = self._api_client.get_display_info()
+        response = self._api_client.get_display_info(_request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to get windows: ")
     @with_instrumentation()
-    def get_windows(self) -> WindowsResponse:
+    def get_windows(self, request_timeout: float | None = None) -> WindowsResponse:
         """Gets the list of open windows.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             WindowsResponse: List of open windows with their IDs and titles.
@@ -469,7 +555,7 @@ class Display:
                 print(f"- {window.title} (ID: {window.id})")
             ```
         """
-        response = self._api_client.get_windows()
+        response = self._api_client.get_windows(_request_timeout=http_timeout(request_timeout))
         return response
 
 
@@ -486,11 +572,15 @@ class RecordingService:
 
     @intercept_errors(message_prefix="Failed to start recording: ")
     @with_instrumentation()
-    def start(self, label: str | None = None) -> Recording:
+    def start(self, label: str | None = None, request_timeout: float | None = None) -> Recording:
         """Starts a new screen recording session.
 
         Args:
             label (str | None): Optional custom label for the recording.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             Recording: Recording start response.
@@ -504,15 +594,19 @@ class RecordingService:
             ```
         """
         request = StartRecordingRequest(label=label)
-        return self._api_client.start_recording(request=request)
+        return self._api_client.start_recording(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to stop recording: ")
     @with_instrumentation()
-    def stop(self, recording_id: str) -> Recording:
+    def stop(self, recording_id: str, request_timeout: float | None = None) -> Recording:
         """Stops an active screen recording session.
 
         Args:
             recording_id (str): The ID of the recording to stop.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             Recording: Recording stop response.
@@ -525,12 +619,18 @@ class RecordingService:
             ```
         """
         request = StopRecordingRequest(id=recording_id)
-        return self._api_client.stop_recording(request=request)
+        return self._api_client.stop_recording(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to list recordings: ")
     @with_instrumentation()
-    def list(self) -> ListRecordingsResponse:
+    def list(self, request_timeout: float | None = None) -> ListRecordingsResponse:
         """Lists all recordings (active and completed).
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ListRecordingsResponse: List of all recordings.
@@ -543,15 +643,19 @@ class RecordingService:
                 print(f"- {rec.file_name}: {rec.status}")
             ```
         """
-        return self._api_client.list_recordings()
+        return self._api_client.list_recordings(_request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to get recording: ")
     @with_instrumentation()
-    def get(self, recording_id: str) -> Recording:
+    def get(self, recording_id: str, request_timeout: float | None = None) -> Recording:
         """Gets details of a specific recording by ID.
 
         Args:
             recording_id (str): The ID of the recording to retrieve.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             Recording: Recording details.
@@ -564,15 +668,19 @@ class RecordingService:
             print(f"Duration: {recording.duration_seconds} seconds")
             ```
         """
-        return self._api_client.get_recording(id=recording_id)
+        return self._api_client.get_recording(id=recording_id, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to delete recording: ")
     @with_instrumentation()
-    def delete(self, recording_id: str) -> None:
+    def delete(self, recording_id: str, request_timeout: float | None = None) -> None:
         """Deletes a recording by ID.
 
         Args:
             recording_id (str): The ID of the recording to delete.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -580,7 +688,7 @@ class RecordingService:
             print("Recording deleted")
             ```
         """
-        self._api_client.delete_recording(id=recording_id)
+        self._api_client.delete_recording(id=recording_id, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to download recording: ")
     @with_instrumentation()
@@ -642,6 +750,7 @@ class Accessibility:
         scope: str | None = None,
         pid: int | None = None,
         max_depth: int | None = None,
+        request_timeout: float | None = None,
     ) -> AccessibilityTreeResponse:
         """Fetches the AT-SPI accessibility tree.
 
@@ -649,6 +758,10 @@ class Accessibility:
             scope (str | None): Tree scope to inspect: ``focused``, ``pid``, or ``all``.
             pid (int | None): Process ID when ``scope`` is ``pid``.
             max_depth (int | None): Maximum depth to descend. Use ``0`` for the root only.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             AccessibilityTreeResponse: Accessibility tree rooted at the requested scope.
@@ -659,7 +772,9 @@ class Accessibility:
             print(tree.root.name)
             ```
         """
-        return self._api_client.get_accessibility_tree(scope=scope, pid=pid, max_depth=max_depth)
+        return self._api_client.get_accessibility_tree(
+            scope=scope, pid=pid, max_depth=max_depth, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to find accessibility nodes: ")
     @with_instrumentation()
@@ -672,6 +787,7 @@ class Accessibility:
         name_match: str | None = None,
         states: list[str] | None = None,
         limit: int | None = None,
+        request_timeout: float | None = None,
     ) -> AccessibilityNodesResponse:
         """Finds AT-SPI accessibility nodes matching the provided filters.
 
@@ -683,6 +799,10 @@ class Accessibility:
             name_match (str | None): Name match mode, such as ``exact`` or ``substring``.
             states (list[str] | None): Required accessibility states.
             limit (int | None): Maximum number of matches. Use ``0`` to let the API apply its default.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             AccessibilityNodesResponse: Matching accessibility nodes.
@@ -707,15 +827,21 @@ class Accessibility:
             states=states,
             limit=limit,
         )
-        return self._api_client.find_accessibility_nodes(request=request)
+        return self._api_client.find_accessibility_nodes(
+            request=request, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to focus accessibility node: ")
     @with_instrumentation()
-    def focus_node(self, node_id: str) -> None:
+    def focus_node(self, node_id: str, request_timeout: float | None = None) -> None:
         """Focuses an AT-SPI accessibility node.
 
         Args:
             node_id (str): Accessibility node ID returned by ``get_tree`` or ``find_nodes``.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the focus operation fails. API failures may use a more specific subclass.
@@ -726,16 +852,20 @@ class Accessibility:
             ```
         """
         request = AccessibilityNodeRequest(id=node_id)
-        _ = self._api_client.focus_accessibility_node(request=request)
+        _ = self._api_client.focus_accessibility_node(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to invoke accessibility node: ")
     @with_instrumentation()
-    def invoke_node(self, node_id: str, action: str | None = None) -> None:
+    def invoke_node(self, node_id: str, action: str | None = None, request_timeout: float | None = None) -> None:
         """Invokes an AT-SPI accessibility node action.
 
         Args:
             node_id (str): Accessibility node ID returned by ``get_tree`` or ``find_nodes``.
             action (str | None): Action name to invoke. If omitted, the API invokes the primary action.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the invoke operation fails. API failures may use a more specific subclass.
@@ -746,16 +876,20 @@ class Accessibility:
             ```
         """
         request = AccessibilityInvokeRequest(id=node_id, action=action)
-        _ = self._api_client.invoke_accessibility_node(request=request)
+        _ = self._api_client.invoke_accessibility_node(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to set accessibility node value: ")
     @with_instrumentation()
-    def set_node_value(self, node_id: str, value: str) -> None:
+    def set_node_value(self, node_id: str, value: str, request_timeout: float | None = None) -> None:
         """Sets an AT-SPI accessibility node value.
 
         Args:
             node_id (str): Accessibility node ID returned by ``get_tree`` or ``find_nodes``.
             value (str): Value to write to the node.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If the value update fails. API failures may use a more specific subclass.
@@ -766,7 +900,9 @@ class Accessibility:
             ```
         """
         request = AccessibilitySetValueRequest(id=node_id, value=value)
-        _ = self._api_client.set_accessibility_node_value(request=request)
+        _ = self._api_client.set_accessibility_node_value(
+            request=request, _request_timeout=http_timeout(request_timeout)
+        )
 
 
 class ComputerUse:
@@ -800,8 +936,14 @@ class ComputerUse:
 
     @intercept_errors(message_prefix="Failed to start computer use: ")
     @with_instrumentation()
-    def start(self) -> ComputerUseStartResponse:
+    def start(self, request_timeout: float | None = None) -> ComputerUseStartResponse:
         """Starts all computer use processes (Xvfb, xfce4, x11vnc, novnc).
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ComputerUseStartResponse: Computer use start response.
@@ -812,13 +954,19 @@ class ComputerUse:
             print("Computer use processes started:", result.message)
             ```
         """
-        response = self._api_client.start_computer_use()
+        response = self._api_client.start_computer_use(_request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to stop computer use: ")
     @with_instrumentation()
-    def stop(self) -> ComputerUseStopResponse:
+    def stop(self, request_timeout: float | None = None) -> ComputerUseStopResponse:
         """Stops all computer use processes.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ComputerUseStopResponse: Computer use stop response.
@@ -829,13 +977,19 @@ class ComputerUse:
             print("Computer use processes stopped:", result.message)
             ```
         """
-        response = self._api_client.stop_computer_use()
+        response = self._api_client.stop_computer_use(_request_timeout=http_timeout(request_timeout))
         return response
 
     @intercept_errors(message_prefix="Failed to get computer use status: ")
     @with_instrumentation()
-    def get_status(self) -> ComputerUseStatusResponse:
+    def get_status(self, request_timeout: float | None = None) -> ComputerUseStatusResponse:
         """Gets the status of all computer use processes.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ComputerUseStatusResponse: Status information about all VNC desktop processes.
@@ -846,15 +1000,19 @@ class ComputerUse:
             print("Computer use status:", response.status)
             ```
         """
-        return self._api_client.get_computer_use_status()
+        return self._api_client.get_computer_use_status(_request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to get process status: ")
     @with_instrumentation()
-    def get_process_status(self, process_name: str) -> ProcessStatusResponse:
+    def get_process_status(self, process_name: str, request_timeout: float | None = None) -> ProcessStatusResponse:
         """Gets the status of a specific VNC process.
 
         Args:
             process_name (str): Name of the process to check.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ProcessStatusResponse: Status information about the specific process.
@@ -865,16 +1023,22 @@ class ComputerUse:
             no_vnc_status = sandbox.computer_use.get_process_status("novnc")
             ```
         """
-        response = self._api_client.get_process_status(process_name=process_name)
+        response = self._api_client.get_process_status(
+            process_name=process_name, _request_timeout=http_timeout(request_timeout)
+        )
         return response
 
     @intercept_errors(message_prefix="Failed to restart process: ")
     @with_instrumentation()
-    def restart_process(self, process_name: str) -> ProcessRestartResponse:
+    def restart_process(self, process_name: str, request_timeout: float | None = None) -> ProcessRestartResponse:
         """Restarts a specific VNC process.
 
         Args:
             process_name (str): Name of the process to restart.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ProcessRestartResponse: Process restart response.
@@ -885,16 +1049,22 @@ class ComputerUse:
             print("XFCE4 process restarted:", result.message)
             ```
         """
-        response = self._api_client.restart_process(process_name=process_name)
+        response = self._api_client.restart_process(
+            process_name=process_name, _request_timeout=http_timeout(request_timeout)
+        )
         return response
 
     @intercept_errors(message_prefix="Failed to get process logs: ")
     @with_instrumentation()
-    def get_process_logs(self, process_name: str) -> ProcessLogsResponse:
+    def get_process_logs(self, process_name: str, request_timeout: float | None = None) -> ProcessLogsResponse:
         """Gets logs for a specific VNC process.
 
         Args:
             process_name (str): Name of the process to get logs for.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ProcessLogsResponse: Process logs.
@@ -905,16 +1075,22 @@ class ComputerUse:
             print("NoVNC logs:", logs)
             ```
         """
-        response = self._api_client.get_process_logs(process_name=process_name)
+        response = self._api_client.get_process_logs(
+            process_name=process_name, _request_timeout=http_timeout(request_timeout)
+        )
         return response
 
     @intercept_errors(message_prefix="Failed to get process errors: ")
     @with_instrumentation()
-    def get_process_errors(self, process_name: str) -> ProcessErrorsResponse:
+    def get_process_errors(self, process_name: str, request_timeout: float | None = None) -> ProcessErrorsResponse:
         """Gets error logs for a specific VNC process.
 
         Args:
             process_name (str): Name of the process to get error logs for.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ProcessErrorsResponse: Process error logs.
@@ -925,5 +1101,7 @@ class ComputerUse:
             print("X11VNC errors:", errors)
             ```
         """
-        response = self._api_client.get_process_errors(process_name=process_name)
+        response = self._api_client.get_process_errors(
+            process_name=process_name, _request_timeout=http_timeout(request_timeout)
+        )
         return response

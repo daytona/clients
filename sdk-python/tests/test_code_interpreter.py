@@ -185,4 +185,4 @@ class TestCodeInterpreterContextManagement:
 
         interpreter.delete_context(SimpleNamespace(id="ctx-123"))
 
-        api_client.delete_interpreter_context.assert_called_once_with(id="ctx-123")
+        api_client.delete_interpreter_context.assert_called_once_with(id="ctx-123", _request_timeout=None)

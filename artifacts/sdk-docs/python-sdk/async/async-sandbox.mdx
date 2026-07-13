@@ -78,10 +78,18 @@ pyright: ignore[reportRedeclaration]
 ```python
 @intercept_errors(message_prefix="Failed to refresh sandbox data: ")
 @with_instrumentation()
-async def refresh_data() -> None
+async def refresh_data(request_timeout: float | None = None) -> None
 ```
 
 Refreshes the Sandbox data from the API.
+
+**Arguments**:
+
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+  
 
 **Example**:
 
@@ -173,7 +181,8 @@ lsp = sandbox.create_lsp_server("python", "workspace/project")
 ```python
 @intercept_errors(message_prefix="Failed to set labels: ")
 @with_instrumentation()
-async def set_labels(labels: dict[str, str]) -> dict[str, str]
+async def set_labels(labels: dict[str, str],
+                     request_timeout: float | None = None) -> dict[str, str]
 ```
 
 Sets labels for the Sandbox.
@@ -183,6 +192,10 @@ Labels are key-value pairs that can be used to organize and identify Sandboxes.
 **Arguments**:
 
 - `labels` _dict[str, str]_ - Dictionary of key-value pairs representing Sandbox labels.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Returns**:
@@ -355,7 +368,8 @@ Treats destroyed as stopped to cover ephemeral sandboxes that are automatically 
 ```python
 @intercept_errors(message_prefix="Failed to set auto-stop interval: ")
 @with_instrumentation()
-async def set_autostop_interval(interval: int) -> None
+async def set_autostop_interval(interval: int,
+                                request_timeout: float | None = None) -> None
 ```
 
 Sets the auto-stop interval for the Sandbox.
@@ -368,6 +382,10 @@ Interactions using Sandbox Previews are not included.
 
 - `interval` _int_ - Number of minutes of inactivity before auto-stopping.
   Set to 0 to disable auto-stop. Defaults to 15.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Raises**:
@@ -389,7 +407,9 @@ sandbox.set_autostop_interval(0)
 ```python
 @intercept_errors(message_prefix="Failed to set auto-archive interval: ")
 @with_instrumentation()
-async def set_auto_archive_interval(interval: int) -> None
+async def set_auto_archive_interval(interval: int,
+                                    request_timeout: float | None = None
+                                    ) -> None
 ```
 
 Sets the auto-archive interval for the Sandbox.
@@ -400,6 +420,10 @@ The Sandbox will automatically archive after being continuously stopped for the 
 
 - `interval` _int_ - Number of minutes after which a continuously stopped Sandbox will be auto-archived.
   Set to 0 for the maximum interval. Default is 7 days.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Raises**:
@@ -421,7 +445,9 @@ sandbox.set_auto_archive_interval(0)
 ```python
 @intercept_errors(message_prefix="Failed to set auto-delete interval: ")
 @with_instrumentation()
-async def set_auto_delete_interval(interval: int) -> None
+async def set_auto_delete_interval(interval: int,
+                                   request_timeout: float | None = None
+                                   ) -> None
 ```
 
 Sets the auto-delete interval for the Sandbox.
@@ -433,6 +459,10 @@ The Sandbox will automatically delete after being continuously stopped for the s
 - `interval` _int_ - Number of minutes after which a continuously stopped Sandbox will be auto-deleted.
   Set to negative value to disable auto-delete. Set to 0 to delete immediately upon stopping.
   By default, auto-delete is disabled.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Example**:
@@ -455,7 +485,8 @@ async def update_network_settings(
         *,
         network_block_all: bool | None = None,
         network_allow_list: str | None = None,
-        domain_allow_list: str | None = None) -> None
+        domain_allow_list: str | None = None,
+        request_timeout: float | None = None) -> None
 ```
 
 Updates outbound network policy on the runner (block all, restore access, or CIDR allow list).
@@ -466,6 +497,10 @@ Updates outbound network policy on the runner (block all, restore access, or CID
   outbound access (and clears a stored allow list).
 - `network_allow_list` - Comma-separated IPv4 CIDRs to allow; implies not blocking all.
 - `domain_allow_list` - Comma-separated domains to allow; implies not blocking all.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Raises**:
@@ -539,7 +574,9 @@ await sandbox.update_env({"MY_VAR": "value"}, unset=["OLD_VAR"])
 ```python
 @intercept_errors(message_prefix="Failed to get preview link: ")
 @with_instrumentation()
-async def get_preview_link(port: int) -> PortPreviewUrl
+async def get_preview_link(port: int,
+                           request_timeout: float | None = None
+                           ) -> PortPreviewUrl
 ```
 
 Retrieves the preview link for the sandbox at the specified port. If the port is closed,
@@ -549,6 +586,10 @@ to the URL.
 **Arguments**:
 
 - `port` _int_ - The port to open the preview link on.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Returns**:
@@ -571,7 +612,8 @@ print(f"Token: {preview_link.token}")
 @intercept_errors(message_prefix="Failed to create signed preview url: ")
 async def create_signed_preview_url(
         port: int,
-        expires_in_seconds: int | None = None) -> SignedPortPreviewUrl
+        expires_in_seconds: int | None = None,
+        request_timeout: float | None = None) -> SignedPortPreviewUrl
 ```
 
 Creates a signed preview URL for the sandbox at the specified port.
@@ -581,6 +623,10 @@ Creates a signed preview URL for the sandbox at the specified port.
 - `port` _int_ - The port to open the preview link on.
 - `expires_in_seconds` _int | None_ - The number of seconds the signed preview
   url will be valid for. Defaults to 60 seconds.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
   
 
 **Returns**:
@@ -591,7 +637,10 @@ Creates a signed preview URL for the sandbox at the specified port.
 
 ```python
 @intercept_errors(message_prefix="Failed to expire signed preview url: ")
-async def expire_signed_preview_url(port: int, token: str) -> None
+async def expire_signed_preview_url(port: int,
+                                    token: str,
+                                    request_timeout: float | None = None
+                                    ) -> None
 ```
 
 Expires a signed preview URL for the sandbox at the specified port.
@@ -600,13 +649,17 @@ Expires a signed preview URL for the sandbox at the specified port.
 
 - `port` _int_ - The port to expire the signed preview url on.
 - `token` _str_ - The token to expire the signed preview url on.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
 
 #### AsyncSandbox.archive
 
 ```python
 @intercept_errors(message_prefix="Failed to archive sandbox: ")
 @with_instrumentation()
-async def archive() -> None
+async def archive(request_timeout: float | None = None) -> None
 ```
 
 Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -614,6 +667,13 @@ archived, the entire filesystem state is moved to cost-effective object storage,
 possible to keep sandboxes available for an extended period. The tradeoff between archived
 and stopped states is that starting an archived sandbox takes more time, depending on its size.
 Sandbox must be stopped before archiving.
+
+**Arguments**:
+
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
 
 #### AsyncSandbox.resize
 
@@ -682,7 +742,8 @@ the state is no longer 'resizing'.
 @intercept_errors(message_prefix="Failed to create SSH access: ")
 @with_instrumentation()
 async def create_ssh_access(
-        expires_in_minutes: int | None = None) -> SshAccessDto
+        expires_in_minutes: int | None = None,
+        request_timeout: float | None = None) -> SshAccessDto
 ```
 
 Creates an SSH access token for the sandbox.
@@ -690,13 +751,18 @@ Creates an SSH access token for the sandbox.
 **Arguments**:
 
 - `expires_in_minutes` _int | None_ - The number of minutes the SSH access token will be valid for.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
 
 #### AsyncSandbox.revoke\_ssh\_access
 
 ```python
 @intercept_errors(message_prefix="Failed to revoke SSH access: ")
 @with_instrumentation()
-async def revoke_ssh_access(token: str) -> None
+async def revoke_ssh_access(token: str,
+                            request_timeout: float | None = None) -> None
 ```
 
 Revokes an SSH access token for the sandbox.
@@ -704,13 +770,19 @@ Revokes an SSH access token for the sandbox.
 **Arguments**:
 
 - `token` _str_ - The token to revoke.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
 
 #### AsyncSandbox.validate\_ssh\_access
 
 ```python
 @intercept_errors(message_prefix="Failed to validate SSH access: ")
 @with_instrumentation()
-async def validate_ssh_access(token: str) -> SshAccessValidationDto
+async def validate_ssh_access(
+        token: str,
+        request_timeout: float | None = None) -> SshAccessValidationDto
 ```
 
 Validates an SSH access token for the sandbox.
@@ -718,18 +790,30 @@ Validates an SSH access token for the sandbox.
 **Arguments**:
 
 - `token` _str_ - The token to validate.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
 
 #### AsyncSandbox.refresh\_activity
 
 ```python
 @intercept_errors(message_prefix="Failed to refresh sandbox activity: ")
-async def refresh_activity() -> None
+async def refresh_activity(request_timeout: float | None = None) -> None
 ```
 
 Refreshes the sandbox activity to reset the timer for automated lifecycle management actions.
 
 This method updates the sandbox's last activity timestamp without changing its state.
 It is useful for keeping long-running sessions alive while there is still user activity.
+
+**Arguments**:
+
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+  
 
 **Example**:
 

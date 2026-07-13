@@ -68,6 +68,7 @@ class TestLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             uri="file://app.py",
+            _request_timeout=None,
         )
 
     def test_sandbox_symbols_delegates(self):
@@ -81,6 +82,7 @@ class TestLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             query="User",
+            _request_timeout=None,
         )
 
     def test_workspace_symbols_warns_and_delegates(self):
@@ -97,6 +99,7 @@ class TestLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             query="Thing",
+            _request_timeout=None,
         )
 
     def test_completions_builds_position_request(self):

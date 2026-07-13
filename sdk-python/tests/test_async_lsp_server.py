@@ -76,6 +76,7 @@ class TestAsyncLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             uri="file://app.py",
+            _request_timeout=None,
         )
 
     @pytest.mark.asyncio
@@ -90,6 +91,7 @@ class TestAsyncLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             query="User",
+            _request_timeout=None,
         )
 
     @pytest.mark.asyncio
@@ -107,6 +109,7 @@ class TestAsyncLspServer:
             language_id="python",
             path_to_project="/workspace/project",
             query="Thing",
+            _request_timeout=None,
         )
 
     @pytest.mark.asyncio

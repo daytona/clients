@@ -10,6 +10,7 @@ from typing import Any, NoReturn, TypeVar, Union, cast
 
 import aiohttp
 import httpx
+import urllib3.exceptions
 
 from daytona_api_client.exceptions import (
     BadRequestException,
@@ -99,6 +100,10 @@ TRANSPORT_ERROR_TO_DAYTONA_ERROR: tuple[tuple[type[BaseException], type[DaytonaE
     (aiohttp.ClientOSError, DaytonaConnectionError),
     (httpx.TimeoutException, DaytonaTimeoutError),
     (httpx.NetworkError, DaytonaConnectionError),
+    # urllib3's TimeoutError (raised by the generated sync clients on `_request_timeout`
+    # expiry, e.g. ReadTimeoutError/ConnectTimeoutError) extends urllib3's HTTPError,
+    # NOT the builtin TimeoutError, so it needs its own mapping entry.
+    (urllib3.exceptions.TimeoutError, DaytonaTimeoutError),
     (TimeoutError, DaytonaTimeoutError),
     # ConnectionError covers ConnectionRefusedError, ConnectionResetError, etc.
     # It intentionally does not catch the broader OSError family.

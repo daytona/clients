@@ -13,6 +13,7 @@ from wsproto.events import BytesMessage, CloseConnection, TextMessage
 from daytona_toolbox_api_client import CreateContextRequest, InterpreterApi, InterpreterContext
 
 from .._utils.errors import intercept_errors
+from .._utils.timeout import http_timeout
 from ..common.code_interpreter import ExecutionError, ExecutionResult, OutputMessage
 from ..common.errors import DaytonaConnectionError, DaytonaTimeoutError
 from ..common.process import OutputHandler
@@ -175,6 +176,7 @@ class CodeInterpreter:
     def create_context(
         self,
         cwd: str | None = None,
+        request_timeout: float | None = None,
     ) -> InterpreterContext:
         """Create a new isolated interpreter context.
 
@@ -183,6 +185,10 @@ class CodeInterpreter:
 
         Args:
             cwd (str | None): Working directory for the context. If not specified, uses sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             InterpreterContext: The created context with its ID and metadata.
@@ -208,14 +214,22 @@ class CodeInterpreter:
             sandbox.code_interpreter.delete_context(ctx)
             ```
         """
-        return self._api_client.create_interpreter_context(request=CreateContextRequest(cwd=cwd))
+        return self._api_client.create_interpreter_context(
+            request=CreateContextRequest(cwd=cwd), _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to list interpreter contexts: ")
-    def list_contexts(self) -> list[InterpreterContext]:
+    def list_contexts(self, request_timeout: float | None = None) -> list[InterpreterContext]:
         """List all user-created interpreter contexts.
 
         The default context is not included in this list. Only contexts created
         via `create_context()` are returned.
+
+        Args:
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             list[InterpreterContext]: List of context objects.
@@ -230,10 +244,12 @@ class CodeInterpreter:
                 print(f"Context {ctx.id}: {ctx.language} at {ctx.cwd}")
             ```
         """
-        return (self._api_client.list_interpreter_contexts()).contexts or []
+        return (
+            self._api_client.list_interpreter_contexts(_request_timeout=http_timeout(request_timeout))
+        ).contexts or []
 
     @intercept_errors(message_prefix="Failed to delete interpreter context: ")
-    def delete_context(self, context: InterpreterContext) -> None:
+    def delete_context(self, context: InterpreterContext, request_timeout: float | None = None) -> None:
         """Delete an interpreter context and shut down all associated processes.
 
         This permanently removes the context and all its state (variables, imports, etc.).
@@ -241,6 +257,10 @@ class CodeInterpreter:
 
         Args:
             context (InterpreterContext): Context to delete.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Raises:
             DaytonaError: If deletion fails or context not found.
@@ -252,7 +272,7 @@ class CodeInterpreter:
             sandbox.code_interpreter.delete_context(ctx)
             ```
         """
-        _ = self._api_client.delete_interpreter_context(id=context.id)
+        _ = self._api_client.delete_interpreter_context(id=context.id, _request_timeout=http_timeout(request_timeout))
 
     def _maybe_raise_from_close(self, close_code: int | None, close_reason: str | None) -> None:
         """Translate a websocket close into a Daytona error when it indicates failure.

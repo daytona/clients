@@ -187,4 +187,4 @@ class TestAsyncCodeInterpreterContextManagement:
 
         await interpreter.delete_context(SimpleNamespace(id="ctx-123"))
 
-        api_client.delete_interpreter_context.assert_awaited_once_with(id="ctx-123")
+        api_client.delete_interpreter_context.assert_awaited_once_with(id="ctx-123", _request_timeout=None)

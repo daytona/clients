@@ -654,11 +654,15 @@ class AsyncDaytona:
 
     @intercept_errors(message_prefix="Failed to get sandbox: ")
     @with_instrumentation()
-    async def get(self, sandbox_id_or_name: str) -> AsyncSandbox:
+    async def get(self, sandbox_id_or_name: str, request_timeout: float | None = None) -> AsyncSandbox:
         """Gets a Sandbox by its ID or name.
 
         Args:
             sandbox_id_or_name (str): The ID or name of the Sandbox to retrieve.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             Sandbox: The Sandbox instance.
@@ -676,7 +680,9 @@ class AsyncDaytona:
             raise DaytonaValidationError("sandbox_id_or_name is required")
 
         # Get the sandbox instance
-        sandbox_instance = await self._sandbox_api.get_sandbox(sandbox_id_or_name)
+        sandbox_instance = await self._sandbox_api.get_sandbox(
+            sandbox_id_or_name, _request_timeout=http_timeout(request_timeout)
+        )
         language = self._validate_language_label(sandbox_instance.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
         return AsyncSandbox(
             sandbox_instance,
@@ -691,11 +697,16 @@ class AsyncDaytona:
     async def list(
         self,
         query: ListSandboxesQuery | None = None,
+        request_timeout: float | None = None,
     ) -> AsyncIterator[AsyncSandbox]:
         """Iterates over Sandboxes matching the given query.
 
         Args:
             query: Optional filters, sorting, and per-page size.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Yields:
             AsyncSandbox: Each Sandbox matching the query.
@@ -718,7 +729,7 @@ class AsyncDaytona:
 
         while first_page or cursor:
             first_page = False
-            response = await self._fetch_sandbox_page(q, cursor)
+            response = await self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
                 language = self._validate_language_label(sandbox.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
                 yield AsyncSandbox(
@@ -731,7 +742,9 @@ class AsyncDaytona:
             cursor = response.next_cursor or None
 
     @with_instrumentation(name="AsyncDaytona.list.fetch_page")
-    async def _fetch_sandbox_page(self, q: ListSandboxesQuery, cursor: str | None):
+    async def _fetch_sandbox_page(
+        self, q: ListSandboxesQuery, cursor: str | None, request_timeout: float | None = None
+    ):
         """Fetches a single page of sandboxes. Each call is one OTEL span."""
         # The shared ListSandboxesQuery is typed against the sync api-client
         # enums; the async api-client expects its own copies of those enums.
@@ -762,6 +775,7 @@ class AsyncDaytona:
             last_event_before=q.last_activity_before,
             sort=sort,
             order=order,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     def _validate_language_label(self, language: str | None = None) -> CodeLanguage:

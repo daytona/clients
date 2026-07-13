@@ -80,7 +80,9 @@ def http_timeout(timeout: float | None) -> float | None:
     """Calculate HTTP client timeout to prevent race condition with decorator timeout.
 
     For sub-second timeouts, uses ceil() to match signal.alarm rounding behavior.
-    For timeouts >= 1 second, returns unchanged (natural execution overhead is sufficient).
+    For timeouts >= 1 second, keeps the value. The result is always returned as a
+    ``float`` because the generated async API client validates ``_request_timeout``
+    as a strict float and would reject an ``int``.
 
     This prevents a race condition where:
     - User specifies timeout=0.2s
@@ -88,30 +90,37 @@ def http_timeout(timeout: float | None) -> float | None:
     - HTTP client times out at 0.2s first → raises DaytonaError (wrong!)
 
     With this fix:
-    - timeout=0.2 → HTTP timeout: 1s (matches decorator) → DaytonaTimeoutError
-    - timeout=5.0 → HTTP timeout: 5s (unchanged) → DaytonaTimeoutError
+    - timeout=0.2 → HTTP timeout: 1.0s (matches decorator) → DaytonaTimeoutError
+    - timeout=5.0 → HTTP timeout: 5.0s (unchanged) → DaytonaTimeoutError
 
     Args:
         timeout: User's desired timeout in seconds, or None for no timeout
 
     Returns:
         - None if timeout is None or 0
-        - ceil(timeout) if timeout < 1 (matches signal rounding)
-        - timeout unchanged if timeout >= 1 (natural overhead is sufficient)
+        - float(ceil(timeout)) if 0 < timeout < 1 (matches signal rounding)
+        - float(timeout) if timeout >= 1
+
+    Raises:
+        DaytonaValidationError: If timeout is negative or non-finite (NaN/inf).
 
     Example:
         >>> http_timeout(0.2)
-        1
+        1.0
         >>> http_timeout(0.9)
-        1
+        1.0
         >>> http_timeout(5.0)
         5.0
         >>> http_timeout(None)
         None
     """
-    if not timeout:
+    if timeout is None:
         return None
-    return math.ceil(timeout) if timeout < 1 else timeout
+    if not math.isfinite(timeout) or timeout < 0:
+        raise DaytonaValidationError("Timeout must be a finite non-negative number")
+    if timeout == 0:
+        return None
+    return float(math.ceil(timeout)) if timeout < 1 else float(timeout)
 
 
 class _ThreadingTimeout:

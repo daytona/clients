@@ -27,6 +27,7 @@ from daytona_toolbox_api_client import (
 
 from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
+from .._utils.timeout import http_timeout
 from ..common.git import GitCommitResponse
 
 
@@ -69,7 +70,7 @@ class Git:
 
     @intercept_errors(message_prefix="Failed to add files: ")
     @with_instrumentation()
-    def add(self, path: str, files: list[str]) -> None:
+    def add(self, path: str, files: list[str], request_timeout: float | None = None) -> None:
         """Stages the specified files for the next commit, similar to
         running 'git add' on the command line.
 
@@ -77,6 +78,10 @@ class Git:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
             files (list[str]): List of file paths or directories to stage, relative to the repository root.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -93,16 +98,21 @@ class Git:
         """
         self._api_client.add_files(
             request=GitAddRequest(path=path, files=files),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to list branches: ")
     @with_instrumentation()
-    def branches(self, path: str) -> ListBranchResponse:
+    def branches(self, path: str, request_timeout: float | None = None) -> ListBranchResponse:
         """Lists branches in the repository.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ListBranchResponse: List of branches in the repository.
@@ -115,6 +125,7 @@ class Git:
         """
         return self._api_client.list_branches(
             path=path,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to clone repository: ")
@@ -129,6 +140,7 @@ class Git:
         password: str | None = None,
         insecure_skip_tls: bool | None = None,
         depth: int | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Clones a Git repository into the specified path. It supports
         cloning specific branches or commits, and can authenticate with the remote
@@ -148,6 +160,10 @@ class Git:
                 Use only for trusted internal Git servers with self-signed or private-CA certs;
                 credentials, if supplied, are transmitted over an unverified TLS connection.
             depth (int | None): Create a shallow clone truncated to the given number of commits.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -185,11 +201,20 @@ class Git:
                 insecure_skip_tls=insecure_skip_tls,
                 depth=depth,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to commit changes: ")
     @with_instrumentation()
-    def commit(self, path: str, message: str, author: str, email: str, allow_empty: bool = False) -> GitCommitResponse:
+    def commit(
+        self,
+        path: str,
+        message: str,
+        author: str,
+        email: str,
+        allow_empty: bool = False,
+        request_timeout: float | None = None,
+    ) -> GitCommitResponse:
         """Creates a new commit with the staged changes. Make sure to stage
         changes using the add() method before committing.
 
@@ -200,6 +225,10 @@ class Git:
             author (str): Name of the commit author.
             email (str): Email address of the commit author.
             allow_empty (bool, optional): Allow creating an empty commit when no changes are staged. Defaults to False.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -222,6 +251,7 @@ class Git:
                 email=email,
                 allow_empty=allow_empty,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
         return GitCommitResponse(sha=response.hash)
 
@@ -235,6 +265,7 @@ class Git:
         branch: str | None = None,
         remote: str | None = None,
         set_upstream: bool = False,
+        request_timeout: float | None = None,
     ) -> None:
         """Pushes all local commits on the current branch to the remote
         repository. If the remote repository requires authentication, provide
@@ -249,6 +280,10 @@ class Git:
             remote (str | None): Remote to push to. Defaults to "origin".
             set_upstream (bool, optional): Record the pushed branch as the upstream tracking
                 branch. Defaults to False.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -275,6 +310,7 @@ class Git:
                 remote=remote,
                 set_upstream=set_upstream,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to pull changes: ")
@@ -286,6 +322,7 @@ class Git:
         password: str | None = None,
         branch: str | None = None,
         remote: str | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Pulls changes from the remote repository. If the remote repository requires authentication,
         provide username and password/token.
@@ -297,6 +334,10 @@ class Git:
             password (str | None): Git password or token for authentication.
             branch (str | None): Branch to pull. Defaults to the current branch's upstream.
             remote (str | None): Remote to pull from. Defaults to "origin".
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -322,16 +363,21 @@ class Git:
                 branch=branch,
                 remote=remote,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to get status: ")
     @with_instrumentation()
-    def status(self, path: str) -> GitStatus:
+    def status(self, path: str, request_timeout: float | None = None) -> GitStatus:
         """Gets the current Git repository status.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             GitStatus: Repository status information including:
@@ -351,17 +397,22 @@ class Git:
         """
         return self._api_client.get_status(
             path=path,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to checkout branch: ")
     @with_instrumentation()
-    def checkout_branch(self, path: str, branch: str) -> None:
+    def checkout_branch(self, path: str, branch: str, request_timeout: float | None = None) -> None:
         """Checkout branch in the repository.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
             branch (str): Name of the branch to checkout
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -374,17 +425,22 @@ class Git:
                 path=path,
                 branch=branch,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to create branch: ")
     @with_instrumentation()
-    def create_branch(self, path: str, name: str) -> None:
+    def create_branch(self, path: str, name: str, request_timeout: float | None = None) -> None:
         """Create branch in the repository.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
             name (str): Name of the new branch to create
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -397,17 +453,22 @@ class Git:
                 path=path,
                 name=name,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to delete branch: ")
     @with_instrumentation()
-    def delete_branch(self, path: str, name: str) -> None:
+    def delete_branch(self, path: str, name: str, request_timeout: float | None = None) -> None:
         """Delete branch in the repository.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
             name (str): Name of the branch to delete
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -420,11 +481,14 @@ class Git:
                 path=path,
                 name=name,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to initialize repository: ")
     @with_instrumentation()
-    def init(self, path: str, bare: bool = False, initial_branch: str | None = None) -> None:
+    def init(
+        self, path: str, bare: bool = False, initial_branch: str | None = None, request_timeout: float | None = None
+    ) -> None:
         """Initializes a new Git repository at the specified path.
 
         Args:
@@ -433,6 +497,10 @@ class Git:
             bare (bool, optional): Create a bare repository without a working tree. Defaults to False.
             initial_branch (str | None): Name of the initial branch. If not specified, uses the
                 Git default.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -445,6 +513,7 @@ class Git:
                 bare=bare,
                 initial_branch=initial_branch,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to reset: ")
@@ -455,6 +524,7 @@ class Git:
         mode: str | None = None,
         target: str | None = None,
         files: list[str] | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Resets the current HEAD to the specified state.
 
@@ -464,6 +534,10 @@ class Git:
             mode (str | None): Reset mode, one of "soft", "mixed" (default), "hard", "merge" or "keep".
             target (str | None): Revision to reset to. Defaults to HEAD.
             files (list[str] | None): Constrain the reset to the given paths.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -481,6 +555,7 @@ class Git:
                 target=target,
                 files=files,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to restore files: ")
@@ -492,6 +567,7 @@ class Git:
         staged: bool | None = None,
         worktree: bool | None = None,
         source: str | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Restores working tree files or unstages changes.
 
@@ -503,6 +579,10 @@ class Git:
             worktree (bool | None): Restore the working tree for the given files. Defaults to
                 True when neither staged nor worktree is provided.
             source (str | None): Restore file contents from the given revision instead of the index.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -521,6 +601,7 @@ class Git:
                 worktree=worktree,
                 source=source,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to add remote: ")
@@ -532,6 +613,7 @@ class Git:
         url: str,
         fetch: bool = False,
         overwrite: bool = False,
+        request_timeout: float | None = None,
     ) -> None:
         """Adds (or overwrites) a remote in the repository.
 
@@ -542,6 +624,10 @@ class Git:
             url (str): URL of the remote.
             fetch (bool, optional): Fetch from the remote immediately after adding it. Defaults to False.
             overwrite (bool, optional): Replace an existing remote with the same name. Defaults to False.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -556,16 +642,21 @@ class Git:
                 fetch=fetch,
                 overwrite=overwrite,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to list remotes: ")
     @with_instrumentation()
-    def remotes(self, path: str) -> ListRemotesResponse:
+    def remotes(self, path: str, request_timeout: float | None = None) -> ListRemotesResponse:
         """Lists the remotes configured in the repository.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             ListRemotesResponse: The configured remotes (name + URL).
@@ -579,17 +670,22 @@ class Git:
         """
         return self._api_client.list_remotes(
             path=path,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to get remote: ")
     @with_instrumentation()
-    def remote_get(self, path: str, name: str) -> str | None:
+    def remote_get(self, path: str, name: str, request_timeout: float | None = None) -> str | None:
         """Gets the URL of a remote, or None when it does not exist.
 
         Args:
             path (str): Path to the Git repository root. Relative paths are resolved based on
             the sandbox working directory.
             name (str): Name of the remote.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             str | None: The remote URL, or None when the remote does not exist.
@@ -599,7 +695,7 @@ class Git:
             url = sandbox.git.remote_get("workspace/repo", "origin")
             ```
         """
-        response = self._api_client.list_remotes(path=path)
+        response = self._api_client.list_remotes(path=path, _request_timeout=http_timeout(request_timeout))
         for remote in response.remotes:
             if remote.name == name:
                 return remote.url
@@ -607,7 +703,9 @@ class Git:
 
     @intercept_errors(message_prefix="Failed to set config: ")
     @with_instrumentation()
-    def set_config(self, key: str, value: str, scope: str = "global", path: str | None = None) -> None:
+    def set_config(
+        self, key: str, value: str, scope: str = "global", path: str | None = None, request_timeout: float | None = None
+    ) -> None:
         """Sets a Git config value at the given scope.
 
         Args:
@@ -615,6 +713,10 @@ class Git:
             value (str): Config value.
             scope (str, optional): Config scope, one of "global" (default), "local" or "system".
             path (str | None): Repository path, required when scope is "local".
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -628,17 +730,24 @@ class Git:
                 value=value,
                 scope=scope,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to get config: ")
     @with_instrumentation()
-    def get_config(self, key: str, scope: str = "global", path: str | None = None) -> str | None:
+    def get_config(
+        self, key: str, scope: str = "global", path: str | None = None, request_timeout: float | None = None
+    ) -> str | None:
         """Gets a Git config value at the given scope, or None when unset.
 
         Args:
             key (str): Config key in dotted form (e.g. "user.name").
             scope (str, optional): Config scope, one of "global" (default), "local" or "system".
             path (str | None): Repository path, required when scope is "local".
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             str | None: The config value, or None when the key is not set.
@@ -648,12 +757,21 @@ class Git:
             name = sandbox.git.get_config("user.name")
             ```
         """
-        response = self._api_client.get_git_config(key=key, scope=scope, path=path)
+        response = self._api_client.get_git_config(
+            key=key, scope=scope, path=path, _request_timeout=http_timeout(request_timeout)
+        )
         return response.value
 
     @intercept_errors(message_prefix="Failed to configure user: ")
     @with_instrumentation()
-    def configure_user(self, name: str, email: str, scope: str = "global", path: str | None = None) -> None:
+    def configure_user(
+        self,
+        name: str,
+        email: str,
+        scope: str = "global",
+        path: str | None = None,
+        request_timeout: float | None = None,
+    ) -> None:
         """Configures the Git user name and email at the given scope.
 
         Args:
@@ -661,6 +779,10 @@ class Git:
             email (str): User email (user.email).
             scope (str, optional): Config scope, one of "global" (default), "local" or "system".
             path (str | None): Repository path, required when scope is "local".
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -674,6 +796,7 @@ class Git:
                 email=email,
                 scope=scope,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to authenticate: ")
@@ -684,6 +807,7 @@ class Git:
         password: str,
         host: str | None = None,
         protocol: str | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Persists Git credentials globally so that subsequent operations against the
         given host authenticate automatically.
@@ -696,6 +820,10 @@ class Git:
             password (str): Git password or token.
             host (str | None): Host to authenticate against. Defaults to "github.com".
             protocol (str | None): Protocol to authenticate against. Defaults to "https".
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -709,4 +837,5 @@ class Git:
                 host=host,
                 protocol=protocol,
             ),
+            _request_timeout=http_timeout(request_timeout),
         )

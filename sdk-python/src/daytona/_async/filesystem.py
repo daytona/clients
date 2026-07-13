@@ -30,6 +30,7 @@ from daytona_toolbox_api_client_async import (
 
 from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
+from .._utils.timeout import http_timeout
 from ..common.errors import DaytonaError
 from ..common.file_transfer import (
     create_multipart_parser,
@@ -73,7 +74,7 @@ class AsyncFileSystem:
 
     @intercept_errors(message_prefix="Failed to create folder: ")
     @with_instrumentation()
-    async def create_folder(self, path: str, mode: str) -> None:
+    async def create_folder(self, path: str, mode: str, request_timeout: float | None = None) -> None:
         """Creates a new directory in the Sandbox at the specified path with the given
         permissions.
 
@@ -81,6 +82,10 @@ class AsyncFileSystem:
             path (str): Path where the folder should be created. Relative paths are resolved based
             on the sandbox working directory.
             mode (str): Folder permissions in octal format (e.g., "755" for rwxr-xr-x).
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -94,16 +99,21 @@ class AsyncFileSystem:
         await self._api_client.create_folder(
             path=path,
             mode=mode,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to delete file: ")
     @with_instrumentation()
-    async def delete_file(self, path: str, recursive: bool = False) -> None:
+    async def delete_file(self, path: str, recursive: bool = False, request_timeout: float | None = None) -> None:
         """Deletes a file from the Sandbox.
 
         Args:
             path (str): Path to the file to delete. Relative paths are resolved based on the sandbox working directory.
             recursive (bool): If the file is a directory, this must be true to delete it.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -111,7 +121,9 @@ class AsyncFileSystem:
             await sandbox.fs.delete_file("workspace/data/old_file.txt")
             ```
         """
-        await self._api_client.delete_file(path=path, recursive=recursive)
+        await self._api_client.delete_file(
+            path=path, recursive=recursive, _request_timeout=http_timeout(request_timeout)
+        )
 
     @overload
     async def download_file(self, remote_path: str, timeout: int = 30 * 60) -> bytes:
@@ -598,7 +610,7 @@ class AsyncFileSystem:
 
     @intercept_errors(message_prefix="Failed to find files: ")
     @with_instrumentation()
-    async def find_files(self, path: str, pattern: str) -> list[Match]:
+    async def find_files(self, path: str, pattern: str, request_timeout: float | None = None) -> list[Match]:
         """Searches for files containing a pattern, similar to
         the grep command.
 
@@ -607,6 +619,10 @@ class AsyncFileSystem:
                 the search will be performed recursively. Relative paths are resolved based
                 on the sandbox working directory.
             pattern (str): Search pattern to match against file contents.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             list[Match]: List of matches found in files. Each Match object includes:
@@ -625,17 +641,22 @@ class AsyncFileSystem:
         return await self._api_client.find_in_files(
             path=path,
             pattern=pattern,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to get file info: ")
     @with_instrumentation()
-    async def get_file_info(self, path: str) -> FileInfo:
+    async def get_file_info(self, path: str, request_timeout: float | None = None) -> FileInfo:
         """Gets detailed information about a file or directory, including its
         size, permissions, and timestamps.
 
         Args:
             path (str): Path to the file or directory. Relative paths are resolved based
             on the sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             FileInfo: Detailed file information including:
@@ -662,11 +683,13 @@ class AsyncFileSystem:
                 print("Path is a directory")
             ```
         """
-        return await self._api_client.get_file_info(path=path)
+        return await self._api_client.get_file_info(path=path, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to list files: ")
     @with_instrumentation()
-    async def list_files(self, path: str, depth: int | None = None) -> list[FileInfo]:
+    async def list_files(
+        self, path: str, depth: int | None = None, request_timeout: float | None = None
+    ) -> list[FileInfo]:
         """Lists files and directories in a given path and returns their information, similar to the ls -l command.
 
         Args:
@@ -675,6 +698,10 @@ class AsyncFileSystem:
             depth (int | None): How many levels deep to list. depth=1 (default) lists the
             directory's entries, depth=2 also includes their children, and so on. Must be >= 1.
             Each returned FileInfo carries a full `path` field.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             list[FileInfo]: List of file and directory information. Each FileInfo
@@ -697,11 +724,11 @@ class AsyncFileSystem:
         """
         if depth is not None and depth < 1:
             raise DaytonaError("depth must be at least 1")
-        return await self._api_client.list_files(path=path, depth=depth)
+        return await self._api_client.list_files(path=path, depth=depth, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to move files: ")
     @with_instrumentation()
-    async def move_files(self, source: str, destination: str) -> None:
+    async def move_files(self, source: str, destination: str, request_timeout: float | None = None) -> None:
         """Moves or renames a file or directory. The parent directory of the destination must exist.
 
         Args:
@@ -709,6 +736,10 @@ class AsyncFileSystem:
             based on the sandbox working directory.
             destination (str): Path to the destination. Relative paths are resolved based on
             the sandbox working directory.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -734,11 +765,14 @@ class AsyncFileSystem:
         await self._api_client.move_file(
             source=source,
             destination=destination,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to replace in files: ")
     @with_instrumentation()
-    async def replace_in_files(self, files: list[str], pattern: str, new_value: str) -> list[ReplaceResult]:
+    async def replace_in_files(
+        self, files: list[str], pattern: str, new_value: str, request_timeout: float | None = None
+    ) -> list[ReplaceResult]:
         """Performs search and replace operations across multiple files.
 
         Args:
@@ -746,6 +780,10 @@ class AsyncFileSystem:
             resolved based on the sandbox working directory.
             pattern (str): Pattern to search for.
             new_value (str): Text to replace matches with.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             list[ReplaceResult]: List of results indicating replacements made in
@@ -776,11 +814,13 @@ class AsyncFileSystem:
 
         replace_request = ReplaceRequest(files=files, new_value=new_value, pattern=pattern)
 
-        return await self._api_client.replace_in_files(request=replace_request)
+        return await self._api_client.replace_in_files(
+            request=replace_request, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to search files: ")
     @with_instrumentation()
-    async def search_files(self, path: str, pattern: str) -> SearchFilesResponse:
+    async def search_files(self, path: str, pattern: str, request_timeout: float | None = None) -> SearchFilesResponse:
         """Searches for files and directories whose names match the
         specified pattern. The pattern can be a simple string or a glob pattern.
 
@@ -789,6 +829,10 @@ class AsyncFileSystem:
             based on the sandbox working directory.
             pattern (str): Pattern to match against file names. Supports glob
                 patterns (e.g., "*.py" for Python files).
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Returns:
             SearchFilesResponse: Search results containing:
@@ -809,12 +853,18 @@ class AsyncFileSystem:
         return await self._api_client.search_files(
             path=path,
             pattern=pattern,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @intercept_errors(message_prefix="Failed to set file permissions: ")
     @with_instrumentation()
     async def set_file_permissions(
-        self, path: str, mode: str | None = None, owner: str | None = None, group: str | None = None
+        self,
+        path: str,
+        mode: str | None = None,
+        owner: str | None = None,
+        group: str | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         """Sets permissions and ownership for a file or directory. Any of the parameters can be None
         to leave that attribute unchanged.
@@ -826,6 +876,10 @@ class AsyncFileSystem:
                 (e.g., "644" for rw-r--r--).
             owner (str | None): User owner of the file.
             group (str | None): Group owner of the file.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
 
         Example:
             ```python
@@ -848,6 +902,7 @@ class AsyncFileSystem:
             mode=mode,
             owner=owner,
             group=group,
+            _request_timeout=http_timeout(request_timeout),
         )
 
     @overload
