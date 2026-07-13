@@ -181,7 +181,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check license headers
-        uses: apache/skywalking-eyes/header@29bd646002b63bb4c0ed1648d1654c35fb8ff027
+        uses: apache/skywalking-eyes/header@6e368ec14f31521edc7118374773e78d2d646aeb
         with:
           token: ${{ github.token }}
           config: .licenserc.yaml
