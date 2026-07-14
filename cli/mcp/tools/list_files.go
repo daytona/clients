@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -28,13 +27,9 @@ func GetListFilesTool() mcp.Tool {
 }
 
 func ListFiles(ctx context.Context, request mcp.CallToolRequest, args ListFilesArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	// Get directory path from request arguments (optional)
@@ -43,16 +38,20 @@ func ListFiles(ctx context.Context, request mcp.CallToolRequest, args ListFilesA
 		dirPath = *args.Path
 	}
 
-	// List files
-	files, _, err := apiClient.ToolboxAPI.ListFilesDeprecated(ctx, *args.Id).Path(dirPath).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error listing files: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	files, _, apiErr := toolboxClient.FileSystemAPI.ListFiles(ctx).Path(dirPath).Execute()
+	if apiErr != nil {
+		return toolboxAPIError("Failed to list files", apiErr)
 	}
 
 	// Convert files to JSON
 	filesJSON, err := json.MarshalIndent(files, "", "  ")
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error marshaling files: %v", err)
+		return toolResultError(fmt.Sprintf("error marshaling files: %v", err))
 	}
 
 	log.Infof("Listed files in directory: %s", dirPath)

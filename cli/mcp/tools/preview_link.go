@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	apiclient "github.com/daytona/clients/api-client-go"
 	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -34,17 +34,13 @@ func GetPreviewLinkTool() mcp.Tool {
 }
 
 func PreviewLink(ctx context.Context, request mcp.CallToolRequest, args PreviewLinkArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return nil, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.Port == nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("port parameter is required")
+		return toolResultError("port parameter is required")
 	}
 
 	checkServer := false
@@ -54,14 +50,17 @@ func PreviewLink(ctx context.Context, request mcp.CallToolRequest, args PreviewL
 
 	log.Infof("Generating preview link - port: %d", *args.Port)
 
-	// Get the sandbox using sandbox ID
-	sandbox, _, err := apiClient.SandboxAPI.GetSandbox(ctx, *args.Id).Execute()
+	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("failed to get sandbox: %v", err)
+		return nil, err
 	}
 
-	if sandbox == nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("no sandbox available")
+	var toolboxClient *toolboxclient.APIClient
+	if checkServer {
+		toolboxClient, errResult, err = getSandboxAndToolboxClient(ctx, sandboxID, true)
+		if errResult != nil || err != nil {
+			return errResult, err
+		}
 	}
 
 	// Check if server is running on specified port
@@ -69,9 +68,9 @@ func PreviewLink(ctx context.Context, request mcp.CallToolRequest, args PreviewL
 		log.Infof("Checking if server is running - port: %d", *args.Port)
 
 		checkCmd := fmt.Sprintf("curl -s -o /dev/null -w '%%{http_code}' http://localhost:%d --max-time 2 || echo 'error'", *args.Port)
-		result, _, err := apiClient.ToolboxAPI.ExecuteCommandDeprecated(ctx, *args.Id).ExecuteRequest(*apiclient.NewExecuteRequest(checkCmd)).Execute()
-		if err != nil {
-			return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error checking server: %v", err)
+		result, _, apiErr := toolboxClient.ProcessAPI.ExecuteCommand(ctx).Request(*toolboxclient.NewExecuteRequest(checkCmd)).Execute()
+		if apiErr != nil {
+			return toolboxAPIError("Failed to check server", apiErr)
 		}
 
 		response := strings.TrimSpace(result.Result)
@@ -80,19 +79,19 @@ func PreviewLink(ctx context.Context, request mcp.CallToolRequest, args PreviewL
 
 			// Check what might be using the port
 			psCmd := fmt.Sprintf("ps aux | grep ':%d' | grep -v grep || echo 'No process found'", *args.Port)
-			psResult, _, err := apiClient.ToolboxAPI.ExecuteCommandDeprecated(ctx, *args.Id).ExecuteRequest(*apiclient.NewExecuteRequest(psCmd)).Execute()
-			if err != nil {
-				return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error checking processes: %v", err)
+			psResult, _, psErr := toolboxClient.ProcessAPI.ExecuteCommand(ctx).Request(*toolboxclient.NewExecuteRequest(psCmd)).Execute()
+			if psErr != nil {
+				return toolboxAPIError("Failed to check processes", psErr)
 			}
 
-			return &mcp.CallToolResult{IsError: true}, fmt.Errorf("no server detected on port %d. Process info: %s", *args.Port, strings.TrimSpace(psResult.Result))
+			return toolResultError(fmt.Sprintf("no server detected on port %d. Process info: %s", *args.Port, strings.TrimSpace(psResult.Result)))
 		}
 	}
 
 	// Fetch preview URL
-	previewURL, _, err := apiClient.SandboxAPI.GetPortPreviewUrl(ctx, *args.Id, float32(*args.Port)).Execute()
+	previewURL, _, err := apiClient.SandboxAPI.GetPortPreviewUrl(ctx, sandboxID, float32(*args.Port)).Execute()
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("failed to get preview URL: %v", err)
+		return toolResultError(fmt.Sprintf("failed to get preview URL: %v", err))
 	}
 
 	// Test URL accessibility if requested
@@ -100,9 +99,9 @@ func PreviewLink(ctx context.Context, request mcp.CallToolRequest, args PreviewL
 	var statusCode string
 	if checkServer {
 		checkCmd := fmt.Sprintf("curl -s -o /dev/null -w '%%{http_code}' %s --max-time 3 || echo 'error'", previewURL.Url)
-		result, _, err := apiClient.ToolboxAPI.ExecuteCommandDeprecated(ctx, *args.Id).ExecuteRequest(*apiclient.NewExecuteRequest(checkCmd)).Execute()
-		if err != nil {
-			log.Errorf("Error checking preview URL: %v", err)
+		result, _, chkErr := toolboxClient.ProcessAPI.ExecuteCommand(ctx).Request(*toolboxclient.NewExecuteRequest(checkCmd)).Execute()
+		if chkErr != nil {
+			log.Errorf("Error checking preview URL: %v", chkErr)
 		} else {
 			response := strings.TrimSpace(result.Result)
 			accessible = response != "error" && !strings.HasPrefix(response, "0")

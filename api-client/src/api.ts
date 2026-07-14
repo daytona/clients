@@ -29,7 +29,6 @@ export * from './api/runners-api';
 export * from './api/sandbox-api';
 export * from './api/secret-api';
 export * from './api/snapshots-api';
-export * from './api/toolbox-api';
 export * from './api/users-api';
 export * from './api/volumes-api';
 export * from './api/webhooks-api';

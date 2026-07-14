@@ -9,8 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -37,11 +36,6 @@ func GetExecuteCommandTool() mcp.Tool {
 }
 
 func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest, args ExecuteCommandArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
 	if args.Id == nil || *args.Id == "" {
 		return returnCommandError("Sandbox ID is required", "SandboxError")
 	}
@@ -59,9 +53,17 @@ func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest, args Execu
 
 	log.Infof("Executing command: %s", command)
 
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, strings.TrimSpace(*args.Id), true)
+	if err != nil {
+		return returnCommandError(fmt.Sprintf("Failed to connect to sandbox toolbox: %v", err), "NetworkError")
+	}
+	if errResult != nil {
+		return errResult, nil
+	}
+
 	// Execute the command
-	result, _, err := apiClient.ToolboxAPI.ExecuteCommandDeprecated(ctx, *args.Id).
-		ExecuteRequest(*apiclient.NewExecuteRequest(command)).
+	result, _, err := toolboxClient.ProcessAPI.ExecuteCommand(ctx).
+		Request(*toolboxclient.NewExecuteRequest(command)).
 		Execute()
 
 	if err != nil {
@@ -80,7 +82,7 @@ func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest, args Execu
 	// Process command output
 	cmdResult := CommandResult{
 		Stdout:   strings.TrimSpace(result.Result),
-		ExitCode: int(result.ExitCode),
+		ExitCode: int(result.GetExitCode()),
 	}
 
 	// Log truncated output

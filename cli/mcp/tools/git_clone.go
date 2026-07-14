@@ -7,8 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
+	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -38,23 +37,23 @@ func GetGitCloneTool() mcp.Tool {
 }
 
 func GitClone(ctx context.Context, request mcp.CallToolRequest, args GitCloneArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	gitCloneRequest, err := getGitCloneRequest(args)
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
+		return toolResultError(err.Error())
 	}
 
-	_, err = apiClient.ToolboxAPI.GitCloneRepositoryDeprecated(ctx, *args.Id).GitCloneRequest(*gitCloneRequest).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error cloning repository: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	if _, apiErr := toolboxClient.GitAPI.CloneRepository(ctx).Request(*gitCloneRequest).Execute(); apiErr != nil {
+		return toolboxAPIError("Failed to clone repository", apiErr)
 	}
 
 	log.Infof("Cloned repository: %s to %s", gitCloneRequest.Url, gitCloneRequest.Path)
@@ -62,8 +61,8 @@ func GitClone(ctx context.Context, request mcp.CallToolRequest, args GitCloneArg
 	return mcp.NewToolResultText(fmt.Sprintf("Cloned repository: %s to %s", gitCloneRequest.Url, gitCloneRequest.Path)), nil
 }
 
-func getGitCloneRequest(args GitCloneArgs) (*apiclient.GitCloneRequest, error) {
-	gitCloneRequest := apiclient.GitCloneRequest{}
+func getGitCloneRequest(args GitCloneArgs) (*toolboxclient.GitCloneRequest, error) {
+	gitCloneRequest := toolboxclient.GitCloneRequest{}
 
 	if args.Url == nil || *args.Url == "" {
 		return nil, fmt.Errorf("url parameter is required")

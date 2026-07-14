@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -28,28 +26,25 @@ func GetDeleteFileTool() mcp.Tool {
 }
 
 func DeleteFile(ctx context.Context, request mcp.CallToolRequest, args DeleteFileArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.FilePath == nil || *args.FilePath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("filePath parameter is required")
+		return toolResultError("filePath parameter is required")
 	}
 
-	// Execute delete command
-	execResponse, _, err := apiClient.ToolboxAPI.ExecuteCommandDeprecated(ctx, *args.Id).
-		ExecuteRequest(*apiclient.NewExecuteRequest(fmt.Sprintf("rm -rf %s", *args.FilePath))).
-		Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error deleting file: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	if _, apiErr := toolboxClient.FileSystemAPI.DeleteFile(ctx).Path(*args.FilePath).Recursive(true).Execute(); apiErr != nil {
+		return toolboxAPIError("Failed to delete file", apiErr)
 	}
 
 	log.Infof("Deleted file: %s", *args.FilePath)
 
-	return mcp.NewToolResultText(fmt.Sprintf("Deleted file: %s\nOutput: %s", *args.FilePath, execResponse.Result)), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Deleted file: %s", *args.FilePath)), nil
 }

@@ -10,7 +10,6 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -34,30 +33,31 @@ func GetFileDownloadTool() mcp.Tool {
 }
 
 func FileDownload(ctx context.Context, request mcp.CallToolRequest, args FileDownloadArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.FilePath == nil || *args.FilePath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("filePath parameter is required")
+		return toolResultError("filePath parameter is required")
+	}
+
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	// Download the file
-	file, _, err := apiClient.ToolboxAPI.DownloadFileDeprecated(ctx, *args.Id).Path(*args.FilePath).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error downloading file: %v", err)
+	file, _, apiErr := toolboxClient.FileSystemAPI.DownloadFile(ctx).Path(*args.FilePath).Execute()
+	if apiErr != nil {
+		return toolboxAPIError("Failed to download file", apiErr)
 	}
 	defer file.Close()
 
 	// Read file content
 	content, err := io.ReadAll(file)
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error reading file content: %v", err)
+		return toolResultError(fmt.Sprintf("error reading file content: %v", err))
 	}
 
 	// Process file content based on file type
@@ -105,7 +105,7 @@ func FileDownload(ctx context.Context, request mcp.CallToolRequest, args FileDow
 	// Convert result to JSON
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error marshaling result: %v", err)
+		return toolResultError(fmt.Sprintf("error marshaling result: %v", err))
 	}
 
 	return mcp.NewToolResultText(string(resultJSON)), nil

@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -29,27 +28,27 @@ func GetMoveFileTool() mcp.Tool {
 }
 
 func MoveFile(ctx context.Context, request mcp.CallToolRequest, args MoveFileArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	// Get source and destination paths from request arguments
 	if args.SourcePath == nil || *args.SourcePath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sourcePath parameter is required")
+		return toolResultError("sourcePath parameter is required")
 	}
 
 	if args.DestPath == nil || *args.DestPath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("destPath parameter is required")
+		return toolResultError("destPath parameter is required")
 	}
 
-	_, err = apiClient.ToolboxAPI.MoveFileDeprecated(ctx, *args.Id).Source(*args.SourcePath).Destination(*args.DestPath).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error moving file: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	if _, apiErr := toolboxClient.FileSystemAPI.MoveFile(ctx).Source(*args.SourcePath).Destination(*args.DestPath).Execute(); apiErr != nil {
+		return toolboxAPIError("Failed to move file", apiErr)
 	}
 
 	log.Infof("Moved file from %s to %s", *args.SourcePath, *args.DestPath)
