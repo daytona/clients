@@ -14,7 +14,7 @@ from daytona_api_client import SandboxState
 from daytona_api_client_async import Sandbox as AsyncSandboxDto
 from daytona_api_client_async import UpdateSandboxSecrets
 
-from .conftest import make_sandbox_dto
+from .conftest import make_pydantic_validation_error, make_sandbox_dto
 
 
 def make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
@@ -244,7 +244,7 @@ class TestAsyncSandboxPollingSemantics:
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         mock_async_sandbox_api.get_sandbox = AsyncMock(
             side_effect=[
-                Exception("1 validation error for SandboxDto"),
+                make_pydantic_validation_error(),
                 make_sandbox_dto(state=SandboxState.STOPPED),
             ]
         )
@@ -257,6 +257,18 @@ class TestAsyncSandboxPollingSemantics:
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=Exception("401 Unauthorized"))
         with pytest.raises(Exception, match="401 Unauthorized"):
+            await sandbox.wait_for_sandbox_stop(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_error_only_mentioning_validation_in_message_aborts_stop_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=Exception("500 upstream failure: validation error in body")
+        )
+        with pytest.raises(Exception, match="500 upstream failure"):
             await sandbox.wait_for_sandbox_stop(timeout=0)
 
     @pytest.mark.asyncio

@@ -119,7 +119,7 @@ type Client struct {
 	analyticsAPIURLMu      sync.Mutex
 	analyticsAPIURL        string
 	analyticsAPIURLFetched bool
-	
+
 	eventDispatcher *common.EventDispatcher
 
 	subscriptionManager *common.EventSubscriptionManager

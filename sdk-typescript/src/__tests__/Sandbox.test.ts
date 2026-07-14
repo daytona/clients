@@ -421,6 +421,21 @@ describe('Sandbox', () => {
     await expect(sandbox.waitUntilStarted(5)).resolves.toBeUndefined()
   })
 
+  it('does not treat stale cached error state as authoritative when the safe refresh fails', async () => {
+    const { sandbox } = makeSandbox({ state: 'error', errorReason: 'stale' }, '')
+    let calls = 0
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      calls++
+      if (calls === 1) {
+        throw new Error('Bad Gateway (502)')
+      }
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('stopped')
+    })
+
+    await expect(sandbox.waitUntilStopped(5)).resolves.toBeUndefined()
+    expect(calls).toBeGreaterThanOrEqual(2)
+  })
+
   it('waitUntilStopped tolerates transient refresh errors while polling', async () => {
     const { sandbox } = makeSandbox({ state: 'stopping' }, '')
     let calls = 0

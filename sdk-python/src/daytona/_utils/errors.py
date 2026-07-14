@@ -11,6 +11,7 @@ from typing import Any, NoReturn, TypeVar, Union, cast
 import aiohttp
 import httpx
 import urllib3.exceptions
+from pydantic import ValidationError
 
 from daytona_api_client.exceptions import (
     BadRequestException,
@@ -118,6 +119,23 @@ def _prefix_message(message_prefix: str, message: str) -> str:
         return message
 
     return f"{message_prefix}{message}"
+
+
+def is_validation_error(exc: BaseException) -> bool:
+    """Whether ``exc`` is, or was caused by, a pydantic ``ValidationError``.
+
+    ``intercept_errors`` re-wraps exceptions in ``DaytonaError``, so a DTO
+    validation failure surfaces wrapped — walk the ``__cause__``/``__context__``
+    chain instead of matching on the top-level type or message text.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ValidationError):
+            return True
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def intercept_errors(

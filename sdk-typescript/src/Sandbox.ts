@@ -1223,11 +1223,13 @@ export class Sandbox {
             if (settled) return
             // Parity with main: complete one final refresh-then-evaluate before
             // rejecting, so a clamped/short timeout still observes the latest state.
+            let refreshed = false
             try {
               if (safeRefresh) {
-                await this.refreshDataSafe()
+                refreshed = await this.refreshDataSafe()
               } else {
                 await this.refreshData()
+                refreshed = true
               }
             } catch {
               // fall through to the timeout rejection below
@@ -1235,7 +1237,9 @@ export class Sandbox {
             if (!settled) {
               // Explicit evaluation: applyState() no-ops on unchanged state, so a
               // persistent error state would otherwise time out generically here.
-              if (this.checkStateWaiter(waiter, this.state)) {
+              // Only evaluate when the refresh succeeded — a failed refresh leaves
+              // the cached state stale and must not be treated as authoritative.
+              if (refreshed && this.checkStateWaiter(waiter, this.state)) {
                 return
               }
               cleanup()
@@ -1254,11 +1258,13 @@ export class Sandbox {
       const doPoll = async () => {
         if (settled) return
 
+        let refreshed = false
         try {
           if (safeRefresh) {
-            await this.refreshDataSafe()
+            refreshed = await this.refreshDataSafe()
           } else {
             await this.refreshData()
+            refreshed = true
           }
         } catch (error) {
           waiter.reject(error instanceof Error ? error : new DaytonaError(String(error)))
@@ -1268,8 +1274,9 @@ export class Sandbox {
         if (!settled) {
           // Evaluate the refreshed state explicitly: applyState() no-ops when the
           // state is unchanged, so a persistent error state would otherwise never
-          // reject the waiter.
-          if (this.checkStateWaiter(waiter, this.state)) {
+          // reject the waiter. Only evaluate when the refresh succeeded — a failed
+          // safe refresh leaves the cached state stale, so keep polling instead.
+          if (refreshed && this.checkStateWaiter(waiter, this.state)) {
             return
           }
 
@@ -1352,15 +1359,23 @@ export class Sandbox {
    *
    * @returns {Promise<void>}
    */
-  private async refreshDataSafe(): Promise<void> {
+  /**
+   * @returns true when the refresh produced authoritative state (success, or 404
+   *          mapped to DESTROYED); false when a transient error was swallowed and
+   *          the cached state is stale.
+   */
+  private async refreshDataSafe(): Promise<boolean> {
     try {
       await this.refreshData()
+      return true
     } catch (error) {
       if (error instanceof DaytonaNotFoundError) {
         this.applyState(SandboxState.DESTROYED)
+        return true
       }
       // Other errors are deliberately swallowed (parity with main): transient
       // failures (e.g. 502) mid-poll must not abort stop()/delete() waits.
+      return false
     }
   }
 

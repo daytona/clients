@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any, TypeVar
@@ -50,7 +49,7 @@ from daytona_toolbox_api_client_async import (
     UpdateEnvRequest,
 )
 
-from .._utils.errors import intercept_errors
+from .._utils.errors import intercept_errors, is_validation_error
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
@@ -1318,11 +1317,11 @@ class AsyncSandbox(SandboxDto):
         self._apply_state(sandbox_dto.state)
 
     async def __refresh_data_safe(self) -> None:
-        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating validation errors."""
+        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""
         try:
             await self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
         except Exception as e:
-            if "validation error" not in str(e):
+            if not is_validation_error(e):
                 raise

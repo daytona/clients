@@ -6,6 +6,7 @@ package daytona
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -807,6 +808,29 @@ func TestPauseTimeoutReturnsDaytonaTimeoutError(t *testing.T) {
 	var timeoutErr *errors.DaytonaTimeoutError
 	require.ErrorAs(t, err, &timeoutErr, "pause timeout must return DaytonaTimeoutError, got %T", err)
 	assert.Contains(t, timeoutErr.Error(), "pause")
+}
+
+func TestPauseCancellationIsNotReportedAsTimeout(t *testing.T) {
+	// Server always returns PAUSING — pause never completes on its own.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+	err := sandbox.doPauseWithTimeout(ctx, 30*time.Second)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestWaitForStateFinalRefreshWithFreshContext(t *testing.T) {

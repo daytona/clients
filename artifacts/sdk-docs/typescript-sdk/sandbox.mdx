@@ -71,7 +71,8 @@ new Sandbox(
    clientConfig: Configuration, 
    axiosInstance: AxiosInstance, 
    sandboxApi: SandboxApi, 
-   getAnalyticsApiUrl: () => Promise<string>): Sandbox
+   getAnalyticsApiUrl: () => Promise<string>, 
+   subscriptionManager: EventSubscriptionManager): Sandbox
 ```
 
 Creates a new Sandbox instance.
@@ -84,8 +85,9 @@ Daytona.list rather than constructing directly.
 - `sandboxDto` _The API Sandbox instance_ - `SandboxListItem` | `Sandbox`
 - `clientConfig` _Configuration_
 - `axiosInstance` _AxiosInstance_
-- `sandboxApi` _SandboxApi_
+- `sandboxApi` _SandboxApi_ - API client for Sandbox operations
 - `getAnalyticsApiUrl` _\(\) =\> Promise\<string\>_
+- `subscriptionManager` _EventSubscriptionManager_ - Event subscription manager for real-time updates
 
 
 **Returns**:

@@ -11,6 +11,7 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import TypeAdapter, ValidationError
 
 from daytona_api_client import Sandbox as SyncSandboxDto
 from daytona_api_client import SandboxState
@@ -18,6 +19,14 @@ from daytona_api_client import SandboxState
 SDK_SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SDK_SRC) not in sys.path:
     sys.path.insert(0, str(SDK_SRC))
+
+
+def make_pydantic_validation_error() -> ValidationError:
+    try:
+        TypeAdapter(int).validate_python("not-an-int")
+    except ValidationError as exc:
+        return exc
+    raise AssertionError("expected a pydantic ValidationError")
 
 
 def make_sandbox_dto(

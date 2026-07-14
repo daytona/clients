@@ -152,6 +152,7 @@ class SandboxTest {
                 sandboxApi,
                 TestSupport.config(),
                 TestSupport.mainSandbox("sb-poll", SandboxState.STARTING),
+                () -> null,
                 new EventSubscriptionManager(null));
         when(sandboxApi.getSandbox("sb-poll", null, null)).thenReturn(TestSupport.mainSandbox("sb-poll", SandboxState.STARTED));
 
@@ -459,7 +460,7 @@ class SandboxTest {
             });
 
             Sandbox sb = new Sandbox(localApi, TestSupport.config(),
-                    TestSupport.mainSandbox(sbId, SandboxState.STARTING), mockSubscriptionManager());
+                    TestSupport.mainSandbox(sbId, SandboxState.STARTING), () -> null, mockSubscriptionManager());
 
             threads[i] = new Thread(() -> {
                 try {

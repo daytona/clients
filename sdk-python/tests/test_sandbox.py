@@ -11,7 +11,7 @@ import pytest
 from daytona.common.errors import DaytonaError, DaytonaValidationError
 from daytona_api_client import SandboxState, UpdateSandboxSecrets
 
-from .conftest import make_sandbox_dto
+from .conftest import make_pydantic_validation_error, make_sandbox_dto
 
 
 def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
@@ -208,7 +208,7 @@ class TestSandboxPollingSemantics:
         dto = make_sandbox_dto(state=SandboxState.STOPPING)
         sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.side_effect = [
-            Exception("1 validation error for SandboxDto"),
+            make_pydantic_validation_error(),
             make_sandbox_dto(state=SandboxState.STOPPED),
         ]
         sandbox.wait_for_sandbox_stop(timeout=0)
@@ -219,6 +219,15 @@ class TestSandboxPollingSemantics:
         sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.side_effect = Exception("401 Unauthorized")
         with pytest.raises(Exception, match="401 Unauthorized"):
+            sandbox.wait_for_sandbox_stop(timeout=0)
+
+    def test_error_only_mentioning_validation_in_message_aborts_stop_wait(
+        self, mock_toolbox_api_client, mock_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = Exception("500 upstream failure: validation error in body")
+        with pytest.raises(Exception, match="500 upstream failure"):
             sandbox.wait_for_sandbox_stop(timeout=0)
 
     def test_delete_default_does_not_wait(self, mock_toolbox_api_client, mock_sandbox_api):

@@ -84,6 +84,7 @@ def __init__(sandbox_dto: SandboxDto | SandboxListItem,
              toolbox_api: ApiClient,
              sandbox_api: SandboxApi,
              language: str,
+             subscription_manager: SyncEventSubscriptionManager,
              http_client: httpx.Client,
              analytics_api_url_provider: Callable[[], str | None]
              | None = None)

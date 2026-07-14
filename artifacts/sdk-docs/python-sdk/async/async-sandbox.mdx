@@ -85,7 +85,9 @@ def __init__(sandbox_dto: SandboxDto | SandboxListItem,
              sandbox_api: SandboxApi,
              language: str,
              subscription_manager: AsyncEventSubscriptionManager,
-             pool_tracker: AsyncPoolSaturationTracker | None = None)
+             pool_tracker: AsyncPoolSaturationTracker | None = None,
+             analytics_api_url_provider: Callable[[], Awaitable[str | None]]
+             | None = None)
 ```
 
 Initialize a new Sandbox instance.

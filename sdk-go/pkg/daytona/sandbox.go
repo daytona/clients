@@ -1736,8 +1736,11 @@ func (s *Sandbox) doExperimentalCreateSnapshotWithTimeout(ctx context.Context, n
 
 	err = s.waitForSnapshotComplete(ctx)
 	if err != nil {
-		if ctx.Err() != nil {
+		if stderrors.Is(err, context.DeadlineExceeded) {
 			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox snapshot did not complete within %s", timeout))
+		}
+		if stderrors.Is(err, context.Canceled) {
+			return err
 		}
 		return errors.NewDaytonaError(fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
 	}
@@ -1826,8 +1829,13 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 
 	err = s.waitForState(ctx, targetStates, errorStates, false)
 	if err != nil {
-		if ctx.Err() != nil {
+		// Classify on err itself: ctx.Err() would misreport explicit cancellation —
+		// and real failures racing the deadline — as timeouts.
+		if stderrors.Is(err, context.DeadlineExceeded) {
 			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox pause did not complete within %s", timeout))
+		}
+		if stderrors.Is(err, context.Canceled) {
+			return err
 		}
 		return errors.NewDaytonaError(fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
 	}
