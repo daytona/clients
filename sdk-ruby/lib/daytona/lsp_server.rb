@@ -56,7 +56,7 @@ module Daytona
           language_id:,
           path_to_project:,
           uri: uri(path),
-          position: DaytonaApiClient::Position.new(line: position.line, character: position.character)
+          position: DaytonaToolboxApiClient::LspPosition.new(line: position.line, character: position.character)
         )
       )
     end

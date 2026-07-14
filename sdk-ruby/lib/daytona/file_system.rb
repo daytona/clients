@@ -402,7 +402,7 @@ module Daytona
     #     end
     #   end
     def replace_in_files(files:, pattern:, new_value:)
-      replace_request = DaytonaApiClient::ReplaceRequest.new(
+      replace_request = DaytonaToolboxApiClient::ReplaceRequest.new(
         files: files,
         pattern: pattern,
         new_value: new_value
