@@ -131,7 +131,19 @@ jobs:
           git config --global user.email "daytona-release@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
       - name: Sync go.sum and create PR
+        env:
+          # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
+          # daytonaBot so it works with "Allow GitHub Actions to create and
+          # approve pull requests" disabled, and PR checks trigger on it
+          # (GITHUB_TOKEN-created PRs never trigger workflows).
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
         run: |
+          # Fail fast: with an empty GH_TOKEN, gh silently falls back to
+          # GITHUB_TOKEN, and that PR would trigger no CI.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GITHUBBOT_TOKEN is unavailable; refusing to create the sync PR with GITHUB_TOKEN"
+            exit 1
+          fi
           git checkout -b "sync-gosum-$VERSION"
           GONOSUMDB=github.com/daytona/clients go work sync
           git add -A
