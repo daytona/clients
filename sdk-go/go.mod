@@ -6,8 +6,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.15
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
-	github.com/daytona/clients/api-client-go v0.196.0
-	github.com/daytona/clients/toolbox-api-client-go v0.196.0
+	github.com/daytona/clients/api-client-go v0.197.0
+	github.com/daytona/clients/toolbox-api-client-go v0.197.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.43.0
