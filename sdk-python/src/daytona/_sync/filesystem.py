@@ -29,6 +29,7 @@ from .._utils.timeout import http_timeout
 from ..common.errors import DaytonaError
 from ..common.file_transfer import (
     create_multipart_parser,
+    parse_content_disposition,
     parse_content_type_boundary,
     raise_if_multipart_truncated,
     serialize_download_request,
@@ -454,7 +455,7 @@ class FileSystem:
 
                 def on_header_end() -> None:
                     field = bytes(header_field).decode("utf-8", errors="ignore").lower()
-                    value = bytes(header_value).decode("utf-8", errors="ignore")
+                    value = bytes(header_value).decode("latin-1")
                     part_headers[field] = value
                     header_field.clear()
                     header_value.clear()
@@ -462,9 +463,7 @@ class FileSystem:
                 def on_headers_finished() -> None:
                     nonlocal writer, mode, part_content_type, source
                     cd = part_headers.get("content-disposition", "")
-                    _, cd_params = parse_options_header(cd)
-                    name = cd_params.get(b"name", b"").decode("utf-8", errors="ignore")
-                    source = cd_params.get(b"filename", b"").decode("utf-8", errors="ignore") or None
+                    name, source = parse_content_disposition(cd)
                     if not source:
                         raise DaytonaError("No source path found for this file")
                     part_content_type = part_headers.get("content-type")

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import urllib.parse
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -37,6 +38,55 @@ def _build_multipart_body(
             b"\r\n--" + boundary + b"--\r\n",
         ]
     )
+
+
+def _daemon_content_disposition(
+    name: str,
+    filename: str,
+    *,
+    include_filename_star: bool = True,
+    filename_star: str | None = None,
+) -> str:
+    """Mirror the daemon's quoted fallback and RFC 5987 filename."""
+    fallback = "".join(char if ord(char) <= 0xFF else "_" for char in filename)
+    quoted = fallback.replace("\\", "\\\\").replace('"', '\\"')
+    disposition = f'form-data; name="{name}"; filename="{quoted}"'
+    if include_filename_star:
+        if filename_star is None:
+            encoded = urllib.parse.quote(filename, safe="!#$&+-.^_`|~")
+            filename_star = f"utf-8''{encoded}"
+        disposition += f"; filename*={filename_star}"
+    return disposition
+
+
+def _build_multipart_response(
+    boundary: bytes,
+    parts: list[tuple[str, str, bytes, str]],  # (name, filename, payload, content_type)
+    *,
+    include_filename_star: bool = True,
+    filename_star: str | None = None,
+) -> bytes:
+    body = bytearray()
+    for name, filename, payload, content_type in parts:
+        body += b"--" + boundary + b"\r\n"
+        content_disposition = _daemon_content_disposition(
+            name,
+            filename,
+            include_filename_star=include_filename_star,
+            filename_star=filename_star,
+        )
+        body += f"Content-Disposition: {content_disposition}\r\n".encode("latin-1")
+        body += f"Content-Type: {content_type}\r\n".encode("utf-8")
+        body += b"\r\n" + payload + b"\r\n"
+    body += b"--" + boundary + b"--\r\n"
+    return bytes(body)
+
+
+_INVALID_FILENAME_STARS = (
+    "utf-8''workspace%2Fbad%GG.txt",
+    "iso-8859-1''workspace%2Fbad.txt",
+    "utf-8''workspace%2Fbad%FF.txt",
+)
 
 
 class _Response:
@@ -405,6 +455,152 @@ class TestSyncFileSystem:
         with pytest.raises(DaytonaError, match=r"[Tt]runcated"):
             list(fs.download_file_stream(remote_path))
 
+    def test_download_files_matches_windows_backslash_paths(self):
+        from daytona._sync.filesystem import FileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = MagicMock()
+        source = "C:\\Windows\\Temp\\x"
+        boundary = b"sync-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"windows payload", "application/octet-stream")],
+        )
+        client = _SyncStreamClient(_SyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        fs = FileSystem(mock_api, http_client=client)
+
+        results = fs.download_files([FileDownloadRequest(source=source)])
+
+        assert len(results) == 1
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"windows payload"
+
+    def test_download_files_matches_non_ascii_filename_star(self):
+        from daytona._sync.filesystem import FileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = MagicMock()
+        source = "workspace/文件.txt"
+        boundary = b"sync-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"unicode payload", "application/octet-stream")],
+        )
+        assert b'filename="workspace/__.txt"' in multipart_body
+        client = _SyncStreamClient(_SyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        fs = FileSystem(mock_api, http_client=client)
+
+        results = fs.download_files([FileDownloadRequest(source=source)])
+
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"unicode payload"
+
+    def test_download_files_mixed_success_and_error_parts_by_label(self, tmp_path):
+        from daytona._sync.filesystem import FileSystem
+        from daytona.common.filesystem import FileDownloadErrorDetails, FileDownloadRequest
+
+        mock_api = MagicMock()
+        ok_source = "C:\\Users\\me\\ok.txt"
+        missing_source = "C:\\Users\\me\\missing.txt"
+        posix_source = "workspace/data.txt"
+        destination = tmp_path / "ok.txt"
+        boundary = b"sync-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [
+                ("file", posix_source, b"third", "text/plain"),
+                (
+                    "error",
+                    missing_source,
+                    b'{"message":"missing","statusCode":404,"code":"not_found"}',
+                    "application/json; charset=utf-8",
+                ),
+                ("file", ok_source, b"first", "application/octet-stream"),
+            ],
+        )
+        client = _SyncStreamClient(_SyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=(
+                "POST",
+                "https://download",
+                {},
+                {"paths": [ok_source, missing_source, posix_source]},
+            )
+        )
+        fs = FileSystem(mock_api, http_client=client)
+
+        results = fs.download_files(
+            [
+                FileDownloadRequest(source=ok_source, destination=str(destination)),
+                FileDownloadRequest(source=missing_source),
+                FileDownloadRequest(source=posix_source),
+            ]
+        )
+
+        assert results[0].error is None
+        assert results[0].result == str(destination)
+        assert destination.read_bytes() == b"first"
+        assert results[1].error == "missing"
+        assert results[1].error_details == FileDownloadErrorDetails(
+            message="missing", status_code=404, error_code="not_found"
+        )
+        assert results[2].error is None
+        assert results[2].result == b"third"
+
+    def test_download_files_falls_back_to_quoted_filename(self):
+        from daytona._sync.filesystem import FileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = MagicMock()
+        source = 'workspace/café\\a"b.txt'
+        boundary = b"sync-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"fallback payload", "application/octet-stream")],
+            include_filename_star=False,
+        )
+        client = _SyncStreamClient(_SyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        fs = FileSystem(mock_api, http_client=client)
+
+        results = fs.download_files([FileDownloadRequest(source=source)])
+
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"fallback payload"
+
+    @pytest.mark.parametrize("filename_star", _INVALID_FILENAME_STARS)
+    def test_download_files_rejects_invalid_filename_star(self, filename_star: str):
+        from daytona._sync.filesystem import FileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = MagicMock()
+        source = "workspace/bad.txt"
+        boundary = b"sync-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"payload", "application/octet-stream")],
+            filename_star=filename_star,
+        )
+        client = _SyncStreamClient(_SyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        fs = FileSystem(mock_api, http_client=client)
+
+        with pytest.raises(DaytonaError, match=r"Invalid Content-Disposition filename\* parameter"):
+            fs.download_files([FileDownloadRequest(source=source)])
+
 
 class TestAsyncFileSystem:
     def _make_fs(self):
@@ -657,6 +853,162 @@ class TestAsyncFileSystem:
         with pytest.raises(DaytonaError, match=r"[Tt]runcated"):
             async for _ in stream:
                 pass
+
+    @pytest.mark.asyncio
+    async def test_download_files_matches_windows_backslash_paths(self):
+        from daytona._async.filesystem import AsyncFileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = AsyncMock()
+        source = "C:\\Windows\\Temp\\x"
+        boundary = b"async-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"windows payload", "application/octet-stream")],
+        )
+        client = _AsyncStreamClient(_AsyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        mock_api.api_client.http_session = client
+        fs = AsyncFileSystem(mock_api)
+
+        results = await fs.download_files([FileDownloadRequest(source=source)])
+
+        assert len(results) == 1
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"windows payload"
+
+    @pytest.mark.asyncio
+    async def test_download_files_matches_non_ascii_filename_star(self):
+        from daytona._async.filesystem import AsyncFileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = AsyncMock()
+        source = "workspace/文件.txt"
+        boundary = b"async-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"unicode payload", "application/octet-stream")],
+        )
+        assert b'filename="workspace/__.txt"' in multipart_body
+        client = _AsyncStreamClient(_AsyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        mock_api.api_client.http_session = client
+        fs = AsyncFileSystem(mock_api)
+
+        results = await fs.download_files([FileDownloadRequest(source=source)])
+
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"unicode payload"
+
+    @pytest.mark.asyncio
+    async def test_download_files_mixed_success_and_error_parts_by_label(self, tmp_path):
+        from daytona._async.filesystem import AsyncFileSystem
+        from daytona.common.filesystem import FileDownloadErrorDetails, FileDownloadRequest
+
+        mock_api = AsyncMock()
+        ok_source = "C:\\Users\\me\\ok.txt"
+        missing_source = "C:\\Users\\me\\missing.txt"
+        posix_source = "workspace/data.txt"
+        destination = tmp_path / "ok.txt"
+        boundary = b"async-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [
+                ("file", posix_source, b"third", "text/plain"),
+                (
+                    "error",
+                    missing_source,
+                    b'{"message":"missing","statusCode":404,"code":"not_found"}',
+                    "application/json; charset=utf-8",
+                ),
+                ("file", ok_source, b"first", "application/octet-stream"),
+            ],
+        )
+        client = _AsyncStreamClient(_AsyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=(
+                "POST",
+                "https://download",
+                {},
+                {"paths": [ok_source, missing_source, posix_source]},
+            )
+        )
+        mock_api.api_client.http_session = client
+        fs = AsyncFileSystem(mock_api)
+
+        results = await fs.download_files(
+            [
+                FileDownloadRequest(source=ok_source, destination=str(destination)),
+                FileDownloadRequest(source=missing_source),
+                FileDownloadRequest(source=posix_source),
+            ]
+        )
+
+        assert results[0].error is None
+        assert results[0].result == str(destination)
+        assert destination.read_bytes() == b"first"
+        assert results[1].error == "missing"
+        assert results[1].error_details == FileDownloadErrorDetails(
+            message="missing", status_code=404, error_code="not_found"
+        )
+        assert results[2].error is None
+        assert results[2].result == b"third"
+
+    @pytest.mark.asyncio
+    async def test_download_files_falls_back_to_quoted_filename(self):
+        from daytona._async.filesystem import AsyncFileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = AsyncMock()
+        source = 'workspace/café\\a"b.txt'
+        boundary = b"async-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"fallback payload", "application/octet-stream")],
+            include_filename_star=False,
+        )
+        client = _AsyncStreamClient(_AsyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        mock_api.api_client.http_session = client
+        fs = AsyncFileSystem(mock_api)
+
+        results = await fs.download_files([FileDownloadRequest(source=source)])
+
+        assert results[0].source == source
+        assert results[0].error is None
+        assert results[0].result == b"fallback payload"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("filename_star", _INVALID_FILENAME_STARS)
+    async def test_download_files_rejects_invalid_filename_star(self, filename_star: str):
+        from daytona._async.filesystem import AsyncFileSystem
+        from daytona.common.filesystem import FileDownloadRequest
+
+        mock_api = AsyncMock()
+        source = "workspace/bad.txt"
+        boundary = b"async-bulk-boundary"
+        multipart_body = _build_multipart_response(
+            boundary,
+            [("file", source, b"payload", "application/octet-stream")],
+            filename_star=filename_star,
+        )
+        client = _AsyncStreamClient(_AsyncStreamResponse([multipart_body], boundary))
+        mock_api._download_files_serialize = MagicMock(
+            return_value=("POST", "https://download", {}, {"paths": [source]})
+        )
+        mock_api.api_client.http_session = client
+        fs = AsyncFileSystem(mock_api)
+
+        with pytest.raises(DaytonaError, match=r"Invalid Content-Disposition filename\* parameter"):
+            await fs.download_files([FileDownloadRequest(source=source)])
 
     @pytest.mark.asyncio
     async def test_upload_file_stream_accepts_async_iterable(self):
