@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
+from typing import Callable
 
 import httpx
 from deprecated import deprecated
 from pydantic import ConfigDict, PrivateAttr
 
-from daytona_api_client import BuildInfo, CreateSandboxSnapshot, ForkSandbox, PortPreviewUrl, ResizeSandbox
+from daytona_analytics_api_client import ApiClient as AnalyticsApiClient
+from daytona_analytics_api_client import Configuration as AnalyticsConfiguration
+from daytona_analytics_api_client import TelemetryApi
+from daytona_api_client import BuildInfo, ConfigApi, CreateSandboxSnapshot, ForkSandbox, PortPreviewUrl, ResizeSandbox
 from daytona_api_client import Sandbox as SandboxDto
 from daytona_api_client import (
     SandboxApi,
@@ -33,6 +38,7 @@ from daytona_toolbox_api_client import (
     LspApi,
     ProcessApi,
     ServerApi,
+    SystemApi,
     UpdateEnvRequest,
 )
 
@@ -42,7 +48,13 @@ from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
 from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
-from ..common.sandbox import Resources
+from ..common.sandbox import (
+    SANDBOX_METRIC_NAMES,
+    Resources,
+    SandboxMetrics,
+    pivot_sandbox_metrics,
+    sandbox_metrics_from_system_metrics,
+)
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
 from .code_interpreter import CodeInterpreter
 from .computer_use import ComputerUse
@@ -120,6 +132,7 @@ class Sandbox(SandboxDto):
         sandbox_api: SandboxApi,
         language: str,
         http_client: httpx.Client,
+        analytics_api_url_provider: Callable[[], str | None] | None = None,
     ):
         """Initialize a new Sandbox instance.
 
@@ -132,6 +145,7 @@ class Sandbox(SandboxDto):
         super().__init__(**sandbox_dto.model_dump())
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
+        self._analytics_api_url_provider: Callable[[], str | None] | None = analytics_api_url_provider
         self._http_client: httpx.Client = http_client
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
         self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
@@ -152,6 +166,7 @@ class Sandbox(SandboxDto):
         )
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
         self._server_api: ServerApi = ServerApi(self._toolbox_api)
+        self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
     @property
     def fs(self) -> FileSystem:
@@ -238,6 +253,70 @@ class Sandbox(SandboxDto):
         """
         response = self._info_api.get_work_dir()
         return response.dir
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    def get_metrics_latest(self) -> SandboxMetrics:
+        """Gets the most recent resource usage sample directly from the Sandbox daemon.
+
+        Unlike :meth:`get_metrics`, which returns aggregated historical samples, this returns
+        the single current reading without going through the telemetry backend.
+
+        Returns:
+            SandboxMetrics: The current CPU, memory, and disk usage sample for the Sandbox.
+        """
+        return sandbox_metrics_from_system_metrics(self._system_api.get_system_metrics())
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    def get_metrics(self, start: datetime | None = None, end: datetime | None = None) -> list[SandboxMetrics]:
+        """Gets historical time-series resource usage metrics for the Sandbox.
+
+        When the deployment runs a dedicated Analytics API, metrics are fetched from it
+        directly; otherwise they are fetched through the control-plane telemetry proxy.
+
+        Args:
+            start (datetime | None): Start of the time range. Defaults to the Sandbox
+                creation time.
+            end (datetime | None): End of the time range. Defaults to the current time.
+
+        Returns:
+            list[SandboxMetrics]: Time-ordered usage samples over the requested range.
+        """
+        if end is None:
+            end = datetime.now(timezone.utc)
+        if start is None:
+            start = datetime.fromisoformat(self.created_at.replace("Z", "+00:00")) if self.created_at else end
+
+        analytics_api_url = self._get_analytics_api_url()
+        if analytics_api_url:
+            points = self._build_analytics_telemetry_api(
+                analytics_api_url
+            ).organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get(
+                self.organization_id,
+                self.id,
+                var_from=start.isoformat(),
+                to=end.isoformat(),
+                metric_names=",".join(SANDBOX_METRIC_NAMES),
+            )
+            return pivot_sandbox_metrics((p.metric_name, p.timestamp, p.value) for p in points)
+
+        response = self._sandbox_api.get_sandbox_metrics(
+            self.id, var_from=start, to=end, metric_names=SANDBOX_METRIC_NAMES
+        )
+        return pivot_sandbox_metrics(
+            (s.metric_name, dp.timestamp, dp.value) for s in response.series or [] for dp in s.data_points or []
+        )
+
+    def _get_analytics_api_url(self) -> str | None:
+        if self._analytics_api_url_provider is not None:
+            return self._analytics_api_url_provider()
+        return ConfigApi(self._sandbox_api.api_client).config_controller_get_config().analytics_api_url
+
+    def _build_analytics_telemetry_api(self, analytics_api_url: str) -> TelemetryApi:
+        client = AnalyticsApiClient(AnalyticsConfiguration(host=analytics_api_url))
+        client.default_headers["Authorization"] = self._sandbox_api.api_client.default_headers["Authorization"]
+        return TelemetryApi(client)
 
     @with_instrumentation()
     def create_lsp_server(self, language_id: LspLanguageId | LspLanguageIdLiteral, path_to_project: str) -> LspServer:
@@ -910,6 +989,7 @@ class Sandbox(SandboxDto):
             self._sandbox_api,
             language,
             http_client=self._http_client,
+            analytics_api_url_provider=self._analytics_api_url_provider,
         )
         forked.wait_for_sandbox_start(timeout=0)
         return forked

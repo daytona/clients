@@ -240,6 +240,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'autoPauseInterval'
+     */
+    @Test
+    public void autoPauseIntervalTest() {
+        // TODO: test autoPauseInterval
+    }
+
+    /**
      * Test the property 'autoArchiveInterval'
      */
     @Test

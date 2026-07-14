@@ -4,6 +4,11 @@
  */
 
 import { SandboxState, SandboxApi, SandboxBackupStateEnum, Configuration } from '@daytona/api-client'
+import {
+  TelemetryApi as AnalyticsTelemetryApi,
+  Configuration as AnalyticsConfiguration,
+} from '@daytona/analytics-api-client'
+import type { ModelsMetricPoint } from '@daytona/analytics-api-client'
 import type {
   Sandbox as SandboxDto,
   SandboxListItem as SandboxListItemDto,
@@ -18,6 +23,7 @@ import type {
   UpdateSandboxNetworkSettings,
   SandboxListSortField,
   SandboxListSortDirection,
+  MetricSeries,
 } from '@daytona/api-client'
 import { Daytona } from './Daytona'
 import type { Resources } from './Daytona'
@@ -27,10 +33,12 @@ import {
   ProcessApi,
   LspApi,
   InfoApi,
+  SystemApi,
   ComputerUseApi,
   InterpreterApi,
   ServerApi,
 } from '@daytona/toolbox-api-client'
+import type { SystemMetrics } from '@daytona/toolbox-api-client'
 import { FileSystem } from './FileSystem'
 import { Git } from './Git'
 import { Process } from './Process'
@@ -132,6 +140,7 @@ export class Sandbox {
 
   private infoApi: InfoApi
   private serverApi: ServerApi
+  private systemApi: SystemApi
 
   /**
    * Creates a new Sandbox instance
@@ -143,6 +152,7 @@ export class Sandbox {
     private readonly clientConfig: Configuration,
     private readonly axiosInstance: AxiosInstance,
     private readonly sandboxApi: SandboxApi,
+    private readonly getAnalyticsApiUrl: () => Promise<string | undefined>,
   ) {
     this.processSandboxDto(sandboxDto)
 
@@ -174,6 +184,7 @@ export class Sandbox {
     this.computerUse = new ComputerUse(new ComputerUseApi(this.clientConfig, '', this.axiosInstance))
     this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
+    this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
   }
 
   /**
@@ -189,6 +200,68 @@ export class Sandbox {
   public async getUserHomeDir(): Promise<string | undefined> {
     const response = await this.infoApi.getUserHomeDir()
     return response.data.dir
+  }
+
+  /**
+   * Gets the most recent resource usage sample directly from the sandbox daemon.
+   *
+   * Unlike {@link getMetrics}, which returns aggregated historical samples, this returns the
+   * single current reading without going through the telemetry backend.
+   *
+   * @returns The current resource usage sample for the sandbox.
+   *
+   * @example
+   * const m = await sandbox.getMetricsLatest()
+   * console.log(`CPU: ${m.cpuUsedPct}%, mem: ${m.memUsed}/${m.memTotal}`)
+   */
+  @WithInstrumentation()
+  public async getMetricsLatest(): Promise<SandboxMetrics> {
+    const response = await this.systemApi.getSystemMetrics()
+    return sandboxMetricsFromSystemMetrics(response.data)
+  }
+
+  /**
+   * Gets historical time-series resource usage metrics for the Sandbox.
+   *
+   * @param {Date} [start] - Start of the time range. Defaults to the Sandbox creation time.
+   * @param {Date} [end] - End of the time range. Defaults to the current time.
+   * @returns Time-ordered usage samples over the requested range.
+   *
+   * @example
+   * const samples = await sandbox.getMetrics()
+   * for (const s of samples) {
+   *   console.log(`${s.timestamp.toISOString()} CPU: ${s.cpuUsedPct}% mem: ${s.memUsed}/${s.memTotal}`)
+   * }
+   */
+  @WithInstrumentation()
+  public async getMetrics(start?: Date, end?: Date): Promise<SandboxMetrics[]> {
+    const to = end ?? new Date()
+    const from = start ?? (this.createdAt ? new Date(this.createdAt) : to)
+
+    const analyticsApiUrl = await this.getAnalyticsApiUrl()
+    if (analyticsApiUrl) {
+      const response = await this.buildAnalyticsTelemetryApi(
+        analyticsApiUrl,
+      ).organizationOrganizationIdSandboxSandboxIdTelemetryMetricsGet(
+        this.organizationId,
+        this.id,
+        from.toISOString(),
+        to.toISOString(),
+        SANDBOX_METRIC_NAMES.join(','),
+      )
+      return pivotSandboxMetricPoints(response.data)
+    }
+
+    const response = await this.sandboxApi.getSandboxMetrics(this.id, from, to, undefined, SANDBOX_METRIC_NAMES)
+    return pivotSandboxMetrics(response.data.series)
+  }
+
+  private buildAnalyticsTelemetryApi(analyticsApiUrl: string): AnalyticsTelemetryApi {
+    const analyticsConfig = new AnalyticsConfiguration({
+      basePath: analyticsApiUrl,
+      apiKey: this.clientConfig.baseOptions?.headers?.Authorization,
+    })
+    return new AnalyticsTelemetryApi(analyticsConfig, undefined, Daytona.createAxiosInstance())
   }
 
   /**
@@ -375,6 +448,7 @@ export class Sandbox {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.getAnalyticsApiUrl,
     )
 
     const timeElapsed = Date.now() - startTime
@@ -1145,4 +1219,94 @@ export interface ListSandboxesQuery {
    * Include sandboxes with last activity before this timestamp
    * */
   lastActivityBefore?: Date
+}
+
+/**
+ * A single point-in-time sample of historical Sandbox resource usage.
+ *
+ * @property {number} cpuCount - Number of CPU cores allocated to the Sandbox.
+ * @property {number} cpuUsedPct - CPU utilization as a percentage of the allocated limit.
+ * @property {number} diskTotal - Total disk space in bytes.
+ * @property {number} diskUsed - Used disk space in bytes.
+ * @property {number} memTotal - Total memory in bytes.
+ * @property {number} memUsed - Used memory in bytes.
+ * @property {number} memCache - Memory used by the page cache in bytes.
+ * @property {Date} timestamp - Timestamp of this sample.
+ */
+export interface SandboxMetrics {
+  cpuCount: number
+  cpuUsedPct: number
+  diskTotal: number
+  diskUsed: number
+  memTotal: number
+  memUsed: number
+  memCache: number
+  timestamp: Date
+}
+
+const SANDBOX_METRIC_FIELD_BY_NAME: Record<string, keyof Omit<SandboxMetrics, 'timestamp'>> = {
+  'daytona.sandbox.cpu.utilization': 'cpuUsedPct',
+  'daytona.sandbox.cpu.limit': 'cpuCount',
+  'daytona.sandbox.memory.usage': 'memUsed',
+  'daytona.sandbox.memory.limit': 'memTotal',
+  'daytona.sandbox.memory.cache': 'memCache',
+  'daytona.sandbox.filesystem.usage': 'diskUsed',
+  'daytona.sandbox.filesystem.total': 'diskTotal',
+}
+
+const SANDBOX_METRIC_NAMES: string[] = Object.keys(SANDBOX_METRIC_FIELD_BY_NAME)
+
+function sandboxMetricsFromSystemMetrics(m: SystemMetrics): SandboxMetrics {
+  return {
+    cpuCount: m.cpuCount ?? 0,
+    cpuUsedPct: m.cpuUsedPct ?? 0,
+    diskTotal: m.diskTotal ?? 0,
+    diskUsed: m.diskUsed ?? 0,
+    memTotal: m.memTotal ?? 0,
+    memUsed: m.memUsed ?? 0,
+    memCache: m.memCache ?? 0,
+    timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+  }
+}
+
+type SandboxMetricBuckets = Map<string, Partial<Record<keyof SandboxMetrics, number>>>
+
+function buildSandboxMetrics(buckets: SandboxMetricBuckets): SandboxMetrics[] {
+  return [...buckets.keys()].sort().map((ts) => {
+    const v = buckets.get(ts)!
+    return {
+      cpuCount: v.cpuCount ?? 0,
+      cpuUsedPct: v.cpuUsedPct ?? 0,
+      diskTotal: v.diskTotal ?? 0,
+      diskUsed: v.diskUsed ?? 0,
+      memTotal: v.memTotal ?? 0,
+      memUsed: v.memUsed ?? 0,
+      memCache: v.memCache ?? 0,
+      timestamp: new Date(ts),
+    }
+  })
+}
+
+type MetricTriple = [name: string | undefined, timestamp: string | undefined, value: number | undefined]
+
+function pivotMetricTriples(triples: Iterable<MetricTriple>): SandboxMetrics[] {
+  const buckets: SandboxMetricBuckets = new Map()
+  for (const [name, timestamp, value] of triples) {
+    const field = name ? SANDBOX_METRIC_FIELD_BY_NAME[name] : undefined
+    if (!field || timestamp === undefined || value === undefined) continue
+    const bucket = buckets.get(timestamp) ?? {}
+    bucket[field] = value
+    buckets.set(timestamp, bucket)
+  }
+  return buildSandboxMetrics(buckets)
+}
+
+function pivotSandboxMetrics(series: Array<MetricSeries> | undefined): SandboxMetrics[] {
+  return pivotMetricTriples(
+    (series ?? []).flatMap((s) => (s.dataPoints ?? []).map((p): MetricTriple => [s.metricName, p.timestamp, p.value])),
+  )
+}
+
+function pivotSandboxMetricPoints(points: Array<ModelsMetricPoint> | undefined): SandboxMetrics[] {
+  return pivotMetricTriples((points ?? []).map((p): MetricTriple => [p.metricName, p.timestamp, p.value]))
 }

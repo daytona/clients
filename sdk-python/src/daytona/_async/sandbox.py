@@ -4,11 +4,23 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 
 from deprecated import deprecated
 from pydantic import ConfigDict, PrivateAttr
 
-from daytona_api_client_async import BuildInfo, CreateSandboxSnapshot, ForkSandbox, PortPreviewUrl, ResizeSandbox
+from daytona_analytics_api_client_async import ApiClient as AnalyticsApiClient
+from daytona_analytics_api_client_async import Configuration as AnalyticsConfiguration
+from daytona_analytics_api_client_async import TelemetryApi
+from daytona_api_client_async import (
+    BuildInfo,
+    ConfigApi,
+    CreateSandboxSnapshot,
+    ForkSandbox,
+    PortPreviewUrl,
+    ResizeSandbox,
+)
 from daytona_api_client_async import Sandbox as SandboxDto
 from daytona_api_client_async import (
     SandboxApi,
@@ -32,6 +44,7 @@ from daytona_toolbox_api_client_async import (
     LspApi,
     ProcessApi,
     ServerApi,
+    SystemApi,
     UpdateEnvRequest,
 )
 
@@ -41,7 +54,13 @@ from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
 from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
-from ..common.sandbox import Resources
+from ..common.sandbox import (
+    SANDBOX_METRIC_NAMES,
+    Resources,
+    SandboxMetrics,
+    pivot_sandbox_metrics,
+    sandbox_metrics_from_system_metrics,
+)
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
 from .code_interpreter import AsyncCodeInterpreter
@@ -120,10 +139,12 @@ class AsyncSandbox(SandboxDto):
         sandbox_api: SandboxApi,
         language: str,
         pool_tracker: AsyncPoolSaturationTracker | None = None,
+        analytics_api_url_provider: Callable[[], Awaitable[str | None]] | None = None,
     ):
         super().__init__(**sandbox_dto.model_dump())
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
+        self._analytics_api_url_provider: Callable[[], Awaitable[str | None]] | None = analytics_api_url_provider
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
         self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
             toolbox_api, self.id, self.toolbox_proxy_url, pool_tracker
@@ -136,6 +157,7 @@ class AsyncSandbox(SandboxDto):
         self._code_interpreter = AsyncCodeInterpreter(InterpreterApi(self._toolbox_api))
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
         self._server_api: ServerApi = ServerApi(self._toolbox_api)
+        self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
     @property
     def fs(self) -> AsyncFileSystem:
@@ -222,6 +244,73 @@ class AsyncSandbox(SandboxDto):
         """
         response = await self._info_api.get_work_dir()
         return response.dir
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    async def get_metrics_latest(self) -> SandboxMetrics:
+        """Gets the most recent resource usage sample directly from the Sandbox daemon.
+
+        Unlike :meth:`get_metrics`, which returns aggregated historical samples, this returns
+        the single current reading without going through the telemetry backend.
+
+        Returns:
+            SandboxMetrics: The current CPU, memory, and disk usage sample for the Sandbox.
+        """
+        return sandbox_metrics_from_system_metrics(await self._system_api.get_system_metrics())
+
+    @intercept_errors(message_prefix="Failed to get sandbox metrics: ")
+    @with_instrumentation()
+    async def get_metrics(self, start: datetime | None = None, end: datetime | None = None) -> list[SandboxMetrics]:
+        """Gets historical time-series resource usage metrics for the Sandbox.
+
+        When the deployment runs a dedicated Analytics API, metrics are fetched from it
+        directly; otherwise they are fetched through the control-plane telemetry proxy.
+
+        Args:
+            start (datetime | None): Start of the time range. Defaults to the Sandbox
+                creation time.
+            end (datetime | None): End of the time range. Defaults to the current time.
+
+        Returns:
+            list[SandboxMetrics]: Time-ordered usage samples over the requested range.
+        """
+        if end is None:
+            end = datetime.now(timezone.utc)
+        if start is None:
+            start = datetime.fromisoformat(self.created_at.replace("Z", "+00:00")) if self.created_at else end
+
+        analytics_api_url = await self._get_analytics_api_url()
+        if analytics_api_url:
+            telemetry_api = self._build_analytics_telemetry_api(analytics_api_url)
+            try:
+                points = await telemetry_api.organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get(
+                    self.organization_id,
+                    self.id,
+                    var_from=start.isoformat(),
+                    to=end.isoformat(),
+                    metric_names=",".join(SANDBOX_METRIC_NAMES),
+                )
+            finally:
+                await telemetry_api.api_client.close()  # pyright: ignore[reportUnusedCallResult]
+            return pivot_sandbox_metrics((p.metric_name, p.timestamp, p.value) for p in points)
+
+        response = await self._sandbox_api.get_sandbox_metrics(
+            self.id, var_from=start, to=end, metric_names=SANDBOX_METRIC_NAMES
+        )
+        return pivot_sandbox_metrics(
+            (s.metric_name, dp.timestamp, dp.value) for s in response.series or [] for dp in s.data_points or []
+        )
+
+    async def _get_analytics_api_url(self) -> str | None:
+        if self._analytics_api_url_provider is not None:
+            return await self._analytics_api_url_provider()
+        config = await ConfigApi(self._sandbox_api.api_client).config_controller_get_config()
+        return config.analytics_api_url
+
+    def _build_analytics_telemetry_api(self, analytics_api_url: str) -> TelemetryApi:
+        client = AnalyticsApiClient(AnalyticsConfiguration(host=analytics_api_url))
+        client.default_headers["Authorization"] = self._sandbox_api.api_client.default_headers["Authorization"]
+        return TelemetryApi(client)
 
     @with_instrumentation()
     def create_lsp_server(
@@ -899,6 +988,7 @@ class AsyncSandbox(SandboxDto):
             self._toolbox_api._api_client,
             self._sandbox_api,
             language,
+            analytics_api_url_provider=self._analytics_api_url_provider,
         )
         await forked.wait_for_sandbox_start(timeout=0)
         return forked

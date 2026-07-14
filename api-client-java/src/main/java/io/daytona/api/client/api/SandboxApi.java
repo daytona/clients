@@ -5364,6 +5364,152 @@ public class SandboxApi {
         return localVarCall;
     }
     /**
+     * Build call for setAutoPauseInterval
+     * @param sandboxIdOrName ID or name of the sandbox (required)
+     * @param interval Auto-pause interval in minutes (0 to disable) (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Auto-pause interval has been set </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call setAutoPauseIntervalCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull BigDecimal interval, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxIdOrName}/autopause/{interval}"
+            .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
+            .replace("{" + "interval" + "}", localVarApiClient.escapeString(interval.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call setAutoPauseIntervalValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull BigDecimal interval, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxIdOrName' is set
+        if (sandboxIdOrName == null) {
+            throw new ApiException("Missing the required parameter 'sandboxIdOrName' when calling setAutoPauseInterval(Async)");
+        }
+
+        // verify the required parameter 'interval' is set
+        if (interval == null) {
+            throw new ApiException("Missing the required parameter 'interval' when calling setAutoPauseInterval(Async)");
+        }
+
+        return setAutoPauseIntervalCall(sandboxIdOrName, interval, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Set sandbox auto-pause interval
+     * 
+     * @param sandboxIdOrName ID or name of the sandbox (required)
+     * @param interval Auto-pause interval in minutes (0 to disable) (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return Sandbox
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Auto-pause interval has been set </td><td>  -  </td></tr>
+     </table>
+     */
+    public Sandbox setAutoPauseInterval(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull BigDecimal interval, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<Sandbox> localVarResp = setAutoPauseIntervalWithHttpInfo(sandboxIdOrName, interval, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Set sandbox auto-pause interval
+     * 
+     * @param sandboxIdOrName ID or name of the sandbox (required)
+     * @param interval Auto-pause interval in minutes (0 to disable) (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;Sandbox&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Auto-pause interval has been set </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Sandbox> setAutoPauseIntervalWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull BigDecimal interval, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = setAutoPauseIntervalValidateBeforeCall(sandboxIdOrName, interval, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Set sandbox auto-pause interval (asynchronously)
+     * 
+     * @param sandboxIdOrName ID or name of the sandbox (required)
+     * @param interval Auto-pause interval in minutes (0 to disable) (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Auto-pause interval has been set </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call setAutoPauseIntervalAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull BigDecimal interval, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Sandbox> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = setAutoPauseIntervalValidateBeforeCall(sandboxIdOrName, interval, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for setAutostopInterval
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param interval Auto-stop interval in minutes (0 to disable) (required)

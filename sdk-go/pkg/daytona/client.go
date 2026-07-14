@@ -65,6 +65,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -114,6 +115,10 @@ type Client struct {
 
 	// apiClient is the underlying OpenAPI-generated client
 	apiClient *apiclient.APIClient
+
+	analyticsAPIURLMu      sync.Mutex
+	analyticsAPIURL        string
+	analyticsAPIURLFetched bool
 
 	// Volume provides methods for managing persistent volumes.
 	Volume *VolumeService
@@ -283,6 +288,24 @@ func (c *Client) getAuthContext(ctx context.Context) context.Context {
 		token = c.jwtToken
 	}
 	return context.WithValue(ctx, apiclient.ContextAccessToken, token)
+}
+
+// getAnalyticsAPIURL resolves the deployment's Analytics API URL via /config,
+// cached for the client's lifetime. Errors are not cached, so a failed lookup
+// is retried on the next call.
+func (c *Client) getAnalyticsAPIURL(ctx context.Context) (string, error) {
+	c.analyticsAPIURLMu.Lock()
+	defer c.analyticsAPIURLMu.Unlock()
+	if c.analyticsAPIURLFetched {
+		return c.analyticsAPIURL, nil
+	}
+	cfg, httpResp, err := c.apiClient.ConfigAPI.ConfigControllerGetConfig(c.getAuthContext(ctx)).Execute()
+	if err != nil {
+		return "", errors.ConvertAPIError(err, httpResp)
+	}
+	c.analyticsAPIURL = cfg.GetAnalyticsApiUrl()
+	c.analyticsAPIURLFetched = true
+	return c.analyticsAPIURL, nil
 }
 
 // handleAPIError converts API client errors to Daytona error types

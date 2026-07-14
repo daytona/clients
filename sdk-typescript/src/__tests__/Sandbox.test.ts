@@ -27,6 +27,7 @@ jest.mock(
     LspApi: jest.fn(() => ({})),
     InfoApi: jest.fn(() => ({ getUserHomeDir: jest.fn(), getWorkDir: jest.fn() })),
     ServerApi: jest.fn(() => ({ updateEnv: jest.fn() })),
+    SystemApi: jest.fn(() => ({ getSystemMetrics: jest.fn() })),
     ComputerUseApi: jest.fn(() => ({})),
     InterpreterApi: jest.fn(() => ({})),
   }),
@@ -87,11 +88,14 @@ const makeSandbox = (
     defaults: { baseURL: '' },
   }
 
+  const getAnalyticsApiUrl = jest.fn().mockResolvedValue(undefined)
+
   const sandbox = new Sandbox(
     { ...baseDto, ...overrides },
     cfg,
     axiosInstance as unknown as never,
     sandboxApi as unknown as never,
+    getAnalyticsApiUrl as unknown as never,
   )
 
   return { sandbox, sandboxApi }

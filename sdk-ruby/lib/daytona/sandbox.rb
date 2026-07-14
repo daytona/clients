@@ -3,13 +3,32 @@
 
 # frozen_string_literal: true
 
+require 'time'
 require 'timeout'
 
 module Daytona
+  # A single point-in-time sample of historical Sandbox resource usage.
+  SandboxMetrics = Data.define(
+    :cpu_count, :cpu_used_pct, :disk_total, :disk_used,
+    :mem_total, :mem_used, :mem_cache, :timestamp
+  )
+
   class Sandbox # rubocop:disable Metrics/ClassLength
     include Instrumentation
 
     DEFAULT_TIMEOUT = 60
+
+    SANDBOX_METRIC_FIELD_BY_NAME = {
+      'daytona.sandbox.cpu.utilization' => :cpu_used_pct,
+      'daytona.sandbox.cpu.limit' => :cpu_count,
+      'daytona.sandbox.memory.usage' => :mem_used,
+      'daytona.sandbox.memory.limit' => :mem_total,
+      'daytona.sandbox.memory.cache' => :mem_cache,
+      'daytona.sandbox.filesystem.usage' => :disk_used,
+      'daytona.sandbox.filesystem.total' => :disk_total
+    }.freeze
+
+    SANDBOX_METRIC_NAMES = SANDBOX_METRIC_FIELD_BY_NAME.keys.freeze
 
     # @return [String] The ID of the sandbox
     attr_reader :id
@@ -132,11 +151,12 @@ module Daytona
     # @params sandbox_api [DaytonaApiClient::SandboxApi]
     # @params sandbox_dto [DaytonaApiClient::Sandbox, DaytonaApiClient::SandboxListItem]
     # @params otel_state [Daytona::OtelState, nil]
-    def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil) # rubocop:disable Metrics/MethodLength
+    def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil, analytics_api_url_provider: nil) # rubocop:disable Metrics/MethodLength
       process_response(sandbox_dto)
       @config = config
       @sandbox_api = sandbox_api
       @otel_state = otel_state
+      @analytics_api_url_provider = analytics_api_url_provider
 
       # Create toolbox API clients with dynamic configuration
       toolbox_api_config = build_toolbox_api_config
@@ -160,6 +180,7 @@ module Daytona
       interpreter_api = DaytonaToolboxApiClient::InterpreterApi.new(create_authenticated_client.call)
       info_api = DaytonaToolboxApiClient::InfoApi.new(create_authenticated_client.call)
       server_api = DaytonaToolboxApiClient::ServerApi.new(create_authenticated_client.call)
+      system_api = DaytonaToolboxApiClient::SystemApi.new(create_authenticated_client.call)
 
       @process = Process.new(
         sandbox_id: id,
@@ -180,6 +201,7 @@ module Daytona
       @lsp_api = lsp_api
       @info_api = info_api
       @server_api = server_api
+      @system_api = system_api
     end
 
     # Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -336,6 +358,42 @@ module Daytona
       nil
     rescue StandardError => e
       raise Sdk::Error, "Failed to update environment: #{e.message}"
+    end
+
+    # Gets the most recent resource usage sample directly from the Sandbox daemon.
+    #
+    # Unlike #get_metrics, which returns aggregated historical samples, this returns the
+    # single current reading without going through the telemetry backend.
+    #
+    # @return [Daytona::SandboxMetrics]
+    #
+    # @example
+    #   m = sandbox.get_metrics_latest
+    #   puts "CPU used: #{m.cpu_used_pct}%"
+    def get_metrics_latest
+      sandbox_metrics_from_system_metrics(@system_api.get_system_metrics)
+    rescue StandardError => e
+      raise Sdk::Error, "Failed to get system metrics: #{e.message}"
+    end
+
+    # Gets historical time-series resource usage metrics for the Sandbox.
+    #
+    # @param start_time [Time, nil] Start of the range. Defaults to the Sandbox creation time.
+    # @param end_time [Time, nil] End of the range. Defaults to the current time.
+    # @return [Array<Daytona::SandboxMetrics>] Time-ordered usage samples.
+    #
+    # @example
+    #   sandbox.get_metrics.each { |m| puts "#{m.timestamp}: #{m.cpu_used_pct}%" }
+    def get_metrics(start_time = nil, end_time = nil)
+      from, to = metrics_range(start_time, end_time)
+      analytics_api_url = fetch_analytics_api_url
+      if analytics_api_url && !analytics_api_url.empty?
+        pivot_sandbox_metric_points(fetch_analytics_metrics(analytics_api_url, from, to))
+      else
+        pivot_sandbox_metrics(fetch_proxy_metrics(from, to))
+      end
+    rescue StandardError => e
+      raise Sdk::Error, "Failed to get sandbox metrics: #{e.message}"
     end
 
     # Sets labels for the Sandbox.
@@ -568,7 +626,8 @@ module Daytona
           config:,
           sandbox_api:,
           code_toolbox:,
-          otel_state:
+          otel_state:,
+          analytics_api_url_provider: @analytics_api_url_provider
         )
         forked.send(:wait_for_states, operation: OPERATION_START,
                                       target_states: [DaytonaApiClient::SandboxState::STARTED])
@@ -611,7 +670,8 @@ module Daytona
 
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=,
                :update_network_settings, :update_secrets, :update_env,
-               :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :labels=,
+               :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :get_metrics, :get_metrics_latest,
+               :labels=,
                :preview_url, :create_signed_preview_url, :expire_signed_preview_url,
                :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,
                :create_lsp_server, :validate_ssh_access, :wait_for_sandbox_start,
@@ -620,6 +680,82 @@ module Daytona
                component: 'Sandbox'
 
     private
+
+    def pivot_sandbox_metrics(series)
+      buckets = {}
+      Array(series).each do |s|
+        Array(s.data_points).each { |point| add_metric_point(buckets, s.metric_name, point.timestamp, point.value) }
+      end
+      build_sandbox_metrics(buckets)
+    end
+
+    def add_metric_point(buckets, name, timestamp, value)
+      field = SANDBOX_METRIC_FIELD_BY_NAME[name]
+      return if field.nil? || timestamp.nil? || timestamp.to_s.empty? || value.nil?
+
+      (buckets[timestamp] ||= {})[field] = value
+    end
+
+    def build_sandbox_metrics(buckets)
+      buckets.keys.sort.map { |ts| build_sandbox_metric(ts, buckets[ts]) }
+    end
+
+    def build_sandbox_metric(timestamp, values)
+      SandboxMetrics.new(
+        cpu_count: values.fetch(:cpu_count, 0).to_i,
+        cpu_used_pct: values.fetch(:cpu_used_pct, 0).to_f,
+        disk_total: values.fetch(:disk_total, 0).to_i,
+        disk_used: values.fetch(:disk_used, 0).to_i,
+        mem_total: values.fetch(:mem_total, 0).to_i,
+        mem_used: values.fetch(:mem_used, 0).to_i,
+        mem_cache: values.fetch(:mem_cache, 0).to_i,
+        timestamp: Time.parse(timestamp)
+      )
+    end
+
+    def pivot_sandbox_metric_points(points)
+      buckets = {}
+      Array(points).each { |point| add_metric_point(buckets, point.metric_name, point.timestamp, point.value) }
+      build_sandbox_metrics(buckets)
+    end
+
+    def sandbox_metrics_from_system_metrics(system_metrics)
+      values = SANDBOX_METRIC_FIELD_BY_NAME.values.to_h { |field| [field, system_metrics.send(field)] }
+      build_sandbox_metric(system_metrics.timestamp || Time.now.iso8601, values)
+    end
+
+    def metrics_range(start_time, end_time)
+      to = end_time || Time.now
+      from = start_time || (created_at ? Time.parse(created_at) : to)
+      [from, to]
+    end
+
+    def fetch_analytics_api_url
+      return @analytics_api_url_provider.call if @analytics_api_url_provider
+
+      DaytonaApiClient::ConfigApi.new(sandbox_api.api_client).config_controller_get_config.analytics_api_url
+    end
+
+    def fetch_proxy_metrics(from, to)
+      sandbox_api.get_sandbox_metrics(id, from, to, metric_names: SANDBOX_METRIC_NAMES).series
+    end
+
+    def fetch_analytics_metrics(analytics_api_url, from, to)
+      analytics_telemetry_api(analytics_api_url).organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get(
+        organization_id, id, from.utc.iso8601, to.utc.iso8601, metric_names: SANDBOX_METRIC_NAMES.join(',')
+      )
+    end
+
+    def analytics_telemetry_api(analytics_api_url) # rubocop:disable Metrics/AbcSize
+      uri = URI(analytics_api_url)
+      config = DaytonaAnalyticsApiClient::Configuration.new
+      config.scheme = uri.scheme
+      config.host = uri.authority
+      config.base_path = uri.path
+      config.api_key['Authorization'] = sandbox_api.api_client.config.access_token_getter&.call
+      config.api_key_prefix['Authorization'] = 'Bearer'
+      DaytonaAnalyticsApiClient::TelemetryApi.new(DaytonaAnalyticsApiClient::ApiClient.new(config))
+    end
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state

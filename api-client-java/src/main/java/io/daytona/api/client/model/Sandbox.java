@@ -240,6 +240,11 @@ public class Sandbox {
   @javax.annotation.Nullable
   private BigDecimal autoStopInterval;
 
+  public static final String SERIALIZED_NAME_AUTO_PAUSE_INTERVAL = "autoPauseInterval";
+  @SerializedName(SERIALIZED_NAME_AUTO_PAUSE_INTERVAL)
+  @javax.annotation.Nullable
+  private BigDecimal autoPauseInterval;
+
   public static final String SERIALIZED_NAME_AUTO_ARCHIVE_INTERVAL = "autoArchiveInterval";
   @SerializedName(SERIALIZED_NAME_AUTO_ARCHIVE_INTERVAL)
   @javax.annotation.Nullable
@@ -833,6 +838,25 @@ public class Sandbox {
   }
 
 
+  public Sandbox autoPauseInterval(@javax.annotation.Nullable BigDecimal autoPauseInterval) {
+    this.autoPauseInterval = autoPauseInterval;
+    return this;
+  }
+
+  /**
+   * Auto-pause interval in minutes (0 means disabled)
+   * @return autoPauseInterval
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getAutoPauseInterval() {
+    return autoPauseInterval;
+  }
+
+  public void setAutoPauseInterval(@javax.annotation.Nullable BigDecimal autoPauseInterval) {
+    this.autoPauseInterval = autoPauseInterval;
+  }
+
+
   public Sandbox autoArchiveInterval(@javax.annotation.Nullable BigDecimal autoArchiveInterval) {
     this.autoArchiveInterval = autoArchiveInterval;
     return this;
@@ -1147,6 +1171,7 @@ public class Sandbox {
         Objects.equals(this.backupState, sandbox.backupState) &&
         Objects.equals(this.backupCreatedAt, sandbox.backupCreatedAt) &&
         Objects.equals(this.autoStopInterval, sandbox.autoStopInterval) &&
+        Objects.equals(this.autoPauseInterval, sandbox.autoPauseInterval) &&
         Objects.equals(this.autoArchiveInterval, sandbox.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, sandbox.autoDeleteInterval) &&
         Objects.equals(this.volumes, sandbox.volumes) &&
@@ -1164,7 +1189,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, backupState, backupCreatedAt, autoStopInterval, autoArchiveInterval, autoDeleteInterval, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1195,6 +1220,7 @@ public class Sandbox {
     sb.append("    backupState: ").append(toIndentedString(backupState)).append("\n");
     sb.append("    backupCreatedAt: ").append(toIndentedString(backupCreatedAt)).append("\n");
     sb.append("    autoStopInterval: ").append(toIndentedString(autoStopInterval)).append("\n");
+    sb.append("    autoPauseInterval: ").append(toIndentedString(autoPauseInterval)).append("\n");
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
     sb.append("    volumes: ").append(toIndentedString(volumes)).append("\n");
@@ -1226,7 +1252,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "backupState", "backupCreatedAt", "autoStopInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));

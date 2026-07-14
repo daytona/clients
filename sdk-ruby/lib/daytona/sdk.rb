@@ -7,6 +7,7 @@ require 'logger'
 
 require 'daytona_api_client'
 require 'daytona_toolbox_api_client'
+require 'daytona_analytics_api_client'
 require 'toml'
 require 'websocket-client-simple'
 

@@ -2925,6 +2925,50 @@ paths:
       summary: Set sandbox auto-stop interval
       tags:
       - sandbox
+  /sandbox/{sandboxIdOrName}/autopause/{interval}:
+    post:
+      operationId: setAutoPauseInterval
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID or name of the sandbox
+        explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Auto-pause interval in minutes (0 to disable)
+        explode: false
+        in: path
+        name: interval
+        required: true
+        schema:
+          type: number
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sandbox"
+          description: Auto-pause interval has been set
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Set sandbox auto-pause interval
+      tags:
+      - sandbox
   /sandbox/{sandboxIdOrName}/autoarchive/{interval}:
     post:
       operationId: setAutoArchiveInterval
@@ -11586,6 +11630,7 @@ components:
         lastActivityAt: 2024-10-01T12:00:00Z
         autoStopInterval: 30
         organizationId: organization123
+        autoPauseInterval: 60
         createdAt: 2024-10-01T12:00:00Z
         autoDeleteInterval: 30
         public: false
@@ -11708,6 +11753,10 @@ components:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
           type: number
+        autoPauseInterval:
+          description: Auto-pause interval in minutes (0 means disabled)
+          example: 60
+          type: number
         autoArchiveInterval:
           description: Auto-archive interval in minutes
           example: 10080
@@ -11760,6 +11809,7 @@ components:
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
           organizationId: organization123
+          autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           autoDeleteInterval: 30
           public: false
@@ -11789,6 +11839,7 @@ components:
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
           organizationId: organization123
+          autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           autoDeleteInterval: 30
           public: false
@@ -11897,6 +11948,7 @@ components:
         lastActivityAt: 2024-10-01T12:00:00Z
         autoStopInterval: 30
         organizationId: organization123
+        autoPauseInterval: 60
         createdAt: 2024-10-01T12:00:00Z
         networkBlockAll: false
         autoDeleteInterval: 30
@@ -12047,6 +12099,10 @@ components:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
           type: number
+        autoPauseInterval:
+          description: Auto-pause interval in minutes (0 means disabled)
+          example: 60
+          type: number
         autoArchiveInterval:
           description: Auto-archive interval in minutes
           example: 10080
@@ -12137,6 +12193,7 @@ components:
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
           organizationId: organization123
+          autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           networkBlockAll: false
           autoDeleteInterval: 30
@@ -12181,6 +12238,7 @@ components:
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
           organizationId: organization123
+          autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           networkBlockAll: false
           autoDeleteInterval: 30
@@ -12280,6 +12338,7 @@ components:
         labels:
           daytona.io/public: "true"
         target: us
+        autoPauseInterval: 60
         networkBlockAll: false
         disk: 3
         autoDeleteInterval: 30
@@ -12369,6 +12428,15 @@ components:
         autoStopInterval:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
+          type: integer
+        autoPauseInterval:
+          description: "Auto-pause interval in minutes (0 means disabled). Only supported\
+            \ for sandbox classes that support pausing. Not allowed for ephemeral\
+            \ sandboxes. At most one of autoStopInterval and autoPauseInterval may\
+            \ be non-zero. For non-ephemeral sandbox classes that support pausing,\
+            \ defaults to 60 minutes (with auto-stop disabled) when neither interval\
+            \ is provided."
+          example: 60
           type: integer
         autoArchiveInterval:
           description: Auto-archive interval in minutes (0 means the maximum interval

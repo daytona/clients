@@ -70,7 +70,7 @@ if TYPE_CHECKING:
     from .common.lsp_server import LspCompletionPosition, LspLanguageId
     from .common.process import CodeRunParams, ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
     from .common.pty import PtySize
-    from .common.sandbox import ListSandboxesQuery, Resources
+    from .common.sandbox import ListSandboxesQuery, Resources, SandboxMetrics
     from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
     from .common.snapshot import CreateSnapshotParams
     from .common.volume import VolumeMount
@@ -88,6 +88,7 @@ __all__ = [
     "CodeRunParams",
     "Sandbox",
     "Resources",
+    "SandboxMetrics",
     "GpuType",
     "SandboxClass",
     "SandboxState",
@@ -226,6 +227,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     # common.sandbox
     "ListSandboxesQuery": "common.sandbox",
     "Resources": "common.sandbox",
+    "SandboxMetrics": "common.sandbox",
     # common.snapshot
     "CreateSnapshotParams": "common.snapshot",
     # common.volume

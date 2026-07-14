@@ -1120,6 +1120,47 @@ type = "directory"
 url = "sdk-python"
 
 [[package]]
+name = "daytona-analytics-api-client"
+version = "0.0.0.dev0"
+description = "Daytona Analytics API"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+pydantic = ">=2.11"
+python-dateutil = ">=2.8.2"
+typing-extensions = ">=4.7.1"
+urllib3 = ">=2.1.0,<3.0.0"
+
+[package.source]
+type = "directory"
+url = "analytics-api-client-python"
+
+[[package]]
+name = "daytona-analytics-api-client-async"
+version = "0.0.0.dev0"
+description = "Daytona Analytics API"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+aiohttp = ">=3.8.4"
+aiohttp-retry = ">=2.8.3"
+pydantic = ">=2.11"
+python-dateutil = ">=2.8.2"
+typing-extensions = ">=4.7.1"
+
+[package.source]
+type = "directory"
+url = "analytics-api-client-python-async"
+
+[[package]]
 name = "daytona-api-client"
 version = "0.0.0.dev0"
 description = "Daytona"
@@ -5671,4 +5712,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "19310f080e009270a574717bf1ea6259a577cae41da7502031552240bbadefeb"
+content-hash = "6da90ce2733df45ef7b16665f07170e1237eae8deef0c368503e7c46fce6e477"

@@ -289,6 +289,10 @@ class AsyncDaytona:
         self._sandbox_api: SandboxApi = SandboxApi(self._api_client)
         self._object_storage_api: ObjectStorageApi = ObjectStorageApi(self._api_client)
         self._config_api: ConfigApi = ConfigApi(self._api_client)
+        self._analytics_api_url: str | None = None
+        self._analytics_api_url_fetched: bool = False
+        # Created lazily inside the running loop: py3.9 asyncio.Lock() binds the loop at construction.
+        self._analytics_api_url_lock: asyncio.Lock | None = None
 
         self.volume: AsyncVolumeService = AsyncVolumeService(VolumesApi(self._api_client))
         self.snapshot: AsyncSnapshotService = AsyncSnapshotService(
@@ -388,6 +392,17 @@ class AsyncDaytona:
 
         if hasattr(self, "_shared_session"):
             await self._shared_session.close()
+
+    async def _get_analytics_api_url(self) -> str | None:
+        """Resolves the deployment's Analytics API URL via ``/config``, cached for the client's lifetime."""
+        if self._analytics_api_url_lock is None:
+            self._analytics_api_url_lock = asyncio.Lock()
+        async with self._analytics_api_url_lock:
+            if not self._analytics_api_url_fetched:
+                config = await self._config_api.config_controller_get_config()
+                self._analytics_api_url = config.analytics_api_url
+                self._analytics_api_url_fetched = True
+            return self._analytics_api_url
 
     @overload
     async def create(
@@ -622,6 +637,7 @@ class AsyncDaytona:
             self._sandbox_api,
             validated_language.value,
             self._pool_tracker,
+            analytics_api_url_provider=self._get_analytics_api_url,
         )
 
         if sandbox.state != SandboxState.STARTED:
@@ -690,6 +706,7 @@ class AsyncDaytona:
             self._sandbox_api,
             language,
             self._pool_tracker,
+            analytics_api_url_provider=self._get_analytics_api_url,
         )
 
     @intercept_errors(message_prefix="Failed to list sandboxes: ")
@@ -738,6 +755,7 @@ class AsyncDaytona:
                     self._sandbox_api,
                     language,
                     self._pool_tracker,
+                    analytics_api_url_provider=self._get_analytics_api_url,
                 )
             cursor = response.next_cursor or None
 

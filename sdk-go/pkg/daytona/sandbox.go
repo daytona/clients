@@ -6,8 +6,12 @@ package daytona
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
 	"time"
 
+	analyticsclient "github.com/daytona/clients/analytics-api-client-go"
 	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/types"
@@ -433,6 +437,201 @@ func (s *Sandbox) GetUserHomeDir(ctx context.Context) (string, error) {
 
 		return resp.GetDir(), nil
 	})
+}
+
+// GetMetricsLatest returns the most recent resource usage sample directly from the sandbox daemon.
+//
+// Unlike GetMetrics, which returns aggregated historical samples, this returns the single
+// current reading without going through the telemetry backend.
+//
+// Example:
+//
+//	m, err := sandbox.GetMetricsLatest(ctx)
+//	if err != nil {
+//	    return err
+//	}
+//	fmt.Printf("CPU: %.1f%%\n", m.CPUUsedPct)
+func (s *Sandbox) GetMetricsLatest(ctx context.Context) (SandboxMetrics, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "GetMetricsLatest", func(ctx context.Context) (SandboxMetrics, error) {
+		resp, httpResp, err := s.ToolboxClient.SystemAPI.GetSystemMetrics(ctx).Execute()
+		if err != nil {
+			return SandboxMetrics{}, errors.ConvertToolboxError(err, httpResp)
+		}
+
+		return sandboxMetricsFromSystemMetrics(resp), nil
+	})
+}
+
+// GetMetrics returns historical time-series resource usage metrics for the sandbox.
+//
+// A nil start defaults to the sandbox creation time; a nil end defaults to the
+// current time. Samples are returned ordered ascending by timestamp.
+//
+// Example:
+//
+//	samples, err := sandbox.GetMetrics(ctx, nil, nil)
+//	if err != nil {
+//	    return err
+//	}
+//	for _, m := range samples {
+//	    fmt.Printf("%s CPU: %.1f%%\n", m.Timestamp.Format(time.RFC3339), m.CPUUsedPct)
+//	}
+func (s *Sandbox) GetMetrics(ctx context.Context, start, end *time.Time) ([]SandboxMetrics, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "GetMetrics", func(ctx context.Context) ([]SandboxMetrics, error) {
+		to := time.Now()
+		if end != nil {
+			to = *end
+		}
+		from := to
+		if start != nil {
+			from = *start
+		} else if s.CreatedAt != nil {
+			if parsed, perr := time.Parse(time.RFC3339, *s.CreatedAt); perr == nil {
+				from = parsed
+			}
+		}
+
+		analyticsURL, err := s.client.getAnalyticsAPIURL(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if analyticsURL != "" {
+			points, httpResp, err := s.getAnalyticsMetrics(ctx, analyticsURL, from, to)
+			if err != nil {
+				return nil, errors.ConvertAPIError(err, httpResp)
+			}
+			return pivotSandboxMetricPoints(points), nil
+		}
+
+		resp, httpResp, err := s.client.apiClient.SandboxAPI.
+			GetSandboxMetrics(s.client.getAuthContext(ctx), s.ID).
+			From(from).To(to).MetricNames(sandboxMetricNames).
+			Execute()
+		if err != nil {
+			return nil, errors.ConvertAPIError(err, httpResp)
+		}
+
+		return pivotSandboxMetrics(resp.GetSeries()), nil
+	})
+}
+
+func (s *Sandbox) getAnalyticsMetrics(
+	ctx context.Context, analyticsURL string, from, to time.Time,
+) ([]analyticsclient.ModelsMetricPoint, *http.Response, error) {
+	cfg := analyticsclient.NewConfiguration()
+	cfg.Servers = analyticsclient.ServerConfigurations{{URL: analyticsURL}}
+	cfg.HTTPClient = s.client.httpClient
+
+	token := s.client.apiKey
+	if token == "" {
+		token = s.client.jwtToken
+	}
+	authCtx := context.WithValue(ctx, analyticsclient.ContextAPIKeys, map[string]analyticsclient.APIKey{
+		"Bearer": {Key: token, Prefix: "Bearer"},
+	})
+
+	return analyticsclient.NewAPIClient(cfg).TelemetryAPI.
+		OrganizationOrganizationIdSandboxSandboxIdTelemetryMetricsGet(authCtx, s.OrganizationId, s.ID).
+		From(from.Format(time.RFC3339)).To(to.Format(time.RFC3339)).
+		MetricNames(strings.Join(sandboxMetricNames, ",")).
+		Execute()
+}
+
+// SandboxMetrics is a single point-in-time sample of historical sandbox resource usage.
+type SandboxMetrics struct {
+	CPUCount   int32
+	CPUUsedPct float64
+	DiskTotal  int64
+	DiskUsed   int64
+	MemTotal   int64
+	MemUsed    int64
+	MemCache   int64
+	Timestamp  time.Time
+}
+
+var sandboxMetricFieldByName = map[string]func(*SandboxMetrics, float64){
+	"daytona.sandbox.cpu.utilization":  func(m *SandboxMetrics, v float64) { m.CPUUsedPct = v },
+	"daytona.sandbox.cpu.limit":        func(m *SandboxMetrics, v float64) { m.CPUCount = int32(v) },
+	"daytona.sandbox.memory.usage":     func(m *SandboxMetrics, v float64) { m.MemUsed = int64(v) },
+	"daytona.sandbox.memory.limit":     func(m *SandboxMetrics, v float64) { m.MemTotal = int64(v) },
+	"daytona.sandbox.memory.cache":     func(m *SandboxMetrics, v float64) { m.MemCache = int64(v) },
+	"daytona.sandbox.filesystem.usage": func(m *SandboxMetrics, v float64) { m.DiskUsed = int64(v) },
+	"daytona.sandbox.filesystem.total": func(m *SandboxMetrics, v float64) { m.DiskTotal = int64(v) },
+}
+
+var sandboxMetricNames = func() []string {
+	names := make([]string, 0, len(sandboxMetricFieldByName))
+	for name := range sandboxMetricFieldByName {
+		names = append(names, name)
+	}
+	return names
+}()
+
+func buildSandboxMetricsFromBuckets(buckets map[string]*SandboxMetrics) []SandboxMetrics {
+	timestamps := make([]string, 0, len(buckets))
+	for ts := range buckets {
+		timestamps = append(timestamps, ts)
+	}
+	sort.Strings(timestamps)
+
+	result := make([]SandboxMetrics, 0, len(timestamps))
+	for _, ts := range timestamps {
+		m := buckets[ts]
+		if parsed, err := time.Parse(time.RFC3339, ts); err == nil {
+			m.Timestamp = parsed
+		}
+		result = append(result, *m)
+	}
+	return result
+}
+
+func addMetricPoint(buckets map[string]*SandboxMetrics, name, timestamp string, value float64) {
+	setter, ok := sandboxMetricFieldByName[name]
+	if !ok || timestamp == "" {
+		return
+	}
+	m, exists := buckets[timestamp]
+	if !exists {
+		m = &SandboxMetrics{}
+		buckets[timestamp] = m
+	}
+	setter(m, value)
+}
+
+func pivotSandboxMetrics(series []apiclient.MetricSeries) []SandboxMetrics {
+	buckets := map[string]*SandboxMetrics{}
+	for i := range series {
+		for _, point := range series[i].GetDataPoints() {
+			addMetricPoint(buckets, series[i].GetMetricName(), point.GetTimestamp(), float64(point.GetValue()))
+		}
+	}
+	return buildSandboxMetricsFromBuckets(buckets)
+}
+
+func pivotSandboxMetricPoints(points []analyticsclient.ModelsMetricPoint) []SandboxMetrics {
+	buckets := map[string]*SandboxMetrics{}
+	for i := range points {
+		addMetricPoint(buckets, points[i].GetMetricName(), points[i].GetTimestamp(), points[i].GetValue())
+	}
+	return buildSandboxMetricsFromBuckets(buckets)
+}
+
+func sandboxMetricsFromSystemMetrics(m *toolbox.SystemMetrics) SandboxMetrics {
+	sm := SandboxMetrics{
+		CPUCount:   m.GetCpuCount(),
+		CPUUsedPct: m.GetCpuUsedPct(),
+		DiskTotal:  m.GetDiskTotal(),
+		DiskUsed:   m.GetDiskUsed(),
+		MemTotal:   m.GetMemTotal(),
+		MemUsed:    m.GetMemUsed(),
+		MemCache:   m.GetMemCache(),
+	}
+	sm.Timestamp = time.Now().UTC()
+	if parsed, err := time.Parse(time.RFC3339, m.GetTimestamp()); err == nil {
+		sm.Timestamp = parsed
+	}
+	return sm
 }
 
 // GetWorkingDir returns the current working directory in the sandbox.

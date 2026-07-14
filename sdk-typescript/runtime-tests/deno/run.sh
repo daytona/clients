@@ -13,5 +13,5 @@ rm -rf node_modules package-lock.json
 cat > package.json <<'JSON'
 { "name": "runtime-test-deno", "private": true, "type": "module" }
 JSON
-npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$SDK_TARBALL"
+npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 deno run -A --no-check test.ts

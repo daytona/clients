@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import time
 import warnings
 from collections.abc import Iterator
@@ -228,6 +229,9 @@ class Daytona:
         self._sandbox_api: SandboxApi = SandboxApi(self._api_client)
         self._object_storage_api: ObjectStorageApi = ObjectStorageApi(self._api_client)
         self._config_api: ConfigApi = ConfigApi(self._api_client)
+        self._analytics_api_url: str | None = None
+        self._analytics_api_url_fetched: bool = False
+        self._analytics_api_url_lock: threading.Lock = threading.Lock()
         self._toolbox_api_client: ToolboxApiClient = self._clone_api_client_to_toolbox_api_client()
 
         # Initialize services
@@ -272,6 +276,14 @@ class Daytona:
 
         # Set the global tracer provider
         trace.set_tracer_provider(self._tracer_provider)
+
+    def _get_analytics_api_url(self) -> str | None:
+        """Resolves the deployment's Analytics API URL via ``/config``, cached for the client's lifetime."""
+        with self._analytics_api_url_lock:
+            if not self._analytics_api_url_fetched:
+                self._analytics_api_url = self._config_api.config_controller_get_config().analytics_api_url
+                self._analytics_api_url_fetched = True
+            return self._analytics_api_url
 
     @overload
     def create(
@@ -506,6 +518,7 @@ class Daytona:
             self._sandbox_api,
             validated_language.value,
             http_client=self._http_client,
+            analytics_api_url_provider=self._get_analytics_api_url,
         )
 
         if sandbox.state != SandboxState.STARTED:
@@ -574,6 +587,7 @@ class Daytona:
             self._sandbox_api,
             language,
             http_client=self._http_client,
+            analytics_api_url_provider=self._get_analytics_api_url,
         )
 
     @intercept_errors(message_prefix="Failed to list sandboxes: ")
@@ -622,6 +636,7 @@ class Daytona:
                     self._sandbox_api,
                     language,
                     http_client=self._http_client,
+                    analytics_api_url_provider=self._get_analytics_api_url,
                 )
             cursor = response.next_cursor or None
 

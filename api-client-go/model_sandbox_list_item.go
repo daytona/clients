@@ -63,6 +63,8 @@ type SandboxListItem struct {
 	BackupState *string `json:"backupState,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *float32 `json:"autoStopInterval,omitempty"`
+	// Auto-pause interval in minutes (0 means disabled)
+	AutoPauseInterval *float32 `json:"autoPauseInterval,omitempty"`
 	// Auto-archive interval in minutes
 	AutoArchiveInterval *float32 `json:"autoArchiveInterval,omitempty"`
 	// Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
@@ -695,6 +697,38 @@ func (o *SandboxListItem) SetAutoStopInterval(v float32) {
 	o.AutoStopInterval = &v
 }
 
+// GetAutoPauseInterval returns the AutoPauseInterval field value if set, zero value otherwise.
+func (o *SandboxListItem) GetAutoPauseInterval() float32 {
+	if o == nil || IsNil(o.AutoPauseInterval) {
+		var ret float32
+		return ret
+	}
+	return *o.AutoPauseInterval
+}
+
+// GetAutoPauseIntervalOk returns a tuple with the AutoPauseInterval field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetAutoPauseIntervalOk() (*float32, bool) {
+	if o == nil || IsNil(o.AutoPauseInterval) {
+		return nil, false
+	}
+	return o.AutoPauseInterval, true
+}
+
+// HasAutoPauseInterval returns a boolean if a field has been set.
+func (o *SandboxListItem) HasAutoPauseInterval() bool {
+	if o != nil && !IsNil(o.AutoPauseInterval) {
+		return true
+	}
+
+	return false
+}
+
+// SetAutoPauseInterval gets a reference to the given float32 and assigns it to the AutoPauseInterval field.
+func (o *SandboxListItem) SetAutoPauseInterval(v float32) {
+	o.AutoPauseInterval = &v
+}
+
 // GetAutoArchiveInterval returns the AutoArchiveInterval field value if set, zero value otherwise.
 func (o *SandboxListItem) GetAutoArchiveInterval() float32 {
 	if o == nil || IsNil(o.AutoArchiveInterval) {
@@ -962,6 +996,9 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AutoStopInterval) {
 		toSerialize["autoStopInterval"] = o.AutoStopInterval
 	}
+	if !IsNil(o.AutoPauseInterval) {
+		toSerialize["autoPauseInterval"] = o.AutoPauseInterval
+	}
 	if !IsNil(o.AutoArchiveInterval) {
 		toSerialize["autoArchiveInterval"] = o.AutoArchiveInterval
 	}
@@ -1056,6 +1093,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "labels")
 		delete(additionalProperties, "backupState")
 		delete(additionalProperties, "autoStopInterval")
+		delete(additionalProperties, "autoPauseInterval")
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
 		delete(additionalProperties, "createdAt")

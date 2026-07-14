@@ -5,7 +5,7 @@
 set -euo pipefail
 rm -rf node_modules package-lock.json dist
 npm install --silent
-npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$SDK_TARBALL"
+npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 # esbuild eagerly resolves require('expand-tilde') at bundle time
 npm install --silent expand-tilde
 npm run build >/dev/null

@@ -257,6 +257,8 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*Sandbox\) ExperimentalFork\(ctx context.Context, name \*string\) \(\*Sandbox, error\)](<#Sandbox.ExperimentalFork>)
   - [func \(s \*Sandbox\) ExperimentalForkWithTimeout\(ctx context.Context, name \*string, timeout time.Duration\) \(\*Sandbox, error\)](<#Sandbox.ExperimentalForkWithTimeout>)
   - [func \(s \*Sandbox\) ExpireSignedPreviewLink\(ctx context.Context, port int, token string\) error](<#Sandbox.ExpireSignedPreviewLink>)
+  - [func \(s \*Sandbox\) GetMetrics\(ctx context.Context, start, end \*time.Time\) \(\[\]SandboxMetrics, error\)](<#Sandbox.GetMetrics>)
+  - [func \(s \*Sandbox\) GetMetricsLatest\(ctx context.Context\) \(SandboxMetrics, error\)](<#Sandbox.GetMetricsLatest>)
   - [func \(s \*Sandbox\) GetPreviewLink\(ctx context.Context, port int\) \(\*types.PreviewLink, error\)](<#Sandbox.GetPreviewLink>)
   - [func \(s \*Sandbox\) GetSignedPreviewLink\(ctx context.Context, port int, expiresInSeconds int\) \(\*types.SignedPreviewLink, error\)](<#Sandbox.GetSignedPreviewLink>)
   - [func \(s \*Sandbox\) GetUserHomeDir\(ctx context.Context\) \(string, error\)](<#Sandbox.GetUserHomeDir>)
@@ -285,6 +287,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(it \*SandboxIterator\) Value\(\) \*Sandbox](<#SandboxIterator.Value>)
 - [type SandboxListSortDirection](<#SandboxListSortDirection>)
 - [type SandboxListSortField](<#SandboxListSortField>)
+- [type SandboxMetrics](<#SandboxMetrics>)
 - [type SandboxState](<#SandboxState>)
 - [type ScreenshotService](<#ScreenshotService>)
   - [func NewScreenshotService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*ScreenshotService](<#NewScreenshotService>)
@@ -4540,6 +4543,50 @@ if err != nil {
 }
 ```
 
+<a name="Sandbox.GetMetrics"></a>
+### func \(\*Sandbox\) GetMetrics
+
+```go
+func (s *Sandbox) GetMetrics(ctx context.Context, start, end *time.Time) ([]SandboxMetrics, error)
+```
+
+GetMetrics returns historical time\-series resource usage metrics for the sandbox.
+
+A nil start defaults to the sandbox creation time; a nil end defaults to the current time. Samples are returned ordered ascending by timestamp.
+
+Example:
+
+```
+samples, err := sandbox.GetMetrics(ctx, nil, nil)
+if err != nil {
+    return err
+}
+for _, m := range samples {
+    fmt.Printf("%s CPU: %.1f%%\n", m.Timestamp.Format(time.RFC3339), m.CPUUsedPct)
+}
+```
+
+<a name="Sandbox.GetMetricsLatest"></a>
+### func \(\*Sandbox\) GetMetricsLatest
+
+```go
+func (s *Sandbox) GetMetricsLatest(ctx context.Context) (SandboxMetrics, error)
+```
+
+GetMetricsLatest returns the most recent resource usage sample directly from the sandbox daemon.
+
+Unlike GetMetrics, which returns aggregated historical samples, this returns the single current reading without going through the telemetry backend.
+
+Example:
+
+```
+m, err := sandbox.GetMetricsLatest(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("CPU: %.1f%%\n", m.CPUUsedPct)
+```
+
 <a name="Sandbox.GetPreviewLink"></a>
 ### func \(\*Sandbox\) GetPreviewLink
 
@@ -5010,6 +5057,24 @@ SandboxListSortField selects the field used to order results from [Client.List](
 
 ```go
 type SandboxListSortField = apiclient.SandboxListSortField
+```
+
+<a name="SandboxMetrics"></a>
+## type SandboxMetrics
+
+SandboxMetrics is a single point\-in\-time sample of historical sandbox resource usage.
+
+```go
+type SandboxMetrics struct {
+    CPUCount   int32
+    CPUUsedPct float64
+    DiskTotal  int64
+    DiskUsed   int64
+    MemTotal   int64
+    MemUsed    int64
+    MemCache   int64
+    Timestamp  time.Time
+}
 ```
 
 <a name="SandboxState"></a>

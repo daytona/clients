@@ -13,3 +13,10 @@ includeBuild("../toolbox-api-client-java") {
         substitute(module("io.daytona:toolbox-api-client")).using(project(":"))
     }
 }
+
+includeBuild("../analytics-api-client-java") {
+    name = "analytics-api-client"
+    dependencySubstitution {
+        substitute(module("io.daytona:analytics-api-client")).using(project(":"))
+    }
+}

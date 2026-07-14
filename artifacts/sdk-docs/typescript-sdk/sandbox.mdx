@@ -69,7 +69,8 @@ new Sandbox(
    sandboxDto: SandboxListItem | Sandbox, 
    clientConfig: Configuration, 
    axiosInstance: AxiosInstance, 
-   sandboxApi: SandboxApi): Sandbox
+   sandboxApi: SandboxApi, 
+   getAnalyticsApiUrl: () => Promise<string>): Sandbox
 ```
 
 Creates a new Sandbox instance
@@ -80,6 +81,7 @@ Creates a new Sandbox instance
 - `clientConfig` _Configuration_
 - `axiosInstance` _AxiosInstance_
 - `sandboxApi` _SandboxApi_
+- `getAnalyticsApiUrl` _\(\) =\> Promise\<string\>_
 
 
 **Returns**:
@@ -269,6 +271,59 @@ Expires a signed preview url for the sandbox at the specified port.
 **Returns**:
 
 - `Promise<void>`
+
+***
+
+#### getMetrics()
+
+```ts
+getMetrics(start?: Date, end?: Date): Promise<SandboxMetrics[]>
+```
+
+Gets historical time-series resource usage metrics for the Sandbox.
+
+**Parameters**:
+
+- `start?` _Date_ - Start of the time range. Defaults to the Sandbox creation time.
+- `end?` _Date_ - End of the time range. Defaults to the current time.
+
+
+**Returns**:
+
+- `Promise<SandboxMetrics[]>` - Time-ordered usage samples over the requested range.
+
+**Example:**
+
+```ts
+const samples = await sandbox.getMetrics()
+for (const s of samples) {
+  console.log(`${s.timestamp.toISOString()} CPU: ${s.cpuUsedPct}% mem: ${s.memUsed}/${s.memTotal}`)
+}
+```
+
+***
+
+#### getMetricsLatest()
+
+```ts
+getMetricsLatest(): Promise<SandboxMetrics>
+```
+
+Gets the most recent resource usage sample directly from the sandbox daemon.
+
+Unlike getMetrics, which returns aggregated historical samples, this returns the
+single current reading without going through the telemetry backend.
+
+**Returns**:
+
+- `Promise<SandboxMetrics>` - The current resource usage sample for the sandbox.
+
+**Example:**
+
+```ts
+const m = await sandbox.getMetricsLatest()
+console.log(`CPU: ${m.cpuUsedPct}%, mem: ${m.memUsed}/${m.memTotal}`)
+```
 
 ***
 
@@ -988,3 +1043,17 @@ or encounters an error.
 - `sort?` _SandboxListSortField_ - Sort by field
 - `states?` _SandboxState\[\]_ - Filter by states
 - `targets?` _string\[\]_ - Filter by targets
+## SandboxMetrics
+
+A single point-in-time sample of historical Sandbox resource usage.
+
+**Properties**:
+
+- `cpuCount` _number_ - Number of CPU cores allocated to the Sandbox.
+- `cpuUsedPct` _number_ - CPU utilization as a percentage of the allocated limit.
+- `diskTotal` _number_ - Total disk space in bytes.
+- `diskUsed` _number_ - Used disk space in bytes.
+- `memCache` _number_ - Memory used by the page cache in bytes.
+- `memTotal` _number_ - Total memory in bytes.
+- `memUsed` _number_ - Used memory in bytes.
+- `timestamp` _Date_ - Timestamp of this sample.

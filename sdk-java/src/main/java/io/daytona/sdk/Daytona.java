@@ -53,6 +53,9 @@ public class Daytona implements AutoCloseable {
     private final VolumeService volume;
     private final SecretService secret;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Object analyticsApiUrlLock = new Object();
+    private String analyticsApiUrl;
+    private boolean analyticsApiUrlFetched;
 
     /**
      * Creates a client using environment variables.
@@ -86,6 +89,18 @@ public class Daytona implements AutoCloseable {
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
+    }
+
+    private String getAnalyticsApiUrl() {
+        synchronized (analyticsApiUrlLock) {
+            if (!analyticsApiUrlFetched) {
+                analyticsApiUrl = ExceptionMapper.callMain(
+                        () -> new io.daytona.api.client.api.ConfigApi(apiClient)
+                                .configControllerGetConfig().getAnalyticsApiUrl());
+                analyticsApiUrlFetched = true;
+            }
+            return analyticsApiUrl;
+        }
     }
 
     /**
@@ -134,7 +149,7 @@ public class Daytona implements AutoCloseable {
             body.setSnapshot(params.getSnapshot());
         }
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.createSandbox(body, null));
-        Sandbox sandbox = new Sandbox(sandboxApi, config, response);
+        Sandbox sandbox = new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl);
         sandbox.waitUntilStarted(timeoutSeconds);
         return sandbox;
     }
@@ -189,7 +204,8 @@ public class Daytona implements AutoCloseable {
         }
 
         Sandbox sandbox = new Sandbox(sandboxApi, config,
-                ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null)));
+                ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null)),
+                this::getAnalyticsApiUrl);
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
         long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : timeoutSeconds;
         sandbox.waitUntilStarted(remaining);
@@ -205,7 +221,7 @@ public class Daytona implements AutoCloseable {
      */
     public Sandbox get(String sandboxIdOrName) {
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(sandboxIdOrName, null, null));
-        return new Sandbox(sandboxApi, config, response);
+        return new Sandbox(sandboxApi, config, response, this::getAnalyticsApiUrl);
     }
 
     /**
@@ -391,7 +407,7 @@ public class Daytona implements AutoCloseable {
         List<Sandbox> items = new ArrayList<>();
         if (result != null && result.getItems() != null) {
             for (io.daytona.api.client.model.SandboxListItem item : result.getItems()) {
-                items.add(new Sandbox(sandboxApi, config, item));
+                items.add(new Sandbox(sandboxApi, config, item, this::getAnalyticsApiUrl));
             }
         }
         String nextCursor = result != null ? result.getNextCursor() : null;

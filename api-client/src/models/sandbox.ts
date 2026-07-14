@@ -127,6 +127,10 @@ export interface Sandbox {
      */
     'autoStopInterval'?: number;
     /**
+     * Auto-pause interval in minutes (0 means disabled)
+     */
+    'autoPauseInterval'?: number;
+    /**
      * Auto-archive interval in minutes
      */
     'autoArchiveInterval'?: number;

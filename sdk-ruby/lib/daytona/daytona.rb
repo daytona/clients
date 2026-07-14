@@ -48,6 +48,9 @@ module Daytona
       @api_client = build_api_client
       @sandbox_api = DaytonaApiClient::SandboxApi.new(api_client)
       @config_api = DaytonaApiClient::ConfigApi.new(api_client)
+      @analytics_api_url = nil
+      @analytics_api_url_fetched = false
+      @analytics_api_url_mutex = Mutex.new
       @volume = VolumeService.new(DaytonaApiClient::VolumesApi.new(api_client), otel_state:)
       @secret = SecretService.new(DaytonaApiClient::SecretApi.new(api_client), otel_state:)
       @object_storage_api = DaytonaApiClient::ObjectStorageApi.new(api_client)
@@ -147,6 +150,18 @@ module Daytona
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state
+
+    # Resolves the deployment's Analytics API URL via /config, cached (including a nil
+    # result) for the client's lifetime. Errors are not cached, so failed lookups retry.
+    def analytics_api_url
+      @analytics_api_url_mutex.synchronize do
+        unless @analytics_api_url_fetched
+          @analytics_api_url = @config_api.config_controller_get_config.analytics_api_url
+          @analytics_api_url_fetched = true
+        end
+        @analytics_api_url
+      end
+    end
 
     # Fetches a single page of sandboxes. Each call produces one OTel span
     # ("Daytona.list_fetch_page") so that paginated iteration emits N spans
@@ -322,7 +337,8 @@ module Daytona
         sandbox_dto:,
         config:,
         sandbox_api:,
-        otel_state: @otel_state
+        otel_state: @otel_state,
+        analytics_api_url_provider: method(:analytics_api_url)
       )
     end
 

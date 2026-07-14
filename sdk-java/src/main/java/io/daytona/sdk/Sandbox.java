@@ -7,6 +7,10 @@ import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
+import io.daytona.analytics.api.client.model.ModelsMetricPoint;
+import io.daytona.api.client.model.MetricDataPoint;
+import io.daytona.api.client.model.MetricSeries;
+import io.daytona.api.client.model.MetricsResponse;
 import io.daytona.api.client.model.SandboxLabels;
 import io.daytona.api.client.model.SandboxListItem;
 import io.daytona.api.client.model.SandboxVolume;
@@ -14,13 +18,18 @@ import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.model.SandboxMetrics;
+import io.daytona.toolbox.client.api.SystemApi;
+import io.daytona.toolbox.client.model.SystemMetrics;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Represents a Daytona Sandbox instance.
@@ -29,12 +38,26 @@ import java.util.Map;
  * and Git.
  */
 public class Sandbox {
+    private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
+            "daytona.sandbox.cpu.utilization", "cpuUsedPct",
+            "daytona.sandbox.cpu.limit", "cpuCount",
+            "daytona.sandbox.memory.usage", "memUsed",
+            "daytona.sandbox.memory.limit", "memTotal",
+            "daytona.sandbox.memory.cache", "memCache",
+            "daytona.sandbox.filesystem.usage", "diskUsed",
+            "daytona.sandbox.filesystem.total", "diskTotal");
+
+    private static final List<String> SANDBOX_METRIC_NAMES =
+            List.copyOf(SANDBOX_METRIC_FIELD_BY_NAME.keySet());
+
     private final SandboxApi sandboxApi;
     private final DaytonaConfig config;
     private final io.daytona.toolbox.client.ApiClient toolboxApiClient;
     private final io.daytona.toolbox.client.api.InfoApi infoApi;
     private final io.daytona.toolbox.client.api.ServerApi serverApi;
+    private final SystemApi systemApi;
     private final String apiKey;
+    private final java.util.function.Supplier<String> analyticsApiUrlProvider;
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
     private String id;
@@ -82,14 +105,17 @@ public class Sandbox {
     /** Stateful code interpreter for this Sandbox (Python). */
     public final CodeInterpreter codeInterpreter;
 
-    Sandbox(SandboxApi sandboxApi, DaytonaConfig config, io.daytona.api.client.model.Sandbox data) {
+    Sandbox(SandboxApi sandboxApi, DaytonaConfig config, io.daytona.api.client.model.Sandbox data,
+            java.util.function.Supplier<String> analyticsApiUrlProvider) {
         this.sandboxApi = sandboxApi;
         this.config = config;
         this.apiKey = config.getApiKey();
+        this.analyticsApiUrlProvider = analyticsApiUrlProvider;
         populateFromDTO(data);
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
         this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
+        this.systemApi = new SystemApi(toolboxApiClient);
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -97,14 +123,17 @@ public class Sandbox {
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
     }
 
-    Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data) {
+    Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data,
+            java.util.function.Supplier<String> analyticsApiUrlProvider) {
         this.sandboxApi = sandboxApi;
         this.config = config;
         this.apiKey = config.getApiKey();
+        this.analyticsApiUrlProvider = analyticsApiUrlProvider;
         populateFromDTO(data);
         this.toolboxApiClient = buildToolboxApiClient(sandboxApi, config);
         this.infoApi = new io.daytona.toolbox.client.api.InfoApi(toolboxApiClient);
         this.serverApi = new io.daytona.toolbox.client.api.ServerApi(toolboxApiClient);
+        this.systemApi = new SystemApi(toolboxApiClient);
         this.process = new Process(new io.daytona.toolbox.client.api.ProcessApi(toolboxApiClient), this);
         this.fs = new FileSystem(new io.daytona.toolbox.client.api.FileSystemApi(toolboxApiClient));
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
@@ -353,6 +382,124 @@ public class Sandbox {
     }
 
     /**
+     * Gets the most recent resource usage sample directly from the sandbox daemon.
+     *
+     * <p>Unlike {@link #getMetrics}, which returns aggregated historical samples, this returns
+     * the single current reading without going through the telemetry backend.
+     *
+     * @return the current resource usage sample for the sandbox
+     * @throws DaytonaException if the request fails
+     */
+    public SandboxMetrics getMetricsLatest() {
+        return sandboxMetricsFromSystemMetrics(ExceptionMapper.callToolbox(() -> systemApi.getSystemMetrics()));
+    }
+
+    /**
+     * Gets historical time-series resource usage metrics for the sandbox.
+     *
+     * <p>When the deployment runs a dedicated Analytics API, metrics are fetched from it directly;
+     * otherwise they are fetched through the control-plane telemetry proxy. A {@code null} start
+     * defaults to the sandbox creation time; a {@code null} end defaults to the current time.
+     * Samples are returned ordered ascending by timestamp.
+     *
+     * @param start start of the time range, or {@code null} for the sandbox creation time
+     * @param end end of the time range, or {@code null} for the current time
+     * @return time-ordered usage samples over the requested range
+     * @throws DaytonaException if the request fails
+     */
+    public List<SandboxMetrics> getMetrics(OffsetDateTime start, OffsetDateTime end) {
+        OffsetDateTime to = end != null ? end : OffsetDateTime.now();
+        OffsetDateTime from = start != null ? start
+                : (createdAt != null ? OffsetDateTime.parse(createdAt) : to);
+
+        String analyticsApiUrl = analyticsApiUrlProvider.get();
+
+        if (analyticsApiUrl != null && !analyticsApiUrl.isEmpty()) {
+            List<ModelsMetricPoint> points = ExceptionMapper.callMain(
+                    () -> buildAnalyticsTelemetryApi(analyticsApiUrl)
+                            .organizationOrganizationIdSandboxSandboxIdTelemetryMetricsGet(
+                                    organizationId, id, from.toString(), to.toString(),
+                                    String.join(",", SANDBOX_METRIC_NAMES)));
+            return pivotSandboxMetricPoints(points);
+        }
+
+        MetricsResponse response = ExceptionMapper.callMain(
+                () -> sandboxApi.getSandboxMetrics(id, from, to, null, SANDBOX_METRIC_NAMES));
+        return pivotSandboxMetrics(response.getSeries());
+    }
+
+    private io.daytona.analytics.api.client.api.TelemetryApi buildAnalyticsTelemetryApi(String analyticsApiUrl) {
+        io.daytona.analytics.api.client.ApiClient client = new io.daytona.analytics.api.client.ApiClient();
+        client.setBasePath(trimTrailingSlash(analyticsApiUrl));
+        client.setApiKey(apiKey);
+        client.setApiKeyPrefix("Bearer");
+        return new io.daytona.analytics.api.client.api.TelemetryApi(client);
+    }
+
+    private void addMetricPoint(Map<String, Map<String, Double>> buckets, String name, String timestamp, Number value) {
+        String field = SANDBOX_METRIC_FIELD_BY_NAME.get(name);
+        if (field == null || timestamp == null || value == null) {
+            return;
+        }
+        buckets.computeIfAbsent(timestamp, k -> new HashMap<>()).put(field, value.doubleValue());
+    }
+
+    private List<SandboxMetrics> pivotSandboxMetrics(List<MetricSeries> series) {
+        Map<String, Map<String, Double>> buckets = new TreeMap<>();
+        if (series != null) {
+            for (MetricSeries s : series) {
+                if (s.getDataPoints() == null) {
+                    continue;
+                }
+                for (MetricDataPoint point : s.getDataPoints()) {
+                    addMetricPoint(buckets, s.getMetricName(), point.getTimestamp(), point.getValue());
+                }
+            }
+        }
+        return buildSandboxMetricsFromBuckets(buckets);
+    }
+
+    private List<SandboxMetrics> pivotSandboxMetricPoints(List<ModelsMetricPoint> points) {
+        Map<String, Map<String, Double>> buckets = new TreeMap<>();
+        if (points != null) {
+            for (ModelsMetricPoint p : points) {
+                addMetricPoint(buckets, p.getMetricName(), p.getTimestamp(), p.getValue());
+            }
+        }
+        return buildSandboxMetricsFromBuckets(buckets);
+    }
+
+    private List<SandboxMetrics> buildSandboxMetricsFromBuckets(Map<String, Map<String, Double>> buckets) {
+        List<SandboxMetrics> result = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Double>> entry : buckets.entrySet()) {
+            Map<String, Double> v = entry.getValue();
+            result.add(new SandboxMetrics(
+                    (int) v.getOrDefault("cpuCount", 0.0).doubleValue(),
+                    v.getOrDefault("cpuUsedPct", 0.0),
+                    (long) v.getOrDefault("diskTotal", 0.0).doubleValue(),
+                    (long) v.getOrDefault("diskUsed", 0.0).doubleValue(),
+                    (long) v.getOrDefault("memTotal", 0.0).doubleValue(),
+                    (long) v.getOrDefault("memUsed", 0.0).doubleValue(),
+                    (long) v.getOrDefault("memCache", 0.0).doubleValue(),
+                    OffsetDateTime.parse(entry.getKey())));
+        }
+        return result;
+    }
+
+    private SandboxMetrics sandboxMetricsFromSystemMetrics(SystemMetrics m) {
+        OffsetDateTime ts = m.getTimestamp() != null ? OffsetDateTime.parse(m.getTimestamp()) : OffsetDateTime.now();
+        return new SandboxMetrics(
+                m.getCpuCount() != null ? m.getCpuCount() : 0,
+                m.getCpuUsedPct() != null ? m.getCpuUsedPct() : 0.0,
+                m.getDiskTotal() != null ? m.getDiskTotal() : 0L,
+                m.getDiskUsed() != null ? m.getDiskUsed() : 0L,
+                m.getMemTotal() != null ? m.getMemTotal() : 0L,
+                m.getMemUsed() != null ? m.getMemUsed() : 0L,
+                m.getMemCache() != null ? m.getMemCache() : 0L,
+                ts);
+    }
+
+    /**
      * Returns current working directory path.
      *
      * @return absolute working directory path
@@ -573,7 +720,7 @@ public class Sandbox {
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(
             () -> sandboxApi.forkSandbox(id, forkReq, null)
         );
-        Sandbox forked = new Sandbox(sandboxApi, config, response);
+        Sandbox forked = new Sandbox(sandboxApi, config, response, analyticsApiUrlProvider);
         forked.waitUntilStarted(timeoutSeconds);
         return forked;
     }

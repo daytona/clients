@@ -16,8 +16,9 @@ const p = require('./package.json');
 p.overrides = {
   '@daytona/api-client': '$API_CLIENT_TARBALL',
   '@daytona/toolbox-api-client': '$TOOLBOX_API_CLIENT_TARBALL',
+  '@daytona/analytics-api-client': '$ANALYTICS_API_CLIENT_TARBALL',
 };
 fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));
 "
-bun install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$SDK_TARBALL"
+bun install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 bun run test.ts

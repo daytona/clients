@@ -55,6 +55,7 @@ class SandboxListItem(BaseModel):
     labels: Dict[str, StrictStr] = Field(description="Labels for the sandbox")
     backup_state: Optional[StrictStr] = Field(default=None, description="The state of the backup", serialization_alias="backupState")
     auto_stop_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-stop interval in minutes (0 means disabled)", serialization_alias="autoStopInterval")
+    auto_pause_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-pause interval in minutes (0 means disabled)", serialization_alias="autoPauseInterval")
     auto_archive_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-archive interval in minutes", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
     created_at: Optional[StrictStr] = Field(default=None, description="The creation timestamp of the sandbox", serialization_alias="createdAt")
@@ -63,7 +64,7 @@ class SandboxListItem(BaseModel):
     daemon_version: Optional[StrictStr] = Field(default=None, description="The version of the daemon running in the sandbox", serialization_alias="daemonVersion")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoArchiveInterval", "autoDeleteInterval", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -143,6 +144,7 @@ class SandboxListItem(BaseModel):
             "labels": obj.get("labels"),
             "backup_state": obj.get("backupState"),
             "auto_stop_interval": obj.get("autoStopInterval"),
+            "auto_pause_interval": obj.get("autoPauseInterval"),
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
             "created_at": obj.get("createdAt"),

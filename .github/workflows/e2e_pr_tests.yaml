@@ -156,6 +156,7 @@ jobs:
         run: |
           (cd api-client-java && ./gradlew publishToMavenLocal -x test)
           (cd toolbox-api-client-java && ./gradlew publishToMavenLocal -x test)
+          (cd analytics-api-client-java && ./gradlew publishToMavenLocal -x test)
       - name: Run Java SDK E2E tests
         run: yarn nx run sdk-java:test:e2e
 

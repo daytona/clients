@@ -9,7 +9,7 @@ set -euo pipefail
 rm -rf node_modules package-lock.json .next
 
 npm install --silent
-npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$SDK_TARBALL"
+npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 
 # ---------------------------------------------------------------------------
 # Create a sandbox and upload a test file for the downloadFile assertion.

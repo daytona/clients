@@ -87,6 +87,9 @@ module DaytonaApiClient
     # Auto-stop interval in minutes (0 means disabled)
     attr_accessor :auto_stop_interval
 
+    # Auto-pause interval in minutes (0 means disabled)
+    attr_accessor :auto_pause_interval
+
     # Auto-archive interval in minutes
     attr_accessor :auto_archive_interval
 
@@ -172,6 +175,7 @@ module DaytonaApiClient
         :'backup_state' => :'backupState',
         :'backup_created_at' => :'backupCreatedAt',
         :'auto_stop_interval' => :'autoStopInterval',
+        :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'volumes' => :'volumes',
@@ -224,6 +228,7 @@ module DaytonaApiClient
         :'backup_state' => :'String',
         :'backup_created_at' => :'String',
         :'auto_stop_interval' => :'Float',
+        :'auto_pause_interval' => :'Float',
         :'auto_archive_interval' => :'Float',
         :'auto_delete_interval' => :'Float',
         :'volumes' => :'Array<SandboxVolume>',
@@ -385,6 +390,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'auto_stop_interval')
         self.auto_stop_interval = attributes[:'auto_stop_interval']
+      end
+
+      if attributes.key?(:'auto_pause_interval')
+        self.auto_pause_interval = attributes[:'auto_pause_interval']
       end
 
       if attributes.key?(:'auto_archive_interval')
@@ -718,6 +727,7 @@ module DaytonaApiClient
           backup_state == o.backup_state &&
           backup_created_at == o.backup_created_at &&
           auto_stop_interval == o.auto_stop_interval &&
+          auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
           volumes == o.volumes &&
@@ -741,7 +751,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, backup_state, backup_created_at, auto_stop_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

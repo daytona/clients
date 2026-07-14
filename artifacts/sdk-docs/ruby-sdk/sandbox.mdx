@@ -12,7 +12,7 @@ Sandbox class for Daytona SDK.
 #### new Sandbox()
 
 ```ruby
-def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil)
+def initialize(sandbox_dto:, config:, sandbox_api:, otel_state: nil, analytics_api_url_provider: nil)
 
 ```
 
@@ -667,6 +667,55 @@ and PTYs inherit the change; already-running processes keep their existing envir
 
 ```ruby
 sandbox.update_env(env: { 'FOO' => 'bar' }, unset: ['OLD_VAR'])
+
+```
+
+#### get_metrics_latest()
+
+```ruby
+def get_metrics_latest()
+
+```
+
+Gets the most recent resource usage sample directly from the Sandbox daemon.
+
+Unlike #get_metrics, which returns aggregated historical samples, this returns the
+single current reading without going through the telemetry backend.
+
+**Returns**:
+
+- `Daytona:SandboxMetrics`
+
+**Examples:**
+
+```ruby
+m = sandbox.get_metrics_latest
+puts "CPU used: #{m.cpu_used_pct}%"
+
+```
+
+#### get_metrics()
+
+```ruby
+def get_metrics(start_time = nil, end_time = nil)
+
+```
+
+Gets historical time-series resource usage metrics for the Sandbox.
+
+**Parameters**:
+
+- `start_time` _Time, nil_ - Start of the range. Defaults to the Sandbox creation time.
+- `end_time` _Time, nil_ - End of the range. Defaults to the current time.
+
+**Returns**:
+
+- `Array\<Daytona:SandboxMetrics\>` - Time-ordered usage samples.
+
+**Examples:**
+
+```ruby
+sandbox.get_metrics.each { |m| puts "#{m.timestamp}: #{m.cpu_used_pct}%" }
 
 ```
 
