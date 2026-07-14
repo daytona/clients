@@ -932,6 +932,12 @@ public class Sandbox {
                         }
                     } catch (Exception ignored) {
                     }
+                    // applyState no-ops when the state is unchanged, so
+                    // explicitly evaluate for a persistent error state.
+                    current = this.state;
+                    if (current != null) {
+                        waiter.onStateChanged(current);
+                    }
                     if (waiter.isResolved()) {
                         waiter.throwIfError();
                         return;
@@ -964,6 +970,12 @@ public class Sandbox {
                 refreshDataSafe();
             } else {
                 refreshData();
+            }
+            // applyState no-ops when the state is unchanged, so explicitly
+            // notify the waiter after each successful refresh.
+            String current = this.state;
+            if (current != null) {
+                waiter.onStateChanged(current);
             }
         } catch (Exception e) {
             waiter.onPollError(e instanceof RuntimeException ? (RuntimeException) e : new DaytonaException(e.getMessage(), e));

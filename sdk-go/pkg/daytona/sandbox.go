@@ -596,13 +596,13 @@ func (s *Sandbox) waitForState(
 		return nil
 	}
 
-	refresh := func() (done bool, err error) {
+	refresh := func(rctx context.Context) (done bool, err error) {
 		if safeRefresh {
-			if rerr := s.refreshDataSafe(ctx); rerr != nil {
+			if rerr := s.refreshDataSafe(rctx); rerr != nil {
 				return false, rerr
 			}
 		} else {
-			if rerr := s.doRefreshData(ctx); rerr != nil {
+			if rerr := s.doRefreshData(rctx); rerr != nil {
 				return false, rerr
 			}
 		}
@@ -619,7 +619,7 @@ func (s *Sandbox) waitForState(
 	}
 
 	// First poll runs immediately (main refreshed at t=0 before any wait).
-	if done, err := refresh(); done || err != nil {
+	if done, err := refresh(ctx); done || err != nil {
 		return err
 	}
 
@@ -637,7 +637,10 @@ func (s *Sandbox) waitForState(
 			// Parity with main: complete one final refresh-then-evaluate before
 			// returning a timeout error, so a clamped/short timeout still
 			// observes the latest state.
-			if done, err := refresh(); done {
+			finalCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			done, err := refresh(finalCtx)
+			cancel()
+			if done {
 				return err
 			}
 			return ctx.Err()
@@ -649,7 +652,7 @@ func (s *Sandbox) waitForState(
 				return nil
 			}
 		case <-pollTimer.C:
-			if done, err := refresh(); done || err != nil {
+			if done, err := refresh(ctx); done || err != nil {
 				return err
 			}
 
@@ -1731,7 +1734,14 @@ func (s *Sandbox) doExperimentalCreateSnapshotWithTimeout(ctx context.Context, n
 
 	s.updateFromAPIResponse(resp)
 
-	return s.waitForSnapshotComplete(ctx)
+	err = s.waitForSnapshotComplete(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox snapshot did not complete within %s", timeout))
+		}
+		return errors.NewDaytonaError(fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
+	}
+	return nil
 }
 
 func (s *Sandbox) waitForSnapshotComplete(ctx context.Context) error {
@@ -1814,7 +1824,14 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		}
 	}
 
-	return s.waitForState(ctx, targetStates, errorStates, false)
+	err = s.waitForState(ctx, targetStates, errorStates, false)
+	if err != nil {
+		if ctx.Err() != nil {
+			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox pause did not complete within %s", timeout))
+		}
+		return errors.NewDaytonaError(fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
+	}
+	return nil
 }
 
 // Resize resizes the sandbox resources with a default timeout of 60 seconds.

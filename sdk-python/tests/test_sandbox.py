@@ -204,15 +204,22 @@ class TestSandboxPollingSemantics:
         sandbox.wait_for_sandbox_start(timeout=0)
         assert sandbox.state == SandboxState.STARTED
 
-    def test_transient_error_tolerated_during_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+    def test_validation_error_tolerated_during_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
         dto = make_sandbox_dto(state=SandboxState.STOPPING)
         sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.side_effect = [
-            Exception("502 Bad Gateway"),
+            Exception("1 validation error for SandboxDto"),
             make_sandbox_dto(state=SandboxState.STOPPED),
         ]
         sandbox.wait_for_sandbox_stop(timeout=0)
         assert sandbox.state == SandboxState.STOPPED
+
+    def test_non_validation_error_aborts_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = Exception("401 Unauthorized")
+        with pytest.raises(Exception, match="401 Unauthorized"):
+            sandbox.wait_for_sandbox_stop(timeout=0)
 
     def test_delete_default_does_not_wait(self, mock_toolbox_api_client, mock_sandbox_api):
         dto = make_sandbox_dto(state=SandboxState.STARTED)

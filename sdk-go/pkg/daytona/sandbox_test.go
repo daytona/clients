@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/sdk-go/pkg/common"
+	"github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
@@ -788,4 +790,52 @@ func TestDeleteAndWaitBlocksUntilDestroyed(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, apiclient.SANDBOXSTATE_DESTROYED, sandbox.State)
 	assert.Greater(t, getCount, 0, "DeleteAndWait must poll for state")
+}
+
+func TestPauseTimeoutReturnsDaytonaTimeoutError(t *testing.T) {
+	// Server always returns PAUSING — pause never completes.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doPauseWithTimeout(context.Background(), 200*time.Millisecond)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.ErrorAs(t, err, &timeoutErr, "pause timeout must return DaytonaTimeoutError, got %T", err)
+	assert.Contains(t, timeoutErr.Error(), "pause")
+}
+
+func TestWaitForStateFinalRefreshWithFreshContext(t *testing.T) {
+	// First GET returns non-target so the t=0 poll doesn't short-circuit;
+	// subsequent GETs return the target state for the final refresh.
+	var getCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := int(atomic.AddInt32(&getCount, 1))
+		state := apiclient.SANDBOXSTATE_CREATING
+		if n > 1 {
+			state = apiclient.SANDBOXSTATE_STARTED
+		}
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_CREATING, "us", 0, -1, false, nil)
+
+	// 50ms timeout expires before the 100ms poll interval, forcing ctx.Done().
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := sandbox.waitForState(
+		ctx,
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STARTED},
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR},
+		false,
+	)
+	require.NoError(t, err, "final refresh on fresh context must observe target state")
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
 }

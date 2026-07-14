@@ -12,10 +12,12 @@ import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaBadRequestException;
 import io.daytona.sdk.exception.DaytonaConflictException;
+import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
+import io.daytona.sdk.exception.DaytonaTimeoutException;
 import io.daytona.sdk.exception.DaytonaValidationException;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.toolbox.client.api.InfoApi;
@@ -34,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Map;
@@ -42,6 +45,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -472,6 +476,31 @@ class SandboxTest {
         for (int i = 0; i < waiterCount; i++) {
             assertThat(errors[i]).as("waiter-%d should complete without error", i).isNull();
         }
+    }
+
+    @Test
+    void persistentErrorStateRejectsWait() {
+        TestSupport.setField(sandbox, "state", "error");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.ERROR));
+
+        long start = System.nanoTime();
+        assertThatThrownBy(() -> sandbox.waitUntilStarted(5))
+                .isInstanceOf(DaytonaException.class)
+                .isNotInstanceOf(DaytonaTimeoutException.class)
+                .hasMessageContaining("error");
+        long elapsedSeconds = Duration.ofNanos(System.nanoTime() - start).getSeconds();
+        assertThat(elapsedSeconds).isLessThan(4);
+    }
+
+    @Test
+    void persistentErrorStateRejectsWaitWithoutTimeout() {
+        TestSupport.setField(sandbox, "state", "error");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.ERROR));
+
+        assertTimeoutPreemptively(Duration.ofSeconds(10), () ->
+                assertThatThrownBy(() -> sandbox.waitUntilStarted(0))
+                        .isInstanceOf(DaytonaException.class)
+                        .hasMessageContaining("error"));
     }
 
     private EventSubscriptionManager mockSubscriptionManager() {

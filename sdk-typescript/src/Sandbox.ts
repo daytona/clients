@@ -1233,6 +1233,11 @@ export class Sandbox {
               // fall through to the timeout rejection below
             }
             if (!settled) {
+              // Explicit evaluation: applyState() no-ops on unchanged state, so a
+              // persistent error state would otherwise time out generically here.
+              if (this.checkStateWaiter(waiter, this.state)) {
+                return
+              }
               cleanup()
               reject(new DaytonaTimeoutError(timeoutMessage))
             }
@@ -1261,6 +1266,13 @@ export class Sandbox {
         }
 
         if (!settled) {
+          // Evaluate the refreshed state explicitly: applyState() no-ops when the
+          // state is unchanged, so a persistent error state would otherwise never
+          // reject the waiter.
+          if (this.checkStateWaiter(waiter, this.state)) {
+            return
+          }
+
           if (!streaming && Date.now() - pollStart > 5000) {
             pollInterval = Math.min(pollInterval * 1.1, 1000)
           }

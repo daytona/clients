@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import warnings
 from unittest.mock import AsyncMock, MagicMock
 
@@ -236,19 +237,38 @@ class TestAsyncSandboxPollingSemantics:
         assert sandbox.state == SandboxState.STARTED
 
     @pytest.mark.asyncio
-    async def test_transient_error_tolerated_during_stop_wait(
+    async def test_validation_error_tolerated_during_stop_wait(
         self, mock_async_toolbox_api_client, mock_async_sandbox_api
     ):
         dto = make_sandbox_dto(state=SandboxState.STOPPING)
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         mock_async_sandbox_api.get_sandbox = AsyncMock(
             side_effect=[
-                Exception("502 Bad Gateway"),
+                Exception("1 validation error for SandboxDto"),
                 make_sandbox_dto(state=SandboxState.STOPPED),
             ]
         )
         await sandbox.wait_for_sandbox_stop(timeout=0)
         assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_non_validation_error_aborts_stop_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=Exception("401 Unauthorized"))
+        with pytest.raises(Exception, match="401 Unauthorized"):
+            await sandbox.wait_for_sandbox_stop(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_cancellation_propagates_during_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STOPPING))
+        task = asyncio.create_task(sandbox.wait_for_sandbox_stop(timeout=0))
+        await asyncio.sleep(0)  # let task start
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
     @pytest.mark.asyncio
     async def test_delete_default_does_not_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):

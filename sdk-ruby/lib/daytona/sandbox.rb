@@ -1097,26 +1097,26 @@ module Daytona
           raise Sdk::Error,
                 "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
         end
-      rescue Sdk::TimeoutError
-        safe_refresh ? refresh_data_safe : refresh
-        evaluate_state(target_strings, error_strings)
+      rescue Sdk::TimeoutError => e
+        begin
+          safe_refresh ? refresh_data_safe : refresh
+        rescue StandardError
+          raise e
+        end
+        current = state.to_s
+        return if target_strings.include?(current)
+
+        if error_strings.include?(current)
+          raise Sdk::Error,
+                "Sandbox #{id} entered error state: #{current}, error reason: #{error_reason}"
+        end
+
+        raise e
       ensure
         @waiter_mutex.synchronize do
           @state_waiters.delete(waiter)
         end
       end
-    end
-
-    def evaluate_state(target_strings, error_strings)
-      current = state.to_s
-      return if target_strings.include?(current)
-
-      if error_strings.include?(current)
-        raise Sdk::Error,
-              "Sandbox #{id} entered error state: #{current}, error reason: #{error_reason}"
-      end
-
-      raise Sdk::TimeoutError, "Sandbox #{id} did not reach target state in time"
     end
 
     def refresh_data_safe

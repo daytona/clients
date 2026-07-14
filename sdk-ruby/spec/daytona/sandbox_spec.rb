@@ -593,6 +593,59 @@ RSpec.describe Daytona::Sandbox do
       expect { pending_sandbox.wait_for_sandbox_start(0.001) }.not_to raise_error
       expect(pending_sandbox.state).to eq('started')
     end
+
+    it 'preserves original TimeoutError when final refresh raises ApiError' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      refresh_count = 0
+      allow(pending_sandbox).to receive(:refresh) do
+        refresh_count += 1
+        raise DaytonaApiClient::ApiError.new(code: 502, message: 'Bad Gateway') if refresh_count >= 2
+      end
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start(0.15)
+      end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/)
+    end
+
+    it 'raises Sdk::Error when final refresh discovers error state' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      refresh_count = 0
+      allow(pending_sandbox).to receive(:refresh) do
+        refresh_count += 1
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::ERROR) if refresh_count >= 2
+      end
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start(0.15)
+      end.to raise_error(Daytona::Sdk::Error, /entered error state/)
+    end
+
+    it 'returns normally when final refresh reaches target state at timeout' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      refresh_count = 0
+      allow(pending_sandbox).to receive(:refresh) do
+        refresh_count += 1
+        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+      end
+
+      expect { pending_sandbox.wait_for_sandbox_start(0.15) }.not_to raise_error
+      expect(pending_sandbox.state).to eq('started')
+    end
   end
 
   describe '#wait_for_sandbox_stop' do

@@ -404,6 +404,14 @@ describe('Sandbox', () => {
     expect(times[1] - times[0]).toBeGreaterThan(800)
   })
 
+  it('waitUntilStarted rejects promptly when the error state persists after refresh', async () => {
+    const { sandbox } = makeSandbox({ state: 'error', errorReason: 'boom' }, '')
+    const refreshSpy = jest.spyOn(sandbox, 'refreshData').mockResolvedValue(undefined)
+
+    await expect(sandbox.waitUntilStarted(60)).rejects.toThrow(/error/)
+    expect(refreshSpy).toHaveBeenCalled()
+  })
+
   it('waitUntilStarted refreshes before failing on a stale cached error state', async () => {
     const { sandbox } = makeSandbox({ state: 'error' }, '')
     jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {

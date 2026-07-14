@@ -1252,7 +1252,7 @@ class AsyncSandbox(SandboxDto):
                 raise DaytonaError(
                     f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
                 )
-        except BaseException as exc:
+        except Exception as exc:
             # Parity with main: complete one final refresh-then-evaluate before
             # propagating, so a clamped/short timeout still observes the latest state.
             if not state_resolved.is_set():
@@ -1318,10 +1318,11 @@ class AsyncSandbox(SandboxDto):
         self._apply_state(sandbox_dto.state)
 
     async def __refresh_data_safe(self) -> None:
-        """Refreshes sandbox data, treating 404 as DESTROYED and swallowing transient errors."""
+        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating validation errors."""
         try:
             await self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
-        except Exception:
-            pass
+        except Exception as e:
+            if "validation error" not in str(e):
+                raise
