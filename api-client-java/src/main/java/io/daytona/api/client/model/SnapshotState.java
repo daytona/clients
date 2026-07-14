@@ -31,6 +31,8 @@ public enum SnapshotState {
   
   BUILDING("building"),
   
+  CAPTURING("capturing"),
+  
   PENDING("pending"),
   
   PULLING("pulling"),

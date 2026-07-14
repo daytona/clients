@@ -73,8 +73,8 @@ type SandboxAPI interface {
 	CreateSandboxSnapshot(ctx context.Context, sandboxIdOrName string) SandboxAPICreateSandboxSnapshotRequest
 
 	// CreateSandboxSnapshotExecute executes the request
-	//  @return Sandbox
-	CreateSandboxSnapshotExecute(r SandboxAPICreateSandboxSnapshotRequest) (*Sandbox, *http.Response, error)
+	//  @return SnapshotDto
+	CreateSandboxSnapshotExecute(r SandboxAPICreateSandboxSnapshotRequest) (*SnapshotDto, *http.Response, error)
 
 	/*
 	CreateSshAccess Create SSH access for sandbox
@@ -985,7 +985,7 @@ func (r SandboxAPICreateSandboxSnapshotRequest) XDaytonaOrganizationID(xDaytonaO
 	return r
 }
 
-func (r SandboxAPICreateSandboxSnapshotRequest) Execute() (*Sandbox, *http.Response, error) {
+func (r SandboxAPICreateSandboxSnapshotRequest) Execute() (*SnapshotDto, *http.Response, error) {
 	return r.ApiService.CreateSandboxSnapshotExecute(r)
 }
 
@@ -1005,13 +1005,13 @@ func (a *SandboxAPIService) CreateSandboxSnapshot(ctx context.Context, sandboxId
 }
 
 // Execute executes the request
-//  @return Sandbox
-func (a *SandboxAPIService) CreateSandboxSnapshotExecute(r SandboxAPICreateSandboxSnapshotRequest) (*Sandbox, *http.Response, error) {
+//  @return SnapshotDto
+func (a *SandboxAPIService) CreateSandboxSnapshotExecute(r SandboxAPICreateSandboxSnapshotRequest) (*SnapshotDto, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *Sandbox
+		localVarReturnValue  *SnapshotDto
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SandboxAPIService.CreateSandboxSnapshot")

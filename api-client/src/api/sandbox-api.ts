@@ -62,6 +62,8 @@ import type { SandboxState } from '../models';
 // @ts-ignore
 import type { SignedPortPreviewUrl } from '../models';
 // @ts-ignore
+import type { SnapshotDto } from '../models';
+// @ts-ignore
 import type { SshAccessDto } from '../models';
 // @ts-ignore
 import type { SshAccessValidationDto } from '../models';
@@ -2509,7 +2511,7 @@ export const SandboxApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async createSandboxSnapshot(sandboxIdOrName: string, createSandboxSnapshot: CreateSandboxSnapshot, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Sandbox>> {
+        async createSandboxSnapshot(sandboxIdOrName: string, createSandboxSnapshot: CreateSandboxSnapshot, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<SnapshotDto>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.createSandboxSnapshot(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SandboxApi.createSandboxSnapshot']?.[localVarOperationServerIndex]?.url;
@@ -3207,7 +3209,7 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createSandboxSnapshot(sandboxIdOrName: string, createSandboxSnapshot: CreateSandboxSnapshot, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
+        createSandboxSnapshot(sandboxIdOrName: string, createSandboxSnapshot: CreateSandboxSnapshot, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<SnapshotDto> {
             return localVarFp.createSandboxSnapshot(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**

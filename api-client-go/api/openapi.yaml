@@ -2633,12 +2633,14 @@ paths:
               $ref: "#/components/schemas/CreateSandboxSnapshot"
         required: true
       responses:
-        "200":
+        "202":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Sandbox"
+                $ref: "#/components/schemas/SnapshotDto"
           description: Snapshot creation has been initiated
+        "409":
+          description: A snapshot with the requested name already exists
       security:
       - bearer: []
       - oauth2:
@@ -14964,6 +14966,7 @@ components:
     SnapshotState:
       enum:
       - building
+      - capturing
       - pending
       - pulling
       - active
@@ -15097,9 +15100,9 @@ components:
       type: object
     PaginatedSnapshots:
       example:
-        total: 2.3021358869347655
-        totalPages: 9.301444243932576
-        page: 7.061401241503109
+        total: 0.8008281904610115
+        totalPages: 1.4658129805029452
+        page: 6.027456183070403
         items:
         - imageName: imageName
           buildInfo: ""

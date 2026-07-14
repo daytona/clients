@@ -16,6 +16,7 @@ require 'time'
 module DaytonaApiClient
   class SnapshotState
     BUILDING = "building".freeze
+    CAPTURING = "capturing".freeze
     PENDING = "pending".freeze
     PULLING = "pulling".freeze
     ACTIVE = "active".freeze
@@ -26,7 +27,7 @@ module DaytonaApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [BUILDING, PENDING, PULLING, ACTIVE, INACTIVE, ERROR, BUILD_FAILED, REMOVING, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [BUILDING, CAPTURING, PENDING, PULLING, ACTIVE, INACTIVE, ERROR, BUILD_FAILED, REMOVING, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

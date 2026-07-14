@@ -40,6 +40,7 @@ from daytona_api_client_async.models.sandbox_list_sort_direction import SandboxL
 from daytona_api_client_async.models.sandbox_list_sort_field import SandboxListSortField
 from daytona_api_client_async.models.sandbox_state import SandboxState
 from daytona_api_client_async.models.signed_port_preview_url import SignedPortPreviewUrl
+from daytona_api_client_async.models.snapshot_dto import SnapshotDto
 from daytona_api_client_async.models.ssh_access_dto import SshAccessDto
 from daytona_api_client_async.models.ssh_access_validation_dto import SshAccessValidationDto
 from daytona_api_client_async.models.toolbox_proxy_url import ToolboxProxyUrl
@@ -920,7 +921,7 @@ class SandboxApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> Sandbox:
+    ) -> SnapshotDto:
         """Create a snapshot from a sandbox
 
 
@@ -963,7 +964,8 @@ class SandboxApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "Sandbox",
+            '202': "SnapshotDto",
+            '409': None,
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -994,7 +996,7 @@ class SandboxApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[Sandbox]:
+    ) -> ApiResponse[SnapshotDto]:
         """Create a snapshot from a sandbox
 
 
@@ -1037,7 +1039,8 @@ class SandboxApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "Sandbox",
+            '202': "SnapshotDto",
+            '409': None,
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -1111,7 +1114,8 @@ class SandboxApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "Sandbox",
+            '202': "SnapshotDto",
+            '409': None,
         }
         response_data = await self.api_client.call_api(
             *_param,

@@ -3801,15 +3801,18 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Snapshot creation has been initiated",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Sandbox"
+                  "$ref": "#/components/schemas/SnapshotDto"
                 }
               }
             }
+          },
+          "409": {
+            "description": "A snapshot with the requested name already exists"
           }
         },
         "security": [
@@ -19482,6 +19485,7 @@
         "type": "string",
         "enum": [
           "building",
+          "capturing",
           "pending",
           "pulling",
           "active",

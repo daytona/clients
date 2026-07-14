@@ -49,6 +49,7 @@ import io.daytona.api.client.model.SandboxListSortDirection;
 import io.daytona.api.client.model.SandboxListSortField;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.SignedPortPreviewUrl;
+import io.daytona.api.client.model.SnapshotDto;
 import io.daytona.api.client.model.SshAccessDto;
 import io.daytona.api.client.model.SshAccessValidationDto;
 import io.daytona.api.client.model.ToolboxProxyUrl;
@@ -521,7 +522,8 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 202 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with the requested name already exists </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call createSandboxSnapshotCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
@@ -597,17 +599,18 @@ public class SandboxApi {
      * @param sandboxIdOrName  (required)
      * @param createSandboxSnapshot  (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
-     * @return Sandbox
+     * @return SnapshotDto
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 202 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with the requested name already exists </td><td>  -  </td></tr>
      </table>
      */
-    public Sandbox createSandboxSnapshot(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
-        ApiResponse<Sandbox> localVarResp = createSandboxSnapshotWithHttpInfo(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID);
+    public SnapshotDto createSandboxSnapshot(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<SnapshotDto> localVarResp = createSandboxSnapshotWithHttpInfo(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID);
         return localVarResp.getData();
     }
 
@@ -617,18 +620,19 @@ public class SandboxApi {
      * @param sandboxIdOrName  (required)
      * @param createSandboxSnapshot  (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
-     * @return ApiResponse&lt;Sandbox&gt;
+     * @return ApiResponse&lt;SnapshotDto&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 202 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with the requested name already exists </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Sandbox> createSandboxSnapshotWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+    public ApiResponse<SnapshotDto> createSandboxSnapshotWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
         okhttp3.Call localVarCall = createSandboxSnapshotValidateBeforeCall(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID, null);
-        Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
+        Type localVarReturnType = new TypeToken<SnapshotDto>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
 
@@ -645,13 +649,14 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 202 </td><td> Snapshot creation has been initiated </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> A snapshot with the requested name already exists </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call createSandboxSnapshotAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Sandbox> _callback) throws ApiException {
+    public okhttp3.Call createSandboxSnapshotAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull CreateSandboxSnapshot createSandboxSnapshot, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<SnapshotDto> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = createSandboxSnapshotValidateBeforeCall(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID, _callback);
-        Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
+        Type localVarReturnType = new TypeToken<SnapshotDto>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

@@ -221,7 +221,7 @@ module DaytonaApiClient
     # @param create_sandbox_snapshot [CreateSandboxSnapshot] 
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @return [Sandbox]
+    # @return [SnapshotDto]
     def create_sandbox_snapshot(sandbox_id_or_name, create_sandbox_snapshot, opts = {})
       data, _status_code, _headers = create_sandbox_snapshot_with_http_info(sandbox_id_or_name, create_sandbox_snapshot, opts)
       data
@@ -232,7 +232,7 @@ module DaytonaApiClient
     # @param create_sandbox_snapshot [CreateSandboxSnapshot] 
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @return [Array<(Sandbox, Integer, Hash)>] Sandbox data, response status code and response headers
+    # @return [Array<(SnapshotDto, Integer, Hash)>] SnapshotDto data, response status code and response headers
     def create_sandbox_snapshot_with_http_info(sandbox_id_or_name, create_sandbox_snapshot, opts = {})
       if @api_client.config.debugging
         @api_client.config.logger.debug 'Calling API: SandboxApi.create_sandbox_snapshot ...'
@@ -269,7 +269,7 @@ module DaytonaApiClient
       post_body = opts[:debug_body] || @api_client.object_to_http_body(create_sandbox_snapshot)
 
       # return_type
-      return_type = opts[:debug_return_type] || 'Sandbox'
+      return_type = opts[:debug_return_type] || 'SnapshotDto'
 
       # auth_names
       auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']

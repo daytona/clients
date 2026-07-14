@@ -28,6 +28,7 @@ class SnapshotState(str, Enum):
     allowed enum values
     """
     BUILDING = 'building'
+    CAPTURING = 'capturing'
     PENDING = 'pending'
     PULLING = 'pulling'
     ACTIVE = 'active'

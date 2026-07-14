@@ -36,6 +36,7 @@ import io.daytona.api.client.model.SandboxListSortDirection;
 import io.daytona.api.client.model.SandboxListSortField;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.SignedPortPreviewUrl;
+import io.daytona.api.client.model.SnapshotDto;
 import io.daytona.api.client.model.SshAccessDto;
 import io.daytona.api.client.model.SshAccessValidationDto;
 import io.daytona.api.client.model.ToolboxProxyUrl;
@@ -109,7 +110,7 @@ public class SandboxApiTest {
         String sandboxIdOrName = null;
         CreateSandboxSnapshot createSandboxSnapshot = null;
         String xDaytonaOrganizationID = null;
-        Sandbox response = api.createSandboxSnapshot(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID);
+        SnapshotDto response = api.createSandboxSnapshot(sandboxIdOrName, createSandboxSnapshot, xDaytonaOrganizationID);
         // TODO: test validations
     }
 
