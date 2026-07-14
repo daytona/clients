@@ -108,6 +108,21 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
+  describe '#auto_pause_interval=' do
+    it 'sets interval via API' do
+      allow(sandbox_api).to receive(:set_auto_pause_interval).with('sandbox-123', 20)
+
+      sandbox.auto_pause_interval = 20
+
+      expect(sandbox.auto_pause_interval).to eq(20)
+    end
+
+    it 'raises on negative interval' do
+      expect { sandbox.auto_pause_interval = -1 }
+        .to raise_error(Daytona::Sdk::Error, /Auto-pause interval must be a non-negative integer/)
+    end
+  end
+
   describe '#auto_archive_interval=' do
     it 'sets interval via API' do
       allow(sandbox_api).to receive(:set_auto_archive_interval).with('sandbox-123', 60)

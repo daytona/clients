@@ -54,6 +54,7 @@ def make_sandbox_dto(
         backup_state=cast(str | None, kwargs.get("backup_state", None)),
         backup_created_at=cast(str | None, kwargs.get("backup_created_at", None)),
         auto_stop_interval=cast(int | None, kwargs.get("auto_stop_interval", 15)),
+        auto_pause_interval=cast(int | None, kwargs.get("auto_pause_interval", None)),
         auto_archive_interval=cast(int | None, kwargs.get("auto_archive_interval", 10080)),
         auto_delete_interval=cast(int | None, kwargs.get("auto_delete_interval", -1)),
         volumes=cast(list[Any] | None, kwargs.get("volumes", None)),

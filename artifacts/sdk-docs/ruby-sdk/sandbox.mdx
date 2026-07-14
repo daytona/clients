@@ -258,6 +258,17 @@ def auto_stop_interval()
 
 - `Float` - Auto-stop interval in minutes (0 means disabled)
 
+#### auto_pause_interval()
+
+```ruby
+def auto_pause_interval()
+
+```
+
+**Returns**:
+
+- `Float` - Auto-pause interval in minutes (0 means disabled)
+
 #### auto_archive_interval()
 
 ```ruby
@@ -554,6 +565,30 @@ def auto_stop_interval=(interval)
 
 Sets the auto-stop interval for the Sandbox.
 The Sandbox will automatically stop after being idle (no new events) for the specified interval.
+Events include any state changes or interactions with the Sandbox through the SDK.
+Interactions using Sandbox Previews are not included.
+
+**Parameters**:
+
+- `interval` _Integer_ -
+
+**Returns**:
+
+- `Integer`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` -
+
+#### auto_pause_interval=()
+
+```ruby
+def auto_pause_interval=(interval)
+
+```
+
+Sets the auto-pause interval for the Sandbox.
+The Sandbox will automatically pause after being idle (no new events) for the specified interval.
 Events include any state changes or interactions with the Sandbox through the SDK.
 Interactions using Sandbox Previews are not included.
 

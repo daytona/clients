@@ -492,6 +492,63 @@ func TestCreateValidation(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "invalid auto pause interval - negative",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					AutoPauseInterval: intPtr(-1),
+				},
+				Image: "test-image",
+			},
+			expectedError: true,
+			errorContains: "autoPauseInterval must be a non-negative integer",
+		},
+		{
+			name: "mutually exclusive auto stop and auto pause intervals",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					AutoStopInterval:  intPtr(60),
+					AutoPauseInterval: intPtr(30),
+				},
+				Image: "test-image",
+			},
+			expectedError: true,
+			errorContains: "autoStopInterval and autoPauseInterval are mutually exclusive",
+		},
+		{
+			name: "ephemeral with non-zero auto pause interval",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					Ephemeral:         true,
+					AutoPauseInterval: intPtr(60),
+				},
+				Image: "test-image",
+			},
+			expectedError: true,
+			errorContains: "ephemeral sandboxes cannot have auto-pause enabled",
+		},
+		{
+			name: "auto stop and auto pause both zero is valid",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					AutoStopInterval:  intPtr(0),
+					AutoPauseInterval: intPtr(0),
+				},
+				Image: "test-image",
+			},
+			expectedError: false,
+		},
+		{
+			name: "auto pause with auto stop zero is valid",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					AutoStopInterval:  intPtr(0),
+					AutoPauseInterval: intPtr(30),
+				},
+				Image: "test-image",
+			},
+			expectedError: false,
+		},
+		{
 			name: "ephemeral sets auto delete to zero",
 			params: types.ImageParams{
 				SandboxBaseParams: types.SandboxBaseParams{

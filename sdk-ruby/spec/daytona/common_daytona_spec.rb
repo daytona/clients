@@ -6,9 +6,11 @@
 RSpec.describe Daytona::CreateSandboxBaseParams do
   describe '#to_h' do
     it 'compacts nil values from the hash representation' do
-      params = described_class.new(language: :python, labels: { 'env' => 'test' }, auto_stop_interval: 5)
+      params = described_class.new(language: :python, labels: { 'env' => 'test' }, auto_stop_interval: 5,
+                                   auto_pause_interval: 10)
 
-      expect(params.to_h).to eq(language: :python, labels: { 'env' => 'test' }, auto_stop_interval: 5)
+      expect(params.to_h).to eq(language: :python, labels: { 'env' => 'test' }, auto_stop_interval: 5,
+                                auto_pause_interval: 10)
     end
 
     it 'forces auto_delete_interval to zero for ephemeral sandboxes and warns' do
@@ -23,6 +25,15 @@ RSpec.describe Daytona::CreateSandboxBaseParams do
       expect do
         described_class.new(ephemeral: true, auto_delete_interval: 0)
       end.not_to output.to_stderr
+    end
+
+    it 'forces auto_delete_interval to zero for ephemeral sandboxes without warning when unset' do
+      params = nil
+      expect do
+        params = described_class.new(ephemeral: true)
+      end.not_to output.to_stderr
+
+      expect(params.auto_delete_interval).to eq(0)
     end
   end
 end

@@ -147,7 +147,8 @@ export interface Resources {
  * @property {Record<string, string>} [envVars] - Optional environment variables to set in the Sandbox
  * @property {Record<string, string>} [labels] - Sandbox labels
  * @property {boolean} [public] - Is the Sandbox port preview public
- * @property {number} [autoStopInterval] - Auto-stop interval in minutes (0 means disabled). Default is 15 minutes.
+ * @property {number} [autoStopInterval] - Auto-stop interval in minutes (0 means disabled). Default is 15 minutes (for sandbox classes that support pausing, auto-pause defaults to 60 minutes instead and auto-stop is disabled).
+ * @property {number} [autoPauseInterval] - Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes (0 means the maximum interval will be used). Default is 7 days.
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox
@@ -166,6 +167,7 @@ export type CreateSandboxBaseParams = {
   labels?: Record<string, string>
   public?: boolean
   autoStopInterval?: number
+  autoPauseInterval?: number
   autoArchiveInterval?: number
   autoDeleteInterval?: number
   volumes?: VolumeMount[]
@@ -525,6 +527,23 @@ export class Daytona implements AsyncDisposable {
       throw new DaytonaValidationError('autoStopInterval must be a non-negative integer')
     }
 
+    if (
+      params.autoPauseInterval !== undefined &&
+      (!Number.isInteger(params.autoPauseInterval) || params.autoPauseInterval < 0)
+    ) {
+      throw new DaytonaValidationError('autoPauseInterval must be a non-negative integer')
+    }
+
+    if (params.autoStopInterval && params.autoPauseInterval) {
+      throw new DaytonaValidationError(
+        'autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value',
+      )
+    }
+
+    if (params.autoPauseInterval && (params.ephemeral || params.autoDeleteInterval === 0)) {
+      throw new DaytonaValidationError('Ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0')
+    }
+
     if (params.ephemeral) {
       if (params.autoDeleteInterval !== undefined && params.autoDeleteInterval !== 0) {
         console.warn(
@@ -589,6 +608,7 @@ export class Daytona implements AsyncDisposable {
           memory: resources?.memory,
           disk: resources?.disk,
           autoStopInterval: params.autoStopInterval,
+          autoPauseInterval: params.autoPauseInterval,
           autoArchiveInterval: params.autoArchiveInterval,
           autoDeleteInterval: params.autoDeleteInterval,
           volumes: params.volumes,

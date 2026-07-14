@@ -98,6 +98,9 @@ module Daytona
     # @return [Float] Auto-stop interval in minutes (0 means disabled)
     attr_reader :auto_stop_interval
 
+    # @return [Float] Auto-pause interval in minutes (0 means disabled)
+    attr_reader :auto_pause_interval
+
     # @return [Float] Auto-archive interval in minutes
     attr_reader :auto_archive_interval
 
@@ -298,6 +301,21 @@ module Daytona
 
       sandbox_api.set_autostop_interval(id, interval)
       @auto_stop_interval = interval
+    end
+
+    # Sets the auto-pause interval for the Sandbox.
+    # The Sandbox will automatically pause after being idle (no new events) for the specified interval.
+    # Events include any state changes or interactions with the Sandbox through the SDK.
+    # Interactions using Sandbox Previews are not included.
+    #
+    # @param interval [Integer]
+    # @return [Integer]
+    # @raise [Daytona:Sdk::Error]
+    def auto_pause_interval=(interval)
+      raise Sdk::Error, 'Auto-pause interval must be a non-negative integer' if interval.negative?
+
+      sandbox_api.set_auto_pause_interval(id, interval)
+      @auto_pause_interval = interval
     end
 
     # Creates an SSH access token for the sandbox.
@@ -668,7 +686,7 @@ module Daytona
       ) { wait_for_pause_complete }
     end
 
-    instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=,
+    instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
                :update_network_settings, :update_secrets, :update_env,
                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :get_metrics, :get_metrics_latest,
                :labels=,
@@ -797,6 +815,7 @@ module Daytona
       @error_reason = sandbox_dto.error_reason
       @backup_state = sandbox_dto.backup_state
       @auto_stop_interval = sandbox_dto.auto_stop_interval
+      @auto_pause_interval = sandbox_dto.auto_pause_interval
       @auto_archive_interval = sandbox_dto.auto_archive_interval
       @auto_delete_interval = sandbox_dto.auto_delete_interval
       @created_at = sandbox_dto.created_at

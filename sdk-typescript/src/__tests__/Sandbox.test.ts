@@ -64,6 +64,7 @@ const makeSandbox = (
     getSandbox: jest.fn(),
     replaceLabels: jest.fn(),
     setAutostopInterval: jest.fn(),
+    setAutoPauseInterval: jest.fn(),
     setAutoArchiveInterval: jest.fn(),
     setAutoDeleteInterval: jest.fn(),
     getPortPreviewUrl: jest.fn(),
@@ -162,6 +163,7 @@ describe('Sandbox', () => {
 
   test.each([
     ['setAutostopInterval', -1, 'autoStopInterval must be a non-negative integer'],
+    ['setAutoPauseInterval', -1, 'autoPauseInterval must be a non-negative integer'],
     ['setAutoArchiveInterval', -1, 'autoArchiveInterval must be a non-negative integer'],
   ])('validates %s', async (method, arg, message) => {
     const { sandbox } = makeSandbox()
@@ -320,14 +322,17 @@ describe('Sandbox', () => {
   it('updates interval properties after successful api calls', async () => {
     const { sandbox, sandboxApi } = makeSandbox({ autoStopInterval: 1, autoArchiveInterval: 2, autoDeleteInterval: 3 })
     sandboxApi.setAutostopInterval.mockResolvedValue(createApiResponse(undefined))
+    sandboxApi.setAutoPauseInterval.mockResolvedValue(createApiResponse(undefined))
     sandboxApi.setAutoArchiveInterval.mockResolvedValue(createApiResponse(undefined))
     sandboxApi.setAutoDeleteInterval.mockResolvedValue(createApiResponse(undefined))
 
     await sandbox.setAutostopInterval(15)
+    await sandbox.setAutoPauseInterval(45)
     await sandbox.setAutoArchiveInterval(25)
     await sandbox.setAutoDeleteInterval(-1)
 
     expect(sandbox.autoStopInterval).toBe(15)
+    expect(sandbox.autoPauseInterval).toBe(45)
     expect(sandbox.autoArchiveInterval).toBe(25)
     expect(sandbox.autoDeleteInterval).toBe(-1)
   })

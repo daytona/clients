@@ -74,6 +74,11 @@ type Sandbox struct {
 	// 0 means disabled.
 	AutoStopInterval int
 
+	// AutoPauseInterval is the time in minutes of inactivity before auto-pausing.
+	// 0 means disabled. Only supported for sandbox classes that support pausing.
+	// Mutually exclusive with AutoStopInterval.
+	AutoPauseInterval int
+
 	// AutoArchiveInterval is the time in minutes after stopping before auto-archiving.
 	// Set to 0 to disable auto-archiving.
 	AutoArchiveInterval int
@@ -148,6 +153,7 @@ type sandboxDTO interface {
 	GetRecoverable() bool
 	GetBackupState() string
 	GetAutoStopInterval() float32
+	GetAutoPauseInterval() float32
 	GetAutoArchiveInterval() float32
 	GetAutoDeleteInterval() float32
 	GetCreatedAt() string
@@ -161,6 +167,7 @@ type sandboxDTO interface {
 	GetRecoverableOk() (*bool, bool)
 	GetBackupStateOk() (*string, bool)
 	GetAutoStopIntervalOk() (*float32, bool)
+	GetAutoPauseIntervalOk() (*float32, bool)
 	GetAutoArchiveIntervalOk() (*float32, bool)
 	GetAutoDeleteIntervalOk() (*float32, bool)
 	GetCreatedAtOk() (*string, bool)
@@ -359,6 +366,9 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 	if v, ok := dto.GetAutoStopIntervalOk(); ok && v != nil {
 		s.AutoStopInterval = int(*v)
+	}
+	if v, ok := dto.GetAutoPauseIntervalOk(); ok && v != nil {
+		s.AutoPauseInterval = int(*v)
 	}
 	if v, ok := dto.GetAutoArchiveIntervalOk(); ok && v != nil {
 		s.AutoArchiveInterval = int(*v)

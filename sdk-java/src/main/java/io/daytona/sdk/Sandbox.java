@@ -77,6 +77,7 @@ public class Sandbox {
     private Boolean recoverable;
     private String backupState;
     private Integer autoStopInterval;
+    private Integer autoPauseInterval;
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
     private String createdAt;
@@ -302,6 +303,19 @@ public class Sandbox {
      */
     public void setAutostopInterval(int minutes) {
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutostopInterval(id, BigDecimal.valueOf(minutes), null));
+        if (response != null) {
+            populateFromDTO(response);
+        }
+    }
+
+    /**
+     * Sets Sandbox auto-pause interval.
+     *
+     * @param minutes idle minutes before automatic pause (0 means disabled)
+     * @throws DaytonaException if the update fails
+     */
+    public void setAutoPauseInterval(int minutes) {
+        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutoPauseInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
         }
@@ -603,7 +617,7 @@ public class Sandbox {
                 d.getState() == null ? null : d.getState().getValue(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
-                d.getAutoStopInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
+                d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
                 d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(),
                 d.getToolboxProxyUrl()
         );
@@ -635,7 +649,7 @@ public class Sandbox {
                 d.getState() == null ? null : d.getState().getValue(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
-                d.getAutoStopInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
+                d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
                 d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(),
                 d.getToolboxProxyUrl()
         );
@@ -649,7 +663,7 @@ public class Sandbox {
             Map<String, String> labels, Boolean isPublic, String target,
             BigDecimal cpu, BigDecimal gpu, BigDecimal memory, BigDecimal disk,
             String state, String errorReason, Boolean recoverable, String backupState,
-            BigDecimal autoStopInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
+            BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
             String createdAt, String updatedAt, String lastActivityAt,
             String toolboxProxyUrl) {
         this.id = asString(id);
@@ -669,6 +683,7 @@ public class Sandbox {
         this.recoverable = recoverable;
         this.backupState = backupState;
         this.autoStopInterval = autoStopInterval == null ? null : autoStopInterval.intValue();
+        this.autoPauseInterval = autoPauseInterval == null ? null : autoPauseInterval.intValue();
         this.autoArchiveInterval = autoArchiveInterval == null ? null : autoArchiveInterval.intValue();
         this.autoDeleteInterval = autoDeleteInterval == null ? null : autoDeleteInterval.intValue();
         this.createdAt = createdAt;
@@ -857,6 +872,8 @@ public class Sandbox {
     public String getBackupState() { return backupState; }
     /** @return auto-stop interval in minutes (0 means disabled). */
     public Integer getAutoStopInterval() { return autoStopInterval; }
+    /** @return auto-pause interval in minutes (0 means disabled). */
+    public Integer getAutoPauseInterval() { return autoPauseInterval; }
     /** @return auto-archive interval in minutes. */
     public Integer getAutoArchiveInterval() { return autoArchiveInterval; }
     /** @return auto-delete interval in minutes (negative means disabled). */

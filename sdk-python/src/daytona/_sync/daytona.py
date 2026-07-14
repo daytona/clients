@@ -419,6 +419,25 @@ class Daytona:
         if params.auto_stop_interval is not None and params.auto_stop_interval < 0:
             raise DaytonaValidationError("auto_stop_interval must be a non-negative integer")
 
+        if params.auto_pause_interval is not None and params.auto_pause_interval < 0:
+            raise DaytonaValidationError("auto_pause_interval must be a non-negative integer")
+
+        if (
+            params.auto_stop_interval is not None
+            and params.auto_stop_interval != 0
+            and params.auto_pause_interval is not None
+            and params.auto_pause_interval != 0
+        ):
+            raise DaytonaValidationError(
+                "auto_stop_interval and auto_pause_interval are mutually exclusive."
+                + " Set at most one of them to a non-zero value"
+            )
+
+        if params.auto_pause_interval and params.auto_delete_interval == 0:
+            raise DaytonaValidationError(
+                "Ephemeral sandboxes cannot have auto-pause enabled. Set auto_pause_interval to 0"
+            )
+
         if params.auto_archive_interval is not None and params.auto_archive_interval < 0:
             raise DaytonaValidationError("auto_archive_interval must be a non-negative integer")
 
@@ -444,6 +463,7 @@ class Daytona:
             public=params.public,
             target=str(target) if target else None,
             auto_stop_interval=params.auto_stop_interval,
+            auto_pause_interval=params.auto_pause_interval,
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             volumes=volumes,

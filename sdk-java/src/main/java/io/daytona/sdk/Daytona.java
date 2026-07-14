@@ -532,7 +532,22 @@ public class Daytona implements AutoCloseable {
         if (params.getUser() != null) body.setUser(params.getUser());
         if (params.getEnvVars() != null) body.setEnv(params.getEnvVars());
         if (params.getPublic() != null) body.setPublic(params.getPublic());
+        if (params.getAutoPauseInterval() != null && params.getAutoPauseInterval() < 0) {
+            throw new IllegalArgumentException("autoPauseInterval must be a non-negative integer");
+        }
+        if (params.getAutoStopInterval() != null && params.getAutoPauseInterval() != null
+                && params.getAutoStopInterval() != 0 && params.getAutoPauseInterval() != 0) {
+            throw new IllegalArgumentException(
+                    "autoStopInterval and autoPauseInterval are mutually exclusive."
+                    + " Set at most one of them to a non-zero value");
+        }
+        if (params.getAutoPauseInterval() != null && params.getAutoPauseInterval() != 0
+                && params.getAutoDeleteInterval() != null && params.getAutoDeleteInterval() == 0) {
+            throw new IllegalArgumentException(
+                    "Ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0");
+        }
         if (params.getAutoStopInterval() != null) body.setAutoStopInterval(params.getAutoStopInterval());
+        if (params.getAutoPauseInterval() != null) body.setAutoPauseInterval(params.getAutoPauseInterval());
         if (params.getAutoArchiveInterval() != null) body.setAutoArchiveInterval(params.getAutoArchiveInterval());
         if (params.getAutoDeleteInterval() != null) body.setAutoDeleteInterval(params.getAutoDeleteInterval());
         if (params.getNetworkBlockAll() != null) body.setNetworkBlockAll(params.getNetworkBlockAll());

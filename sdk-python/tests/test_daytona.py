@@ -110,6 +110,27 @@ class TestDaytonaCreateValidation:
         with pytest.raises(DaytonaValidationError, match="auto_stop_interval must be a non-negative"):
             daytona._create(CreateSandboxFromSnapshotParams(language="python", auto_stop_interval=-1), timeout=60)
 
+    def test_negative_auto_pause_raises(self, env_with_api_key):
+        daytona = _make_daytona()
+        with pytest.raises(DaytonaValidationError, match="auto_pause_interval must be a non-negative"):
+            daytona._create(CreateSandboxFromSnapshotParams(language="python", auto_pause_interval=-1), timeout=60)
+
+    def test_auto_stop_and_auto_pause_mutual_exclusivity(self, env_with_api_key):
+        daytona = _make_daytona()
+        with pytest.raises(DaytonaValidationError, match="mutually exclusive"):
+            daytona._create(
+                CreateSandboxFromSnapshotParams(language="python", auto_stop_interval=10, auto_pause_interval=10),
+                timeout=60,
+            )
+
+    def test_ephemeral_with_auto_pause_raises(self, env_with_api_key):
+        daytona = _make_daytona()
+        with pytest.raises(DaytonaValidationError, match="Ephemeral sandboxes cannot have auto-pause enabled"):
+            daytona._create(
+                CreateSandboxFromSnapshotParams(language="python", ephemeral=True, auto_pause_interval=60),
+                timeout=60,
+            )
+
     def test_negative_auto_archive_raises(self, env_with_api_key):
         daytona = _make_daytona()
         with pytest.raises(DaytonaValidationError, match="auto_archive_interval must be a non-negative"):
