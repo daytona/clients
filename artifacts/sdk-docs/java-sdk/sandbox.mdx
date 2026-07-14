@@ -440,12 +440,11 @@ public void experimentalCreateSnapshot(String name, long timeoutSeconds)
 ```
 
 Creates a snapshot from the current state of this Sandbox.
-The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
 
 **Parameters**:
 
 - `name` _String_ - name for the new snapshot
-- `timeoutSeconds` _long_ - reserved timeout parameter for parity with other SDKs
+- `timeoutSeconds` _long_ - maximum time to wait; 0 disables the timeout
 
 **Throws**:
 

@@ -4460,7 +4460,7 @@ func (s *Sandbox) ExperimentalCreateSnapshot(ctx context.Context, name string) e
 
 ExperimentalCreateSnapshot creates a snapshot from the current state of the sandbox with a default timeout of 60 seconds.
 
-This captures the sandbox's filesystem into a reusable snapshot that can be used to create new sandboxes. The sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
+This captures the sandbox's filesystem into a reusable snapshot that can be used to create new sandboxes. The method waits for the accepted snapshot to become active.
 
 Example:
 

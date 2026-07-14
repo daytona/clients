@@ -326,9 +326,7 @@ describe('Sandbox', () => {
     const { sandbox, sandboxApi } = makeSandbox()
     sandboxApi.createSandboxSnapshot.mockResolvedValue(createApiResponse(undefined))
 
-    await expect(sandbox._experimental_createSnapshot('snap-1', 1)).rejects.toThrow(
-      "Didn't receive a snapshot ID",
-    )
+    await expect(sandbox._experimental_createSnapshot('snap-1', 1)).rejects.toThrow("Didn't receive a snapshot ID")
     expect(mockSnapshotsApi.getSnapshot).not.toHaveBeenCalled()
   })
 

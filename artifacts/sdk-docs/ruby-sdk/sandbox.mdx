@@ -1117,16 +1117,19 @@ def experimental_create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
 ```
 
 Creates a snapshot from the current state of the Sandbox.
-The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
 
 **Parameters**:
 
 - `name` _String_ - Name for the new snapshot
-- `timeout` _Numeric_ - Maximum wait time in seconds (defaults to 60 s)
+- `timeout` _Numeric_ - Maximum wait time in seconds (defaults to 60 s; 0 disables the timeout)
 
 **Returns**:
 
 - `void`
+
+**Raises**:
+
+- `Sdk:Error` -
 
 #### pause()
 

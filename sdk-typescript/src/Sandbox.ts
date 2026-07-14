@@ -515,9 +515,7 @@ export class Sandbox {
 
     for (;;) {
       if (deadline !== undefined && Date.now() >= deadline) {
-        throw new DaytonaTimeoutError(
-          `Timed out waiting for snapshot ${snapshotId}; capture continues on the server`,
-        )
+        throw new DaytonaTimeoutError(`Timed out waiting for snapshot ${snapshotId}; capture continues on the server`)
       }
 
       const snapshot = (await this.snapshotsApi.getSnapshot(snapshotId)).data

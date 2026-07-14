@@ -17,11 +17,19 @@ from .conftest import make_sandbox_dto
 def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
     from daytona._sync.sandbox import Sandbox
 
-    return Sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api, "python", http_client=MagicMock())
+    return Sandbox(
+        sandbox_dto,
+        mock_toolbox_api_client,
+        mock_sandbox_api,
+        "python",
+        http_client=MagicMock(),
+    )
 
 
 class TestSandboxInit:
-    def test_sandbox_properties(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_sandbox_properties(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         assert sandbox.id == "test-sandbox-id"
         assert sandbox.name == "test-sandbox"
@@ -32,7 +40,9 @@ class TestSandboxInit:
         assert sandbox.user == "daytona"
         assert sandbox.public is False
 
-    def test_sandbox_has_subsystems(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_sandbox_has_subsystems(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         assert sandbox.fs is not None
         assert sandbox.git is not None
@@ -42,39 +52,61 @@ class TestSandboxInit:
 
 
 class TestSandboxLifecycleSettings:
-    def test_negative_autostop_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_negative_autostop_interval_raises(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        with pytest.raises(DaytonaValidationError, match="Auto-stop interval must be a non-negative"):
+        with pytest.raises(
+            DaytonaValidationError, match="Auto-stop interval must be a non-negative"
+        ):
             sandbox.set_autostop_interval(-1)
 
-    def test_valid_autostop_interval(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_valid_autostop_interval(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         sandbox.set_autostop_interval(30)
         assert sandbox.auto_stop_interval == 30
-        mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30, _request_timeout=None)
+        mock_sandbox_api.set_autostop_interval.assert_called_once_with(
+            sandbox.id, 30, _request_timeout=None
+        )
 
-    def test_negative_autopause_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_negative_autopause_interval_raises(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        with pytest.raises(DaytonaValidationError, match="Auto-pause interval must be a non-negative"):
+        with pytest.raises(
+            DaytonaValidationError, match="Auto-pause interval must be a non-negative"
+        ):
             sandbox.set_auto_pause_interval(-1)
 
-    def test_valid_autopause_interval(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_valid_autopause_interval(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         sandbox.set_auto_pause_interval(30)
         assert sandbox.auto_pause_interval == 30
         mock_sandbox_api.set_auto_pause_interval.assert_called_once_with(sandbox.id, 30)
 
-    def test_negative_auto_archive_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_negative_auto_archive_interval_raises(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        with pytest.raises(DaytonaValidationError, match="Auto-archive interval must be a non-negative"):
+        with pytest.raises(
+            DaytonaValidationError, match="Auto-archive interval must be a non-negative"
+        ):
             sandbox.set_auto_archive_interval(-1)
 
-    def test_valid_auto_archive_interval(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_valid_auto_archive_interval(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         sandbox.set_auto_archive_interval(60)
         assert sandbox.auto_archive_interval == 60
 
-    def test_auto_delete_interval(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_auto_delete_interval(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         sandbox.set_auto_delete_interval(120)
         assert sandbox.auto_delete_interval == 120
@@ -92,7 +124,9 @@ class TestSandboxOperations:
         assert result == new_labels
         assert sandbox.labels == new_labels
 
-    def test_create_lsp_server(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_create_lsp_server(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         from daytona._sync.lsp_server import LspServer
 
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
@@ -101,32 +135,48 @@ class TestSandboxOperations:
 
     def test_refresh_data(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED, cpu=8)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
+            state=SandboxState.STOPPED, cpu=8
+        )
         sandbox.refresh_data()
         assert sandbox.state == SandboxState.STOPPED
         assert sandbox.cpu == 8
 
-    def test_get_user_home_dir(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_get_user_home_dir(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        sandbox._info_api = MagicMock(get_user_home_dir=MagicMock(return_value=MagicMock(dir="/home/daytona")))
+        sandbox._info_api = MagicMock(
+            get_user_home_dir=MagicMock(return_value=MagicMock(dir="/home/daytona"))
+        )
         assert sandbox.get_user_home_dir() == "/home/daytona"
 
     def test_get_work_dir(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        sandbox._info_api = MagicMock(get_work_dir=MagicMock(return_value=MagicMock(dir="/workspace")))
+        sandbox._info_api = MagicMock(
+            get_work_dir=MagicMock(return_value=MagicMock(dir="/workspace"))
+        )
         assert sandbox.get_work_dir() == "/workspace"
 
-    def test_get_user_root_dir_delegates_to_home_dir(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_get_user_root_dir_delegates_to_home_dir(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        sandbox._info_api = MagicMock(get_user_home_dir=MagicMock(return_value=MagicMock(dir="/home/daytona")))
+        sandbox._info_api = MagicMock(
+            get_user_home_dir=MagicMock(return_value=MagicMock(dir="/home/daytona"))
+        )
 
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             assert sandbox.get_user_root_dir() == "/home/daytona"
 
-    def test_preview_and_ssh_operations_delegate(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_preview_and_ssh_operations_delegate(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.get_port_preview_url.return_value = MagicMock(url="https://preview")
+        mock_sandbox_api.get_port_preview_url.return_value = MagicMock(
+            url="https://preview"
+        )
         mock_sandbox_api.create_ssh_access.return_value = MagicMock(token="ssh-token")
         mock_sandbox_api.validate_ssh_access.return_value = MagicMock(valid=True)
 
@@ -136,13 +186,23 @@ class TestSandboxOperations:
         sandbox.revoke_ssh_access("token")
         sandbox.refresh_activity()
 
-        mock_sandbox_api.get_port_preview_url.assert_called_once_with(sandbox.id, 3000, _request_timeout=None)
-        mock_sandbox_api.revoke_ssh_access.assert_called_once_with(sandbox.id, "token", _request_timeout=None)
-        mock_sandbox_api.update_last_activity.assert_called_once_with(sandbox.id, _request_timeout=None)
+        mock_sandbox_api.get_port_preview_url.assert_called_once_with(
+            sandbox.id, 3000, _request_timeout=None
+        )
+        mock_sandbox_api.revoke_ssh_access.assert_called_once_with(
+            sandbox.id, "token", _request_timeout=None
+        )
+        mock_sandbox_api.update_last_activity.assert_called_once_with(
+            sandbox.id, _request_timeout=None
+        )
 
-    def test_update_secrets(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_update_secrets(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.update_sandbox_secrets.return_value = make_sandbox_dto(env={"FOO": "placeholder"})
+        mock_sandbox_api.update_sandbox_secrets.return_value = make_sandbox_dto(
+            env={"FOO": "placeholder"}
+        )
 
         sandbox.update_secrets({"FOO": "foo-secret", "BAR": "bar"})
 
@@ -153,7 +213,9 @@ class TestSandboxOperations:
         assert body.secrets == [{"FOO": "foo-secret"}, {"BAR": "bar"}]
         assert sandbox.env == {"FOO": "placeholder"}
 
-    def test_update_secrets_empty_dict_detaches_all(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_update_secrets_empty_dict_detaches_all(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.update_sandbox_secrets.return_value = make_sandbox_dto(env={})
 
@@ -167,7 +229,9 @@ class TestSandboxOperations:
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         # The daemon responds with a status message, which update_env discards.
         sandbox._server_api = MagicMock(
-            update_env=MagicMock(return_value={"message": "Environment updated successfully"})
+            update_env=MagicMock(
+                return_value={"message": "Environment updated successfully"}
+            )
         )
 
         result = sandbox.update_env({"A": "1"}, unset=["B"])
@@ -185,21 +249,31 @@ class TestSandboxSnapshotCapture:
         self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
     ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(id="snapshot-id")
+        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(
+            id="snapshot-id"
+        )
         sandbox._snapshots_api = MagicMock(
             get_snapshot=MagicMock(
-                return_value=MagicMock(id="snapshot-id", state=SnapshotState.ACTIVE, error_reason=None)
+                return_value=MagicMock(
+                    id="snapshot-id", state=SnapshotState.ACTIVE, error_reason=None
+                )
             )
         )
-        mock_sandbox_api.get_sandbox.side_effect = DaytonaError("best-effort refresh failed")
+        mock_sandbox_api.get_sandbox.side_effect = DaytonaError(
+            "best-effort refresh failed"
+        )
 
         sandbox._experimental_create_snapshot("snap-1", timeout=1)
 
         sandbox._snapshots_api.get_snapshot.assert_called_once_with("snapshot-id")
 
-    def test_reports_snapshot_terminal_failure(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+    def test_reports_snapshot_terminal_failure(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(id="snapshot-id")
+        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(
+            id="snapshot-id"
+        )
         sandbox._snapshots_api = MagicMock(
             get_snapshot=MagicMock(
                 return_value=MagicMock(
@@ -219,7 +293,9 @@ class TestSandboxSnapshotCapture:
 
 class TestSandboxWaitForStart:
     def test_error_state_raises(self, mock_toolbox_api_client, mock_sandbox_api):
-        error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="build failed")
+        error_dto = make_sandbox_dto(
+            state=SandboxState.ERROR, error_reason="build failed"
+        )
         sandbox = make_sandbox(error_dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.return_value = error_dto
         with pytest.raises(DaytonaError, match="failed to start"):
