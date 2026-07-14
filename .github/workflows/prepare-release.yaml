@@ -48,6 +48,11 @@ jobs:
       - name: Push branch and create PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
+          # daytonaBot so it works with "Allow GitHub Actions to create and
+          # approve pull requests" disabled, and PR checks trigger on it
+          # (GITHUB_TOKEN-created PRs never trigger workflows).
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
         run: |
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
           git push origin "prepare-release-$VERSION"

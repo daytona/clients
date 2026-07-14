@@ -44,7 +44,7 @@ jobs:
           # Bots and automation cannot sign -- exempt them. Explicit logins only:
           # a `bot*` wildcard would let a human register a matching username
           # (e.g. "bottle") and bypass the CLA gate.
-          allowlist: 'dependabot[bot],renovate[bot],github-actions[bot]'
+          allowlist: 'dependabot[bot],renovate[bot],github-actions[bot],daytonaBot'
           # Lock the PR conversation after merge so a signature comment can't be
           # deleted/revoked after the fact.
           lock-pullrequest-aftermerge: true
