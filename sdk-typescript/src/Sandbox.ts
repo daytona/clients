@@ -150,7 +150,6 @@ export class Sandbox {
   private infoApi: InfoApi
   private serverApi: ServerApi
   private systemApi: SystemApi
-  private snapshotsApi: SnapshotsApi
 
   /**
    * Creates a new Sandbox instance
@@ -162,10 +161,10 @@ export class Sandbox {
     private readonly clientConfig: Configuration,
     private readonly axiosInstance: AxiosInstance,
     private readonly sandboxApi: SandboxApi,
+    private readonly snapshotsApi: SnapshotsApi,
     private readonly getAnalyticsApiUrl: () => Promise<string | undefined>,
   ) {
     this.processSandboxDto(sandboxDto)
-    this.snapshotsApi = new SnapshotsApi(this.clientConfig, '', this.axiosInstance)
 
     // Set the toolbox base URL
     let baseUrl = this.toolboxProxyUrl
@@ -459,6 +458,7 @@ export class Sandbox {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.snapshotsApi,
       this.getAnalyticsApiUrl,
     )
 

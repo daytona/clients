@@ -110,6 +110,7 @@ const makeSandbox = (
     cfg,
     axiosInstance as unknown as never,
     sandboxApi as unknown as never,
+    mockSnapshotsApi as unknown as never,
     getAnalyticsApiUrl as unknown as never,
   )
 

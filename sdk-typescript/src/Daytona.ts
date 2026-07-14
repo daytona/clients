@@ -237,6 +237,7 @@ export type CreateSandboxFromSnapshotParams = CreateSandboxBaseParams & {
 export class Daytona implements AsyncDisposable {
   private readonly clientConfig: Configuration
   private readonly sandboxApi: SandboxApi
+  private readonly snapshotsApi: SnapshotsApi
   private readonly objectStorageApi: ObjectStorageApi
   private readonly configApi: ConfigApi
   private analyticsApiUrlPromise?: Promise<string | undefined>
@@ -352,14 +353,10 @@ export class Daytona implements AsyncDisposable {
     this.sandboxApi = new SandboxApi(configuration, '', axiosInstance)
     this.objectStorageApi = new ObjectStorageApi(configuration, '', axiosInstance)
     this.configApi = new ConfigApi(configuration, '', axiosInstance)
+    this.snapshotsApi = new SnapshotsApi(configuration, '', axiosInstance)
     this.volume = new VolumeService(new VolumesApi(configuration, '', axiosInstance))
     this.secret = new SecretService(new SecretApi(configuration, '', axiosInstance))
-    this.snapshot = new SnapshotService(
-      configuration,
-      new SnapshotsApi(configuration, '', axiosInstance),
-      this.objectStorageApi,
-      this.target,
-    )
+    this.snapshot = new SnapshotService(configuration, this.snapshotsApi, this.objectStorageApi, this.target)
     this.clientConfig = configuration
 
     const env = envReader()
@@ -670,6 +667,7 @@ export class Daytona implements AsyncDisposable {
         new Configuration(structuredClone(this.clientConfig)),
         Daytona.createAxiosInstance(),
         this.sandboxApi,
+        this.snapshotsApi,
         this.getAnalyticsApiUrl,
       )
 
@@ -711,6 +709,7 @@ export class Daytona implements AsyncDisposable {
       structuredClone(this.clientConfig),
       Daytona.createAxiosInstance(),
       this.sandboxApi,
+      this.snapshotsApi,
       this.getAnalyticsApiUrl,
     )
   }
@@ -727,7 +726,7 @@ export class Daytona implements AsyncDisposable {
    * }
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
-    const { sandboxApi, clientConfig } = this
+    const { sandboxApi, snapshotsApi, clientConfig } = this
     const getAnalyticsApiUrl = this.getAnalyticsApiUrl
     const tracer = trace.getTracer('')
 
@@ -804,6 +803,7 @@ export class Daytona implements AsyncDisposable {
             structuredClone(clientConfig),
             Daytona.createAxiosInstance(),
             sandboxApi,
+            snapshotsApi,
             getAnalyticsApiUrl,
           )
         }
