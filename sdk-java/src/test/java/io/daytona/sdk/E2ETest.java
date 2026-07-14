@@ -674,6 +674,12 @@ class E2ETest {
         assertThat(response.getResult()).contains("restarted");
     }
 
+    @Test
+    @Order(23)
+    void snapshotCapturePollsTheAcceptedSnapshotToActive() {
+        sandbox.experimentalCreateSnapshot(unique("sdk-java-capture"), 3);
+    }
+
     private io.daytona.api.client.model.Sandbox fetchSandboxDto() throws Exception {
         return sandboxApi.getSandbox(sandbox.getId(), null, null);
     }
