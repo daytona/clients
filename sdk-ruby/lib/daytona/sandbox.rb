@@ -665,7 +665,10 @@ module Daytona
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       accepted = sandbox_api.create_sandbox_snapshot(id, DaytonaApiClient::CreateSandboxSnapshot.new(name:))
       snapshot_id = accepted&.id
-      raise Sdk::Error, "Failed to create snapshot. Didn't receive a snapshot ID from the server API." unless snapshot_id
+      unless snapshot_id
+        raise Sdk::Error,
+              "Failed to create snapshot. Didn't receive a snapshot ID from the server API."
+      end
 
       deadline = timeout == NO_TIMEOUT ? nil : started_at + timeout
       wait_for_snapshot_complete(snapshot_id, deadline)
