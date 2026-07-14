@@ -1359,8 +1359,8 @@ func (s *Sandbox) doExperimentalForkWithTimeout(ctx context.Context, name *strin
 // with a default timeout of 60 seconds.
 //
 // This captures the sandbox's filesystem into a reusable snapshot that can be
-// used to create new sandboxes. The sandbox will temporarily enter a
-// 'snapshotting' state and return to its previous state when complete.
+// used to create new sandboxes. The method waits for the accepted snapshot
+// to become active.
 //
 // Example:
 //
@@ -1400,40 +1400,72 @@ func (s *Sandbox) doExperimentalCreateSnapshotWithTimeout(ctx context.Context, n
 	req := apiclient.NewCreateSandboxSnapshot(name)
 
 	authCtx := s.client.getAuthContext(ctx)
-	_, httpResp, err := s.client.apiClient.SandboxAPI.CreateSandboxSnapshot(authCtx, s.ID).CreateSandboxSnapshot(*req).Execute()
+	accepted, httpResp, err := s.client.apiClient.SandboxAPI.CreateSandboxSnapshot(authCtx, s.ID).CreateSandboxSnapshot(*req).Execute()
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-
-	if err := s.RefreshData(ctx); err != nil {
-		return err
+	if accepted == nil || accepted.GetId() == "" {
+		return errors.NewDaytonaError("Failed to create snapshot. Didn't receive a snapshot ID from the server API.", 0, nil)
 	}
 
-	return s.waitForSnapshotComplete(ctx)
+	return s.waitForSnapshotComplete(ctx, accepted.GetId())
 }
 
-func (s *Sandbox) waitForSnapshotComplete(ctx context.Context) error {
+func (s *Sandbox) waitForSnapshotComplete(ctx context.Context, snapshotID string) error {
 	checkInterval := 100 * time.Millisecond
 	startTime := time.Now()
 
-	for s.State == apiclient.SANDBOXSTATE_SNAPSHOTTING {
-		if err := s.RefreshData(ctx); err != nil {
-			return err
+	for {
+		snapshot, httpResp, err := s.client.apiClient.SnapshotsAPI.GetSnapshot(
+			s.client.getAuthContext(ctx),
+			snapshotID,
+		).Execute()
+		if err != nil {
+			return errors.ConvertAPIError(err, httpResp)
 		}
-
-		if s.State == apiclient.SANDBOXSTATE_ERROR || s.State == apiclient.SANDBOXSTATE_BUILD_FAILED {
+		if snapshot == nil || snapshot.GetId() != snapshotID {
 			return errors.NewDaytonaError(
-				fmt.Sprintf("Sandbox %s snapshot failed with state: %s", s.ID, s.State), 0, nil,
+				fmt.Sprintf("Snapshot lookup for %s returned an invalid response", snapshotID), 0, nil,
 			)
 		}
 
-		if s.State != apiclient.SANDBOXSTATE_SNAPSHOTTING {
+		switch snapshot.GetState() {
+		case apiclient.SNAPSHOTSTATE_ACTIVE:
+			_ = s.RefreshData(ctx)
 			return nil
+		case apiclient.SNAPSHOTSTATE_ERROR, apiclient.SNAPSHOTSTATE_BUILD_FAILED:
+			var errorReason string
+			if reason, ok := snapshot.GetErrorReasonOk(); ok && reason != nil {
+				errorReason = *reason
+			}
+			return errors.NewDaytonaError(
+				fmt.Sprintf(
+					"Snapshot %s failed with state: %s, error reason: %s",
+					snapshot.GetId(),
+					snapshot.GetState(),
+					errorReason,
+				),
+				0,
+				nil,
+			)
 		}
 
 		select {
 		case <-ctx.Done():
-			return errors.NewDaytonaError("Sandbox snapshot did not complete within the timeout period", 0, nil)
+			if ctx.Err() == context.DeadlineExceeded {
+				return errors.NewDaytonaTimeoutError(
+					fmt.Sprintf("Timed out waiting for snapshot %s; capture continues on the server", snapshotID),
+				)
+			}
+			return errors.NewDaytonaError(
+				fmt.Sprintf(
+					"Stopped waiting for snapshot %s: %v; capture continues on the server",
+					snapshotID,
+					ctx.Err(),
+				),
+				0,
+				nil,
+			)
 		case <-time.After(checkInterval):
 		}
 
@@ -1441,7 +1473,6 @@ func (s *Sandbox) waitForSnapshotComplete(ctx context.Context) error {
 			checkInterval = min(time.Duration(float64(checkInterval)*1.1), 1*time.Second)
 		}
 	}
-	return nil
 }
 
 // Pause pauses the Sandbox, freezing all running processes.

@@ -545,21 +545,23 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 		assert.Equal(t, "forked", forked.ID)
 	})
 
-	t.Run("create snapshot waits until snapshotting finishes", func(t *testing.T) {
-		var getCount int
+	t.Run("create snapshot polls accepted snapshot ID until active", func(t *testing.T) {
+		var snapshotGetCount int
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodPost:
-				w.WriteHeader(http.StatusOK)
-			case http.MethodGet:
-				getCount++
-				state := apiclient.SANDBOXSTATE_SNAPSHOTTING
-				if getCount > 1 {
-					state = apiclient.SANDBOXSTATE_STARTED
+			switch {
+			case r.Method == http.MethodPost && r.URL.Path == "/sandbox/sb/snapshot":
+				writeJSONResponse(t, w, http.StatusAccepted, testSnapshotPayload("snapshot-id", "snap-name", apiclient.SNAPSHOTSTATE_CAPTURING))
+			case r.Method == http.MethodGet && r.URL.Path == "/snapshots/snapshot-id":
+				snapshotGetCount++
+				state := apiclient.SNAPSHOTSTATE_CAPTURING
+				if snapshotGetCount > 1 {
+					state = apiclient.SNAPSHOTSTATE_ACTIVE
 				}
-				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+				writeJSONResponse(t, w, http.StatusOK, testSnapshotPayload("snapshot-id", "snap-name", state))
+			case r.Method == http.MethodGet && r.URL.Path == "/sandbox/sb":
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
 			default:
-				w.WriteHeader(http.StatusOK)
+				http.NotFound(w, r)
 			}
 		}))
 		defer server.Close()
@@ -567,6 +569,45 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
 		require.NoError(t, sandbox.ExperimentalCreateSnapshotWithTimeout(context.Background(), "snap-name", 2*time.Second))
+		assert.Equal(t, 2, snapshotGetCount)
+	})
+
+	t.Run("create snapshot reports accepted snapshot failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodPost:
+				writeJSONResponse(t, w, http.StatusAccepted, testSnapshotPayload("snapshot-id", "snap-name", apiclient.SNAPSHOTSTATE_CAPTURING))
+			case r.Method == http.MethodGet:
+				payload := testSnapshotPayload("snapshot-id", "snap-name", apiclient.SNAPSHOTSTATE_ERROR)
+				payload["errorReason"] = "capture failed"
+				writeJSONResponse(t, w, http.StatusOK, payload)
+			}
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+		err := sandbox.ExperimentalCreateSnapshotWithTimeout(context.Background(), "snap-name", 2*time.Second)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Snapshot snapshot-id failed with state: error, error reason: capture failed")
+	})
+
+	t.Run("create snapshot timeout leaves server capture running", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			state := apiclient.SNAPSHOTSTATE_CAPTURING
+			status := http.StatusOK
+			if r.Method == http.MethodPost {
+				status = http.StatusAccepted
+			}
+			writeJSONResponse(t, w, status, testSnapshotPayload("snapshot-id", "snap-name", state))
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+		err := sandbox.ExperimentalCreateSnapshotWithTimeout(context.Background(), "snap-name", 10*time.Millisecond)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Timed out waiting for snapshot snapshot-id; capture continues on the server")
 	})
 }
 

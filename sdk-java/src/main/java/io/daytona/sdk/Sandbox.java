@@ -4,8 +4,11 @@
 package io.daytona.sdk;
 
 import io.daytona.api.client.api.SandboxApi;
+import io.daytona.api.client.api.SnapshotsApi;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
+import io.daytona.api.client.model.SnapshotDto;
+import io.daytona.api.client.model.SnapshotState;
 import io.daytona.api.client.model.ForkSandbox;
 import io.daytona.analytics.api.client.model.ModelsMetricPoint;
 import io.daytona.api.client.model.MetricDataPoint;
@@ -18,6 +21,8 @@ import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.exception.DaytonaTimeoutException;
+import io.daytona.sdk.exception.DaytonaValidationException;
 import io.daytona.sdk.model.SandboxMetrics;
 import io.daytona.toolbox.client.api.SystemApi;
 import io.daytona.toolbox.client.model.SystemMetrics;
@@ -30,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Represents a Daytona Sandbox instance.
@@ -51,6 +57,7 @@ public class Sandbox {
             List.copyOf(SANDBOX_METRIC_FIELD_BY_NAME.keySet());
 
     private final SandboxApi sandboxApi;
+    private final SnapshotsApi snapshotsApi;
     private final DaytonaConfig config;
     private final io.daytona.toolbox.client.ApiClient toolboxApiClient;
     private final io.daytona.toolbox.client.api.InfoApi infoApi;
@@ -109,6 +116,7 @@ public class Sandbox {
     Sandbox(SandboxApi sandboxApi, DaytonaConfig config, io.daytona.api.client.model.Sandbox data,
             java.util.function.Supplier<String> analyticsApiUrlProvider) {
         this.sandboxApi = sandboxApi;
+        this.snapshotsApi = new SnapshotsApi(sandboxApi.getApiClient());
         this.config = config;
         this.apiKey = config.getApiKey();
         this.analyticsApiUrlProvider = analyticsApiUrlProvider;
@@ -127,6 +135,7 @@ public class Sandbox {
     Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data,
             java.util.function.Supplier<String> analyticsApiUrlProvider) {
         this.sandboxApi = sandboxApi;
+        this.snapshotsApi = new SnapshotsApi(sandboxApi.getApiClient());
         this.config = config;
         this.apiKey = config.getApiKey();
         this.analyticsApiUrlProvider = analyticsApiUrlProvider;
@@ -753,38 +762,63 @@ public class Sandbox {
 
     /**
      * Creates a snapshot from the current state of this Sandbox.
-     * The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
      *
      * @param name name for the new snapshot
-     * @param timeoutSeconds reserved timeout parameter for parity with other SDKs
+     * @param timeoutSeconds maximum time to wait; 0 disables the timeout
      * @throws DaytonaException if the snapshot operation fails
      */
     public void experimentalCreateSnapshot(String name, long timeoutSeconds) {
+        if (timeoutSeconds < 0) {
+            throw new DaytonaValidationException("Timeout must be a non-negative number");
+        }
+
+        long startedAt = System.nanoTime();
         CreateSandboxSnapshot req = new CreateSandboxSnapshot();
         req.setName(name);
-        ExceptionMapper.callMain(() -> sandboxApi.createSandboxSnapshot(id, req, null));
-        refreshData();
-        waitForSnapshotComplete(timeoutSeconds);
+        SnapshotDto accepted = ExceptionMapper.callMain(() -> sandboxApi.createSandboxSnapshot(id, req, null));
+        String snapshotId = accepted == null ? null : accepted.getId();
+        if (snapshotId == null || snapshotId.isEmpty()) {
+            throw new DaytonaException("Failed to create snapshot. Didn't receive a snapshot ID from the server API.");
+        }
+
+        long deadline = timeoutSeconds == 0
+                ? Long.MAX_VALUE
+                : startedAt + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        waitForSnapshotComplete(snapshotId, deadline);
     }
 
-    private void waitForSnapshotComplete(long timeoutSeconds) {
-        long startedAt = System.currentTimeMillis();
-        while ("snapshotting".equalsIgnoreCase(state)) {
-            refreshData();
-            if ("error".equalsIgnoreCase(state) || "build_failed".equalsIgnoreCase(state)) {
-                throw new DaytonaException("Sandbox snapshot failed with state: " + state);
+    private void waitForSnapshotComplete(String snapshotId, long deadline) {
+        while (true) {
+            if (System.nanoTime() >= deadline) {
+                throw new DaytonaTimeoutException(
+                        "Timed out waiting for snapshot " + snapshotId + "; capture continues on the server");
             }
-            if (!"snapshotting".equalsIgnoreCase(state)) {
+
+            SnapshotDto snapshot = ExceptionMapper.callMain(() -> snapshotsApi.getSnapshot(snapshotId, null));
+            if (snapshot == null || !snapshotId.equals(snapshot.getId())) {
+                throw new DaytonaException("Snapshot lookup for " + snapshotId + " returned an invalid response");
+            }
+
+            if (snapshot.getState() == SnapshotState.ACTIVE) {
+                try {
+                    refreshData();
+                } catch (DaytonaException ignored) {
+                    // Best-effort local cleanup after definitive server success.
+                }
                 return;
             }
-            if (timeoutSeconds > 0 && (System.currentTimeMillis() - startedAt) > timeoutSeconds * 1000L) {
-                throw new DaytonaException("Sandbox snapshot did not complete before timeout");
+            if (snapshot.getState() == SnapshotState.ERROR || snapshot.getState() == SnapshotState.BUILD_FAILED) {
+                throw new DaytonaException(
+                        "Snapshot " + snapshot.getId() + " failed with state: " + snapshot.getState()
+                                + ", error reason: " + snapshot.getErrorReason());
             }
+
             try {
                 Thread.sleep(250);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new DaytonaException("Interrupted while waiting for snapshot complete", e);
+                throw new DaytonaException(
+                        "Stopped waiting for snapshot " + snapshotId + "; capture continues on the server", e);
             }
         }
     }

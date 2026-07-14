@@ -158,6 +158,7 @@ module Daytona
       process_response(sandbox_dto)
       @config = config
       @sandbox_api = sandbox_api
+      @snapshots_api = DaytonaApiClient::SnapshotsApi.new(sandbox_api.api_client)
       @otel_state = otel_state
       @analytics_api_url_provider = analytics_api_url_provider
 
@@ -654,20 +655,20 @@ module Daytona
     end
 
     # Creates a snapshot from the current state of the Sandbox.
-    # The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
     #
     # @param name [String] Name for the new snapshot
-    # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s)
+    # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s; 0 disables the timeout)
     # @return [void]
     def experimental_create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
-      with_timeout(
-        timeout:,
-        message: "Sandbox #{id} snapshot failed within the #{timeout} seconds timeout period",
-        setup: proc {
-          sandbox_api.create_sandbox_snapshot(id, DaytonaApiClient::CreateSandboxSnapshot.new(name:))
-          refresh
-        }
-      ) { wait_for_snapshot_complete }
+      raise Sdk::Error, 'Timeout must be a non-negative number' if timeout.negative?
+
+      started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+      accepted = sandbox_api.create_sandbox_snapshot(id, DaytonaApiClient::CreateSandboxSnapshot.new(name:))
+      snapshot_id = accepted&.id
+      raise Sdk::Error, "Failed to create snapshot. Didn't receive a snapshot ID from the server API." unless snapshot_id
+
+      deadline = timeout == NO_TIMEOUT ? nil : started_at + timeout
+      wait_for_snapshot_complete(snapshot_id, deadline)
     end
 
     # Pauses the Sandbox, freezing all running processes.
@@ -903,18 +904,32 @@ module Daytona
     OPERATION_RESIZE = :resize
     private_constant :OPERATION_RESIZE
 
-    def wait_for_snapshot_complete
+    def wait_for_snapshot_complete(snapshot_id, deadline)
       interval = INITIAL_POLL_INTERVAL
       start_time = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-      while state == DaytonaApiClient::SandboxState::SNAPSHOTTING
-        refresh
 
-        if [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED].include?(state)
-          raise Sdk::Error,
-                "Sandbox #{id} snapshot failed with state: #{state}, error reason: #{error_reason}"
+      loop do
+        if deadline && ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) >= deadline
+          raise Sdk::Error, "Timed out waiting for snapshot #{snapshot_id}; capture continues on the server"
         end
 
-        break if state != DaytonaApiClient::SandboxState::SNAPSHOTTING
+        snapshot = @snapshots_api.get_snapshot(snapshot_id)
+        unless snapshot && snapshot.id == snapshot_id
+          raise Sdk::Error, "Snapshot lookup for #{snapshot_id} returned an invalid response"
+        end
+
+        case snapshot.state
+        when DaytonaApiClient::SnapshotState::ACTIVE
+          begin
+            refresh
+          rescue StandardError
+            nil
+          end
+          return
+        when DaytonaApiClient::SnapshotState::ERROR, DaytonaApiClient::SnapshotState::BUILD_FAILED
+          raise Sdk::Error,
+                "Snapshot #{snapshot.id} failed with state: #{snapshot.state}, error reason: #{snapshot.error_reason}"
+        end
 
         sleep(interval)
         if ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start_time > 5

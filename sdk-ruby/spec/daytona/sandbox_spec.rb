@@ -6,6 +6,7 @@
 RSpec.describe Daytona::Sandbox do
   let(:config) { build_config }
   let(:sandbox_api) { instance_double(DaytonaApiClient::SandboxApi) }
+  let(:snapshots_api) { instance_double(DaytonaApiClient::SnapshotsApi) }
   let(:sandbox_dto) { build_sandbox_dto }
   let(:toolbox_client) do
     double('ToolboxApiClient', default_headers: {}).tap do |client|
@@ -22,6 +23,8 @@ RSpec.describe Daytona::Sandbox do
   let(:server_api) { instance_double(DaytonaToolboxApiClient::ServerApi) }
 
   before do
+    allow(sandbox_api).to receive(:api_client).and_return(double('ApiClient'))
+    allow(DaytonaApiClient::SnapshotsApi).to receive(:new).and_return(snapshots_api)
     allow(DaytonaToolboxApiClient::ApiClient).to receive(:new).and_return(toolbox_client)
     allow(DaytonaToolboxApiClient::ProcessApi).to receive(:new).and_return(process_api)
     allow(DaytonaToolboxApiClient::FileSystemApi).to receive(:new).and_return(fs_api)
@@ -464,15 +467,34 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#experimental_create_snapshot' do
-    it 'creates a snapshot and waits for completion' do
-      allow(sandbox_api).to receive(:create_sandbox_snapshot).with('sandbox-123', anything)
-      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
+    it 'polls the accepted snapshot ID until active' do
+      accepted = build_snapshot_dto(id: 'snapshot-id', state: DaytonaApiClient::SnapshotState::CAPTURING)
+      active = build_snapshot_dto(id: 'snapshot-id', state: DaytonaApiClient::SnapshotState::ACTIVE)
+      allow(sandbox_api).to receive(:create_sandbox_snapshot).with('sandbox-123', anything).and_return(accepted)
+      allow(snapshots_api).to receive(:get_snapshot).with('snapshot-id').and_return(active)
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_raise(Daytona::Sdk::Error, 'refresh failed')
 
-      sandbox.experimental_create_snapshot(name: 'snap-1', timeout: 5)
+      expect { sandbox.experimental_create_snapshot(name: 'snap-1', timeout: 5) }.not_to raise_error
 
-      expect(sandbox_api).to have_received(:create_sandbox_snapshot) do |_id, request|
-        expect(request.name).to eq('snap-1')
-      end
+      expect(snapshots_api).to have_received(:get_snapshot).with('snapshot-id')
+    end
+
+    it 'reports the accepted snapshot terminal failure' do
+      accepted = build_snapshot_dto(id: 'snapshot-id', state: DaytonaApiClient::SnapshotState::CAPTURING)
+      failed = build_snapshot_dto(
+        id: 'snapshot-id',
+        state: DaytonaApiClient::SnapshotState::ERROR,
+        error_reason: 'capture failed'
+      )
+      allow(sandbox_api).to receive(:create_sandbox_snapshot).and_return(accepted)
+      allow(snapshots_api).to receive(:get_snapshot).with('snapshot-id').and_return(failed)
+
+      expect do
+        sandbox.experimental_create_snapshot(name: 'snap-1', timeout: 5)
+      end.to raise_error(
+        Daytona::Sdk::Error,
+        /Snapshot snapshot-id failed with state: error, error reason: capture failed/
+      )
     end
   end
 end

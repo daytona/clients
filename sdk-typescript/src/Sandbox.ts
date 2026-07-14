@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SandboxState, SandboxApi, SandboxBackupStateEnum, Configuration } from '@daytona/api-client'
+import {
+  SandboxState,
+  SnapshotState,
+  SandboxApi,
+  SnapshotsApi,
+  SandboxBackupStateEnum,
+  Configuration,
+} from '@daytona/api-client'
 import {
   TelemetryApi as AnalyticsTelemetryApi,
   Configuration as AnalyticsConfiguration,
@@ -143,6 +150,7 @@ export class Sandbox {
   private infoApi: InfoApi
   private serverApi: ServerApi
   private systemApi: SystemApi
+  private snapshotsApi: SnapshotsApi
 
   /**
    * Creates a new Sandbox instance
@@ -157,6 +165,7 @@ export class Sandbox {
     private readonly getAnalyticsApiUrl: () => Promise<string | undefined>,
   ) {
     this.processSandboxDto(sandboxDto)
+    this.snapshotsApi = new SnapshotsApi(this.clientConfig, '', this.axiosInstance)
 
     // Set the toolbox base URL
     let baseUrl = this.toolboxProxyUrl
@@ -463,8 +472,8 @@ export class Sandbox {
    * Creates a snapshot from the current state of the Sandbox.
    *
    * This captures the Sandbox's filesystem into a reusable snapshot that can be
-   * used to create new Sandboxes. The Sandbox will temporarily enter a
-   * 'snapshotting' state and return to its previous state when complete.
+   * used to create new Sandboxes. The method waits for the accepted snapshot
+   * to become active.
    *
    * @param {string} name - Name for the new snapshot
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
@@ -486,40 +495,50 @@ export class Sandbox {
 
     const startTime = Date.now()
     const req: CreateSandboxSnapshot = { name }
-    await this.sandboxApi.createSandboxSnapshot(this.id, req, undefined, {
-      timeout: timeout * 1000,
-    })
+    const accepted = (
+      await this.sandboxApi.createSandboxSnapshot(this.id, req, undefined, {
+        timeout: timeout * 1000,
+      })
+    ).data
+    const snapshotId = accepted?.id
+    if (!snapshotId) {
+      throw new DaytonaError("Failed to create snapshot. Didn't receive a snapshot ID from the server API.")
+    }
 
-    await this.refreshData()
-
-    const timeElapsed = Date.now() - startTime
-    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    await this.waitForSnapshotComplete(remainingTimeout)
+    const deadline = timeout === 0 ? undefined : startTime + timeout * 1000
+    await this.waitForSnapshotComplete(snapshotId, deadline)
   }
 
-  private async waitForSnapshotComplete(timeout: number) {
+  private async waitForSnapshotComplete(snapshotId: string, deadline?: number): Promise<void> {
     let checkInterval = 100
     const startTime = Date.now()
 
-    while (this.state === SandboxState.SNAPSHOTTING) {
-      await this.refreshData()
-
-      // @ts-expect-error this.refreshData() can modify this.state so this check is fine
-      if (this.state === SandboxState.ERROR || this.state === SandboxState.BUILD_FAILED) {
-        throw new DaytonaError(
-          `Sandbox ${this.id} snapshot failed with state: ${this.state}, error reason: ${this.errorReason}`,
+    for (;;) {
+      if (deadline !== undefined && Date.now() >= deadline) {
+        throw new DaytonaTimeoutError(
+          `Timed out waiting for snapshot ${snapshotId}; capture continues on the server`,
         )
       }
 
-      if (this.state !== SandboxState.SNAPSHOTTING) {
-        return
+      const snapshot = (await this.snapshotsApi.getSnapshot(snapshotId)).data
+      if (!snapshot || snapshot.id !== snapshotId) {
+        throw new DaytonaError(`Snapshot lookup for ${snapshotId} returned an invalid response`)
       }
 
-      if (timeout !== 0 && Date.now() - startTime > timeout * 1000) {
-        throw new DaytonaTimeoutError('Sandbox snapshot did not complete within the timeout period')
+      switch (snapshot.state) {
+        case SnapshotState.ACTIVE:
+          await this.refreshData().catch(() => undefined)
+          return
+        case SnapshotState.ERROR:
+        case SnapshotState.BUILD_FAILED:
+          throw new DaytonaError(
+            `Snapshot ${snapshot.id} failed with state: ${snapshot.state}, error reason: ${snapshot.errorReason}`,
+          )
       }
 
-      await new Promise((resolve) => setTimeout(resolve, checkInterval))
+      const { promise, resolve } = Promise.withResolvers<void>()
+      setTimeout(resolve, checkInterval)
+      await promise
       if (Date.now() - startTime > 5000) {
         checkInterval = Math.min(checkInterval * 1.1, 1000)
       }

@@ -4,6 +4,15 @@
 import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
 import { DaytonaNotFoundError } from '../errors/DaytonaError'
+import { Sandbox } from '../Sandbox'
+
+const mockSnapshotsApi = {
+  getSnapshot: jest.fn(),
+}
+
+const mockServerApi = {
+  updateEnv: jest.fn(),
+}
 
 jest.mock(
   '@daytona/api-client',
@@ -14,6 +23,12 @@ jest.mock(
       BUILD_FAILED: 'build_failed',
       DESTROYED: 'destroyed',
     },
+    SnapshotState: {
+      ACTIVE: 'active',
+      ERROR: 'error',
+      BUILD_FAILED: 'build_failed',
+    },
+    SnapshotsApi: jest.fn(() => mockSnapshotsApi),
   }),
   { virtual: true },
 )
@@ -26,7 +41,7 @@ jest.mock(
     ProcessApi: jest.fn(() => ({})),
     LspApi: jest.fn(() => ({})),
     InfoApi: jest.fn(() => ({ getUserHomeDir: jest.fn(), getWorkDir: jest.fn() })),
-    ServerApi: jest.fn(() => ({ updateEnv: jest.fn() })),
+    ServerApi: jest.fn(() => mockServerApi),
     SystemApi: jest.fn(() => ({ getSystemMetrics: jest.fn() })),
     ComputerUseApi: jest.fn(() => ({})),
     InterpreterApi: jest.fn(() => ({})),
@@ -54,8 +69,7 @@ const baseDto: SandboxDto = {
 
 const makeSandbox = (
   overrides: Partial<SandboxDto> = {},
-): { sandbox: import('../Sandbox').Sandbox; sandboxApi: Record<string, jest.Mock> } => {
-  const { Sandbox } = require('../Sandbox') as typeof import('../Sandbox')
+): { sandbox: Sandbox; sandboxApi: Record<string, jest.Mock> } => {
   const sandboxApi = {
     startSandbox: jest.fn(),
     recoverSandbox: jest.fn(),
@@ -103,6 +117,10 @@ const makeSandbox = (
 }
 
 describe('Sandbox', () => {
+  beforeEach(() => {
+    mockSnapshotsApi.getSnapshot.mockReset()
+    mockServerApi.updateEnv.mockReset()
+  })
   it('maps dto fields in constructor', () => {
     const { sandbox } = makeSandbox({ labels: { team: 'sdk' }, autoStopInterval: 10 })
     expect(sandbox.id).toBe('sb-1')
@@ -265,25 +283,53 @@ describe('Sandbox', () => {
 
   it('updates the daemon environment', async () => {
     const { sandbox } = makeSandbox()
-    const serverApi = (sandbox as unknown as { serverApi: { updateEnv: jest.Mock } }).serverApi
-    // The daemon responds with a status message, not the resulting environment.
-    serverApi.updateEnv.mockResolvedValue(createApiResponse({ message: 'Environment updated successfully' }))
+    mockServerApi.updateEnv.mockResolvedValue(createApiResponse({ message: 'Environment updated successfully' }))
 
     await expect(sandbox.updateEnv({ NODE_ENV: 'production' }, { unset: ['DEBUG'] })).resolves.toBeUndefined()
 
-    expect(serverApi.updateEnv).toHaveBeenCalledWith({ set: { NODE_ENV: 'production' }, unset: ['DEBUG'] })
+    expect(mockServerApi.updateEnv).toHaveBeenCalledWith({ set: { NODE_ENV: 'production' }, unset: ['DEBUG'] })
   })
 
-  it('creates sandbox snapshots and waits for completion', async () => {
-    const { sandbox, sandboxApi } = makeSandbox({ state: 'snapshotting' })
-    sandboxApi.createSandboxSnapshot.mockResolvedValue(createApiResponse(undefined))
+  it('polls the accepted snapshot ID until that snapshot is active', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    sandboxApi.createSandboxSnapshot.mockResolvedValue(
+      createApiResponse({ id: 'snapshot-id', name: 'snap-1', state: 'capturing' }),
+    )
     sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'started' }))
+    mockSnapshotsApi.getSnapshot.mockResolvedValue(
+      createApiResponse({ id: 'snapshot-id', name: 'snap-1', state: 'active' }),
+    )
 
     await sandbox._experimental_createSnapshot('snap-1', 1)
 
     expect(sandboxApi.createSandboxSnapshot).toHaveBeenCalledWith('sb-1', { name: 'snap-1' }, undefined, {
       timeout: 1000,
     })
+    expect(mockSnapshotsApi.getSnapshot).toHaveBeenCalledWith('snapshot-id')
+  })
+
+  it('reports the accepted snapshot terminal failure', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    sandboxApi.createSandboxSnapshot.mockResolvedValue(
+      createApiResponse({ id: 'snapshot-id', name: 'snap-1', state: 'capturing' }),
+    )
+    mockSnapshotsApi.getSnapshot.mockResolvedValue(
+      createApiResponse({ id: 'snapshot-id', name: 'snap-1', state: 'error', errorReason: 'capture failed' }),
+    )
+
+    await expect(sandbox._experimental_createSnapshot('snap-1', 1)).rejects.toThrow(
+      'Snapshot snapshot-id failed with state: error, error reason: capture failed',
+    )
+  })
+
+  it('rejects a missing accepted snapshot response', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    sandboxApi.createSandboxSnapshot.mockResolvedValue(createApiResponse(undefined))
+
+    await expect(sandbox._experimental_createSnapshot('snap-1', 1)).rejects.toThrow(
+      "Didn't receive a snapshot ID",
+    )
+    expect(mockSnapshotsApi.getSnapshot).not.toHaveBeenCalled()
   })
 
   it('waitUntilStarted throws when sandbox enters an error state', async () => {

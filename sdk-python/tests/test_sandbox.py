@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from daytona.common.errors import DaytonaError, DaytonaValidationError
-from daytona_api_client import SandboxState, UpdateSandboxSecrets
+from daytona_api_client import SandboxState, SnapshotState, UpdateSandboxSecrets
 
 from .conftest import make_sandbox_dto
 
@@ -178,6 +178,43 @@ class TestSandboxOperations:
         assert request.set == {"A": "1"}
         assert request.unset == ["B"]
         assert request.unset_value_prefix is None
+
+
+class TestSandboxSnapshotCapture:
+    def test_polls_accepted_snapshot_id_until_active(
+        self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api
+    ):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(id="snapshot-id")
+        sandbox._snapshots_api = MagicMock(
+            get_snapshot=MagicMock(
+                return_value=MagicMock(id="snapshot-id", state=SnapshotState.ACTIVE, error_reason=None)
+            )
+        )
+        mock_sandbox_api.get_sandbox.side_effect = DaytonaError("best-effort refresh failed")
+
+        sandbox._experimental_create_snapshot("snap-1", timeout=1)
+
+        sandbox._snapshots_api.get_snapshot.assert_called_once_with("snapshot-id")
+
+    def test_reports_snapshot_terminal_failure(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.create_sandbox_snapshot.return_value = MagicMock(id="snapshot-id")
+        sandbox._snapshots_api = MagicMock(
+            get_snapshot=MagicMock(
+                return_value=MagicMock(
+                    id="snapshot-id",
+                    state=SnapshotState.ERROR,
+                    error_reason="capture failed",
+                )
+            )
+        )
+
+        with pytest.raises(
+            DaytonaError,
+            match="Snapshot snapshot-id failed with state: error, error reason: capture failed",
+        ):
+            sandbox._experimental_create_snapshot("snap-1", timeout=1)
 
 
 class TestSandboxWaitForStart:

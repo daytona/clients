@@ -14,15 +14,22 @@ from pydantic import ConfigDict, PrivateAttr
 from daytona_analytics_api_client import ApiClient as AnalyticsApiClient
 from daytona_analytics_api_client import Configuration as AnalyticsConfiguration
 from daytona_analytics_api_client import TelemetryApi
-from daytona_api_client import BuildInfo, ConfigApi, CreateSandboxSnapshot, ForkSandbox, PortPreviewUrl, ResizeSandbox
-from daytona_api_client import Sandbox as SandboxDto
 from daytona_api_client import (
+    BuildInfo,
+    ConfigApi,
+    CreateSandboxSnapshot,
+    ForkSandbox,
+    PortPreviewUrl,
+    ResizeSandbox,
+    Sandbox as SandboxDto,
     SandboxApi,
     SandboxLabels,
     SandboxListItem,
     SandboxState,
     SandboxVolume,
     SignedPortPreviewUrl,
+    SnapshotState,
+    SnapshotsApi,
     SshAccessDto,
     SshAccessValidationDto,
     UpdateSandboxNetworkSettings,
@@ -46,7 +53,7 @@ from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
-from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
+from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaTimeoutError, DaytonaValidationError
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
@@ -148,6 +155,7 @@ class Sandbox(SandboxDto):
         super().__init__(**sandbox_dto.model_dump())
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
+        self._snapshots_api: SnapshotsApi = SnapshotsApi(self._sandbox_api.api_client)
         self._analytics_api_url_provider: Callable[[], str | None] | None = analytics_api_url_provider
         self._http_client: httpx.Client = http_client
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
@@ -1027,14 +1035,13 @@ class Sandbox(SandboxDto):
         return forked
 
     @intercept_errors(message_prefix="Failed to create snapshot: ")
-    @with_timeout()
     @with_instrumentation()
     def _experimental_create_snapshot(self, name: str, timeout: float | None = 60) -> None:
         """Creates a snapshot from the current state of the Sandbox.
 
         This captures the Sandbox's filesystem into a reusable snapshot that can be
-        used to create new Sandboxes. The Sandbox will temporarily enter a
-        'snapshotting' state and return to its previous state when complete.
+        used to create new Sandboxes. The method waits for the accepted snapshot
+        to become active.
 
         Args:
             name (str): Name for the new snapshot.
@@ -1050,11 +1057,16 @@ class Sandbox(SandboxDto):
             print("Snapshot created successfully")
             ```
         """
-        _ = self._sandbox_api.create_sandbox_snapshot(
+        start_time = time.monotonic()
+        accepted = self._sandbox_api.create_sandbox_snapshot(
             self.id, CreateSandboxSnapshot(name=name), _request_timeout=http_timeout(timeout)
         )
-        self.refresh_data()
-        self.__wait_for_snapshot_complete()
+        snapshot_id = accepted.id if accepted else None
+        if not snapshot_id:
+            raise DaytonaError("Failed to create snapshot. Didn't receive a snapshot ID from the server API.")
+
+        deadline = None if timeout in (None, 0) else start_time + timeout
+        self.__wait_for_snapshot_complete(snapshot_id, deadline)
 
     @intercept_errors(message_prefix="Failed to pause sandbox")
     @with_instrumentation()
@@ -1095,20 +1107,31 @@ class Sandbox(SandboxDto):
             time.sleep(check_interval)
             check_interval = min(check_interval * 1.5, 1.0)
 
-    def __wait_for_snapshot_complete(self) -> None:
+    def __wait_for_snapshot_complete(self, snapshot_id: str, deadline: float | None) -> None:
         check_interval = 0.1
         start_time = time.monotonic()
 
-        while self.state == "snapshotting":
-            self.refresh_data()
-
-            if self.state in ["error", "build_failed"]:
-                raise DaytonaError(
-                    f"Sandbox {self.id} snapshot failed with state: {self.state}, error reason: {self.error_reason}"
+        while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise DaytonaTimeoutError(
+                    f"Timed out waiting for snapshot {snapshot_id}; capture continues on the server"
                 )
 
-            if self.state != "snapshotting":
+            snapshot = self._snapshots_api.get_snapshot(snapshot_id)
+            if not snapshot or snapshot.id != snapshot_id:
+                raise DaytonaError(f"Snapshot lookup for {snapshot_id} returned an invalid response")
+
+            if snapshot.state == SnapshotState.ACTIVE:
+                try:
+                    self.refresh_data()
+                except Exception:  # Best-effort local cleanup after definitive server success.
+                    pass
                 return
+            if snapshot.state in (SnapshotState.ERROR, SnapshotState.BUILD_FAILED):
+                state = snapshot.state.value if isinstance(snapshot.state, SnapshotState) else snapshot.state
+                raise DaytonaError(
+                    f"Snapshot {snapshot.id} failed with state: {state}, error reason: {snapshot.error_reason}"
+                )
 
             time.sleep(check_interval)
             if time.monotonic() - start_time > 5:

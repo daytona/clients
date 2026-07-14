@@ -5,9 +5,12 @@ package io.daytona.sdk;
 
 import io.daytona.api.client.ApiClient;
 import io.daytona.api.client.api.SandboxApi;
+import io.daytona.api.client.api.SnapshotsApi;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
 import io.daytona.api.client.model.SandboxState;
+import io.daytona.api.client.model.SnapshotDto;
+import io.daytona.api.client.model.SnapshotState;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaBadRequestException;
@@ -52,6 +55,8 @@ class SandboxTest {
 
     @Mock
     private SandboxApi sandboxApi;
+    @Mock
+    private SnapshotsApi snapshotsApi;
 
     @Mock
     private InfoApi infoApi;
@@ -64,6 +69,7 @@ class SandboxTest {
     @BeforeEach
     void setUp() {
         sandbox = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null);
+        TestSupport.setField(sandbox, "snapshotsApi", snapshotsApi);
     }
 
     @Test
@@ -304,15 +310,19 @@ class SandboxTest {
     @Test
     void experimentalForkAndSnapshotDelegate() {
         when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-2", SandboxState.STARTED));
-        io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
-        io.daytona.api.client.model.Sandbox started = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(snapshotting, started);
+        when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull()))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.CAPTURING, null));
+        when(snapshotsApi.getSnapshot("snapshot-id", null))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.ACTIVE, null));
+        when(sandboxApi.getSandbox("sb-1", null, null))
+                .thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         Sandbox forked = sandbox.experimentalFork("forked", 1);
         sandbox.experimentalCreateSnapshot("snap-1", 1);
 
         assertThat(forked.getId()).isEqualTo("sb-2");
         verify(sandboxApi).createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull());
+        verify(snapshotsApi).getSnapshot("snapshot-id", null);
     }
 
     @Test
@@ -328,21 +338,26 @@ class SandboxTest {
 
     @Test
     void experimentalCreateSnapshotFailsForErrorState() {
-        io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
-        io.daytona.api.client.model.Sandbox error = TestSupport.mainSandbox("sb-1", SandboxState.ERROR);
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(snapshotting, error);
+        when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull()))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.CAPTURING, null));
+        when(snapshotsApi.getSnapshot("snapshot-id", null))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.ERROR, "capture failed"));
 
         assertThatThrownBy(() -> sandbox.experimentalCreateSnapshot("snap-err", 1))
-                .hasMessageContaining("Sandbox snapshot failed with state: error");
+                .hasMessageContaining(
+                        "Snapshot snapshot-id failed with state: error, error reason: capture failed");
     }
 
     @Test
-    void experimentalCreateSnapshotTimesOutWhenSnapshottingPersists() {
-        io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(snapshotting, snapshotting, snapshotting, snapshotting, snapshotting);
+    void experimentalCreateSnapshotTimesOutWhileServerCaptureContinues() {
+        when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull()))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.CAPTURING, null));
+        when(snapshotsApi.getSnapshot("snapshot-id", null))
+                .thenReturn(snapshot("snapshot-id", SnapshotState.CAPTURING, null));
 
         assertThatThrownBy(() -> sandbox.experimentalCreateSnapshot("snap-timeout", 1))
-                .hasMessageContaining("Sandbox snapshot did not complete before timeout");
+                .hasMessageContaining(
+                        "Timed out waiting for snapshot snapshot-id; capture continues on the server");
     }
 
     @ParameterizedTest
@@ -354,6 +369,14 @@ class SandboxTest {
         assertThatThrownBy(() -> sandbox.start(1))
                 .isInstanceOf(type)
                 .hasMessage("mapped");
+    }
+
+    private static SnapshotDto snapshot(String id, SnapshotState state, String errorReason) {
+        SnapshotDto snapshot = new SnapshotDto();
+        snapshot.setId(id);
+        snapshot.setState(state);
+        snapshot.setErrorReason(errorReason);
+        return snapshot;
     }
 
     private static Stream<Arguments> mappedMainApiExceptions() {
