@@ -574,10 +574,10 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 
 	t.Run("create snapshot reports accepted snapshot failure", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch {
-			case r.Method == http.MethodPost:
+			switch r.Method {
+			case http.MethodPost:
 				writeJSONResponse(t, w, http.StatusAccepted, testSnapshotPayload("snapshot-id", "snap-name", apiclient.SNAPSHOTSTATE_CAPTURING))
-			case r.Method == http.MethodGet:
+			case http.MethodGet:
 				payload := testSnapshotPayload("snapshot-id", "snap-name", apiclient.SNAPSHOTSTATE_ERROR)
 				payload["errorReason"] = "capture failed"
 				writeJSONResponse(t, w, http.StatusOK, payload)
