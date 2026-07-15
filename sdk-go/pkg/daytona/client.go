@@ -292,8 +292,8 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 func useDeprecatedPolling(config *types.DaytonaConfig) bool {
 	envPolling := os.Getenv("DAYTONA_USE_DEPRECATED_POLLING") == "true"
 
-	if config != nil && config.UseDeprecatedPolling != nil {
-		return *config.UseDeprecatedPolling
+	if config != nil && config.UseDeprecatedPolling != nil { //nolint:staticcheck // intentional internal read of the deprecated option
+		return *config.UseDeprecatedPolling //nolint:staticcheck
 	}
 
 	return envPolling
