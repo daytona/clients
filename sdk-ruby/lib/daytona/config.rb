@@ -39,6 +39,16 @@ module Daytona
     # @return [Boolean, nil]
     attr_accessor :otel_enabled
 
+    # Observe sandbox state by legacy polling instead of WebSocket event streaming.
+    # Defaults to false (event streaming). Can also be enabled via the
+    # DAYTONA_USE_DEPRECATED_POLLING environment variable.
+    #
+    # @deprecated Polling-only mode will be removed in a future release;
+    #   event streaming is the default and falls back to polling automatically
+    #   when WebSockets are unavailable.
+    # @return [Boolean]
+    attr_accessor :use_deprecated_polling
+
     # Experimental configuration options
     #
     # @return [Hash, nil] Experimental configuration hash
@@ -52,6 +62,9 @@ module Daytona
     # @param organization_id [String, nil] Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
     # @param target [String, nil] Daytona target. Defaults to ENV['DAYTONA_TARGET'].
     # @param otel_enabled [Boolean, nil] Enable OpenTelemetry tracing for SDK operations.
+    # @param use_deprecated_polling [Boolean, nil] Observe sandbox state by legacy polling instead of
+    #   WebSocket event streaming. Defaults to false (event streaming). Can also be enabled via the
+    #   DAYTONA_USE_DEPRECATED_POLLING environment variable.
     # @param _experimental [Hash, nil] Experimental configuration options.
     def initialize( # rubocop:disable Metrics/ParameterLists
       api_key: nil,
@@ -60,6 +73,7 @@ module Daytona
       organization_id: nil,
       target: nil,
       otel_enabled: nil,
+      use_deprecated_polling: nil,
       _experimental: nil
     )
       @env_reader = daytona_env_reader
@@ -71,6 +85,7 @@ module Daytona
       @organization_id = organization_id || @env_reader.call('DAYTONA_ORGANIZATION_ID')
       @otel_enabled = otel_enabled
       @_experimental = _experimental
+      @use_deprecated_polling = resolve_use_deprecated_polling(use_deprecated_polling)
     end
 
     # Reads a DAYTONA_-prefixed environment variable using the same precedence
@@ -104,6 +119,12 @@ module Daytona
 
     def daytona_filter(env_hash)
       env_hash.select { |k, _| k.start_with?('DAYTONA_') }
+    end
+
+    def resolve_use_deprecated_polling(use_deprecated_polling)
+      return use_deprecated_polling unless use_deprecated_polling.nil?
+
+      @env_reader.call('DAYTONA_USE_DEPRECATED_POLLING') == 'true'
     end
   end
 end

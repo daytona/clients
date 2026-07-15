@@ -67,6 +67,13 @@ class DaytonaConfig(BaseModel):
             recommended when running many concurrent long-lived operations like `process.exec`.
         otel_enabled (bool | None): Enable OpenTelemetry tracing for SDK operations. Defaults
             to `None`, which falls back to the `DAYTONA_OTEL_ENABLED` environment variable.
+        use_deprecated_polling (bool | None): Observe sandbox state by legacy polling instead
+            of WebSocket event streaming. Defaults to ``False`` (event streaming). Can also be
+            enabled via the ``DAYTONA_USE_DEPRECATED_POLLING`` environment variable.
+
+            .. deprecated::
+                Polling-only mode will be removed in a future release; event streaming is the
+                default and falls back to polling automatically when WebSockets are unavailable.
         _experimental (dict[str, any] | None): Configuration for experimental features.
 
     Example:
@@ -92,6 +99,7 @@ class DaytonaConfig(BaseModel):
     organization_id: str | None = None
     connection_pool_maxsize: int | None = 250
     otel_enabled: bool | None = None
+    use_deprecated_polling: bool | None = None
     _experimental: Annotated[
         dict[str, object] | None,
         Field(
@@ -112,6 +120,13 @@ class DaytonaConfig(BaseModel):
             if "api_url" not in values or not values["api_url"]:
                 values["api_url"] = values["server_url"]
         return values
+
+
+def resolve_bool_flag(explicit_value: bool | None, env_value: str | None) -> bool:
+    if explicit_value is not None:
+        return explicit_value
+
+    return (env_value or "").lower() == "true"
 
 
 class CreateSandboxBaseParams(BaseModel):

@@ -54,14 +54,62 @@ class DaytonaConfigTest {
         assertThat(config.getApiKey()).isNull();
         assertThat(config.getTarget()).isNull();
         assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+        assertThat(config.isUseDeprecatedPolling()).isFalse();
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void builderStoresExplicitUseDeprecatedPollingValue() {
+        DaytonaConfig config = new DaytonaConfig.Builder()
+                .useDeprecatedPolling(true)
+                .build();
+
+        assertThat(config.isUseDeprecatedPolling()).isTrue();
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void builderDefaultsUseDeprecatedPollingToFalse() {
+        DaytonaConfig config = new DaytonaConfig.Builder().build();
+
+        assertThat(config.isUseDeprecatedPolling()).isFalse();
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void builderReadsUseDeprecatedPollingFromEnvironmentWhenUnset() throws Exception {
+        Map<String, String> env = new HashMap<String, String>();
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
+
+        TestSupport.withEnvironment(env, () -> {
+            DaytonaConfig config = new DaytonaConfig.Builder().build();
+            assertThat(config.isUseDeprecatedPolling()).isTrue();
+        });
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void explicitUseDeprecatedPollingOverridesEnvironment() throws Exception {
+        Map<String, String> env = new HashMap<String, String>();
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
+
+        TestSupport.withEnvironment(env, () -> {
+            DaytonaConfig config = new DaytonaConfig.Builder()
+                    .useDeprecatedPolling(false)
+                    .build();
+
+            assertThat(config.isUseDeprecatedPolling()).isFalse();
+        });
+    }
+
+    @SuppressWarnings("deprecation")
     @Test
     void defaultDaytonaConstructorReadsEnvironmentVariables() throws Exception {
         Map<String, String> env = new HashMap<String, String>();
         env.put("DAYTONA_API_KEY", "env-key");
         env.put("DAYTONA_API_URL", "https://env.example/api/");
         env.put("DAYTONA_TARGET", "eu");
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
             try (Daytona daytona = new Daytona()) {
@@ -69,6 +117,7 @@ class DaytonaConfigTest {
                 assertThat(config.getApiKey()).isEqualTo("env-key");
                 assertThat(config.getApiUrl()).isEqualTo("https://env.example/api/");
                 assertThat(config.getTarget()).isEqualTo("eu");
+                assertThat(config.isUseDeprecatedPolling()).isTrue();
             }
         });
     }

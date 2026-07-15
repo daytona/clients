@@ -6,6 +6,7 @@ hideTitleOnPage: true
 ## Sandbox
 
 ```python
+@with_events
 class Sandbox(SandboxDto)
 ```
 
@@ -83,6 +84,7 @@ def __init__(sandbox_dto: SandboxDto | SandboxListItem,
              toolbox_api: ApiClient,
              sandbox_api: SandboxApi,
              language: str,
+             subscription_manager: SyncEventSubscriptionManager,
              http_client: httpx.Client,
              analytics_api_url_provider: Callable[[], str | None]
              | None = None)
@@ -95,6 +97,7 @@ Initialize a new Sandbox instance.
 - `sandbox_dto` _SandboxDto | SandboxListItem_ - The sandbox data from the API.
 - `toolbox_api` _ApiClient_ - API client for toolbox operations.
 - `sandbox_api` _SandboxApi_ - API client for Sandbox operations.
+- `subscription_manager` - SyncEventSubscriptionManager for real-time updates.
 - `http_client` _httpx.Client_ - Shared pooled client for file transfers.
 
 #### Sandbox.refresh\_data
@@ -373,15 +376,19 @@ print("Sandbox stopped successfully")
 @intercept_errors(message_prefix="Failed to remove sandbox: ")
 @with_timeout()
 @with_instrumentation()
-def delete(timeout: float | None = 60) -> None
+def delete(timeout: float | None = 60, wait: bool = False) -> None
 ```
 
 Deletes the Sandbox.
 
+By default returns as soon as the deletion request is accepted (fire-and-forget).
+Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
+
 **Arguments**:
 
-- `timeout` _float | None_ - Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-  Default is 60 seconds.
+- `timeout` _float | None_ - Timeout (in seconds) for the request and, when ``wait``
+  is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+- `wait` _bool_ - If True, wait until the Sandbox is destroyed. Defaults to False.
 
 #### Sandbox.wait\_for\_sandbox\_start
 
@@ -393,8 +400,7 @@ Deletes the Sandbox.
 def wait_for_sandbox_start(timeout: float | None = 60) -> None
 ```
 
-Waits for the Sandbox to reach the 'started' state. Polls the Sandbox status until it
-reaches the 'started' state, encounters an error or times out.
+Waits for the Sandbox to reach the 'started' state.
 
 **Arguments**:
 
@@ -403,7 +409,7 @@ reaches the 'started' state, encounters an error or times out.
 
 **Raises**:
 
-- `DaytonaError` - If timeout is negative; If Sandbox fails to start or times out
+- `DaytonaError` - If timeout is negative; If Sandbox fails to start or times out;
 
 #### Sandbox.wait\_for\_sandbox\_stop
 
@@ -415,9 +421,7 @@ reaches the 'started' state, encounters an error or times out.
 def wait_for_sandbox_stop(timeout: float | None = 60) -> None
 ```
 
-Waits for the Sandbox to reach the 'stopped' state. Polls the Sandbox status until it
-reaches the 'stopped' state, encounters an error or times out. It will wait up to 60 seconds
-for the Sandbox to stop.
+Waits for the Sandbox to reach the 'stopped' state.
 Treats destroyed as stopped to cover ephemeral sandboxes that are automatically deleted after stopping.
 
 **Arguments**:
@@ -816,8 +820,7 @@ sandbox.resize(Resources(cpu=2, memory=4, disk=30))
 def wait_for_resize_complete(timeout: float | None = 60) -> None
 ```
 
-Waits for the Sandbox resize operation to complete. Polls the Sandbox status until
-the state is no longer 'resizing'.
+Waits for the Sandbox resize operation to complete.
 
 **Arguments**:
 
@@ -916,6 +919,7 @@ sandbox.refresh_activity()
 
 ```python
 @intercept_errors(message_prefix="Failed to pause sandbox")
+@with_timeout()
 @with_instrumentation()
 def pause(timeout: float = 60) -> None
 ```

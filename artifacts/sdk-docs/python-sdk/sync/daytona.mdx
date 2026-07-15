@@ -213,16 +213,20 @@ sandbox = daytona.create(
 
 ```python
 @with_instrumentation()
-def delete(sandbox: Sandbox, timeout: float = 60) -> None
+def delete(sandbox: Sandbox, timeout: float = 60, wait: bool = False) -> None
 ```
 
 Deletes a Sandbox.
 
+By default returns as soon as the deletion request is accepted (fire-and-forget).
+Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
+
 **Arguments**:
 
 - `sandbox` _Sandbox_ - The Sandbox instance to delete.
-- `timeout` _float_ - Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-  Default is 60 seconds.
+- `timeout` _float_ - Timeout (in seconds) for the request and, when ``wait``
+  is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+- `wait` _bool_ - If True, wait until the Sandbox is destroyed. Defaults to False.
   
 
 **Raises**:
@@ -390,6 +394,13 @@ Configuration options for initializing the Daytona client.
   recommended when running many concurrent long-lived operations like `process.exec`.
 - `otel_enabled` _bool | None_ - Enable OpenTelemetry tracing for SDK operations. Defaults
   to `None`, which falls back to the `DAYTONA_OTEL_ENABLED` environment variable.
+- `use_deprecated_polling` _bool | None_ - Observe sandbox state by legacy polling instead
+  of WebSocket event streaming. Defaults to ``False`` (event streaming). Can also be
+  enabled via the ``DAYTONA_USE_DEPRECATED_POLLING`` environment variable.
+  
+  .. deprecated::
+  Polling-only mode will be removed in a future release; event streaming is the
+  default and falls back to polling automatically when WebSockets are unavailable.
 - `_experimental` _dict[str, any] | None_ - Configuration for experimental features.
   
 

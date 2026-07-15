@@ -8,7 +8,8 @@ hideTitleOnPage: true
 Represents a Daytona Sandbox instance.
 
 Exposes lifecycle controls and operation facades for process execution, file-system access,
-and Git.
+and Git. State changes are streamed over WebSocket by default with polling as a safety net,
+or observed by polling only when the deprecated polling mode is enabled.
 
 **Properties**:
 
@@ -108,11 +109,15 @@ Waits until Sandbox reaches `stopped` (or `destroyed`) state.
 public void delete()
 ```
 
-Deletes this Sandbox with default timeout behavior.
+Deletes this Sandbox.
+
+Fires the delete API call and returns immediately without waiting for the
+Sandbox to reach the `destroyed` state. Use `#delete(long, boolean)`
+with `wait=true` to block until destruction completes.
 
 **Throws**:
 
-- `DaytonaException` - if deletion fails
+- `DaytonaException` - if the delete API call fails
 
 #### delete()
 ```java
@@ -121,13 +126,32 @@ public void delete(long timeoutSeconds)
 
 Deletes this Sandbox.
 
+Fires the delete API call and returns immediately. Use
+`#delete(long, boolean)` with `wait=true` to block until destroyed.
+
 **Parameters**:
 
-- `timeoutSeconds` _long_ - reserved timeout parameter for parity with other SDKs
+- `timeoutSeconds` _long_ - timeout for the HTTP request (and for waiting when `wait` is true in `#delete(long, boolean)`)
 
 **Throws**:
 
-- `DaytonaException` - if deletion fails
+- `DaytonaException` - if the delete API call fails
+
+#### delete()
+```java
+public void delete(long timeoutSeconds, boolean wait)
+```
+
+Deletes this Sandbox, optionally waiting for it to reach the `destroyed` state.
+
+**Parameters**:
+
+- `timeoutSeconds` _long_ - maximum seconds to wait when `wait` is true; `0` disables timeout. Ignored when `wait` is false.
+- `wait` _boolean_ - if `true`, block until the Sandbox is destroyed
+
+**Throws**:
+
+- `DaytonaException` - if deletion fails or times out
 
 #### setLabels()
 ```java
@@ -369,6 +393,21 @@ Waits until Sandbox reaches `started` state.
 
 - `DaytonaException` - if timeout is invalid, state becomes failure, or timeout expires
 
+#### waitForResizeComplete()
+```java
+public void waitForResizeComplete(long timeoutSeconds)
+```
+
+Waits for a resize operation to complete.
+
+**Parameters**:
+
+- `timeoutSeconds` _long_ - maximum seconds to wait; `0` disables timeout
+
+**Throws**:
+
+- `DaytonaException` - if resize times out or fails
+
 #### refreshData()
 ```java
 public void refreshData()
@@ -469,7 +508,8 @@ public void pause(long timeoutSeconds) throws DaytonaException
 ```
 
 Pauses the Sandbox, freezing all running processes.
-The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+Completes when the Sandbox has left the `pausing` state — any non-error
+terminal state (paused, stopped, archived, etc.) is accepted.
 
 **Parameters**:
 

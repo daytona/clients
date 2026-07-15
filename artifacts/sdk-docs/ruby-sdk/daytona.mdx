@@ -152,7 +152,7 @@ or if auto_stop_interval and auto_pause_interval are both non-zero
 #### delete()
 
 ```ruby
-def delete(sandbox)
+def delete(sandbox, wait: false)
 
 ```
 
@@ -161,6 +161,7 @@ Deletes a Sandbox.
 **Parameters**:
 
 - `sandbox` _Daytona:Sandbox_ -
+- `wait` _Boolean_ - When +true+, block until the Sandbox is destroyed.
 
 **Returns**:
 

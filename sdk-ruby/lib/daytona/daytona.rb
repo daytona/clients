@@ -55,14 +55,42 @@ module Daytona
       @secret = SecretService.new(DaytonaApiClient::SecretApi.new(api_client), otel_state:)
       @object_storage_api = DaytonaApiClient::ObjectStorageApi.new(api_client)
       @snapshots_api = DaytonaApiClient::SnapshotsApi.new(api_client)
-      @snapshot = SnapshotService.new(snapshots_api:, object_storage_api:, default_region_id: config.target,
-                                      otel_state:)
+      @snapshot = SnapshotService.new(
+        snapshots_api:,
+        object_storage_api:,
+        default_region_id: config.target,
+        otel_state:
+      )
+      token = config.api_key || config.jwt_token
+
+      if config.use_deprecated_polling
+        warn(
+          '[DEPRECATION] Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING) ' \
+          'is deprecated and will be removed in a future release.',
+          uplevel: 1
+        )
+      else
+        @event_dispatcher = EventDispatcher.new(
+          api_url: config.api_url,
+          token: token,
+          organization_id: config.organization_id,
+          source: SOURCE_RUBY,
+          sdk_version: Sdk::VERSION
+        )
+        @event_dispatcher.ensure_connected
+      end
+
+      @subscription_manager = EventSubscriptionManager.new(@event_dispatcher)
     end
 
     # Shuts down OTel providers, flushing any pending telemetry data.
     #
     # @return [void]
     def close
+      @subscription_manager&.shutdown
+      @subscription_manager = nil
+      @event_dispatcher&.disconnect
+      @event_dispatcher = nil
       ::Daytona.shutdown_otel(@otel_state)
       @otel_state = nil
     end
@@ -91,8 +119,9 @@ module Daytona
     # Deletes a Sandbox.
     #
     # @param sandbox [Daytona::Sandbox]
+    # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
-    def delete(sandbox) = sandbox.delete
+    def delete(sandbox, wait: false) = sandbox.delete(wait:)
 
     # Gets a Sandbox by its ID.
     #
@@ -352,7 +381,8 @@ module Daytona
         config:,
         sandbox_api:,
         otel_state: @otel_state,
-        analytics_api_url_provider: method(:analytics_api_url)
+        analytics_api_url_provider: method(:analytics_api_url),
+        subscription_manager: @subscription_manager
       )
     end
 

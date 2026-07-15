@@ -98,6 +98,51 @@ class TestDaytonaInit:
         with pytest.raises(DaytonaAuthenticationError, match="DAYTONA_ORGANIZATION_ID is required"):
             _make_daytona(DaytonaConfig(jwt_token="jwt", api_url="https://api.test.io", target="us"))
 
+    @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
+    def test_init_default_creates_event_dispatcher(self, mock_dispatcher, env_with_api_key):
+        dispatcher = MagicMock()
+        mock_dispatcher.return_value = dispatcher
+
+        daytona = _make_daytona()
+
+        assert daytona._event_dispatcher is dispatcher
+        dispatcher.ensure_connected.assert_called_once_with()
+
+    @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
+    def test_deprecated_polling_config_disables_dispatcher(self, mock_dispatcher, env_with_api_key):
+        with pytest.warns(DeprecationWarning, match="Polling-only mode"):
+            daytona = _make_daytona(
+                DaytonaConfig(
+                    api_key="test-key", api_url="https://api.test.io", target="us", use_deprecated_polling=True
+                )
+            )
+
+        assert daytona._event_dispatcher is None
+        mock_dispatcher.assert_not_called()
+
+    @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
+    def test_deprecated_polling_env_disables_dispatcher(self, mock_dispatcher, env_with_api_key, monkeypatch):
+        monkeypatch.setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+        with pytest.warns(DeprecationWarning, match="Polling-only mode"):
+            daytona = _make_daytona()
+
+        assert daytona._event_dispatcher is None
+        mock_dispatcher.assert_not_called()
+
+    @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
+    def test_explicit_false_beats_env_var(self, mock_dispatcher, env_with_api_key, monkeypatch):
+        dispatcher = MagicMock()
+        mock_dispatcher.return_value = dispatcher
+        monkeypatch.setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+        daytona = _make_daytona(
+            DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us", use_deprecated_polling=False)
+        )
+
+        assert daytona._event_dispatcher is dispatcher
+        dispatcher.ensure_connected.assert_called_once_with()
+
 
 class TestDaytonaCreateValidation:
     def test_negative_timeout_raises(self, env_with_api_key):

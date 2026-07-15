@@ -11,6 +11,7 @@ RSpec.describe Daytona::Config do
       DAYTONA_API_URL
       DAYTONA_TARGET
       DAYTONA_ORGANIZATION_ID
+      DAYTONA_USE_DEPRECATED_POLLING
       DAYTONA_CUSTOM_VAR
     ]
     saved = env_keys.to_h { |key| [key, ENV.delete(key)] }
@@ -88,6 +89,28 @@ RSpec.describe Daytona::Config do
       config = described_class.new(api_key: 'k', _experimental: { 'otel_enabled' => true })
 
       expect(config._experimental).to eq({ 'otel_enabled' => true })
+    end
+
+    it 'defaults use_deprecated_polling to false' do
+      config = described_class.new(api_key: 'k')
+
+      expect(config.use_deprecated_polling).to be(false)
+    end
+
+    it 'reads use_deprecated_polling from ENV when explicit args are missing' do
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      config = described_class.new(api_key: 'k')
+
+      expect(config.use_deprecated_polling).to be(true)
+    end
+
+    it 'keeps use_deprecated_polling disabled when explicit config is false even if ENV is true' do
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      config = described_class.new(api_key: 'k', use_deprecated_polling: false)
+
+      expect(config.use_deprecated_polling).to be(false)
     end
   end
 

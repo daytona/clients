@@ -14,6 +14,7 @@ public final class DaytonaConfig {
     private final String apiUrl;
     private final String target;
     private final boolean otelEnabled;
+    private final boolean useDeprecatedPolling;
 
     private DaytonaConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -22,6 +23,9 @@ public final class DaytonaConfig {
                 : builder.apiUrl;
         this.target = builder.target;
         this.otelEnabled = builder.otelEnabled;
+        this.useDeprecatedPolling = builder.useDeprecatedPolling != null
+                ? builder.useDeprecatedPolling
+                : "true".equals(System.getenv("DAYTONA_USE_DEPRECATED_POLLING"));
     }
 
     /**
@@ -65,6 +69,18 @@ public final class DaytonaConfig {
     }
 
     /**
+     * Returns whether legacy polling mode is enabled instead of WebSocket event streaming.
+     *
+     * @return {@code true} if deprecated polling mode is active
+     * @deprecated Polling-only mode will be removed in a future release; event streaming is
+     *     the default and falls back to polling automatically when WebSockets are unavailable.
+     */
+    @Deprecated
+    public boolean isUseDeprecatedPolling() {
+        return useDeprecatedPolling;
+    }
+
+    /**
      * Builder for creating immutable {@link DaytonaConfig} instances.
      */
     public static class Builder {
@@ -72,6 +88,7 @@ public final class DaytonaConfig {
         private String apiUrl;
         private String target;
         private boolean otelEnabled;
+        private Boolean useDeprecatedPolling;
 
         /**
          * Sets the API key used for authenticating SDK requests.
@@ -118,6 +135,22 @@ public final class DaytonaConfig {
          */
         public Builder otelEnabled(boolean otelEnabled) {
             this.otelEnabled = otelEnabled;
+            return this;
+        }
+
+        /**
+         * Observe sandbox state by legacy polling instead of WebSocket event streaming.
+         * Defaults to {@code false} (event streaming). Can also be enabled via the
+         * {@code DAYTONA_USE_DEPRECATED_POLLING} environment variable.
+         *
+         * @param useDeprecatedPolling whether to use legacy polling
+         * @return this builder instance
+         * @deprecated Polling-only mode will be removed in a future release; event streaming is
+         *     the default and falls back to polling automatically when WebSockets are unavailable.
+         */
+        @Deprecated
+        public Builder useDeprecatedPolling(boolean useDeprecatedPolling) {
+            this.useDeprecatedPolling = useDeprecatedPolling;
             return this;
         }
 

@@ -17,6 +17,12 @@ RSpec.describe Daytona::Daytona do
   let(:secret_api) { instance_double(DaytonaApiClient::SecretApi) }
   let(:object_storage_api) { instance_double(DaytonaApiClient::ObjectStorageApi) }
   let(:snapshots_api) { instance_double(DaytonaApiClient::SnapshotsApi) }
+  let(:subscription_manager) do
+    instance_double(Daytona::EventSubscriptionManager, shutdown: nil)
+  end
+  let(:event_dispatcher) do
+    instance_double(Daytona::EventDispatcher, ensure_connected: nil, disconnect: nil)
+  end
   let(:sandbox_dto) { build_sandbox_dto }
   let(:sandbox) { instance_double(Daytona::Sandbox, id: 'sandbox-123', state: DaytonaApiClient::SandboxState::STARTED) }
 
@@ -28,6 +34,8 @@ RSpec.describe Daytona::Daytona do
     allow(DaytonaApiClient::SecretApi).to receive(:new).and_return(secret_api)
     allow(DaytonaApiClient::ObjectStorageApi).to receive(:new).and_return(object_storage_api)
     allow(DaytonaApiClient::SnapshotsApi).to receive(:new).and_return(snapshots_api)
+    allow(Daytona::EventSubscriptionManager).to receive(:new).and_return(subscription_manager)
+    allow(Daytona::EventDispatcher).to receive(:new).and_return(event_dispatcher)
     allow(Daytona::Sandbox).to receive(:new).and_return(sandbox)
   end
 
@@ -39,6 +47,62 @@ RSpec.describe Daytona::Daytona do
       expect(daytona.volume).to be_a(Daytona::VolumeService)
       expect(daytona.secret).to be_a(Daytona::SecretService)
       expect(daytona.snapshot).to be_a(Daytona::SnapshotService)
+    end
+
+    it 'creates and connects an event dispatcher by default' do
+      described_class.new(config)
+
+      expect(Daytona::EventDispatcher).to have_received(:new).with(
+        api_url: 'https://api.example.com',
+        token: 'test-api-key',
+        organization_id: nil,
+        source: 'sdk-ruby',
+        sdk_version: Daytona::Sdk::VERSION
+      )
+      expect(event_dispatcher).to have_received(:ensure_connected)
+      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(event_dispatcher)
+    end
+
+    it 'skips dispatcher when use_deprecated_polling is true' do
+      expect do
+        described_class.new(build_config(use_deprecated_polling: true))
+      end.to output(/DEPRECATION/).to_stderr
+
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(nil)
+    end
+
+    it 'skips dispatcher when DAYTONA_USE_DEPRECATED_POLLING env var is set' do
+      original = ENV.fetch('DAYTONA_USE_DEPRECATED_POLLING', nil)
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      expect do
+        described_class.new(build_config)
+      end.to output(/DEPRECATION/).to_stderr
+
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+    ensure
+      original ? ENV['DAYTONA_USE_DEPRECATED_POLLING'] = original : ENV.delete('DAYTONA_USE_DEPRECATED_POLLING')
+    end
+
+    it 'creates dispatcher when explicit use_deprecated_polling is false even if ENV is true' do
+      original = ENV.fetch('DAYTONA_USE_DEPRECATED_POLLING', nil)
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      described_class.new(build_config(use_deprecated_polling: false))
+
+      expect(Daytona::EventDispatcher).to have_received(:new)
+      expect(event_dispatcher).to have_received(:ensure_connected)
+    ensure
+      original ? ENV['DAYTONA_USE_DEPRECATED_POLLING'] = original : ENV.delete('DAYTONA_USE_DEPRECATED_POLLING')
+    end
+
+    it 'emits a deprecation warning when polling mode is active' do
+      expect do
+        described_class.new(build_config(use_deprecated_polling: true))
+      end.to output(
+        /Polling-only mode.*use_deprecated_polling.*DAYTONA_USE_DEPRECATED_POLLING.*deprecated/
+      ).to_stderr
     end
 
     it 'configures API client headers and user agent' do
@@ -314,6 +378,7 @@ RSpec.describe Daytona::Daytona do
         sandbox_dto: sandbox_dto,
         config: config,
         sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager,
         otel_state: nil,
         analytics_api_url_provider: kind_of(Method)
       )

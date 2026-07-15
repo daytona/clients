@@ -120,6 +120,10 @@ type Client struct {
 	analyticsAPIURL        string
 	analyticsAPIURLFetched bool
 
+	eventDispatcher *common.EventDispatcher
+
+	subscriptionManager *common.EventSubscriptionManager
+
 	// Volume provides methods for managing persistent volumes.
 	Volume *VolumeService
 
@@ -270,14 +274,41 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	client.Volume = NewVolumeService(client)
 	client.Snapshot = NewSnapshotService(client)
 	client.Secret = NewSecretService(client)
+	client.subscriptionManager = common.NewEventSubscriptionManager(nil)
+
+	token := client.apiKey
+	if token == "" {
+		token = client.jwtToken
+	}
+	if token != "" && !useDeprecatedPolling(config) {
+		client.eventDispatcher = common.NewEventDispatcher(client.apiURL, token, client.organizationID, sdkSource, Version)
+		client.subscriptionManager = common.NewEventSubscriptionManager(client.eventDispatcher)
+		client.eventDispatcher.EnsureConnected()
+	}
 
 	return client, nil
+}
+
+func useDeprecatedPolling(config *types.DaytonaConfig) bool {
+	envPolling := os.Getenv("DAYTONA_USE_DEPRECATED_POLLING") == "true"
+
+	if config != nil && config.UseDeprecatedPolling != nil { //nolint:staticcheck // intentional internal read of the deprecated option
+		return *config.UseDeprecatedPolling //nolint:staticcheck
+	}
+
+	return envPolling
 }
 
 // Close shuts down the client and releases resources.
 // When OpenTelemetry is enabled, Close flushes and shuts down the OTel providers.
 // It is safe to call Close even when OTel is not enabled.
 func (c *Client) Close(ctx context.Context) error {
+	if c.subscriptionManager != nil {
+		c.subscriptionManager.Shutdown()
+	}
+	if c.eventDispatcher != nil {
+		c.eventDispatcher.Disconnect()
+	}
 	return shutdownOtel(ctx, c.Otel)
 }
 
@@ -615,10 +646,10 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
-	sandbox := NewSandbox(c, toolboxClient, sandboxResp, language)
+	sandbox := NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager)
 
 	// Handle snapshot build logs
-	if sandbox.State == apiclient.SANDBOXSTATE_PENDING_BUILD {
+	if sandbox.currentState() == apiclient.SANDBOXSTATE_PENDING_BUILD {
 		if createOpts.LogChannel != nil {
 			// Start log streaming in background
 			go func() {
@@ -628,7 +659,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 				ticker := time.NewTicker(1 * time.Second)
 				defer ticker.Stop()
 
-				for sandbox.State == apiclient.SANDBOXSTATE_PENDING_BUILD {
+				for sandbox.currentState() == apiclient.SANDBOXSTATE_PENDING_BUILD {
 					select {
 					case <-ctx.Done():
 						return
@@ -653,7 +684,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 
 	// Wait for sandbox to start
-	if createOpts.WaitForStart && sandbox.State != apiclient.SANDBOXSTATE_STARTED {
+	if createOpts.WaitForStart && sandbox.currentState() != apiclient.SANDBOXSTATE_STARTED {
 		if err := sandbox.WaitForStart(ctx, timeoutVal); err != nil {
 			return nil, err
 		}
@@ -701,7 +732,7 @@ func (c *Client) doGet(ctx context.Context, sandboxIDOrName string) (*Sandbox, e
 	}
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
-	return NewSandbox(c, toolboxClient, sandboxResp, language), nil
+	return NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager), nil
 }
 
 // List returns an iterator over Sandboxes matching the given query, following
@@ -849,7 +880,7 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 			}
 
 			lang := types.CodeLanguage(items[i].GetLabels()[types.CodeToolboxLanguageLabel])
-			sandboxes[i] = NewSandbox(c, toolboxClient, &items[i], lang)
+			sandboxes[i] = NewSandbox(c, toolboxClient, &items[i], lang, c.subscriptionManager)
 		}
 
 		var nextCursor *string

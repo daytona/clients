@@ -11,13 +11,20 @@ import pytest
 from daytona.common.errors import DaytonaError, DaytonaValidationError
 from daytona_api_client import SandboxState, UpdateSandboxSecrets
 
-from .conftest import make_sandbox_dto
+from .conftest import make_pydantic_validation_error, make_sandbox_dto
 
 
 def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
     from daytona._sync.sandbox import Sandbox
 
-    return Sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api, "python", http_client=MagicMock())
+    return Sandbox(
+        sandbox_dto,
+        mock_toolbox_api_client,
+        mock_sandbox_api,
+        "python",
+        subscription_manager=MagicMock(),
+        http_client=MagicMock(),
+    )
 
 
 class TestSandboxInit:
@@ -39,6 +46,13 @@ class TestSandboxInit:
         assert sandbox.process is not None
         assert sandbox.computer_use is not None
         assert sandbox.code_interpreter is not None
+
+    def test_process_dto_preserves_proxy_url_when_missing(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(toolbox_proxy_url="http://hydrated:2280")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        update_dto = make_sandbox_dto(toolbox_proxy_url="")
+        sandbox._Sandbox__process_sandbox_dto(update_dto)
+        assert sandbox.toolbox_proxy_url == "http://hydrated:2280"
 
 
 class TestSandboxLifecycleSettings:
@@ -185,5 +199,75 @@ class TestSandboxWaitForStart:
         error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="build failed")
         sandbox = make_sandbox(error_dto, mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.return_value = error_dto
-        with pytest.raises(DaytonaError, match="failed to start"):
+        with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             sandbox.wait_for_sandbox_start(timeout=0)
+
+
+class TestSandboxPollingSemantics:
+    def test_cached_error_recovers_after_refresh(self, mock_toolbox_api_client, mock_sandbox_api):
+        error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient")
+        sandbox = make_sandbox(error_dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox.wait_for_sandbox_start(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    def test_validation_error_tolerated_during_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_pydantic_validation_error(),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+        sandbox.wait_for_sandbox_stop(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_non_validation_error_aborts_stop_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = Exception("401 Unauthorized")
+        with pytest.raises(Exception, match="401 Unauthorized"):
+            sandbox.wait_for_sandbox_stop(timeout=0)
+
+    def test_error_only_mentioning_validation_in_message_aborts_stop_wait(
+        self, mock_toolbox_api_client, mock_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = Exception("500 upstream failure: validation error in body")
+        with pytest.raises(Exception, match="500 upstream failure"):
+            sandbox.wait_for_sandbox_stop(timeout=0)
+
+    def test_delete_none_response_does_not_raise(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = None
+        sandbox.delete(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    def test_delete_default_does_not_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+        sandbox.delete(timeout=0)
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.DESTROYING
+
+    def test_delete_wait_true_blocks_until_destroyed(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYED)
+        sandbox.delete(timeout=0, wait=True)
+        mock_sandbox_api.get_sandbox.assert_called()
+        assert sandbox.state == SandboxState.DESTROYED
+
+    def test_pause_resolves_on_stopped(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.pause_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.PAUSING),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+        sandbox.pause(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED

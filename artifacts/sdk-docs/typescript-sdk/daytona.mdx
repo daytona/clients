@@ -232,7 +232,10 @@ const sandbox = await daytona.create(params, { timeout: 100, onSnapshotCreateLog
 #### delete()
 
 ```ts
-delete(sandbox: Sandbox, timeout: number): Promise<void>
+delete(
+   sandbox: Sandbox, 
+   timeout: number, 
+wait: boolean): Promise<void>
 ```
 
 Deletes a Sandbox.
@@ -241,6 +244,7 @@ Deletes a Sandbox.
 
 - `sandbox` _Sandbox_ - The Sandbox to delete
 - `timeout` _number = 60_ - Timeout in seconds (0 means no timeout, default is 60)
+- `wait` _boolean = false_ - If true, wait until the Sandbox is destroyed (default is false)
 
 
 **Returns**:
@@ -464,7 +468,14 @@ Configuration options for initializing the Daytona client.
     If set, all SDK operations will be traced.
 - ~~`serverUrl?`~~ _string_ - **_Deprecated_** - Use `apiUrl` instead. This property will be removed in future versions.
 - `target?` _string_ - Target location for Sandboxes
+- ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
+    Defaults to `false`, where state changes are streamed over WebSocket. Can also
+    be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
     
+    streaming is the default and falls back to polling automatically when
+    WebSockets are unavailable.
+    
+    - **_Deprecated_** - Polling-only mode will be removed in a future release. Event
 
 
 

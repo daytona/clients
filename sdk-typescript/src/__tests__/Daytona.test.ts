@@ -9,6 +9,7 @@ const mockSandboxApi = {
   getSandbox: jest.fn(),
   listSandboxes: jest.fn(),
   getBuildLogsUrl: jest.fn(),
+  getToolboxProxyUrl: jest.fn(),
 }
 const mockSnapshotsApi = {}
 const mockObjectStorageApi = {}
@@ -107,6 +108,19 @@ jest.mock('../Secret', () => ({
   }),
 }))
 
+jest.mock('../utils/EventDispatcher', () => ({
+  EventDispatcher: jest.fn().mockImplementation(() => ({
+    ensureConnected: jest.fn(),
+    disconnect: jest.fn(),
+  })),
+}))
+
+jest.mock('../utils/EventSubscriptionManager', () => ({
+  EventSubscriptionManager: jest.fn().mockImplementation(() => ({
+    shutdown: jest.fn(),
+  })),
+}))
+
 jest.mock('../Sandbox', () => ({
   Sandbox: jest.fn().mockImplementation((dto: { id: string; state?: string }, ...rest: unknown[]) => {
     const sandbox = {
@@ -141,6 +155,7 @@ describe('Daytona', () => {
         response: { use: jest.fn() },
       },
     })
+    mockSandboxApi.getToolboxProxyUrl.mockResolvedValue(createApiResponse({ url: 'http://sandbox-proxy/' }))
   })
 
   it('uses explicit api key config and builds dependent services', async () => {
@@ -156,6 +171,48 @@ describe('Daytona', () => {
     expect(mockConfigurationCtor).toHaveBeenCalled()
     expect(mockVolumeServiceCtor).toHaveBeenCalledTimes(1)
     expect(mockSnapshotServiceCtor).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates and connects an EventDispatcher by default (event streaming mode)', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    expect(EventDispatcher).toHaveBeenCalledTimes(1)
+    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeDefined()
+  })
+
+  it('does not create an EventDispatcher when useDeprecatedPolling is enabled', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', useDeprecatedPolling: true })
+
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeUndefined()
+  })
+
+  it('enables polling via the DAYTONA_USE_DEPRECATED_POLLING env var', async () => {
+    process.env.DAYTONA_USE_DEPRECATED_POLLING = 'true'
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    delete process.env.DAYTONA_USE_DEPRECATED_POLLING
+  })
+
+  it('lets an explicit useDeprecatedPolling=false win over the env var', async () => {
+    process.env.DAYTONA_USE_DEPRECATED_POLLING = 'true'
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', useDeprecatedPolling: false })
+
+    expect(EventDispatcher).toHaveBeenCalledTimes(1)
+    delete process.env.DAYTONA_USE_DEPRECATED_POLLING
   })
 
   it('reads constructor values from env when config omitted', async () => {
@@ -470,7 +527,7 @@ describe('Daytona', () => {
     mockSandboxApi.createSandbox.mockResolvedValue(
       createApiResponse({ id: 'sb-timeout', state: 'starting', labels: { 'code-toolbox-language': 'python' } }),
     )
-    ;(Sandbox as jest.Mock).mockImplementationOnce((dto: { id: string; state?: string }) => ({
+    ;(Sandbox as jest.Mock).mockImplementationOnce((dto: { id: string; state?: string }, ..._args: unknown[]) => ({
       ...dto,
       start: jest.fn(),
       stop: jest.fn(),
@@ -577,6 +634,6 @@ describe('Daytona', () => {
 
     expect(sandboxFromGet.start).toHaveBeenCalled()
     expect(sandboxFromGet.stop).toHaveBeenCalled()
-    expect(sandboxFromGet.delete).toHaveBeenCalledWith(33)
+    expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
   })
 })

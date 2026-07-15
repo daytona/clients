@@ -6,13 +6,17 @@ package daytona
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/common"
+	"github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
@@ -357,7 +361,7 @@ func newSandboxForTest(client *Client, id string, sandboxName string, state apic
 		AutoArchiveInterval: &archive,
 		AutoDeleteInterval:  &del,
 	}
-	return NewSandbox(client, nil, dto, types.CodeLanguagePython)
+	return NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 }
 
 // newSandboxForToolboxTest builds a minimal Sandbox connected to a real toolbox
@@ -368,7 +372,7 @@ func newSandboxForToolboxTest(toolboxClient *toolbox.APIClient, id string, state
 		Name:  "name",
 		State: &state,
 	}
-	return NewSandbox(nil, toolboxClient, dto, types.CodeLanguagePython)
+	return NewSandbox(nil, toolboxClient, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 }
 
 func TestSandboxCreateLspServer(t *testing.T) {
@@ -390,6 +394,22 @@ func TestSandboxCreateLspServer(t *testing.T) {
 	require.Equal(t, "/home/user/project", lsp.projectPath)
 	require.Same(t, sandbox.ToolboxClient, lsp.toolboxClient)
 	require.Same(t, sandbox.otel, lsp.otel)
+}
+
+func TestNextWaitForStatePollInterval(t *testing.T) {
+	t.Run("polling mode stays fast for first five seconds", func(t *testing.T) {
+		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second, false))
+	})
+
+	t.Run("polling mode backs off like origin main after five seconds", func(t *testing.T) {
+		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second, false))
+		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second, false))
+	})
+
+	t.Run("streaming mode keeps sparse one second safety polling", func(t *testing.T) {
+		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 10*time.Second, true))
+		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStateStreamingSafetyInterval, 10*time.Second, true))
+	})
 }
 
 func TestSandboxRefreshDataSuccess(t *testing.T) {
@@ -457,11 +477,16 @@ func TestSandboxInfoMethods(t *testing.T) {
 func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 	t.Run("start stop and delete succeed", func(t *testing.T) {
 		var getCount int
+		var deleted bool
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodPost:
 				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
 			case http.MethodGet:
+				if deleted {
+					writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYED))
+					return
+				}
 				getCount++
 				state := apiclient.SANDBOXSTATE_STARTED
 				if getCount > 1 {
@@ -469,6 +494,7 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 				}
 				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
 			case http.MethodDelete:
+				deleted = true
 				w.WriteHeader(http.StatusOK)
 			default:
 				w.WriteHeader(http.StatusOK)
@@ -478,9 +504,9 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED, "us", 0, -1, false, nil)
-		require.NoError(t, sandbox.doStartWithTimeout(context.Background(), time.Second))
-		require.NoError(t, sandbox.doStopWithTimeout(context.Background(), time.Second, true))
-		require.NoError(t, sandbox.doDeleteWithTimeout(context.Background(), time.Second))
+		require.NoError(t, sandbox.doStartWithTimeout(context.Background(), 1500*time.Millisecond))
+		require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 1500*time.Millisecond, true))
+		require.NoError(t, sandbox.doDeleteWithTimeout(context.Background(), 1500*time.Millisecond))
 	})
 
 	t.Run("wait for start returns sandbox error state", func(t *testing.T) {
@@ -493,9 +519,11 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
-		err := sandbox.doWaitForStart(context.Background(), 500*time.Millisecond)
+		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Sandbox failed to start")
+		assert.Contains(t, err.Error(), "sandbox entered error state")
+		var daytonaErr *errors.DaytonaError
+		assert.False(t, stderrors.As(err, &daytonaErr), "error-state failures must not be wrapped in DaytonaError")
 	})
 }
 
@@ -540,7 +568,7 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-		forked, err := sandbox.ExperimentalForkWithTimeout(context.Background(), strPtr("forked-name"), 2*time.Second)
+		forked, err := sandbox.ExperimentalForkWithTimeout(context.Background(), strPtr("forked-name"), 3*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, "forked", forked.ID)
 	})
@@ -589,7 +617,7 @@ func TestSandboxResizeFlow(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-	require.NoError(t, sandbox.ResizeWithTimeout(context.Background(), &types.Resources{CPU: 2, Memory: 2048, Disk: 10}, 2*time.Second))
+	require.NoError(t, sandbox.ResizeWithTimeout(context.Background(), &types.Resources{CPU: 2, Memory: 2048, Disk: 10}, 3*time.Second))
 }
 
 func TestSandboxUpdateSecrets(t *testing.T) {
@@ -657,4 +685,205 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	assert.Equal(t, []any{"OLD_VAR"}, body["unset"])
 	// UnsetValuePrefix is an internal reconciliation knob and must never be sent.
 	assert.NotContains(t, body, "unsetValuePrefix")
+}
+
+func TestWaitForStateCachedErrorRecoversAfterRefresh(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_ERROR, "us", 0, -1, false, nil)
+
+	err := sandbox.waitForState(
+		context.Background(),
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STARTED},
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
+		false,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+}
+
+func TestWaitForStateNearZeroTimeoutRefreshes(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_CREATING, "us", 0, -1, false, nil)
+
+	err := sandbox.doWaitForStart(context.Background(), 50*time.Millisecond)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+}
+
+func TestPauseLandingInStoppedResolves(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+		case http.MethodGet:
+			getCount++
+			state := apiclient.SANDBOXSTATE_PAUSING
+			if getCount > 1 {
+				state = apiclient.SANDBOXSTATE_STOPPED
+			}
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doPauseWithTimeout(context.Background(), 2*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.State)
+}
+
+func TestDeleteFireAndForget(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			getCount++
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doDeleteWithTimeout(context.Background(), 5*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, 0, getCount, "Delete must not poll for state")
+}
+
+func TestDeleteAndWaitBlocksUntilDestroyed(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING))
+		case http.MethodGet:
+			getCount++
+			state := apiclient.SANDBOXSTATE_DESTROYING
+			if getCount > 1 {
+				state = apiclient.SANDBOXSTATE_DESTROYED
+			}
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doDeleteAndWait(context.Background(), 3*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_DESTROYED, sandbox.State)
+	assert.Greater(t, getCount, 0, "DeleteAndWait must poll for state")
+}
+
+func TestPauseTimeoutReturnsDaytonaTimeoutError(t *testing.T) {
+	// Server always returns PAUSING — pause never completes.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doPauseWithTimeout(context.Background(), 200*time.Millisecond)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.ErrorAs(t, err, &timeoutErr, "pause timeout must return DaytonaTimeoutError, got %T", err)
+	assert.Contains(t, timeoutErr.Error(), "pause")
+}
+
+func TestPauseCancellationIsNotReportedAsTimeout(t *testing.T) {
+	// Server always returns PAUSING — pause never completes on its own.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+	err := sandbox.doPauseWithTimeout(ctx, 30*time.Second)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestWaitForStartCancellationIsNotReportedAsTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+	err := sandbox.doWaitForStart(ctx, 30*time.Second)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestWaitForStateFinalRefreshWithFreshContext(t *testing.T) {
+	// First GET returns non-target so the t=0 poll doesn't short-circuit;
+	// subsequent GETs return the target state for the final refresh.
+	var getCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := int(atomic.AddInt32(&getCount, 1))
+		state := apiclient.SANDBOXSTATE_CREATING
+		if n > 1 {
+			state = apiclient.SANDBOXSTATE_STARTED
+		}
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_CREATING, "us", 0, -1, false, nil)
+
+	// 50ms timeout expires before the 100ms poll interval, forcing ctx.Done().
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := sandbox.waitForState(
+		ctx,
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STARTED},
+		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR},
+		false,
+	)
+	require.NoError(t, err, "final refresh on fresh context must observe target state")
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
 }

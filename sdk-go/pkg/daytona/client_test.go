@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-
+	"strings"
 	"testing"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/sdk-go/pkg/common"
 	"github.com/daytona/clients/sdk-go/pkg/options"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -247,6 +248,53 @@ func TestNewClientWithConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewClientDefaultCreatesDispatcher(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
+}
+
+func TestNewClientDeprecatedPollingViaConfig(t *testing.T) {
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(true)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientDeprecatedPollingViaEnv(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientDeprecatedPollingUnsetFallsBackToEnv(t *testing.T) {
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key"})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientDeprecatedPollingExplicitFalseBeatsEnv(t *testing.T) {
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(false)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
 }
 
 // TestGetAuthContext tests the getAuthContext method
@@ -591,6 +639,9 @@ func TestStreamBuildLogsToChannel(t *testing.T) {
 	t.Run("streams logs successfully", func(t *testing.T) {
 		// Create a test server that returns log lines
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/socket.io") || r.Header.Get("Upgrade") == "websocket" {
+				return
+			}
 			// Verify auth header
 			assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 
@@ -868,17 +919,19 @@ func TestSandboxTargetField(t *testing.T) {
 		client, err := NewClient()
 		require.NoError(t, err)
 
-		sandbox := newSandboxForTest(
-			client,
-			"test-id",
-			"test-name",
-			apiclient.SANDBOXSTATE_STARTED,
-			"us-east-1", // target
-			60,          // autoArchiveInterval
-			-1,          // autoDeleteInterval
-			false,       // networkBlockAll
-			nil,         // networkAllowList
-		)
+		autoArchive := float32(60)
+		autoDelete := float32(-1)
+		resp := &apiclient.Sandbox{
+			Id:                  "test-id",
+			Name:                "test-name",
+			State:               apiclient.SANDBOXSTATE_STARTED.Ptr(),
+			Target:              "us-east-1",
+			AutoArchiveInterval: &autoArchive,
+			AutoDeleteInterval:  &autoDelete,
+			NetworkBlockAll:     false,
+			NetworkAllowList:    nil,
+		}
+		sandbox := NewSandbox(client, nil, resp, types.CodeLanguagePython, client.subscriptionManager)
 
 		assert.Equal(t, "test-id", sandbox.ID)
 		assert.Equal(t, "test-name", sandbox.Name)

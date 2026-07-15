@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import warnings
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,13 +14,19 @@ from daytona_api_client import SandboxState
 from daytona_api_client_async import Sandbox as AsyncSandboxDto
 from daytona_api_client_async import UpdateSandboxSecrets
 
-from .conftest import make_sandbox_dto
+from .conftest import make_pydantic_validation_error, make_sandbox_dto
 
 
 def make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
     from daytona._async.sandbox import AsyncSandbox
 
-    return AsyncSandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api, "python")
+    return AsyncSandbox(
+        sandbox_dto,
+        mock_async_toolbox_api_client,
+        mock_async_sandbox_api,
+        "python",
+        subscription_manager=MagicMock(),
+    )
 
 
 class TestAsyncSandboxInit:
@@ -37,6 +44,13 @@ class TestAsyncSandboxInit:
         assert sandbox.process is not None
         assert sandbox.computer_use is not None
         assert sandbox.code_interpreter is not None
+
+    def test_process_dto_preserves_proxy_url_when_missing(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(toolbox_proxy_url="http://hydrated:2280")
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        update_dto = make_sandbox_dto(toolbox_proxy_url="")
+        sandbox._AsyncSandbox__process_sandbox_dto(update_dto)
+        assert sandbox.toolbox_proxy_url == "http://hydrated:2280"
 
 
 class TestAsyncSandboxLifecycleSettings:
@@ -216,5 +230,127 @@ class TestAsyncSandboxWaitForStart:
         error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="build failed")
         sandbox = make_async_sandbox(error_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=error_dto)
-        with pytest.raises(DaytonaError, match="failed to start"):
+        with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             await sandbox.wait_for_sandbox_start(timeout=0)
+
+
+class TestAsyncSandboxPollingSemantics:
+    @pytest.mark.asyncio
+    async def test_cached_error_recovers_after_refresh(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient")
+        sandbox = make_async_sandbox(error_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTED))
+        await sandbox.wait_for_sandbox_start(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    @pytest.mark.asyncio
+    async def test_validation_error_tolerated_during_stop_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[
+                make_pydantic_validation_error(),
+                make_sandbox_dto(state=SandboxState.STOPPED),
+            ]
+        )
+        await sandbox.wait_for_sandbox_stop(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_non_validation_error_aborts_stop_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=Exception("401 Unauthorized"))
+        with pytest.raises(Exception, match="401 Unauthorized"):
+            await sandbox.wait_for_sandbox_stop(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_error_only_mentioning_validation_in_message_aborts_stop_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=Exception("500 upstream failure: validation error in body")
+        )
+        with pytest.raises(Exception, match="500 upstream failure"):
+            await sandbox.wait_for_sandbox_stop(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_cancellation_propagates_during_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STOPPING)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STOPPING))
+        task = asyncio.create_task(sandbox.wait_for_sandbox_stop(timeout=0))
+        await asyncio.sleep(0)  # let task start
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    @pytest.mark.asyncio
+    async def test_delete_none_response_does_not_raise(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=None)
+        await sandbox.delete(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
+
+    @pytest.mark.asyncio
+    async def test_delete_default_does_not_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYING))
+        mock_async_sandbox_api.get_sandbox = AsyncMock()
+        await sandbox.delete(timeout=0)
+        mock_async_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.DESTROYING
+
+    @pytest.mark.asyncio
+    async def test_delete_wait_true_blocks_until_destroyed(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYING))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYED))
+        await sandbox.delete(timeout=0, wait=True)
+        mock_async_sandbox_api.get_sandbox.assert_called()
+        assert sandbox.state == SandboxState.DESTROYED
+
+    @pytest.mark.asyncio
+    async def test_pause_resolves_on_stopped(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.pause_sandbox = AsyncMock(return_value=None)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[
+                make_sandbox_dto(state=SandboxState.PAUSING),
+                make_sandbox_dto(state=SandboxState.STOPPED),
+            ]
+        )
+        await sandbox.pause(timeout=0)
+        assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_fork_hydrates_proxy_url_when_missing(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED, toolbox_proxy_url="http://original:2280")
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        fork_dto = make_sandbox_dto(
+            sandbox_id="forked-id",
+            state=SandboxState.STARTED,
+            toolbox_proxy_url="",
+        )
+        proxy_result = MagicMock()
+        proxy_result.url = "http://hydrated-fork:2280"
+        mock_async_sandbox_api.fork_sandbox = AsyncMock(return_value=fork_dto)
+        mock_async_sandbox_api.get_toolbox_proxy_url = AsyncMock(return_value=proxy_result)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(
+                sandbox_id="forked-id", state=SandboxState.STARTED, toolbox_proxy_url="http://hydrated-fork:2280"
+            )
+        )
+
+        forked = await sandbox._experimental_fork(name="my-fork", timeout=0)
+        mock_async_sandbox_api.get_toolbox_proxy_url.assert_called_once_with("forked-id")
+        assert forked.toolbox_proxy_url == "http://hydrated-fork:2280"

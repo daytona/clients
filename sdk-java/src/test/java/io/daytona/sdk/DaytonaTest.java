@@ -18,6 +18,8 @@ import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaValidationException;
+import io.daytona.sdk.internal.EventDispatcher;
+import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.model.CreateSandboxFromImageParams;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.ListSandboxesQuery;
@@ -84,6 +86,71 @@ class DaytonaTest {
 
         assertThat(apiClient.getBasePath()).isEqualTo("https://example.com/api");
         assertThat(apiClient.getAuthentications()).containsKey("oauth2");
+    }
+
+    @Test
+    void constructorDefaultsToEventStreaming() {
+        EventDispatcher dispatcher = TestSupport.getField(daytona, "eventDispatcher", EventDispatcher.class);
+        EventSubscriptionManager manager = TestSupport.getField(daytona, "subscriptionManager", EventSubscriptionManager.class);
+
+        assertThat(dispatcher).isNotNull();
+        assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void constructorSkipsEventDispatcherWhenDeprecatedPollingEnabled() {
+        try (Daytona pollingDaytona = new Daytona(new DaytonaConfig.Builder()
+                .apiKey("test-key")
+                .apiUrl("https://example.com/api/")
+                .target("eu")
+                .useDeprecatedPolling(true)
+                .build())) {
+            EventDispatcher dispatcher = TestSupport.getField(pollingDaytona, "eventDispatcher", EventDispatcher.class);
+            EventSubscriptionManager manager = TestSupport.getField(pollingDaytona, "subscriptionManager", EventSubscriptionManager.class);
+
+            assertThat(dispatcher).isNull();
+            assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
+        }
+    }
+
+    @Test
+    void constructorSkipsEventDispatcherWhenEnvironmentEnablesDeprecatedPolling() throws Exception {
+        Map<String, String> env = new HashMap<String, String>();
+        env.put("DAYTONA_API_KEY", "env-key");
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
+
+        TestSupport.withEnvironment(env, () -> {
+            try (Daytona pollingDaytona = new Daytona()) {
+                EventDispatcher dispatcher = TestSupport.getField(pollingDaytona, "eventDispatcher", EventDispatcher.class);
+                EventSubscriptionManager manager = TestSupport.getField(pollingDaytona, "subscriptionManager", EventSubscriptionManager.class);
+
+                assertThat(dispatcher).isNull();
+                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
+            }
+        });
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void constructorUsesExplicitConfigOverEnvironmentForDeprecatedPolling() throws Exception {
+        Map<String, String> env = new HashMap<String, String>();
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
+
+        TestSupport.withEnvironment(env, () -> {
+            try (Daytona streamingDaytona = new Daytona(new DaytonaConfig.Builder()
+                    .apiKey("test-key")
+                    .apiUrl("https://example.com/api/")
+                    .target("eu")
+                    .useDeprecatedPolling(false)
+                    .build())) {
+                EventDispatcher dispatcher = TestSupport.getField(streamingDaytona, "eventDispatcher", EventDispatcher.class);
+                EventSubscriptionManager manager = TestSupport.getField(streamingDaytona, "subscriptionManager", EventSubscriptionManager.class);
+
+                assertThat(dispatcher).isNotNull();
+                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
+            }
+        });
     }
 
     @Test

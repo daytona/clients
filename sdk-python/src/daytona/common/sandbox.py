@@ -11,7 +11,7 @@ from typing import Protocol
 from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
 from daytona_api_client_async import GpuType
 
-TOOLBOX_PORT = 2280
+TOOLBOX_PORT: int = 2280
 
 
 @dataclass

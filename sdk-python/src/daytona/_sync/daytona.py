@@ -40,10 +40,13 @@ from ..common.daytona import (
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
     DaytonaConfig,
+    resolve_bool_flag,
 )
 from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
 from ..common.image import Image
 from ..common.sandbox import ListSandboxesQuery
+from ..internal.event_dispatcher import SyncEventDispatcher
+from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.http_client import build_sync_http_client
 from ..internal.urllib3_retry import RemoteDisconnectedRetry
 from .sandbox import Sandbox
@@ -100,6 +103,7 @@ class Daytona:
     _api_url: str
     _target: str | None = None
     _tracer_provider: TracerProvider | None = None
+    _event_dispatcher: SyncEventDispatcher | None = None
 
     def __init__(self, config: DaytonaConfig | None = None):
         """Initializes Daytona instance with optional configuration.
@@ -241,8 +245,32 @@ class Daytona:
         )
         self.secret: SecretService = SecretService(SecretApi(self._api_client))
 
-        # Initialize OpenTelemetry if enabled
         env = env_reader or DaytonaEnvReader()
+        use_deprecated_polling = resolve_bool_flag(
+            config.use_deprecated_polling if config else None,
+            env.get("DAYTONA_USE_DEPRECATED_POLLING"),
+        )
+
+        if use_deprecated_polling:
+            _polling_msg = (
+                "Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING)"
+                " is deprecated and will be removed in a future release."
+            )
+            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=2)
+
+        if not use_deprecated_polling:
+            self._event_dispatcher = SyncEventDispatcher(
+                self._api_url,
+                self._api_key or self._jwt_token or "",
+                self._organization_id,
+                "sdk-python",
+                sdk_version,
+            )
+            self._event_dispatcher.ensure_connected()
+
+        self._subscription_manager: SyncEventSubscriptionManager = SyncEventSubscriptionManager(self._event_dispatcher)
+
+        # Initialize OpenTelemetry if enabled
         otel_enabled = (
             (config and config.otel_enabled)
             or (config and config._experimental and config._experimental.get("otelEnabled"))
@@ -537,6 +565,7 @@ class Daytona:
             self._toolbox_api_client,
             self._sandbox_api,
             validated_language.value,
+            subscription_manager=self._subscription_manager,
             http_client=self._http_client,
             analytics_api_url_provider=self._get_analytics_api_url,
         )
@@ -549,13 +578,17 @@ class Daytona:
         return sandbox
 
     @with_instrumentation()
-    def delete(self, sandbox: Sandbox, timeout: float = 60) -> None:
+    def delete(self, sandbox: Sandbox, timeout: float = 60, wait: bool = False) -> None:
         """Deletes a Sandbox.
+
+        By default returns as soon as the deletion request is accepted (fire-and-forget).
+        Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
 
         Args:
             sandbox (Sandbox): The Sandbox instance to delete.
-            timeout (float): Timeout (in seconds) for sandbox deletion. 0 means no timeout.
-                Default is 60 seconds.
+            timeout (float): Timeout (in seconds) for the request and, when ``wait``
+                is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
+            wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
 
         Raises:
             DaytonaError: If sandbox fails to delete or times out
@@ -567,7 +600,7 @@ class Daytona:
             daytona.delete(sandbox)  # Clean up when done
             ```
         """
-        return sandbox.delete(timeout)
+        return sandbox.delete(timeout, wait=wait)
 
     @intercept_errors(message_prefix="Failed to get sandbox: ")
     @with_instrumentation()
@@ -606,6 +639,7 @@ class Daytona:
             self._toolbox_api_client,
             self._sandbox_api,
             language,
+            subscription_manager=self._subscription_manager,
             http_client=self._http_client,
             analytics_api_url_provider=self._get_analytics_api_url,
         )
@@ -655,6 +689,7 @@ class Daytona:
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,
+                    subscription_manager=self._subscription_manager,
                     http_client=self._http_client,
                     analytics_api_url_provider=self._get_analytics_api_url,
                 )
