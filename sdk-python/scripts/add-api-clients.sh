@@ -31,7 +31,9 @@ while true; do
     "daytona_api_client@$version" \
     "daytona_api_client_async@$version" \
     "daytona_toolbox_api_client@$version" \
-    "daytona_toolbox_api_client_async@$version" 2>&1); then
+    "daytona_toolbox_api_client_async@$version" \
+    "daytona_analytics_api_client@$version" \
+    "daytona_analytics_api_client_async@$version" 2>&1); then
     echo "Successfully added API clients"
     exit 0
   fi

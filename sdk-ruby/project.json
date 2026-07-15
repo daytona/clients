@@ -15,7 +15,7 @@
       "dependsOn": [
         {
           "target": "build",
-          "projects": ["api-client-ruby", "toolbox-api-client-ruby"]
+          "projects": ["api-client-ruby", "toolbox-api-client-ruby", "analytics-api-client-ruby"]
         },
         "set-version"
       ],
@@ -47,7 +47,8 @@
       "inputs": [
         "default",
         "{workspaceRoot}/api-client-ruby/**/*",
-        "{workspaceRoot}/toolbox-api-client-ruby/**/*"
+        "{workspaceRoot}/toolbox-api-client-ruby/**/*",
+        "{workspaceRoot}/analytics-api-client-ruby/**/*"
       ],
       "outputs": [],
       "options": {
@@ -91,7 +92,7 @@
       "dependsOn": [
         {
           "target": "publish",
-          "projects": ["api-client-ruby", "toolbox-api-client-ruby"]
+          "projects": ["api-client-ruby", "toolbox-api-client-ruby", "analytics-api-client-ruby"]
         },
         "build"
       ]

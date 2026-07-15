@@ -20,7 +20,9 @@
         "{workspaceRoot}/api-client-python/**/*",
         "{workspaceRoot}/api-client-python-async/**/*",
         "{workspaceRoot}/toolbox-api-client-python/**/*",
-        "{workspaceRoot}/toolbox-api-client-python-async/**/*"
+        "{workspaceRoot}/toolbox-api-client-python-async/**/*",
+        "{workspaceRoot}/analytics-api-client-python/**/*",
+        "{workspaceRoot}/analytics-api-client-python-async/**/*"
       ],
       "outputs": [],
       "options": {
@@ -48,7 +50,9 @@
             "api-client-python",
             "api-client-python-async",
             "toolbox-api-client-python",
-            "toolbox-api-client-python-async"
+            "toolbox-api-client-python-async",
+            "analytics-api-client-python",
+            "analytics-api-client-python-async"
           ]
         }
       ]
