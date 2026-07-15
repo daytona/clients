@@ -80,8 +80,6 @@ type APIClient struct {
 
 	SnapshotsAPI SnapshotsAPI
 
-	ToolboxAPI ToolboxAPI
-
 	UsersAPI UsersAPI
 
 	VolumesAPI VolumesAPI
@@ -120,7 +118,6 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.SandboxAPI = (*SandboxAPIService)(&c.common)
 	c.SecretAPI = (*SecretAPIService)(&c.common)
 	c.SnapshotsAPI = (*SnapshotsAPIService)(&c.common)
-	c.ToolboxAPI = (*ToolboxAPIService)(&c.common)
 	c.UsersAPI = (*UsersAPIService)(&c.common)
 	c.VolumesAPI = (*VolumesAPIService)(&c.common)
 	c.WebhooksAPI = (*WebhooksAPIService)(&c.common)

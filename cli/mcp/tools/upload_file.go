@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -36,25 +35,21 @@ func GetFileUploadTool() mcp.Tool {
 }
 
 func FileUpload(ctx context.Context, request mcp.CallToolRequest, args FileUploadArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return nil, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.FilePath == nil || *args.FilePath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("filePath parameter is required")
+		return toolResultError("filePath parameter is required")
 	}
 
 	if args.Content == nil || *args.Content == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("content parameter is required")
+		return toolResultError("content parameter is required")
 	}
 
 	if args.Encoding == nil || *args.Encoding == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("encoding parameter is required")
+		return toolResultError("encoding parameter is required")
 	}
 
 	overwrite := false
@@ -62,21 +57,16 @@ func FileUpload(ctx context.Context, request mcp.CallToolRequest, args FileUploa
 		overwrite = *args.Overwrite
 	}
 
-	// Get the sandbox using sandbox ID
-	sandbox, _, err := apiClient.SandboxAPI.GetSandbox(ctx, *args.Id).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("failed to get sandbox: %v", err)
-	}
-
-	if sandbox == nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("no sandbox available")
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	// Check if file exists and handle overwrite
 	if !overwrite {
-		fileInfo, _, err := apiClient.ToolboxAPI.GetFileInfoDeprecated(ctx, *args.Id).Path(*args.FilePath).Execute()
-		if err == nil && fileInfo != nil {
-			return &mcp.CallToolResult{IsError: true}, fmt.Errorf("file '%s' already exists and overwrite=false", *args.FilePath)
+		fileInfo, _, statErr := toolboxClient.FileSystemAPI.GetFileInfo(ctx).Path(*args.FilePath).Execute()
+		if statErr == nil && fileInfo != nil {
+			return toolResultError(fmt.Sprintf("file '%s' already exists and overwrite=false", *args.FilePath))
 		}
 	}
 
@@ -96,9 +86,8 @@ func FileUpload(ctx context.Context, request mcp.CallToolRequest, args FileUploa
 	// Create parent directories if they don't exist
 	parentDir := filepath.Dir(*args.FilePath)
 	if parentDir != "" {
-		_, err := apiClient.ToolboxAPI.CreateFolderDeprecated(ctx, *args.Id).Path(parentDir).Mode("0755").Execute()
-		if err != nil {
-			log.Errorf("Error creating parent directory: %v", err)
+		if _, mkErr := toolboxClient.FileSystemAPI.CreateFolder(ctx).Path(parentDir).Mode("0755").Execute(); mkErr != nil {
+			log.Errorf("Error creating parent directory: %v", mkErr)
 			// Continue anyway as upload might handle this
 		}
 	}
@@ -122,17 +111,16 @@ func FileUpload(ctx context.Context, request mcp.CallToolRequest, args FileUploa
 	}
 
 	// Upload the file
-	_, err = apiClient.ToolboxAPI.UploadFileDeprecated(ctx, *args.Id).Path(*args.FilePath).File(tempFile).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error uploading file: %v", err)
+	if _, _, upErr := toolboxClient.FileSystemAPI.UploadFile(ctx).Path(*args.FilePath).File(tempFile).Execute(); upErr != nil {
+		return toolboxAPIError("Failed to upload file", upErr)
 	}
 
 	// Get file info for size
-	fileInfo, _, err := apiClient.ToolboxAPI.GetFileInfoDeprecated(ctx, *args.Id).Path(*args.FilePath).Execute()
-	if err != nil {
-		log.Errorf("Error getting file info after upload: %v", err)
+	fileInfo, _, apiErr := toolboxClient.FileSystemAPI.GetFileInfo(ctx).Path(*args.FilePath).Execute()
+	if apiErr != nil {
+		log.Errorf("Error getting file info after upload: %v", apiErr)
 
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error getting file info after upload: %v", err)
+		return toolboxAPIError("Failed to get file info after upload", apiErr)
 	}
 
 	fileSizeKB := float64(fileInfo.Size) / 1024

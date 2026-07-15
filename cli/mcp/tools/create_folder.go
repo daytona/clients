@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -29,17 +28,13 @@ func GetCreateFolderTool() mcp.Tool {
 }
 
 func CreateFolder(ctx context.Context, request mcp.CallToolRequest, args CreateFolderArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.FolderPath == nil || *args.FolderPath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("folderPath parameter is required")
+		return toolResultError("folderPath parameter is required")
 	}
 
 	mode := "0755" // default mode
@@ -47,10 +42,13 @@ func CreateFolder(ctx context.Context, request mcp.CallToolRequest, args CreateF
 		args.Mode = &mode
 	}
 
-	// Create the folder
-	_, err = apiClient.ToolboxAPI.CreateFolderDeprecated(ctx, *args.Id).Path(*args.FolderPath).Mode(*args.Mode).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error creating folder: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	if _, apiErr := toolboxClient.FileSystemAPI.CreateFolder(ctx).Path(*args.FolderPath).Mode(*args.Mode).Execute(); apiErr != nil {
+		return toolboxAPIError("Failed to create folder", apiErr)
 	}
 
 	log.Infof("Created folder: %s", *args.FolderPath)

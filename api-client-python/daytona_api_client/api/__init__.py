@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from daytona_api_client.api.sandbox_api import SandboxApi
     from daytona_api_client.api.secret_api import SecretApi
     from daytona_api_client.api.snapshots_api import SnapshotsApi
-    from daytona_api_client.api.toolbox_api import ToolboxApi
     from daytona_api_client.api.users_api import UsersApi
     from daytona_api_client.api.volumes_api import VolumesApi
     from daytona_api_client.api.webhooks_api import WebhooksApi
@@ -44,7 +43,6 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SandboxApi": "daytona_api_client.api.sandbox_api",
     "SecretApi": "daytona_api_client.api.secret_api",
     "SnapshotsApi": "daytona_api_client.api.snapshots_api",
-    "ToolboxApi": "daytona_api_client.api.toolbox_api",
     "UsersApi": "daytona_api_client.api.users_api",
     "VolumesApi": "daytona_api_client.api.volumes_api",
     "WebhooksApi": "daytona_api_client.api.webhooks_api",

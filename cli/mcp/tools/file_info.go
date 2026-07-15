@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
@@ -28,29 +27,29 @@ func GetFileInfoTool() mcp.Tool {
 }
 
 func FileInfo(ctx context.Context, request mcp.CallToolRequest, args FileInfoArgs) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, err
-	}
-
-	if args.Id == nil || *args.Id == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("sandbox ID is required")
+	sandboxID, errResult, err := requireSandboxID(args.Id)
+	if errResult != nil || err != nil {
+		return errResult, err
 	}
 
 	if args.FilePath == nil || *args.FilePath == "" {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("filePath parameter is required")
+		return toolResultError("filePath parameter is required")
 	}
 
-	// Get file info
-	fileInfo, _, err := apiClient.ToolboxAPI.GetFileInfoDeprecated(ctx, *args.Id).Path(*args.FilePath).Execute()
-	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error getting file info: %v", err)
+	toolboxClient, errResult, err := getSandboxAndToolboxClient(ctx, sandboxID, true)
+	if errResult != nil || err != nil {
+		return errResult, err
+	}
+
+	fileInfo, _, apiErr := toolboxClient.FileSystemAPI.GetFileInfo(ctx).Path(*args.FilePath).Execute()
+	if apiErr != nil {
+		return toolboxAPIError("Failed to get file info", apiErr)
 	}
 
 	// Convert file info to JSON
 	fileInfoJSON, err := json.MarshalIndent(fileInfo, "", "  ")
 	if err != nil {
-		return &mcp.CallToolResult{IsError: true}, fmt.Errorf("error marshaling file info: %v", err)
+		return toolResultError(fmt.Sprintf("error marshaling file info: %v", err))
 	}
 
 	log.Infof("Retrieved file info for: %s", *args.FilePath)

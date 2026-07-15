@@ -30,14 +30,6 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.audit_log import AuditLog
     from daytona_api_client_async.models.available_sandbox_class import AvailableSandboxClass
     from daytona_api_client_async.models.build_info import BuildInfo
-    from daytona_api_client_async.models.command import Command
-    from daytona_api_client_async.models.completion_context import CompletionContext
-    from daytona_api_client_async.models.completion_item import CompletionItem
-    from daytona_api_client_async.models.completion_list import CompletionList
-    from daytona_api_client_async.models.compressed_screenshot_response import CompressedScreenshotResponse
-    from daytona_api_client_async.models.computer_use_start_response import ComputerUseStartResponse
-    from daytona_api_client_async.models.computer_use_status_response import ComputerUseStatusResponse
-    from daytona_api_client_async.models.computer_use_stop_response import ComputerUseStopResponse
     from daytona_api_client_async.models.create_api_key import CreateApiKey
     from daytona_api_client_async.models.create_build_info import CreateBuildInfo
     from daytona_api_client_async.models.create_docker_registry import CreateDockerRegistry
@@ -54,30 +46,13 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_sandbox import CreateSandbox
     from daytona_api_client_async.models.create_sandbox_snapshot import CreateSandboxSnapshot
     from daytona_api_client_async.models.create_secret import CreateSecret
-    from daytona_api_client_async.models.create_session_request import CreateSessionRequest
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
     from daytona_api_client_async.models.create_user import CreateUser
     from daytona_api_client_async.models.create_volume import CreateVolume
     from daytona_api_client_async.models.date_filter import DateFilter
     from daytona_api_client_async.models.daytona_configuration import DaytonaConfiguration
-    from daytona_api_client_async.models.display_info_response import DisplayInfoResponse
     from daytona_api_client_async.models.docker_registry import DockerRegistry
-    from daytona_api_client_async.models.download_files import DownloadFiles
-    from daytona_api_client_async.models.execute_request import ExecuteRequest
-    from daytona_api_client_async.models.execute_response import ExecuteResponse
-    from daytona_api_client_async.models.file_info import FileInfo
-    from daytona_api_client_async.models.file_status import FileStatus
     from daytona_api_client_async.models.fork_sandbox import ForkSandbox
-    from daytona_api_client_async.models.git_add_request import GitAddRequest
-    from daytona_api_client_async.models.git_branch_request import GitBranchRequest
-    from daytona_api_client_async.models.git_checkout_request import GitCheckoutRequest
-    from daytona_api_client_async.models.git_clone_request import GitCloneRequest
-    from daytona_api_client_async.models.git_commit_info import GitCommitInfo
-    from daytona_api_client_async.models.git_commit_request import GitCommitRequest
-    from daytona_api_client_async.models.git_commit_response import GitCommitResponse
-    from daytona_api_client_async.models.git_delete_branch_request import GitDeleteBranchRequest
-    from daytona_api_client_async.models.git_repo_request import GitRepoRequest
-    from daytona_api_client_async.models.git_status import GitStatus
     from daytona_api_client_async.models.gpu_type import GpuType
     from daytona_api_client_async.models.health_controller_check200_response import HealthControllerCheck200Response
     from daytona_api_client_async.models.health_controller_check200_response_info_value import HealthControllerCheck200ResponseInfoValue
@@ -86,31 +61,12 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.job import Job
     from daytona_api_client_async.models.job_status import JobStatus
     from daytona_api_client_async.models.job_type import JobType
-    from daytona_api_client_async.models.keyboard_hotkey_request import KeyboardHotkeyRequest
-    from daytona_api_client_async.models.keyboard_press_request import KeyboardPressRequest
-    from daytona_api_client_async.models.keyboard_type_request import KeyboardTypeRequest
-    from daytona_api_client_async.models.list_branch_response import ListBranchResponse
     from daytona_api_client_async.models.list_sandboxes_response import ListSandboxesResponse
     from daytona_api_client_async.models.list_secrets_response import ListSecretsResponse
     from daytona_api_client_async.models.log_entry import LogEntry
-    from daytona_api_client_async.models.lsp_completion_params import LspCompletionParams
-    from daytona_api_client_async.models.lsp_document_request import LspDocumentRequest
-    from daytona_api_client_async.models.lsp_location import LspLocation
-    from daytona_api_client_async.models.lsp_server_request import LspServerRequest
-    from daytona_api_client_async.models.lsp_symbol import LspSymbol
-    from daytona_api_client_async.models.match import Match
     from daytona_api_client_async.models.metric_data_point import MetricDataPoint
     from daytona_api_client_async.models.metric_series import MetricSeries
     from daytona_api_client_async.models.metrics_response import MetricsResponse
-    from daytona_api_client_async.models.mouse_click_request import MouseClickRequest
-    from daytona_api_client_async.models.mouse_click_response import MouseClickResponse
-    from daytona_api_client_async.models.mouse_drag_request import MouseDragRequest
-    from daytona_api_client_async.models.mouse_drag_response import MouseDragResponse
-    from daytona_api_client_async.models.mouse_move_request import MouseMoveRequest
-    from daytona_api_client_async.models.mouse_move_response import MouseMoveResponse
-    from daytona_api_client_async.models.mouse_position import MousePosition
-    from daytona_api_client_async.models.mouse_scroll_request import MouseScrollRequest
-    from daytona_api_client_async.models.mouse_scroll_response import MouseScrollResponse
     from daytona_api_client_async.models.oidc_config import OidcConfig
     from daytona_api_client_async.models.organization import Organization
     from daytona_api_client_async.models.organization_invitation import OrganizationInvitation
@@ -129,31 +85,16 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.paginated_traces import PaginatedTraces
     from daytona_api_client_async.models.poll_jobs_response import PollJobsResponse
     from daytona_api_client_async.models.port_preview_url import PortPreviewUrl
-    from daytona_api_client_async.models.position import Position
     from daytona_api_client_async.models.posthog_config import PosthogConfig
     from daytona_api_client_async.models.preview_warning import PreviewWarning
-    from daytona_api_client_async.models.process_errors_response import ProcessErrorsResponse
-    from daytona_api_client_async.models.process_logs_response import ProcessLogsResponse
-    from daytona_api_client_async.models.process_restart_response import ProcessRestartResponse
-    from daytona_api_client_async.models.process_status_response import ProcessStatusResponse
-    from daytona_api_client_async.models.project_dir_response import ProjectDirResponse
-    from daytona_api_client_async.models.pty_create_request import PtyCreateRequest
-    from daytona_api_client_async.models.pty_create_response import PtyCreateResponse
-    from daytona_api_client_async.models.pty_list_response import PtyListResponse
-    from daytona_api_client_async.models.pty_resize_request import PtyResizeRequest
-    from daytona_api_client_async.models.pty_session_info import PtySessionInfo
-    from daytona_api_client_async.models.range import Range
     from daytona_api_client_async.models.rate_limit_config import RateLimitConfig
     from daytona_api_client_async.models.rate_limit_entry import RateLimitEntry
     from daytona_api_client_async.models.regenerate_api_key_response import RegenerateApiKeyResponse
     from daytona_api_client_async.models.region import Region
     from daytona_api_client_async.models.region_quota import RegionQuota
-    from daytona_api_client_async.models.region_screenshot_response import RegionScreenshotResponse
     from daytona_api_client_async.models.region_type import RegionType
     from daytona_api_client_async.models.region_usage_overview import RegionUsageOverview
     from daytona_api_client_async.models.registry_push_access_dto import RegistryPushAccessDto
-    from daytona_api_client_async.models.replace_request import ReplaceRequest
-    from daytona_api_client_async.models.replace_result import ReplaceResult
     from daytona_api_client_async.models.resize_sandbox import ResizeSandbox
     from daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner import ResolveSandboxSecrets200ResponseInner
     from daytona_api_client_async.models.runner import Runner
@@ -173,13 +114,8 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.sandbox_list_sort_field import SandboxListSortField
     from daytona_api_client_async.models.sandbox_state import SandboxState
     from daytona_api_client_async.models.sandbox_volume import SandboxVolume
-    from daytona_api_client_async.models.screenshot_response import ScreenshotResponse
-    from daytona_api_client_async.models.search_files_response import SearchFilesResponse
     from daytona_api_client_async.models.secret import Secret
     from daytona_api_client_async.models.send_webhook_dto import SendWebhookDto
-    from daytona_api_client_async.models.session import Session
-    from daytona_api_client_async.models.session_execute_request import SessionExecuteRequest
-    from daytona_api_client_async.models.session_execute_response import SessionExecuteResponse
     from daytona_api_client_async.models.set_snapshot_general_status_dto import SetSnapshotGeneralStatusDto
     from daytona_api_client_async.models.signed_port_preview_url import SignedPortPreviewUrl
     from daytona_api_client_async.models.snapshot_dto import SnapshotDto
@@ -207,15 +143,12 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.update_secret import UpdateSecret
     from daytona_api_client_async.models.url import Url
     from daytona_api_client_async.models.user import User
-    from daytona_api_client_async.models.user_home_dir_response import UserHomeDirResponse
     from daytona_api_client_async.models.user_public_key import UserPublicKey
     from daytona_api_client_async.models.volume_dto import VolumeDto
     from daytona_api_client_async.models.volume_state import VolumeState
     from daytona_api_client_async.models.webhook_app_portal_access import WebhookAppPortalAccess
     from daytona_api_client_async.models.webhook_event import WebhookEvent
     from daytona_api_client_async.models.webhook_initialization_status import WebhookInitializationStatus
-    from daytona_api_client_async.models.windows_response import WindowsResponse
-    from daytona_api_client_async.models.work_dir_response import WorkDirResponse
 
 _DYNAMIC_IMPORTS: dict[str, str] = {
     "AccountProvider": "daytona_api_client_async.models.account_provider",
@@ -228,14 +161,6 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "AuditLog": "daytona_api_client_async.models.audit_log",
     "AvailableSandboxClass": "daytona_api_client_async.models.available_sandbox_class",
     "BuildInfo": "daytona_api_client_async.models.build_info",
-    "Command": "daytona_api_client_async.models.command",
-    "CompletionContext": "daytona_api_client_async.models.completion_context",
-    "CompletionItem": "daytona_api_client_async.models.completion_item",
-    "CompletionList": "daytona_api_client_async.models.completion_list",
-    "CompressedScreenshotResponse": "daytona_api_client_async.models.compressed_screenshot_response",
-    "ComputerUseStartResponse": "daytona_api_client_async.models.computer_use_start_response",
-    "ComputerUseStatusResponse": "daytona_api_client_async.models.computer_use_status_response",
-    "ComputerUseStopResponse": "daytona_api_client_async.models.computer_use_stop_response",
     "CreateApiKey": "daytona_api_client_async.models.create_api_key",
     "CreateBuildInfo": "daytona_api_client_async.models.create_build_info",
     "CreateDockerRegistry": "daytona_api_client_async.models.create_docker_registry",
@@ -252,30 +177,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateSandbox": "daytona_api_client_async.models.create_sandbox",
     "CreateSandboxSnapshot": "daytona_api_client_async.models.create_sandbox_snapshot",
     "CreateSecret": "daytona_api_client_async.models.create_secret",
-    "CreateSessionRequest": "daytona_api_client_async.models.create_session_request",
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
     "CreateUser": "daytona_api_client_async.models.create_user",
     "CreateVolume": "daytona_api_client_async.models.create_volume",
     "DateFilter": "daytona_api_client_async.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client_async.models.daytona_configuration",
-    "DisplayInfoResponse": "daytona_api_client_async.models.display_info_response",
     "DockerRegistry": "daytona_api_client_async.models.docker_registry",
-    "DownloadFiles": "daytona_api_client_async.models.download_files",
-    "ExecuteRequest": "daytona_api_client_async.models.execute_request",
-    "ExecuteResponse": "daytona_api_client_async.models.execute_response",
-    "FileInfo": "daytona_api_client_async.models.file_info",
-    "FileStatus": "daytona_api_client_async.models.file_status",
     "ForkSandbox": "daytona_api_client_async.models.fork_sandbox",
-    "GitAddRequest": "daytona_api_client_async.models.git_add_request",
-    "GitBranchRequest": "daytona_api_client_async.models.git_branch_request",
-    "GitCheckoutRequest": "daytona_api_client_async.models.git_checkout_request",
-    "GitCloneRequest": "daytona_api_client_async.models.git_clone_request",
-    "GitCommitInfo": "daytona_api_client_async.models.git_commit_info",
-    "GitCommitRequest": "daytona_api_client_async.models.git_commit_request",
-    "GitCommitResponse": "daytona_api_client_async.models.git_commit_response",
-    "GitDeleteBranchRequest": "daytona_api_client_async.models.git_delete_branch_request",
-    "GitRepoRequest": "daytona_api_client_async.models.git_repo_request",
-    "GitStatus": "daytona_api_client_async.models.git_status",
     "GpuType": "daytona_api_client_async.models.gpu_type",
     "HealthControllerCheck200Response": "daytona_api_client_async.models.health_controller_check200_response",
     "HealthControllerCheck200ResponseInfoValue": "daytona_api_client_async.models.health_controller_check200_response_info_value",
@@ -284,31 +192,12 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Job": "daytona_api_client_async.models.job",
     "JobStatus": "daytona_api_client_async.models.job_status",
     "JobType": "daytona_api_client_async.models.job_type",
-    "KeyboardHotkeyRequest": "daytona_api_client_async.models.keyboard_hotkey_request",
-    "KeyboardPressRequest": "daytona_api_client_async.models.keyboard_press_request",
-    "KeyboardTypeRequest": "daytona_api_client_async.models.keyboard_type_request",
-    "ListBranchResponse": "daytona_api_client_async.models.list_branch_response",
     "ListSandboxesResponse": "daytona_api_client_async.models.list_sandboxes_response",
     "ListSecretsResponse": "daytona_api_client_async.models.list_secrets_response",
     "LogEntry": "daytona_api_client_async.models.log_entry",
-    "LspCompletionParams": "daytona_api_client_async.models.lsp_completion_params",
-    "LspDocumentRequest": "daytona_api_client_async.models.lsp_document_request",
-    "LspLocation": "daytona_api_client_async.models.lsp_location",
-    "LspServerRequest": "daytona_api_client_async.models.lsp_server_request",
-    "LspSymbol": "daytona_api_client_async.models.lsp_symbol",
-    "Match": "daytona_api_client_async.models.match",
     "MetricDataPoint": "daytona_api_client_async.models.metric_data_point",
     "MetricSeries": "daytona_api_client_async.models.metric_series",
     "MetricsResponse": "daytona_api_client_async.models.metrics_response",
-    "MouseClickRequest": "daytona_api_client_async.models.mouse_click_request",
-    "MouseClickResponse": "daytona_api_client_async.models.mouse_click_response",
-    "MouseDragRequest": "daytona_api_client_async.models.mouse_drag_request",
-    "MouseDragResponse": "daytona_api_client_async.models.mouse_drag_response",
-    "MouseMoveRequest": "daytona_api_client_async.models.mouse_move_request",
-    "MouseMoveResponse": "daytona_api_client_async.models.mouse_move_response",
-    "MousePosition": "daytona_api_client_async.models.mouse_position",
-    "MouseScrollRequest": "daytona_api_client_async.models.mouse_scroll_request",
-    "MouseScrollResponse": "daytona_api_client_async.models.mouse_scroll_response",
     "OidcConfig": "daytona_api_client_async.models.oidc_config",
     "Organization": "daytona_api_client_async.models.organization",
     "OrganizationInvitation": "daytona_api_client_async.models.organization_invitation",
@@ -327,31 +216,16 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "PaginatedTraces": "daytona_api_client_async.models.paginated_traces",
     "PollJobsResponse": "daytona_api_client_async.models.poll_jobs_response",
     "PortPreviewUrl": "daytona_api_client_async.models.port_preview_url",
-    "Position": "daytona_api_client_async.models.position",
     "PosthogConfig": "daytona_api_client_async.models.posthog_config",
     "PreviewWarning": "daytona_api_client_async.models.preview_warning",
-    "ProcessErrorsResponse": "daytona_api_client_async.models.process_errors_response",
-    "ProcessLogsResponse": "daytona_api_client_async.models.process_logs_response",
-    "ProcessRestartResponse": "daytona_api_client_async.models.process_restart_response",
-    "ProcessStatusResponse": "daytona_api_client_async.models.process_status_response",
-    "ProjectDirResponse": "daytona_api_client_async.models.project_dir_response",
-    "PtyCreateRequest": "daytona_api_client_async.models.pty_create_request",
-    "PtyCreateResponse": "daytona_api_client_async.models.pty_create_response",
-    "PtyListResponse": "daytona_api_client_async.models.pty_list_response",
-    "PtyResizeRequest": "daytona_api_client_async.models.pty_resize_request",
-    "PtySessionInfo": "daytona_api_client_async.models.pty_session_info",
-    "Range": "daytona_api_client_async.models.range",
     "RateLimitConfig": "daytona_api_client_async.models.rate_limit_config",
     "RateLimitEntry": "daytona_api_client_async.models.rate_limit_entry",
     "RegenerateApiKeyResponse": "daytona_api_client_async.models.regenerate_api_key_response",
     "Region": "daytona_api_client_async.models.region",
     "RegionQuota": "daytona_api_client_async.models.region_quota",
-    "RegionScreenshotResponse": "daytona_api_client_async.models.region_screenshot_response",
     "RegionType": "daytona_api_client_async.models.region_type",
     "RegionUsageOverview": "daytona_api_client_async.models.region_usage_overview",
     "RegistryPushAccessDto": "daytona_api_client_async.models.registry_push_access_dto",
-    "ReplaceRequest": "daytona_api_client_async.models.replace_request",
-    "ReplaceResult": "daytona_api_client_async.models.replace_result",
     "ResizeSandbox": "daytona_api_client_async.models.resize_sandbox",
     "ResolveSandboxSecrets200ResponseInner": "daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner",
     "Runner": "daytona_api_client_async.models.runner",
@@ -371,13 +245,8 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SandboxListSortField": "daytona_api_client_async.models.sandbox_list_sort_field",
     "SandboxState": "daytona_api_client_async.models.sandbox_state",
     "SandboxVolume": "daytona_api_client_async.models.sandbox_volume",
-    "ScreenshotResponse": "daytona_api_client_async.models.screenshot_response",
-    "SearchFilesResponse": "daytona_api_client_async.models.search_files_response",
     "Secret": "daytona_api_client_async.models.secret",
     "SendWebhookDto": "daytona_api_client_async.models.send_webhook_dto",
-    "Session": "daytona_api_client_async.models.session",
-    "SessionExecuteRequest": "daytona_api_client_async.models.session_execute_request",
-    "SessionExecuteResponse": "daytona_api_client_async.models.session_execute_response",
     "SetSnapshotGeneralStatusDto": "daytona_api_client_async.models.set_snapshot_general_status_dto",
     "SignedPortPreviewUrl": "daytona_api_client_async.models.signed_port_preview_url",
     "SnapshotDto": "daytona_api_client_async.models.snapshot_dto",
@@ -405,15 +274,12 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateSecret": "daytona_api_client_async.models.update_secret",
     "Url": "daytona_api_client_async.models.url",
     "User": "daytona_api_client_async.models.user",
-    "UserHomeDirResponse": "daytona_api_client_async.models.user_home_dir_response",
     "UserPublicKey": "daytona_api_client_async.models.user_public_key",
     "VolumeDto": "daytona_api_client_async.models.volume_dto",
     "VolumeState": "daytona_api_client_async.models.volume_state",
     "WebhookAppPortalAccess": "daytona_api_client_async.models.webhook_app_portal_access",
     "WebhookEvent": "daytona_api_client_async.models.webhook_event",
     "WebhookInitializationStatus": "daytona_api_client_async.models.webhook_initialization_status",
-    "WindowsResponse": "daytona_api_client_async.models.windows_response",
-    "WorkDirResponse": "daytona_api_client_async.models.work_dir_response",
 }
 
 
