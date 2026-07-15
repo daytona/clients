@@ -504,6 +504,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.AutoArchiveInterval != nil && *baseParams.AutoArchiveInterval < 0 {
 		return nil, errors.NewDaytonaError("autoArchiveInterval must be a non-negative integer", 0, nil)
 	}
+	if baseParams.TtlMinutes != nil && *baseParams.TtlMinutes < 0 {
+		return nil, errors.NewDaytonaError("ttlMinutes must be a non-negative integer", 0, nil)
+	}
 
 	// Handle ephemeral sandboxes
 	if baseParams.Ephemeral {
@@ -549,6 +552,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 	if baseParams.AutoDeleteInterval != nil {
 		createReq.SetAutoDeleteInterval(int32(*baseParams.AutoDeleteInterval))
+	}
+	if baseParams.TtlMinutes != nil {
+		createReq.SetTtlMinutes(int32(*baseParams.TtlMinutes))
 	}
 	// Convert SDK VolumeMount to API SandboxVolume
 	if len(baseParams.Volumes) > 0 {

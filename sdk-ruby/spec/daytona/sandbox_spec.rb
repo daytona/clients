@@ -161,6 +161,21 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
+  describe '#ttl_minutes=' do
+    it 'sets TTL via API' do
+      allow(sandbox_api).to receive(:set_ttl).with('sandbox-123', 30)
+
+      sandbox.ttl_minutes = 30
+
+      expect(sandbox_api).to have_received(:set_ttl).with('sandbox-123', 30)
+    end
+
+    it 'raises on negative value' do
+      expect { sandbox.ttl_minutes = -1 }
+        .to raise_error(Daytona::Sdk::Error, /TTL must be a non-negative integer/)
+    end
+  end
+
   describe '#create_ssh_access' do
     it 'delegates to sandbox_api' do
       ssh_dto = instance_double(DaytonaApiClient::SshAccessDto)

@@ -72,6 +72,9 @@ module DaytonaApiClient
     # Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
     attr_accessor :auto_delete_interval
 
+    # Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+    attr_accessor :ttl_minutes
+
     # Array of volumes to attach to the sandbox
     attr_accessor :volumes
 
@@ -106,6 +109,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
+        :'ttl_minutes' => :'ttlMinutes',
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
         :'linked_sandbox' => :'linkedSandbox',
@@ -145,6 +149,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'Integer',
         :'auto_archive_interval' => :'Integer',
         :'auto_delete_interval' => :'Integer',
+        :'ttl_minutes' => :'Integer',
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'CreateBuildInfo',
         :'linked_sandbox' => :'String',
@@ -256,6 +261,10 @@ module DaytonaApiClient
         self.auto_delete_interval = attributes[:'auto_delete_interval']
       end
 
+      if attributes.key?(:'ttl_minutes')
+        self.ttl_minutes = attributes[:'ttl_minutes']
+      end
+
       if attributes.key?(:'volumes')
         if (value = attributes[:'volumes']).is_a?(Array)
           self.volumes = value
@@ -316,6 +325,7 @@ module DaytonaApiClient
           auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
+          ttl_minutes == o.ttl_minutes &&
           volumes == o.volumes &&
           build_info == o.build_info &&
           linked_sandbox == o.linked_sandbox &&
@@ -331,7 +341,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

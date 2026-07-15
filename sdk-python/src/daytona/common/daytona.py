@@ -157,6 +157,9 @@ class CreateSandboxBaseParams(BaseModel):
         auto_delete_interval (int | None): Interval in minutes after which a continuously stopped Sandbox will
             automatically be deleted. By default, auto-delete is disabled.
             Negative value means disabled, 0 means delete immediately upon stopping.
+        ttl_minutes (int | None): Maximum time to live in minutes, counted as wall-clock time since
+            creation regardless of sandbox state. When it elapses the sandbox is destroyed, even if
+            it is stopped, paused, or archived. 0 means disabled.
         volumes (list[VolumeMount] | None): List of volumes mounts to attach to the Sandbox.
         secrets (dict[str, str] | None): Map of environment variable name to the name of an existing
             organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque
@@ -184,6 +187,7 @@ class CreateSandboxBaseParams(BaseModel):
     auto_pause_interval: int | None = None
     auto_archive_interval: int | None = None
     auto_delete_interval: int | None = None
+    ttl_minutes: int | None = None
     volumes: list[VolumeMount] | None = None
     secrets: dict[str, str] | None = None
     network_block_all: bool | None = None

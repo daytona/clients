@@ -2073,6 +2073,54 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * 
+         * @summary Set sandbox TTL
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        setTtl: async (sandboxIdOrName: string, ttlMinutes: number, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('setTtl', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'ttlMinutes' is not null or undefined
+            assertParamExists('setTtl', 'ttlMinutes', ttlMinutes)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/ttl/{ttlMinutes}`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
+                .replace(`{${"ttlMinutes"}}`, encodeURIComponent(String(ttlMinutes)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.
          * @summary Start or resume sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
@@ -3040,6 +3088,21 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * 
+         * @summary Set sandbox TTL
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async setTtl(sandboxIdOrName: string, ttlMinutes: number, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Sandbox>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.setTtl(sandboxIdOrName, ttlMinutes, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.setTtl']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.
          * @summary Start or resume sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
@@ -3637,6 +3700,18 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          */
         setAutostopInterval(sandboxIdOrName: string, interval: number, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
             return localVarFp.setAutostopInterval(sandboxIdOrName, interval, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Set sandbox TTL
+         * @param {string} sandboxIdOrName ID or name of the sandbox
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        setTtl(sandboxIdOrName: string, ttlMinutes: number, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Sandbox> {
+            return localVarFp.setTtl(sandboxIdOrName, ttlMinutes, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.
@@ -4245,6 +4320,19 @@ export class SandboxApi extends BaseAPI {
      */
     public setAutostopInterval(sandboxIdOrName: string, interval: number, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).setAutostopInterval(sandboxIdOrName, interval, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Set sandbox TTL
+     * @param {string} sandboxIdOrName ID or name of the sandbox
+     * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public setTtl(sandboxIdOrName: string, ttlMinutes: number, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).setTtl(sandboxIdOrName, ttlMinutes, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

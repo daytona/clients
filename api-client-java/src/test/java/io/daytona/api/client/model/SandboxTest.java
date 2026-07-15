@@ -264,6 +264,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'expiresAt'
+     */
+    @Test
+    public void expiresAtTest() {
+        // TODO: test expiresAt
+    }
+
+    /**
      * Test the property 'volumes'
      */
     @Test

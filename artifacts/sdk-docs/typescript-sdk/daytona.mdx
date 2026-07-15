@@ -397,6 +397,7 @@ Base parameters for creating a new Sandbox.
 - `networkBlockAll?` _boolean_ - Whether to block all network access for the Sandbox
 - `public?` _boolean_ - Is the Sandbox port preview public
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
+- `ttlMinutes?` _number_ - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
 - `user?` _string_ - Optional os user to use for the Sandbox
 - `volumes?` _VolumeMount\[\]_ - Optional array of volumes to mount to the Sandbox
 ## CreateSandboxFromImageParams
@@ -424,6 +425,7 @@ Parameters for creating a new Sandbox.
 - `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
+- `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
 ## CreateSandboxFromSnapshotParams
@@ -448,6 +450,7 @@ Parameters for creating a new Sandbox from a snapshot.
 - `public?` _boolean_
 - `secrets?` _Record\<string, string\>_
 - `snapshot?` _string_ - Name of the snapshot to use for the Sandbox.
+- `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
 ## DaytonaConfig

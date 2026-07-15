@@ -197,6 +197,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'ttlMinutes'
+     */
+    @Test
+    public void ttlMinutesTest() {
+        // TODO: test ttlMinutes
+    }
+
+    /**
      * Test the property 'volumes'
      */
     @Test

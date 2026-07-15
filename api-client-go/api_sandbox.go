@@ -515,6 +515,20 @@ type SandboxAPI interface {
 	SetAutostopIntervalExecute(r SandboxAPISetAutostopIntervalRequest) (*Sandbox, *http.Response, error)
 
 	/*
+	SetTtl Set sandbox TTL
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param sandboxIdOrName ID or name of the sandbox
+	@param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+	@return SandboxAPISetTtlRequest
+	*/
+	SetTtl(ctx context.Context, sandboxIdOrName string, ttlMinutes float32) SandboxAPISetTtlRequest
+
+	// SetTtlExecute executes the request
+	//  @return Sandbox
+	SetTtlExecute(r SandboxAPISetTtlRequest) (*Sandbox, *http.Response, error)
+
+	/*
 	StartSandbox Start or resume sandbox
 
 	Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.
@@ -5402,6 +5416,121 @@ func (a *SandboxAPIService) SetAutostopIntervalExecute(r SandboxAPISetAutostopIn
 	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/autostop/{interval}"
 	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"interval"+"}", url.PathEscape(parameterValueToString(r.interval, "interval")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.xDaytonaOrganizationID != nil {
+		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type SandboxAPISetTtlRequest struct {
+	ctx context.Context
+	ApiService SandboxAPI
+	sandboxIdOrName string
+	ttlMinutes float32
+	xDaytonaOrganizationID *string
+}
+
+// Use with JWT to specify the organization ID
+func (r SandboxAPISetTtlRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) SandboxAPISetTtlRequest {
+	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r SandboxAPISetTtlRequest) Execute() (*Sandbox, *http.Response, error) {
+	return r.ApiService.SetTtlExecute(r)
+}
+
+/*
+SetTtl Set sandbox TTL
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param sandboxIdOrName ID or name of the sandbox
+ @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+ @return SandboxAPISetTtlRequest
+*/
+func (a *SandboxAPIService) SetTtl(ctx context.Context, sandboxIdOrName string, ttlMinutes float32) SandboxAPISetTtlRequest {
+	return SandboxAPISetTtlRequest{
+		ApiService: a,
+		ctx: ctx,
+		sandboxIdOrName: sandboxIdOrName,
+		ttlMinutes: ttlMinutes,
+	}
+}
+
+// Execute executes the request
+//  @return Sandbox
+func (a *SandboxAPIService) SetTtlExecute(r SandboxAPISetTtlRequest) (*Sandbox, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Sandbox
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SandboxAPIService.SetTtl")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/sandbox/{sandboxIdOrName}/ttl/{ttlMinutes}"
+	localVarPath = strings.Replace(localVarPath, "{"+"sandboxIdOrName"+"}", url.PathEscape(parameterValueToString(r.sandboxIdOrName, "sandboxIdOrName")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"ttlMinutes"+"}", url.PathEscape(parameterValueToString(r.ttlMinutes, "ttlMinutes")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

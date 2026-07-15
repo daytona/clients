@@ -56,6 +56,9 @@ module Daytona
     # @return [String, nil] Comma-separated list of allowed domains for the Sandbox
     attr_accessor :domain_allow_list
 
+    # @return [Integer, nil] Time to live in minutes (0 to disable)
+    attr_accessor :ttl_minutes
+
     # @return [Boolean, nil] Whether the Sandbox should be ephemeral
     attr_accessor :ephemeral
 
@@ -83,6 +86,7 @@ module Daytona
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
+    # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     # @param linked_sandbox [String, nil] ID or name of an existing Sandbox to link the new Sandbox to
     def initialize( # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
@@ -96,6 +100,7 @@ module Daytona
       auto_pause_interval: nil,
       auto_archive_interval: nil,
       auto_delete_interval: nil,
+      ttl_minutes: nil,
       volumes: nil,
       secrets: nil,
       network_block_all: nil,
@@ -114,6 +119,7 @@ module Daytona
       @auto_pause_interval = auto_pause_interval
       @auto_archive_interval = auto_archive_interval
       @auto_delete_interval = auto_delete_interval
+      @ttl_minutes = ttl_minutes
       @volumes = volumes
       @secrets = secrets
       @network_block_all = network_block_all
@@ -141,6 +147,7 @@ module Daytona
         auto_pause_interval:,
         auto_archive_interval:,
         auto_delete_interval:,
+        ttl_minutes:,
         volumes:,
         secrets:,
         network_block_all:,
@@ -193,6 +200,7 @@ module Daytona
     # @param auto_pause_interval [Integer, nil] Auto-pause interval in minutes
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
+    # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name
@@ -235,6 +243,7 @@ module Daytona
     # @param auto_pause_interval [Integer, nil] Auto-pause interval in minutes
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
+    # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name

@@ -259,6 +259,27 @@ class SandboxTest {
     }
 
     @Test
+    void setTtlCallsApiAndRejectsNegative() {
+        sandbox.setTtl(60);
+
+        verify(sandboxApi).setTtl("sb-1", BigDecimal.valueOf(60), null);
+
+        assertThatThrownBy(() -> sandbox.setTtl(-1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ttlMinutes must be a non-negative integer");
+    }
+
+    @Test
+    void expiresAtIsPopulatedFromDTO() {
+        io.daytona.api.client.model.Sandbox model = TestSupport.mainSandbox("sb-exp", SandboxState.STARTED);
+        model.setExpiresAt("2026-09-15T12:00:00Z");
+
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
+
+        assertThat(loaded.getExpiresAt()).isEqualTo("2026-09-15T12:00:00Z");
+    }
+
+    @Test
     void updateSecretsSendsSingletonMapListAndUpdatesLocalState() {
         io.daytona.api.client.model.Sandbox refreshed = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
         refreshed.setLabels(Collections.singletonMap("team", "sdk"));

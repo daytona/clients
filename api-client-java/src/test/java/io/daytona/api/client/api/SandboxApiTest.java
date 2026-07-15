@@ -616,6 +616,20 @@ public class SandboxApiTest {
     }
 
     /**
+     * Set sandbox TTL
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void setTtlTest() throws ApiException {
+        String sandboxIdOrName = null;
+        BigDecimal ttlMinutes = null;
+        String xDaytonaOrganizationID = null;
+        Sandbox response = api.setTtl(sandboxIdOrName, ttlMinutes, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
      * Start or resume sandbox
      *
      * Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.

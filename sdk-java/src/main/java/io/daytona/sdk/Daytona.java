@@ -549,6 +549,10 @@ public class Daytona implements AutoCloseable {
             return body;
         }
 
+        if (params.getTtlMinutes() != null && params.getTtlMinutes() < 0) {
+            throw new IllegalArgumentException("ttlMinutes must be a non-negative integer");
+        }
+
         if (params.getName() != null) body.setName(params.getName());
         if (params.getUser() != null) body.setUser(params.getUser());
         if (params.getEnvVars() != null) body.setEnv(params.getEnvVars());
@@ -571,6 +575,7 @@ public class Daytona implements AutoCloseable {
         if (params.getAutoPauseInterval() != null) body.setAutoPauseInterval(params.getAutoPauseInterval());
         if (params.getAutoArchiveInterval() != null) body.setAutoArchiveInterval(params.getAutoArchiveInterval());
         if (params.getAutoDeleteInterval() != null) body.setAutoDeleteInterval(params.getAutoDeleteInterval());
+        if (params.getTtlMinutes() != null) body.setTtlMinutes(params.getTtlMinutes());
         if (params.getNetworkBlockAll() != null) body.setNetworkBlockAll(params.getNetworkBlockAll());
         if (params.getDomainAllowList() != null) body.setDomainAllowList(params.getDomainAllowList());
         if (params.getLinkedSandbox() != null) body.setLinkedSandbox(params.getLinkedSandbox());

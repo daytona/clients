@@ -83,6 +83,7 @@ def build_sandbox_dto(overrides = {}) # rubocop:disable Metrics/MethodLength
     auto_stop_interval: 15,
     auto_archive_interval: 10_080,
     auto_delete_interval: -1,
+    expires_at: nil,
     volumes: [],
     build_info: nil,
     created_at: '2025-01-01T00:00:00Z',

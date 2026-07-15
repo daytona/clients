@@ -176,6 +176,11 @@ class TestDaytonaCreateValidation:
                 timeout=60,
             )
 
+    def test_negative_ttl_raises(self, env_with_api_key):
+        daytona = _make_daytona()
+        with pytest.raises(DaytonaValidationError, match="ttl_minutes must be a non-negative"):
+            daytona._create(CreateSandboxFromSnapshotParams(language="python", ttl_minutes=-1), timeout=60)
+
     def test_negative_auto_archive_raises(self, env_with_api_key):
         daytona = _make_daytona()
         with pytest.raises(DaytonaValidationError, match="auto_archive_interval must be a non-negative"):

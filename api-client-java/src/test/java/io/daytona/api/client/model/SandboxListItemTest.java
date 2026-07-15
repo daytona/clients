@@ -237,6 +237,14 @@ public class SandboxListItemTest {
     }
 
     /**
+     * Test the property 'expiresAt'
+     */
+    @Test
+    public void expiresAtTest() {
+        // TODO: test expiresAt
+    }
+
+    /**
      * Test the property 'createdAt'
      */
     @Test

@@ -87,6 +87,9 @@ module DaytonaApiClient
     # Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
     attr_accessor :auto_delete_interval
 
+    # When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)
+    attr_accessor :expires_at
+
     # The creation timestamp of the sandbox
     attr_accessor :created_at
 
@@ -151,6 +154,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
+        :'expires_at' => :'expiresAt',
         :'created_at' => :'createdAt',
         :'updated_at' => :'updatedAt',
         :'last_activity_at' => :'lastActivityAt',
@@ -196,6 +200,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'Float',
         :'auto_archive_interval' => :'Float',
         :'auto_delete_interval' => :'Float',
+        :'expires_at' => :'String',
         :'created_at' => :'String',
         :'updated_at' => :'String',
         :'last_activity_at' => :'String',
@@ -344,6 +349,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'auto_delete_interval')
         self.auto_delete_interval = attributes[:'auto_delete_interval']
+      end
+
+      if attributes.key?(:'expires_at')
+        self.expires_at = attributes[:'expires_at']
       end
 
       if attributes.key?(:'created_at')
@@ -605,6 +614,7 @@ module DaytonaApiClient
           auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
+          expires_at == o.expires_at &&
           created_at == o.created_at &&
           updated_at == o.updated_at &&
           last_activity_at == o.last_activity_at &&
@@ -621,7 +631,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, created_at, updated_at, last_activity_at, daemon_version, toolbox_proxy_url].hash
+      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, expires_at, created_at, updated_at, last_activity_at, daemon_version, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

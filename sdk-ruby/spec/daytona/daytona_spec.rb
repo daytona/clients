@@ -283,6 +283,14 @@ RSpec.describe Daytona::Daytona do
         .to raise_error(Daytona::Sdk::Error, /auto_archive_interval must be a non-negative integer/)
     end
 
+    it 'raises on negative ttl_minutes' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python,
+                                                            ttl_minutes: -1)
+
+      expect { described_class.new(config).create(params) }
+        .to raise_error(Daytona::Sdk::Error, /ttl_minutes must be a non-negative integer/)
+    end
+
     it 'creates a sandbox from a string image and merges labels' do
       params = Daytona::CreateSandboxFromImageParams.new(
         image: 'ruby:3.4',

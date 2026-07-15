@@ -151,6 +151,7 @@ public class Sandbox {
     private String createdAt;
     private String updatedAt;
     private String lastActivityAt;
+    private String expiresAt;
     private String toolboxProxyUrl;
 
     // Fields only present on the full Sandbox DTO; not populated by Daytona.list() —
@@ -469,6 +470,23 @@ public class Sandbox {
     }
 
     /**
+     * Sets Sandbox TTL (time to live) in minutes.
+     *
+     * @param ttlMinutes minutes until the Sandbox expires
+     * @throws IllegalArgumentException if ttlMinutes is negative
+     * @throws DaytonaException if the update fails
+     */
+    public void setTtl(int ttlMinutes) {
+        if (ttlMinutes < 0) {
+            throw new IllegalArgumentException("ttlMinutes must be a non-negative integer");
+        }
+        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setTtl(id, BigDecimal.valueOf(ttlMinutes), null));
+        if (response != null) {
+            populateFromDTO(response);
+        }
+    }
+
+    /**
      * Updates outbound network policy on the runner (block all, restore access, or CIDR allow list).
      *
      * @param settings request body; at least one of networkBlockAll or networkAllowList must be set
@@ -743,7 +761,7 @@ public class Sandbox {
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getExpiresAt(),
                 d.getToolboxProxyUrl()
         );
 
@@ -776,7 +794,7 @@ public class Sandbox {
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getExpiresAt(),
                 d.getToolboxProxyUrl()
         );
 
@@ -792,7 +810,7 @@ public class Sandbox {
             BigDecimal cpu, BigDecimal gpu, BigDecimal memory, BigDecimal disk,
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
-            String createdAt, String updatedAt, String lastActivityAt,
+            String createdAt, String updatedAt, String lastActivityAt, String expiresAt,
             String toolboxProxyUrl) {
         this.id = asString(id);
         this.name = asString(name);
@@ -821,6 +839,7 @@ public class Sandbox {
             this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
         }
         this.toolboxProxyUrl = newProxyUrl;
+        this.expiresAt = expiresAt;
     }
 
     private void applyState(String newState) {
@@ -1218,6 +1237,8 @@ public class Sandbox {
     public String getUpdatedAt() { return updatedAt; }
     /** @return when the Sandbox last had activity, or {@code null}. */
     public String getLastActivityAt() { return lastActivityAt; }
+    /** @return when the Sandbox expires, or {@code null} if no TTL is set. */
+    public String getExpiresAt() { return expiresAt; }
     /** @return toolbox proxy URL. */
     public String getToolboxProxyUrl() { return toolboxProxyUrl; }
 

@@ -26,6 +26,7 @@ public class CreateSandboxParams {
     private Integer autoPauseInterval;
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
+    private Integer ttlMinutes;
     private List<VolumeMount> volumes;
     private Map<String, String> secrets;
     private Boolean networkBlockAll;
@@ -177,6 +178,20 @@ public class CreateSandboxParams {
      * @param autoDeleteInterval deletion delay in minutes
      */
     public void setAutoDeleteInterval(Integer autoDeleteInterval) { this.autoDeleteInterval = autoDeleteInterval; }
+
+    /**
+     * Returns TTL (time to live) in minutes.
+     *
+     * @return minutes until the Sandbox expires, or {@code null} if unset
+     */
+    public Integer getTtlMinutes() { return ttlMinutes; }
+
+    /**
+     * Sets TTL (time to live) in minutes.
+     *
+     * @param ttlMinutes minutes until the Sandbox expires
+     */
+    public void setTtlMinutes(Integer ttlMinutes) { this.ttlMinutes = ttlMinutes; }
 
     /**
      * Returns volume mounts to attach.

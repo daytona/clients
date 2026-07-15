@@ -529,6 +529,17 @@ func TestCreateValidation(t *testing.T) {
 			errorContains: "autoArchiveInterval must be a non-negative integer",
 		},
 		{
+			name: "invalid ttl minutes - negative",
+			params: types.ImageParams{
+				SandboxBaseParams: types.SandboxBaseParams{
+					TtlMinutes: intPtr(-1),
+				},
+				Image: "test-image",
+			},
+			expectedError: true,
+			errorContains: "ttlMinutes must be a non-negative integer",
+		},
+		{
 			name: "valid auto intervals",
 			params: types.ImageParams{
 				SandboxBaseParams: types.SandboxBaseParams{

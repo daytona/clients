@@ -2969,6 +2969,52 @@ paths:
       summary: Set sandbox auto-pause interval
       tags:
       - sandbox
+  /sandbox/{sandboxIdOrName}/ttl/{ttlMinutes}:
+    post:
+      operationId: setTtl
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: ID or name of the sandbox
+        explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: "Maximum time to live in minutes, re-anchored from the current\
+          \ time (0 to disable). When it elapses the sandbox is destroyed, even if\
+          \ it is stopped, paused, or archived"
+        explode: false
+        in: path
+        name: ttlMinutes
+        required: true
+        schema:
+          type: number
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sandbox"
+          description: TTL has been set
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Set sandbox TTL
+      tags:
+      - sandbox
   /sandbox/{sandboxIdOrName}/autoarchive/{interval}:
     post:
       operationId: setAutoArchiveInterval
@@ -8610,6 +8656,7 @@ components:
         cpu: 2
         gpu: 0
         daemonVersion: 1.0.0
+        expiresAt: 2026-07-15T12:00:00.000Z
         target: local
         labels:
           daytona.io/public: "true"
@@ -8730,6 +8777,11 @@ components:
             \ 0 means delete immediately upon stopping)"
           example: 30
           type: number
+        expiresAt:
+          description: "When the sandbox will expire and be destroyed, regardless\
+            \ of its state (only set when a TTL is configured)"
+          example: 2026-07-15T12:00:00.000Z
+          type: string
         createdAt:
           description: The creation timestamp of the sandbox
           example: 2024-10-01T12:00:00Z
@@ -8789,6 +8841,7 @@ components:
           cpu: 2
           gpu: 0
           daemonVersion: 1.0.0
+          expiresAt: 2026-07-15T12:00:00.000Z
           target: local
           labels:
             daytona.io/public: "true"
@@ -8819,6 +8872,7 @@ components:
           cpu: 2
           gpu: 0
           daemonVersion: 1.0.0
+          expiresAt: 2026-07-15T12:00:00.000Z
           target: local
           labels:
             daytona.io/public: "true"
@@ -8941,6 +8995,7 @@ components:
         gpu: 0
         daemonVersion: 1.0.0
         backupCreatedAt: 2024-10-01T12:00:00Z
+        expiresAt: 2026-07-15T12:00:00.000Z
         labels:
           daytona.io/public: "true"
         target: local
@@ -9076,6 +9131,11 @@ components:
             \ 0 means delete immediately upon stopping)"
           example: 30
           type: number
+        expiresAt:
+          description: "When the sandbox will expire and be destroyed, regardless\
+            \ of its state (only set when a TTL is configured)"
+          example: 2026-07-15T12:00:00.000Z
+          type: string
         volumes:
           description: Array of volumes attached to the sandbox
           items:
@@ -9186,6 +9246,7 @@ components:
           gpu: 0
           daemonVersion: 1.0.0
           backupCreatedAt: 2024-10-01T12:00:00Z
+          expiresAt: 2026-07-15T12:00:00.000Z
           labels:
             daytona.io/public: "true"
           target: local
@@ -9231,6 +9292,7 @@ components:
           gpu: 0
           daemonVersion: 1.0.0
           backupCreatedAt: 2024-10-01T12:00:00Z
+          expiresAt: 2026-07-15T12:00:00.000Z
           labels:
             daytona.io/public: "true"
           target: local
@@ -9292,6 +9354,7 @@ components:
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
         cpu: 2
+        ttlMinutes: 1440
         env:
           NODE_ENV: production
         gpu: 1
@@ -9411,6 +9474,13 @@ components:
           description: "Auto-delete interval in minutes (negative value means disabled,\
             \ 0 means delete immediately upon stopping)"
           example: 30
+          type: integer
+        ttlMinutes:
+          description: "Maximum time to live in minutes, counted as wall-clock time\
+            \ since creation regardless of sandbox state (0 means disabled). When\
+            \ it elapses the sandbox is destroyed, even if it is stopped, paused,\
+            \ or archived."
+          example: 1440
           type: integer
         volumes:
           description: Array of volumes to attach to the sandbox

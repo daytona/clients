@@ -353,6 +353,7 @@ describe('Daytona', () => {
         autoPauseInterval?: number
         autoArchiveInterval?: number
         autoDeleteInterval?: number
+        ttlMinutes?: number
         ephemeral?: boolean
       },
     ]
@@ -376,6 +377,7 @@ describe('Daytona', () => {
       { autoPauseInterval: 60, autoDeleteInterval: 0 },
     ],
     [{}, 'autoArchiveInterval must be a non-negative integer', { autoArchiveInterval: -1 }],
+    [{}, 'ttlMinutes must be a non-negative integer', { ttlMinutes: -1 }],
   ])('validates create input %#', async (optionsPart, message, params) => {
     const { Daytona } = await import('../Daytona')
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })

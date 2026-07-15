@@ -152,6 +152,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private Integer autoDeleteInterval;
 
+  public static final String SERIALIZED_NAME_TTL_MINUTES = "ttlMinutes";
+  @SerializedName(SERIALIZED_NAME_TTL_MINUTES)
+  @javax.annotation.Nullable
+  private Integer ttlMinutes;
+
   public static final String SERIALIZED_NAME_VOLUMES = "volumes";
   @SerializedName(SERIALIZED_NAME_VOLUMES)
   @javax.annotation.Nullable
@@ -560,6 +565,25 @@ public class CreateSandbox {
   }
 
 
+  public CreateSandbox ttlMinutes(@javax.annotation.Nullable Integer ttlMinutes) {
+    this.ttlMinutes = ttlMinutes;
+    return this;
+  }
+
+  /**
+   * Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+   * @return ttlMinutes
+   */
+  @javax.annotation.Nullable
+  public Integer getTtlMinutes() {
+    return ttlMinutes;
+  }
+
+  public void setTtlMinutes(@javax.annotation.Nullable Integer ttlMinutes) {
+    this.ttlMinutes = ttlMinutes;
+  }
+
+
   public CreateSandbox volumes(@javax.annotation.Nullable List<SandboxVolume> volumes) {
     this.volumes = volumes;
     return this;
@@ -725,6 +749,7 @@ public class CreateSandbox {
         Objects.equals(this.autoPauseInterval, createSandbox.autoPauseInterval) &&
         Objects.equals(this.autoArchiveInterval, createSandbox.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, createSandbox.autoDeleteInterval) &&
+        Objects.equals(this.ttlMinutes, createSandbox.ttlMinutes) &&
         Objects.equals(this.volumes, createSandbox.volumes) &&
         Objects.equals(this.buildInfo, createSandbox.buildInfo) &&
         Objects.equals(this.linkedSandbox, createSandbox.linkedSandbox) &&
@@ -734,7 +759,7 @@ public class CreateSandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -760,6 +785,7 @@ public class CreateSandbox {
     sb.append("    autoPauseInterval: ").append(toIndentedString(autoPauseInterval)).append("\n");
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
+    sb.append("    ttlMinutes: ").append(toIndentedString(ttlMinutes)).append("\n");
     sb.append("    volumes: ").append(toIndentedString(volumes)).append("\n");
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    linkedSandbox: ").append(toIndentedString(linkedSandbox)).append("\n");
@@ -783,7 +809,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

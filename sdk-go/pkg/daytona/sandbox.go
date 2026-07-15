@@ -96,10 +96,11 @@ type Sandbox struct {
 	// Set to 0 to delete immediately upon stopping.
 	AutoDeleteInterval int
 
-	CreatedAt       *string // When the sandbox was created
-	UpdatedAt       *string // When the sandbox was last updated
-	LastActivityAt  *string // When the sandbox last had activity
+	CreatedAt      *string // When the sandbox was created
+	UpdatedAt      *string // When the sandbox was last updated
+	LastActivityAt *string // When the sandbox last had activity
 	ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
+	ExpiresAt      *string // When the sandbox expires (based on TTL)
 
 	// Env contains environment variables set in the sandbox.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -176,6 +177,7 @@ type sandboxDTO interface {
 	GetCreatedAt() string
 	GetUpdatedAt() string
 	GetLastActivityAt() string
+	GetExpiresAt() string
 	GetToolboxProxyUrl() string
 
 	// *Ok accessors used to distinguish unset optional fields from zero values.
@@ -190,6 +192,7 @@ type sandboxDTO interface {
 	GetCreatedAtOk() (*string, bool)
 	GetUpdatedAtOk() (*string, bool)
 	GetLastActivityAtOk() (*string, bool)
+	GetExpiresAtOk() (*string, bool)
 }
 
 // ListSandboxesQuery contains query parameters for filtering and sorting when listing sandboxes.
@@ -407,6 +410,9 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 	if v, ok := dto.GetLastActivityAtOk(); ok {
 		s.LastActivityAt = v
+	}
+	if v, ok := dto.GetExpiresAtOk(); ok {
+		s.ExpiresAt = v
 	}
 
 	// Fields only present on the full apiclient.Sandbox DTO (not returned by

@@ -96,6 +96,7 @@ type SandboxBaseParams struct {
 	AutoPauseInterval   *int // nil = server default when AutoStopInterval is also nil (60 for non-ephemeral pause-supporting classes, with auto-stop disabled), 0 = disabled. Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of AutoPauseInterval and AutoStopInterval may be non-zero.
 	AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
 	AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
+	TtlMinutes          *int // Wall-clock max lifetime in minutes; 0 disables TTL
 	Volumes             []VolumeMount
 	// Secrets maps an environment variable name to the name of an existing
 	// organization secret. For each entry, the env var is injected into the
