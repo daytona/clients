@@ -102,11 +102,16 @@ class E2ETest {
         lspFilePath = lspProjectDir + "/sample.py";
         createdVolumeName = unique("e2e-vol");
 
-        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
-        params.setName(sandboxName);
-        params.setLanguage("python");
-        params.setLabels(Collections.singletonMap("purpose", "e2e-test"));
-        sandbox = daytona.create(params, 60);
+        String existingSandboxId = System.getenv("DAYTONA_EXISTING_SANDBOX_ID");
+        if (existingSandboxId != null && !existingSandboxId.isEmpty()) {
+            sandbox = daytona.get(existingSandboxId);
+        } else {
+            CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+            params.setName(sandboxName);
+            params.setLanguage("python");
+            params.setLabels(Collections.singletonMap("purpose", "e2e-test"));
+            sandbox = daytona.create(params, 60);
+        }
 
         toolboxFileSystemApi = new FileSystemApi(sandbox.getToolboxApiClient());
         toolboxGitApi = new GitApi(sandbox.getToolboxApiClient());
@@ -672,6 +677,12 @@ class E2ETest {
         ExecuteResponse response = sandbox.getProcess().executeCommand("echo restarted");
         assertThat(response.getExitCode()).isEqualTo(0);
         assertThat(response.getResult()).contains("restarted");
+    }
+
+    @Test
+    @Order(23)
+    void snapshotCapturePollsTheAcceptedSnapshotToActive() {
+        sandbox.experimentalCreateSnapshot(unique("sdk-java-capture"), 3);
     }
 
     private io.daytona.api.client.model.Sandbox fetchSandboxDto() throws Exception {
