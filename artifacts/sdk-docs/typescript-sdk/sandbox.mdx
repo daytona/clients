@@ -12,6 +12,7 @@ Represents a Daytona Sandbox.
 
 - `autoArchiveInterval?` _number_ - Auto-archive interval in minutes
 - `autoDeleteInterval?` _number_ - Auto-delete interval in minutes
+- `autoDestroyAt?` _string_ - When the Sandbox will be automatically destroyed (only set when a TTL is configured)
 - `autoPauseInterval?` _number_ - Auto-pause interval in minutes
 - `autoStopInterval?` _number_ - Auto-stop interval in minutes
 - `backupCreatedAt?` _string_ - When the backup was created (not returned by list results;
@@ -30,7 +31,6 @@ Represents a Daytona Sandbox.
 - `env?` _Record\<string, string\>_ - Environment variables set in the Sandbox
     (not returned by list results; call `refreshData()` on each item to populate)
 - `errorReason?` _string_ - Error message if Sandbox is in error state
-- `expiresAt?` _string_ - When the Sandbox will expire and be destroyed (only set when a TTL is configured)
 - `fs` _FileSystem_ - File system operations interface
 - `git` _Git_ - Git operations interface
 - `gpu` _number_ - Number of GPUs allocated to the Sandbox
@@ -816,7 +816,7 @@ Set the TTL (maximum time to live) for the Sandbox.
 
 The Sandbox will be destroyed once the TTL elapses, counted as wall-clock time regardless of the
 Sandbox state - even if it is stopped, paused, or archived. Calling this method re-anchors the
-deadline from the current time. Call `refreshData()` afterwards to read the updated `expiresAt`.
+deadline from the current time. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
 
 **Parameters**:
 

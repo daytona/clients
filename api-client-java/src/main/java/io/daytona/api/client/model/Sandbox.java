@@ -255,10 +255,10 @@ public class Sandbox {
   @javax.annotation.Nullable
   private BigDecimal autoDeleteInterval;
 
-  public static final String SERIALIZED_NAME_EXPIRES_AT = "expiresAt";
-  @SerializedName(SERIALIZED_NAME_EXPIRES_AT)
+  public static final String SERIALIZED_NAME_AUTO_DESTROY_AT = "autoDestroyAt";
+  @SerializedName(SERIALIZED_NAME_AUTO_DESTROY_AT)
   @javax.annotation.Nullable
-  private String expiresAt;
+  private String autoDestroyAt;
 
   public static final String SERIALIZED_NAME_VOLUMES = "volumes";
   @SerializedName(SERIALIZED_NAME_VOLUMES)
@@ -900,22 +900,22 @@ public class Sandbox {
   }
 
 
-  public Sandbox expiresAt(@javax.annotation.Nullable String expiresAt) {
-    this.expiresAt = expiresAt;
+  public Sandbox autoDestroyAt(@javax.annotation.Nullable String autoDestroyAt) {
+    this.autoDestroyAt = autoDestroyAt;
     return this;
   }
 
   /**
-   * When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)
-   * @return expiresAt
+   * When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
+   * @return autoDestroyAt
    */
   @javax.annotation.Nullable
-  public String getExpiresAt() {
-    return expiresAt;
+  public String getAutoDestroyAt() {
+    return autoDestroyAt;
   }
 
-  public void setExpiresAt(@javax.annotation.Nullable String expiresAt) {
-    this.expiresAt = expiresAt;
+  public void setAutoDestroyAt(@javax.annotation.Nullable String autoDestroyAt) {
+    this.autoDestroyAt = autoDestroyAt;
   }
 
 
@@ -1198,7 +1198,7 @@ public class Sandbox {
         Objects.equals(this.autoPauseInterval, sandbox.autoPauseInterval) &&
         Objects.equals(this.autoArchiveInterval, sandbox.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, sandbox.autoDeleteInterval) &&
-        Objects.equals(this.expiresAt, sandbox.expiresAt) &&
+        Objects.equals(this.autoDestroyAt, sandbox.autoDestroyAt) &&
         Objects.equals(this.volumes, sandbox.volumes) &&
         Objects.equals(this.buildInfo, sandbox.buildInfo) &&
         Objects.equals(this.createdAt, sandbox.createdAt) &&
@@ -1214,7 +1214,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, expiresAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1248,7 +1248,7 @@ public class Sandbox {
     sb.append("    autoPauseInterval: ").append(toIndentedString(autoPauseInterval)).append("\n");
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
-    sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
+    sb.append("    autoDestroyAt: ").append(toIndentedString(autoDestroyAt)).append("\n");
     sb.append("    volumes: ").append(toIndentedString(volumes)).append("\n");
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
@@ -1278,7 +1278,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "expiresAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
@@ -1353,8 +1353,8 @@ public class Sandbox {
       if ((jsonObj.get("backupCreatedAt") != null && !jsonObj.get("backupCreatedAt").isJsonNull()) && !jsonObj.get("backupCreatedAt").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `backupCreatedAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("backupCreatedAt").toString()));
       }
-      if ((jsonObj.get("expiresAt") != null && !jsonObj.get("expiresAt").isJsonNull()) && !jsonObj.get("expiresAt").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `expiresAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("expiresAt").toString()));
+      if ((jsonObj.get("autoDestroyAt") != null && !jsonObj.get("autoDestroyAt").isJsonNull()) && !jsonObj.get("autoDestroyAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `autoDestroyAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("autoDestroyAt").toString()));
       }
       if (jsonObj.get("volumes") != null && !jsonObj.get("volumes").isJsonNull()) {
         JsonArray jsonArrayvolumes = jsonObj.getAsJsonArray("volumes");

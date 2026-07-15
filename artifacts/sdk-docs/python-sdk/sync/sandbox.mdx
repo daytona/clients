@@ -53,7 +53,7 @@ Represents a Daytona Sandbox.
 - `created_at` _str | None_ - When the Sandbox was created.
 - `updated_at` _str | None_ - When the Sandbox was last updated.
 - `last_activity_at` _str | None_ - When the Sandbox last had activity.
-- `expires_at` _str | None_ - When the Sandbox will expire and be destroyed (only set when a TTL
+- `auto_destroy_at` _str | None_ - When the Sandbox will be automatically destroyed (only set when a TTL
   is configured).
 - `network_block_all` _bool | None_ - Whether to block all network access for the Sandbox
   (not returned by list results; call `refresh_data()` on each item to populate).

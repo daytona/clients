@@ -139,9 +139,9 @@ export interface Sandbox {
      */
     'autoDeleteInterval'?: number;
     /**
-     * When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)
+     * When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
      */
-    'expiresAt'?: string;
+    'autoDestroyAt'?: string;
     /**
      * Array of volumes attached to the sandbox
      */

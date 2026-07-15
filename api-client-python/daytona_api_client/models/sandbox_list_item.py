@@ -58,14 +58,14 @@ class SandboxListItem(BaseModel):
     auto_pause_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-pause interval in minutes (0 means disabled)", serialization_alias="autoPauseInterval")
     auto_archive_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-archive interval in minutes", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
-    expires_at: Optional[StrictStr] = Field(default=None, description="When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)", serialization_alias="expiresAt")
+    auto_destroy_at: Optional[StrictStr] = Field(default=None, description="When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)", serialization_alias="autoDestroyAt")
     created_at: Optional[StrictStr] = Field(default=None, description="The creation timestamp of the sandbox", serialization_alias="createdAt")
     updated_at: Optional[StrictStr] = Field(default=None, description="The last update timestamp of the sandbox", serialization_alias="updatedAt")
     last_activity_at: Optional[StrictStr] = Field(default=None, description="The last activity timestamp of the sandbox", serialization_alias="lastActivityAt")
     daemon_version: Optional[StrictStr] = Field(default=None, description="The version of the daemon running in the sandbox", serialization_alias="daemonVersion")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "expiresAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -148,7 +148,7 @@ class SandboxListItem(BaseModel):
             "auto_pause_interval": obj.get("autoPauseInterval"),
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
-            "expires_at": obj.get("expiresAt"),
+            "auto_destroy_at": obj.get("autoDestroyAt"),
             "created_at": obj.get("createdAt"),
             "updated_at": obj.get("updatedAt"),
             "last_activity_at": obj.get("lastActivityAt"),

@@ -131,7 +131,7 @@ class Sandbox(SandboxDto):
         created_at (str | None): When the Sandbox was created.
         updated_at (str | None): When the Sandbox was last updated.
         last_activity_at (str | None): When the Sandbox last had activity.
-        expires_at (str | None): When the Sandbox will expire and be destroyed (only set when a TTL
+        auto_destroy_at (str | None): When the Sandbox will be automatically destroyed (only set when a TTL
             is configured).
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
@@ -1331,7 +1331,7 @@ class Sandbox(SandboxDto):
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
-        self.expires_at: str | None = sandbox_dto.expires_at
+        self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):

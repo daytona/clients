@@ -12066,9 +12066,9 @@
             "description": "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)",
             "example": 30
           },
-          "expiresAt": {
+          "autoDestroyAt": {
             "type": "string",
-            "description": "When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)",
+            "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
             "example": "2026-07-15T12:00:00.000Z"
           },
           "createdAt": {
@@ -12365,9 +12365,9 @@
             "description": "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)",
             "example": 30
           },
-          "expiresAt": {
+          "autoDestroyAt": {
             "type": "string",
-            "description": "When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)",
+            "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
             "example": "2026-07-15T12:00:00.000Z"
           },
           "volumes": {

@@ -8656,11 +8656,11 @@ components:
         cpu: 2
         gpu: 0
         daemonVersion: 1.0.0
-        expiresAt: 2026-07-15T12:00:00.000Z
         target: local
         labels:
           daytona.io/public: "true"
         disk: 10
+        autoDestroyAt: 2026-07-15T12:00:00.000Z
         name: MySandbox
         backupState: None
         user: daytona
@@ -8777,8 +8777,8 @@ components:
             \ 0 means delete immediately upon stopping)"
           example: 30
           type: number
-        expiresAt:
-          description: "When the sandbox will expire and be destroyed, regardless\
+        autoDestroyAt:
+          description: "When the sandbox will be automatically destroyed, regardless\
             \ of its state (only set when a TTL is configured)"
           example: 2026-07-15T12:00:00.000Z
           type: string
@@ -8841,11 +8841,11 @@ components:
           cpu: 2
           gpu: 0
           daemonVersion: 1.0.0
-          expiresAt: 2026-07-15T12:00:00.000Z
           target: local
           labels:
             daytona.io/public: "true"
           disk: 10
+          autoDestroyAt: 2026-07-15T12:00:00.000Z
           name: MySandbox
           backupState: None
           user: daytona
@@ -8872,11 +8872,11 @@ components:
           cpu: 2
           gpu: 0
           daemonVersion: 1.0.0
-          expiresAt: 2026-07-15T12:00:00.000Z
           target: local
           labels:
             daytona.io/public: "true"
           disk: 10
+          autoDestroyAt: 2026-07-15T12:00:00.000Z
           name: MySandbox
           backupState: None
           user: daytona
@@ -8995,11 +8995,11 @@ components:
         gpu: 0
         daemonVersion: 1.0.0
         backupCreatedAt: 2024-10-01T12:00:00Z
-        expiresAt: 2026-07-15T12:00:00.000Z
         labels:
           daytona.io/public: "true"
         target: local
         disk: 10
+        autoDestroyAt: 2026-07-15T12:00:00.000Z
         name: MySandbox
         backupState: None
         user: daytona
@@ -9131,8 +9131,8 @@ components:
             \ 0 means delete immediately upon stopping)"
           example: 30
           type: number
-        expiresAt:
-          description: "When the sandbox will expire and be destroyed, regardless\
+        autoDestroyAt:
+          description: "When the sandbox will be automatically destroyed, regardless\
             \ of its state (only set when a TTL is configured)"
           example: 2026-07-15T12:00:00.000Z
           type: string
@@ -9246,11 +9246,11 @@ components:
           gpu: 0
           daemonVersion: 1.0.0
           backupCreatedAt: 2024-10-01T12:00:00Z
-          expiresAt: 2026-07-15T12:00:00.000Z
           labels:
             daytona.io/public: "true"
           target: local
           disk: 10
+          autoDestroyAt: 2026-07-15T12:00:00.000Z
           name: MySandbox
           backupState: None
           user: daytona
@@ -9292,11 +9292,11 @@ components:
           gpu: 0
           daemonVersion: 1.0.0
           backupCreatedAt: 2024-10-01T12:00:00Z
-          expiresAt: 2026-07-15T12:00:00.000Z
           labels:
             daytona.io/public: "true"
           target: local
           disk: 10
+          autoDestroyAt: 2026-07-15T12:00:00.000Z
           name: MySandbox
           backupState: None
           user: daytona

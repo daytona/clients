@@ -264,11 +264,11 @@ public class SandboxTest {
     }
 
     /**
-     * Test the property 'expiresAt'
+     * Test the property 'autoDestroyAt'
      */
     @Test
-    public void expiresAtTest() {
-        // TODO: test expiresAt
+    public void autoDestroyAtTest() {
+        // TODO: test autoDestroyAt
     }
 
     /**

@@ -93,7 +93,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {number} [autoPauseInterval] - Auto-pause interval in minutes
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes
- * @property {string} [expiresAt] - When the Sandbox will expire and be destroyed (only set when a TTL is configured)
+ * @property {string} [autoDestroyAt] - When the Sandbox will be automatically destroyed (only set when a TTL is configured)
  * @property {Array<SandboxVolume>} [volumes] - Volumes attached to the Sandbox (not returned by
  * list results; call `refreshData()` on each item to populate)
  * @property {BuildInfo} [buildInfo] - Build information for the Sandbox if it was created from dynamic build
@@ -141,7 +141,7 @@ export class Sandbox {
   public autoPauseInterval?: number
   public autoArchiveInterval?: number
   public autoDeleteInterval?: number
-  public expiresAt?: string
+  public autoDestroyAt?: string
   public volumes?: Array<SandboxVolume>
   public buildInfo?: BuildInfo
   public createdAt?: string
@@ -813,7 +813,7 @@ export class Sandbox {
    *
    * The Sandbox will be destroyed once the TTL elapses, counted as wall-clock time regardless of the
    * Sandbox state - even if it is stopped, paused, or archived. Calling this method re-anchors the
-   * deadline from the current time. Call `refreshData()` afterwards to read the updated `expiresAt`.
+   * deadline from the current time. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
    *
    * @param {number} ttlMinutes - Number of minutes from now after which the Sandbox will be destroyed.
    *                           Set to 0 to disable the TTL.
@@ -1353,7 +1353,7 @@ export class Sandbox {
     this.autoPauseInterval = sandboxDto.autoPauseInterval
     this.autoArchiveInterval = sandboxDto.autoArchiveInterval
     this.autoDeleteInterval = sandboxDto.autoDeleteInterval
-    this.expiresAt = sandboxDto.expiresAt
+    this.autoDestroyAt = sandboxDto.autoDestroyAt
     this.createdAt = sandboxDto.createdAt
     this.updatedAt = sandboxDto.updatedAt
     this.lastActivityAt = sandboxDto.lastActivityAt

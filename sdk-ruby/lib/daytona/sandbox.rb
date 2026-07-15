@@ -140,8 +140,8 @@ module Daytona
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :build_info
 
-    # @return [String, nil] The expiration timestamp of the sandbox (nil if no TTL is set)
-    attr_reader :expires_at
+    # @return [String, nil] When the sandbox will be automatically destroyed (nil if no TTL is set)
+    attr_reader :auto_destroy_at
 
     # @return [String] The creation timestamp of the sandbox
     attr_reader :created_at
@@ -989,7 +989,7 @@ module Daytona
       @auto_pause_interval = sandbox_dto.auto_pause_interval
       @auto_archive_interval = sandbox_dto.auto_archive_interval
       @auto_delete_interval = sandbox_dto.auto_delete_interval
-      @expires_at = sandbox_dto.expires_at
+      @auto_destroy_at = sandbox_dto.auto_destroy_at
       @created_at = sandbox_dto.created_at
       @updated_at = sandbox_dto.updated_at
       @last_activity_at = sandbox_dto.last_activity_at

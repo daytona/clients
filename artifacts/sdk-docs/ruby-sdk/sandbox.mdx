@@ -322,16 +322,16 @@ def build_info()
 created from a dynamic build.
 Not returned by list results; call #refresh on each item to populate.
 
-#### expires_at()
+#### auto_destroy_at()
 
 ```ruby
-def expires_at()
+def auto_destroy_at()
 
 ```
 
 **Returns**:
 
-- `String, nil` - The expiration timestamp of the sandbox (nil if no TTL is set)
+- `String, nil` - When the sandbox will be automatically destroyed (nil if no TTL is set)
 
 #### created_at()
 

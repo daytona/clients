@@ -96,8 +96,8 @@ module DaytonaApiClient
     # Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
     attr_accessor :auto_delete_interval
 
-    # When the sandbox will expire and be destroyed, regardless of its state (only set when a TTL is configured)
-    attr_accessor :expires_at
+    # When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
+    attr_accessor :auto_destroy_at
 
     # Array of volumes attached to the sandbox
     attr_accessor :volumes
@@ -181,7 +181,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
-        :'expires_at' => :'expiresAt',
+        :'auto_destroy_at' => :'autoDestroyAt',
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
         :'created_at' => :'createdAt',
@@ -235,7 +235,7 @@ module DaytonaApiClient
         :'auto_pause_interval' => :'Float',
         :'auto_archive_interval' => :'Float',
         :'auto_delete_interval' => :'Float',
-        :'expires_at' => :'String',
+        :'auto_destroy_at' => :'String',
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'BuildInfo',
         :'created_at' => :'String',
@@ -409,8 +409,8 @@ module DaytonaApiClient
         self.auto_delete_interval = attributes[:'auto_delete_interval']
       end
 
-      if attributes.key?(:'expires_at')
-        self.expires_at = attributes[:'expires_at']
+      if attributes.key?(:'auto_destroy_at')
+        self.auto_destroy_at = attributes[:'auto_destroy_at']
       end
 
       if attributes.key?(:'volumes')
@@ -739,7 +739,7 @@ module DaytonaApiClient
           auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
-          expires_at == o.expires_at &&
+          auto_destroy_at == o.auto_destroy_at &&
           volumes == o.volumes &&
           build_info == o.build_info &&
           created_at == o.created_at &&
@@ -761,7 +761,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, expires_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

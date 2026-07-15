@@ -151,7 +151,7 @@ public class Sandbox {
     private String createdAt;
     private String updatedAt;
     private String lastActivityAt;
-    private String expiresAt;
+    private String autoDestroyAt;
     private String toolboxProxyUrl;
 
     // Fields only present on the full Sandbox DTO; not populated by Daytona.list() —
@@ -761,7 +761,7 @@ public class Sandbox {
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getExpiresAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
                 d.getToolboxProxyUrl()
         );
 
@@ -794,7 +794,7 @@ public class Sandbox {
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getExpiresAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
                 d.getToolboxProxyUrl()
         );
 
@@ -810,7 +810,7 @@ public class Sandbox {
             BigDecimal cpu, BigDecimal gpu, BigDecimal memory, BigDecimal disk,
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
-            String createdAt, String updatedAt, String lastActivityAt, String expiresAt,
+            String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt,
             String toolboxProxyUrl) {
         this.id = asString(id);
         this.name = asString(name);
@@ -839,7 +839,7 @@ public class Sandbox {
             this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
         }
         this.toolboxProxyUrl = newProxyUrl;
-        this.expiresAt = expiresAt;
+        this.autoDestroyAt = autoDestroyAt;
     }
 
     private void applyState(String newState) {
@@ -1238,7 +1238,7 @@ public class Sandbox {
     /** @return when the Sandbox last had activity, or {@code null}. */
     public String getLastActivityAt() { return lastActivityAt; }
     /** @return when the Sandbox expires, or {@code null} if no TTL is set. */
-    public String getExpiresAt() { return expiresAt; }
+    public String getAutoDestroyAt() { return autoDestroyAt; }
     /** @return toolbox proxy URL. */
     public String getToolboxProxyUrl() { return toolboxProxyUrl; }
 

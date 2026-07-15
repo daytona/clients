@@ -270,13 +270,13 @@ class SandboxTest {
     }
 
     @Test
-    void expiresAtIsPopulatedFromDTO() {
+    void autoDestroyAtIsPopulatedFromDTO() {
         io.daytona.api.client.model.Sandbox model = TestSupport.mainSandbox("sb-exp", SandboxState.STARTED);
-        model.setExpiresAt("2026-09-15T12:00:00Z");
+        model.setAutoDestroyAt("2026-09-15T12:00:00Z");
 
         Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
 
-        assertThat(loaded.getExpiresAt()).isEqualTo("2026-09-15T12:00:00Z");
+        assertThat(loaded.getAutoDestroyAt()).isEqualTo("2026-09-15T12:00:00Z");
     }
 
     @Test
