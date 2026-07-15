@@ -48,8 +48,6 @@ jobs:
         include:
           - name: TypeScript SDK
             projects: sdk-typescript
-          - name: Analytics API Client
-            projects: analytics-api-client
           - name: Python SDK
             projects: sdk-python
           - name: Ruby SDK

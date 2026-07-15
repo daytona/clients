@@ -41,7 +41,7 @@
         "set-version",
         {
           "target": "build",
-          "projects": ["api-client-java", "toolbox-api-client-java"]
+          "projects": ["api-client-java", "toolbox-api-client-java", "analytics-api-client-java"]
         }
       ]
     },
@@ -55,7 +55,7 @@
         "set-version",
         {
           "target": "publish",
-          "projects": ["api-client-java", "toolbox-api-client-java"]
+          "projects": ["api-client-java", "toolbox-api-client-java", "analytics-api-client-java"]
         }
       ]
     },
@@ -72,7 +72,8 @@
       "inputs": [
         "default",
         "{workspaceRoot}/api-client-java/**/*",
-        "{workspaceRoot}/toolbox-api-client-java/**/*"
+        "{workspaceRoot}/toolbox-api-client-java/**/*",
+        "{workspaceRoot}/analytics-api-client-java/**/*"
       ],
       "outputs": [],
       "options": {
