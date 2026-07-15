@@ -173,46 +173,46 @@ describe('Daytona', () => {
     expect(mockSnapshotServiceCtor).toHaveBeenCalledTimes(1)
   })
 
-  it('does not create an EventDispatcher by default (polling mode)', async () => {
+  it('creates and connects an EventDispatcher by default (event streaming mode)', async () => {
     const { Daytona } = await import('../Daytona')
     const { EventDispatcher } = await import('../utils/EventDispatcher')
 
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
 
-    expect(EventDispatcher).not.toHaveBeenCalled()
-    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeUndefined()
-  })
-
-  it('creates and connects an EventDispatcher when eventStreaming is enabled', async () => {
-    const { Daytona } = await import('../Daytona')
-    const { EventDispatcher } = await import('../utils/EventDispatcher')
-
-    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', eventStreaming: true })
-
     expect(EventDispatcher).toHaveBeenCalledTimes(1)
     expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeDefined()
   })
 
-  it('enables eventStreaming via the DAYTONA_EVENT_STREAMING env var', async () => {
-    process.env.DAYTONA_EVENT_STREAMING = 'true'
+  it('does not create an EventDispatcher when useDeprecatedPolling is enabled', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { EventDispatcher } = await import('../utils/EventDispatcher')
+
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', useDeprecatedPolling: true })
+
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeUndefined()
+  })
+
+  it('enables polling via the DAYTONA_USE_DEPRECATED_POLLING env var', async () => {
+    process.env.DAYTONA_USE_DEPRECATED_POLLING = 'true'
     const { Daytona } = await import('../Daytona')
     const { EventDispatcher } = await import('../utils/EventDispatcher')
 
     new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
 
-    expect(EventDispatcher).toHaveBeenCalledTimes(1)
-    delete process.env.DAYTONA_EVENT_STREAMING
+    expect(EventDispatcher).not.toHaveBeenCalled()
+    delete process.env.DAYTONA_USE_DEPRECATED_POLLING
   })
 
-  it('lets an explicit eventStreaming=false win over the env var', async () => {
-    process.env.DAYTONA_EVENT_STREAMING = 'true'
+  it('lets an explicit useDeprecatedPolling=false win over the env var', async () => {
+    process.env.DAYTONA_USE_DEPRECATED_POLLING = 'true'
     const { Daytona } = await import('../Daytona')
     const { EventDispatcher } = await import('../utils/EventDispatcher')
 
-    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', eventStreaming: false })
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', useDeprecatedPolling: false })
 
-    expect(EventDispatcher).not.toHaveBeenCalled()
-    delete process.env.DAYTONA_EVENT_STREAMING
+    expect(EventDispatcher).toHaveBeenCalledTimes(1)
+    delete process.env.DAYTONA_USE_DEPRECATED_POLLING
   })
 
   it('reads constructor values from env when config omitted', async () => {

@@ -63,7 +63,13 @@ module Daytona
       )
       token = config.api_key || config.jwt_token
 
-      if config.event_streaming
+      if config.use_deprecated_polling
+        warn(
+          '[DEPRECATION] Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING) ' \
+          'is deprecated and will be removed in a future release.',
+          uplevel: 1
+        )
+      else
         @event_dispatcher = EventDispatcher.new(
           api_url: config.api_url,
           token: token,

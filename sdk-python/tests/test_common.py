@@ -25,7 +25,7 @@ from daytona.common.daytona import (
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
     DaytonaConfig,
-    resolve_opt_in_flag,
+    resolve_bool_flag,
 )
 from daytona.common.errors import DaytonaNotFoundError, DaytonaValidationError
 from daytona.common.filesystem import (
@@ -91,20 +91,20 @@ class TestDaytonaConfig:
             config = DaytonaConfig(api_url="https://new.api.io", server_url="https://old.api.io")
         assert config.api_url == "https://new.api.io"
 
-    def test_event_streaming_defaults_to_none(self):
+    def test_use_deprecated_polling_defaults_to_none(self):
         config = DaytonaConfig()
-        assert config.event_streaming is None
+        assert config.use_deprecated_polling is None
 
 
-class TestResolveOptInFlag:
+class TestResolveBoolFlag:
     def test_env_true_is_case_insensitive(self):
-        assert resolve_opt_in_flag(None, "TrUe") is True
+        assert resolve_bool_flag(None, "TrUe") is True
 
-    def test_false_explicit_value_disables_env_opt_in(self):
-        assert resolve_opt_in_flag(False, "true") is False
+    def test_false_explicit_value_beats_env(self):
+        assert resolve_bool_flag(False, "true") is False
 
     def test_true_explicit_value_enables(self):
-        assert resolve_opt_in_flag(True, "false") is True
+        assert resolve_bool_flag(True, "false") is True
 
 
 class TestCodeLanguage:

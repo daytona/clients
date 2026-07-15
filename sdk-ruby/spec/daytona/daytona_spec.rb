@@ -49,15 +49,8 @@ RSpec.describe Daytona::Daytona do
       expect(daytona.snapshot).to be_a(Daytona::SnapshotService)
     end
 
-    it 'defaults event streaming to polling and skips dispatcher startup' do
+    it 'creates and connects an event dispatcher by default' do
       described_class.new(config)
-
-      expect(Daytona::EventDispatcher).not_to have_received(:new)
-      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(nil)
-    end
-
-    it 'creates and connects an event dispatcher when event_streaming is enabled in config' do
-      described_class.new(build_config(event_streaming: true))
 
       expect(Daytona::EventDispatcher).to have_received(:new).with(
         api_url: 'https://api.example.com',
@@ -70,27 +63,46 @@ RSpec.describe Daytona::Daytona do
       expect(Daytona::EventSubscriptionManager).to have_received(:new).with(event_dispatcher)
     end
 
-    it 'creates and connects an event dispatcher when DAYTONA_EVENT_STREAMING is set' do
-      original = ENV.fetch('DAYTONA_EVENT_STREAMING', nil)
-      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
+    it 'skips dispatcher when use_deprecated_polling is true' do
+      expect do
+        described_class.new(build_config(use_deprecated_polling: true))
+      end.to output(/DEPRECATION/).to_stderr
 
-      described_class.new(build_config)
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+      expect(Daytona::EventSubscriptionManager).to have_received(:new).with(nil)
+    end
+
+    it 'skips dispatcher when DAYTONA_USE_DEPRECATED_POLLING env var is set' do
+      original = ENV.fetch('DAYTONA_USE_DEPRECATED_POLLING', nil)
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      expect do
+        described_class.new(build_config)
+      end.to output(/DEPRECATION/).to_stderr
+
+      expect(Daytona::EventDispatcher).not_to have_received(:new)
+    ensure
+      original ? ENV['DAYTONA_USE_DEPRECATED_POLLING'] = original : ENV.delete('DAYTONA_USE_DEPRECATED_POLLING')
+    end
+
+    it 'creates dispatcher when explicit use_deprecated_polling is false even if ENV is true' do
+      original = ENV.fetch('DAYTONA_USE_DEPRECATED_POLLING', nil)
+      ENV['DAYTONA_USE_DEPRECATED_POLLING'] = 'true'
+
+      described_class.new(build_config(use_deprecated_polling: false))
 
       expect(Daytona::EventDispatcher).to have_received(:new)
       expect(event_dispatcher).to have_received(:ensure_connected)
     ensure
-      original ? ENV['DAYTONA_EVENT_STREAMING'] = original : ENV.delete('DAYTONA_EVENT_STREAMING')
+      original ? ENV['DAYTONA_USE_DEPRECATED_POLLING'] = original : ENV.delete('DAYTONA_USE_DEPRECATED_POLLING')
     end
 
-    it 'does not create an event dispatcher when config sets event_streaming false even if ENV is true' do
-      original = ENV.fetch('DAYTONA_EVENT_STREAMING', nil)
-      ENV['DAYTONA_EVENT_STREAMING'] = 'true'
-
-      described_class.new(build_config(event_streaming: false))
-
-      expect(Daytona::EventDispatcher).not_to have_received(:new)
-    ensure
-      original ? ENV['DAYTONA_EVENT_STREAMING'] = original : ENV.delete('DAYTONA_EVENT_STREAMING')
+    it 'emits a deprecation warning when polling mode is active' do
+      expect do
+        described_class.new(build_config(use_deprecated_polling: true))
+      end.to output(
+        /Polling-only mode.*use_deprecated_polling.*DAYTONA_USE_DEPRECATED_POLLING.*deprecated/
+      ).to_stderr
     end
 
     it 'configures API client headers and user agent' do

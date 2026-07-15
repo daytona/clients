@@ -60,14 +60,18 @@ of instrumentation landing in a future release.
 
 - `boolean` - `true` if OpenTelemetry tracing is enabled
 
-#### isEventStreaming()
+#### isUseDeprecatedPolling()
 ```java
-public boolean isEventStreaming()
+public boolean isUseDeprecatedPolling()
 ```
+
+Returns whether legacy polling mode is enabled instead of WebSocket event streaming.
+
+the default and falls back to polling automatically when WebSockets are unavailable.
 
 **Returns**:
 
-- `boolean` -
+- `boolean` - `true` if deprecated polling mode is active
 
 ## DaytonaConfig.Builder
 
@@ -139,18 +143,24 @@ of instrumentation landing in a future release.
 
 - `Builder` - this builder instance
 
-#### eventStreaming()
+#### useDeprecatedPolling()
 ```java
-public Builder eventStreaming(boolean eventStreaming)
+public Builder useDeprecatedPolling(boolean useDeprecatedPolling)
 ```
+
+Observe sandbox state by legacy polling instead of WebSocket event streaming.
+Defaults to `false` (event streaming). Can also be enabled via the
+`DAYTONA_USE_DEPRECATED_POLLING` environment variable.
+
+the default and falls back to polling automatically when WebSockets are unavailable.
 
 **Parameters**:
 
-- `eventStreaming` _boolean_ -
+- `useDeprecatedPolling` _boolean_ - whether to use legacy polling
 
 **Returns**:
 
-- `Builder` -
+- `Builder` - this builder instance
 
 #### build()
 ```java

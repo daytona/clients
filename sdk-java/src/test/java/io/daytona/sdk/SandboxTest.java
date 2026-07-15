@@ -147,7 +147,7 @@ class SandboxTest {
     }
 
     @Test
-    void waitUntilStartedFallsBackToPollingWhenEventStreamingIsDisabled() {
+    void waitUntilStartedFallsBackToPollingWhenDeprecatedPollingIsEnabled() {
         Sandbox pollingSandbox = new Sandbox(
                 sandboxApi,
                 TestSupport.config(),

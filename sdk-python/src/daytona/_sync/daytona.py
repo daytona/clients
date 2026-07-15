@@ -40,7 +40,7 @@ from ..common.daytona import (
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
     DaytonaConfig,
-    resolve_opt_in_flag,
+    resolve_bool_flag,
 )
 from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
 from ..common.image import Image
@@ -246,12 +246,19 @@ class Daytona:
         self.secret: SecretService = SecretService(SecretApi(self._api_client))
 
         env = env_reader or DaytonaEnvReader()
-        event_streaming_enabled = resolve_opt_in_flag(
-            config.event_streaming if config else None,
-            env.get("DAYTONA_EVENT_STREAMING"),
+        use_deprecated_polling = resolve_bool_flag(
+            config.use_deprecated_polling if config else None,
+            env.get("DAYTONA_USE_DEPRECATED_POLLING"),
         )
 
-        if event_streaming_enabled:
+        if use_deprecated_polling:
+            _polling_msg = (
+                "Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING)"
+                " is deprecated and will be removed in a future release."
+            )
+            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=2)
+
+        if not use_deprecated_polling:
             self._event_dispatcher = SyncEventDispatcher(
                 self._api_url,
                 self._api_key or self._jwt_token or "",

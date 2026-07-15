@@ -52,8 +52,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Represents a Daytona Sandbox instance.
  *
  * <p>Exposes lifecycle controls and operation facades for process execution, file-system access,
- * and Git. State changes are detected via opt-in WebSocket events with polling as a safety net,
- * or by polling only when event streaming is disabled.
+ * and Git. State changes are streamed over WebSocket by default with polling as a safety net,
+ * or observed by polling only when the deprecated polling mode is enabled.
  */
 public class Sandbox {
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(

@@ -460,9 +460,6 @@ Configuration options for initializing the Daytona client.
 - `apiKey?` _string_ - API key for authentication with the Daytona API
 - `apiUrl?` _string_ - URL of the Daytona API. Defaults to 'https://app.daytona.io/api'
     if not set here and not set in environment variable DAYTONA_API_URL.
-- `eventStreaming?` _boolean_ - Stream sandbox state changes over WebSocket instead of polling. Defaults to
-    `false`, where state is observed by polling (prior SDK behavior). Can also be
-    enabled via the `DAYTONA_EVENT_STREAMING` environment variable.
 - `jwtToken?` _string_ - JWT token for authentication with the Daytona API. If not set, it must be provided
     via the environment variable `DAYTONA_JWT_TOKEN`, or an API key must be provided instead.
 - `organizationId?` _string_ - Organization ID used for JWT-based authentication. Required if a JWT token
@@ -471,7 +468,14 @@ Configuration options for initializing the Daytona client.
     If set, all SDK operations will be traced.
 - ~~`serverUrl?`~~ _string_ - **_Deprecated_** - Use `apiUrl` instead. This property will be removed in future versions.
 - `target?` _string_ - Target location for Sandboxes
+- ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
+    Defaults to `false`, where state changes are streamed over WebSocket. Can also
+    be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
     
+    streaming is the default and falls back to polling automatically when
+    WebSockets are unavailable.
+    
+    - **_Deprecated_** - Polling-only mode will be removed in a future release. Event
 
 
 

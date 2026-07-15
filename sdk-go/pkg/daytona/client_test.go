@@ -250,9 +250,26 @@ func TestNewClientWithConfig(t *testing.T) {
 	}
 }
 
-func TestNewClientEventStreamingDefaultsToPolling(t *testing.T) {
+func TestNewClientDefaultCreatesDispatcher(t *testing.T) {
 	t.Setenv("DAYTONA_API_KEY", "test-api-key")
-	t.Setenv("DAYTONA_EVENT_STREAMING", "")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
+}
+
+func TestNewClientDeprecatedPollingViaConfig(t *testing.T) {
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(true)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.Nil(t, client.eventDispatcher)
+	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientDeprecatedPollingViaEnv(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
 
 	client, err := NewClient()
 	require.NoError(t, err)
@@ -261,40 +278,23 @@ func TestNewClientEventStreamingDefaultsToPolling(t *testing.T) {
 	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
 }
 
-func TestNewClientEventStreamingEnabledViaConfig(t *testing.T) {
-	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", EventStreaming: boolPtr(true)})
-	require.NoError(t, err)
-	require.NotNil(t, client.subscriptionManager)
-	assert.NotNil(t, client.eventDispatcher)
-}
-
-func TestNewClientEventStreamingEnabledViaEnv(t *testing.T) {
-	t.Setenv("DAYTONA_API_KEY", "test-api-key")
-	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
-
-	client, err := NewClient()
-	require.NoError(t, err)
-	require.NotNil(t, client.subscriptionManager)
-	assert.NotNil(t, client.eventDispatcher)
-}
-
-func TestNewClientEventStreamingUnsetFallsBackToEnv(t *testing.T) {
-	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
+func TestNewClientDeprecatedPollingUnsetFallsBackToEnv(t *testing.T) {
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
 
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key"})
 	require.NoError(t, err)
 	require.NotNil(t, client.subscriptionManager)
-	assert.NotNil(t, client.eventDispatcher)
-}
-
-func TestNewClientEventStreamingExplicitFalseDisablesEnv(t *testing.T) {
-	t.Setenv("DAYTONA_EVENT_STREAMING", "true")
-
-	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", EventStreaming: boolPtr(false)})
-	require.NoError(t, err)
-	require.NotNil(t, client.subscriptionManager)
 	assert.Nil(t, client.eventDispatcher)
 	assert.Empty(t, client.subscriptionManager.Subscribe("sandbox-id", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"}))
+}
+
+func TestNewClientDeprecatedPollingExplicitFalseBeatsEnv(t *testing.T) {
+	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(false)})
+	require.NoError(t, err)
+	require.NotNil(t, client.subscriptionManager)
+	assert.NotNil(t, client.eventDispatcher)
 }
 
 // TestGetAuthContext tests the getAuthContext method

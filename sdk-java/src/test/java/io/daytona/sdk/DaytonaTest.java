@@ -89,64 +89,66 @@ class DaytonaTest {
     }
 
     @Test
-    void constructorDefaultsEventStreamingToDisabled() {
+    void constructorDefaultsToEventStreaming() {
         EventDispatcher dispatcher = TestSupport.getField(daytona, "eventDispatcher", EventDispatcher.class);
         EventSubscriptionManager manager = TestSupport.getField(daytona, "subscriptionManager", EventSubscriptionManager.class);
 
-        assertThat(dispatcher).isNull();
-        assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
+        assertThat(dispatcher).isNotNull();
+        assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
-    void constructorCreatesEventDispatcherWhenExplicitlyEnabled() {
-        try (Daytona streamingDaytona = new Daytona(new DaytonaConfig.Builder()
+    void constructorSkipsEventDispatcherWhenDeprecatedPollingEnabled() {
+        try (Daytona pollingDaytona = new Daytona(new DaytonaConfig.Builder()
                 .apiKey("test-key")
                 .apiUrl("https://example.com/api/")
                 .target("eu")
-                .eventStreaming(true)
+                .useDeprecatedPolling(true)
                 .build())) {
-            EventDispatcher dispatcher = TestSupport.getField(streamingDaytona, "eventDispatcher", EventDispatcher.class);
-            EventSubscriptionManager manager = TestSupport.getField(streamingDaytona, "subscriptionManager", EventSubscriptionManager.class);
+            EventDispatcher dispatcher = TestSupport.getField(pollingDaytona, "eventDispatcher", EventDispatcher.class);
+            EventSubscriptionManager manager = TestSupport.getField(pollingDaytona, "subscriptionManager", EventSubscriptionManager.class);
 
-            assertThat(dispatcher).isNotNull();
-            assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
+            assertThat(dispatcher).isNull();
+            assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
         }
     }
 
     @Test
-    void constructorCreatesEventDispatcherWhenEnvironmentEnablesStreaming() throws Exception {
+    void constructorSkipsEventDispatcherWhenEnvironmentEnablesDeprecatedPolling() throws Exception {
         Map<String, String> env = new HashMap<String, String>();
         env.put("DAYTONA_API_KEY", "env-key");
-        env.put("DAYTONA_EVENT_STREAMING", "true");
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona streamingDaytona = new Daytona()) {
-                EventDispatcher dispatcher = TestSupport.getField(streamingDaytona, "eventDispatcher", EventDispatcher.class);
-                EventSubscriptionManager manager = TestSupport.getField(streamingDaytona, "subscriptionManager", EventSubscriptionManager.class);
+            try (Daytona pollingDaytona = new Daytona()) {
+                EventDispatcher dispatcher = TestSupport.getField(pollingDaytona, "eventDispatcher", EventDispatcher.class);
+                EventSubscriptionManager manager = TestSupport.getField(pollingDaytona, "subscriptionManager", EventSubscriptionManager.class);
 
-                assertThat(dispatcher).isNotNull();
-                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
+                assertThat(dispatcher).isNull();
+                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
             }
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
-    void constructorUsesExplicitConfigOverEnvironmentForEventStreaming() throws Exception {
+    void constructorUsesExplicitConfigOverEnvironmentForDeprecatedPolling() throws Exception {
         Map<String, String> env = new HashMap<String, String>();
-        env.put("DAYTONA_EVENT_STREAMING", "true");
+        env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
             try (Daytona streamingDaytona = new Daytona(new DaytonaConfig.Builder()
                     .apiKey("test-key")
                     .apiUrl("https://example.com/api/")
                     .target("eu")
-                    .eventStreaming(false)
+                    .useDeprecatedPolling(false)
                     .build())) {
                 EventDispatcher dispatcher = TestSupport.getField(streamingDaytona, "eventDispatcher", EventDispatcher.class);
                 EventSubscriptionManager manager = TestSupport.getField(streamingDaytona, "subscriptionManager", EventSubscriptionManager.class);
 
-                assertThat(dispatcher).isNull();
-                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isNull();
+                assertThat(dispatcher).isNotNull();
+                assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
             }
         });
     }

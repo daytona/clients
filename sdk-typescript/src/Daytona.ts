@@ -99,11 +99,15 @@ export interface DaytonaConfig {
   /** Enable OpenTelemetry tracing for SDK operations. */
   otelEnabled?: boolean
   /**
-   * Stream sandbox state changes over WebSocket instead of polling. Defaults to
-   * `false`, where state is observed by polling (prior SDK behavior). Can also be
-   * enabled via the `DAYTONA_EVENT_STREAMING` environment variable.
+   * Observe sandbox state by legacy polling instead of WebSocket event streaming.
+   * Defaults to `false`, where state changes are streamed over WebSocket. Can also
+   * be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
+   *
+   * @deprecated Polling-only mode will be removed in a future release. Event
+   * streaming is the default and falls back to polling automatically when
+   * WebSockets are unavailable.
    */
-  eventStreaming?: boolean
+  useDeprecatedPolling?: boolean
   /** Configuration for experimental features */
   _experimental?: Record<string, any>
 }
@@ -374,9 +378,10 @@ export class Daytona implements AsyncDisposable {
     )
     this.clientConfig = configuration
 
-    const eventStreamingEnabled = config?.eventStreaming ?? envReader()?.get('DAYTONA_EVENT_STREAMING') === 'true'
+    const useDeprecatedPolling =
+      config?.useDeprecatedPolling ?? envReader()?.get('DAYTONA_USE_DEPRECATED_POLLING') === 'true'
 
-    if (eventStreamingEnabled) {
+    if (!useDeprecatedPolling) {
       this.eventDispatcher = new EventDispatcher(
         this.apiUrl,
         this.apiKey || this.jwtToken,

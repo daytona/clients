@@ -57,8 +57,15 @@ type DaytonaConfig struct {
 	APIUrl         string
 	Target         string
 	OtelEnabled    bool // Enable OpenTelemetry tracing for SDK operations.
-	EventStreaming *bool
-	Experimental   *ExperimentalConfig
+	// UseDeprecatedPolling observes sandbox state by legacy polling instead of
+	// WebSocket event streaming. Defaults to false (event streaming). Can also be
+	// enabled via the DAYTONA_USE_DEPRECATED_POLLING environment variable.
+	//
+	// Deprecated: polling-only mode will be removed in a future release; event
+	// streaming is the default and falls back to polling automatically when
+	// WebSockets are unavailable.
+	UseDeprecatedPolling *bool
+	Experimental         *ExperimentalConfig
 }
 
 // Resources represents resource allocation for a sandbox.

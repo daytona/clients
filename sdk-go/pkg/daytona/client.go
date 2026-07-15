@@ -280,7 +280,7 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	if token == "" {
 		token = client.jwtToken
 	}
-	if token != "" && isEventStreamingEnabled(config) {
+	if token != "" && !useDeprecatedPolling(config) {
 		client.eventDispatcher = common.NewEventDispatcher(client.apiURL, token, client.organizationID, sdkSource, Version)
 		client.subscriptionManager = common.NewEventSubscriptionManager(client.eventDispatcher)
 		client.eventDispatcher.EnsureConnected()
@@ -289,18 +289,14 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	return client, nil
 }
 
-func isEventStreamingEnabled(config *types.DaytonaConfig) bool {
-	envEnabled := os.Getenv("DAYTONA_EVENT_STREAMING") == "true"
+func useDeprecatedPolling(config *types.DaytonaConfig) bool {
+	envPolling := os.Getenv("DAYTONA_USE_DEPRECATED_POLLING") == "true"
 
-	if config != nil {
-		if config.EventStreaming != nil {
-			return *config.EventStreaming
-		}
-
-		return envEnabled
+	if config != nil && config.UseDeprecatedPolling != nil {
+		return *config.UseDeprecatedPolling
 	}
 
-	return envEnabled
+	return envPolling
 }
 
 // Close shuts down the client and releases resources.

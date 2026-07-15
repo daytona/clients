@@ -93,7 +93,9 @@ public class Daytona implements AutoCloseable {
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
-        if (config.isEventStreaming()) {
+        @SuppressWarnings("deprecation")
+        boolean legacyPolling = config.isUseDeprecatedPolling();
+        if (!legacyPolling) {
             String eventSdkVersion = Daytona.class.getPackage().getImplementationVersion();
             this.eventDispatcher = new EventDispatcher(config.getApiUrl(), config.getApiKey(), null,
                     "sdk-java", eventSdkVersion != null ? eventSdkVersion : "dev");

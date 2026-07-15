@@ -79,28 +79,9 @@ class TestAsyncDaytonaInit:
             _make_async_daytona(DaytonaConfig(jwt_token="jwt", api_url="https://api.test.io", target="us"))
 
     @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
-    def test_init_defaults_to_polling_without_event_dispatcher(self, mock_dispatcher, env_with_api_key):
-        daytona = _make_async_daytona()
-        assert daytona._event_dispatcher is None
-        mock_dispatcher.assert_not_called()
-
-    @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
-    def test_init_enables_event_dispatcher_with_config(self, mock_dispatcher, env_with_api_key):
+    def test_init_default_creates_event_dispatcher(self, mock_dispatcher, env_with_api_key):
         dispatcher = MagicMock()
         mock_dispatcher.return_value = dispatcher
-
-        daytona = _make_async_daytona(
-            DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us", event_streaming=True)
-        )
-
-        assert daytona._event_dispatcher is dispatcher
-        dispatcher.ensure_connected.assert_called_once_with()
-
-    @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
-    def test_init_enables_event_dispatcher_with_env(self, mock_dispatcher, env_with_api_key, monkeypatch):
-        dispatcher = MagicMock()
-        mock_dispatcher.return_value = dispatcher
-        monkeypatch.setenv("DAYTONA_EVENT_STREAMING", "TRUE")
 
         daytona = _make_async_daytona()
 
@@ -108,17 +89,39 @@ class TestAsyncDaytonaInit:
         dispatcher.ensure_connected.assert_called_once_with()
 
     @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
-    def test_env_true_does_not_enable_event_dispatcher_when_config_sets_false(
-        self, mock_dispatcher, env_with_api_key, monkeypatch
-    ):
-        monkeypatch.setenv("DAYTONA_EVENT_STREAMING", "true")
-
-        daytona = _make_async_daytona(
-            DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us", event_streaming=False)
-        )
+    def test_deprecated_polling_config_disables_dispatcher(self, mock_dispatcher, env_with_api_key):
+        with pytest.warns(DeprecationWarning, match="Polling-only mode"):
+            daytona = _make_async_daytona(
+                DaytonaConfig(
+                    api_key="test-key", api_url="https://api.test.io", target="us", use_deprecated_polling=True
+                )
+            )
 
         assert daytona._event_dispatcher is None
         mock_dispatcher.assert_not_called()
+
+    @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
+    def test_deprecated_polling_env_disables_dispatcher(self, mock_dispatcher, env_with_api_key, monkeypatch):
+        monkeypatch.setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+        with pytest.warns(DeprecationWarning, match="Polling-only mode"):
+            daytona = _make_async_daytona()
+
+        assert daytona._event_dispatcher is None
+        mock_dispatcher.assert_not_called()
+
+    @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
+    def test_explicit_false_beats_env_var(self, mock_dispatcher, env_with_api_key, monkeypatch):
+        dispatcher = MagicMock()
+        mock_dispatcher.return_value = dispatcher
+        monkeypatch.setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
+
+        daytona = _make_async_daytona(
+            DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us", use_deprecated_polling=False)
+        )
+
+        assert daytona._event_dispatcher is dispatcher
+        dispatcher.ensure_connected.assert_called_once_with()
 
 
 class TestAsyncDaytonaContextManager:
