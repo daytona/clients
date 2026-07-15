@@ -621,7 +621,9 @@ export class Sandbox {
 
     const startTime = Date.now()
     const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
-    this.processSandboxDto(response.data)
+    if (response.data) {
+      this.processSandboxDto(response.data)
+    }
 
     try {
       if (wait && this.state !== SandboxState.DESTROYED) {
@@ -1346,7 +1348,9 @@ export class Sandbox {
       this.axiosInstance.defaults.baseURL = baseUrl + this.id
       this.clientConfig.basePath = this.axiosInstance.defaults.baseURL
     }
-    this.toolboxProxyUrl = newProxyUrl
+    if (newProxyUrl) {
+      this.toolboxProxyUrl = newProxyUrl
+    }
 
     if (newState) {
       this.applyState(newState)

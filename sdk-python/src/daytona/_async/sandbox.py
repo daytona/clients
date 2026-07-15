@@ -524,7 +524,8 @@ class AsyncSandbox(SandboxDto):
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
         sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-        self.__process_sandbox_dto(sandbox)
+        if sandbox:
+            self.__process_sandbox_dto(sandbox)
 
         try:
             if wait and self.state != SandboxState.DESTROYED:
@@ -1062,6 +1063,9 @@ class AsyncSandbox(SandboxDto):
             self.id, ForkSandbox(name=name), _request_timeout=http_timeout(timeout)
         )
 
+        if not sandbox_dto.toolbox_proxy_url:
+            sandbox_dto.toolbox_proxy_url = (await self._sandbox_api.get_toolbox_proxy_url(sandbox_dto.id)).url
+
         language = sandbox_dto.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL) or ""
 
         forked = AsyncSandbox(
@@ -1298,9 +1302,10 @@ class AsyncSandbox(SandboxDto):
         self.updated_at: str | None = sandbox_dto.updated_at
         self.last_activity_at: str | None = sandbox_dto.last_activity_at
         new_proxy_url = sandbox_dto.toolbox_proxy_url
-        if new_proxy_url and new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
-            self._toolbox_api._toolbox_base_url = new_proxy_url
-        self.toolbox_proxy_url: str = new_proxy_url
+        if new_proxy_url:
+            if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
+                self._toolbox_api._toolbox_base_url = new_proxy_url
+            self.toolbox_proxy_url: str = new_proxy_url
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):

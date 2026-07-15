@@ -372,7 +372,7 @@ module Daytona
     #   Only meaningful when +wait+ is true.
     # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
-    def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/MethodLength
+    def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
       begin
         process_response(sandbox_api.delete_sandbox(id))
       rescue DaytonaApiClient::ApiError => e
@@ -381,9 +381,18 @@ module Daytona
         apply_state(DaytonaApiClient::SandboxState::DESTROYED)
       end
 
-      refresh_data_safe
+      if wait
+        refresh_data_safe
+      else
+        begin
+          refresh
+        rescue DaytonaApiClient::ApiError => e
+          raise unless e.code == 404
 
-      return unless wait
+          apply_state(DaytonaApiClient::SandboxState::DESTROYED)
+        end
+        return
+      end
       return if state.to_s == DaytonaApiClient::SandboxState::DESTROYED.to_s
 
       with_timeout(
@@ -1013,12 +1022,16 @@ module Daytona
       start_at = Time.now
       setup&.call
 
-      Timeout.timeout(
-        setup ? [NO_TIMEOUT, timeout - (Time.now - start_at)].max : timeout,
-        Sdk::TimeoutError,
-        message,
-        &
-      )
+      effective = if setup
+                    remaining = timeout - (Time.now - start_at)
+                    raise Sdk::TimeoutError, message if timeout.positive? && remaining <= 0
+
+                    [NO_TIMEOUT, remaining].max
+                  else
+                    timeout
+                  end
+
+      Timeout.timeout(effective, Sdk::TimeoutError, message, &)
     end
 
     # Waits for the Sandbox to reach one of the target states via WebSocket events

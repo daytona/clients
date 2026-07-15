@@ -649,7 +649,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	sandbox := NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager)
 
 	// Handle snapshot build logs
-	if sandbox.State == apiclient.SANDBOXSTATE_PENDING_BUILD {
+	if sandbox.currentState() == apiclient.SANDBOXSTATE_PENDING_BUILD {
 		if createOpts.LogChannel != nil {
 			// Start log streaming in background
 			go func() {
@@ -659,7 +659,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 				ticker := time.NewTicker(1 * time.Second)
 				defer ticker.Stop()
 
-				for sandbox.State == apiclient.SANDBOXSTATE_PENDING_BUILD {
+				for sandbox.currentState() == apiclient.SANDBOXSTATE_PENDING_BUILD {
 					select {
 					case <-ctx.Done():
 						return
@@ -684,7 +684,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 
 	// Wait for sandbox to start
-	if createOpts.WaitForStart && sandbox.State != apiclient.SANDBOXSTATE_STARTED {
+	if createOpts.WaitForStart && sandbox.currentState() != apiclient.SANDBOXSTATE_STARTED {
 		if err := sandbox.WaitForStart(ctx, timeoutVal); err != nil {
 			return nil, err
 		}

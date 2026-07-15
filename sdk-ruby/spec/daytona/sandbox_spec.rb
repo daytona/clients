@@ -3,6 +3,8 @@
 
 # frozen_string_literal: true
 
+require 'benchmark'
+
 RSpec.describe Daytona::Sandbox do
   let(:config) { build_config }
   let(:sandbox_api) { instance_double(DaytonaApiClient::SandboxApi) }
@@ -198,6 +200,15 @@ RSpec.describe Daytona::Sandbox do
                                                                                               message: 'boom'))
 
       expect { sandbox.delete }.to raise_error(DaytonaApiClient::ApiError)
+    end
+
+    it 're-raises non-404 API errors from post-delete refresh' do
+      allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_raise(DaytonaApiClient::ApiError.new(code: 500,
+                                                                                           message: 'Internal'))
+
+      expect { sandbox.delete }.to raise_error(DaytonaApiClient::ApiError) { |e| expect(e.code).to eq(500) }
     end
 
     it 'blocks until destroyed with wait: true' do
@@ -722,6 +733,24 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:create_sandbox_snapshot) do |_id, request|
         expect(request.name).to eq('snap-1')
       end
+    end
+  end
+
+  describe '#with_timeout (private)' do
+    it 'raises TimeoutError promptly when setup exhausts a positive timeout budget' do
+      elapsed = Benchmark.realtime do
+        expect do
+          sandbox.send(:with_timeout, message: 'timed out', timeout: 0.01, setup: proc { sleep 0.02 }) { sleep 999 }
+        end.to raise_error(Daytona::Sdk::TimeoutError, 'timed out')
+      end
+
+      expect(elapsed).to be < 2
+    end
+
+    it 'does not time out when timeout is zero (no-timeout semantics)' do
+      result = sandbox.send(:with_timeout, message: 'timed out', timeout: 0, setup: nil) { :done }
+
+      expect(result).to eq(:done)
     end
   end
 end

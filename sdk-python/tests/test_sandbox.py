@@ -47,6 +47,13 @@ class TestSandboxInit:
         assert sandbox.computer_use is not None
         assert sandbox.code_interpreter is not None
 
+    def test_process_dto_preserves_proxy_url_when_missing(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(toolbox_proxy_url="http://hydrated:2280")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        update_dto = make_sandbox_dto(toolbox_proxy_url="")
+        sandbox._Sandbox__process_sandbox_dto(update_dto)
+        assert sandbox.toolbox_proxy_url == "http://hydrated:2280"
+
 
 class TestSandboxLifecycleSettings:
     def test_negative_autostop_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
@@ -229,6 +236,13 @@ class TestSandboxPollingSemantics:
         mock_sandbox_api.get_sandbox.side_effect = Exception("500 upstream failure: validation error in body")
         with pytest.raises(Exception, match="500 upstream failure"):
             sandbox.wait_for_sandbox_stop(timeout=0)
+
+    def test_delete_none_response_does_not_raise(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.delete_sandbox.return_value = None
+        sandbox.delete(timeout=0)
+        assert sandbox.state == SandboxState.STARTED
 
     def test_delete_default_does_not_wait(self, mock_toolbox_api_client, mock_sandbox_api):
         dto = make_sandbox_dto(state=SandboxState.STARTED)

@@ -505,6 +505,15 @@ func (s *Sandbox) unsubscribe() {
 	}
 }
 
+// currentState returns the current sandbox state under a read lock.
+// Use this instead of reading s.State directly when the read may race
+// with the websocket dispatcher or RefreshData (which write under s.mu).
+func (s *Sandbox) currentState() apiclient.SandboxState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.State
+}
+
 func (s *Sandbox) applyState(newState apiclient.SandboxState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1175,10 +1184,13 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 		true,
 	)
 	if err != nil {
-		if ctx.Err() != nil {
+		if stderrors.Is(err, context.DeadlineExceeded) {
 			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox was not destroyed within %s", timeout))
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox failed to delete: %v", err), 0, nil)
+		if stderrors.Is(err, context.Canceled) {
+			return err
+		}
+		return err
 	}
 
 	return nil
@@ -1251,10 +1263,13 @@ func (s *Sandbox) doWaitForStart(ctx context.Context, timeout time.Duration) err
 		false,
 	)
 	if err != nil {
-		if ctx.Err() != nil {
+		if stderrors.Is(err, context.DeadlineExceeded) {
 			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox did not start within %s", timeout))
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox failed to start: %v", err), 0, nil)
+		if stderrors.Is(err, context.Canceled) {
+			return err
+		}
+		return err
 	}
 	return nil
 }
@@ -1291,10 +1306,13 @@ func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration) erro
 		true,
 	)
 	if err != nil {
-		if ctx.Err() != nil {
+		if stderrors.Is(err, context.DeadlineExceeded) {
 			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox did not stop within %s", timeout))
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox failed to stop: %v", err), 0, nil)
+		if stderrors.Is(err, context.Canceled) {
+			return err
+		}
+		return err
 	}
 	return nil
 }
@@ -1973,10 +1991,13 @@ func (s *Sandbox) WaitForResize(ctx context.Context, timeout time.Duration) erro
 
 		err := s.waitForState(ctx, targetStates, errorStates, false)
 		if err != nil {
-			if ctx.Err() != nil {
+			if stderrors.Is(err, context.DeadlineExceeded) {
 				return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox resize did not complete within %s", timeout))
 			}
-			return errors.NewDaytonaError(fmt.Sprintf("Sandbox resize failed: %v", err), 0, nil)
+			if stderrors.Is(err, context.Canceled) {
+				return err
+			}
+			return err
 		}
 		return nil
 	})

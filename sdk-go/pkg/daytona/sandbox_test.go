@@ -521,7 +521,9 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
 		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Sandbox failed to start")
+		assert.Contains(t, err.Error(), "sandbox entered error state")
+		var daytonaErr *errors.DaytonaError
+		assert.False(t, stderrors.As(err, &daytonaErr), "error-state failures must not be wrapped in DaytonaError")
 	})
 }
 
@@ -826,6 +828,28 @@ func TestPauseCancellationIsNotReportedAsTimeout(t *testing.T) {
 		cancel()
 	}()
 	err := sandbox.doPauseWithTimeout(ctx, 30*time.Second)
+	require.Error(t, err)
+
+	var timeoutErr *errors.DaytonaTimeoutError
+	require.False(t, stderrors.As(err, &timeoutErr), "explicit cancellation must not be reported as DaytonaTimeoutError, got %v", err)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestWaitForStartCancellationIsNotReportedAsTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+	err := sandbox.doWaitForStart(ctx, 30*time.Second)
 	require.Error(t, err)
 
 	var timeoutErr *errors.DaytonaTimeoutError

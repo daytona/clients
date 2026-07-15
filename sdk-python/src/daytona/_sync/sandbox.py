@@ -513,7 +513,8 @@ class Sandbox(SandboxDto):
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
         sandbox = self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-        self.__process_sandbox_dto(sandbox)
+        if sandbox:
+            self.__process_sandbox_dto(sandbox)
 
         try:
             if wait and self.state != SandboxState.DESTROYED:
@@ -1291,9 +1292,10 @@ class Sandbox(SandboxDto):
         self.updated_at: str | None = sandbox_dto.updated_at
         self.last_activity_at: str | None = sandbox_dto.last_activity_at
         new_proxy_url = sandbox_dto.toolbox_proxy_url
-        if new_proxy_url and new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
-            self._toolbox_api._toolbox_base_url = new_proxy_url
-        self.toolbox_proxy_url: str = new_proxy_url
+        if new_proxy_url:
+            if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
+                self._toolbox_api._toolbox_base_url = new_proxy_url
+            self.toolbox_proxy_url: str = new_proxy_url
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):

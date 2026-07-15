@@ -490,6 +490,25 @@ describe('Sandbox', () => {
     expect(sandbox.state).toBe('destroyed')
   })
 
+  it('processSandboxDto without toolboxProxyUrl preserves the existing hydrated value', () => {
+    const { sandbox } = makeSandbox({ toolboxProxyUrl: 'http://hydrated-proxy' })
+    expect(sandbox.toolboxProxyUrl).toBe('http://hydrated-proxy')
+
+    const partial = { ...baseDto, toolboxProxyUrl: undefined } as unknown as import('@daytona/api-client').Sandbox
+    ;(
+      sandbox as unknown as { processSandboxDto: (dto: import('@daytona/api-client').Sandbox) => void }
+    ).processSandboxDto(partial)
+
+    expect(sandbox.toolboxProxyUrl).toBe('http://hydrated-proxy')
+  })
+
+  it('delete() with undefined response body resolves without throwing', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' }, '')
+    sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse(undefined))
+
+    await expect(sandbox.delete(5)).resolves.toBeUndefined()
+  })
+
   it('exposes user/work directories and creates LSP server', async () => {
     const { sandbox } = makeSandbox()
     const infoApi = (sandbox as unknown as { infoApi: { getUserHomeDir: jest.Mock; getWorkDir: jest.Mock } }).infoApi
