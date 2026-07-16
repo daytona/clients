@@ -6,7 +6,7 @@ import functools
 import inspect
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
-from typing import Any, NoReturn, TypeVar, Union, cast
+from typing import Any, NoReturn, TypeVar, cast
 
 import aiohttp
 import httpx
@@ -57,12 +57,9 @@ from .types import has_body
 SESSION_IS_CLOSED_ERROR_MESSAGE = "Session is closed"
 
 F = TypeVar("F", bound=Callable[..., object])
-OpenApiDaytonaException = Union[
-    OpenApiException,
-    OpenApiExceptionAsync,
-    OpenApiExceptionToolbox,
-    OpenApiExceptionToolboxAsync,
-]
+OpenApiDaytonaException = (
+    OpenApiException | OpenApiExceptionAsync | OpenApiExceptionToolbox | OpenApiExceptionToolboxAsync
+)
 
 OPENAPI_EXCEPTIONS = (OpenApiException, OpenApiExceptionAsync, OpenApiExceptionToolbox, OpenApiExceptionToolboxAsync)
 NOT_FOUND_EXCEPTIONS = (

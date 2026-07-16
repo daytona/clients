@@ -7,7 +7,7 @@ import asyncio
 import logging
 import threading
 from collections.abc import Awaitable
-from typing import Any, Callable, Union
+from typing import Any, Callable
 from urllib.parse import quote, urlparse
 
 import socketio
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Handler receives (event_name, raw_data).
 EventHandler = Callable[[str, Any], None]
-AsyncEventHandler = Callable[[str, Any], Union[Awaitable[None], None]]
+AsyncEventHandler = Callable[[str, Any], Awaitable[None] | None]
 
 
 class AsyncEventDispatcher:

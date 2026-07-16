@@ -895,10 +895,7 @@ Response from the command logs.
 ##### OutputHandler
 
 ```python
-OutputHandler = Union[
-    Callable[[T], None],
-    Callable[[T], Awaitable[None]],
-]
+OutputHandler = Callable[[T], None] | Callable[[T], Awaitable[None]]
 ```
 
 Callback type that accepts both sync and async handlers.
