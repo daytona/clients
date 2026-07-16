@@ -40,7 +40,7 @@ jobs:
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           git config --global user.name "Daytona Release Bot"
-          git config --global user.email "daytona-release@users.noreply.github.com"
+          git config --global user.email "153830314+daytonaBot@users.noreply.github.com"
       - name: Create release branch
         run: git checkout -b "prepare-release-$VERSION"
       - name: Prepare release
