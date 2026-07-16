@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import codecs
 import inspect
-from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, TypeVar, cast
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
 from httpx_ws import WebSocketDisconnect
@@ -18,21 +18,6 @@ from ..common.process import MAX_PREFIX_LEN, STDERR_PREFIX, STDOUT_PREFIX, Outpu
 if TYPE_CHECKING:
     from aiohttp import ClientSession, ClientWebSocketResponse
     from httpx_ws import WebSocketSession
-
-T = TypeVar("T")
-
-try:
-    from builtins import anext  # Python 3.10+  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType]
-except ImportError:
-    # Python 3.9 fallback
-    async def anext(ait: AsyncIterator[T], default: T | None = None) -> T:
-        try:
-            return await ait.__anext__()  # pylint: disable=unnecessary-dunder-call
-        except StopAsyncIteration:
-            if default is not None:
-                return default
-            raise
-
 
 async def process_streaming_response(
     url: str,
