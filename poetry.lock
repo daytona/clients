@@ -1075,9 +1075,9 @@ files = []
 develop = true
 
 [package.dependencies]
-pydantic = ">=2.11"
-python-dateutil = ">=2.8.2"
-typing-extensions = ">=4.7.1"
+pydantic = ">=2.13.4"
+python-dateutil = ">=2.9.0.post0"
+typing-extensions = ">=4.16.0"
 urllib3 = ">=2.1.0,<3.0.0"
 
 [package.source]
@@ -1096,10 +1096,10 @@ develop = true
 
 [package.dependencies]
 aiohttp = ">=3.8.4"
-aiohttp-retry = ">=2.8.3"
-pydantic = ">=2.11"
-python-dateutil = ">=2.8.2"
-typing-extensions = ">=4.7.1"
+aiohttp-retry = ">=2.9.1"
+pydantic = ">=2.13.4"
+python-dateutil = ">=2.9.0.post0"
+typing-extensions = ">=4.16.0"
 
 [package.source]
 type = "directory"
