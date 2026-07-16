@@ -14,6 +14,10 @@ PROJECT_ROOT="$1"
 # Set license in pyproject.toml to Apache-2.0
 sed -i 's/^license = ".*"/license = "Apache-2.0"/' "$PROJECT_ROOT/pyproject.toml"
 
+# Generated clients must not advertise Python 3.9 support: security patches of
+# urllib3/aiohttp ship only for >=3.10, and 3.9 has been EOL since October 2025.
+sed -i 's/^requires-python = ">=3.9"/requires-python = ">=3.10"/' "$PROJECT_ROOT/pyproject.toml"
+
 # Ensure urllib3 lower bound is pinned to version 2.1.0 in pyproject.toml, setup.py, and requirements.txt.
 # This prevents compatibility issues such as:
 # `TypeError: PoolKey.__new__() got an unexpected keyword argument 'key_ca_cert_data'`

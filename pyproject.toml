@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [project]
 name = "monorepo"
 version = "0.0.0-dev"
-requires-python = "^3.9"
+requires-python = "^3.10"
 
 [tool.poetry]
 package-mode = false
