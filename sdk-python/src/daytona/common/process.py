@@ -7,7 +7,7 @@ import re
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar, Union
+from typing import ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -130,10 +130,7 @@ class SessionCommandLogsResponse:
 
 # Type aliases for callbacks
 T = TypeVar("T")
-OutputHandler = Union[
-    Callable[[T], None],
-    Callable[[T], Awaitable[None]],
-]
+OutputHandler = Callable[[T], None] | Callable[[T], Awaitable[None]]
 """Callback type that accepts both sync and async handlers.
 
 Blocking synchronous operations inside handlers may cause WebSocket disconnections.

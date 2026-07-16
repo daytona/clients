@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession, ClientWebSocketResponse
     from httpx_ws import WebSocketSession
 
+
 async def process_streaming_response(
     url: str,
     headers: dict[str, str],
@@ -88,7 +89,7 @@ async def process_streaming_response(
                             timeout_task = None
 
                         try:
-                            chunk = cast(bytes | None, next_chunk.result())
+                            chunk = next_chunk.result()
                         except aiohttp.ClientPayloadError as e:
                             # Match the prior httpx.RemoteProtocolError compatibility — daemon
                             # closing the stream mid-flight is an expected end-of-logs signal.
