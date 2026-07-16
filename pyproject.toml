@@ -42,7 +42,7 @@ pytest-timeout = ">=2.3.0,<3.0.0"
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 exclude = [
     "**/.venv",
     "**/node_modules",
