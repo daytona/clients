@@ -238,8 +238,8 @@ public void setTtl(int ttlMinutes)
 ```
 
 Sets Sandbox TTL (time to live) in minutes. Set to 0 to disable the TTL.
-The deadline is computed server-side; call `#refreshData()` to read the updated
-`autoDestroyAt`.
+The deadline is computed server-side; call `#refreshData()` and read the updated
+value via `#getAutoDestroyAt()`.
 
 **Parameters**:
 

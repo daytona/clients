@@ -471,8 +471,8 @@ public class Sandbox {
 
     /**
      * Sets Sandbox TTL (time to live) in minutes. Set to 0 to disable the TTL.
-     * The deadline is computed server-side; call {@link #refreshData()} to read the updated
-     * {@code autoDestroyAt}.
+     * The deadline is computed server-side; call {@link #refreshData()} and read the updated
+     * value via {@link #getAutoDestroyAt()}.
      *
      * @param ttlMinutes minutes until the Sandbox is destroyed, or 0 to disable
      * @throws IllegalArgumentException if ttlMinutes is negative
