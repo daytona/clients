@@ -274,7 +274,7 @@ class SandboxTest {
         io.daytona.api.client.model.Sandbox model = TestSupport.mainSandbox("sb-exp", SandboxState.STARTED);
         model.setAutoDestroyAt("2026-09-15T12:00:00Z");
 
-        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null);
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());
 
         assertThat(loaded.getAutoDestroyAt()).isEqualTo("2026-09-15T12:00:00Z");
     }
