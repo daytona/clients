@@ -7794,13 +7794,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/shell-quote@npm:^1.7.5":
-  version: 1.7.5
-  resolution: "@types/shell-quote@npm:1.7.5"
-  checksum: 10c0/ddcf225e85e5520e3f44411d7d79eee0e56477fab705d0d93e293b61b9f8de2a57db6e859d492a24bc9e0d071c0490271efeae832756e2ac0d4d255922ac281d
-  languageName: node
-  linkType: hard
-
 "@types/sockjs@npm:^0.3.36":
   version: 0.3.36
   resolution: "@types/sockjs@npm:0.3.36"
@@ -11050,7 +11043,6 @@ __metadata:
     "@types/busboy": "npm:^1.0.0"
     "@types/jest": "npm:30.0.0"
     "@types/node": "npm:^22.13.4"
-    "@types/shell-quote": "npm:^1.7.5"
     "@types/tar": "npm:^6.1.13"
     axios: "npm:^1.15.2"
     busboy: "npm:^1.0.0"
@@ -11076,7 +11068,6 @@ __metadata:
     nx: "npm:21.4.1"
     pathe: "npm:^2.0.3"
     prettier: "npm:^3.5.0"
-    shell-quote: "npm:^1.8.2"
     socket.io-client: "npm:^4.8.1"
     tar: "npm:^7.5.11"
     ts-jest: "npm:29.4.1"
@@ -20641,7 +20632,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shell-quote@npm:^1.8.2, shell-quote@npm:^1.8.4":
+"shell-quote@npm:^1.8.4":
   version: 1.9.0
   resolution: "shell-quote@npm:1.9.0"
   checksum: 10c0/a39960107eb086b02394cfceb3c732bd3bf567b568719ff47101448fc3f1bf4a59ecfdd8960ff7ea564d749ef8bda70f2c82a768f22d8c7aeeabf2b64f53b7e8
