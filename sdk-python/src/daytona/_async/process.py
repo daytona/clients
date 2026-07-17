@@ -63,7 +63,7 @@ class AsyncProcess:
         url: str,
         headers: dict[str, str],
         subprotocols: list[str] | None = None,
-    ) -> aiohttp.ClientWebSocketResponse:
+    ) -> "aiohttp.ClientWebSocketResponse[bool]":
         return await http_session_of(self._api_client.api_client).ws_connect(
             url, headers=headers, protocols=subprotocols or ()
         )
