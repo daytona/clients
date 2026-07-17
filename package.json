@@ -41,7 +41,7 @@
     "pathe": "^2.0.3",
     "shell-quote": "^1.8.2",
     "socket.io-client": "^4.8.1",
-    "tar": "^7.5.11"
+    "tar": "^7.5.16"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.17.3",
