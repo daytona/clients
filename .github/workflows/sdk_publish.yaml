@@ -8,28 +8,33 @@ on:
         required: true
         default: v0.0.0-dev
       pypi_pkg_version:
-        description: 'PyPI package version (default: version)'
+        description: 'PyPI package version (empty: skip Python SDK publish)'
         required: false
       npm_pkg_version:
-        description: 'NPM package version (default: version)'
+        description: 'NPM package version (empty: skip TypeScript SDK publish)'
         required: false
       npm_tag:
         description: 'NPM tag (default: latest)'
         required: false
         default: latest
       rubygems_pkg_version:
-        description: 'RubyGems package version (default: version)'
+        description: 'RubyGems package version (empty: skip Ruby SDK publish)'
         required: false
       maven_pkg_version:
-        description: 'Maven package version (default: version)'
+        description: 'Maven package version (empty: skip Java SDK publish)'
         required: false
+      publish_cli:
+        description: 'Publish CLI (update Homebrew tap)'
+        type: boolean
+        required: false
+        default: true
 
 env:
   VERSION: ${{ inputs.version }}
-  PYPI_PKG_VERSION: ${{ inputs.pypi_pkg_version || inputs.version }}
-  NPM_PKG_VERSION: ${{ inputs.npm_pkg_version || inputs.version }}
-  RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_pkg_version || inputs.version }}
-  MAVEN_PKG_VERSION: ${{ inputs.maven_pkg_version || inputs.version }}
+  PYPI_PKG_VERSION: ${{ inputs.pypi_pkg_version }}
+  NPM_PKG_VERSION: ${{ inputs.npm_pkg_version }}
+  RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_pkg_version }}
+  MAVEN_PKG_VERSION: ${{ inputs.maven_pkg_version }}
   NPM_TAG: ${{ inputs.npm_tag }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
 
@@ -48,12 +53,16 @@ jobs:
         include:
           - name: TypeScript SDK
             projects: sdk-typescript
+            pkg_version: ${{ inputs.npm_pkg_version }}
           - name: Python SDK
             projects: sdk-python
+            pkg_version: ${{ inputs.pypi_pkg_version }}
           - name: Ruby SDK
             projects: sdk-ruby
+            pkg_version: ${{ inputs.rubygems_pkg_version }}
           - name: Java SDK
             projects: sdk-java
+            pkg_version: ${{ inputs.maven_pkg_version }}
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
@@ -64,29 +73,36 @@ jobs:
       MAVEN_GPG_SIGNING_PASSWORD: ${{ secrets.MAVEN_GPG_SIGNING_PASSWORD }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
+      - name: Skip publish (no version provided)
+        if: matrix.pkg_version == ''
+        run: echo "No package version provided for ${{ matrix.name }}; skipping publish."
       - name: Validate version format
+        if: matrix.pkg_version != ''
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
       - name: Checkout code
+        if: matrix.pkg_version != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
+        if: matrix.pkg_version != ''
         with:
           install-swag: 'false'
       - name: Configure RubyGems credentials
-        if: matrix.projects == 'sdk-ruby'
+        if: matrix.projects == 'sdk-ruby' && matrix.pkg_version != ''
         run: |
           mkdir -p ~/.gem
           echo "---" > ~/.gem/credentials
           echo ":rubygems_api_key: $RUBYGEMS_API_KEY" >> ~/.gem/credentials
           chmod 0600 ~/.gem/credentials
       - name: Publish projects
+        if: matrix.pkg_version != ''
         run: |
           source "$(poetry env info --path)/bin/activate"
           yarn nx run-many --target=publish --projects=${{ matrix.projects }}
@@ -95,7 +111,7 @@ jobs:
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    if: ${{ github.repository == 'daytona/clients' && inputs.npm_tag == 'latest' }}
+    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions: {}
     name: Update Homebrew CLI tap
