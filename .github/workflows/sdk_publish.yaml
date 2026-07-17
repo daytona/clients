@@ -7,6 +7,11 @@ on:
         description: 'Version to release (start with "v")'
         required: true
         default: v0.0.0-dev
+      publish_cli:
+        description: 'Publish CLI (update Homebrew tap)'
+        type: boolean
+        required: false
+        default: false
       pypi_pkg_version:
         description: 'PyPI package version (empty: skip Python SDK publish)'
         required: false
@@ -23,11 +28,6 @@ on:
       maven_pkg_version:
         description: 'Maven package version (empty: skip Java SDK publish)'
         required: false
-      publish_cli:
-        description: 'Publish CLI (update Homebrew tap)'
-        type: boolean
-        required: false
-        default: true
 
 env:
   VERSION: ${{ inputs.version }}
