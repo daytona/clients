@@ -470,9 +470,11 @@ public class Sandbox {
     }
 
     /**
-     * Sets Sandbox TTL (time to live) in minutes.
+     * Sets Sandbox TTL (time to live) in minutes. Set to 0 to disable the TTL.
+     * The deadline is computed server-side; call {@link #refreshData()} to read the updated
+     * {@code autoDestroyAt}.
      *
-     * @param ttlMinutes minutes until the Sandbox expires
+     * @param ttlMinutes minutes until the Sandbox is destroyed, or 0 to disable
      * @throws IllegalArgumentException if ttlMinutes is negative
      * @throws DaytonaException if the update fails
      */
@@ -480,10 +482,7 @@ public class Sandbox {
         if (ttlMinutes < 0) {
             throw new IllegalArgumentException("ttlMinutes must be a non-negative integer");
         }
-        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setTtl(id, BigDecimal.valueOf(ttlMinutes), null));
-        if (response != null) {
-            populateFromDTO(response);
-        }
+        ExceptionMapper.callMain(() -> sandboxApi.setTtl(id, BigDecimal.valueOf(ttlMinutes), null));
     }
 
     /**

@@ -836,7 +836,8 @@ module Daytona
                 :wait_for_sandbox_stop, :resize, :wait_for_resize_complete,
                 :experimental_fork, :experimental_create_snapshot, :pause
 
-    instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=, :ttl_minutes=,
+    instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
+               :ttl_minutes=,
                :update_network_settings, :update_secrets, :update_env,
                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :get_metrics, :get_metrics_latest,
                :labels=,

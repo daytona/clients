@@ -411,9 +411,8 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if v, ok := dto.GetLastActivityAtOk(); ok {
 		s.LastActivityAt = v
 	}
-	if v, ok := dto.GetAutoDestroyAtOk(); ok {
-		s.AutoDestroyAt = v
-	}
+	autoDestroyAt, _ := dto.GetAutoDestroyAtOk()
+	s.AutoDestroyAt = autoDestroyAt
 
 	// Fields only present on the full apiclient.Sandbox DTO (not returned by
 	// the list endpoint).

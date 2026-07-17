@@ -237,11 +237,13 @@ Sets Sandbox auto-delete interval.
 public void setTtl(int ttlMinutes)
 ```
 
-Sets Sandbox TTL (time to live) in minutes.
+Sets Sandbox TTL (time to live) in minutes. Set to 0 to disable the TTL.
+The deadline is computed server-side; call `#refreshData()` to read the updated
+`autoDestroyAt`.
 
 **Parameters**:
 
-- `ttlMinutes` _int_ - minutes until the Sandbox expires
+- `ttlMinutes` _int_ - minutes until the Sandbox is destroyed, or 0 to disable
 
 **Throws**:
 
