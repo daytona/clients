@@ -152,7 +152,7 @@ async def _invoke(handler: OutputHandler[str], text: str) -> None:
 
 
 async def std_demux_stream_aio(
-    ws: "ClientWebSocketResponse",
+    ws: "ClientWebSocketResponse[bool]",
     on_stdout: OutputHandler[str],
     on_stderr: OutputHandler[str],
 ) -> None:

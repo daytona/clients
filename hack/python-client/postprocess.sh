@@ -16,13 +16,17 @@ sed -i 's/^license = ".*"/license = "Apache-2.0"/' "$PROJECT_ROOT/pyproject.toml
 
 # Generated clients must not advertise Python 3.9 support: security patches of
 # urllib3/aiohttp ship only for >=3.10, and 3.9 has been EOL since October 2025.
+# pyproject.toml is covered by the local pyproject.mustache template override;
+# setup.py still comes from the upstream template, so sync it here.
 sed -i 's/^requires-python = ">=3.9"/requires-python = ">=3.10"/' "$PROJECT_ROOT/pyproject.toml"
+sed -i 's/^PYTHON_REQUIRES = ">= 3.9"/PYTHON_REQUIRES = ">= 3.10"/' "$PROJECT_ROOT/setup.py"
 
-# Ensure urllib3 lower bound is pinned to version 2.1.0 in pyproject.toml, setup.py, and requirements.txt.
-# This prevents compatibility issues such as:
-# `TypeError: PoolKey.__new__() got an unexpected keyword argument 'key_ca_cert_data'`
-# which occur with urllib3 versions earlier than 2.1.0.
-sed -i -E 's/(urllib3[^0-9\n]*)([0-9]+\.[0-9]+\.[0-9]+)/\12.1.0/g' \
+# Ensure urllib3 lower bound is pinned to version 2.7.0 in pyproject.toml, setup.py, and requirements.txt.
+# 2.7.0 carries the fixes for GHSA-mf9v-mfxr-j63j and GHSA-qccp-gfcp-xxvc (and,
+# historically, the >=2.1.0 PoolKey 'key_ca_cert_data' compatibility floor).
+# pyproject.toml already gets 2.7.0 from the template override; this keeps
+# setup.py and requirements.txt (upstream templates) consistent.
+sed -i -E 's/(urllib3[^0-9\n]*)([0-9]+\.[0-9]+\.[0-9]+)/\12.7.0/g' \
   "$PROJECT_ROOT/pyproject.toml" \
   "$PROJECT_ROOT/setup.py" \
   "$PROJECT_ROOT/requirements.txt"

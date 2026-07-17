@@ -58,13 +58,13 @@ class AsyncPtyHandle:
 
     def __init__(
         self,
-        ws: aiohttp.ClientWebSocketResponse,
+        ws: "aiohttp.ClientWebSocketResponse[bool]",
         on_data: Callable[[bytes], None] | Callable[[bytes], Awaitable[None]] | None = None,
         session_id: str | None = None,
         handle_resize: Callable[[PtySize], Awaitable[PtySessionInfo]] | None = None,
         handle_kill: Callable[[], Awaitable[None]] | None = None,
     ):
-        self._ws: aiohttp.ClientWebSocketResponse = ws
+        self._ws: "aiohttp.ClientWebSocketResponse[bool]" = ws
         self._on_data: Callable[[bytes], None] | Callable[[bytes], Awaitable[None]] | None = on_data
         self._session_id: str | None = session_id
         self._handle_resize: Callable[[PtySize], Awaitable[PtySessionInfo]] | None = handle_resize
