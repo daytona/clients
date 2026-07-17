@@ -148,6 +148,8 @@ class AsyncSandbox(SandboxDto):
         created_at (str | None): When the Sandbox was created.
         updated_at (str | None): When the Sandbox was last updated.
         last_activity_at (str | None): When the Sandbox last had activity.
+        auto_destroy_at (str | None): When the Sandbox will be automatically destroyed (only set when a TTL
+            is configured).
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for
@@ -649,6 +651,39 @@ class AsyncSandbox(SandboxDto):
 
         _ = await self._sandbox_api.set_auto_pause_interval(self.id, interval)
         self.auto_pause_interval = interval
+
+    @intercept_errors(message_prefix="Failed to set TTL: ")
+    @with_instrumentation()
+    async def set_ttl(self, ttl_minutes: int, request_timeout: float | None = None) -> None:
+        """Sets the TTL (time to live) for the Sandbox.
+
+        The Sandbox will be destroyed after the specified number of minutes, counted as
+        wall-clock time from the current moment, regardless of its state (started, stopped,
+        paused, or archived). Setting to 0 disables the TTL.
+
+        Args:
+            ttl_minutes (int): Number of minutes until the Sandbox is destroyed.
+                Set to 0 to disable the TTL.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
+
+        Raises:
+            DaytonaValidationError: If ttl_minutes is negative
+
+        Example:
+            ```python
+            # Set TTL to 1 hour
+            await sandbox.set_ttl(60)
+            # Or disable TTL
+            await sandbox.set_ttl(0)
+            ```
+        """
+        if ttl_minutes < 0:
+            raise DaytonaValidationError("TTL must be a non-negative integer")
+
+        _ = await self._sandbox_api.set_ttl(self.id, ttl_minutes, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to set auto-archive interval: ")
     @with_instrumentation()
@@ -1306,6 +1341,7 @@ class AsyncSandbox(SandboxDto):
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
+        self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):

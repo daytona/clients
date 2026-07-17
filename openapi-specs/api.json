@@ -4294,6 +4294,68 @@
         ]
       }
     },
+    "/sandbox/{sandboxIdOrName}/ttl/{ttlMinutes}": {
+      "post": {
+        "operationId": "setTtl",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sandboxIdOrName",
+            "required": true,
+            "in": "path",
+            "description": "ID or name of the sandbox",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ttlMinutes",
+            "required": true,
+            "in": "path",
+            "description": "Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TTL has been set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sandbox"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Set sandbox TTL",
+        "tags": [
+          "sandbox"
+        ]
+      }
+    },
     "/sandbox/{sandboxIdOrName}/autoarchive/{interval}": {
       "post": {
         "operationId": "setAutoArchiveInterval",
@@ -12004,6 +12066,11 @@
             "description": "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)",
             "example": 30
           },
+          "autoDestroyAt": {
+            "type": "string",
+            "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
+            "example": "2026-07-15T12:00:00.000Z"
+          },
           "createdAt": {
             "type": "string",
             "description": "The creation timestamp of the sandbox",
@@ -12298,6 +12365,11 @@
             "description": "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)",
             "example": 30
           },
+          "autoDestroyAt": {
+            "type": "string",
+            "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
+            "example": "2026-07-15T12:00:00.000Z"
+          },
           "volumes": {
             "description": "Array of volumes attached to the sandbox",
             "type": "array",
@@ -12545,6 +12617,11 @@
             "type": "integer",
             "description": "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)",
             "example": 30
+          },
+          "ttlMinutes": {
+            "type": "integer",
+            "description": "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.",
+            "example": 1440
           },
           "volumes": {
             "description": "Array of volumes to attach to the sandbox",

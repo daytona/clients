@@ -99,7 +99,7 @@ module Daytona
     #
     # @param params [Daytona::CreateSandboxFromSnapshotParams, Daytona::CreateSandboxFromImageParams, Nil] Sandbox creation parameters
     # @return [Daytona::Sandbox] The created sandbox
-    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative,
+    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, auto_archive_interval, or ttl_minutes is negative,
     #   or if auto_stop_interval and auto_pause_interval are both non-zero
     def create(params = nil, on_snapshot_create_logs: nil)
       if params.nil?
@@ -237,7 +237,7 @@ module Daytona
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @param on_snapshot_create_logs [Proc]
     # @return [Daytona::Sandbox] The created sandbox
-    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, or auto_archive_interval is negative,
+    # @raise [Daytona::Sdk::Error] If auto_stop_interval, auto_pause_interval, auto_archive_interval, or ttl_minutes is negative,
     #   or if auto_stop_interval and auto_pause_interval are both non-zero
     def _create(params, timeout: 60, on_snapshot_create_logs: nil)
       raise Sdk::Error, 'Timeout must be a non-negative number' if timeout.negative?
@@ -261,6 +261,8 @@ module Daytona
         raise Sdk::Error, 'auto_archive_interval must be a non-negative integer'
       end
 
+      raise Sdk::Error, 'ttl_minutes must be a non-negative integer' if params.ttl_minutes&.negative?
+
       labels = params.labels&.dup || {}
       labels[CODE_TOOLBOX_LANGUAGE_LABEL] = params.language.to_s if params.language
 
@@ -274,6 +276,7 @@ module Daytona
         auto_pause_interval: params.auto_pause_interval,
         auto_archive_interval: params.auto_archive_interval,
         auto_delete_interval: params.auto_delete_interval,
+        ttl_minutes: params.ttl_minutes,
         volumes: params.volumes,
         secrets: params.secrets&.map { |env_var, secret_name| { env_var.to_s => secret_name.to_s } },
         network_block_all: params.network_block_all,

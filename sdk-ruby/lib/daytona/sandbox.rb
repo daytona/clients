@@ -140,6 +140,9 @@ module Daytona
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :build_info
 
+    # @return [String, nil] When the sandbox will be automatically destroyed (nil if no TTL is set)
+    attr_reader :auto_destroy_at
+
     # @return [String] The creation timestamp of the sandbox
     attr_reader :created_at
 
@@ -352,6 +355,19 @@ module Daytona
 
       sandbox_api.set_auto_pause_interval(id, interval)
       @auto_pause_interval = interval
+    end
+
+    # Sets the TTL (time to live) for the Sandbox.
+    # The TTL is re-anchored from the current time. When it elapses the Sandbox is destroyed,
+    # regardless of its current state. Use 0 to disable.
+    #
+    # @param minutes [Integer]
+    # @return [void]
+    # @raise [Daytona::Sdk::Error]
+    def ttl_minutes=(minutes)
+      raise Sdk::Error, 'TTL must be a non-negative integer' if minutes.negative?
+
+      sandbox_api.set_ttl(id, minutes)
     end
 
     # Creates an SSH access token for the sandbox.
@@ -821,6 +837,7 @@ module Daytona
                 :experimental_fork, :experimental_create_snapshot, :pause
 
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
+               :ttl_minutes=,
                :update_network_settings, :update_secrets, :update_env,
                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :get_metrics, :get_metrics_latest,
                :labels=,
@@ -973,6 +990,7 @@ module Daytona
       @auto_pause_interval = sandbox_dto.auto_pause_interval
       @auto_archive_interval = sandbox_dto.auto_archive_interval
       @auto_delete_interval = sandbox_dto.auto_delete_interval
+      @auto_destroy_at = sandbox_dto.auto_destroy_at
       @created_at = sandbox_dto.created_at
       @updated_at = sandbox_dto.updated_at
       @last_activity_at = sandbox_dto.last_activity_at

@@ -76,6 +76,7 @@ const makeSandbox = (
     setAutoPauseInterval: jest.fn(),
     setAutoArchiveInterval: jest.fn(),
     setAutoDeleteInterval: jest.fn(),
+    setTtl: jest.fn(),
     getPortPreviewUrl: jest.fn(),
     getSignedPortPreviewUrl: jest.fn(),
     expireSignedPortPreviewUrl: jest.fn(),
@@ -180,6 +181,7 @@ describe('Sandbox', () => {
     ['setAutostopInterval', -1, 'autoStopInterval must be a non-negative integer'],
     ['setAutoPauseInterval', -1, 'autoPauseInterval must be a non-negative integer'],
     ['setAutoArchiveInterval', -1, 'autoArchiveInterval must be a non-negative integer'],
+    ['setTtl', -1, 'ttlMinutes must be a non-negative integer'],
   ])('validates %s', async (method, arg, message) => {
     const { sandbox } = makeSandbox()
     const call = (sandbox as unknown as Record<string, (n: number) => Promise<void>>)[method].bind(sandbox)
@@ -191,14 +193,18 @@ describe('Sandbox', () => {
     sandboxApi.replaceLabels.mockResolvedValue(createApiResponse({ labels: { env: 'dev' } }))
 
     await expect(sandbox.setLabels({ env: 'dev' })).resolves.toEqual({ env: 'dev' })
+    sandboxApi.setTtl.mockResolvedValue(createApiResponse({}))
+
     await sandbox.setAutostopInterval(20)
     await sandbox.setAutoArchiveInterval(30)
     await sandbox.setAutoDeleteInterval(0)
+    await sandbox.setTtl(60)
 
     expect(sandbox.labels).toEqual({ env: 'dev' })
     expect(sandbox.autoStopInterval).toBe(20)
     expect(sandbox.autoArchiveInterval).toBe(30)
     expect(sandbox.autoDeleteInterval).toBe(0)
+    expect(sandboxApi.setTtl).toHaveBeenCalledWith(sandbox.id, 60)
   })
 
   it('handles preview link, archive, resize, refresh calls', async () => {

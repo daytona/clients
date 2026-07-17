@@ -264,6 +264,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'autoDestroyAt'
+     */
+    @Test
+    public void autoDestroyAtTest() {
+        // TODO: test autoDestroyAt
+    }
+
+    /**
      * Test the property 'volumes'
      */
     @Test

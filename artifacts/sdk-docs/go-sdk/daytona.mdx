@@ -4331,6 +4331,7 @@ type Sandbox struct {
     UpdatedAt       *string // When the sandbox was last updated
     LastActivityAt  *string // When the sandbox last had activity
     ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
+    AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
 
     // Env contains environment variables set in the sandbox.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.

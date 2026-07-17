@@ -108,6 +108,19 @@ class TestAsyncSandboxLifecycleSettings:
         await sandbox.set_auto_delete_interval(120)
         assert sandbox.auto_delete_interval == 120
 
+    @pytest.mark.asyncio
+    async def test_negative_ttl_raises(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        with pytest.raises(DaytonaValidationError, match="TTL must be a non-negative"):
+            await sandbox.set_ttl(-1)
+
+    @pytest.mark.asyncio
+    async def test_valid_ttl_calls_api(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.set_ttl = AsyncMock(return_value=None)
+        await sandbox.set_ttl(60)
+        mock_async_sandbox_api.set_ttl.assert_called_once_with(sandbox.id, 60, _request_timeout=None)
+
 
 class TestAsyncSandboxOperations:
     @pytest.mark.asyncio

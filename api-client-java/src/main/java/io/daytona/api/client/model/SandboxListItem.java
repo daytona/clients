@@ -237,6 +237,11 @@ public class SandboxListItem {
   @javax.annotation.Nullable
   private BigDecimal autoDeleteInterval;
 
+  public static final String SERIALIZED_NAME_AUTO_DESTROY_AT = "autoDestroyAt";
+  @SerializedName(SERIALIZED_NAME_AUTO_DESTROY_AT)
+  @javax.annotation.Nullable
+  private String autoDestroyAt;
+
   public static final String SERIALIZED_NAME_CREATED_AT = "createdAt";
   @SerializedName(SERIALIZED_NAME_CREATED_AT)
   @javax.annotation.Nullable
@@ -729,6 +734,25 @@ public class SandboxListItem {
   }
 
 
+  public SandboxListItem autoDestroyAt(@javax.annotation.Nullable String autoDestroyAt) {
+    this.autoDestroyAt = autoDestroyAt;
+    return this;
+  }
+
+  /**
+   * When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
+   * @return autoDestroyAt
+   */
+  @javax.annotation.Nullable
+  public String getAutoDestroyAt() {
+    return autoDestroyAt;
+  }
+
+  public void setAutoDestroyAt(@javax.annotation.Nullable String autoDestroyAt) {
+    this.autoDestroyAt = autoDestroyAt;
+  }
+
+
   public SandboxListItem createdAt(@javax.annotation.Nullable String createdAt) {
     this.createdAt = createdAt;
     return this;
@@ -902,6 +926,7 @@ public class SandboxListItem {
         Objects.equals(this.autoPauseInterval, sandboxListItem.autoPauseInterval) &&
         Objects.equals(this.autoArchiveInterval, sandboxListItem.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, sandboxListItem.autoDeleteInterval) &&
+        Objects.equals(this.autoDestroyAt, sandboxListItem.autoDestroyAt) &&
         Objects.equals(this.createdAt, sandboxListItem.createdAt) &&
         Objects.equals(this.updatedAt, sandboxListItem.updatedAt) &&
         Objects.equals(this.lastActivityAt, sandboxListItem.lastActivityAt) &&
@@ -912,7 +937,7 @@ public class SandboxListItem {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, createdAt, updatedAt, lastActivityAt, daemonVersion, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -943,6 +968,7 @@ public class SandboxListItem {
     sb.append("    autoPauseInterval: ").append(toIndentedString(autoPauseInterval)).append("\n");
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
+    sb.append("    autoDestroyAt: ").append(toIndentedString(autoDestroyAt)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
     sb.append("    lastActivityAt: ").append(toIndentedString(lastActivityAt)).append("\n");
@@ -967,7 +993,7 @@ public class SandboxListItem {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
@@ -1039,6 +1065,9 @@ public class SandboxListItem {
       // validate the optional field `backupState`
       if (jsonObj.get("backupState") != null && !jsonObj.get("backupState").isJsonNull()) {
         BackupStateEnum.validateJsonElement(jsonObj.get("backupState"));
+      }
+      if ((jsonObj.get("autoDestroyAt") != null && !jsonObj.get("autoDestroyAt").isJsonNull()) && !jsonObj.get("autoDestroyAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `autoDestroyAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("autoDestroyAt").toString()));
       }
       if ((jsonObj.get("createdAt") != null && !jsonObj.get("createdAt").isJsonNull()) && !jsonObj.get("createdAt").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `createdAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("createdAt").toString()));

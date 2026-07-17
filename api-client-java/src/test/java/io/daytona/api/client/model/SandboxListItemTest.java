@@ -237,6 +237,14 @@ public class SandboxListItemTest {
     }
 
     /**
+     * Test the property 'autoDestroyAt'
+     */
+    @Test
+    public void autoDestroyAtTest() {
+        // TODO: test autoDestroyAt
+    }
+
+    /**
      * Test the property 'createdAt'
      */
     @Test

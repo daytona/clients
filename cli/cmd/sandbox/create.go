@@ -102,6 +102,12 @@ var CreateCmd = &cobra.Command{
 			createSandbox.SetAutoArchiveInterval(autoArchiveFlag)
 		}
 		createSandbox.SetAutoDeleteInterval(autoDeleteFlag)
+		if cmd.Flags().Changed("ttl") {
+			if ttlFlag < 0 {
+				return fmt.Errorf("ttl must be a non-negative integer")
+			}
+			createSandbox.SetTtlMinutes(ttlFlag)
+		}
 
 		createSandbox.SetNetworkBlockAll(networkBlockAllFlag)
 		if networkAllowListFlag != "" {
@@ -216,6 +222,7 @@ var (
 	autoPauseFlag        int32
 	autoArchiveFlag      int32
 	autoDeleteFlag       int32
+	ttlFlag              int32
 	volumesFlag          []string
 	dockerfileFlag       string
 	contextFlag          []string
@@ -239,6 +246,7 @@ func init() {
 	CreateCmd.Flags().Int32Var(&autoPauseFlag, "auto-pause", 60, "Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. Mutually exclusive with --auto-stop")
 	CreateCmd.Flags().Int32Var(&autoArchiveFlag, "auto-archive", 10080, "Auto-archive interval in minutes (0 means the maximum interval will be used)")
 	CreateCmd.Flags().Int32Var(&autoDeleteFlag, "auto-delete", -1, "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)")
+	CreateCmd.Flags().Int32Var(&ttlFlag, "ttl", 0, "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived")
 	CreateCmd.Flags().StringArrayVarP(&volumesFlag, "volume", "v", []string{}, "Volumes to mount (format: VOLUME_ID_OR_NAME:MOUNT_PATH)")
 	CreateCmd.Flags().StringVarP(&dockerfileFlag, "dockerfile", "f", "", "Path to Dockerfile for Sandbox snapshot")
 	CreateCmd.Flags().StringArrayVarP(&contextFlag, "context", "c", []string{}, "Files or directories to include in the build context (can be specified multiple times)")

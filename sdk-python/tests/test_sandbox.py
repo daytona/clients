@@ -95,6 +95,16 @@ class TestSandboxLifecycleSettings:
         sandbox.set_auto_delete_interval(-1)
         assert sandbox.auto_delete_interval == -1
 
+    def test_negative_ttl_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        with pytest.raises(DaytonaValidationError, match="TTL must be a non-negative"):
+            sandbox.set_ttl(-1)
+
+    def test_valid_ttl_calls_api(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        sandbox.set_ttl(60)
+        mock_sandbox_api.set_ttl.assert_called_once_with(sandbox.id, 60, _request_timeout=None)
+
 
 class TestSandboxOperations:
     def test_set_labels(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):

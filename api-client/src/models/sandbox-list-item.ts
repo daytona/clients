@@ -124,6 +124,10 @@ export interface SandboxListItem {
      */
     'autoDeleteInterval'?: number;
     /**
+     * When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
+     */
+    'autoDestroyAt'?: string;
+    /**
      * The creation timestamp of the sandbox
      */
     'createdAt'?: string;

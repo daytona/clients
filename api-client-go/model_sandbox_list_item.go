@@ -69,6 +69,8 @@ type SandboxListItem struct {
 	AutoArchiveInterval *float32 `json:"autoArchiveInterval,omitempty"`
 	// Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
 	AutoDeleteInterval *float32 `json:"autoDeleteInterval,omitempty"`
+	// When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
+	AutoDestroyAt *string `json:"autoDestroyAt,omitempty"`
 	// The creation timestamp of the sandbox
 	CreatedAt *string `json:"createdAt,omitempty"`
 	// The last update timestamp of the sandbox
@@ -793,6 +795,38 @@ func (o *SandboxListItem) SetAutoDeleteInterval(v float32) {
 	o.AutoDeleteInterval = &v
 }
 
+// GetAutoDestroyAt returns the AutoDestroyAt field value if set, zero value otherwise.
+func (o *SandboxListItem) GetAutoDestroyAt() string {
+	if o == nil || IsNil(o.AutoDestroyAt) {
+		var ret string
+		return ret
+	}
+	return *o.AutoDestroyAt
+}
+
+// GetAutoDestroyAtOk returns a tuple with the AutoDestroyAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetAutoDestroyAtOk() (*string, bool) {
+	if o == nil || IsNil(o.AutoDestroyAt) {
+		return nil, false
+	}
+	return o.AutoDestroyAt, true
+}
+
+// HasAutoDestroyAt returns a boolean if a field has been set.
+func (o *SandboxListItem) HasAutoDestroyAt() bool {
+	if o != nil && !IsNil(o.AutoDestroyAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetAutoDestroyAt gets a reference to the given string and assigns it to the AutoDestroyAt field.
+func (o *SandboxListItem) SetAutoDestroyAt(v string) {
+	o.AutoDestroyAt = &v
+}
+
 // GetCreatedAt returns the CreatedAt field value if set, zero value otherwise.
 func (o *SandboxListItem) GetCreatedAt() string {
 	if o == nil || IsNil(o.CreatedAt) {
@@ -1005,6 +1039,9 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AutoDeleteInterval) {
 		toSerialize["autoDeleteInterval"] = o.AutoDeleteInterval
 	}
+	if !IsNil(o.AutoDestroyAt) {
+		toSerialize["autoDestroyAt"] = o.AutoDestroyAt
+	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
 	}
@@ -1096,6 +1133,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "autoPauseInterval")
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
+		delete(additionalProperties, "autoDestroyAt")
 		delete(additionalProperties, "createdAt")
 		delete(additionalProperties, "updatedAt")
 		delete(additionalProperties, "lastActivityAt")

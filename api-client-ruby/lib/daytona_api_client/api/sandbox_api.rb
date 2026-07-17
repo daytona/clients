@@ -2715,6 +2715,76 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # Set sandbox TTL
+    # @param sandbox_id_or_name [String] ID or name of the sandbox
+    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Sandbox]
+    def set_ttl(sandbox_id_or_name, ttl_minutes, opts = {})
+      data, _status_code, _headers = set_ttl_with_http_info(sandbox_id_or_name, ttl_minutes, opts)
+      data
+    end
+
+    # Set sandbox TTL
+    # @param sandbox_id_or_name [String] ID or name of the sandbox
+    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(Sandbox, Integer, Hash)>] Sandbox data, response status code and response headers
+    def set_ttl_with_http_info(sandbox_id_or_name, ttl_minutes, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SandboxApi.set_ttl ...'
+      end
+      # verify the required parameter 'sandbox_id_or_name' is set
+      if @api_client.config.client_side_validation && sandbox_id_or_name.nil?
+        fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.set_ttl"
+      end
+      # verify the required parameter 'ttl_minutes' is set
+      if @api_client.config.client_side_validation && ttl_minutes.nil?
+        fail ArgumentError, "Missing the required parameter 'ttl_minutes' when calling SandboxApi.set_ttl"
+      end
+      # resource path
+      local_var_path = '/sandbox/{sandboxIdOrName}/ttl/{ttlMinutes}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'ttlMinutes' + '}', CGI.escape(ttl_minutes.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Sandbox'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SandboxApi.set_ttl",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SandboxApi#set_ttl\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Start or resume sandbox
     # Starts a stopped or archived sandbox, or resumes a paused sandbox. The transition taken depends on the current sandbox state.
     # @param sandbox_id_or_name [String] ID or name of the sandbox

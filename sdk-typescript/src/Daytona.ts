@@ -165,6 +165,7 @@ export interface Resources {
  * @property {number} [autoPauseInterval] - Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes (0 means the maximum interval will be used). Default is 7 days.
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
+ * @property {number} [ttlMinutes] - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
@@ -184,6 +185,7 @@ export type CreateSandboxBaseParams = {
   autoPauseInterval?: number
   autoArchiveInterval?: number
   autoDeleteInterval?: number
+  ttlMinutes?: number
   volumes?: VolumeMount[]
   networkBlockAll?: boolean
   networkAllowList?: string
@@ -594,6 +596,10 @@ export class Daytona implements AsyncDisposable {
       throw new DaytonaValidationError('autoArchiveInterval must be a non-negative integer')
     }
 
+    if (params.ttlMinutes !== undefined && (!Number.isInteger(params.ttlMinutes) || params.ttlMinutes < 0)) {
+      throw new DaytonaValidationError('ttlMinutes must be a non-negative integer')
+    }
+
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
@@ -645,6 +651,7 @@ export class Daytona implements AsyncDisposable {
           autoPauseInterval: params.autoPauseInterval,
           autoArchiveInterval: params.autoArchiveInterval,
           autoDeleteInterval: params.autoDeleteInterval,
+          ttlMinutes: params.ttlMinutes,
           volumes: params.volumes,
           networkBlockAll: params.networkBlockAll,
           networkAllowList: params.networkAllowList,

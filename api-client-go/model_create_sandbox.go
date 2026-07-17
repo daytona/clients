@@ -58,6 +58,8 @@ type CreateSandbox struct {
 	AutoArchiveInterval *int32 `json:"autoArchiveInterval,omitempty"`
 	// Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
 	AutoDeleteInterval *int32 `json:"autoDeleteInterval,omitempty"`
+	// Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+	TtlMinutes *int32 `json:"ttlMinutes,omitempty"`
 	// Array of volumes to attach to the sandbox
 	Volumes []SandboxVolume `json:"volumes,omitempty"`
 	// Build information for the sandbox
@@ -696,6 +698,38 @@ func (o *CreateSandbox) SetAutoDeleteInterval(v int32) {
 	o.AutoDeleteInterval = &v
 }
 
+// GetTtlMinutes returns the TtlMinutes field value if set, zero value otherwise.
+func (o *CreateSandbox) GetTtlMinutes() int32 {
+	if o == nil || IsNil(o.TtlMinutes) {
+		var ret int32
+		return ret
+	}
+	return *o.TtlMinutes
+}
+
+// GetTtlMinutesOk returns a tuple with the TtlMinutes field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetTtlMinutesOk() (*int32, bool) {
+	if o == nil || IsNil(o.TtlMinutes) {
+		return nil, false
+	}
+	return o.TtlMinutes, true
+}
+
+// HasTtlMinutes returns a boolean if a field has been set.
+func (o *CreateSandbox) HasTtlMinutes() bool {
+	if o != nil && !IsNil(o.TtlMinutes) {
+		return true
+	}
+
+	return false
+}
+
+// SetTtlMinutes gets a reference to the given int32 and assigns it to the TtlMinutes field.
+func (o *CreateSandbox) SetTtlMinutes(v int32) {
+	o.TtlMinutes = &v
+}
+
 // GetVolumes returns the Volumes field value if set, zero value otherwise.
 func (o *CreateSandbox) GetVolumes() []SandboxVolume {
 	if o == nil || IsNil(o.Volumes) {
@@ -891,6 +925,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AutoDeleteInterval) {
 		toSerialize["autoDeleteInterval"] = o.AutoDeleteInterval
 	}
+	if !IsNil(o.TtlMinutes) {
+		toSerialize["ttlMinutes"] = o.TtlMinutes
+	}
 	if !IsNil(o.Volumes) {
 		toSerialize["volumes"] = o.Volumes
 	}
@@ -944,6 +981,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "autoPauseInterval")
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
+		delete(additionalProperties, "ttlMinutes")
 		delete(additionalProperties, "volumes")
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "linkedSandbox")

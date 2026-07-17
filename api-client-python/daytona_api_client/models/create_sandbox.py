@@ -52,12 +52,13 @@ class CreateSandbox(BaseModel):
     auto_pause_interval: Optional[StrictInt] = Field(default=None, description="Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.", serialization_alias="autoPauseInterval")
     auto_archive_interval: Optional[StrictInt] = Field(default=None, description="Auto-archive interval in minutes (0 means the maximum interval will be used)", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[StrictInt] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
+    ttl_minutes: Optional[StrictInt] = Field(default=None, description="Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.", serialization_alias="ttlMinutes")
     volumes: Optional[List[SandboxVolume]] = Field(default=None, description="Array of volumes to attach to the sandbox")
     build_info: Optional[CreateBuildInfo] = Field(default=None, description="Build information for the sandbox", serialization_alias="buildInfo")
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.", serialization_alias="linkedSandbox")
     secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "volumes", "buildInfo", "linkedSandbox", "secrets"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -145,6 +146,7 @@ class CreateSandbox(BaseModel):
             "auto_pause_interval": obj.get("autoPauseInterval"),
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
+            "ttl_minutes": obj.get("ttlMinutes"),
             "volumes": [SandboxVolume.from_dict(_item) for _item in obj["volumes"]] if obj.get("volumes") is not None else None,
             "build_info": CreateBuildInfo.from_dict(obj["buildInfo"]) if obj.get("buildInfo") is not None else None,
             "linked_sandbox": obj.get("linkedSandbox"),

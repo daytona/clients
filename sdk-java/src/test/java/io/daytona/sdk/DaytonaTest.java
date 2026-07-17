@@ -343,6 +343,30 @@ class DaytonaTest {
     }
 
     @Test
+    void createFromSnapshotRejectsNegativeTtlMinutes() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setTtlMinutes(-1);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ttlMinutes must be a non-negative integer");
+    }
+
+    @Test
+    void createFromSnapshotWiresTtlMinutesToBody() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-ttl", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setTtlMinutes(30);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTtlMinutes()).isEqualTo(30);
+    }
+
+    @Test
     void createFromImageWithoutImageLeavesBuildInfoUnset() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));
         when(sandboxApi.getSandbox("sb-10", null, null)).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));

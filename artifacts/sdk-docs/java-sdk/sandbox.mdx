@@ -232,6 +232,24 @@ Sets Sandbox auto-delete interval.
 
 - `DaytonaException` - if the update fails
 
+#### setTtl()
+```java
+public void setTtl(int ttlMinutes)
+```
+
+Sets Sandbox TTL (time to live) in minutes. Set to 0 to disable the TTL.
+The deadline is computed server-side; call `#refreshData()` and read the updated
+value via `#getAutoDestroyAt()`.
+
+**Parameters**:
+
+- `ttlMinutes` _int_ - minutes until the Sandbox is destroyed, or 0 to disable
+
+**Throws**:
+
+- `IllegalArgumentException` - if ttlMinutes is negative
+- `DaytonaException` - if the update fails
+
 #### updateNetworkSettings()
 ```java
 public void updateNetworkSettings(UpdateSandboxNetworkSettings settings)
@@ -725,6 +743,15 @@ public String getLastActivityAt()
 **Returns**:
 
 - `String` - when the Sandbox last had activity, or `null`.
+
+#### getAutoDestroyAt()
+```java
+public String getAutoDestroyAt()
+```
+
+**Returns**:
+
+- `String` - when the Sandbox expires, or `null` if no TTL is set.
 
 #### getToolboxProxyUrl()
 ```java
