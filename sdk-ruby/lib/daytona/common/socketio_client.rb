@@ -70,6 +70,10 @@ module Daytona
       ws_url = build_ws_url
       connected_queue = Queue.new
 
+      # Reset per-connection TLS state so a reconnect re-verifies its new socket
+      # instead of reusing a cached result from the previous connection.
+      @verify_mutex.synchronize { @tls_verified = nil }
+
       # Capture self because websocket-client-simple uses instance_exec for callbacks
       client = self
 
