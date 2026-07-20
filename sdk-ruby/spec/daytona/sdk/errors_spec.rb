@@ -80,23 +80,27 @@ RSpec.describe Daytona::Sdk do
         503 => described_class::ServiceUnavailableError,
         504 => described_class::TimeoutError
       }.each do |status, cls|
-        expect(described_class.error_class_for(status_code: status)).to eq(cls)
+        expect(described_class.send(:error_class_for, status_code: status)).to eq(cls)
       end
     end
 
     it 'falls back to Error for unknown status codes' do
-      expect(described_class.error_class_for(status_code: 418)).to eq(described_class::Error)
-      expect(described_class.error_class_for({})).to eq(described_class::Error)
+      expect(described_class.send(:error_class_for, status_code: 418)).to eq(described_class::Error)
+      expect(described_class.send(:error_class_for, {})).to eq(described_class::Error)
     end
 
     it 'prefers (source, code) match over the status code' do
       details = { status_code: 404, source: 'DAYTONA_DAEMON', code: 'GIT_REPO_NOT_FOUND' }
-      expect(described_class.error_class_for(details)).to eq(described_class::GitRepoNotFoundError)
+      expect(described_class.send(:error_class_for, details)).to eq(described_class::GitRepoNotFoundError)
     end
 
     it 'requires source AND code to both match a registered entry' do
       details = { status_code: 404, source: 'DAYTONA_API', code: 'FILE_NOT_FOUND' }
-      expect(described_class.error_class_for(details)).to eq(described_class::NotFoundError)
+      expect(described_class.send(:error_class_for, details)).to eq(described_class::NotFoundError)
+    end
+
+    it 'falls back to ServerError for unlisted 5xx status codes' do
+      expect(described_class.send(:error_class_for, status_code: 507)).to eq(described_class::ServerError)
     end
   end
 

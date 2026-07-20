@@ -4,6 +4,7 @@
 package io.daytona.sdk.exception;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -35,6 +36,8 @@ public class DaytonaException extends RuntimeException {
     public static final String SOURCE_DAEMON = "DAYTONA_DAEMON";
     public static final String SOURCE_PROXY = "DAYTONA_PROXY";
 
+    private static final ThreadLocal<Map<String, String>> PENDING_HEADERS = new ThreadLocal<>();
+
     private final int statusCode;
     private final Map<String, String> headers;
     private final String code;
@@ -44,9 +47,28 @@ public class DaytonaException extends RuntimeException {
             Throwable cause) {
         super(message, cause);
         this.statusCode = statusCode;
-        this.headers = headers != null ? Collections.unmodifiableMap(headers) : Collections.emptyMap();
+        this.headers = headers != null ? Collections.unmodifiableMap(new HashMap<>(headers)) : Collections.emptyMap();
         this.code = code;
         this.source = source;
+    }
+
+    public static void setPendingHeaders(Map<String, String> headers) {
+        if (headers == null || headers.isEmpty()) {
+            PENDING_HEADERS.remove();
+            return;
+        }
+
+        PENDING_HEADERS.set(new HashMap<>(headers));
+    }
+
+    public static void clearPendingHeaders() {
+        PENDING_HEADERS.remove();
+    }
+
+    private static Map<String, String> consumePendingHeaders() {
+        Map<String, String> headers = PENDING_HEADERS.get();
+        PENDING_HEADERS.remove();
+        return headers == null ? Collections.emptyMap() : headers;
     }
 
     /**
@@ -55,7 +77,7 @@ public class DaytonaException extends RuntimeException {
      * @param message error description
      */
     public DaytonaException(String message) {
-        this(0, message, Collections.emptyMap(), (String) null, (String) null, (Throwable) null);
+        this(0, message, consumePendingHeaders(), (String) null, (String) null, (Throwable) null);
     }
 
     /**
@@ -65,7 +87,7 @@ public class DaytonaException extends RuntimeException {
      * @param cause root cause
      */
     public DaytonaException(String message, Throwable cause) {
-        this(0, message, Collections.emptyMap(), null, null, cause);
+        this(0, message, consumePendingHeaders(), null, null, cause);
     }
 
     /**
@@ -75,7 +97,7 @@ public class DaytonaException extends RuntimeException {
      * @param message error description
      */
     public DaytonaException(int statusCode, String message) {
-        this(statusCode, message, Collections.emptyMap(), (String) null, (String) null, (Throwable) null);
+        this(statusCode, message, consumePendingHeaders(), (String) null, (String) null, (Throwable) null);
     }
 
     /**
@@ -86,7 +108,7 @@ public class DaytonaException extends RuntimeException {
      * @param cause root cause
      */
     public DaytonaException(int statusCode, String message, Throwable cause) {
-        this(statusCode, message, Collections.emptyMap(), null, null, cause);
+        this(statusCode, message, consumePendingHeaders(), null, null, cause);
     }
 
     /**
@@ -122,7 +144,7 @@ public class DaytonaException extends RuntimeException {
      * @param source component that originated the error
      */
     public DaytonaException(int statusCode, String message, String code, String source) {
-        this(statusCode, message, Collections.emptyMap(), code, source, null);
+        this(statusCode, message, consumePendingHeaders(), code, source, null);
     }
 
     /**
@@ -135,7 +157,7 @@ public class DaytonaException extends RuntimeException {
      * @param source component that originated the error
      */
     public DaytonaException(int statusCode, String message, Throwable cause, String code, String source) {
-        this(statusCode, message, Collections.emptyMap(), code, source, cause);
+        this(statusCode, message, consumePendingHeaders(), code, source, cause);
     }
 
     /**

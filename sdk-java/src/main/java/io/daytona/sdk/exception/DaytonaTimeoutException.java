@@ -6,10 +6,10 @@ package io.daytona.sdk.exception;
 /**
  * Raised when an SDK operation times out.
  *
- * <p>This exception is generated client-side and is not tied to a single HTTP status code.
+ * <p>Client-side transport timeouts default to HTTP 408, but mapped HTTP 504
+ * (or any server-supplied timeout status) is preserved when available.
  */
 public class DaytonaTimeoutException extends DaytonaException {
-    /** HTTP status code carried by every instance of this class. */
     public static final int STATUS_CODE = 408;
 
     /**
@@ -29,6 +29,14 @@ public class DaytonaTimeoutException extends DaytonaException {
      */
     public DaytonaTimeoutException(String message) {
         super(message);
+    }
+
+    public DaytonaTimeoutException(int statusCode, String message, String code, String source) {
+        super(statusCode, message, code, source);
+    }
+
+    public DaytonaTimeoutException(int statusCode, String message, Throwable cause, String code, String source) {
+        super(statusCode, message, cause, code, source);
     }
 
     public DaytonaTimeoutException(String message, String code, String source) {

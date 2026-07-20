@@ -96,12 +96,23 @@ class FileDownloadResponse:
 
 @dataclass
 class FileDownloadErrorDetails:
-    """Structured error metadata for a failed bulk file download item."""
+    """Structured error metadata for a failed bulk file download item.
+
+    ``error_code`` is a deprecated alias of ``code`` kept for backward
+    compatibility; the two fields are kept in sync in ``__post_init__``.
+    """
 
     message: str
     status_code: int | None = None
     code: str | None = None
     source: str | None = None
+    error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.code is None and self.error_code is not None:
+            self.code = self.error_code
+        elif self.error_code is None and self.code is not None:
+            self.error_code = self.code
 
 
 def create_file_download_error(response: FileDownloadResponse) -> DaytonaError:

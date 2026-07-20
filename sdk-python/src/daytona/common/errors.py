@@ -1,5 +1,6 @@
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
+# pylint: disable=missing-module-docstring
 
 from __future__ import annotations
 
@@ -157,7 +158,12 @@ class DaytonaConflictError(DaytonaError):
 
 
 class DaytonaBadRequestError(DaytonaError):
-    """Error for when the request is malformed or fails server-side validation (HTTP 400).
+    """Error for malformed requests (HTTP 400).
+
+    The deprecated ``DaytonaValidationError`` alias remains for older callers
+    that historically grouped both HTTP 400 and HTTP 422 validation failures
+    under one name. New code should catch ``DaytonaBadRequestError`` and
+    ``DaytonaUnprocessableEntityError`` explicitly.
 
     Example:
         ```python
@@ -192,7 +198,7 @@ class DaytonaConnectionError(DaytonaError):
     """Error for when a network connection fails (can't connect or mid-request drop)."""
 
 
-class DaytonaConnectionTimeoutError(DaytonaConnectionError):
+class DaytonaConnectionTimeoutError(DaytonaConnectionError, DaytonaTimeoutError):
     """Error for when the transport layer times out connecting or reading from a Daytona service."""
 
 
@@ -352,7 +358,11 @@ def error_class_from_status_code(status_code: int | None) -> type[DaytonaError]:
     return STATUS_CODE_TO_ERROR.get(status_code, DaytonaError)
 
 
-def _resolve_error_class(status_code: int | None, code: str | None, source: str | None) -> type[DaytonaError]:
+def _resolve_error_class(
+    status_code: int | None,
+    code: str | None,
+    source: str | None,
+) -> type[DaytonaError]:
     """(source, code) override first, HTTP status code otherwise."""
     if code and source:
         cls = CODE_TO_ERROR.get((source, code))

@@ -726,7 +726,7 @@ export class Daytona implements AsyncDisposable {
     } catch (error) {
       if (error instanceof DaytonaTimeoutError) {
         const errMsg = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
-        throw new DaytonaTimeoutError(errMsg, error.statusCode, error.headers, error.code)
+        throw new DaytonaTimeoutError(errMsg, error.statusCode, error.headers, error.code, error.source)
       }
 
       throw error

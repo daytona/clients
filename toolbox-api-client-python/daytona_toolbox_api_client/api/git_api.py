@@ -4534,11 +4534,6 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
-            '400': "ErrorResponse",
-            '401': "ErrorResponse",
-            '403': "ErrorResponse",
-            '409': "ErrorResponse",
-            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4606,11 +4601,6 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
-            '400': "ErrorResponse",
-            '401': "ErrorResponse",
-            '403': "ErrorResponse",
-            '409': "ErrorResponse",
-            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4678,11 +4668,6 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
-            '400': "ErrorResponse",
-            '401': "ErrorResponse",
-            '403': "ErrorResponse",
-            '409': "ErrorResponse",
-            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4723,13 +4708,6 @@ class GitApi:
             _body_params = request
 
 
-        # set the HTTP header `Accept`
-        if 'Accept' not in _header_params:
-            _header_params['Accept'] = self.api_client.select_header_accept(
-                [
-                    'application/json'
-                ]
-            )
 
         # set the HTTP header `Content-Type`
         if _content_type:
@@ -5088,6 +5066,11 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+            '409': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5155,6 +5138,11 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+            '409': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5222,6 +5210,11 @@ class GitApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': None,
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+            '409': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5262,6 +5255,13 @@ class GitApi:
             _body_params = request
 
 
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
 
         # set the HTTP header `Content-Type`
         if _content_type:

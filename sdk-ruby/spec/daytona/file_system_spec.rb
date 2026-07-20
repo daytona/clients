@@ -206,10 +206,21 @@ RSpec.describe Daytona::FileSystem do
     end
 
     it 'wraps errors' do
-      allow(toolbox_api).to receive(:download_file).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
-                                                                                                    message: 'err'))
+      allow(toolbox_api).to receive(:download_file).and_raise(
+        DaytonaToolboxApiClient::ApiError.new(code: 500, message: 'err')
+      )
 
       expect { fs.download_file('/x') }.to raise_error(Daytona::Sdk::Error, /Failed to download file: err/)
+    end
+
+    it 'wraps local file write failures' do
+      io = StringIO.new('content')
+      file_obj = double('TempFile', open: io)
+      allow(toolbox_api).to receive(:download_file).with('/remote.txt').and_return(file_obj)
+      allow(File).to receive(:binwrite).and_raise(Errno::EACCES, 'Permission denied')
+
+      expect { fs.download_file('/remote.txt', '/tmp/local.txt') }
+        .to raise_error(Daytona::Sdk::Error, /Failed to download file: Permission denied/)
     end
   end
 
@@ -317,10 +328,19 @@ RSpec.describe Daytona::FileSystem do
     end
 
     it 'wraps errors' do
-      allow(toolbox_api).to receive(:upload_file).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
-                                                                                                  message: 'err'))
+      allow(toolbox_api).to receive(:upload_file).and_raise(
+        DaytonaToolboxApiClient::ApiError.new(code: 500, message: 'err')
+      )
 
       expect { fs.upload_file('data', '/x') }.to raise_error(Daytona::Sdk::Error, /Failed to upload file: err/)
+    end
+
+    it 'wraps local file open failures' do
+      allow(File).to receive(:exist?).with('/missing.txt').and_return(true)
+      allow(File).to receive(:open).with('/missing.txt', 'rb').and_raise(Errno::ENOENT, 'No such file or directory')
+
+      expect { fs.upload_file('/missing.txt', '/x') }
+        .to raise_error(Daytona::Sdk::Error, /Failed to upload file: No such file or directory/)
     end
   end
 
@@ -499,8 +519,9 @@ RSpec.describe Daytona::FileSystem do
     end
 
     it 'wraps errors' do
-      allow(toolbox_api).to receive(:set_file_permissions).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
-                                                                                                           message: 'err'))
+      allow(toolbox_api).to receive(:set_file_permissions).and_raise(
+        DaytonaToolboxApiClient::ApiError.new(code: 500, message: 'err')
+      )
 
       expect do
         fs.set_file_permissions(path: '/x')

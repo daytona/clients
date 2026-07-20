@@ -534,13 +534,20 @@ describe('Daytona', () => {
       start: jest.fn(),
       stop: jest.fn(),
       delete: jest.fn(),
-      waitUntilStarted: jest.fn().mockRejectedValue(new DaytonaTimeoutError('slow start')),
+      waitUntilStarted: jest
+        .fn()
+        .mockRejectedValue(
+          new DaytonaTimeoutError('slow start', 504, undefined, 'PROCESS_EXECUTION_TIMEOUT', 'DAYTONA_DAEMON'),
+        ),
       _experimental_fork: jest.fn(),
     }))
 
-    await expect(instance.create({ language: 'python' }, { timeout: 7 })).rejects.toThrow(
-      'Failed to create and start sandbox within 7 seconds. Operation timed out.',
-    )
+    await expect(instance.create({ language: 'python' }, { timeout: 7 })).rejects.toMatchObject({
+      code: 'PROCESS_EXECUTION_TIMEOUT',
+      message: 'Failed to create and start sandbox within 7 seconds. Operation timed out.',
+      source: 'DAYTONA_DAEMON',
+      statusCode: 504,
+    })
   })
 
   it('gives each listed sandbox its own Configuration instance', async () => {

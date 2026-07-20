@@ -27,15 +27,22 @@ require 'tempfile'
 
 module Daytona
   module Sdk
+    # rubocop:disable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     module FileDownloadPatch
       def self.apply!(api_client_class, api_error_class)
+        return if api_client_class.method_defined?(:_daytona_orig_call_api)
+
         api_client_class.class_eval do
+          define_method(:_daytona_error_body_key) do
+            @daytona_error_body_key ||= :"daytona_file_download_error_body_#{object_id}"
+          end
+
           define_method(:download_file) do |request, &block|
             tempfile = nil
             encoding = nil
             stream_to_tempfile = false
             error_body = String.new.b
-            @_daytona_error_body = nil
+            Thread.current.thread_variable_set(_daytona_error_body_key, nil)
 
             request.on_headers do |response|
               stream_to_tempfile = response.code && response.code >= 200 && response.code < 300
@@ -65,9 +72,8 @@ module Daytona
             request.on_complete do
               if stream_to_tempfile
                 if tempfile.nil?
-                  raise api_error_class.new(
-                    "Failed to create the tempfile based on the HTTP response from the server: #{request.inspect}"
-                  )
+                  raise api_error_class,
+                        "Failed to create the tempfile based on the HTTP response from the server: #{request.inspect}"
                 end
                 tempfile.close
                 @config.logger.info(
@@ -78,7 +84,7 @@ module Daytona
                 )
                 block&.call(tempfile)
               else
-                @_daytona_error_body = error_body unless error_body.empty?
+                Thread.current.thread_variable_set(_daytona_error_body_key, error_body) unless error_body.empty?
               end
             end
           end
@@ -88,22 +94,25 @@ module Daytona
           define_method(:call_api) do |http_method, path, opts = {}|
             _daytona_orig_call_api(http_method, path, opts)
           rescue api_error_class => e
-            if opts[:return_type] == 'File' && @_daytona_error_body && !@_daytona_error_body.empty?
+            error_body = Thread.current.thread_variable_get(_daytona_error_body_key)
+            if opts[:return_type] == 'File' && error_body && !error_body.empty?
               new_err = api_error_class.new(
                 code: e.code,
                 response_headers: e.response_headers,
-                response_body: @_daytona_error_body
+                response_body: error_body
               )
-              @_daytona_error_body = nil
               raise new_err, e.message
             end
             raise
           ensure
-            @_daytona_error_body = nil
+            Thread.current.thread_variable_set(_daytona_error_body_key, nil)
           end
+
+          private :_daytona_error_body_key
         end
       end
     end
+    # rubocop:enable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
   end
 end
 

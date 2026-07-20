@@ -49,6 +49,11 @@ describe('DaytonaError construction', () => {
     expect(err.name).toBe(expectedName)
     expect(err.statusCode).toBe(404)
   })
+
+  it('preserves deprecated alias class names', () => {
+    expect(new DaytonaValidationError('bad request').name).toBe('DaytonaValidationError')
+    expect(new DaytonaAuthorizationError('forbidden').name).toBe('DaytonaAuthorizationError')
+  })
 })
 
 describe('HTTP status code classification', () => {
@@ -198,6 +203,36 @@ describe('Axios error mapping', () => {
 
     expect(daytonaError).toBeInstanceOf(DaytonaNotFoundError)
     expect(daytonaError.code).toBeUndefined()
+  })
+
+  it('falls back to error_code when code is absent', () => {
+    const error = new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, {} as never, {
+      config: { headers: new AxiosHeaders() } as never,
+      data: { message: 'missing file', error_code: 'FILE_NOT_FOUND', source: 'DAYTONA_DAEMON' },
+      headers: new AxiosHeaders(),
+      status: 404,
+      statusText: 'Not Found',
+    })
+
+    const daytonaError = createAxiosDaytonaError(error)
+
+    expect(daytonaError).toBeInstanceOf(DaytonaFileNotFoundError)
+    expect(daytonaError.code).toBe('FILE_NOT_FOUND')
+  })
+
+  it('falls back to the legacy error field for the message', () => {
+    const error = new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, {} as never, {
+      config: { headers: new AxiosHeaders() } as never,
+      data: { error: 'legacy not found' },
+      headers: new AxiosHeaders(),
+      status: 404,
+      statusText: 'Not Found',
+    })
+
+    const daytonaError = createAxiosDaytonaError(error)
+
+    expect(daytonaError).toBeInstanceOf(DaytonaNotFoundError)
+    expect(daytonaError.message).toBe('legacy not found')
   })
 
   it('creates a generic DaytonaError for unknown non-network failures', () => {

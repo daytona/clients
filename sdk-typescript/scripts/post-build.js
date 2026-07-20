@@ -39,13 +39,15 @@ if (fs.existsSync(esmImportJs)) {
   // Named `__esmRequire` (not `require`) to avoid shadowing the host CJS
   // `require` when a bundler re-compiles this ESM output to CommonJS.
   const shim =
-    `import * as _m from 'module';\n` +
     `const __esmRequire = (() => {\n` +
-    `  try { return _m.createRequire(import.meta.url); } catch {}\n` +
-    `  try { if (typeof require !== 'undefined') return require; } catch {}\n` +
-    `  return (id) => { throw new Error(\n` +
-    `    'cannot require("' + id + '"): no CommonJS require available. ' +\n` +
-    `    'If re-bundling @daytona/sdk to CJS, ensure createRequire or the host require is accessible.'\n` +
+	    `  try { if (typeof require !== 'undefined') return require; } catch {}\n` +
+	    `  try {\n` +
+	    `    const builtinModule = globalThis.process?.getBuiltinModule?.('module');\n` +
+	    `    if (builtinModule?.createRequire) return builtinModule.createRequire(import.meta.url);\n` +
+	    `  } catch {}\n` +
+	    `  return (id) => { throw new Error(\n` +
+	    `    'cannot require("' + id + '"): no CommonJS require available. ' +\n` +
+	    `    'If re-bundling @daytona/sdk to CJS, ensure createRequire or the host require is accessible.'\n` +
     `  ); };\n` +
     `})();\n`
   const original = fs.readFileSync(esmImportJs, 'utf8')

@@ -161,6 +161,8 @@ module Daytona
       end
     rescue *Sdk::API_ERROR_CLASSES => e
       raise Sdk.wrap_error(e, 'Failed to download file')
+    rescue IOError, SystemCallError => e
+      raise Sdk::Error, "Failed to download file: #{e.message}"
     end
 
     # Downloads a single file from the Sandbox as a stream without buffering the entire
@@ -222,7 +224,7 @@ module Daytona
     #   # Upload binary data
     #   data = { key: "value" }.to_json
     #   sandbox.fs.upload_file(data, "tmp/config.json")
-    def upload_file(source, remote_path)
+    def upload_file(source, remote_path) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       if source.is_a?(String) && File.exist?(source)
         # Source is a file path
         File.open(source, 'rb') { |file| toolbox_api.upload_file(remote_path, file) }
@@ -245,6 +247,8 @@ module Daytona
       end
     rescue *Sdk::API_ERROR_CLASSES => e
       raise Sdk.wrap_error(e, 'Failed to upload file')
+    rescue IOError, SystemCallError => e
+      raise Sdk::Error, "Failed to upload file: #{e.message}"
     end
 
     # Streams +source+ to the Sandbox without buffering its contents in memory, with

@@ -1,5 +1,6 @@
 # Copyright 2025 Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
+# pylint: disable=missing-module-docstring,broad-exception-caught
 from __future__ import annotations
 
 import functools
@@ -18,8 +19,22 @@ from daytona_api_client_async.exceptions import OpenApiException as OpenApiExcep
 from daytona_toolbox_api_client.exceptions import OpenApiException as OpenApiExceptionToolbox
 from daytona_toolbox_api_client_async.exceptions import OpenApiException as OpenApiExceptionToolboxAsync
 
-from ..common.errors import DaytonaConnectionError, DaytonaConnectionTimeoutError, DaytonaError, _resolve_error_class
+from ..common.errors import (
+    DaytonaConnectionError,
+    DaytonaConnectionTimeoutError,
+    DaytonaError,
+    _resolve_error_class,
+    create_daytona_error,
+    error_class_from_status_code,
+)
 from .types import has_body
+
+__all__ = [
+    "create_daytona_error",
+    "error_class_from_status_code",
+    "intercept_errors",
+    "is_validation_error",
+]
 
 SESSION_IS_CLOSED_ERROR_MESSAGE = "Session is closed"
 
@@ -28,7 +43,12 @@ OpenApiDaytonaException = (
     OpenApiException | OpenApiExceptionAsync | OpenApiExceptionToolbox | OpenApiExceptionToolboxAsync
 )
 
-OPENAPI_EXCEPTIONS = (OpenApiException, OpenApiExceptionAsync, OpenApiExceptionToolbox, OpenApiExceptionToolboxAsync)
+OPENAPI_EXCEPTIONS = (
+    OpenApiException,
+    OpenApiExceptionAsync,
+    OpenApiExceptionToolbox,
+    OpenApiExceptionToolboxAsync,
+)
 
 # Order matters: subclasses before their bases. ConnectionError does NOT catch
 # the broader OSError family.
@@ -149,7 +169,8 @@ def intercept_errors(
                     (
                         f"{_prefix_message(message_prefix, str(e))}: Daytona client is closed"
                         " — sandbox is used outside its parent's context. "
-                        "Ensure sandboxes are only used within the scope of their parent Daytona object."
+                        "Ensure sandboxes are only used within the scope of their "
+                        "parent Daytona object."
                     )
                 ) from e
 

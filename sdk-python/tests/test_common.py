@@ -262,6 +262,14 @@ class TestFilesystemTypes:
         assert message == "missing"
         assert details == FileDownloadErrorDetails(message="missing", status_code=404, code="NOT_FOUND")
 
+    def test_parse_file_download_error_payload_supports_legacy_error_code_key(self):
+        message, details = parse_file_download_error_payload(
+            b'{"message":"missing","statusCode":404,"error_code":"FILE_NOT_FOUND"}',
+            "application/json",
+        )
+        assert message == "missing"
+        assert details == FileDownloadErrorDetails(message="missing", status_code=404, code="FILE_NOT_FOUND")
+
     def test_create_file_download_error_maps_structured_status_code(self):
         error = create_file_download_error(
             FileDownloadResponse(

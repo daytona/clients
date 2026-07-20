@@ -63,16 +63,12 @@ export class DaytonaServiceUnavailableError extends DaytonaError {}
  * existing `catch (err) { if (err instanceof DaytonaValidationError) ... }`
  * blocks keep working.
  */
-export const DaytonaValidationError = DaytonaBadRequestError
-/** @deprecated Use {@link DaytonaBadRequestError} instead. */
-export type DaytonaValidationError = DaytonaBadRequestError
+export class DaytonaValidationError extends DaytonaBadRequestError {}
 
 /**
  * @deprecated Use {@link DaytonaForbiddenError} instead.
  */
-export const DaytonaAuthorizationError = DaytonaForbiddenError
-/** @deprecated Use {@link DaytonaForbiddenError} instead. */
-export type DaytonaAuthorizationError = DaytonaForbiddenError
+export class DaytonaAuthorizationError extends DaytonaForbiddenError {}
 
 /** Network connection failure (can't connect or mid-request drop). */
 export class DaytonaConnectionError extends DaytonaError {}
@@ -144,9 +140,9 @@ function lookupErrorClass(source: string | undefined, code: string | undefined):
 }
 
 const STATUS_CODE_TO_ERROR: Record<number, typeof DaytonaError> = {
-  400: DaytonaBadRequestError,
+  400: DaytonaValidationError,
   401: DaytonaAuthenticationError,
-  403: DaytonaForbiddenError,
+  403: DaytonaAuthorizationError,
   404: DaytonaNotFoundError,
   408: DaytonaTimeoutError,
   409: DaytonaConflictError,
@@ -197,7 +193,8 @@ function getAxiosResponseDataObject(error: AxiosError): Record<string, unknown> 
 }
 
 function extractAxiosErrorCode(responseData?: Record<string, unknown>): string | undefined {
-  return typeof responseData?.code === 'string' ? responseData.code : undefined
+  const code = responseData?.code ?? responseData?.error_code
+  return typeof code === 'string' ? code : undefined
 }
 
 function extractAxiosErrorSource(responseData?: Record<string, unknown>): string | undefined {
@@ -210,7 +207,10 @@ function extractAxiosErrorMessage(error: AxiosError): string {
   }
 
   const responseData = getAxiosResponseDataObject(error)
-  const responseMessage: unknown = responseData?.message || error.response?.data
+  const responseMessage: unknown =
+    (typeof responseData?.message === 'string' ? responseData.message : undefined) ??
+    (typeof responseData?.error === 'string' ? responseData.error : undefined) ??
+    error.response?.data
   const message: unknown = responseMessage || error.message || String(error)
 
   if (typeof message === 'object') {

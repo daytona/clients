@@ -7,7 +7,6 @@ import io.daytona.sdk.exception.DaytonaAuthenticationException;
 import io.daytona.sdk.exception.DaytonaBadRequestException;
 import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaConnectionException;
-import io.daytona.sdk.exception.DaytonaConnectionTimeoutException;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
@@ -20,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -147,15 +148,33 @@ class ExceptionMapperTest {
     }
 
     @Test
-    void mapsSocketTimeoutToConnectionTimeoutException() {
+    void mapsSocketTimeoutToTimeoutException() {
         SocketTimeoutException timeout = new SocketTimeoutException("Read timed out");
         io.daytona.api.client.ApiException apiException = new io.daytona.api.client.ApiException(timeout);
 
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> { throw apiException; }))
-                .isInstanceOf(DaytonaConnectionTimeoutException.class)
-                .isInstanceOf(DaytonaConnectionException.class)
+                .isInstanceOf(DaytonaTimeoutException.class)
                 .hasMessageContaining("Read timed out")
                 .hasCause(apiException);
+    }
+
+    @Test
+    void preservesMappedStatusAndHeaders() {
+        Map<String, String> headers = new LinkedHashMap<String, String>();
+        headers.put("Retry-After", "30");
+
+        DaytonaException exception = ExceptionMapper.map(
+                504,
+                "{\"message\":\"gateway timeout\",\"error_code\":\"PROCESS_EXECUTION_TIMEOUT\",\"source\":\"DAYTONA_DAEMON\"}",
+                headers,
+                new RuntimeException("boom"));
+
+        assertThat(exception).isInstanceOf(DaytonaTimeoutException.class);
+        assertThat(exception.getStatusCode()).isEqualTo(504);
+        assertThat(exception.getHeaders()).containsEntry("Retry-After", "30");
+
+        headers.put("Retry-After", "999");
+        assertThat(exception.getHeaders()).containsEntry("Retry-After", "30");
     }
 
     @Test

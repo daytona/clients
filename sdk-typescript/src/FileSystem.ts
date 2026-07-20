@@ -85,6 +85,8 @@ export interface FileDownloadErrorDetails {
   message: string
   statusCode?: number
   code?: string
+  /** @deprecated Use {@link code} instead — kept for backward compatibility. */
+  errorCode?: string
   source?: string
 }
 
@@ -184,7 +186,7 @@ function createFileDownloadError(error: string, errorDetails?: FileDownloadError
     errorDetails.message,
     errorDetails.statusCode,
     undefined,
-    errorDetails.code,
+    errorDetails.code ?? errorDetails.errorCode,
     errorDetails.source,
   )
 }

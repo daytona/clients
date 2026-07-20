@@ -10,7 +10,6 @@ import io.daytona.sdk.exception.DaytonaBadRequestException;
 import io.daytona.sdk.exception.DaytonaCommandAlreadyCompletedException;
 import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaConnectionException;
-import io.daytona.sdk.exception.DaytonaConnectionTimeoutException;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaFileAccessDeniedException;
 import io.daytona.sdk.exception.DaytonaFileNotFoundException;
@@ -119,56 +118,79 @@ final class ExceptionMapper {
             message = cause.getMessage();
         }
 
-        // (source, code) exact match takes precedence over the HTTP status.
-        if (errorDetails.source() != null && errorDetails.code() != null) {
-            ErrorFactory factory = CODE_TO_FACTORY.get(errorDetails.source() + "|" + errorDetails.code());
-            if (factory != null) {
-                return factory.create(message, cause, errorDetails.code(), errorDetails.source());
-            }
-        }
-
-        switch (statusCode) {
-            case 400:
-                return new DaytonaBadRequestException(message, cause, errorDetails.code(), errorDetails.source());
-            case 401:
-                return new DaytonaAuthenticationException(message, cause, errorDetails.code(), errorDetails.source());
-            case 403:
-                return new DaytonaForbiddenException(message, cause, errorDetails.code(), errorDetails.source());
-            case 404:
-                return new DaytonaNotFoundException(message, cause, errorDetails.code(), errorDetails.source());
-            case 408:
-                return new DaytonaTimeoutException(message, cause, errorDetails.code(), errorDetails.source());
-            case 409:
-                return new DaytonaConflictException(message, cause, errorDetails.code(), errorDetails.source());
-            case 410:
-                return new DaytonaGoneException(message, cause, errorDetails.code(), errorDetails.source());
-            case 422:
-                return new DaytonaUnprocessableEntityException(message, cause, errorDetails.code(), errorDetails.source());
-            case 429:
-                return new DaytonaRateLimitException(message, cause, errorDetails.code(), errorDetails.source());
-            case 500:
-                return new DaytonaInternalServerException(message, cause, errorDetails.code(), errorDetails.source());
-            case 502:
-                return new DaytonaBadGatewayException(message, cause, errorDetails.code(), errorDetails.source());
-            case 503:
-                return new DaytonaServiceUnavailableException(message, cause, errorDetails.code(), errorDetails.source());
-            case 504:
-                return new DaytonaTimeoutException(message, cause, errorDetails.code(), errorDetails.source());
-            default:
-                if (statusCode >= 500) {
-                    return new DaytonaServerException(statusCode, message, cause, errorDetails.code(), errorDetails.source());
+        DaytonaException.setPendingHeaders(headers);
+        try {
+            // (source, code) exact match takes precedence over the HTTP status.
+            if (errorDetails.source() != null && errorDetails.code() != null) {
+                if (SRC_DAEMON.equals(errorDetails.source()) && "PROCESS_EXECUTION_TIMEOUT".equals(errorDetails.code())) {
+                    return new DaytonaProcessExecutionTimeoutException(
+                            statusCode,
+                            message,
+                            cause,
+                            errorDetails.code(),
+                            errorDetails.source());
                 }
-                return new DaytonaException(statusCode, message, headers, cause, errorDetails.code(), errorDetails.source());
+                ErrorFactory factory = CODE_TO_FACTORY.get(errorDetails.source() + "|" + errorDetails.code());
+                if (factory != null) {
+                    return factory.create(message, cause, errorDetails.code(), errorDetails.source());
+                }
+            }
+
+            switch (statusCode) {
+                case 400:
+                    return new DaytonaBadRequestException(message, cause, errorDetails.code(), errorDetails.source());
+                case 401:
+                    return new DaytonaAuthenticationException(message, cause, errorDetails.code(), errorDetails.source());
+                case 403:
+                    return new DaytonaForbiddenException(message, cause, errorDetails.code(), errorDetails.source());
+                case 404:
+                    return new DaytonaNotFoundException(message, cause, errorDetails.code(), errorDetails.source());
+                case 408:
+                case 504:
+                    return new DaytonaTimeoutException(statusCode, message, cause, errorDetails.code(), errorDetails.source());
+                case 409:
+                    return new DaytonaConflictException(message, cause, errorDetails.code(), errorDetails.source());
+                case 410:
+                    return new DaytonaGoneException(message, cause, errorDetails.code(), errorDetails.source());
+                case 422:
+                    return new DaytonaUnprocessableEntityException(message, cause, errorDetails.code(), errorDetails.source());
+                case 429:
+                    return new DaytonaRateLimitException(message, cause, errorDetails.code(), errorDetails.source());
+                case 500:
+                    return new DaytonaInternalServerException(message, cause, errorDetails.code(), errorDetails.source());
+                case 502:
+                    return new DaytonaBadGatewayException(message, cause, errorDetails.code(), errorDetails.source());
+                case 503:
+                    return new DaytonaServiceUnavailableException(message, cause, errorDetails.code(), errorDetails.source());
+                default:
+                    if (statusCode >= 500) {
+                        return new DaytonaServerException(statusCode, message, cause, errorDetails.code(), errorDetails.source());
+                    }
+                    return new DaytonaException(statusCode, message, headers, cause, errorDetails.code(), errorDetails.source());
+                }
+        } finally {
+            DaytonaException.clearPendingHeaders();
         }
     }
 
     private static DaytonaException mapTransportFailure(Throwable cause) {
         Throwable root = rootCause(cause);
         String message = rootMessage(root);
-        if (root instanceof SocketTimeoutException) {
-            return new DaytonaConnectionTimeoutException("Request timed out: " + message, cause);
+        if (hasTimeoutInCauseChain(cause)) {
+            return new DaytonaTimeoutException("Request timed out: " + message, cause);
         }
         return new DaytonaConnectionException("Connection failed: " + message, cause);
+    }
+
+    private static boolean hasTimeoutInCauseChain(Throwable cause) {
+        Throwable current = cause;
+        while (current != null) {
+            if (current instanceof SocketTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static Map<String, ErrorFactory> buildCodeMap() {
@@ -239,7 +261,9 @@ final class ExceptionMapper {
 
         return new ErrorDetails(
                 message,
-                extractJsonField(responseBody, "code"),
+                extractJsonField(responseBody, "code") != null
+                        ? extractJsonField(responseBody, "code")
+                        : extractJsonField(responseBody, "error_code"),
                 extractJsonField(responseBody, "source"));
     }
 

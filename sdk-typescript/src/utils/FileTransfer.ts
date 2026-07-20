@@ -34,7 +34,7 @@ function parseDownloadErrorPart(data: Uint8Array, contentType?: string): Downloa
     const payloadObject = payload as Record<string, unknown>
     const structuredMessage = payloadObject.message
     const statusCode = payloadObject.statusCode ?? payloadObject.status_code
-    const code = payloadObject.code
+    const code = payloadObject.code ?? payloadObject.error_code
     const source = payloadObject.source
 
     if (typeof structuredMessage === 'string') {
@@ -47,6 +47,7 @@ function parseDownloadErrorPart(data: Uint8Array, contentType?: string): Downloa
         message,
         statusCode: typeof statusCode === 'number' ? statusCode : undefined,
         code: typeof code === 'string' ? code : undefined,
+        errorCode: typeof code === 'string' ? code : undefined,
         source: typeof source === 'string' ? source : undefined,
       },
     }

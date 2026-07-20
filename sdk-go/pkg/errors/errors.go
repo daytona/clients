@@ -65,6 +65,18 @@ type DaytonaError struct {
 	Headers    http.Header
 }
 
+// Deprecated: use DaytonaError directly. Kept for backward compatibility with
+// older callers that used named status-specific Go types in errors.As.
+type DaytonaTimeoutError = DaytonaError
+
+// Deprecated: use DaytonaError directly. Kept for backward compatibility with
+// older callers that used named status-specific Go types in errors.As.
+type DaytonaNotFoundError = DaytonaError
+
+// Deprecated: use DaytonaError directly. Kept for backward compatibility with
+// older callers that used named status-specific Go types in errors.As.
+type DaytonaValidationError = DaytonaError
+
 func (e *DaytonaError) Error() string {
 	if e.StatusCode != 0 {
 		return fmt.Sprintf("Daytona error (status %d): %s", e.StatusCode, e.Message)
@@ -99,10 +111,10 @@ func (e *DaytonaError) Is(target error) bool {
 }
 
 // NewDaytonaError builds a DaytonaError with the given message, status code
-// and headers. `Source` is left empty — set it explicitly via `SourceSDK`
-// for SDK-internal errors, or via the translation layer for server-side
-// errors. Most callers should use this directly; the sentinels below are
-// for branching with `errors.Is`, not for constructing errors.
+// and headers. `Source` is left empty for SDK-internal errors unless the
+// translation layer populates it from a server-side envelope. Most callers
+// should use this directly; the sentinels below are for branching with
+// `errors.Is`, not for constructing errors.
 func NewDaytonaError(message string, statusCode int, headers http.Header) *DaytonaError {
 	return &DaytonaError{Message: message, StatusCode: statusCode, Headers: headers}
 }
@@ -111,6 +123,11 @@ func NewDaytonaError(message string, statusCode int, headers http.Header) *Dayto
 // timeouts. Equivalent to `NewDaytonaError(message, http.StatusRequestTimeout, nil)`.
 func NewDaytonaTimeoutError(message string) *DaytonaError {
 	return NewDaytonaError(message, http.StatusRequestTimeout, nil)
+}
+
+// Deprecated: use NewDaytonaError(message, http.StatusBadRequest, headers).
+func NewDaytonaValidationError(message string, headers http.Header) *DaytonaError {
+	return NewDaytonaError(message, http.StatusBadRequest, headers)
 }
 
 // NewDaytonaConnectionError is a convenience constructor for transport-level
@@ -181,6 +198,7 @@ func parseErrorBody(body []byte) (message, code, source string, parsedStatusCode
 		Error      string `json:"error"`
 		StatusCode int    `json:"statusCode"`
 		Code       string `json:"code"`
+		ErrorCode  string `json:"error_code"`
 		Source     string `json:"source"`
 	}
 
@@ -192,6 +210,10 @@ func parseErrorBody(body []byte) (message, code, source string, parsedStatusCode
 		message = errResp.Message
 	} else if errResp.Error != "" {
 		message = errResp.Error
+	}
+
+	if errResp.Code == "" {
+		errResp.Code = errResp.ErrorCode
 	}
 
 	return message, errResp.Code, errResp.Source, errResp.StatusCode

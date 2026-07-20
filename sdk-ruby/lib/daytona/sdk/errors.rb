@@ -242,7 +242,13 @@ module Daytona
         cls = CODE_TO_ERROR[[source, code]]
         return cls if cls
       end
-      STATUS_CODE_TO_ERROR.fetch(details[:status_code], Error)
+      status_code = details[:status_code]
+      exact_status_error = STATUS_CODE_TO_ERROR[status_code]
+      return exact_status_error if exact_status_error
+
+      return ServerError if status_code.is_a?(Integer) && status_code >= 500
+
+      Error
     end
 
     def self.parse_error_body(response_body)
@@ -271,5 +277,7 @@ module Daytona
     def self.string_or_nil(value)
       value.is_a?(String) && !value.empty? ? value : nil
     end
+
+    private_class_method :error_class_for, :parse_error_body, :parsed_message, :string_or_nil
   end
 end

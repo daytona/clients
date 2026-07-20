@@ -222,3 +222,4 @@ class TestTransportErrorMapping:
         # catch both can't-connect and connection-timeout cases together.
         err = DaytonaConnectionTimeoutError("read timed out")
         assert isinstance(err, DaytonaConnectionError)
+        assert isinstance(err, DaytonaTimeoutError)

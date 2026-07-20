@@ -16,6 +16,14 @@ public class DaytonaProcessExecutionTimeoutException extends DaytonaTimeoutExcep
         super(message, cause);
     }
 
+    public DaytonaProcessExecutionTimeoutException(int statusCode, String message, String code, String source) {
+        super(statusCode, message, code, source);
+    }
+
+    public DaytonaProcessExecutionTimeoutException(int statusCode, String message, Throwable cause, String code, String source) {
+        super(statusCode, message, cause, code, source);
+    }
+
     public DaytonaProcessExecutionTimeoutException(String message, String code, String source) {
         super(message, code, source);
     }

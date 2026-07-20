@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	sdkerrors "github.com/daytonaio/daytona/libs/sdk-go/pkg/errors"
+	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
 )
 
 // ----- Base error -----
@@ -167,6 +167,17 @@ func TestNewDaytonaErrorFromBody_PrefersErrorFieldWhenMessageAbsent(t *testing.T
 	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusBadRequest, nil)
 	if err.Message != "bad data" {
 		t.Fatalf("Message = %q", err.Message)
+	}
+}
+
+func TestNewDaytonaErrorFromBody_FallsBackToLegacyErrorCodeField(t *testing.T) {
+	body := []byte(`{"message":"missing","error_code":"FILE_NOT_FOUND","source":"DAYTONA_DAEMON"}`)
+	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusNotFound, nil)
+	if err.Code != "FILE_NOT_FOUND" {
+		t.Fatalf("Code = %q", err.Code)
+	}
+	if !stderrors.Is(err, sdkerrors.ErrFileNotFound) {
+		t.Fatalf("errors.Is(err, ErrFileNotFound) = false")
 	}
 }
 
