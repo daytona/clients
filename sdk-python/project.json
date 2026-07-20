@@ -58,6 +58,12 @@
       ]
     },
     "deps-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": ["poetry run deptry .", "./scripts/poetry-lock-retry.sh"],
+        "parallel": false
+      },
       "inputs": [
         "pythonLib",
         { "dependentTasksOutputFiles": "**/*", "transitive": true }
