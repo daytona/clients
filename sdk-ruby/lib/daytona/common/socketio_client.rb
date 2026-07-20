@@ -53,6 +53,8 @@ module Daytona
       @connected = false
       @mutex = Mutex.new
       @write_mutex = Mutex.new
+      @verify_mutex = Mutex.new
+      @tls_verified = nil
       @health_thread = nil
       @ping_interval = 25
       @ping_timeout = 20
@@ -78,6 +80,10 @@ module Daytona
       # verify_mode is passed explicitly: websocket-client-simple builds its own
       # SSLContext and defaults to no certificate verification (VERIFY_NONE).
       @ws = WebSocket::Client::Simple.connect(ws_url, verify_mode: OpenSSL::SSL::VERIFY_PEER) do |ws|
+        # Capture the client before its reader thread starts so #verify_tls_peer!
+        # can reach the SSL socket even when a frame arrives before .connect returns.
+        @ws = ws
+
         ws.on :message do |msg|
           client.send(:handle_raw_message, msg.data.to_s, connected_queue)
         end
@@ -111,7 +117,7 @@ module Daytona
       result = nil
       begin
         Timeout.timeout(@connect_timeout) do
-          verify_tls_peer!
+          ensure_tls_verified!(connected_queue)
           result = connected_queue.pop
           if result == :open
             send_connect_auth
@@ -121,9 +127,11 @@ module Daytona
       rescue Timeout::Error
         close
         raise "WebSocket connection timed out after #{@connect_timeout}s"
-      rescue OpenSSL::SSL::SSLError
+      end
+
+      if result.is_a?(OpenSSL::SSL::SSLError)
         close
-        raise
+        raise result
       end
 
       if result != :connected
@@ -154,10 +162,34 @@ module Daytona
 
     private
 
-    # websocket-client-simple verifies the certificate chain (with VERIFY_PEER)
-    # but never checks that the certificate matches the host, so any valid
-    # certificate would be accepted. Enforce hostname verification before the
-    # API key is sent in the CONNECT frame.
+    # Verify the TLS peer's hostname exactly once, before any inbound frame is
+    # processed and before the auth frame is sent. websocket-client-simple
+    # verifies the certificate chain (VERIFY_PEER) during the handshake but never
+    # checks that the certificate matches the host, and its reader thread starts
+    # before #connect regains control — so a certificate that is valid for the
+    # wrong host could otherwise inject Socket.IO events (and receive the CONNECT
+    # auth frame) before verification runs. Gating both the reader path and the
+    # connect path guarantees no frame reaches the dispatcher, and no credentials
+    # are sent, until the peer is verified.
+    # @return [Boolean] true when verified (or plaintext ws://, no TLS peer to
+    #   check); false on failure, after signalling the connecting thread.
+    def ensure_tls_verified!(connected_queue)
+      @verify_mutex.synchronize do
+        return @tls_verified unless @tls_verified.nil?
+
+        begin
+          verify_tls_peer!
+          @tls_verified = true
+        rescue OpenSSL::SSL::SSLError => e
+          @tls_verified = false
+          @mutex.synchronize { @connected = false }
+          connected_queue&.push(e)
+        end
+
+        @tls_verified
+      end
+    end
+
     def verify_tls_peer!
       socket = @ws&.instance_variable_get(:@socket)
       return unless socket.is_a?(OpenSSL::SSL::SSLSocket)
@@ -188,6 +220,11 @@ module Daytona
 
     def handle_raw_message(raw, connected_queue)
       return if raw.nil? || raw.empty?
+
+      # Drop every frame from a peer whose hostname is not yet verified. The
+      # reader thread can run before #connect verifies, so this is the gate that
+      # stops a wrong-host peer from injecting events or eliciting the auth frame.
+      return unless ensure_tls_verified!(connected_queue)
 
       # Track all server activity for health monitoring.
       # If the server stops sending ANY data (pings, events, etc.)
