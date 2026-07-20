@@ -124,7 +124,7 @@ func (c *Config) Save() error {
 		return err
 	}
 
-	return os.WriteFile(configFilePath, configContent, 0644)
+	return os.WriteFile(configFilePath, configContent, 0600)
 }
 
 func (c *Config) AddProfile(profile Profile) error {
