@@ -5,6 +5,7 @@
 
 require 'timeout'
 
+require 'openssl'
 require 'websocket-client-simple'
 require 'json'
 require 'uri'
@@ -73,7 +74,10 @@ module Daytona
       # Register callbacks inside the connect block so they are installed before the
       # socket dials — otherwise the Engine.IO handshake can arrive before :message
       # is bound, stalling the connection into a polling fallback/timeout.
-      @ws = WebSocket::Client::Simple.connect(ws_url) do |ws|
+      #
+      # verify_mode is passed explicitly: websocket-client-simple builds its own
+      # SSLContext and defaults to no certificate verification (VERIFY_NONE).
+      @ws = WebSocket::Client::Simple.connect(ws_url, verify_mode: OpenSSL::SSL::VERIFY_PEER) do |ws|
         ws.on :message do |msg|
           client.send(:handle_raw_message, msg.data.to_s, connected_queue)
         end
@@ -104,13 +108,22 @@ module Daytona
         end
       end
 
-      # Wait for connection with timeout
       result = nil
       begin
-        Timeout.timeout(@connect_timeout) { result = connected_queue.pop }
+        Timeout.timeout(@connect_timeout) do
+          verify_tls_peer!
+          result = connected_queue.pop
+          if result == :open
+            send_connect_auth
+            result = connected_queue.pop
+          end
+        end
       rescue Timeout::Error
         close
         raise "WebSocket connection timed out after #{@connect_timeout}s"
+      rescue OpenSSL::SSL::SSLError
+        close
+        raise
       end
 
       if result != :connected
@@ -140,6 +153,22 @@ module Daytona
     end
 
     private
+
+    # websocket-client-simple verifies the certificate chain (with VERIFY_PEER)
+    # but never checks that the certificate matches the host, so any valid
+    # certificate would be accepted. Enforce hostname verification before the
+    # API key is sent in the CONNECT frame.
+    def verify_tls_peer!
+      socket = @ws&.instance_variable_get(:@socket)
+      return unless socket.is_a?(OpenSSL::SSL::SSLSocket)
+
+      socket.post_connection_check(URI.parse(@api_url).host)
+    end
+
+    def send_connect_auth
+      auth = JSON.generate({ token: @token })
+      send_raw("#{EIO_MESSAGE}#{SIO_CONNECT}#{auth}")
+    end
 
     def build_ws_url
       parsed = URI.parse(@api_url)
@@ -175,9 +204,10 @@ module Daytona
         rescue JSON::ParserError
           # Use default ping interval
         end
-        # Send Socket.IO CONNECT with auth
-        auth = JSON.generate({ token: @token })
-        send_raw("#{EIO_MESSAGE}#{SIO_CONNECT}#{auth}")
+        # Signal the connecting thread instead of sending the CONNECT auth frame
+        # here: the token must not leave this process until the connecting thread
+        # has completed TLS peer verification (see #connect).
+        connected_queue&.push(:open)
 
       when EIO_PING
         # Server heartbeat — respond immediately with PONG
