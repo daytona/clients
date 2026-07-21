@@ -12,7 +12,6 @@ import (
 	"math"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/daytona/clients/sdk-go/pkg/common"
@@ -60,9 +59,6 @@ type ProcessService struct {
 	toolboxClient *toolbox.APIClient
 	otel          *otelState
 	language      types.CodeLanguage
-
-	longRunningOnce   sync.Once
-	longRunningClient *toolbox.APIClient
 }
 
 // executeTimeoutBuffer pads the per-request HTTP deadline over the execution
@@ -86,22 +82,23 @@ func (p *ProcessService) execContext(ctx context.Context, execTimeout *time.Dura
 		return p.toolboxClient, ctx, func() {}
 	}
 
-	p.longRunningOnce.Do(func() {
-		cfg := *p.toolboxClient.GetConfig()
-		if cfg.HTTPClient != nil {
-			clientCopy := *cfg.HTTPClient
-			clientCopy.Timeout = 0
-			cfg.HTTPClient = &clientCopy
-		}
-		p.longRunningClient = toolbox.NewAPIClient(&cfg)
-	})
+	// Rebuilt per execution (not cached): the shared config's proxy URL can be
+	// refreshed in place by Sandbox.updateFromAPIResponse, and a cached copy
+	// would keep targeting the old proxy.
+	cfg := *p.toolboxClient.GetConfig()
+	if cfg.HTTPClient != nil {
+		clientCopy := *cfg.HTTPClient
+		clientCopy.Timeout = 0
+		cfg.HTTPClient = &clientCopy
+	}
+	execClient := toolbox.NewAPIClient(&cfg)
 
 	if *execTimeout <= 0 {
-		return p.longRunningClient, ctx, func() {}
+		return execClient, ctx, func() {}
 	}
 
 	deadlineCtx, cancel := context.WithTimeout(ctx, *execTimeout+executeTimeoutBuffer)
-	return p.longRunningClient, deadlineCtx, cancel
+	return execClient, deadlineCtx, cancel
 }
 
 // NewProcessService creates a new ProcessService with the provided toolbox client.

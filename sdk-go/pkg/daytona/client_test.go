@@ -777,6 +777,8 @@ func TestClientTimeoutConfig(t *testing.T) {
 	t.Setenv("DAYTONA_API_URL", "")
 	t.Setenv("DAYTONA_JWT_TOKEN", "")
 	t.Setenv("DAYTONA_ORGANIZATION_ID", "")
+	t.Setenv("DAYTONA_OTEL_ENABLED", "")
+	t.Setenv("DAYTONA_EXPERIMENTAL_OTEL_ENABLED", "")
 
 	t.Run("config timeout overrides default", func(t *testing.T) {
 		timeout := 5 * time.Minute
@@ -799,7 +801,9 @@ func TestClientTimeoutConfig(t *testing.T) {
 		assert.NotSame(t, userClient, client.httpClient)
 		assert.Equal(t, timeout, client.httpClient.Timeout)
 		assert.Equal(t, 42*time.Second, userClient.Timeout)
-		assert.Same(t, userTransport, client.httpClient.Transport.(*http.Transport))
+		transport, ok := client.httpClient.Transport.(*http.Transport)
+		require.True(t, ok, "transport should be *http.Transport, got %T", client.httpClient.Transport)
+		assert.Same(t, userTransport, transport)
 	})
 
 	t.Run("custom http client keeps its timeout when config timeout unset", func(t *testing.T) {

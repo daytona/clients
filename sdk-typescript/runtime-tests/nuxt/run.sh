@@ -4,6 +4,10 @@
 
 set -euo pipefail
 rm -rf node_modules package-lock.json .nuxt .output
+# package.json pins @vitejs/devtools to 0.3.1 via overrides: 0.4.2 (2026-07-21)
+# introduced a circular peer set (devtools-oxc/-rolldown/-vite) that crashes
+# npm's arborist ("Cannot read properties of null (reading 'edgesOut')").
+# Drop the override once npm or @vitejs/devtools ships a fix.
 npm install --silent
 npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 npm run build >/dev/null
