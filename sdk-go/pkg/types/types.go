@@ -4,6 +4,7 @@
 package types
 
 import (
+	"net/http"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -65,7 +66,14 @@ type DaytonaConfig struct {
 	// streaming is the default and falls back to polling automatically when
 	// WebSockets are unavailable.
 	UseDeprecatedPolling *bool
-	Experimental         *ExperimentalConfig
+	// Timeout overrides the default per-request HTTP timeout (60s). A
+	// non-positive value disables the client-wide timeout entirely. Executions
+	// with an explicit execution timeout are not capped by this value.
+	Timeout *time.Duration
+	// HTTPClient supplies a custom *http.Client for API requests. It is copied
+	// before use (Transport shared); Timeout, when set, overrides the copy's.
+	HTTPClient   *http.Client
+	Experimental *ExperimentalConfig
 }
 
 // Resources represents resource allocation for a sandbox.

@@ -9,8 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/daytona/clients/sdk-go/pkg/common"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
@@ -57,6 +59,46 @@ type ProcessService struct {
 	toolboxClient *toolbox.APIClient
 	otel          *otelState
 	language      types.CodeLanguage
+}
+
+// executeTimeoutBuffer pads the per-request HTTP deadline over the execution
+// timeout, mirroring the Python SDK's `_request_timeout = timeout + 5`.
+const executeTimeoutBuffer = 5 * time.Second
+
+// timeoutSeconds converts an execution timeout to the API's integer seconds,
+// rounding up: truncation would turn sub-second values into 0 ("no limit") and
+// kill commands up to a second before the requested bound.
+func timeoutSeconds(d time.Duration) int32 {
+	return int32(math.Ceil(d.Seconds()))
+}
+
+// execContext returns the toolbox client and context for a synchronous
+// execution. With an explicit execution timeout, a Timeout-free client copy is
+// used (an http.Client Timeout is a hard cap a context cannot extend) and the
+// wait is bounded by a context deadline of timeout + buffer instead; a
+// non-positive timeout leaves the wait bounded only by the caller's ctx.
+func (p *ProcessService) execContext(ctx context.Context, execTimeout *time.Duration) (*toolbox.APIClient, context.Context, context.CancelFunc) {
+	if execTimeout == nil {
+		return p.toolboxClient, ctx, func() {}
+	}
+
+	// Rebuilt per execution (not cached): the shared config's proxy URL can be
+	// refreshed in place by Sandbox.updateFromAPIResponse, and a cached copy
+	// would keep targeting the old proxy.
+	cfg := *p.toolboxClient.GetConfig()
+	if cfg.HTTPClient != nil {
+		clientCopy := *cfg.HTTPClient
+		clientCopy.Timeout = 0
+		cfg.HTTPClient = &clientCopy
+	}
+	execClient := toolbox.NewAPIClient(&cfg)
+
+	if *execTimeout <= 0 {
+		return execClient, ctx, func() {}
+	}
+
+	deadlineCtx, cancel := context.WithTimeout(ctx, *execTimeout+executeTimeoutBuffer)
+	return execClient, deadlineCtx, cancel
 }
 
 // NewProcessService creates a new ProcessService with the provided toolbox client.
@@ -112,13 +154,16 @@ func (p *ProcessService) ExecuteCommand(ctx context.Context, command string, opt
 			req.SetCwd(*execOpts.Cwd)
 		}
 		if execOpts.Timeout != nil {
-			req.SetTimeout(int32(execOpts.Timeout.Seconds()))
+			req.SetTimeout(timeoutSeconds(*execOpts.Timeout))
 		}
 		if execOpts.Env != nil {
 			req.SetEnvs(execOpts.Env)
 		}
 
-		resp, httpResp, err := p.toolboxClient.ProcessAPI.ExecuteCommand(ctx).Request(*req).Execute()
+		execClient, execCtx, cancel := p.execContext(ctx, execOpts.Timeout)
+		defer cancel()
+
+		resp, httpResp, err := execClient.ProcessAPI.ExecuteCommand(execCtx).Request(*req).Execute()
 		if err != nil {
 			return nil, errors.ConvertToolboxError(err, httpResp)
 		}
@@ -191,10 +236,13 @@ func (p *ProcessService) CodeRun(ctx context.Context, code string, opts ...func(
 			}
 		}
 		if codeRunOpts.Timeout != nil {
-			req.SetTimeout(int32(codeRunOpts.Timeout.Seconds()))
+			req.SetTimeout(timeoutSeconds(*codeRunOpts.Timeout))
 		}
 
-		resp, httpResp, err := p.toolboxClient.ProcessAPI.CodeRun(ctx).Request(*req).Execute()
+		execClient, execCtx, cancel := p.execContext(ctx, codeRunOpts.Timeout)
+		defer cancel()
+
+		resp, httpResp, err := execClient.ProcessAPI.CodeRun(execCtx).Request(*req).Execute()
 		if err != nil {
 			return nil, errors.ConvertToolboxError(err, httpResp)
 		}

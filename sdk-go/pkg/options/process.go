@@ -48,11 +48,15 @@ func WithCommandEnv(env map[string]string) func(*ExecuteCommand) {
 // WithExecuteTimeout sets the timeout for command execution.
 //
 // If the command doesn't complete within the timeout, it will be terminated.
+// The HTTP request waits for the full timeout, even beyond the client-wide
+// HTTP timeout. A zero value disables the server-side limit (the wait is
+// bounded only by ctx); negative values are rejected by the API. Values are
+// rounded up to whole seconds (the API granularity).
 //
 // Example:
 //
 //	result, err := sandbox.Process.ExecuteCommand(ctx, "sleep 60",
-//	    options.WithExecuteTimeout(5*time.Second),
+//	    options.WithExecuteTimeout(5*time.Minute),
 //	)
 func WithExecuteTimeout(timeout time.Duration) func(*ExecuteCommand) {
 	return func(opts *ExecuteCommand) {
@@ -86,6 +90,13 @@ func WithCodeRunLanguage(language types.CodeLanguage) func(*CodeRun) {
 	}
 }
 
+// WithCodeRunTimeout sets the timeout for code execution.
+//
+// If the code doesn't complete within the timeout, it will be terminated.
+// The HTTP request waits for the full timeout, even beyond the client-wide
+// HTTP timeout. A zero value disables the server-side limit (the wait is
+// bounded only by ctx); negative values are rejected by the API. Values are
+// rounded up to whole seconds (the API granularity).
 func WithCodeRunTimeout(timeout time.Duration) func(*CodeRun) {
 	return func(opts *CodeRun) {
 		opts.Timeout = &timeout

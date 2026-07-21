@@ -169,9 +169,7 @@ func NewClient() (*Client, error) {
 func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	client := &Client{
 		defaultLanguage: types.CodeLanguagePython,
-		httpClient: &http.Client{
-			Timeout: defaultTimeout,
-		},
+		httpClient:      buildHTTPClient(config),
 	}
 
 	// Set configuration from config or environment variables
@@ -337,6 +335,26 @@ func (c *Client) getAnalyticsAPIURL(ctx context.Context) (string, error) {
 	c.analyticsAPIURL = cfg.GetAnalyticsApiUrl()
 	c.analyticsAPIURLFetched = true
 	return c.analyticsAPIURL, nil
+}
+
+// buildHTTPClient resolves the HTTP client from DaytonaConfig. A caller-provided
+// client is shallow-copied (Transport shared) so the SDK's later otel Transport
+// wrapping never mutates the caller's instance.
+func buildHTTPClient(config *types.DaytonaConfig) *http.Client {
+	httpClient := &http.Client{Timeout: defaultTimeout}
+	if config == nil {
+		return httpClient
+	}
+
+	if config.HTTPClient != nil {
+		clientCopy := *config.HTTPClient
+		httpClient = &clientCopy
+	}
+	if config.Timeout != nil {
+		httpClient.Timeout = *config.Timeout
+	}
+
+	return httpClient
 }
 
 // handleAPIError converts API client errors to Daytona error types
