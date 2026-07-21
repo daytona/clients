@@ -772,6 +772,44 @@ func TestClientTimeout(t *testing.T) {
 	assert.Equal(t, defaultTimeout, client.httpClient.Timeout)
 }
 
+func TestClientTimeoutConfig(t *testing.T) {
+	t.Setenv("DAYTONA_API_KEY", "test-api-key")
+	t.Setenv("DAYTONA_API_URL", "")
+	t.Setenv("DAYTONA_JWT_TOKEN", "")
+	t.Setenv("DAYTONA_ORGANIZATION_ID", "")
+
+	t.Run("config timeout overrides default", func(t *testing.T) {
+		timeout := 5 * time.Minute
+		client, err := NewClientWithConfig(&types.DaytonaConfig{Timeout: &timeout})
+		require.NoError(t, err)
+		assert.Equal(t, timeout, client.httpClient.Timeout)
+	})
+
+	t.Run("custom http client is copied, not mutated", func(t *testing.T) {
+		userTransport := &http.Transport{}
+		userClient := &http.Client{Timeout: 42 * time.Second, Transport: userTransport}
+		timeout := 2 * time.Minute
+
+		client, err := NewClientWithConfig(&types.DaytonaConfig{
+			HTTPClient: userClient,
+			Timeout:    &timeout,
+		})
+		require.NoError(t, err)
+
+		assert.NotSame(t, userClient, client.httpClient)
+		assert.Equal(t, timeout, client.httpClient.Timeout)
+		assert.Equal(t, 42*time.Second, userClient.Timeout)
+		assert.Same(t, userTransport, client.httpClient.Transport.(*http.Transport))
+	})
+
+	t.Run("custom http client keeps its timeout when config timeout unset", func(t *testing.T) {
+		userClient := &http.Client{Timeout: 42 * time.Second}
+		client, err := NewClientWithConfig(&types.DaytonaConfig{HTTPClient: userClient})
+		require.NoError(t, err)
+		assert.Equal(t, 42*time.Second, client.httpClient.Timeout)
+	})
+}
+
 // TestServerURLConstruction tests proper server URL construction
 func TestServerURLConstruction(t *testing.T) {
 	tests := []struct {

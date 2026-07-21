@@ -392,6 +392,105 @@ func TestProcessCodeRunAndSessionOperations(t *testing.T) {
 	})
 }
 
+func TestProcessTimeoutSecondsRounding(t *testing.T) {
+	assert.Equal(t, int32(1), timeoutSeconds(500*time.Millisecond))
+	assert.Equal(t, int32(3), timeoutSeconds(2100*time.Millisecond))
+	assert.Equal(t, int32(45), timeoutSeconds(45*time.Second))
+	assert.Equal(t, int32(0), timeoutSeconds(0))
+	assert.Equal(t, int32(-5), timeoutSeconds(-5*time.Second))
+
+	var gotTimeout float64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		gotTimeout, _ = body["timeout"].(float64)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"result": "ok", "exitCode": 0})
+	}))
+	defer server.Close()
+
+	service := NewProcessService(createTestToolboxClient(server), nil, types.CodeLanguagePython)
+	_, err := service.ExecuteCommand(context.Background(), "true",
+		options.WithExecuteTimeout(500*time.Millisecond))
+	require.NoError(t, err)
+	assert.Equal(t, float64(1), gotTimeout)
+}
+
+func TestProcessExecuteTimeoutExceedsHTTPClientTimeout(t *testing.T) {
+	newSlowServer := func(delay time.Duration) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-time.After(delay):
+				writeJSONResponse(t, w, http.StatusOK, map[string]any{"result": "slow ok", "exitCode": 0})
+			case <-r.Context().Done():
+			}
+		}))
+	}
+
+	newCappedService := func(server *httptest.Server, clientTimeout time.Duration) *ProcessService {
+		cfg := toolbox.NewConfiguration()
+		cfg.Servers = toolbox.ServerConfigurations{{URL: server.URL}}
+		cfg.HTTPClient = &http.Client{Timeout: clientTimeout}
+		return NewProcessService(toolbox.NewAPIClient(cfg), nil, types.CodeLanguagePython)
+	}
+
+	t.Run("execute with explicit timeout is not capped by client timeout", func(t *testing.T) {
+		server := newSlowServer(300 * time.Millisecond)
+		defer server.Close()
+
+		service := newCappedService(server, 50*time.Millisecond)
+		result, err := service.ExecuteCommand(context.Background(), "sleep 1",
+			options.WithExecuteTimeout(10*time.Second))
+		require.NoError(t, err)
+		assert.Equal(t, "slow ok", result.Result)
+	})
+
+	t.Run("code run with explicit timeout is not capped by client timeout", func(t *testing.T) {
+		server := newSlowServer(300 * time.Millisecond)
+		defer server.Close()
+
+		service := newCappedService(server, 50*time.Millisecond)
+		result, err := service.CodeRun(context.Background(), "time.sleep(1)",
+			options.WithCodeRunTimeout(10*time.Second))
+		require.NoError(t, err)
+		assert.Equal(t, "slow ok", result.Result)
+	})
+
+	t.Run("without explicit timeout the client timeout still applies", func(t *testing.T) {
+		server := newSlowServer(300 * time.Millisecond)
+		defer server.Close()
+
+		service := newCappedService(server, 50*time.Millisecond)
+		_, err := service.ExecuteCommand(context.Background(), "sleep 1")
+		require.Error(t, err)
+	})
+
+	t.Run("caller context deadline still wins over execute timeout", func(t *testing.T) {
+		server := newSlowServer(2 * time.Second)
+		defer server.Close()
+
+		service := newCappedService(server, 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		_, err := service.ExecuteCommand(ctx, "sleep 10",
+			options.WithExecuteTimeout(10*time.Second))
+		require.Error(t, err)
+		assert.Less(t, time.Since(start), time.Second)
+	})
+
+	t.Run("non-positive execute timeout waits without deadline", func(t *testing.T) {
+		server := newSlowServer(300 * time.Millisecond)
+		defer server.Close()
+
+		service := newCappedService(server, 50*time.Millisecond)
+		result, err := service.ExecuteCommand(context.Background(), "sleep 1",
+			options.WithExecuteTimeout(0))
+		require.NoError(t, err)
+		assert.Equal(t, "slow ok", result.Result)
+	})
+}
+
 func TestFlushToChannelAndChartConversion(t *testing.T) {
 	stdout := make(chan string, 1)
 	stderr := make(chan string, 1)
