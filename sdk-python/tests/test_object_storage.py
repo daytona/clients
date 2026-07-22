@@ -15,11 +15,28 @@ def _make_storage():
     with patch("daytona._sync.object_storage.S3Store") as mock_store_cls:
         mock_store = MagicMock()
         mock_store_cls.return_value = mock_store
-        storage = ObjectStorage("https://s3.example", "key", "secret", "token", bucket_name="bucket")
+        storage = ObjectStorage(
+            "https://s3.example", "key", "secret", "token", bucket_name="bucket", region="us-east-2"
+        )
     return storage, mock_store
 
 
 class TestObjectStorage:
+    def test_constructor_passes_region_to_store(self):
+        from daytona._sync.object_storage import ObjectStorage
+
+        with patch("daytona._sync.object_storage.S3Store") as mock_store_cls:
+            ObjectStorage("https://s3.us-west-2.amazonaws.com", "key", "secret", "token", region="ap-south-1")
+            assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+
+    def test_constructor_requires_region(self):
+        from daytona._sync.object_storage import ObjectStorage
+
+        with pytest.raises(TypeError):
+            ObjectStorage(
+                "https://s3.us-west-2.amazonaws.com", "key", "secret", "token"
+            )  # pylint: disable=missing-kwoa
+
     def test_upload_missing_path_raises(self):
         storage, _store = _make_storage()
 

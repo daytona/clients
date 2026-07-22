@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -114,6 +114,26 @@ class TestSyncSnapshotService:
             == []
         )
 
+    def test_process_image_context_passes_region_to_object_storage(self):
+        service, _ = self._make_service()
+        object_storage_api = MagicMock()
+        creds = object_storage_api.get_push_access.return_value
+        creds.storage_url = "https://s3.example"
+        creds.access_key = "key"
+        creds.secret = "secret"
+        creds.session_token = "token"
+        creds.bucket = "bucket"
+        creds.organization_id = "org-1"
+        creds.region = "us-east-2"
+        image = Image.base("python:3.12")
+        image._context_list = [MagicMock(source_path="/tmp/ctx", archive_path=".")]
+
+        with patch("daytona._sync.snapshot.ObjectStorage") as mock_storage_cls:
+            mock_storage_cls.return_value.upload.return_value = "ctx-hash"
+
+            assert service.process_image_context(object_storage_api, image) == ["ctx-hash"]
+            assert mock_storage_cls.call_args.kwargs["region"] == "us-east-2"
+
 
 class TestAsyncSnapshotService:
     def _make_service(self):
@@ -217,3 +237,25 @@ class TestAsyncSnapshotService:
             )
             == []
         )
+
+    @pytest.mark.asyncio
+    async def test_process_image_context_passes_region_to_object_storage(self):
+        service, _ = self._make_service()
+        object_storage_api = AsyncMock()
+        creds = MagicMock()
+        creds.storage_url = "https://s3.example"
+        creds.access_key = "key"
+        creds.secret = "secret"
+        creds.session_token = "token"
+        creds.bucket = "bucket"
+        creds.organization_id = "org-1"
+        creds.region = "us-east-2"
+        object_storage_api.get_push_access.return_value = creds
+        image = Image.base("python:3.12")
+        image._context_list = [MagicMock(source_path="/tmp/ctx", archive_path=".")]
+
+        with patch("daytona._async.snapshot.AsyncObjectStorage") as mock_storage_cls:
+            mock_storage_cls.return_value.upload = AsyncMock(return_value="ctx-hash")
+
+            assert await service.process_image_context(object_storage_api, image) == ["ctx-hash"]
+            assert mock_storage_cls.call_args.kwargs["region"] == "us-east-2"

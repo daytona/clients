@@ -33,6 +33,8 @@ type StorageAccessDto struct {
 	OrganizationId string `json:"organizationId"`
 	// S3 bucket name
 	Bucket string `json:"bucket"`
+	// Region for the storage backend (e.g. \"us-east-2\")
+	Region string `json:"region"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -42,7 +44,7 @@ type _StorageAccessDto StorageAccessDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStorageAccessDto(accessKey string, secret string, sessionToken string, storageUrl string, organizationId string, bucket string) *StorageAccessDto {
+func NewStorageAccessDto(accessKey string, secret string, sessionToken string, storageUrl string, organizationId string, bucket string, region string) *StorageAccessDto {
 	this := StorageAccessDto{}
 	this.AccessKey = accessKey
 	this.Secret = secret
@@ -50,6 +52,7 @@ func NewStorageAccessDto(accessKey string, secret string, sessionToken string, s
 	this.StorageUrl = storageUrl
 	this.OrganizationId = organizationId
 	this.Bucket = bucket
+	this.Region = region
 	return &this
 }
 
@@ -205,6 +208,30 @@ func (o *StorageAccessDto) SetBucket(v string) {
 	o.Bucket = v
 }
 
+// GetRegion returns the Region field value
+func (o *StorageAccessDto) GetRegion() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.Region
+}
+
+// GetRegionOk returns a tuple with the Region field value
+// and a boolean to check if the value has been set.
+func (o *StorageAccessDto) GetRegionOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Region, true
+}
+
+// SetRegion sets field value
+func (o *StorageAccessDto) SetRegion(v string) {
+	o.Region = v
+}
+
 func (o StorageAccessDto) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -221,6 +248,7 @@ func (o StorageAccessDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["storageUrl"] = o.StorageUrl
 	toSerialize["organizationId"] = o.OrganizationId
 	toSerialize["bucket"] = o.Bucket
+	toSerialize["region"] = o.Region
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -240,6 +268,7 @@ func (o *StorageAccessDto) UnmarshalJSON(data []byte) (err error) {
 		"storageUrl",
 		"organizationId",
 		"bucket",
+		"region",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -275,6 +304,7 @@ func (o *StorageAccessDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "storageUrl")
 		delete(additionalProperties, "organizationId")
 		delete(additionalProperties, "bucket")
+		delete(additionalProperties, "region")
 		o.AdditionalProperties = additionalProperties
 	}
 

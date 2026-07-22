@@ -147,7 +147,8 @@ module Daytona
         aws_access_key_id: push_access_creds.access_key,
         aws_secret_access_key: push_access_creds.secret,
         aws_session_token: push_access_creds.session_token,
-        bucket_name: push_access_creds.bucket
+        bucket_name: push_access_creds.bucket,
+        region: push_access_creds.region
       )
 
       image.context_list.map do |context|

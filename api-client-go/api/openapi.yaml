@@ -12225,6 +12225,7 @@ components:
         accessKey: temp-user-123
         sessionToken: eyJhbGciOiJIUzI1NiIs...
         secret: abchbGciOiJIUzI1NiIs...
+        region: us-east-1
         storageUrl: storage.example.com
       properties:
         accessKey:
@@ -12251,10 +12252,15 @@ components:
           description: S3 bucket name
           example: daytona
           type: string
+        region:
+          description: Region for the storage backend (e.g. "us-east-2")
+          example: us-east-1
+          type: string
       required:
       - accessKey
       - bucket
       - organizationId
+      - region
       - secret
       - sessionToken
       - storageUrl

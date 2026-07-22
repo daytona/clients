@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -28,6 +27,7 @@ type objectStorageConfig struct {
 	SecretAccessKey string
 	SessionToken    *string
 	BucketName      string
+	Region          string
 }
 
 // objectStorage handles S3-compatible object storage operations for uploading
@@ -41,18 +41,6 @@ type objectStorage struct {
 //
 // This is used internally by the SDK for uploading build contexts.
 func NewObjectStorage(config objectStorageConfig) *objectStorage {
-	// Extract region from endpoint URL
-	region := "us-east-1" // default
-	if strings.Contains(config.EndpointURL, "amazonaws.com") {
-		parts := strings.Split(config.EndpointURL, ".")
-		for i, part := range parts {
-			if part == "s3" && i+1 < len(parts) {
-				region = parts[i+1]
-				break
-			}
-		}
-	}
-
 	bucketName := config.BucketName
 	if bucketName == "" {
 		bucketName = "daytona-volume-builds"
@@ -72,7 +60,7 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 
 	// Create S3 client
 	client := s3.New(s3.Options{
-		Region:       region,
+		Region:       config.Region,
 		Credentials:  creds,
 		BaseEndpoint: aws.String(config.EndpointURL),
 		UsePathStyle: true,
@@ -335,4 +323,5 @@ type PushAccessCredentials struct {
 	SessionToken   string `json:"sessionToken"`
 	Bucket         string `json:"bucket"`
 	OrganizationID string `json:"organizationId"`
+	Region         string `json:"region"`
 }

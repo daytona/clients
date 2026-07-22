@@ -13,7 +13,8 @@ RSpec.describe Daytona::ObjectStorage do
       aws_access_key_id: 'key-id',
       aws_secret_access_key: 'secret',
       aws_session_token: 'token',
-      bucket_name: 'test-bucket'
+      bucket_name: 'test-bucket',
+      region: 'us-east-2'
     )
   end
 
@@ -21,6 +22,31 @@ RSpec.describe Daytona::ObjectStorage do
     it 'stores bucket_name and creates the S3 client' do
       expect(storage.bucket_name).to eq('test-bucket')
       expect(storage.s3_client).to eq(s3_client)
+    end
+
+    it 'passes the provided region to the S3 client' do
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+
+      described_class.new(
+        endpoint_url: 'https://s3.us-west-2.amazonaws.com',
+        aws_access_key_id: 'key-id',
+        aws_secret_access_key: 'secret',
+        aws_session_token: 'token',
+        region: 'ap-south-1'
+      )
+
+      expect(Aws::S3::Client).to have_received(:new).with(hash_including(region: 'ap-south-1'))
+    end
+
+    it 'requires a region' do
+      expect do
+        described_class.new(
+          endpoint_url: 'https://s3.us-west-2.amazonaws.com',
+          aws_access_key_id: 'key-id',
+          aws_secret_access_key: 'secret',
+          aws_session_token: 'token'
+        )
+      end.to raise_error(ArgumentError, /region/)
     end
   end
 

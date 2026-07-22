@@ -15520,6 +15520,11 @@
             "type": "string",
             "description": "S3 bucket name",
             "example": "daytona"
+          },
+          "region": {
+            "type": "string",
+            "description": "Region for the storage backend (e.g. \"us-east-2\")",
+            "example": "us-east-1"
           }
         },
         "required": [
@@ -15528,7 +15533,8 @@
           "sessionToken",
           "storageUrl",
           "organizationId",
-          "bucket"
+          "bucket",
+          "region"
         ]
       },
       "LogEntry": {

@@ -17,11 +17,20 @@ def _make_async_storage():
         mock_store.head_async = AsyncMock()
         mock_store.put_async = AsyncMock()
         mock_store_cls.return_value = mock_store
-        storage = AsyncObjectStorage("https://s3.example", "key", "secret", "token", bucket_name="bucket")
+        storage = AsyncObjectStorage(
+            "https://s3.example", "key", "secret", "token", bucket_name="bucket", region="us-east-2"
+        )
     return storage, mock_store
 
 
 class TestAsyncObjectStorage:
+    def test_constructor_passes_region_to_store(self):
+        from daytona._async.object_storage import AsyncObjectStorage
+
+        with patch("daytona._async.object_storage.S3Store") as mock_store_cls:
+            AsyncObjectStorage("https://s3.us-west-2.amazonaws.com", "key", "secret", "token", region="ap-south-1")
+            assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+
     @pytest.mark.asyncio
     async def test_upload_missing_path_raises(self):
         storage, _store = _make_async_storage()

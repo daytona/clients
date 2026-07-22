@@ -59,7 +59,7 @@ describe('ObjectStorage', () => {
   const originalStream = require('stream') as typeof import('stream')
   let tempDir = ''
 
-  const makeStorage = async (endpointUrl = 'https://s3.eu-central-1.amazonaws.com') => {
+  const makeStorage = async (endpointUrl = 'https://s3.eu-central-1.amazonaws.com', region = 'eu-central-1') => {
     const { ObjectStorage } = await import('../ObjectStorage')
     return new ObjectStorage({
       endpointUrl,
@@ -67,6 +67,7 @@ describe('ObjectStorage', () => {
       secretAccessKey: 'secret',
       sessionToken: 'session',
       bucketName: 'custom-bucket',
+      region,
     })
   }
 
@@ -94,8 +95,8 @@ describe('ObjectStorage', () => {
     }
   })
 
-  it('configures the s3 client with extracted region and credentials', async () => {
-    const storage = await makeStorage('https://s3.us-west-2.amazonaws.com')
+  it('configures the s3 client with the provided region and credentials', async () => {
+    const storage = await makeStorage('https://s3.us-west-2.amazonaws.com', 'us-west-2')
 
     const client = storage as unknown as { s3Client: MockS3Client }
     expect(client.s3Client.config).toMatchObject({
@@ -110,11 +111,11 @@ describe('ObjectStorage', () => {
     })
   })
 
-  it('falls back to the default region when the endpoint does not encode one', async () => {
-    const storage = await makeStorage('https://storage.example.com')
+  it('uses the provided region regardless of the endpoint host', async () => {
+    const storage = await makeStorage('https://storage.example.com', 'us-east-2')
 
     const client = storage as unknown as { s3Client: MockS3Client }
-    expect(client.s3Client.config.region).toBe('us-east-1')
+    expect(client.s3Client.config.region).toBe('us-east-2')
   })
 
   it('throws when uploading a missing path', async () => {
@@ -266,16 +267,5 @@ describe('ObjectStorage', () => {
       ['.'],
     )
     expect(mockUploadDone).toHaveBeenCalledTimes(1)
-  })
-
-  it('extracts aws regions from supported s3 endpoints', async () => {
-    const storage = await makeStorage()
-    const runtime = storage as unknown as {
-      extractAwsRegion: (endpoint: string) => string | undefined
-    }
-
-    expect(runtime.extractAwsRegion('https://s3.us-east-1.amazonaws.com')).toBe('us-east-1')
-    expect(runtime.extractAwsRegion('https://s3-eu-west-1.amazonaws.com')).toBe('eu-west-1')
-    expect(runtime.extractAwsRegion('https://files.example.com')).toBeUndefined()
   })
 })
