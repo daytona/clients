@@ -39,5 +39,9 @@ export interface StorageAccessDto {
      * S3 bucket name
      */
     'bucket': string;
+    /**
+     * Region for the storage backend (e.g. \"us-east-2\")
+     */
+    'region': string;
 }
 

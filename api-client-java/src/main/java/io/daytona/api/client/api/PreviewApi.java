@@ -221,6 +221,7 @@ public class PreviewApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> User access status to the sandbox </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Sandbox not found. For members of the owning organization whose sandbox was deleted, the body carries code \&quot;SANDBOX_DESTROYED\&quot;. </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call hasSandboxAccessCall(@javax.annotation.Nonnull String sandboxId, final ApiCallback _callback) throws ApiException {
@@ -290,6 +291,7 @@ public class PreviewApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> User access status to the sandbox </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Sandbox not found. For members of the owning organization whose sandbox was deleted, the body carries code \&quot;SANDBOX_DESTROYED\&quot;. </td><td>  -  </td></tr>
      </table>
      */
     public Boolean hasSandboxAccess(@javax.annotation.Nonnull String sandboxId) throws ApiException {
@@ -308,6 +310,7 @@ public class PreviewApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> User access status to the sandbox </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Sandbox not found. For members of the owning organization whose sandbox was deleted, the body carries code \&quot;SANDBOX_DESTROYED\&quot;. </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Boolean> hasSandboxAccessWithHttpInfo(@javax.annotation.Nonnull String sandboxId) throws ApiException {
@@ -328,6 +331,7 @@ public class PreviewApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> User access status to the sandbox </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Sandbox not found. For members of the owning organization whose sandbox was deleted, the body carries code \&quot;SANDBOX_DESTROYED\&quot;. </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call hasSandboxAccessAsync(@javax.annotation.Nonnull String sandboxId, final ApiCallback<Boolean> _callback) throws ApiException {

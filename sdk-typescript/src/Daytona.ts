@@ -807,6 +807,7 @@ export class Daytona implements AsyncDisposable {
               query?.name,
               query?.labels ? JSON.stringify(query.labels) : undefined,
               undefined,
+              undefined,
               query?.states,
               query?.snapshots,
               query?.targets,

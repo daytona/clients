@@ -44,6 +44,7 @@ from daytona_api_client_async.models.ssh_access_dto import SshAccessDto
 from daytona_api_client_async.models.ssh_access_validation_dto import SshAccessValidationDto
 from daytona_api_client_async.models.toolbox_proxy_url import ToolboxProxyUrl
 from daytona_api_client_async.models.trace_span import TraceSpan
+from daytona_api_client_async.models.update_last_activity import UpdateLastActivity
 from daytona_api_client_async.models.update_sandbox_network_settings import UpdateSandboxNetworkSettings
 from daytona_api_client_async.models.update_sandbox_secrets import UpdateSandboxSecrets
 from daytona_api_client_async.models.update_sandbox_state_dto import UpdateSandboxStateDto
@@ -359,8 +360,9 @@ class SandboxApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> Sandbox:
-        """Create sandbox backup
+        """(Deprecated) Create sandbox backup
 
+        Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str
@@ -387,6 +389,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
+        warnings.warn("POST /sandbox/{sandboxIdOrName}/backup is deprecated.", DeprecationWarning)
 
         _param = self._create_backup_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -429,8 +432,9 @@ class SandboxApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[Sandbox]:
-        """Create sandbox backup
+        """(Deprecated) Create sandbox backup
 
+        Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str
@@ -457,6 +461,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
+        warnings.warn("POST /sandbox/{sandboxIdOrName}/backup is deprecated.", DeprecationWarning)
 
         _param = self._create_backup_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -499,8 +504,9 @@ class SandboxApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Create sandbox backup
+        """(Deprecated) Create sandbox backup
 
+        Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str
@@ -527,6 +533,7 @@ class SandboxApi:
         :type _host_index: int, optional
         :return: Returns the result object.
         """ # noqa: E501
+        warnings.warn("POST /sandbox/{sandboxIdOrName}/backup is deprecated.", DeprecationWarning)
 
         _param = self._create_backup_serialize(
             sandbox_id_or_name=sandbox_id_or_name,
@@ -7182,6 +7189,7 @@ class SandboxApi:
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
         include_errored_deleted: Annotated[Optional[StrictBool], Field(description="Include results with errored state and deleted desired state")] = None,
+        include_warm: Annotated[Optional[StrictBool], Field(description="Include unclaimed warm pool sandboxes (excluded by default)")] = None,
         states: Annotated[Optional[List[SandboxState]], Field(description="List of states to filter by.")] = None,
         snapshots: Annotated[Optional[List[StrictStr]], Field(description="List of snapshot names to filter by")] = None,
         region_ids: Annotated[Optional[List[StrictStr]], Field(description="List of regions IDs to filter by")] = None,
@@ -7231,6 +7239,8 @@ class SandboxApi:
         :type labels: str
         :param include_errored_deleted: Include results with errored state and deleted desired state
         :type include_errored_deleted: bool
+        :param include_warm: Include unclaimed warm pool sandboxes (excluded by default)
+        :type include_warm: bool
         :param states: List of states to filter by.
         :type states: List[SandboxState]
         :param snapshots: List of snapshot names to filter by
@@ -7297,6 +7307,7 @@ class SandboxApi:
             name=name,
             labels=labels,
             include_errored_deleted=include_errored_deleted,
+            include_warm=include_warm,
             states=states,
             snapshots=snapshots,
             region_ids=region_ids,
@@ -7345,6 +7356,7 @@ class SandboxApi:
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
         include_errored_deleted: Annotated[Optional[StrictBool], Field(description="Include results with errored state and deleted desired state")] = None,
+        include_warm: Annotated[Optional[StrictBool], Field(description="Include unclaimed warm pool sandboxes (excluded by default)")] = None,
         states: Annotated[Optional[List[SandboxState]], Field(description="List of states to filter by.")] = None,
         snapshots: Annotated[Optional[List[StrictStr]], Field(description="List of snapshot names to filter by")] = None,
         region_ids: Annotated[Optional[List[StrictStr]], Field(description="List of regions IDs to filter by")] = None,
@@ -7394,6 +7406,8 @@ class SandboxApi:
         :type labels: str
         :param include_errored_deleted: Include results with errored state and deleted desired state
         :type include_errored_deleted: bool
+        :param include_warm: Include unclaimed warm pool sandboxes (excluded by default)
+        :type include_warm: bool
         :param states: List of states to filter by.
         :type states: List[SandboxState]
         :param snapshots: List of snapshot names to filter by
@@ -7460,6 +7474,7 @@ class SandboxApi:
             name=name,
             labels=labels,
             include_errored_deleted=include_errored_deleted,
+            include_warm=include_warm,
             states=states,
             snapshots=snapshots,
             region_ids=region_ids,
@@ -7508,6 +7523,7 @@ class SandboxApi:
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
         include_errored_deleted: Annotated[Optional[StrictBool], Field(description="Include results with errored state and deleted desired state")] = None,
+        include_warm: Annotated[Optional[StrictBool], Field(description="Include unclaimed warm pool sandboxes (excluded by default)")] = None,
         states: Annotated[Optional[List[SandboxState]], Field(description="List of states to filter by.")] = None,
         snapshots: Annotated[Optional[List[StrictStr]], Field(description="List of snapshot names to filter by")] = None,
         region_ids: Annotated[Optional[List[StrictStr]], Field(description="List of regions IDs to filter by")] = None,
@@ -7557,6 +7573,8 @@ class SandboxApi:
         :type labels: str
         :param include_errored_deleted: Include results with errored state and deleted desired state
         :type include_errored_deleted: bool
+        :param include_warm: Include unclaimed warm pool sandboxes (excluded by default)
+        :type include_warm: bool
         :param states: List of states to filter by.
         :type states: List[SandboxState]
         :param snapshots: List of snapshot names to filter by
@@ -7623,6 +7641,7 @@ class SandboxApi:
             name=name,
             labels=labels,
             include_errored_deleted=include_errored_deleted,
+            include_warm=include_warm,
             states=states,
             snapshots=snapshots,
             region_ids=region_ids,
@@ -7666,6 +7685,7 @@ class SandboxApi:
         name,
         labels,
         include_errored_deleted,
+        include_warm,
         states,
         snapshots,
         region_ids,
@@ -7733,6 +7753,10 @@ class SandboxApi:
         if include_errored_deleted is not None:
             
             _query_params.append(('includeErroredDeleted', include_errored_deleted))
+            
+        if include_warm is not None:
+            
+            _query_params.append(('includeWarm', include_warm))
             
         if states is not None:
             
@@ -12240,6 +12264,7 @@ class SandboxApi:
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        update_last_activity: Optional[UpdateLastActivity] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -12260,6 +12285,8 @@ class SandboxApi:
         :type sandbox_id: str
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
+        :param update_last_activity:
+        :type update_last_activity: UpdateLastActivity
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -12285,6 +12312,7 @@ class SandboxApi:
         _param = self._update_last_activity_serialize(
             sandbox_id=sandbox_id,
             x_daytona_organization_id=x_daytona_organization_id,
+            update_last_activity=update_last_activity,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -12310,6 +12338,7 @@ class SandboxApi:
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        update_last_activity: Optional[UpdateLastActivity] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -12330,6 +12359,8 @@ class SandboxApi:
         :type sandbox_id: str
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
+        :param update_last_activity:
+        :type update_last_activity: UpdateLastActivity
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -12355,6 +12386,7 @@ class SandboxApi:
         _param = self._update_last_activity_serialize(
             sandbox_id=sandbox_id,
             x_daytona_organization_id=x_daytona_organization_id,
+            update_last_activity=update_last_activity,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -12380,6 +12412,7 @@ class SandboxApi:
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
+        update_last_activity: Optional[UpdateLastActivity] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -12400,6 +12433,8 @@ class SandboxApi:
         :type sandbox_id: str
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
+        :param update_last_activity:
+        :type update_last_activity: UpdateLastActivity
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -12425,6 +12460,7 @@ class SandboxApi:
         _param = self._update_last_activity_serialize(
             sandbox_id=sandbox_id,
             x_daytona_organization_id=x_daytona_organization_id,
+            update_last_activity=update_last_activity,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -12445,6 +12481,7 @@ class SandboxApi:
         self,
         sandbox_id,
         x_daytona_organization_id,
+        update_last_activity,
         _request_auth,
         _content_type,
         _headers,
@@ -12474,9 +12511,24 @@ class SandboxApi:
             _header_params['X-Daytona-Organization-ID'] = x_daytona_organization_id
         # process the form parameters
         # process the body parameter
+        if update_last_activity is not None:
+            _body_params = update_last_activity
 
 
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [

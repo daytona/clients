@@ -36,8 +36,9 @@ class StorageAccessDto(BaseModel):
     storage_url: StrictStr = Field(description="Storage URL", serialization_alias="storageUrl")
     organization_id: StrictStr = Field(description="Organization ID", serialization_alias="organizationId")
     bucket: StrictStr = Field(description="S3 bucket name")
+    region: StrictStr = Field(description="Region for the storage backend (e.g. \"us-east-2\")")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket"]
+    __properties: ClassVar[List[str]] = ["accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket", "region"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -101,7 +102,8 @@ class StorageAccessDto(BaseModel):
             "session_token": obj.get("sessionToken"),
             "storage_url": obj.get("storageUrl"),
             "organization_id": obj.get("organizationId"),
-            "bucket": obj.get("bucket")
+            "bucket": obj.get("bucket"),
+            "region": obj.get("region")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

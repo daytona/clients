@@ -251,6 +251,7 @@ class SnapshotService:
             push_access_creds.secret,
             push_access_creds.session_token,
             push_access_creds.bucket,
+            region=push_access_creds.region,
         )
         context_hashes: list[str] = []
         for context in image._context_list:

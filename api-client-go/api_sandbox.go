@@ -41,14 +41,19 @@ type SandboxAPI interface {
 	/*
 	CreateBackup Create sandbox backup
 
+	Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
+
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param sandboxIdOrName ID or name of the sandbox
 	@return SandboxAPICreateBackupRequest
+
+	Deprecated
 	*/
 	CreateBackup(ctx context.Context, sandboxIdOrName string) SandboxAPICreateBackupRequest
 
 	// CreateBackupExecute executes the request
 	//  @return Sandbox
+	// Deprecated
 	CreateBackupExecute(r SandboxAPICreateBackupRequest) (*Sandbox, *http.Response, error)
 
 	/*
@@ -771,9 +776,13 @@ func (r SandboxAPICreateBackupRequest) Execute() (*Sandbox, *http.Response, erro
 /*
 CreateBackup Create sandbox backup
 
+Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
+
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param sandboxIdOrName ID or name of the sandbox
  @return SandboxAPICreateBackupRequest
+
+Deprecated
 */
 func (a *SandboxAPIService) CreateBackup(ctx context.Context, sandboxIdOrName string) SandboxAPICreateBackupRequest {
 	return SandboxAPICreateBackupRequest{
@@ -785,6 +794,7 @@ func (a *SandboxAPIService) CreateBackup(ctx context.Context, sandboxIdOrName st
 
 // Execute executes the request
 //  @return Sandbox
+// Deprecated
 func (a *SandboxAPIService) CreateBackupExecute(r SandboxAPICreateBackupRequest) (*Sandbox, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
@@ -3587,6 +3597,7 @@ type SandboxAPIListSandboxesRequest struct {
 	name *string
 	labels *string
 	includeErroredDeleted *bool
+	includeWarm *bool
 	states *[]SandboxState
 	snapshots *[]string
 	regionIds *[]string
@@ -3646,6 +3657,12 @@ func (r SandboxAPIListSandboxesRequest) Labels(labels string) SandboxAPIListSand
 // Include results with errored state and deleted desired state
 func (r SandboxAPIListSandboxesRequest) IncludeErroredDeleted(includeErroredDeleted bool) SandboxAPIListSandboxesRequest {
 	r.includeErroredDeleted = &includeErroredDeleted
+	return r
+}
+
+// Include unclaimed warm pool sandboxes (excluded by default)
+func (r SandboxAPIListSandboxesRequest) IncludeWarm(includeWarm bool) SandboxAPIListSandboxesRequest {
+	r.includeWarm = &includeWarm
 	return r
 }
 
@@ -3822,6 +3839,13 @@ func (a *SandboxAPIService) ListSandboxesExecute(r SandboxAPIListSandboxesReques
 		var defaultValue bool = false
 		parameterAddToHeaderOrQuery(localVarQueryParams, "includeErroredDeleted", defaultValue, "form", "")
 		r.includeErroredDeleted = &defaultValue
+	}
+	if r.includeWarm != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeWarm", r.includeWarm, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeWarm", defaultValue, "form", "")
+		r.includeWarm = &defaultValue
 	}
 	if r.states != nil {
 		t := *r.states
@@ -5832,11 +5856,17 @@ type SandboxAPIUpdateLastActivityRequest struct {
 	ApiService SandboxAPI
 	sandboxId string
 	xDaytonaOrganizationID *string
+	updateLastActivity *UpdateLastActivity
 }
 
 // Use with JWT to specify the organization ID
 func (r SandboxAPIUpdateLastActivityRequest) XDaytonaOrganizationID(xDaytonaOrganizationID string) SandboxAPIUpdateLastActivityRequest {
 	r.xDaytonaOrganizationID = &xDaytonaOrganizationID
+	return r
+}
+
+func (r SandboxAPIUpdateLastActivityRequest) UpdateLastActivity(updateLastActivity UpdateLastActivity) SandboxAPIUpdateLastActivityRequest {
+	r.updateLastActivity = &updateLastActivity
 	return r
 }
 
@@ -5880,7 +5910,7 @@ func (a *SandboxAPIService) UpdateLastActivityExecute(r SandboxAPIUpdateLastActi
 	localVarFormParams := url.Values{}
 
 	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
+	localVarHTTPContentTypes := []string{"application/json"}
 
 	// set Content-Type header
 	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
@@ -5899,6 +5929,8 @@ func (a *SandboxAPIService) UpdateLastActivityExecute(r SandboxAPIUpdateLastActi
 	if r.xDaytonaOrganizationID != nil {
 		parameterAddToHeaderOrQuery(localVarHeaderParams, "X-Daytona-Organization-ID", r.xDaytonaOrganizationID, "simple", "")
 	}
+	// body params
+	localVarPostBody = r.updateLastActivity
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return nil, err

@@ -262,6 +262,11 @@ public class SandboxListItem {
   @javax.annotation.Nullable
   private String daemonVersion;
 
+  public static final String SERIALIZED_NAME_WARM_POOL_ID = "warmPoolId";
+  @SerializedName(SERIALIZED_NAME_WARM_POOL_ID)
+  @javax.annotation.Nullable
+  private String warmPoolId;
+
   public static final String SERIALIZED_NAME_TOOLBOX_PROXY_URL = "toolboxProxyUrl";
   @SerializedName(SERIALIZED_NAME_TOOLBOX_PROXY_URL)
   @javax.annotation.Nonnull
@@ -829,6 +834,25 @@ public class SandboxListItem {
   }
 
 
+  public SandboxListItem warmPoolId(@javax.annotation.Nullable String warmPoolId) {
+    this.warmPoolId = warmPoolId;
+    return this;
+  }
+
+  /**
+   * Id of the warm pool this sandbox waits in; set only while it is an unclaimed member
+   * @return warmPoolId
+   */
+  @javax.annotation.Nullable
+  public String getWarmPoolId() {
+    return warmPoolId;
+  }
+
+  public void setWarmPoolId(@javax.annotation.Nullable String warmPoolId) {
+    this.warmPoolId = warmPoolId;
+  }
+
+
   public SandboxListItem toolboxProxyUrl(@javax.annotation.Nonnull String toolboxProxyUrl) {
     this.toolboxProxyUrl = toolboxProxyUrl;
     return this;
@@ -931,13 +955,14 @@ public class SandboxListItem {
         Objects.equals(this.updatedAt, sandboxListItem.updatedAt) &&
         Objects.equals(this.lastActivityAt, sandboxListItem.lastActivityAt) &&
         Objects.equals(this.daemonVersion, sandboxListItem.daemonVersion) &&
+        Objects.equals(this.warmPoolId, sandboxListItem.warmPoolId) &&
         Objects.equals(this.toolboxProxyUrl, sandboxListItem.toolboxProxyUrl)&&
         Objects.equals(this.additionalProperties, sandboxListItem.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -973,6 +998,7 @@ public class SandboxListItem {
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
     sb.append("    lastActivityAt: ").append(toIndentedString(lastActivityAt)).append("\n");
     sb.append("    daemonVersion: ").append(toIndentedString(daemonVersion)).append("\n");
+    sb.append("    warmPoolId: ").append(toIndentedString(warmPoolId)).append("\n");
     sb.append("    toolboxProxyUrl: ").append(toIndentedString(toolboxProxyUrl)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -993,7 +1019,7 @@ public class SandboxListItem {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
@@ -1080,6 +1106,9 @@ public class SandboxListItem {
       }
       if ((jsonObj.get("daemonVersion") != null && !jsonObj.get("daemonVersion").isJsonNull()) && !jsonObj.get("daemonVersion").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `daemonVersion` to be a primitive type in the JSON string but got `%s`", jsonObj.get("daemonVersion").toString()));
+      }
+      if ((jsonObj.get("warmPoolId") != null && !jsonObj.get("warmPoolId").isJsonNull()) && !jsonObj.get("warmPoolId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `warmPoolId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("warmPoolId").toString()));
       }
       if (!jsonObj.get("toolboxProxyUrl").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `toolboxProxyUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("toolboxProxyUrl").toString()));

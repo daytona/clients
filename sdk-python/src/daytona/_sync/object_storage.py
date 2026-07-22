@@ -24,6 +24,7 @@ class ObjectStorage:
         aws_secret_access_key (str): The secret access key for the object storage service.
         aws_session_token (str): The session token for the object storage service. Used for temporary credentials.
         bucket_name (str): The name of the bucket to use. Defaults to "daytona-volume-builds".
+        region (str): The region of the storage backend.
     """
 
     def __init__(
@@ -33,12 +34,16 @@ class ObjectStorage:
         aws_secret_access_key: str,
         aws_session_token: str,
         bucket_name: str = "daytona-volume-builds",
+        *,
+        region: str,
     ):
         self.bucket_name: str = bucket_name
+        self.region: str = region
         with isolated_env():
             self.store: S3Store = S3Store(
                 bucket=bucket_name,
                 endpoint=endpoint_url,
+                region=self.region,
                 access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,

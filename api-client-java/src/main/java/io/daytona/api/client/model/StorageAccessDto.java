@@ -80,6 +80,11 @@ public class StorageAccessDto {
   @javax.annotation.Nonnull
   private String bucket;
 
+  public static final String SERIALIZED_NAME_REGION = "region";
+  @SerializedName(SERIALIZED_NAME_REGION)
+  @javax.annotation.Nonnull
+  private String region;
+
   public StorageAccessDto() {
   }
 
@@ -196,6 +201,25 @@ public class StorageAccessDto {
     this.bucket = bucket;
   }
 
+
+  public StorageAccessDto region(@javax.annotation.Nonnull String region) {
+    this.region = region;
+    return this;
+  }
+
+  /**
+   * Region for the storage backend (e.g. \&quot;us-east-2\&quot;)
+   * @return region
+   */
+  @javax.annotation.Nonnull
+  public String getRegion() {
+    return region;
+  }
+
+  public void setRegion(@javax.annotation.Nonnull String region) {
+    this.region = region;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -256,13 +280,14 @@ public class StorageAccessDto {
         Objects.equals(this.sessionToken, storageAccessDto.sessionToken) &&
         Objects.equals(this.storageUrl, storageAccessDto.storageUrl) &&
         Objects.equals(this.organizationId, storageAccessDto.organizationId) &&
-        Objects.equals(this.bucket, storageAccessDto.bucket)&&
+        Objects.equals(this.bucket, storageAccessDto.bucket) &&
+        Objects.equals(this.region, storageAccessDto.region)&&
         Objects.equals(this.additionalProperties, storageAccessDto.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(accessKey, secret, sessionToken, storageUrl, organizationId, bucket, additionalProperties);
+    return Objects.hash(accessKey, secret, sessionToken, storageUrl, organizationId, bucket, region, additionalProperties);
   }
 
   @Override
@@ -275,6 +300,7 @@ public class StorageAccessDto {
     sb.append("    storageUrl: ").append(toIndentedString(storageUrl)).append("\n");
     sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("    bucket: ").append(toIndentedString(bucket)).append("\n");
+    sb.append("    region: ").append(toIndentedString(region)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -294,10 +320,10 @@ public class StorageAccessDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket"));
+    openapiFields = new HashSet<String>(Arrays.asList("accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket", "region"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("accessKey", "secret", "sessionToken", "storageUrl", "organizationId", "bucket", "region"));
   }
 
   /**
@@ -337,6 +363,9 @@ public class StorageAccessDto {
       }
       if (!jsonObj.get("bucket").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `bucket` to be a primitive type in the JSON string but got `%s`", jsonObj.get("bucket").toString()));
+      }
+      if (!jsonObj.get("region").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `region` to be a primitive type in the JSON string but got `%s`", jsonObj.get("region").toString()));
       }
   }
 

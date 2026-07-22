@@ -20,6 +20,7 @@ import { WithInstrumentation } from './utils/otel.decorator'
  * @property {string} secretAccessKey - The secret access key for the object storage service.
  * @property {string} [sessionToken] - The session token for the object storage service. Used for temporary credentials.
  * @property {string} [bucketName] - The name of the bucket to use.
+ * @property {string} region - The region of the storage backend.
  */
 export interface ObjectStorageConfig {
   endpointUrl: string
@@ -27,6 +28,7 @@ export interface ObjectStorageConfig {
   secretAccessKey: string
   sessionToken?: string
   bucketName?: string
+  region: string
 }
 
 /**
@@ -42,7 +44,7 @@ export class ObjectStorage {
   constructor(config: ObjectStorageConfig) {
     this.bucketName = config.bucketName || 'daytona-volume-builds'
     this.s3Client = new S3Client({
-      region: this.extractAwsRegion(config.endpointUrl) || 'us-east-1',
+      region: config.region,
       endpoint: config.endpointUrl,
       credentials: {
         accessKeyId: config.accessKeyId,
@@ -233,10 +235,5 @@ export class ObjectStorage {
     })
 
     await uploader.done()
-  }
-
-  private extractAwsRegion(endpoint: string): string | undefined {
-    const match = endpoint.match(/s3[.-]([a-z0-9-]+)\.amazonaws\.com/)
-    return match?.[1]
   }
 }

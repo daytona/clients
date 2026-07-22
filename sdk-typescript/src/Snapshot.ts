@@ -292,6 +292,7 @@ export class SnapshotService {
       secretAccessKey: pushAccessCreds.secret,
       sessionToken: pushAccessCreds.sessionToken,
       bucketName: pushAccessCreds.bucket,
+      region: pushAccessCreds.region,
     })
 
     const contextHashes = []

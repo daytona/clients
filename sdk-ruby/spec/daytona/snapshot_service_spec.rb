@@ -184,7 +184,8 @@ RSpec.describe Daytona::SnapshotService do
       image.context_list << Daytona::Context.new(source_path: '/tmp/a', archive_path: 'a')
       image.context_list << Daytona::Context.new(source_path: '/tmp/b', archive_path: 'b')
       creds = double('PushAccess', storage_url: 'https://s3.example.com', access_key: 'key', secret: 'secret',
-                                   session_token: 'token', bucket: 'bucket', organization_id: 'org-1')
+                                   session_token: 'token', bucket: 'bucket', organization_id: 'org-1',
+                                   region: 'us-east-2')
       storage = instance_double(Daytona::ObjectStorage)
 
       allow(object_storage_api).to receive(:get_push_access).and_return(creds)
@@ -194,6 +195,7 @@ RSpec.describe Daytona::SnapshotService do
       result = described_class.process_image_context(object_storage_api, image)
 
       expect(result).to eq(%w[hash-a hash-b])
+      expect(Daytona::ObjectStorage).to have_received(:new).with(hash_including(region: 'us-east-2'))
       expect(storage).to have_received(:upload).with('/tmp/a', 'org-1', 'a')
       expect(storage).to have_received(:upload).with('/tmp/b', 'org-1', 'b')
     end

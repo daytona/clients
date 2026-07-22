@@ -18,6 +18,7 @@ func TestNewObjectStorage(t *testing.T) {
 		name           string
 		config         objectStorageConfig
 		expectedBucket string
+		expectedRegion string
 	}{
 		{
 			name: "basic config",
@@ -26,8 +27,10 @@ func TestNewObjectStorage(t *testing.T) {
 				AccessKeyID:     "AKID",
 				SecretAccessKey: "SECRET",
 				BucketName:      "my-bucket",
+				Region:          "us-east-1",
 			},
 			expectedBucket: "my-bucket",
+			expectedRegion: "us-east-1",
 		},
 		{
 			name: "default bucket name",
@@ -36,8 +39,10 @@ func TestNewObjectStorage(t *testing.T) {
 				AccessKeyID:     "AKID",
 				SecretAccessKey: "SECRET",
 				BucketName:      "",
+				Region:          "us-west-2",
 			},
 			expectedBucket: "daytona-volume-builds",
+			expectedRegion: "us-west-2",
 		},
 		{
 			name: "with session token",
@@ -47,8 +52,10 @@ func TestNewObjectStorage(t *testing.T) {
 				SecretAccessKey: "SECRET",
 				SessionToken:    strPtr("session-token"),
 				BucketName:      "test-bucket",
+				Region:          "eu-west-1",
 			},
 			expectedBucket: "test-bucket",
+			expectedRegion: "eu-west-1",
 		},
 		{
 			name: "non-aws endpoint",
@@ -57,8 +64,22 @@ func TestNewObjectStorage(t *testing.T) {
 				AccessKeyID:     "minioadmin",
 				SecretAccessKey: "minioadmin",
 				BucketName:      "builds",
+				Region:          "auto",
 			},
 			expectedBucket: "builds",
+			expectedRegion: "auto",
+		},
+		{
+			name: "region is passed through regardless of endpoint host",
+			config: objectStorageConfig{
+				EndpointURL:     "https://s3.us-west-2.amazonaws.com",
+				AccessKeyID:     "AKID",
+				SecretAccessKey: "SECRET",
+				BucketName:      "builds",
+				Region:          "us-east-2",
+			},
+			expectedBucket: "builds",
+			expectedRegion: "us-east-2",
 		},
 	}
 
@@ -67,7 +88,8 @@ func TestNewObjectStorage(t *testing.T) {
 			objStorage := NewObjectStorage(tt.config)
 			require.NotNil(t, objStorage)
 			assert.Equal(t, tt.expectedBucket, objStorage.bucketName)
-			assert.NotNil(t, objStorage.client)
+			require.NotNil(t, objStorage.client)
+			assert.Equal(t, tt.expectedRegion, objStorage.client.Options().Region)
 		})
 	}
 }
@@ -199,6 +221,7 @@ func TestPushAccessCredentialsStruct(t *testing.T) {
 		SessionToken:   "TOKEN",
 		Bucket:         "my-bucket",
 		OrganizationID: "org-1",
+		Region:         "us-east-2",
 	}
 
 	assert.Equal(t, "https://s3.us-east-1.amazonaws.com", creds.StorageURL)
@@ -207,6 +230,7 @@ func TestPushAccessCredentialsStruct(t *testing.T) {
 	assert.Equal(t, "TOKEN", creds.SessionToken)
 	assert.Equal(t, "my-bucket", creds.Bucket)
 	assert.Equal(t, "org-1", creds.OrganizationID)
+	assert.Equal(t, "us-east-2", creds.Region)
 }
 
 func TestObjectStorageUploadValidations(t *testing.T) {
