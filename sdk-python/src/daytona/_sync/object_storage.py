@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import tarfile
 import threading
 
@@ -13,6 +14,15 @@ from obstore.store import S3Store
 from .._utils.docs_ignore import docs_ignore
 from .._utils.environment import isolated_env
 from .._utils.otel_decorator import with_instrumentation
+
+
+def _region_from_endpoint(endpoint_url: str) -> str:
+    """Derive the S3 region from the endpoint, defaulting to ``us-east-1``.
+
+    obstore defaults SigV4 signing to us-east-1, so buckets in other regions 400 without this.
+    """
+    match = re.search(r"s3[.-]([^.]+)\.amazonaws\.com", endpoint_url or "")
+    return match.group(1) if match else "us-east-1"
 
 
 class ObjectStorage:
@@ -39,6 +49,7 @@ class ObjectStorage:
             self.store: S3Store = S3Store(
                 bucket=bucket_name,
                 endpoint=endpoint_url,
+                region=_region_from_endpoint(endpoint_url),
                 access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,

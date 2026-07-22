@@ -21,6 +21,25 @@ def _make_async_storage():
     return storage, mock_store
 
 
+@pytest.mark.parametrize(
+    "endpoint, expected",
+    [
+        ("https://s3.us-east-2.amazonaws.com", "us-east-2"),
+        ("https://s3.us-east-1.amazonaws.com", "us-east-1"),
+        ("https://s3-us-west-1.amazonaws.com", "us-west-1"),  # legacy dash style
+        ("https://s3.ap-northeast-2.amazonaws.com", "ap-northeast-2"),
+        ("https://s3.us-gov-west-1.amazonaws.com", "us-gov-west-1"),  # GovCloud (extra segment)
+        ("https://s3.amazonaws.com", "us-east-1"),  # no region in host -> default
+        ("https://minio.local:9000", "us-east-1"),  # non-AWS endpoint -> default
+        ("", "us-east-1"),
+    ],
+)
+def test_region_from_endpoint(endpoint, expected):
+    from daytona._async.object_storage import _region_from_endpoint
+
+    assert _region_from_endpoint(endpoint) == expected
+
+
 class TestAsyncObjectStorage:
     @pytest.mark.asyncio
     async def test_upload_missing_path_raises(self):
