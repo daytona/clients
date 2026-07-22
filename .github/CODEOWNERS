@@ -1,17 +1,19 @@
 # CODEOWNERS -- Daytona
 # These owners are automatically requested for review on PRs that modify the listed files.
 # Multiple owners = OR semantics (any one can approve).
-# Enforcement: the "Security baseline" Ruleset requires CODEOWNERS review on main,
+# Enforcement: classic branch protection on main requires code owner review,
 # so listed owners must approve before merge.
 
 # Security and compliance policies (CISO-owned)
-SECURITY.md                @MDzaja
-CODE_OF_CONDUCT.md         @MDzaja
+SECURITY.md                @MDzaja @aprojic
+CODE_OF_CONDUCT.md         @MDzaja @aprojic
 
 # Contributor License Agreement (legal)
 CLA.md                     @MDzaja @aprojic
 
 # CI/CD pipelines and composite actions
+# NOTE: job names in pr_checks.yaml and cla.yaml are required status checks on
+# main -- renaming a job without updating the branch protection list blocks all merges.
 .github/workflows/         @MDzaja
 .github/actions/           @MDzaja
 
