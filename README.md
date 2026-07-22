@@ -1,4 +1,6 @@
 # Daytona Clients
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdaytona%2Fclients.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdaytona%2Fclients?ref=badge_shield)
+
 
 SDKs, generated API clients, and the CLI/MCP tools for [Daytona](https://www.daytona.io/).
 
@@ -83,3 +85,6 @@ This repository uses a dual-license model. See [LICENSE](./LICENSE) for details.
 
 - **CLI** (`cli/`): [AGPL-3.0](./cli/LICENSE)
 - **Everything else** (SDKs, API clients, examples): [Apache-2.0](./LICENSE)
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdaytona%2Fclients.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdaytona%2Fclients?ref=badge_large)
