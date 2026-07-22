@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
     from daytona_api_client_async.models.create_user import CreateUser
     from daytona_api_client_async.models.create_volume import CreateVolume
+    from daytona_api_client_async.models.create_warm_pool import CreateWarmPool
     from daytona_api_client_async.models.date_filter import DateFilter
     from daytona_api_client_async.models.daytona_configuration import DaytonaConfiguration
     from daytona_api_client_async.models.docker_registry import DockerRegistry
@@ -130,6 +131,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.trace_summary import TraceSummary
     from daytona_api_client_async.models.update_docker_registry import UpdateDockerRegistry
     from daytona_api_client_async.models.update_job_status import UpdateJobStatus
+    from daytona_api_client_async.models.update_last_activity import UpdateLastActivity
     from daytona_api_client_async.models.update_organization_default_region import UpdateOrganizationDefaultRegion
     from daytona_api_client_async.models.update_organization_invitation import UpdateOrganizationInvitation
     from daytona_api_client_async.models.update_organization_member_access import UpdateOrganizationMemberAccess
@@ -141,11 +143,13 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.update_sandbox_secrets import UpdateSandboxSecrets
     from daytona_api_client_async.models.update_sandbox_state_dto import UpdateSandboxStateDto
     from daytona_api_client_async.models.update_secret import UpdateSecret
+    from daytona_api_client_async.models.update_warm_pool import UpdateWarmPool
     from daytona_api_client_async.models.url import Url
     from daytona_api_client_async.models.user import User
     from daytona_api_client_async.models.user_public_key import UserPublicKey
     from daytona_api_client_async.models.volume_dto import VolumeDto
     from daytona_api_client_async.models.volume_state import VolumeState
+    from daytona_api_client_async.models.warm_pool import WarmPool
     from daytona_api_client_async.models.webhook_app_portal_access import WebhookAppPortalAccess
     from daytona_api_client_async.models.webhook_event import WebhookEvent
     from daytona_api_client_async.models.webhook_initialization_status import WebhookInitializationStatus
@@ -180,6 +184,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
     "CreateUser": "daytona_api_client_async.models.create_user",
     "CreateVolume": "daytona_api_client_async.models.create_volume",
+    "CreateWarmPool": "daytona_api_client_async.models.create_warm_pool",
     "DateFilter": "daytona_api_client_async.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client_async.models.daytona_configuration",
     "DockerRegistry": "daytona_api_client_async.models.docker_registry",
@@ -261,6 +266,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "TraceSummary": "daytona_api_client_async.models.trace_summary",
     "UpdateDockerRegistry": "daytona_api_client_async.models.update_docker_registry",
     "UpdateJobStatus": "daytona_api_client_async.models.update_job_status",
+    "UpdateLastActivity": "daytona_api_client_async.models.update_last_activity",
     "UpdateOrganizationDefaultRegion": "daytona_api_client_async.models.update_organization_default_region",
     "UpdateOrganizationInvitation": "daytona_api_client_async.models.update_organization_invitation",
     "UpdateOrganizationMemberAccess": "daytona_api_client_async.models.update_organization_member_access",
@@ -272,11 +278,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateSandboxSecrets": "daytona_api_client_async.models.update_sandbox_secrets",
     "UpdateSandboxStateDto": "daytona_api_client_async.models.update_sandbox_state_dto",
     "UpdateSecret": "daytona_api_client_async.models.update_secret",
+    "UpdateWarmPool": "daytona_api_client_async.models.update_warm_pool",
     "Url": "daytona_api_client_async.models.url",
     "User": "daytona_api_client_async.models.user",
     "UserPublicKey": "daytona_api_client_async.models.user_public_key",
     "VolumeDto": "daytona_api_client_async.models.volume_dto",
     "VolumeState": "daytona_api_client_async.models.volume_state",
+    "WarmPool": "daytona_api_client_async.models.warm_pool",
     "WebhookAppPortalAccess": "daytona_api_client_async.models.webhook_app_portal_access",
     "WebhookEvent": "daytona_api_client_async.models.webhook_event",
     "WebhookInitializationStatus": "daytona_api_client_async.models.webhook_initialization_status",

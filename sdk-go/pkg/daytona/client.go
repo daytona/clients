@@ -882,6 +882,12 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 			if query.LastActivityBefore != nil {
 				request = request.LastEventBefore(*query.LastActivityBefore)
 			}
+			if query.AutoDestroyAtAfter != nil {
+				request = request.AutoDestroyAtAfter(*query.AutoDestroyAtAfter)
+			}
+			if query.AutoDestroyAtBefore != nil {
+				request = request.AutoDestroyAtBefore(*query.AutoDestroyAtBefore)
+			}
 			if query.Sort != nil {
 				request = request.Sort(*query.Sort)
 			}

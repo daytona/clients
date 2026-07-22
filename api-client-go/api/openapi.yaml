@@ -1703,6 +1703,15 @@ paths:
           default: false
           type: boolean
         style: form
+      - description: Include unclaimed warm pool sandboxes (excluded by default)
+        explode: true
+        in: query
+        name: includeWarm
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
       - description: List of states to filter by.
         explode: true
         in: query
@@ -1847,6 +1856,26 @@ paths:
         explode: true
         in: query
         name: lastEventBefore
+        required: false
+        schema:
+          example: 2024-12-31T23:59:59Z
+          format: date-time
+          type: string
+        style: form
+      - description: Include items scheduled for auto destroy after this timestamp
+        explode: true
+        in: query
+        name: autoDestroyAtAfter
+        required: false
+        schema:
+          example: 2024-01-01T00:00:00Z
+          format: date-time
+          type: string
+        style: form
+      - description: Include items scheduled for auto destroy before this timestamp
+        explode: true
+        in: query
+        name: autoDestroyAtBefore
         required: false
         schema:
           example: 2024-12-31T23:59:59Z
@@ -2573,6 +2602,9 @@ paths:
       - sandbox
   /sandbox/{sandboxIdOrName}/backup:
     post:
+      deprecated: true
+      description: "Deprecated: backups are managed automatically. This endpoint is\
+        \ a no-op kept for compatibility."
       operationId: createBackup
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -2597,7 +2629,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Sandbox"
-          description: Sandbox backup has been initiated
+          description: Sandbox backup request acknowledged (no-op)
       security:
       - bearer: []
       - oauth2:
@@ -2869,6 +2901,12 @@ paths:
         schema:
           type: string
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLastActivity"
+        required: false
       responses:
         "201":
           description: Last activity has been updated
@@ -4521,6 +4559,10 @@ paths:
               schema:
                 type: boolean
           description: User access status to the sandbox
+        "404":
+          description: "Sandbox not found. For members of the owning organization\
+            \ whose sandbox was deleted, the body carries code \"SANDBOX_DESTROYED\"\
+            ."
       security:
       - bearer: []
       - oauth2:
@@ -4901,6 +4943,142 @@ paths:
       summary: Update job status
       tags:
       - jobs
+  /warm-pools:
+    get:
+      operationId: listWarmPools
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/WarmPool"
+                type: array
+          description: List of warm pools
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: List warm pools for the organization
+      tags:
+      - warm-pools
+    post:
+      operationId: createWarmPool
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWarmPool"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarmPool"
+          description: The warm pool has been created
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Create a warm pool
+      tags:
+      - warm-pools
+  /warm-pools/{id}:
+    delete:
+      operationId: deleteWarmPool
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Warm pool ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: The warm pool has been deleted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Delete a warm pool
+      tags:
+      - warm-pools
+    patch:
+      operationId: updateWarmPool
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Warm pool ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWarmPool"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarmPool"
+          description: The warm pool has been updated
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Update a warm pool size
+      tags:
+      - warm-pools
   /docker-registry:
     get:
       operationId: listRegistries
@@ -7668,21 +7846,21 @@ components:
         allowedGpuTypes:
         - H100
         - H100
-        maxDiskPerGpuSandbox: 1.4894159098541704
         totalGpuQuota: 7.061401241503109
-        maxCpuPerGpuSandbox: 1.2315135367772556
+        maxMemoryPerGpu: 1.0246457001441578
         maxCpuPerSandbox: 3.616076749251911
         maxDiskPerSandbox: 4.145608029883936
         maxDiskPerNonEphemeralSandbox: 7.386281948385884
         regionId: regionId
         currentDiskUsage: 2.3021358869347655
+        maxCpuPerGpu: 1.2315135367772556
         currentMemoryUsage: 5.962133916683182
         currentCpuUsage: 6.027456183070403
         maxMemoryPerSandbox: 2.027123023002322
+        maxDiskPerGpu: 1.4894159098541704
         totalMemoryQuota: 1.4658129805029452
         totalDiskQuota: 5.637376656633329
         sandboxClass: ""
-        maxMemoryPerGpuSandbox: 1.0246457001441578
       properties:
         regionId:
           type: string
@@ -7721,13 +7899,16 @@ components:
         maxDiskPerNonEphemeralSandbox:
           nullable: true
           type: number
-        maxCpuPerGpuSandbox:
+        maxCpuPerGpu:
+          description: CPU maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxMemoryPerGpuSandbox:
+        maxMemoryPerGpu:
+          description: Memory maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxDiskPerGpuSandbox:
+        maxDiskPerGpu:
+          description: Disk maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
       required:
@@ -7735,12 +7916,12 @@ components:
       - currentDiskUsage
       - currentGpuUsage
       - currentMemoryUsage
-      - maxCpuPerGpuSandbox
+      - maxCpuPerGpu
       - maxCpuPerSandbox
-      - maxDiskPerGpuSandbox
+      - maxDiskPerGpu
       - maxDiskPerNonEphemeralSandbox
       - maxDiskPerSandbox
-      - maxMemoryPerGpuSandbox
+      - maxMemoryPerGpu
       - maxMemoryPerSandbox
       - regionId
       - sandboxClass
@@ -7761,41 +7942,41 @@ components:
           allowedGpuTypes:
           - H100
           - H100
-          maxDiskPerGpuSandbox: 1.4894159098541704
           totalGpuQuota: 7.061401241503109
-          maxCpuPerGpuSandbox: 1.2315135367772556
+          maxMemoryPerGpu: 1.0246457001441578
           maxCpuPerSandbox: 3.616076749251911
           maxDiskPerSandbox: 4.145608029883936
           maxDiskPerNonEphemeralSandbox: 7.386281948385884
           regionId: regionId
           currentDiskUsage: 2.3021358869347655
+          maxCpuPerGpu: 1.2315135367772556
           currentMemoryUsage: 5.962133916683182
           currentCpuUsage: 6.027456183070403
           maxMemoryPerSandbox: 2.027123023002322
+          maxDiskPerGpu: 1.4894159098541704
           totalMemoryQuota: 1.4658129805029452
           totalDiskQuota: 5.637376656633329
           sandboxClass: ""
-          maxMemoryPerGpuSandbox: 1.0246457001441578
         - totalCpuQuota: 0.8008281904610115
           currentGpuUsage: 9.301444243932576
           allowedGpuTypes:
           - H100
           - H100
-          maxDiskPerGpuSandbox: 1.4894159098541704
           totalGpuQuota: 7.061401241503109
-          maxCpuPerGpuSandbox: 1.2315135367772556
+          maxMemoryPerGpu: 1.0246457001441578
           maxCpuPerSandbox: 3.616076749251911
           maxDiskPerSandbox: 4.145608029883936
           maxDiskPerNonEphemeralSandbox: 7.386281948385884
           regionId: regionId
           currentDiskUsage: 2.3021358869347655
+          maxCpuPerGpu: 1.2315135367772556
           currentMemoryUsage: 5.962133916683182
           currentCpuUsage: 6.027456183070403
           maxMemoryPerSandbox: 2.027123023002322
+          maxDiskPerGpu: 1.4894159098541704
           totalMemoryQuota: 1.4658129805029452
           totalDiskQuota: 5.637376656633329
           sandboxClass: ""
-          maxMemoryPerGpuSandbox: 1.0246457001441578
       properties:
         regionUsage:
           items:
@@ -7936,17 +8117,17 @@ components:
         allowedGpuTypes:
         - H100
         - H100
-        maxDiskPerGpuSandbox: 4.145608029883936
         totalGpuQuota: 5.962133916683182
-        maxCpuPerGpuSandbox: 3.616076749251911
+        maxMemoryPerGpu: 2.027123023002322
         maxCpuPerSandbox: 5.637376656633329
         maxDiskPerSandbox: 7.061401241503109
         maxDiskPerNonEphemeralSandbox: 9.301444243932576
+        maxCpuPerGpu: 3.616076749251911
         maxMemoryPerSandbox: 2.3021358869347655
+        maxDiskPerGpu: 4.145608029883936
         totalMemoryQuota: 6.027456183070403
         totalDiskQuota: 1.4658129805029452
         sandboxClass: ""
-        maxMemoryPerGpuSandbox: 2.027123023002322
       properties:
         sandboxClass:
           allOf:
@@ -7980,13 +8161,16 @@ components:
         maxDiskPerNonEphemeralSandbox:
           nullable: true
           type: number
-        maxCpuPerGpuSandbox:
+        maxCpuPerGpu:
+          description: CPU maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxMemoryPerGpuSandbox:
+        maxMemoryPerGpu:
+          description: Memory maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxDiskPerGpuSandbox:
+        maxDiskPerGpu:
+          description: Disk maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
       required:
@@ -8639,6 +8823,7 @@ components:
         toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
         lastActivityAt: 2024-10-01T12:00:00Z
         autoStopInterval: 30
+        warmPoolId: warmPoolId
         organizationId: organization123
         autoPauseInterval: 60
         createdAt: 2024-10-01T12:00:00Z
@@ -8798,6 +8983,10 @@ components:
           description: The version of the daemon running in the sandbox
           example: 1.0.0
           type: string
+        warmPoolId:
+          description: Id of the warm pool this sandbox waits in; set only while it
+            is an unclaimed member
+          type: string
         toolboxProxyUrl:
           description: The toolbox proxy URL for the sandbox
           example: https://proxy.app.daytona.io/toolbox
@@ -8824,6 +9013,7 @@ components:
           toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
+          warmPoolId: warmPoolId
           organizationId: organization123
           autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
@@ -8855,6 +9045,7 @@ components:
           toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
           lastActivityAt: 2024-10-01T12:00:00Z
           autoStopInterval: 30
+          warmPoolId: warmPoolId
           organizationId: organization123
           autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
@@ -8964,6 +9155,7 @@ components:
         buildInfo: ""
         toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
         lastActivityAt: 2024-10-01T12:00:00Z
+        warmPoolId: warmPoolId
         autoStopInterval: 30
         organizationId: organization123
         autoPauseInterval: 60
@@ -9100,7 +9292,12 @@ components:
           description: Whether the sandbox error is recoverable.
           example: true
           type: boolean
+        warmPoolId:
+          description: Id of the warm pool this sandbox waits in; set only while it
+            is an unclaimed member.
+          type: string
         backupState:
+          deprecated: true
           description: The state of the backup
           enum:
           - None
@@ -9111,6 +9308,7 @@ components:
           example: None
           type: string
         backupCreatedAt:
+          deprecated: true
           description: The creation timestamp of the last backup
           example: 2024-10-01T12:00:00Z
           type: string
@@ -9215,6 +9413,7 @@ components:
           buildInfo: ""
           toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
           lastActivityAt: 2024-10-01T12:00:00Z
+          warmPoolId: warmPoolId
           autoStopInterval: 30
           organizationId: organization123
           autoPauseInterval: 60
@@ -9261,6 +9460,7 @@ components:
           buildInfo: ""
           toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
           lastActivityAt: 2024-10-01T12:00:00Z
+          warmPoolId: warmPoolId
           autoStopInterval: 30
           organizationId: organization123
           autoPauseInterval: 60
@@ -9492,11 +9692,13 @@ components:
           - $ref: "#/components/schemas/CreateBuildInfo"
           description: Build information for the sandbox
         linkedSandbox:
-          description: ID or name of an existing sandbox to link the new sandbox to.
-            The new sandbox will be scheduled on the same runner as the linked sandbox
-            so a local network can be established between them. Linked sandboxes must
-            be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to
-            another sandbox.
+          description: "ID or name of an existing sandbox to link the new sandbox\
+            \ to. The new sandbox will be scheduled on the same runner as the linked\
+            \ sandbox so a local network can be established between them. Linked sandboxes\
+            \ must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked\
+            \ to another sandbox. GPU sandboxes cannot participate in links in either\
+            \ direction: a GPU sandbox cannot specify linkedSandbox, and cannot be\
+            \ the link target of another sandbox."
           example: sandbox123
           type: string
         secrets:
@@ -9620,6 +9822,15 @@ components:
           description: "The name for the forked sandbox. If not provided, a unique\
             \ name will be generated."
           example: my-forked-sandbox
+          type: string
+      type: object
+    UpdateLastActivity:
+      example:
+        activityType: toolbox
+      properties:
+        activityType:
+          description: Optional type of interaction that reset the activity timer.
+          example: toolbox
           type: string
       type: object
     UpdateSandboxNetworkSettings:
@@ -9809,19 +10020,19 @@ components:
         allowedGpuTypes:
         - H100
         - H100
-        maxDiskPerGpuSandbox: 4.145608029883936
         totalGpuQuota: 5.962133916683182
-        maxCpuPerGpuSandbox: 3.616076749251911
+        maxMemoryPerGpu: 2.027123023002322
         organizationId: organizationId
         maxCpuPerSandbox: 5.637376656633329
         maxDiskPerSandbox: 7.061401241503109
         maxDiskPerNonEphemeralSandbox: 9.301444243932576
         regionId: regionId
+        maxCpuPerGpu: 3.616076749251911
         maxMemoryPerSandbox: 2.3021358869347655
+        maxDiskPerGpu: 4.145608029883936
         totalMemoryQuota: 6.027456183070403
         totalDiskQuota: 1.4658129805029452
         sandboxClass: ""
-        maxMemoryPerGpuSandbox: 2.027123023002322
       properties:
         organizationId:
           type: string
@@ -9854,22 +10065,25 @@ components:
         maxDiskPerNonEphemeralSandbox:
           nullable: true
           type: number
-        maxCpuPerGpuSandbox:
+        maxCpuPerGpu:
+          description: CPU maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxMemoryPerGpuSandbox:
+        maxMemoryPerGpu:
+          description: Memory maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxDiskPerGpuSandbox:
+        maxDiskPerGpu:
+          description: Disk maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
       required:
-      - maxCpuPerGpuSandbox
+      - maxCpuPerGpu
       - maxCpuPerSandbox
-      - maxDiskPerGpuSandbox
+      - maxDiskPerGpu
       - maxDiskPerNonEphemeralSandbox
       - maxDiskPerSandbox
-      - maxMemoryPerGpuSandbox
+      - maxMemoryPerGpu
       - maxMemoryPerSandbox
       - organizationId
       - regionId
@@ -10566,6 +10780,7 @@ components:
       - building
       - pending
       - pulling
+      - snapshotting
       - active
       - inactive
       - error
@@ -11052,6 +11267,111 @@ components:
           type: string
       required:
       - status
+      type: object
+    WarmPool:
+      example:
+        pool: 0.8008281904610115
+        cpu: 1.4658129805029452
+        osUser: osUser
+        env:
+          key: env
+        target: target
+        currentSize: 6.027456183070403
+        organizationId: organizationId
+        createdAt: createdAt
+        disk: 5.637376656633329
+        mem: 5.962133916683182
+        errorReason: errorReason
+        id: id
+        snapshot: snapshot
+        updatedAt: updatedAt
+      properties:
+        id:
+          type: string
+        organizationId:
+          type: string
+        snapshot:
+          type: string
+        target:
+          type: string
+        pool:
+          description: Desired number of warm sandboxes
+          type: number
+        currentSize:
+          description: Current number of ready warm sandboxes in the pool
+          type: number
+        cpu:
+          type: number
+        mem:
+          type: number
+        disk:
+          type: number
+        osUser:
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          type: object
+        errorReason:
+          nullable: true
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+      - cpu
+      - createdAt
+      - currentSize
+      - disk
+      - env
+      - id
+      - mem
+      - organizationId
+      - osUser
+      - pool
+      - snapshot
+      - target
+      - updatedAt
+      type: object
+    CreateWarmPool:
+      example:
+        pool: 3
+        snapshot: my-snapshot
+        target: us
+      properties:
+        snapshot:
+          description: "The snapshot (id or name) to keep warm sandboxes for. A pool\
+            \ only serves sandbox creates that use this snapshot with the default\
+            \ OS user and no custom env, volumes or secrets."
+          example: my-snapshot
+          type: string
+        pool:
+          description: Number of warm sandboxes to keep ready (capped by the organization
+            quota)
+          example: 3
+          minimum: 1
+          type: number
+        target:
+          description: Target region for the warm pool. Defaults to the organization
+            default region.
+          example: us
+          type: string
+      required:
+      - pool
+      - snapshot
+      type: object
+    UpdateWarmPool:
+      example:
+        pool: 5
+      properties:
+        pool:
+          description: New desired number of warm sandboxes (0 drains the pool)
+          example: 5
+          minimum: 0
+          type: number
+      required:
+      - pool
       type: object
     CreateDockerRegistry:
       example:
@@ -11779,17 +12099,17 @@ components:
         allowedGpuTypes:
         - H100
         - H100
-        maxDiskPerGpuSandbox: 4.145608029883936
         totalGpuQuota: 5.962133916683182
-        maxCpuPerGpuSandbox: 3.616076749251911
+        maxMemoryPerGpu: 2.027123023002322
         maxCpuPerSandbox: 5.637376656633329
         maxDiskPerSandbox: 7.061401241503109
         maxDiskPerNonEphemeralSandbox: 9.301444243932576
+        maxCpuPerGpu: 3.616076749251911
         maxMemoryPerSandbox: 2.3021358869347655
+        maxDiskPerGpu: 4.145608029883936
         totalMemoryQuota: 6.027456183070403
         totalDiskQuota: 1.4658129805029452
         sandboxClass: ""
-        maxMemoryPerGpuSandbox: 2.027123023002322
       properties:
         sandboxClass:
           allOf:
@@ -11819,13 +12139,16 @@ components:
         maxDiskPerNonEphemeralSandbox:
           nullable: true
           type: number
-        maxCpuPerGpuSandbox:
+        maxCpuPerGpu:
+          description: CPU maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxMemoryPerGpuSandbox:
+        maxMemoryPerGpu:
+          description: Memory maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
-        maxDiskPerGpuSandbox:
+        maxDiskPerGpu:
+          description: Disk maximum per requested GPU unit for GPU sandboxes.
           nullable: true
           type: number
       required:

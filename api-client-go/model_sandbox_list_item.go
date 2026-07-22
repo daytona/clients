@@ -79,6 +79,8 @@ type SandboxListItem struct {
 	LastActivityAt *string `json:"lastActivityAt,omitempty"`
 	// The version of the daemon running in the sandbox
 	DaemonVersion *string `json:"daemonVersion,omitempty"`
+	// Id of the warm pool this sandbox waits in; set only while it is an unclaimed member
+	WarmPoolId *string `json:"warmPoolId,omitempty"`
 	// The toolbox proxy URL for the sandbox
 	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
 	AdditionalProperties map[string]interface{}
@@ -955,6 +957,38 @@ func (o *SandboxListItem) SetDaemonVersion(v string) {
 	o.DaemonVersion = &v
 }
 
+// GetWarmPoolId returns the WarmPoolId field value if set, zero value otherwise.
+func (o *SandboxListItem) GetWarmPoolId() string {
+	if o == nil || IsNil(o.WarmPoolId) {
+		var ret string
+		return ret
+	}
+	return *o.WarmPoolId
+}
+
+// GetWarmPoolIdOk returns a tuple with the WarmPoolId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetWarmPoolIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WarmPoolId) {
+		return nil, false
+	}
+	return o.WarmPoolId, true
+}
+
+// HasWarmPoolId returns a boolean if a field has been set.
+func (o *SandboxListItem) HasWarmPoolId() bool {
+	if o != nil && !IsNil(o.WarmPoolId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWarmPoolId gets a reference to the given string and assigns it to the WarmPoolId field.
+func (o *SandboxListItem) SetWarmPoolId(v string) {
+	o.WarmPoolId = &v
+}
+
 // GetToolboxProxyUrl returns the ToolboxProxyUrl field value
 func (o *SandboxListItem) GetToolboxProxyUrl() string {
 	if o == nil {
@@ -1054,6 +1088,9 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.DaemonVersion) {
 		toSerialize["daemonVersion"] = o.DaemonVersion
 	}
+	if !IsNil(o.WarmPoolId) {
+		toSerialize["warmPoolId"] = o.WarmPoolId
+	}
 	toSerialize["toolboxProxyUrl"] = o.ToolboxProxyUrl
 
 	for key, value := range o.AdditionalProperties {
@@ -1138,6 +1175,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "updatedAt")
 		delete(additionalProperties, "lastActivityAt")
 		delete(additionalProperties, "daemonVersion")
+		delete(additionalProperties, "warmPoolId")
 		delete(additionalProperties, "toolboxProxyUrl")
 		o.AdditionalProperties = additionalProperties
 	}

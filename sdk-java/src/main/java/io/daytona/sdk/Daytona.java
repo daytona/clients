@@ -334,6 +334,8 @@ public class Daytona implements AutoCloseable {
         OffsetDateTime createdAtBefore = null;
         OffsetDateTime lastActivityAfter = null;
         OffsetDateTime lastActivityBefore = null;
+        OffsetDateTime autoDestroyAtAfter = null;
+        OffsetDateTime autoDestroyAtBefore = null;
         io.daytona.api.client.model.SandboxListSortField sort = null;
         io.daytona.api.client.model.SandboxListSortDirection order = null;
 
@@ -364,6 +366,8 @@ public class Daytona implements AutoCloseable {
             createdAtBefore = query.getCreatedAtBefore();
             lastActivityAfter = query.getLastActivityAfter();
             lastActivityBefore = query.getLastActivityBefore();
+            autoDestroyAtAfter = query.getAutoDestroyAtAfter();
+            autoDestroyAtBefore = query.getAutoDestroyAtBefore();
             if (query.getSort() != null) sort = query.getSort().toApiClient();
             if (query.getOrder() != null) order = query.getOrder().toApiClient();
         }
@@ -388,6 +392,8 @@ public class Daytona implements AutoCloseable {
         final OffsetDateTime fCreatedAtBefore = createdAtBefore;
         final OffsetDateTime fLastActivityAfter = lastActivityAfter;
         final OffsetDateTime fLastActivityBefore = lastActivityBefore;
+        final OffsetDateTime fAutoDestroyAtAfter = autoDestroyAtAfter;
+        final OffsetDateTime fAutoDestroyAtBefore = autoDestroyAtBefore;
         final io.daytona.api.client.model.SandboxListSortField fSort = sort;
         final io.daytona.api.client.model.SandboxListSortDirection fOrder = order;
 
@@ -398,6 +404,7 @@ public class Daytona implements AutoCloseable {
                 fId,
                 fName,
                 fLabelsJson,
+                null,
                 null,
                 fStates,
                 fSnapshots,
@@ -415,6 +422,8 @@ public class Daytona implements AutoCloseable {
                 fCreatedAtBefore,
                 fLastActivityAfter,
                 fLastActivityBefore,
+                fAutoDestroyAtAfter,
+                fAutoDestroyAtBefore,
                 fSort,
                 fOrder
         ));

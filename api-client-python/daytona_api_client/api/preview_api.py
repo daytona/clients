@@ -367,6 +367,7 @@ class PreviewApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "bool",
+            '404': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -433,6 +434,7 @@ class PreviewApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "bool",
+            '404': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -499,6 +501,7 @@ class PreviewApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "bool",
+            '404': None,
         }
         response_data = self.api_client.call_api(
             *_param,

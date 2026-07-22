@@ -49,6 +49,10 @@ public class ListSandboxesQuery {
     private OffsetDateTime lastActivityAfter;
     /** Include sandboxes with last activity before this timestamp */
     private OffsetDateTime lastActivityBefore;
+    /** Include sandboxes scheduled for auto destroy after this timestamp */
+    private OffsetDateTime autoDestroyAtAfter;
+    /** Include sandboxes scheduled for auto destroy before this timestamp */
+    private OffsetDateTime autoDestroyAtBefore;
     /** Sort by field */
     private SandboxListSortField sort;
     /** Sort direction */
@@ -92,6 +96,10 @@ public class ListSandboxesQuery {
     public void setLastActivityAfter(OffsetDateTime lastActivityAfter) { this.lastActivityAfter = lastActivityAfter; }
     public OffsetDateTime getLastActivityBefore() { return lastActivityBefore; }
     public void setLastActivityBefore(OffsetDateTime lastActivityBefore) { this.lastActivityBefore = lastActivityBefore; }
+    public OffsetDateTime getAutoDestroyAtAfter() { return autoDestroyAtAfter; }
+    public void setAutoDestroyAtAfter(OffsetDateTime autoDestroyAtAfter) { this.autoDestroyAtAfter = autoDestroyAtAfter; }
+    public OffsetDateTime getAutoDestroyAtBefore() { return autoDestroyAtBefore; }
+    public void setAutoDestroyAtBefore(OffsetDateTime autoDestroyAtBefore) { this.autoDestroyAtBefore = autoDestroyAtBefore; }
     public SandboxListSortField getSort() { return sort; }
     public void setSort(SandboxListSortField sort) { this.sort = sort; }
     public SandboxListSortDirection getOrder() { return order; }

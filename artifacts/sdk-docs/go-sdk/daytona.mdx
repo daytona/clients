@@ -2697,6 +2697,10 @@ type ListSandboxesQuery struct {
     LastActivityAfter *time.Time
     // Include sandboxes with last activity before this timestamp
     LastActivityBefore *time.Time
+    // Include sandboxes scheduled for auto destroy after this timestamp
+    AutoDestroyAtAfter *time.Time
+    // Include sandboxes scheduled for auto destroy before this timestamp
+    AutoDestroyAtBefore *time.Time
     // Sort by field
     Sort *apiclient.SandboxListSortField
     // Sort direction

@@ -45,11 +45,14 @@ module DaytonaApiClient
 
     attr_accessor :max_disk_per_non_ephemeral_sandbox
 
-    attr_accessor :max_cpu_per_gpu_sandbox
+    # CPU maximum per requested GPU unit for GPU sandboxes.
+    attr_accessor :max_cpu_per_gpu
 
-    attr_accessor :max_memory_per_gpu_sandbox
+    # Memory maximum per requested GPU unit for GPU sandboxes.
+    attr_accessor :max_memory_per_gpu
 
-    attr_accessor :max_disk_per_gpu_sandbox
+    # Disk maximum per requested GPU unit for GPU sandboxes.
+    attr_accessor :max_disk_per_gpu
 
     class EnumAttributeValidator
       attr_reader :datatype
@@ -91,9 +94,9 @@ module DaytonaApiClient
         :'max_memory_per_sandbox' => :'maxMemoryPerSandbox',
         :'max_disk_per_sandbox' => :'maxDiskPerSandbox',
         :'max_disk_per_non_ephemeral_sandbox' => :'maxDiskPerNonEphemeralSandbox',
-        :'max_cpu_per_gpu_sandbox' => :'maxCpuPerGpuSandbox',
-        :'max_memory_per_gpu_sandbox' => :'maxMemoryPerGpuSandbox',
-        :'max_disk_per_gpu_sandbox' => :'maxDiskPerGpuSandbox'
+        :'max_cpu_per_gpu' => :'maxCpuPerGpu',
+        :'max_memory_per_gpu' => :'maxMemoryPerGpu',
+        :'max_disk_per_gpu' => :'maxDiskPerGpu'
       }
     end
 
@@ -125,9 +128,9 @@ module DaytonaApiClient
         :'max_memory_per_sandbox' => :'Float',
         :'max_disk_per_sandbox' => :'Float',
         :'max_disk_per_non_ephemeral_sandbox' => :'Float',
-        :'max_cpu_per_gpu_sandbox' => :'Float',
-        :'max_memory_per_gpu_sandbox' => :'Float',
-        :'max_disk_per_gpu_sandbox' => :'Float'
+        :'max_cpu_per_gpu' => :'Float',
+        :'max_memory_per_gpu' => :'Float',
+        :'max_disk_per_gpu' => :'Float'
       }
     end
 
@@ -138,9 +141,9 @@ module DaytonaApiClient
         :'max_memory_per_sandbox',
         :'max_disk_per_sandbox',
         :'max_disk_per_non_ephemeral_sandbox',
-        :'max_cpu_per_gpu_sandbox',
-        :'max_memory_per_gpu_sandbox',
-        :'max_disk_per_gpu_sandbox'
+        :'max_cpu_per_gpu',
+        :'max_memory_per_gpu',
+        :'max_disk_per_gpu'
       ])
     end
 
@@ -250,22 +253,22 @@ module DaytonaApiClient
         self.max_disk_per_non_ephemeral_sandbox = nil
       end
 
-      if attributes.key?(:'max_cpu_per_gpu_sandbox')
-        self.max_cpu_per_gpu_sandbox = attributes[:'max_cpu_per_gpu_sandbox']
+      if attributes.key?(:'max_cpu_per_gpu')
+        self.max_cpu_per_gpu = attributes[:'max_cpu_per_gpu']
       else
-        self.max_cpu_per_gpu_sandbox = nil
+        self.max_cpu_per_gpu = nil
       end
 
-      if attributes.key?(:'max_memory_per_gpu_sandbox')
-        self.max_memory_per_gpu_sandbox = attributes[:'max_memory_per_gpu_sandbox']
+      if attributes.key?(:'max_memory_per_gpu')
+        self.max_memory_per_gpu = attributes[:'max_memory_per_gpu']
       else
-        self.max_memory_per_gpu_sandbox = nil
+        self.max_memory_per_gpu = nil
       end
 
-      if attributes.key?(:'max_disk_per_gpu_sandbox')
-        self.max_disk_per_gpu_sandbox = attributes[:'max_disk_per_gpu_sandbox']
+      if attributes.key?(:'max_disk_per_gpu')
+        self.max_disk_per_gpu = attributes[:'max_disk_per_gpu']
       else
-        self.max_disk_per_gpu_sandbox = nil
+        self.max_disk_per_gpu = nil
       end
     end
 
@@ -454,9 +457,9 @@ module DaytonaApiClient
           max_memory_per_sandbox == o.max_memory_per_sandbox &&
           max_disk_per_sandbox == o.max_disk_per_sandbox &&
           max_disk_per_non_ephemeral_sandbox == o.max_disk_per_non_ephemeral_sandbox &&
-          max_cpu_per_gpu_sandbox == o.max_cpu_per_gpu_sandbox &&
-          max_memory_per_gpu_sandbox == o.max_memory_per_gpu_sandbox &&
-          max_disk_per_gpu_sandbox == o.max_disk_per_gpu_sandbox
+          max_cpu_per_gpu == o.max_cpu_per_gpu &&
+          max_memory_per_gpu == o.max_memory_per_gpu &&
+          max_disk_per_gpu == o.max_disk_per_gpu
     end
 
     # @see the `==` method
@@ -468,7 +471,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [region_id, sandbox_class, total_cpu_quota, current_cpu_usage, total_memory_quota, current_memory_usage, total_disk_quota, current_disk_usage, total_gpu_quota, current_gpu_usage, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu_sandbox, max_memory_per_gpu_sandbox, max_disk_per_gpu_sandbox].hash
+      [region_id, sandbox_class, total_cpu_quota, current_cpu_usage, total_memory_quota, current_memory_usage, total_disk_quota, current_disk_usage, total_gpu_quota, current_gpu_usage, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu, max_memory_per_gpu, max_disk_per_gpu].hash
     end
 
     # Builds the object from hash
