@@ -224,13 +224,23 @@ class SyncEventSubscriptionManager:
             sub = self._subscriptions.pop(sub_id, None)
             if sub is None:
                 return
-            # The stale heap entry is discarded when the worker pops it.
+            # The stale heap entry is discarded when the worker pops it — except
+            # when it was the last subscription: drop the leftovers and wake the
+            # worker so it exits now instead of idling until the old deadline.
+            if not self._subscriptions:
+                self._expiry_heap.clear()
+                self._cond.notify()
 
         sub.unsubscribe_fn()
 
     def _ensure_worker_locked(self) -> None:
-        """Start the shared expiry worker if it is not running. Caller holds self._cond."""
-        if self._worker is None:
+        """Start the shared expiry worker if it is not running. Caller holds self._cond.
+
+        The is_alive() check is a safety net: a worker that crashed for any reason
+        leaves a dead-but-set reference, and a plain None check would then block
+        replacements forever, silently disabling expiry.
+        """
+        if self._worker is None or not self._worker.is_alive():
             worker = threading.Thread(
                 target=self._expiry_loop,
                 name="daytona-subscription-expiry",

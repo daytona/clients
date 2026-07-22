@@ -78,8 +78,17 @@ module Daytona
     end
 
     def unsubscribe(sub_id)
-      subscription = @mutex.synchronize { @subscriptions.delete(sub_id) }
-      # The stale queue entry is discarded when the worker pops it.
+      subscription = @mutex.synchronize do
+        removed = @subscriptions.delete(sub_id)
+        # The stale queue entry is discarded when the worker pops it — except
+        # when it was the last subscription: drop the leftovers and wake the
+        # worker so it exits now instead of idling until the old deadline.
+        if removed && @subscriptions.empty?
+          @expiry_queue.clear
+          @cond.signal
+        end
+        removed
+      end
       subscription&.dig(:unsubscribe)&.call
     end
 
@@ -109,11 +118,14 @@ module Daytona
       @expiry_queue.insert(index, [expires_at, sub_id])
     end
 
-    # Caller must hold @mutex.
+    # Caller must hold @mutex. The alive? check is a safety net: a worker that
+    # crashed for any reason leaves a dead-but-truthy reference, and a plain nil
+    # check would then block replacements forever, silently disabling expiry.
     def ensure_worker_locked
-      return if @worker
+      return if @worker&.alive?
 
       @worker = Thread.new { expiry_loop }
+      @worker.name = 'daytona-subscription-expiry'
       @worker.abort_on_exception = false
     end
 

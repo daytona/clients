@@ -115,6 +115,17 @@ RSpec.describe Daytona::EventSubscriptionManager do
       expect(manager.refresh(sub_id)).to be(false)
       manager.shutdown
     end
+
+    it 'lets the worker exit promptly after the last subscription is removed' do
+      manager = described_class.new(dispatcher, ttl_seconds: 60)
+      threads_before = Thread.list.size
+      sub_id = manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
+
+      manager.unsubscribe(sub_id)
+
+      expect(wait_until(timeout: 2) { Thread.list.size == threads_before }).to be(true)
+      manager.shutdown
+    end
   end
 
   describe 'expiry worker robustness' do
@@ -126,6 +137,27 @@ RSpec.describe Daytona::EventSubscriptionManager do
       manager.subscribe(resource_id: 'sandbox-good', handler:, events:)
 
       expect(wait_until { dispatcher.unsubscribed.include?('sandbox-good') }).to be(true)
+      manager.shutdown
+    end
+
+    it 'replaces the worker when it died unexpectedly' do
+      manager = described_class.new(dispatcher, ttl_seconds: 0.1)
+
+      dead_thread = Thread.new { nil }
+      dead_thread.join
+      manager.instance_variable_set(:@worker, dead_thread)
+
+      manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
+
+      expect(wait_until { dispatcher.unsubscribed == ['sandbox-1'] }).to be(true)
+      manager.shutdown
+    end
+
+    it 'names the expiry worker thread for debugging' do
+      manager = described_class.new(dispatcher, ttl_seconds: 60)
+      manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
+
+      expect(Thread.list.map(&:name)).to include('daytona-subscription-expiry')
       manager.shutdown
     end
   end

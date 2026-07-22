@@ -174,3 +174,32 @@ class TestSyncEventSubscriptionManagerRobustness:
 
         assert _wait_until(lambda: "sandbox-good" in dispatcher.unsubscribed)
         manager.shutdown()
+
+    def test_worker_is_replaced_when_it_died_unexpectedly(self):
+        """A crashed worker leaves a dead-but-set thread reference; the next
+        subscribe must detect it via is_alive() and start a replacement.
+        """
+        dispatcher = FakeSyncDispatcher()
+        manager = SyncEventSubscriptionManager(dispatcher, ttl_seconds=0.1)
+
+        dead_thread = threading.Thread(target=lambda: None)
+        dead_thread.start()
+        dead_thread.join()
+        with manager._cond:  # pylint: disable=protected-access
+            manager._worker = dead_thread  # pylint: disable=protected-access
+
+        manager.subscribe("sandbox-1", _noop_handler, ["sandbox.state.updated"])
+
+        assert _wait_until(lambda: dispatcher.unsubscribed == ["sandbox-1"])
+        manager.shutdown()
+
+    def test_worker_exits_promptly_after_last_unsubscribe(self):
+        dispatcher = FakeSyncDispatcher()
+        manager = SyncEventSubscriptionManager(dispatcher, ttl_seconds=60.0)
+        threads_before = threading.active_count()
+        sub_id = manager.subscribe("sandbox-1", _noop_handler, ["sandbox.state.updated"])
+
+        manager.unsubscribe(sub_id)
+
+        assert _wait_until(lambda: threading.active_count() == threads_before, timeout=2.0)
+        manager.shutdown()
