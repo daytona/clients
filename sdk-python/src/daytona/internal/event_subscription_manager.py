@@ -4,11 +4,16 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
+import logging
 import threading
+import time
 import uuid
 from typing import Callable
 
 from .event_dispatcher import AsyncEventDispatcher, AsyncEventHandler, EventHandler, SyncEventDispatcher
+
+logger = logging.getLogger(__name__)
 
 _SUBSCRIPTION_TTL: float = 300.0
 
@@ -18,7 +23,7 @@ class _Subscription:
 
     resource_id: str
     unsubscribe_fn: Callable[[], None]
-    timer: threading.Timer | asyncio.TimerHandle | None
+    timer: asyncio.TimerHandle | None
 
     def __init__(
         self,
@@ -28,6 +33,24 @@ class _Subscription:
         self.resource_id = resource_id
         self.unsubscribe_fn = unsubscribe_fn
         self.timer = None
+
+
+class _SyncSubscription:
+    __slots__: tuple[str, ...] = ("resource_id", "unsubscribe_fn", "expires_at")
+
+    resource_id: str
+    unsubscribe_fn: Callable[[], None]
+    expires_at: float
+
+    def __init__(
+        self,
+        resource_id: str,
+        unsubscribe_fn: Callable[[], None],
+        expires_at: float,
+    ) -> None:
+        self.resource_id = resource_id
+        self.unsubscribe_fn = unsubscribe_fn
+        self.expires_at = expires_at
 
 
 class AsyncEventSubscriptionManager:
@@ -117,17 +140,34 @@ class AsyncEventSubscriptionManager:
 
 
 class SyncEventSubscriptionManager:
-    """Thread-safe variant of AsyncEventSubscriptionManager."""
+    """Thread-safe variant of AsyncEventSubscriptionManager.
+
+    All subscriptions share ONE lazily started expiry worker thread instead of a
+    ``threading.Timer`` (a dedicated OS thread) per subscription. Listing many
+    sandboxes therefore costs one thread total, not one thread each
+    (https://github.com/daytona/clients/issues/108). ``refresh()`` only bumps the
+    subscription deadline — it never creates or cancels threads.
+    """
 
     _dispatcher: SyncEventDispatcher | None
-    _subscriptions: dict[str, _Subscription]
-    _lock: threading.Lock
+    _subscriptions: dict[str, _SyncSubscription]
+    _expiry_heap: list[tuple[float, str]]
+    _cond: threading.Condition
+    _worker: threading.Thread | None
+    _ttl: float
     _closed: bool
 
-    def __init__(self, dispatcher: SyncEventDispatcher | None) -> None:
+    def __init__(self, dispatcher: SyncEventDispatcher | None, ttl_seconds: float = _SUBSCRIPTION_TTL) -> None:
         self._dispatcher = dispatcher
         self._subscriptions = {}
-        self._lock = threading.Lock()
+        # Min-heap of (deadline, sub_id). Entries are lazily invalidated: a popped
+        # entry is discarded when its subscription is gone, or re-pushed at the
+        # current deadline when the subscription was refreshed in the meantime.
+        # Invariant: every live subscription has at least one heap entry.
+        self._expiry_heap = []
+        self._cond = threading.Condition()
+        self._worker = None
+        self._ttl = ttl_seconds
         self._closed = False
 
     @property
@@ -146,21 +186,27 @@ class SyncEventSubscriptionManager:
         unsubscribe_fn = self._dispatcher.subscribe(resource_id, handler, events)
 
         sub_id = uuid.uuid4().hex
-        sub = _Subscription(resource_id=resource_id, unsubscribe_fn=unsubscribe_fn)
+        sub = _SyncSubscription(
+            resource_id=resource_id,
+            unsubscribe_fn=unsubscribe_fn,
+            expires_at=time.monotonic() + self._ttl,
+        )
 
-        with self._lock:
+        with self._cond:
             if self._closed:
                 # shutdown() raced between the check above and here — undo the
                 # dispatcher listener we just created instead of leaking it.
                 unsubscribe_fn()
                 return ""
             self._subscriptions[sub_id] = sub
-            self._start_timer_locked(sub_id)
+            heapq.heappush(self._expiry_heap, (sub.expires_at, sub_id))
+            self._ensure_worker_locked()
+            self._cond.notify()
 
         return sub_id
 
     def refresh(self, sub_id: str) -> bool:
-        with self._lock:
+        with self._cond:
             if self._closed:
                 return False
 
@@ -168,54 +214,74 @@ class SyncEventSubscriptionManager:
             if sub is None:
                 return False
 
-            self._start_timer_locked(sub_id)
+            # No heap entry or worker wake-up needed: when the old deadline pops,
+            # the worker sees the newer expires_at and re-queues the subscription.
+            sub.expires_at = time.monotonic() + self._ttl
             return True
 
     def unsubscribe(self, sub_id: str) -> None:
-        with self._lock:
+        with self._cond:
             sub = self._subscriptions.pop(sub_id, None)
             if sub is None:
                 return
-            if sub.timer is not None:
-                sub.timer.cancel()
+            # The stale heap entry is discarded when the worker pops it.
 
         sub.unsubscribe_fn()
 
-    # ------------------------------------------------------------------
-    # Timer management — must be called while holding self._lock.
-    # ------------------------------------------------------------------
+    def _ensure_worker_locked(self) -> None:
+        """Start the shared expiry worker if it is not running. Caller holds self._cond."""
+        if self._worker is None:
+            worker = threading.Thread(
+                target=self._expiry_loop,
+                name="daytona-subscription-expiry",
+                daemon=True,
+            )
+            self._worker = worker
+            worker.start()
 
-    def _start_timer_locked(self, sub_id: str) -> None:
-        sub = self._subscriptions.get(sub_id)
-        if sub is None:
-            return
+    def _expiry_loop(self) -> None:
+        while True:
+            expired: list[_SyncSubscription] = []
+            with self._cond:
+                while not expired:
+                    if self._closed:
+                        return
+                    if not self._expiry_heap:
+                        # No live subscriptions remain (see heap invariant above):
+                        # exit and let the next subscribe() start a fresh worker.
+                        self._worker = None
+                        return
+                    now = time.monotonic()
+                    deadline = self._expiry_heap[0][0]
+                    if deadline > now:
+                        _ = self._cond.wait(deadline - now)
+                        continue
+                    while self._expiry_heap and self._expiry_heap[0][0] <= now:
+                        _, sub_id = heapq.heappop(self._expiry_heap)
+                        sub = self._subscriptions.get(sub_id)
+                        if sub is None:
+                            continue
+                        if sub.expires_at > now:
+                            heapq.heappush(self._expiry_heap, (sub.expires_at, sub_id))
+                            continue
+                        del self._subscriptions[sub_id]
+                        expired.append(sub)
 
-        if sub.timer is not None:
-            sub.timer.cancel()
-
-        current_timer: threading.Timer | None = None
-
-        def _expire() -> None:
-            with self._lock:
-                s = self._subscriptions.get(sub_id)
-                if s is None or s.timer is not current_timer:
-                    return
-                _ = self._subscriptions.pop(sub_id, None)
-
-            s.unsubscribe_fn()
-
-        current_timer = threading.Timer(_SUBSCRIPTION_TTL, _expire)
-        current_timer.daemon = True
-        sub.timer = current_timer
-        current_timer.start()
+            for sub in expired:
+                try:
+                    sub.unsubscribe_fn()
+                except Exception:  # pylint: disable=broad-exception-caught
+                    # One failing dispatcher unsubscribe must not kill the shared
+                    # worker and silently stop expiry for every other subscription.
+                    logger.debug("Unsubscribe error for %s", sub.resource_id, exc_info=True)
 
     def shutdown(self) -> None:
-        with self._lock:
+        with self._cond:
             self._closed = True
             subs = list(self._subscriptions.values())
             self._subscriptions.clear()
+            self._expiry_heap.clear()
+            self._cond.notify_all()
 
         for sub in subs:
-            if sub.timer is not None:
-                sub.timer.cancel()
             sub.unsubscribe_fn()
