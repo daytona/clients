@@ -77,7 +77,9 @@ class TestSyncEventSubscriptionManagerThreadUsage:
         for _ in range(100):
             assert manager.refresh(sub_id)
 
-        assert threading.active_count() == threads_before
+        # <= not ==: a dying worker from an earlier test may exit mid-test and
+        # lower the global count; only an increase would indicate spawned threads.
+        assert threading.active_count() <= threads_before
         manager.shutdown()
 
 
@@ -147,12 +149,13 @@ class TestSyncEventSubscriptionManagerLifecycle:
         dispatcher = FakeSyncDispatcher()
         manager = SyncEventSubscriptionManager(dispatcher, ttl_seconds=60.0)
         manager.subscribe("sandbox-1", _noop_handler, ["sandbox.state.updated"])
-        assert threading.active_count() >= 2
+        worker = manager._worker  # pylint: disable=protected-access
+        assert worker is not None and worker.is_alive()
 
-        threads_expected = threading.active_count() - 1
         manager.shutdown()
 
-        assert _wait_until(lambda: threading.active_count() == threads_expected)
+        worker.join(timeout=5.0)
+        assert not worker.is_alive()
 
     def test_subscribe_without_dispatcher_is_noop(self):
         manager = SyncEventSubscriptionManager(None)
@@ -196,10 +199,12 @@ class TestSyncEventSubscriptionManagerRobustness:
     def test_worker_exits_promptly_after_last_unsubscribe(self):
         dispatcher = FakeSyncDispatcher()
         manager = SyncEventSubscriptionManager(dispatcher, ttl_seconds=60.0)
-        threads_before = threading.active_count()
         sub_id = manager.subscribe("sandbox-1", _noop_handler, ["sandbox.state.updated"])
+        worker = manager._worker  # pylint: disable=protected-access
+        assert worker is not None and worker.is_alive()
 
         manager.unsubscribe(sub_id)
 
-        assert _wait_until(lambda: threading.active_count() == threads_before, timeout=2.0)
+        worker.join(timeout=2.0)
+        assert not worker.is_alive()
         manager.shutdown()

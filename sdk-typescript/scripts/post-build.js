@@ -15,7 +15,18 @@ const writeJson = (p, data) => fs.writeFileSync(p, JSON.stringify(data, null, 2)
 const generatedDeps = readJson(path.join(cjsDir, 'package.json')).dependencies ?? {}
 
 const pkg = readJson(path.join(sourceDir, 'package.json'))
-pkg.dependencies = { ...generatedDeps }
+const rootDeps = readJson(path.join(workspaceRoot, 'package.json')).dependencies
+// The generated deps only contain packages imported directly from source, so
+// they miss runtime deps that strict resolvers (Yarn PnP, pnpm) require to be
+// declared:
+//   - tslib: tsconfig.base.json sets "importHelpers": true, so emitted JS
+//     imports helpers from tslib at runtime
+//   - ws: isomorphic-ws declares ws as a peer dependency and require()s it in
+//     Node; an ancestor (this package) must provide it
+for (const name of ['tslib', 'ws']) {
+  if (!rootDeps[name]) throw new Error(`${name} must be declared in the workspace root dependencies`)
+}
+pkg.dependencies = { tslib: rootDeps.tslib, ws: rootDeps.ws, ...generatedDeps }
 for (const name of ['api-client', 'toolbox-api-client', 'analytics-api-client']) {
   const distPkg = readJson(path.join(workspaceRoot, 'dist', name, 'package.json'))
   pkg.dependencies[`@daytona/${name}`] = distPkg.version

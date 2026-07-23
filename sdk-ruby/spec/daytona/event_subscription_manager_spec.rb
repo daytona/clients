@@ -84,7 +84,9 @@ RSpec.describe Daytona::EventSubscriptionManager do
 
       100.times { expect(manager.refresh(sub_id)).to be(true) }
 
-      expect(Thread.list.size).to eq(threads_before)
+      # <= not ==: a dying worker from an earlier example may exit mid-test and
+      # lower the global count; only an increase would indicate spawned threads.
+      expect(Thread.list.size).to be <= threads_before
       manager.shutdown
     end
 
@@ -118,12 +120,14 @@ RSpec.describe Daytona::EventSubscriptionManager do
 
     it 'lets the worker exit promptly after the last subscription is removed' do
       manager = described_class.new(dispatcher, ttl_seconds: 60)
-      threads_before = Thread.list.size
       sub_id = manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
+      worker = manager.instance_variable_get(:@worker)
+      expect(worker).to be_alive
 
       manager.unsubscribe(sub_id)
 
-      expect(wait_until(timeout: 2) { Thread.list.size == threads_before }).to be(true)
+      worker.join(2)
+      expect(worker).not_to be_alive
       manager.shutdown
     end
   end
@@ -157,7 +161,7 @@ RSpec.describe Daytona::EventSubscriptionManager do
       manager = described_class.new(dispatcher, ttl_seconds: 60)
       manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
 
-      expect(Thread.list.map(&:name)).to include('daytona-subscription-expiry')
+      expect(manager.instance_variable_get(:@worker).name).to eq('daytona-subscription-expiry')
       manager.shutdown
     end
   end
@@ -177,11 +181,13 @@ RSpec.describe Daytona::EventSubscriptionManager do
     it 'stops the expiry worker' do
       manager = described_class.new(dispatcher, ttl_seconds: 60)
       manager.subscribe(resource_id: 'sandbox-1', handler:, events:)
-      threads_with_worker = Thread.list.size
+      worker = manager.instance_variable_get(:@worker)
+      expect(worker).to be_alive
 
       manager.shutdown
 
-      expect(wait_until { Thread.list.size == threads_with_worker - 1 }).to be(true)
+      worker.join(5)
+      expect(worker).not_to be_alive
     end
   end
 end
