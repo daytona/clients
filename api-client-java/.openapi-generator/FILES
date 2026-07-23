@@ -34,6 +34,7 @@ src/main/java/io/daytona/api/client/api/SecretApi.java
 src/main/java/io/daytona/api/client/api/SnapshotsApi.java
 src/main/java/io/daytona/api/client/api/UsersApi.java
 src/main/java/io/daytona/api/client/api/VolumesApi.java
+src/main/java/io/daytona/api/client/api/WarmPoolsApi.java
 src/main/java/io/daytona/api/client/api/WebhooksApi.java
 src/main/java/io/daytona/api/client/auth/ApiKeyAuth.java
 src/main/java/io/daytona/api/client/auth/Authentication.java
@@ -69,6 +70,7 @@ src/main/java/io/daytona/api/client/model/CreateSecret.java
 src/main/java/io/daytona/api/client/model/CreateSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateUser.java
 src/main/java/io/daytona/api/client/model/CreateVolume.java
+src/main/java/io/daytona/api/client/model/CreateWarmPool.java
 src/main/java/io/daytona/api/client/model/DateFilter.java
 src/main/java/io/daytona/api/client/model/DaytonaConfiguration.java
 src/main/java/io/daytona/api/client/model/DockerRegistry.java
@@ -150,6 +152,7 @@ src/main/java/io/daytona/api/client/model/TraceSpan.java
 src/main/java/io/daytona/api/client/model/TraceSummary.java
 src/main/java/io/daytona/api/client/model/UpdateDockerRegistry.java
 src/main/java/io/daytona/api/client/model/UpdateJobStatus.java
+src/main/java/io/daytona/api/client/model/UpdateLastActivity.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationDefaultRegion.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationInvitation.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationMemberAccess.java
@@ -161,11 +164,13 @@ src/main/java/io/daytona/api/client/model/UpdateSandboxNetworkSettings.java
 src/main/java/io/daytona/api/client/model/UpdateSandboxSecrets.java
 src/main/java/io/daytona/api/client/model/UpdateSandboxStateDto.java
 src/main/java/io/daytona/api/client/model/UpdateSecret.java
+src/main/java/io/daytona/api/client/model/UpdateWarmPool.java
 src/main/java/io/daytona/api/client/model/Url.java
 src/main/java/io/daytona/api/client/model/User.java
 src/main/java/io/daytona/api/client/model/UserPublicKey.java
 src/main/java/io/daytona/api/client/model/VolumeDto.java
 src/main/java/io/daytona/api/client/model/VolumeState.java
+src/main/java/io/daytona/api/client/model/WarmPool.java
 src/main/java/io/daytona/api/client/model/WebhookAppPortalAccess.java
 src/main/java/io/daytona/api/client/model/WebhookEvent.java
 src/main/java/io/daytona/api/client/model/WebhookInitializationStatus.java
@@ -186,6 +191,7 @@ src/test/java/io/daytona/api/client/api/SecretApiTest.java
 src/test/java/io/daytona/api/client/api/SnapshotsApiTest.java
 src/test/java/io/daytona/api/client/api/UsersApiTest.java
 src/test/java/io/daytona/api/client/api/VolumesApiTest.java
+src/test/java/io/daytona/api/client/api/WarmPoolsApiTest.java
 src/test/java/io/daytona/api/client/api/WebhooksApiTest.java
 src/test/java/io/daytona/api/client/model/AccountProviderTest.java
 src/test/java/io/daytona/api/client/model/AdminCreateOrganizationTest.java
@@ -216,6 +222,7 @@ src/test/java/io/daytona/api/client/model/CreateSecretTest.java
 src/test/java/io/daytona/api/client/model/CreateSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateUserTest.java
 src/test/java/io/daytona/api/client/model/CreateVolumeTest.java
+src/test/java/io/daytona/api/client/model/CreateWarmPoolTest.java
 src/test/java/io/daytona/api/client/model/DateFilterTest.java
 src/test/java/io/daytona/api/client/model/DaytonaConfigurationTest.java
 src/test/java/io/daytona/api/client/model/DockerRegistryTest.java
@@ -297,6 +304,7 @@ src/test/java/io/daytona/api/client/model/TraceSpanTest.java
 src/test/java/io/daytona/api/client/model/TraceSummaryTest.java
 src/test/java/io/daytona/api/client/model/UpdateDockerRegistryTest.java
 src/test/java/io/daytona/api/client/model/UpdateJobStatusTest.java
+src/test/java/io/daytona/api/client/model/UpdateLastActivityTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationDefaultRegionTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationInvitationTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationMemberAccessTest.java
@@ -308,11 +316,13 @@ src/test/java/io/daytona/api/client/model/UpdateSandboxNetworkSettingsTest.java
 src/test/java/io/daytona/api/client/model/UpdateSandboxSecretsTest.java
 src/test/java/io/daytona/api/client/model/UpdateSandboxStateDtoTest.java
 src/test/java/io/daytona/api/client/model/UpdateSecretTest.java
+src/test/java/io/daytona/api/client/model/UpdateWarmPoolTest.java
 src/test/java/io/daytona/api/client/model/UrlTest.java
 src/test/java/io/daytona/api/client/model/UserPublicKeyTest.java
 src/test/java/io/daytona/api/client/model/UserTest.java
 src/test/java/io/daytona/api/client/model/VolumeDtoTest.java
 src/test/java/io/daytona/api/client/model/VolumeStateTest.java
+src/test/java/io/daytona/api/client/model/WarmPoolTest.java
 src/test/java/io/daytona/api/client/model/WebhookAppPortalAccessTest.java
 src/test/java/io/daytona/api/client/model/WebhookEventTest.java
 src/test/java/io/daytona/api/client/model/WebhookInitializationStatusTest.java

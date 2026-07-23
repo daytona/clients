@@ -1010,6 +1010,7 @@ func (c *Client) getPushAccessCredentials(ctx context.Context) (*PushAccessCrede
 		SessionToken:   creds.GetSessionToken(),
 		Bucket:         creds.GetBucket(),
 		OrganizationID: creds.GetOrganizationId(),
+		Region:         creds.GetRegion(),
 	}
 
 	return result, nil
@@ -1035,6 +1036,7 @@ func (c *Client) processImageContext(ctx context.Context, image *DockerImage) ([
 		SecretAccessKey: creds.Secret,
 		SessionToken:    &creds.SessionToken,
 		BucketName:      creds.Bucket,
+		Region:          creds.Region,
 	})
 
 	// Upload each context

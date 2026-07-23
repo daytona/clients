@@ -17,6 +17,7 @@ api_secret.go
 api_snapshots.go
 api_users.go
 api_volumes.go
+api_warm_pools.go
 api_webhooks.go
 client.go
 configuration.go
@@ -51,6 +52,7 @@ model_create_secret.go
 model_create_snapshot.go
 model_create_user.go
 model_create_volume.go
+model_create_warm_pool.go
 model_date_filter.go
 model_daytona_configuration.go
 model_docker_registry.go
@@ -132,6 +134,7 @@ model_trace_span.go
 model_trace_summary.go
 model_update_docker_registry.go
 model_update_job_status.go
+model_update_last_activity.go
 model_update_organization_default_region.go
 model_update_organization_invitation.go
 model_update_organization_member_access.go
@@ -143,11 +146,13 @@ model_update_sandbox_network_settings.go
 model_update_sandbox_secrets.go
 model_update_sandbox_state_dto.go
 model_update_secret.go
+model_update_warm_pool.go
 model_url.go
 model_user.go
 model_user_public_key.go
 model_volume_dto.go
 model_volume_state.go
+model_warm_pool.go
 model_webhook_app_portal_access.go
 model_webhook_event.go
 model_webhook_initialization_status.go

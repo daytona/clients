@@ -18,6 +18,7 @@ daytona_api_client_async/api/secret_api.py
 daytona_api_client_async/api/snapshots_api.py
 daytona_api_client_async/api/users_api.py
 daytona_api_client_async/api/volumes_api.py
+daytona_api_client_async/api/warm_pools_api.py
 daytona_api_client_async/api/webhooks_api.py
 daytona_api_client_async/api_client.py
 daytona_api_client_async/api_response.py
@@ -53,6 +54,7 @@ daytona_api_client_async/models/create_secret.py
 daytona_api_client_async/models/create_snapshot.py
 daytona_api_client_async/models/create_user.py
 daytona_api_client_async/models/create_volume.py
+daytona_api_client_async/models/create_warm_pool.py
 daytona_api_client_async/models/date_filter.py
 daytona_api_client_async/models/daytona_configuration.py
 daytona_api_client_async/models/docker_registry.py
@@ -134,6 +136,7 @@ daytona_api_client_async/models/trace_span.py
 daytona_api_client_async/models/trace_summary.py
 daytona_api_client_async/models/update_docker_registry.py
 daytona_api_client_async/models/update_job_status.py
+daytona_api_client_async/models/update_last_activity.py
 daytona_api_client_async/models/update_organization_default_region.py
 daytona_api_client_async/models/update_organization_invitation.py
 daytona_api_client_async/models/update_organization_member_access.py
@@ -145,11 +148,13 @@ daytona_api_client_async/models/update_sandbox_network_settings.py
 daytona_api_client_async/models/update_sandbox_secrets.py
 daytona_api_client_async/models/update_sandbox_state_dto.py
 daytona_api_client_async/models/update_secret.py
+daytona_api_client_async/models/update_warm_pool.py
 daytona_api_client_async/models/url.py
 daytona_api_client_async/models/user.py
 daytona_api_client_async/models/user_public_key.py
 daytona_api_client_async/models/volume_dto.py
 daytona_api_client_async/models/volume_state.py
+daytona_api_client_async/models/warm_pool.py
 daytona_api_client_async/models/webhook_app_portal_access.py
 daytona_api_client_async/models/webhook_event.py
 daytona_api_client_async/models/webhook_initialization_status.py

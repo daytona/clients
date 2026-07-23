@@ -144,6 +144,10 @@ export interface SandboxListItem {
      */
     'daemonVersion'?: string;
     /**
+     * Id of the warm pool this sandbox waits in; set only while it is an unclaimed member
+     */
+    'warmPoolId'?: string;
+    /**
      * The toolbox proxy URL for the sandbox
      */
     'toolboxProxyUrl': string;

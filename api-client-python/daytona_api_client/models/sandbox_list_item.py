@@ -63,9 +63,10 @@ class SandboxListItem(BaseModel):
     updated_at: Optional[StrictStr] = Field(default=None, description="The last update timestamp of the sandbox", serialization_alias="updatedAt")
     last_activity_at: Optional[StrictStr] = Field(default=None, description="The last activity timestamp of the sandbox", serialization_alias="lastActivityAt")
     daemon_version: Optional[StrictStr] = Field(default=None, description="The version of the daemon running in the sandbox", serialization_alias="daemonVersion")
+    warm_pool_id: Optional[StrictStr] = Field(default=None, description="Id of the warm pool this sandbox waits in; set only while it is an unclaimed member", serialization_alias="warmPoolId")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -153,6 +154,7 @@ class SandboxListItem(BaseModel):
             "updated_at": obj.get("updatedAt"),
             "last_activity_at": obj.get("lastActivityAt"),
             "daemon_version": obj.get("daemonVersion"),
+            "warm_pool_id": obj.get("warmPoolId"),
             "toolbox_proxy_url": obj.get("toolboxProxyUrl")
         })
         # store additional fields in additional_properties

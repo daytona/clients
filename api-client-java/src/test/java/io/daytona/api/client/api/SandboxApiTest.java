@@ -40,6 +40,7 @@ import io.daytona.api.client.model.SshAccessDto;
 import io.daytona.api.client.model.SshAccessValidationDto;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.TraceSpan;
+import io.daytona.api.client.model.UpdateLastActivity;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.api.client.model.UpdateSandboxStateDto;
@@ -75,6 +76,8 @@ public class SandboxApiTest {
 
     /**
      * Create sandbox backup
+     *
+     * Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
      *
      * @throws ApiException if the Api call fails
      */
@@ -424,6 +427,7 @@ public class SandboxApiTest {
         String name = null;
         String labels = null;
         Boolean includeErroredDeleted = null;
+        Boolean includeWarm = null;
         List<SandboxState> states = null;
         List<String> snapshots = null;
         List<String> regionIds = null;
@@ -442,7 +446,7 @@ public class SandboxApiTest {
         OffsetDateTime lastEventBefore = null;
         SandboxListSortField sort = null;
         SandboxListSortDirection order = null;
-        ListSandboxesResponse response = api.listSandboxes(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order);
+        ListSandboxesResponse response = api.listSandboxes(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order);
         // TODO: test validations
     }
 
@@ -667,7 +671,8 @@ public class SandboxApiTest {
     public void updateLastActivityTest() throws ApiException {
         String sandboxId = null;
         String xDaytonaOrganizationID = null;
-        api.updateLastActivity(sandboxId, xDaytonaOrganizationID);
+        UpdateLastActivity updateLastActivity = null;
+        api.updateLastActivity(sandboxId, xDaytonaOrganizationID, updateLastActivity);
         // TODO: test validations
     }
 

@@ -165,6 +165,11 @@ public class Sandbox {
   @javax.annotation.Nullable
   private Boolean recoverable;
 
+  public static final String SERIALIZED_NAME_WARM_POOL_ID = "warmPoolId";
+  @SerializedName(SERIALIZED_NAME_WARM_POOL_ID)
+  @javax.annotation.Nullable
+  private String warmPoolId;
+
   /**
    * The state of the backup
    */
@@ -226,11 +231,13 @@ public class Sandbox {
   }
 
   public static final String SERIALIZED_NAME_BACKUP_STATE = "backupState";
+  @Deprecated
   @SerializedName(SERIALIZED_NAME_BACKUP_STATE)
   @javax.annotation.Nullable
   private BackupStateEnum backupState;
 
   public static final String SERIALIZED_NAME_BACKUP_CREATED_AT = "backupCreatedAt";
+  @Deprecated
   @SerializedName(SERIALIZED_NAME_BACKUP_CREATED_AT)
   @javax.annotation.Nullable
   private String backupCreatedAt;
@@ -786,6 +793,26 @@ public class Sandbox {
   }
 
 
+  public Sandbox warmPoolId(@javax.annotation.Nullable String warmPoolId) {
+    this.warmPoolId = warmPoolId;
+    return this;
+  }
+
+  /**
+   * Id of the warm pool this sandbox waits in; set only while it is an unclaimed member.
+   * @return warmPoolId
+   */
+  @javax.annotation.Nullable
+  public String getWarmPoolId() {
+    return warmPoolId;
+  }
+
+  public void setWarmPoolId(@javax.annotation.Nullable String warmPoolId) {
+    this.warmPoolId = warmPoolId;
+  }
+
+
+  @Deprecated
   public Sandbox backupState(@javax.annotation.Nullable BackupStateEnum backupState) {
     this.backupState = backupState;
     return this;
@@ -794,17 +821,21 @@ public class Sandbox {
   /**
    * The state of the backup
    * @return backupState
+   * @deprecated
    */
+  @Deprecated
   @javax.annotation.Nullable
   public BackupStateEnum getBackupState() {
     return backupState;
   }
 
+  @Deprecated
   public void setBackupState(@javax.annotation.Nullable BackupStateEnum backupState) {
     this.backupState = backupState;
   }
 
 
+  @Deprecated
   public Sandbox backupCreatedAt(@javax.annotation.Nullable String backupCreatedAt) {
     this.backupCreatedAt = backupCreatedAt;
     return this;
@@ -813,12 +844,15 @@ public class Sandbox {
   /**
    * The creation timestamp of the last backup
    * @return backupCreatedAt
+   * @deprecated
    */
+  @Deprecated
   @javax.annotation.Nullable
   public String getBackupCreatedAt() {
     return backupCreatedAt;
   }
 
+  @Deprecated
   public void setBackupCreatedAt(@javax.annotation.Nullable String backupCreatedAt) {
     this.backupCreatedAt = backupCreatedAt;
   }
@@ -1192,6 +1226,7 @@ public class Sandbox {
         Objects.equals(this.desiredState, sandbox.desiredState) &&
         Objects.equals(this.errorReason, sandbox.errorReason) &&
         Objects.equals(this.recoverable, sandbox.recoverable) &&
+        Objects.equals(this.warmPoolId, sandbox.warmPoolId) &&
         Objects.equals(this.backupState, sandbox.backupState) &&
         Objects.equals(this.backupCreatedAt, sandbox.backupCreatedAt) &&
         Objects.equals(this.autoStopInterval, sandbox.autoStopInterval) &&
@@ -1214,7 +1249,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1242,6 +1277,7 @@ public class Sandbox {
     sb.append("    desiredState: ").append(toIndentedString(desiredState)).append("\n");
     sb.append("    errorReason: ").append(toIndentedString(errorReason)).append("\n");
     sb.append("    recoverable: ").append(toIndentedString(recoverable)).append("\n");
+    sb.append("    warmPoolId: ").append(toIndentedString(warmPoolId)).append("\n");
     sb.append("    backupState: ").append(toIndentedString(backupState)).append("\n");
     sb.append("    backupCreatedAt: ").append(toIndentedString(backupCreatedAt)).append("\n");
     sb.append("    autoStopInterval: ").append(toIndentedString(autoStopInterval)).append("\n");
@@ -1278,7 +1314,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
@@ -1342,6 +1378,9 @@ public class Sandbox {
       }
       if ((jsonObj.get("errorReason") != null && !jsonObj.get("errorReason").isJsonNull()) && !jsonObj.get("errorReason").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `errorReason` to be a primitive type in the JSON string but got `%s`", jsonObj.get("errorReason").toString()));
+      }
+      if ((jsonObj.get("warmPoolId") != null && !jsonObj.get("warmPoolId").isJsonNull()) && !jsonObj.get("warmPoolId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `warmPoolId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("warmPoolId").toString()));
       }
       if ((jsonObj.get("backupState") != null && !jsonObj.get("backupState").isJsonNull()) && !jsonObj.get("backupState").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `backupState` to be a primitive type in the JSON string but got `%s`", jsonObj.get("backupState").toString()));

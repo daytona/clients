@@ -33,6 +33,9 @@ module DaytonaApiClient
     # S3 bucket name
     attr_accessor :bucket
 
+    # Region for the storage backend (e.g. \"us-east-2\")
+    attr_accessor :region
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -41,7 +44,8 @@ module DaytonaApiClient
         :'session_token' => :'sessionToken',
         :'storage_url' => :'storageUrl',
         :'organization_id' => :'organizationId',
-        :'bucket' => :'bucket'
+        :'bucket' => :'bucket',
+        :'region' => :'region'
       }
     end
 
@@ -63,7 +67,8 @@ module DaytonaApiClient
         :'session_token' => :'String',
         :'storage_url' => :'String',
         :'organization_id' => :'String',
-        :'bucket' => :'String'
+        :'bucket' => :'String',
+        :'region' => :'String'
       }
     end
 
@@ -124,6 +129,12 @@ module DaytonaApiClient
       else
         self.bucket = nil
       end
+
+      if attributes.key?(:'region')
+        self.region = attributes[:'region']
+      else
+        self.region = nil
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -155,6 +166,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "bucket", bucket cannot be nil.')
       end
 
+      if @region.nil?
+        invalid_properties.push('invalid value for "region", region cannot be nil.')
+      end
+
       invalid_properties
     end
 
@@ -168,6 +183,7 @@ module DaytonaApiClient
       return false if @storage_url.nil?
       return false if @organization_id.nil?
       return false if @bucket.nil?
+      return false if @region.nil?
       true
     end
 
@@ -231,6 +247,16 @@ module DaytonaApiClient
       @bucket = bucket
     end
 
+    # Custom attribute writer method with validation
+    # @param [Object] region Value to be assigned
+    def region=(region)
+      if region.nil?
+        fail ArgumentError, 'region cannot be nil'
+      end
+
+      @region = region
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -241,7 +267,8 @@ module DaytonaApiClient
           session_token == o.session_token &&
           storage_url == o.storage_url &&
           organization_id == o.organization_id &&
-          bucket == o.bucket
+          bucket == o.bucket &&
+          region == o.region
     end
 
     # @see the `==` method
@@ -253,7 +280,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [access_key, secret, session_token, storage_url, organization_id, bucket].hash
+      [access_key, secret, session_token, storage_url, organization_id, bucket, region].hash
     end
 
     # Builds the object from hash

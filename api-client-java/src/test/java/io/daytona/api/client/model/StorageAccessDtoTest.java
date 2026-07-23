@@ -85,4 +85,12 @@ public class StorageAccessDtoTest {
         // TODO: test bucket
     }
 
+    /**
+     * Test the property 'region'
+     */
+    @Test
+    public void regionTest() {
+        // TODO: test region
+    }
+
 }

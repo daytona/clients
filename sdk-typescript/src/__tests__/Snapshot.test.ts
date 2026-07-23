@@ -141,6 +141,7 @@ describe('SnapshotService', () => {
         sessionToken: 'session',
         bucket: 'bucket',
         organizationId: 'org-1',
+        region: 'us-east-2',
       }),
     )
     mockDynamicImport.mockResolvedValue({ ObjectStorage })
@@ -152,6 +153,7 @@ describe('SnapshotService', () => {
 
     await expect(SnapshotService.processImageContext(objectStorageApi as never, image)).resolves.toEqual(['ctx-hash'])
     expect(objectStorageApi.getPushAccess).toHaveBeenCalledTimes(1)
+    expect(ObjectStorage).toHaveBeenCalledWith(expect.objectContaining({ region: 'us-east-2' }))
     expect(upload).toHaveBeenCalledWith('/tmp/context', 'org-1', '.')
   })
 

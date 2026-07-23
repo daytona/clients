@@ -277,6 +277,14 @@ public class SandboxListItemTest {
     }
 
     /**
+     * Test the property 'warmPoolId'
+     */
+    @Test
+    public void warmPoolIdTest() {
+        // TODO: test warmPoolId
+    }
+
+    /**
      * Test the property 'toolboxProxyUrl'
      */
     @Test

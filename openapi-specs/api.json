@@ -2571,6 +2571,16 @@
             }
           },
           {
+            "name": "includeWarm",
+            "required": false,
+            "in": "query",
+            "description": "Include unclaimed warm pool sandboxes (excluded by default)",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
             "name": "states",
             "required": false,
             "in": "query",
@@ -3717,6 +3727,8 @@
     },
     "/sandbox/{sandboxIdOrName}/backup": {
       "post": {
+        "deprecated": true,
+        "description": "Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.",
         "operationId": "createBackup",
         "parameters": [
           {
@@ -3740,7 +3752,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Sandbox backup has been initiated",
+            "description": "Sandbox backup request acknowledged (no-op)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4147,6 +4159,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLastActivity"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Last activity has been updated"
@@ -6547,6 +6569,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Sandbox not found. For members of the owning organization whose sandbox was deleted, the body carries code \"SANDBOX_DESTROYED\"."
           }
         },
         "security": [
@@ -7107,6 +7132,212 @@
         "summary": "Update job status",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/warm-pools": {
+      "get": {
+        "operationId": "listWarmPools",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of warm pools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WarmPool"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "List warm pools for the organization",
+        "tags": [
+          "warm-pools"
+        ]
+      },
+      "post": {
+        "operationId": "createWarmPool",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWarmPool"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The warm pool has been created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarmPool"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Create a warm pool",
+        "tags": [
+          "warm-pools"
+        ]
+      }
+    },
+    "/warm-pools/{id}": {
+      "patch": {
+        "operationId": "updateWarmPool",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Warm pool ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWarmPool"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The warm pool has been updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarmPool"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Update a warm pool size",
+        "tags": [
+          "warm-pools"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteWarmPool",
+        "parameters": [
+          {
+            "name": "X-Daytona-Organization-ID",
+            "in": "header",
+            "description": "Use with JWT to specify the organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Warm pool ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The warm pool has been deleted"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Delete a warm pool",
+        "tags": [
+          "warm-pools"
         ]
       }
     },
@@ -10992,17 +11223,20 @@
             "type": "number",
             "nullable": true
           },
-          "maxCpuPerGpuSandbox": {
+          "maxCpuPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "CPU maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxMemoryPerGpuSandbox": {
+          "maxMemoryPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Memory maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxDiskPerGpuSandbox": {
+          "maxDiskPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Disk maximum per requested GPU unit for GPU sandboxes."
           }
         },
         "required": [
@@ -11020,9 +11254,9 @@
           "maxMemoryPerSandbox",
           "maxDiskPerSandbox",
           "maxDiskPerNonEphemeralSandbox",
-          "maxCpuPerGpuSandbox",
-          "maxMemoryPerGpuSandbox",
-          "maxDiskPerGpuSandbox"
+          "maxCpuPerGpu",
+          "maxMemoryPerGpu",
+          "maxDiskPerGpu"
         ]
       },
       "OrganizationUsageOverview": {
@@ -11223,17 +11457,20 @@
             "type": "number",
             "nullable": true
           },
-          "maxCpuPerGpuSandbox": {
+          "maxCpuPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "CPU maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxMemoryPerGpuSandbox": {
+          "maxMemoryPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Memory maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxDiskPerGpuSandbox": {
+          "maxDiskPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Disk maximum per requested GPU unit for GPU sandboxes."
           }
         },
         "required": [
@@ -12091,6 +12328,10 @@
             "description": "The version of the daemon running in the sandbox",
             "example": "1.0.0"
           },
+          "warmPoolId": {
+            "type": "string",
+            "description": "Id of the warm pool this sandbox waits in; set only while it is an unclaimed member"
+          },
           "toolboxProxyUrl": {
             "type": "string",
             "description": "The toolbox proxy URL for the sandbox",
@@ -12328,6 +12569,10 @@
             "description": "Whether the sandbox error is recoverable.",
             "example": true
           },
+          "warmPoolId": {
+            "type": "string",
+            "description": "Id of the warm pool this sandbox waits in; set only while it is an unclaimed member."
+          },
           "backupState": {
             "type": "string",
             "description": "The state of the backup",
@@ -12338,12 +12583,14 @@
               "Completed",
               "Error"
             ],
-            "example": "None"
+            "example": "None",
+            "deprecated": true
           },
           "backupCreatedAt": {
             "type": "string",
             "description": "The creation timestamp of the last backup",
-            "example": "2024-10-01T12:00:00Z"
+            "example": "2024-10-01T12:00:00Z",
+            "deprecated": true
           },
           "autoStopInterval": {
             "type": "number",
@@ -12640,7 +12887,7 @@
           },
           "linkedSandbox": {
             "type": "string",
-            "description": "ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.",
+            "description": "ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.",
             "example": "sandbox123"
           },
           "secrets": {
@@ -12777,6 +13024,16 @@
             "type": "string",
             "description": "The name for the forked sandbox. If not provided, a unique name will be generated.",
             "example": "my-forked-sandbox"
+          }
+        }
+      },
+      "UpdateLastActivity": {
+        "type": "object",
+        "properties": {
+          "activityType": {
+            "type": "string",
+            "description": "Optional type of interaction that reset the activity timer.",
+            "example": "toolbox"
           }
         }
       },
@@ -13028,17 +13285,20 @@
             "type": "number",
             "nullable": true
           },
-          "maxCpuPerGpuSandbox": {
+          "maxCpuPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "CPU maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxMemoryPerGpuSandbox": {
+          "maxMemoryPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Memory maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxDiskPerGpuSandbox": {
+          "maxDiskPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Disk maximum per requested GPU unit for GPU sandboxes."
           }
         },
         "required": [
@@ -13053,9 +13313,9 @@
           "maxMemoryPerSandbox",
           "maxDiskPerSandbox",
           "maxDiskPerNonEphemeralSandbox",
-          "maxCpuPerGpuSandbox",
-          "maxMemoryPerGpuSandbox",
-          "maxDiskPerGpuSandbox"
+          "maxCpuPerGpu",
+          "maxMemoryPerGpu",
+          "maxDiskPerGpu"
         ]
       },
       "CreateRunner": {
@@ -13805,6 +14065,7 @@
           "building",
           "pending",
           "pulling",
+          "snapshotting",
           "active",
           "inactive",
           "error",
@@ -14242,6 +14503,113 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "WarmPool": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "snapshot": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "pool": {
+            "type": "number",
+            "description": "Desired number of warm sandboxes"
+          },
+          "currentSize": {
+            "type": "number",
+            "description": "Current number of ready warm sandboxes in the pool"
+          },
+          "cpu": {
+            "type": "number"
+          },
+          "mem": {
+            "type": "number"
+          },
+          "disk": {
+            "type": "number"
+          },
+          "osUser": {
+            "type": "string"
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "errorReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "snapshot",
+          "target",
+          "pool",
+          "currentSize",
+          "cpu",
+          "mem",
+          "disk",
+          "osUser",
+          "env",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateWarmPool": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "description": "The snapshot (id or name) to keep warm sandboxes for. A pool only serves sandbox creates that use this snapshot with the default OS user and no custom env, volumes or secrets.",
+            "example": "my-snapshot"
+          },
+          "pool": {
+            "type": "number",
+            "description": "Number of warm sandboxes to keep ready (capped by the organization quota)",
+            "example": 3,
+            "minimum": 1
+          },
+          "target": {
+            "type": "string",
+            "description": "Target region for the warm pool. Defaults to the organization default region.",
+            "example": "us"
+          }
+        },
+        "required": [
+          "snapshot",
+          "pool"
+        ]
+      },
+      "UpdateWarmPool": {
+        "type": "object",
+        "properties": {
+          "pool": {
+            "type": "number",
+            "description": "New desired number of warm sandboxes (0 drains the pool)",
+            "example": 5,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "pool"
         ]
       },
       "CreateDockerRegistry": {
@@ -15010,17 +15378,20 @@
             "type": "number",
             "nullable": true
           },
-          "maxCpuPerGpuSandbox": {
+          "maxCpuPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "CPU maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxMemoryPerGpuSandbox": {
+          "maxMemoryPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Memory maximum per requested GPU unit for GPU sandboxes."
           },
-          "maxDiskPerGpuSandbox": {
+          "maxDiskPerGpu": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "description": "Disk maximum per requested GPU unit for GPU sandboxes."
           }
         },
         "required": [
@@ -15127,6 +15498,11 @@
             "type": "string",
             "description": "S3 bucket name",
             "example": "daytona"
+          },
+          "region": {
+            "type": "string",
+            "description": "Region for the storage backend (e.g. \"us-east-2\")",
+            "example": "us-east-1"
           }
         },
         "required": [
@@ -15135,7 +15511,8 @@
           "sessionToken",
           "storageUrl",
           "organizationId",
-          "bucket"
+          "bucket",
+          "region"
         ]
       },
       "LogEntry": {

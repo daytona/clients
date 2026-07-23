@@ -53,6 +53,7 @@ import io.daytona.api.client.model.SshAccessDto;
 import io.daytona.api.client.model.SshAccessValidationDto;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.TraceSpan;
+import io.daytona.api.client.model.UpdateLastActivity;
 import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.api.client.model.UpdateSandboxStateDto;
@@ -248,9 +249,11 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox backup has been initiated </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox backup request acknowledged (no-op) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call createBackupCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
@@ -301,6 +304,7 @@ public class SandboxApi {
         return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
+    @Deprecated
     @SuppressWarnings("rawtypes")
     private okhttp3.Call createBackupValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'sandboxIdOrName' is set
@@ -314,7 +318,7 @@ public class SandboxApi {
 
     /**
      * Create sandbox backup
-     * 
+     * Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return Sandbox
@@ -323,9 +327,11 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox backup has been initiated </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox backup request acknowledged (no-op) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public Sandbox createBackup(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
         ApiResponse<Sandbox> localVarResp = createBackupWithHttpInfo(sandboxIdOrName, xDaytonaOrganizationID);
         return localVarResp.getData();
@@ -333,7 +339,7 @@ public class SandboxApi {
 
     /**
      * Create sandbox backup
-     * 
+     * Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return ApiResponse&lt;Sandbox&gt;
@@ -342,9 +348,11 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox backup has been initiated </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox backup request acknowledged (no-op) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public ApiResponse<Sandbox> createBackupWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
         okhttp3.Call localVarCall = createBackupValidateBeforeCall(sandboxIdOrName, xDaytonaOrganizationID, null);
         Type localVarReturnType = new TypeToken<Sandbox>(){}.getType();
@@ -353,7 +361,7 @@ public class SandboxApi {
 
     /**
      * Create sandbox backup (asynchronously)
-     * 
+     * Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback The callback to be executed when the API call finishes
@@ -363,9 +371,11 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox backup has been initiated </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox backup request acknowledged (no-op) </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call createBackupAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Sandbox> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = createBackupValidateBeforeCall(sandboxIdOrName, xDaytonaOrganizationID, _callback);
@@ -3623,6 +3633,7 @@ public class SandboxApi {
      * @param name Filter by name prefix (case-insensitive) (optional)
      * @param labels JSON encoded labels to filter by (optional)
      * @param includeErroredDeleted Include results with errored state and deleted desired state (optional, default to false)
+     * @param includeWarm Include unclaimed warm pool sandboxes (excluded by default) (optional, default to false)
      * @param states List of states to filter by. (optional)
      * @param snapshots List of snapshot names to filter by (optional)
      * @param regionIds List of regions IDs to filter by (optional)
@@ -3651,7 +3662,7 @@ public class SandboxApi {
         <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listSandboxesCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call listSandboxesCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable Boolean includeWarm, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -3698,6 +3709,10 @@ public class SandboxApi {
 
         if (includeErroredDeleted != null) {
             localVarQueryParams.addAll(localVarApiClient.parameterToPair("includeErroredDeleted", includeErroredDeleted));
+        }
+
+        if (includeWarm != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("includeWarm", includeWarm));
         }
 
         if (states != null) {
@@ -3797,8 +3812,8 @@ public class SandboxApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call listSandboxesValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback _callback) throws ApiException {
-        return listSandboxesCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, _callback);
+    private okhttp3.Call listSandboxesValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable Boolean includeWarm, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback _callback) throws ApiException {
+        return listSandboxesCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, _callback);
 
     }
 
@@ -3812,6 +3827,7 @@ public class SandboxApi {
      * @param name Filter by name prefix (case-insensitive) (optional)
      * @param labels JSON encoded labels to filter by (optional)
      * @param includeErroredDeleted Include results with errored state and deleted desired state (optional, default to false)
+     * @param includeWarm Include unclaimed warm pool sandboxes (excluded by default) (optional, default to false)
      * @param states List of states to filter by. (optional)
      * @param snapshots List of snapshot names to filter by (optional)
      * @param regionIds List of regions IDs to filter by (optional)
@@ -3839,8 +3855,8 @@ public class SandboxApi {
         <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public ListSandboxesResponse listSandboxes(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order) throws ApiException {
-        ApiResponse<ListSandboxesResponse> localVarResp = listSandboxesWithHttpInfo(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order);
+    public ListSandboxesResponse listSandboxes(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable Boolean includeWarm, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order) throws ApiException {
+        ApiResponse<ListSandboxesResponse> localVarResp = listSandboxesWithHttpInfo(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order);
         return localVarResp.getData();
     }
 
@@ -3854,6 +3870,7 @@ public class SandboxApi {
      * @param name Filter by name prefix (case-insensitive) (optional)
      * @param labels JSON encoded labels to filter by (optional)
      * @param includeErroredDeleted Include results with errored state and deleted desired state (optional, default to false)
+     * @param includeWarm Include unclaimed warm pool sandboxes (excluded by default) (optional, default to false)
      * @param states List of states to filter by. (optional)
      * @param snapshots List of snapshot names to filter by (optional)
      * @param regionIds List of regions IDs to filter by (optional)
@@ -3881,8 +3898,8 @@ public class SandboxApi {
         <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<ListSandboxesResponse> listSandboxesWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order) throws ApiException {
-        okhttp3.Call localVarCall = listSandboxesValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, null);
+    public ApiResponse<ListSandboxesResponse> listSandboxesWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable Boolean includeWarm, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order) throws ApiException {
+        okhttp3.Call localVarCall = listSandboxesValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, null);
         Type localVarReturnType = new TypeToken<ListSandboxesResponse>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
@@ -3897,6 +3914,7 @@ public class SandboxApi {
      * @param name Filter by name prefix (case-insensitive) (optional)
      * @param labels JSON encoded labels to filter by (optional)
      * @param includeErroredDeleted Include results with errored state and deleted desired state (optional, default to false)
+     * @param includeWarm Include unclaimed warm pool sandboxes (excluded by default) (optional, default to false)
      * @param states List of states to filter by. (optional)
      * @param snapshots List of snapshot names to filter by (optional)
      * @param regionIds List of regions IDs to filter by (optional)
@@ -3925,9 +3943,9 @@ public class SandboxApi {
         <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listSandboxesAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback<ListSandboxesResponse> _callback) throws ApiException {
+    public okhttp3.Call listSandboxesAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String id, @javax.annotation.Nullable String name, @javax.annotation.Nullable String labels, @javax.annotation.Nullable Boolean includeErroredDeleted, @javax.annotation.Nullable Boolean includeWarm, @javax.annotation.Nullable List<SandboxState> states, @javax.annotation.Nullable List<String> snapshots, @javax.annotation.Nullable List<String> regionIds, @javax.annotation.Nullable List<SandboxClass> sandboxClasses, @javax.annotation.Nullable BigDecimal minCpu, @javax.annotation.Nullable BigDecimal maxCpu, @javax.annotation.Nullable BigDecimal minMemoryGiB, @javax.annotation.Nullable BigDecimal maxMemoryGiB, @javax.annotation.Nullable BigDecimal minDiskGiB, @javax.annotation.Nullable BigDecimal maxDiskGiB, @javax.annotation.Nullable Boolean isPublic, @javax.annotation.Nullable Boolean isRecoverable, @javax.annotation.Nullable OffsetDateTime createdAtAfter, @javax.annotation.Nullable OffsetDateTime createdAtBefore, @javax.annotation.Nullable OffsetDateTime lastEventAfter, @javax.annotation.Nullable OffsetDateTime lastEventBefore, @javax.annotation.Nullable SandboxListSortField sort, @javax.annotation.Nullable SandboxListSortDirection order, final ApiCallback<ListSandboxesResponse> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = listSandboxesValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, _callback);
+        okhttp3.Call localVarCall = listSandboxesValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, sort, order, _callback);
         Type localVarReturnType = new TypeToken<ListSandboxesResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
@@ -6085,6 +6103,7 @@ public class SandboxApi {
      * Build call for updateLastActivity
      * @param sandboxId ID of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param updateLastActivity  (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -6095,7 +6114,7 @@ public class SandboxApi {
         <tr><td> 201 </td><td> Last activity has been updated </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call updateLastActivityCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call updateLastActivityCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable UpdateLastActivity updateLastActivity, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -6109,7 +6128,7 @@ public class SandboxApi {
             basePath = null;
         }
 
-        Object localVarPostBody = null;
+        Object localVarPostBody = updateLastActivity;
 
         // create path and map variables
         String localVarPath = "/sandbox/{sandboxId}/last-activity"
@@ -6129,6 +6148,7 @@ public class SandboxApi {
         }
 
         final String[] localVarContentTypes = {
+            "application/json"
         };
         final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
         if (localVarContentType != null) {
@@ -6145,13 +6165,13 @@ public class SandboxApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateLastActivityValidateBeforeCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call updateLastActivityValidateBeforeCall(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable UpdateLastActivity updateLastActivity, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'sandboxId' is set
         if (sandboxId == null) {
             throw new ApiException("Missing the required parameter 'sandboxId' when calling updateLastActivity(Async)");
         }
 
-        return updateLastActivityCall(sandboxId, xDaytonaOrganizationID, _callback);
+        return updateLastActivityCall(sandboxId, xDaytonaOrganizationID, updateLastActivity, _callback);
 
     }
 
@@ -6160,6 +6180,7 @@ public class SandboxApi {
      * 
      * @param sandboxId ID of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param updateLastActivity  (optional)
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
@@ -6168,8 +6189,8 @@ public class SandboxApi {
         <tr><td> 201 </td><td> Last activity has been updated </td><td>  -  </td></tr>
      </table>
      */
-    public void updateLastActivity(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
-        updateLastActivityWithHttpInfo(sandboxId, xDaytonaOrganizationID);
+    public void updateLastActivity(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable UpdateLastActivity updateLastActivity) throws ApiException {
+        updateLastActivityWithHttpInfo(sandboxId, xDaytonaOrganizationID, updateLastActivity);
     }
 
     /**
@@ -6177,6 +6198,7 @@ public class SandboxApi {
      * 
      * @param sandboxId ID of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param updateLastActivity  (optional)
      * @return ApiResponse&lt;Void&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -6186,8 +6208,8 @@ public class SandboxApi {
         <tr><td> 201 </td><td> Last activity has been updated </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Void> updateLastActivityWithHttpInfo(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
-        okhttp3.Call localVarCall = updateLastActivityValidateBeforeCall(sandboxId, xDaytonaOrganizationID, null);
+    public ApiResponse<Void> updateLastActivityWithHttpInfo(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable UpdateLastActivity updateLastActivity) throws ApiException {
+        okhttp3.Call localVarCall = updateLastActivityValidateBeforeCall(sandboxId, xDaytonaOrganizationID, updateLastActivity, null);
         return localVarApiClient.execute(localVarCall);
     }
 
@@ -6196,6 +6218,7 @@ public class SandboxApi {
      * 
      * @param sandboxId ID of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param updateLastActivity  (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -6206,9 +6229,9 @@ public class SandboxApi {
         <tr><td> 201 </td><td> Last activity has been updated </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call updateLastActivityAsync(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Void> _callback) throws ApiException {
+    public okhttp3.Call updateLastActivityAsync(@javax.annotation.Nonnull String sandboxId, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable UpdateLastActivity updateLastActivity, final ApiCallback<Void> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = updateLastActivityValidateBeforeCall(sandboxId, xDaytonaOrganizationID, _callback);
+        okhttp3.Call localVarCall = updateLastActivityValidateBeforeCall(sandboxId, xDaytonaOrganizationID, updateLastActivity, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }

@@ -25,9 +25,9 @@ module Daytona
     # @param aws_secret_access_key [String] The secret access key for the object storage service
     # @param aws_session_token [String] The session token for the object storage service
     # @param bucket_name [String] The name of the bucket to use (defaults to "daytona-volume-builds")
-    # @param region [String] AWS region (defaults to us-east-1)
+    # @param region [String] Region of the storage backend
     def initialize(endpoint_url:, aws_access_key_id:, aws_secret_access_key:, aws_session_token:, # rubocop:disable Metrics/ParameterLists
-                   bucket_name: DEFAULT_BUCKET_NAME, region: DEFAULT_REGION)
+                   region:, bucket_name: DEFAULT_BUCKET_NAME)
       @bucket_name = bucket_name
       @s3_client = Aws::S3::Client.new(
         region:,
@@ -165,8 +165,5 @@ module Daytona
 
     DEFAULT_BUCKET_NAME = 'daytona-volume-builds'
     private_constant :DEFAULT_BUCKET_NAME
-
-    DEFAULT_REGION = 'us-east-1'
-    private_constant :DEFAULT_REGION
   end
 end

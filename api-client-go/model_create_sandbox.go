@@ -64,7 +64,7 @@ type CreateSandbox struct {
 	Volumes []SandboxVolume `json:"volumes,omitempty"`
 	// Build information for the sandbox
 	BuildInfo *CreateBuildInfo `json:"buildInfo,omitempty"`
-	// ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
+	// ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.
 	LinkedSandbox *string `json:"linkedSandbox,omitempty"`
 	// Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
 	Secrets []map[string]string `json:"secrets,omitempty"`

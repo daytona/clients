@@ -84,6 +84,7 @@ module DaytonaApiClient
     end
 
     # Create sandbox backup
+    # Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
@@ -94,6 +95,7 @@ module DaytonaApiClient
     end
 
     # Create sandbox backup
+    # Deprecated: backups are managed automatically. This endpoint is a no-op kept for compatibility.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
@@ -1706,6 +1708,7 @@ module DaytonaApiClient
     # @option opts [String] :name Filter by name prefix (case-insensitive)
     # @option opts [String] :labels JSON encoded labels to filter by
     # @option opts [Boolean] :include_errored_deleted Include results with errored state and deleted desired state (default to false)
+    # @option opts [Boolean] :include_warm Include unclaimed warm pool sandboxes (excluded by default) (default to false)
     # @option opts [Array<SandboxState>] :states List of states to filter by.
     # @option opts [Array<String>] :snapshots List of snapshot names to filter by
     # @option opts [Array<String>] :region_ids List of regions IDs to filter by
@@ -1740,6 +1743,7 @@ module DaytonaApiClient
     # @option opts [String] :name Filter by name prefix (case-insensitive)
     # @option opts [String] :labels JSON encoded labels to filter by
     # @option opts [Boolean] :include_errored_deleted Include results with errored state and deleted desired state (default to false)
+    # @option opts [Boolean] :include_warm Include unclaimed warm pool sandboxes (excluded by default) (default to false)
     # @option opts [Array<SandboxState>] :states List of states to filter by.
     # @option opts [Array<String>] :snapshots List of snapshot names to filter by
     # @option opts [Array<String>] :region_ids List of regions IDs to filter by
@@ -1806,6 +1810,7 @@ module DaytonaApiClient
       query_params[:'name'] = opts[:'name'] if !opts[:'name'].nil?
       query_params[:'labels'] = opts[:'labels'] if !opts[:'labels'].nil?
       query_params[:'includeErroredDeleted'] = opts[:'include_errored_deleted'] if !opts[:'include_errored_deleted'].nil?
+      query_params[:'includeWarm'] = opts[:'include_warm'] if !opts[:'include_warm'].nil?
       query_params[:'states'] = @api_client.build_collection_param(opts[:'states'], :multi) if !opts[:'states'].nil?
       query_params[:'snapshots'] = @api_client.build_collection_param(opts[:'snapshots'], :multi) if !opts[:'snapshots'].nil?
       query_params[:'regionIds'] = @api_client.build_collection_param(opts[:'region_ids'], :multi) if !opts[:'region_ids'].nil?
@@ -2922,6 +2927,7 @@ module DaytonaApiClient
     # @param sandbox_id [String] ID of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [UpdateLastActivity] :update_last_activity 
     # @return [nil]
     def update_last_activity(sandbox_id, opts = {})
       update_last_activity_with_http_info(sandbox_id, opts)
@@ -2932,6 +2938,7 @@ module DaytonaApiClient
     # @param sandbox_id [String] ID of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @option opts [UpdateLastActivity] :update_last_activity 
     # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
     def update_last_activity_with_http_info(sandbox_id, opts = {})
       if @api_client.config.debugging
@@ -2949,13 +2956,18 @@ module DaytonaApiClient
 
       # header parameters
       header_params = opts[:header_params] || {}
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
       header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
 
       # form parameters
       form_params = opts[:form_params] || {}
 
       # http body (model)
-      post_body = opts[:debug_body]
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(opts[:'update_last_activity'])
 
       # return_type
       return_type = opts[:debug_return_type]
