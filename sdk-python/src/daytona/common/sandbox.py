@@ -74,6 +74,8 @@ class ListSandboxesQuery:
         created_at_before (datetime): Include sandboxes created before this timestamp.
         last_activity_after (datetime): Include sandboxes with last activity after this timestamp.
         last_activity_before (datetime): Include sandboxes with last activity before this timestamp.
+        auto_destroy_at_after (datetime): Include sandboxes scheduled for auto destroy after this timestamp.
+        auto_destroy_at_before (datetime): Include sandboxes scheduled for auto destroy before this timestamp.
         sort: Field to sort by.
         order: Sort direction.
     """
@@ -97,6 +99,8 @@ class ListSandboxesQuery:
     created_at_before: datetime | None = None
     last_activity_after: datetime | None = None
     last_activity_before: datetime | None = None
+    auto_destroy_at_after: datetime | None = None
+    auto_destroy_at_before: datetime | None = None
     sort: SandboxListSortField | None = None
     order: SandboxListSortDirection | None = None
 

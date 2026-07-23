@@ -102,6 +102,9 @@ module DaytonaApiClient
     # The version of the daemon running in the sandbox
     attr_accessor :daemon_version
 
+    # Id of the warm pool this sandbox waits in; set only while it is an unclaimed member
+    attr_accessor :warm_pool_id
+
     # The toolbox proxy URL for the sandbox
     attr_accessor :toolbox_proxy_url
 
@@ -159,6 +162,7 @@ module DaytonaApiClient
         :'updated_at' => :'updatedAt',
         :'last_activity_at' => :'lastActivityAt',
         :'daemon_version' => :'daemonVersion',
+        :'warm_pool_id' => :'warmPoolId',
         :'toolbox_proxy_url' => :'toolboxProxyUrl'
       }
     end
@@ -205,6 +209,7 @@ module DaytonaApiClient
         :'updated_at' => :'String',
         :'last_activity_at' => :'String',
         :'daemon_version' => :'String',
+        :'warm_pool_id' => :'String',
         :'toolbox_proxy_url' => :'String'
       }
     end
@@ -369,6 +374,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'daemon_version')
         self.daemon_version = attributes[:'daemon_version']
+      end
+
+      if attributes.key?(:'warm_pool_id')
+        self.warm_pool_id = attributes[:'warm_pool_id']
       end
 
       if attributes.key?(:'toolbox_proxy_url')
@@ -619,6 +628,7 @@ module DaytonaApiClient
           updated_at == o.updated_at &&
           last_activity_at == o.last_activity_at &&
           daemon_version == o.daemon_version &&
+          warm_pool_id == o.warm_pool_id &&
           toolbox_proxy_url == o.toolbox_proxy_url
     end
 
@@ -631,7 +641,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, created_at, updated_at, last_activity_at, daemon_version, toolbox_proxy_url].hash
+      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, created_at, updated_at, last_activity_at, daemon_version, warm_pool_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

@@ -723,6 +723,8 @@ class Daytona:
             created_at_before=q.created_at_before,
             last_event_after=q.last_activity_after,
             last_event_before=q.last_activity_before,
+            auto_destroy_at_after=q.auto_destroy_at_after,
+            auto_destroy_at_before=q.auto_destroy_at_before,
             sort=q.sort,
             order=q.order,
             _request_timeout=http_timeout(request_timeout),

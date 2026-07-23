@@ -1560,6 +1560,16 @@ export interface ListSandboxesQuery {
    * Include sandboxes with last activity before this timestamp
    * */
   lastActivityBefore?: Date
+
+  /**
+   * Include sandboxes scheduled for auto destroy after this timestamp
+   * */
+  autoDestroyAtAfter?: Date
+
+  /**
+   * Include sandboxes scheduled for auto destroy before this timestamp
+   * */
+  autoDestroyAtBefore?: Date
 }
 
 /**

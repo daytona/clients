@@ -89,6 +89,8 @@ module Daytona
     :created_at_before,
     :last_activity_after,
     :last_activity_before,
+    :auto_destroy_at_after,
+    :auto_destroy_at_before,
     :sort,
     :order
   ) do

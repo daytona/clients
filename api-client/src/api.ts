@@ -31,5 +31,6 @@ export * from './api/secret-api';
 export * from './api/snapshots-api';
 export * from './api/users-api';
 export * from './api/volumes-api';
+export * from './api/warm-pools-api';
 export * from './api/webhooks-api';
 

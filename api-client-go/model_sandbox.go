@@ -63,9 +63,13 @@ type Sandbox struct {
 	ErrorReason *string `json:"errorReason,omitempty"`
 	// Whether the sandbox error is recoverable.
 	Recoverable *bool `json:"recoverable,omitempty"`
+	// Id of the warm pool this sandbox waits in; set only while it is an unclaimed member.
+	WarmPoolId *string `json:"warmPoolId,omitempty"`
 	// The state of the backup
+	// Deprecated
 	BackupState *string `json:"backupState,omitempty"`
 	// The creation timestamp of the last backup
+	// Deprecated
 	BackupCreatedAt *string `json:"backupCreatedAt,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *float32 `json:"autoStopInterval,omitempty"`
@@ -701,7 +705,40 @@ func (o *Sandbox) SetRecoverable(v bool) {
 	o.Recoverable = &v
 }
 
+// GetWarmPoolId returns the WarmPoolId field value if set, zero value otherwise.
+func (o *Sandbox) GetWarmPoolId() string {
+	if o == nil || IsNil(o.WarmPoolId) {
+		var ret string
+		return ret
+	}
+	return *o.WarmPoolId
+}
+
+// GetWarmPoolIdOk returns a tuple with the WarmPoolId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetWarmPoolIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WarmPoolId) {
+		return nil, false
+	}
+	return o.WarmPoolId, true
+}
+
+// HasWarmPoolId returns a boolean if a field has been set.
+func (o *Sandbox) HasWarmPoolId() bool {
+	if o != nil && !IsNil(o.WarmPoolId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWarmPoolId gets a reference to the given string and assigns it to the WarmPoolId field.
+func (o *Sandbox) SetWarmPoolId(v string) {
+	o.WarmPoolId = &v
+}
+
 // GetBackupState returns the BackupState field value if set, zero value otherwise.
+// Deprecated
 func (o *Sandbox) GetBackupState() string {
 	if o == nil || IsNil(o.BackupState) {
 		var ret string
@@ -712,6 +749,7 @@ func (o *Sandbox) GetBackupState() string {
 
 // GetBackupStateOk returns a tuple with the BackupState field value if set, nil otherwise
 // and a boolean to check if the value has been set.
+// Deprecated
 func (o *Sandbox) GetBackupStateOk() (*string, bool) {
 	if o == nil || IsNil(o.BackupState) {
 		return nil, false
@@ -729,11 +767,13 @@ func (o *Sandbox) HasBackupState() bool {
 }
 
 // SetBackupState gets a reference to the given string and assigns it to the BackupState field.
+// Deprecated
 func (o *Sandbox) SetBackupState(v string) {
 	o.BackupState = &v
 }
 
 // GetBackupCreatedAt returns the BackupCreatedAt field value if set, zero value otherwise.
+// Deprecated
 func (o *Sandbox) GetBackupCreatedAt() string {
 	if o == nil || IsNil(o.BackupCreatedAt) {
 		var ret string
@@ -744,6 +784,7 @@ func (o *Sandbox) GetBackupCreatedAt() string {
 
 // GetBackupCreatedAtOk returns a tuple with the BackupCreatedAt field value if set, nil otherwise
 // and a boolean to check if the value has been set.
+// Deprecated
 func (o *Sandbox) GetBackupCreatedAtOk() (*string, bool) {
 	if o == nil || IsNil(o.BackupCreatedAt) {
 		return nil, false
@@ -761,6 +802,7 @@ func (o *Sandbox) HasBackupCreatedAt() bool {
 }
 
 // SetBackupCreatedAt gets a reference to the given string and assigns it to the BackupCreatedAt field.
+// Deprecated
 func (o *Sandbox) SetBackupCreatedAt(v string) {
 	o.BackupCreatedAt = &v
 }
@@ -1284,6 +1326,9 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Recoverable) {
 		toSerialize["recoverable"] = o.Recoverable
 	}
+	if !IsNil(o.WarmPoolId) {
+		toSerialize["warmPoolId"] = o.WarmPoolId
+	}
 	if !IsNil(o.BackupState) {
 		toSerialize["backupState"] = o.BackupState
 	}
@@ -1410,6 +1455,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "desiredState")
 		delete(additionalProperties, "errorReason")
 		delete(additionalProperties, "recoverable")
+		delete(additionalProperties, "warmPoolId")
 		delete(additionalProperties, "backupState")
 		delete(additionalProperties, "backupCreatedAt")
 		delete(additionalProperties, "autoStopInterval")

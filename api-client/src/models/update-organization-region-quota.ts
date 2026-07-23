@@ -31,9 +31,18 @@ export interface UpdateOrganizationRegionQuota {
     'maxMemoryPerSandbox'?: number | null;
     'maxDiskPerSandbox'?: number | null;
     'maxDiskPerNonEphemeralSandbox'?: number | null;
-    'maxCpuPerGpuSandbox'?: number | null;
-    'maxMemoryPerGpuSandbox'?: number | null;
-    'maxDiskPerGpuSandbox'?: number | null;
+    /**
+     * CPU maximum per requested GPU unit for GPU sandboxes.
+     */
+    'maxCpuPerGpu'?: number | null;
+    /**
+     * Memory maximum per requested GPU unit for GPU sandboxes.
+     */
+    'maxMemoryPerGpu'?: number | null;
+    /**
+     * Disk maximum per requested GPU unit for GPU sandboxes.
+     */
+    'maxDiskPerGpu'?: number | null;
 }
 
 

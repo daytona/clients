@@ -21,6 +21,7 @@ lib/daytona_api_client/api/secret_api.rb
 lib/daytona_api_client/api/snapshots_api.rb
 lib/daytona_api_client/api/users_api.rb
 lib/daytona_api_client/api/volumes_api.rb
+lib/daytona_api_client/api/warm_pools_api.rb
 lib/daytona_api_client/api/webhooks_api.rb
 lib/daytona_api_client/api_client.rb
 lib/daytona_api_client/api_error.rb
@@ -55,6 +56,7 @@ lib/daytona_api_client/models/create_secret.rb
 lib/daytona_api_client/models/create_snapshot.rb
 lib/daytona_api_client/models/create_user.rb
 lib/daytona_api_client/models/create_volume.rb
+lib/daytona_api_client/models/create_warm_pool.rb
 lib/daytona_api_client/models/date_filter.rb
 lib/daytona_api_client/models/daytona_configuration.rb
 lib/daytona_api_client/models/docker_registry.rb
@@ -136,6 +138,7 @@ lib/daytona_api_client/models/trace_span.rb
 lib/daytona_api_client/models/trace_summary.rb
 lib/daytona_api_client/models/update_docker_registry.rb
 lib/daytona_api_client/models/update_job_status.rb
+lib/daytona_api_client/models/update_last_activity.rb
 lib/daytona_api_client/models/update_organization_default_region.rb
 lib/daytona_api_client/models/update_organization_invitation.rb
 lib/daytona_api_client/models/update_organization_member_access.rb
@@ -147,11 +150,13 @@ lib/daytona_api_client/models/update_sandbox_network_settings.rb
 lib/daytona_api_client/models/update_sandbox_secrets.rb
 lib/daytona_api_client/models/update_sandbox_state_dto.rb
 lib/daytona_api_client/models/update_secret.rb
+lib/daytona_api_client/models/update_warm_pool.rb
 lib/daytona_api_client/models/url.rb
 lib/daytona_api_client/models/user.rb
 lib/daytona_api_client/models/user_public_key.rb
 lib/daytona_api_client/models/volume_dto.rb
 lib/daytona_api_client/models/volume_state.rb
+lib/daytona_api_client/models/warm_pool.rb
 lib/daytona_api_client/models/webhook_app_portal_access.rb
 lib/daytona_api_client/models/webhook_event.rb
 lib/daytona_api_client/models/webhook_initialization_status.rb
