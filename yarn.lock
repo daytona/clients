@@ -11101,6 +11101,7 @@ __metadata:
     typescript: "npm:5.8.3"
     typescript-eslint: "npm:^8.19.0"
     verdaccio: "npm:6.0.5"
+    ws: "npm:^8.18.0"
   languageName: unknown
   linkType: soft
 
