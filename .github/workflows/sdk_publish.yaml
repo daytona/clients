@@ -44,8 +44,9 @@ jobs:
   publish:
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
-    # Publish credentials live in the `release` environment: runs must start
-    # from main and be approved by a required reviewer before secrets resolve.
+    # Publish credentials live in the `release` environment: every run waits
+    # for required-reviewer approval before secrets resolve. Any branch may
+    # deploy (alpha/beta prereleases publish from non-main refs).
     environment: release
     permissions:
       contents: read
