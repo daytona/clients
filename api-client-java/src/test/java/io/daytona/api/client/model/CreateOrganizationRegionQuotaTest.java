@@ -124,27 +124,27 @@ public class CreateOrganizationRegionQuotaTest {
     }
 
     /**
-     * Test the property 'maxCpuPerGpuSandbox'
+     * Test the property 'maxCpuPerGpu'
      */
     @Test
-    public void maxCpuPerGpuSandboxTest() {
-        // TODO: test maxCpuPerGpuSandbox
+    public void maxCpuPerGpuTest() {
+        // TODO: test maxCpuPerGpu
     }
 
     /**
-     * Test the property 'maxMemoryPerGpuSandbox'
+     * Test the property 'maxMemoryPerGpu'
      */
     @Test
-    public void maxMemoryPerGpuSandboxTest() {
-        // TODO: test maxMemoryPerGpuSandbox
+    public void maxMemoryPerGpuTest() {
+        // TODO: test maxMemoryPerGpu
     }
 
     /**
-     * Test the property 'maxDiskPerGpuSandbox'
+     * Test the property 'maxDiskPerGpu'
      */
     @Test
-    public void maxDiskPerGpuSandboxTest() {
-        // TODO: test maxDiskPerGpuSandbox
+    public void maxDiskPerGpuTest() {
+        // TODO: test maxDiskPerGpu
     }
 
 }

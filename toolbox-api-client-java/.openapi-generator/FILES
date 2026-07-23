@@ -134,6 +134,7 @@ src/main/java/io/daytona/toolbox/client/model/Status.java
 src/main/java/io/daytona/toolbox/client/model/StopRecordingRequest.java
 src/main/java/io/daytona/toolbox/client/model/SystemMetrics.java
 src/main/java/io/daytona/toolbox/client/model/UpdateEnvRequest.java
+src/main/java/io/daytona/toolbox/client/model/UploadedFile.java
 src/main/java/io/daytona/toolbox/client/model/UserHomeDirResponse.java
 src/main/java/io/daytona/toolbox/client/model/WindowInfo.java
 src/main/java/io/daytona/toolbox/client/model/WindowsResponse.java
@@ -250,6 +251,7 @@ src/test/java/io/daytona/toolbox/client/model/StatusTest.java
 src/test/java/io/daytona/toolbox/client/model/StopRecordingRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/SystemMetricsTest.java
 src/test/java/io/daytona/toolbox/client/model/UpdateEnvRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/UploadedFileTest.java
 src/test/java/io/daytona/toolbox/client/model/UserHomeDirResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/WindowInfoTest.java
 src/test/java/io/daytona/toolbox/client/model/WindowsResponseTest.java
