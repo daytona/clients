@@ -435,8 +435,8 @@ module Daytona
     #   puts "Sandbox user home: #{user_home_dir}"
     def get_user_home_dir
       @info_api.get_user_home_dir.dir
-    rescue StandardError => e
-      raise Sdk::Error, "Failed to get user home directory: #{e.message}"
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to get user home directory')
     end
 
     # Gets the working directory path inside the Sandbox.
@@ -449,8 +449,8 @@ module Daytona
     #   puts "Sandbox working directory: #{work_dir}"
     def get_work_dir
       @info_api.get_work_dir.dir
-    rescue StandardError => e
-      raise Sdk::Error, "Failed to get working directory path: #{e.message}"
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to get working directory path')
     end
 
     # Updates the Sandbox daemon's process environment. Newly spawned processes, sessions
@@ -570,8 +570,8 @@ module Daytona
     def refresh_activity
       sandbox_api.update_last_activity(id)
       nil
-    rescue StandardError => e
-      raise Sdk::Error, "Failed to refresh sandbox activity: #{e.message}"
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to refresh sandbox activity')
     end
 
     # Revokes an SSH access token for the sandbox.
@@ -619,8 +619,8 @@ module Daytona
           error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
         )
       end
-    rescue StandardError => e
-      raise Sdk::Error, "Failed to recover sandbox: #{e.message}"
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to recover sandbox')
     end
 
     # Stops the Sandbox and waits for it to be stopped.

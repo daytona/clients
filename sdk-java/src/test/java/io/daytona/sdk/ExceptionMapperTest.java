@@ -13,12 +13,14 @@ import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
-import io.daytona.sdk.exception.DaytonaValidationException;
+import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,7 +60,7 @@ class ExceptionMapperTest {
 
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
             throw new io.daytona.api.client.ApiException(422, "invalid", null, "{\"message\":\"bad data\"}");
-        })).isInstanceOf(DaytonaValidationException.class).hasMessage("bad data");
+        })).isInstanceOf(DaytonaUnprocessableEntityException.class).hasMessage("bad data");
 
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
             throw new io.daytona.api.client.ApiException(429, "limit", null, "{\"message\":\"too many\"}");
@@ -157,6 +159,25 @@ class ExceptionMapperTest {
     }
 
     @Test
+    void preservesMappedStatusAndHeaders() {
+        Map<String, String> headers = new LinkedHashMap<String, String>();
+        headers.put("Retry-After", "30");
+
+        DaytonaException exception = ExceptionMapper.map(
+                504,
+                "{\"message\":\"gateway timeout\",\"error_code\":\"PROCESS_EXECUTION_TIMEOUT\",\"source\":\"DAYTONA_DAEMON\"}",
+                headers,
+                new RuntimeException("boom"));
+
+        assertThat(exception).isInstanceOf(DaytonaTimeoutException.class);
+        assertThat(exception.getStatusCode()).isEqualTo(504);
+        assertThat(exception.getHeaders()).containsEntry("Retry-After", "30");
+
+        headers.put("Retry-After", "999");
+        assertThat(exception.getHeaders()).containsEntry("Retry-After", "30");
+    }
+
+    @Test
     void mapsConnectExceptionToConnectionException() {
         ConnectException connectException = new ConnectException("Connection refused");
         io.daytona.api.client.ApiException apiException = new io.daytona.api.client.ApiException(connectException);
@@ -197,5 +218,68 @@ class ExceptionMapperTest {
                 .isNotInstanceOf(DaytonaTimeoutException.class)
                 .hasMessageContaining("Missing the required parameter 'id'")
                 .hasCause(apiException);
+    }
+
+    @Test
+    void mapsNewHttpStatusClasses() {
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(410, "gone", null, "{\"message\":\"resource removed\"}");
+        })).isInstanceOf(io.daytona.sdk.exception.DaytonaGoneException.class).hasMessage("resource removed");
+
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(500, "boom", null, "{\"message\":\"internal\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaInternalServerException.class)
+                .isInstanceOf(DaytonaServerException.class);
+
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(502, "gw", null, "{\"message\":\"bad gateway\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaBadGatewayException.class)
+                .isInstanceOf(DaytonaServerException.class);
+
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(503, "down", null, "{\"message\":\"unavailable\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaServiceUnavailableException.class)
+                .isInstanceOf(DaytonaServerException.class);
+
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(408, "slow", null, "{\"message\":\"timeout\"}");
+        })).isInstanceOf(DaytonaTimeoutException.class).hasMessage("timeout");
+    }
+
+    @Test
+    void domainCodeOverridesStatusCode() {
+        // A 404 with a daemon GIT_REPO_NOT_FOUND code should map to the domain class.
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(
+                    404, "not found", null,
+                    "{\"message\":\"repo missing\",\"code\":\"GIT_REPO_NOT_FOUND\",\"source\":\"DAYTONA_DAEMON\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaGitRepoNotFoundException.class)
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaNotFoundException.class)
+                .hasMessage("repo missing")
+                .satisfies(error -> {
+                    DaytonaException exception = (DaytonaException) error;
+                    assertThat(exception.getStatusCode()).isEqualTo(404);
+                    assertThat(exception.getCode()).isEqualTo("GIT_REPO_NOT_FOUND");
+                    assertThat(exception.getSource()).isEqualTo("DAYTONA_DAEMON");
+                });
+    }
+
+    @Test
+    void unknownCodeFallsBackToStatusClass() {
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(
+                    404, "missing", null,
+                    "{\"message\":\"thing not found\",\"code\":\"SOMETHING_UNKNOWN\",\"source\":\"DAYTONA_API\"}");
+        }))
+                .isInstanceOf(DaytonaNotFoundException.class)
+                .satisfies(error -> {
+                    DaytonaException exception = (DaytonaException) error;
+                    assertThat(exception.getCode()).isEqualTo("SOMETHING_UNKNOWN");
+                    assertThat(exception.getSource()).isEqualTo("DAYTONA_API");
+                });
     }
 }
