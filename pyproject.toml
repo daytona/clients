@@ -23,7 +23,7 @@ daytona_analytics_api_client_async = {path = "analytics-api-client-python-async"
 pydoc-markdown = ">=4.8.0,<5.0.0"
 build = ">=1.0.3"
 wheel = ">=0.41.2"
-setuptools = ">=68.0.0"
+setuptools = ">=83.0.0"
 twine = ">=4.0.2"
 nbqa = ">=1.0.0,<2.0.0"
 black = {extras = ["jupyter"], version = ">=23.1.0,<24.0.0"}
