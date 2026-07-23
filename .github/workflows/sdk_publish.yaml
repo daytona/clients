@@ -44,6 +44,10 @@ jobs:
   publish:
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
+    # Publish credentials live in the `release` environment: every run waits
+    # for required-reviewer approval before secrets resolve. Any branch may
+    # deploy (alpha/beta prereleases publish from non-main refs).
+    environment: release
     permissions:
       contents: read
     name: Publish ${{ matrix.name }}
@@ -113,6 +117,7 @@ jobs:
   update-homebrew-tap:
     if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: release
     permissions: {}
     name: Update Homebrew CLI tap
     steps:
