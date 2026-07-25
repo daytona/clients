@@ -12,7 +12,8 @@
       "options": {
         "commands": [
           "rm -rf {projectRoot}/daytona_toolbox_api_client_async",
-          "yarn run openapi-generator-cli generate --git-repo-id=clients --git-user-id=daytona -i openapi-specs/toolbox.json -g python --model-name-mappings computeruse.AccessibilityNode=ComputerUseAccessibilityNode -t hack/python-client/openapi-templates --additional-properties=packageName=daytona_toolbox_api_client_async,projectName=daytona_toolbox_api_client_async,packageVersion=$DEFAULT_PACKAGE_VERSION,pythonPackageName=daytona_toolbox_api_client_async,disallowAdditionalPropertiesIfNotPresent=false,library=asyncio,enumUnknownDefaultCase=true -o {projectRoot}",
+          "node hack/python-client/patch-toolbox-spec.mjs openapi-specs/toolbox.json tmp/toolbox-python-async.json",
+          "yarn run openapi-generator-cli generate --git-repo-id=clients --git-user-id=daytona -i tmp/toolbox-python-async.json -g python --model-name-mappings computeruse.AccessibilityNode=ComputerUseAccessibilityNode -t hack/python-client/openapi-templates --additional-properties=packageName=daytona_toolbox_api_client_async,projectName=daytona_toolbox_api_client_async,packageVersion=$DEFAULT_PACKAGE_VERSION,pythonPackageName=daytona_toolbox_api_client_async,disallowAdditionalPropertiesIfNotPresent=false,library=asyncio,enumUnknownDefaultCase=true -o {projectRoot}",
           "bash hack/python-client/postprocess.sh {projectRoot}"
         ],
         "parallel": false

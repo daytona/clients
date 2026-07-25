@@ -33,7 +33,7 @@ class FileInfo(BaseModel):
     is_dir: StrictBool = Field(serialization_alias="isDir")
     mod_time: StrictStr = Field(description="Deprecated: ModTime uses Go's time.String() layout which is not a standard format. Use ModifiedAt instead, which is serialized as ISO 8601 / RFC 3339.", serialization_alias="modTime")
     mode: StrictStr
-    modified_at: StrictStr = Field(serialization_alias="modifiedAt")
+    modified_at: Optional[StrictStr] = Field(default=None, serialization_alias="modifiedAt")
     name: StrictStr
     owner: StrictStr
     path: Optional[StrictStr] = Field(default=None, description="Full path of the entry")

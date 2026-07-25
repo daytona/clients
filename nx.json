@@ -41,7 +41,8 @@
     "pythonApiClient": [
       "apiClient",
       "{workspaceRoot}/hack/python-client/openapi-templates/**/*",
-      "{workspaceRoot}/hack/python-client/postprocess.sh"
+      "{workspaceRoot}/hack/python-client/postprocess.sh",
+      "{workspaceRoot}/hack/python-client/patch-toolbox-spec.mjs"
     ],
     "goApiClient": [
       "apiClient",
