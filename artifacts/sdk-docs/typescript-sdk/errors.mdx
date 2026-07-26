@@ -6,9 +6,7 @@ hideTitleOnPage: true
 
 ## DaytonaA11yUnavailableError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The accessibility service is unavailable (code `A11Y_UNAVAILABLE`).
 
 **Properties**:
 
@@ -59,9 +57,7 @@ new DaytonaA11yUnavailableError(
 `DaytonaServiceUnavailableError`.`constructor`
 ## DaytonaAuthenticationError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+Authentication failed — missing or invalid credentials (HTTP 401).
 
 **Properties**:
 
@@ -169,9 +165,7 @@ new DaytonaAuthorizationError(
 `DaytonaForbiddenError`.`constructor`
 ## DaytonaBadGatewayError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+An upstream gateway returned an invalid response (HTTP 502).
 
 **Properties**:
 
@@ -222,9 +216,7 @@ new DaytonaBadGatewayError(
 `DaytonaError`.`constructor`
 ## DaytonaBadRequestError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The request was malformed or invalid (HTTP 400).
 
 **Properties**:
 
@@ -280,9 +272,7 @@ new DaytonaBadRequestError(
 `DaytonaError`.`constructor`
 ## DaytonaCommandAlreadyCompletedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The session command already finished (code `COMMAND_ALREADY_COMPLETED`).
 
 **Properties**:
 
@@ -333,9 +323,7 @@ new DaytonaCommandAlreadyCompletedError(
 `DaytonaGoneError`.`constructor`
 ## DaytonaConflictError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The request conflicts with the current state of the resource (HTTP 409).
 
 **Properties**:
 
@@ -567,9 +555,7 @@ Error.constructor
 ```
 ## DaytonaFileAccessDeniedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+Access to the sandbox file was denied (code `FILE_ACCESS_DENIED`).
 
 **Properties**:
 
@@ -620,9 +606,7 @@ new DaytonaFileAccessDeniedError(
 `DaytonaForbiddenError`.`constructor`
 ## DaytonaFileNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The file does not exist in the sandbox (code `FILE_NOT_FOUND`).
 
 **Properties**:
 
@@ -673,9 +657,7 @@ new DaytonaFileNotFoundError(
 `DaytonaNotFoundError`.`constructor`
 ## DaytonaForbiddenError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The authenticated caller lacks permission for the operation (HTTP 403).
 
 **Properties**:
 
@@ -731,9 +713,7 @@ new DaytonaForbiddenError(
 `DaytonaError`.`constructor`
 ## DaytonaGitAuthFailedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+Git authentication against the remote failed (code `GIT_AUTH_FAILED`).
 
 **Properties**:
 
@@ -784,9 +764,7 @@ new DaytonaGitAuthFailedError(
 `DaytonaAuthenticationError`.`constructor`
 ## DaytonaGitBranchExistsError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The git branch already exists (code `GIT_BRANCH_EXISTS`).
 
 **Properties**:
 
@@ -837,9 +815,7 @@ new DaytonaGitBranchExistsError(
 `DaytonaConflictError`.`constructor`
 ## DaytonaGitBranchNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The git branch does not exist (code `GIT_BRANCH_NOT_FOUND`).
 
 **Properties**:
 
@@ -890,9 +866,7 @@ new DaytonaGitBranchNotFoundError(
 `DaytonaNotFoundError`.`constructor`
 ## DaytonaGitDirtyWorktreeError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The operation requires a clean worktree (code `GIT_DIRTY_WORKTREE`).
 
 **Properties**:
 
@@ -943,9 +917,7 @@ new DaytonaGitDirtyWorktreeError(
 `DaytonaConflictError`.`constructor`
 ## DaytonaGitMergeConflictError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+A git merge produced conflicts (code `GIT_MERGE_CONFLICT`).
 
 **Properties**:
 
@@ -996,9 +968,7 @@ new DaytonaGitMergeConflictError(
 `DaytonaConflictError`.`constructor`
 ## DaytonaGitPushRejectedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The git push was rejected by the remote (code `GIT_PUSH_REJECTED`).
 
 **Properties**:
 
@@ -1049,9 +1019,7 @@ new DaytonaGitPushRejectedError(
 `DaytonaConflictError`.`constructor`
 ## DaytonaGitRepoNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The git remote repository was not found (code `GIT_REPO_NOT_FOUND`).
 
 **Properties**:
 
@@ -1102,9 +1070,7 @@ new DaytonaGitRepoNotFoundError(
 `DaytonaNotFoundError`.`constructor`
 ## DaytonaGoneError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The resource existed but is permanently gone (HTTP 410).
 
 **Properties**:
 
@@ -1160,9 +1126,7 @@ new DaytonaGoneError(
 `DaytonaError`.`constructor`
 ## DaytonaInternalServerError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+A Daytona service failed unexpectedly (HTTP 500).
 
 **Properties**:
 
@@ -1213,9 +1177,7 @@ new DaytonaInternalServerError(
 `DaytonaError`.`constructor`
 ## DaytonaLspServerNotInitializedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The LSP server must be initialized first (code `LSP_SERVER_NOT_INITIALIZED`).
 
 **Properties**:
 
@@ -1266,9 +1228,7 @@ new DaytonaLspServerNotInitializedError(
 `DaytonaBadRequestError`.`constructor`
 ## DaytonaNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The requested resource does not exist (HTTP 404).
 
 **Properties**:
 
@@ -1326,9 +1286,7 @@ new DaytonaNotFoundError(
 `DaytonaError`.`constructor`
 ## DaytonaProcessExecutionTimeoutError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`).
 
 **Properties**:
 
@@ -1379,9 +1337,7 @@ new DaytonaProcessExecutionTimeoutError(
 `DaytonaTimeoutError`.`constructor`
 ## DaytonaProcessNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The sandbox process does not exist (code `PROCESS_NOT_FOUND`).
 
 **Properties**:
 
@@ -1432,9 +1388,7 @@ new DaytonaProcessNotFoundError(
 `DaytonaNotFoundError`.`constructor`
 ## DaytonaRateLimitError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The caller exceeded a rate limit (HTTP 429).
 
 **Properties**:
 
@@ -1485,9 +1439,7 @@ new DaytonaRateLimitError(
 `DaytonaError`.`constructor`
 ## DaytonaRecordingFfmpegNotFoundError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+ffmpeg is not available for recording (code `RECORDING_FFMPEG_NOT_FOUND`).
 
 **Properties**:
 
@@ -1538,9 +1490,7 @@ new DaytonaRecordingFfmpegNotFoundError(
 `DaytonaServiceUnavailableError`.`constructor`
 ## DaytonaRecordingStillActiveError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+A screen recording is still active (code `RECORDING_STILL_ACTIVE`).
 
 **Properties**:
 
@@ -1591,9 +1541,7 @@ new DaytonaRecordingStillActiveError(
 `DaytonaConflictError`.`constructor`
 ## DaytonaServiceUnavailableError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The service is temporarily unable to handle the request (HTTP 503).
 
 **Properties**:
 
@@ -1649,9 +1597,7 @@ new DaytonaServiceUnavailableError(
 `DaytonaError`.`constructor`
 ## DaytonaSessionEndedError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The session has already ended (code `SESSION_ENDED`).
 
 **Properties**:
 
@@ -1702,9 +1648,7 @@ new DaytonaSessionEndedError(
 `DaytonaGoneError`.`constructor`
 ## DaytonaTimeoutError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The operation timed out (HTTP 408, or 504 when a gateway timed out).
 
 **Properties**:
 
@@ -1759,9 +1703,7 @@ new DaytonaTimeoutError(
 `DaytonaError`.`constructor`
 ## DaytonaUnprocessableEntityError
 
-Base error for Daytona SDK. `statusCode` and `code` are populated only
-for errors translated from a server response. `source` is `undefined`
-unless the caller (or the translation layer) sets it.
+The request was well-formed but semantically invalid (HTTP 422).
 
 **Properties**:
 

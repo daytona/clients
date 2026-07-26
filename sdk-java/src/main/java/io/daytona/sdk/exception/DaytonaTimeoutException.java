@@ -19,7 +19,7 @@ public class DaytonaTimeoutException extends DaytonaException {
      * @param cause root cause
      */
     public DaytonaTimeoutException(String message, Throwable cause) {
-        super(message, cause);
+        super(STATUS_CODE, message, cause);
     }
 
     /**
@@ -28,7 +28,7 @@ public class DaytonaTimeoutException extends DaytonaException {
      * @param message timeout description
      */
     public DaytonaTimeoutException(String message) {
-        super(message);
+        super(STATUS_CODE, message);
     }
 
     public DaytonaTimeoutException(int statusCode, String message, String code, String source) {

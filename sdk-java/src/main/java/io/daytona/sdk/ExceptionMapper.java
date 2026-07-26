@@ -213,7 +213,9 @@ final class ExceptionMapper {
         map.put(SRC_DAEMON + "|LSP_SERVER_NOT_INITIALIZED", DaytonaLspServerNotInitializedException::new);
 
         // Daemon: process / session
-        map.put(SRC_DAEMON + "|PROCESS_EXECUTION_TIMEOUT", DaytonaProcessExecutionTimeoutException::new);
+        // PROCESS_EXECUTION_TIMEOUT is intentionally absent: map() handles it in an
+        // explicit branch before this lookup so the real HTTP status code (408 vs 504)
+        // can be carried through, which the 4-arg factory signature cannot express.
         map.put(SRC_DAEMON + "|PROCESS_NOT_FOUND", DaytonaProcessNotFoundException::new);
         map.put(SRC_DAEMON + "|SESSION_ENDED", DaytonaSessionEndedException::new);
         map.put(SRC_DAEMON + "|COMMAND_ALREADY_COMPLETED", DaytonaCommandAlreadyCompletedException::new);

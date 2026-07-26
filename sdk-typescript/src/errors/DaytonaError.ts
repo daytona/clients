@@ -45,17 +45,29 @@ export class DaytonaError extends Error {
 // HTTP-status classes — one per status code Daytona services emit.
 // Names follow HTTP terminology (BadRequest=400, Forbidden=403).
 
+/** The request was malformed or invalid (HTTP 400). */
 export class DaytonaBadRequestError extends DaytonaError {}
+/** Authentication failed — missing or invalid credentials (HTTP 401). */
 export class DaytonaAuthenticationError extends DaytonaError {}
+/** The authenticated caller lacks permission for the operation (HTTP 403). */
 export class DaytonaForbiddenError extends DaytonaError {}
+/** The requested resource does not exist (HTTP 404). */
 export class DaytonaNotFoundError extends DaytonaError {}
+/** The operation timed out (HTTP 408, or 504 when a gateway timed out). */
 export class DaytonaTimeoutError extends DaytonaError {}
+/** The request conflicts with the current state of the resource (HTTP 409). */
 export class DaytonaConflictError extends DaytonaError {}
+/** The resource existed but is permanently gone (HTTP 410). */
 export class DaytonaGoneError extends DaytonaError {}
+/** The request was well-formed but semantically invalid (HTTP 422). */
 export class DaytonaUnprocessableEntityError extends DaytonaError {}
+/** The caller exceeded a rate limit (HTTP 429). */
 export class DaytonaRateLimitError extends DaytonaError {}
+/** A Daytona service failed unexpectedly (HTTP 500). */
 export class DaytonaInternalServerError extends DaytonaError {}
+/** An upstream gateway returned an invalid response (HTTP 502). */
 export class DaytonaBadGatewayError extends DaytonaError {}
+/** The service is temporarily unable to handle the request (HTTP 503). */
 export class DaytonaServiceUnavailableError extends DaytonaError {}
 
 /**
@@ -79,30 +91,47 @@ export class DaytonaConnectionTimeoutError extends DaytonaConnectionError {}
 // matches its server-side status, so callers can catch either level.
 
 // --- Git (daemon) ---
+/** Git authentication against the remote failed (code `GIT_AUTH_FAILED`). */
 export class DaytonaGitAuthFailedError extends DaytonaAuthenticationError {}
+/** The git remote repository was not found (code `GIT_REPO_NOT_FOUND`). */
 export class DaytonaGitRepoNotFoundError extends DaytonaNotFoundError {}
+/** The git branch does not exist (code `GIT_BRANCH_NOT_FOUND`). */
 export class DaytonaGitBranchNotFoundError extends DaytonaNotFoundError {}
+/** The git branch already exists (code `GIT_BRANCH_EXISTS`). */
 export class DaytonaGitBranchExistsError extends DaytonaConflictError {}
+/** The git push was rejected by the remote (code `GIT_PUSH_REJECTED`). */
 export class DaytonaGitPushRejectedError extends DaytonaConflictError {}
+/** The operation requires a clean worktree (code `GIT_DIRTY_WORKTREE`). */
 export class DaytonaGitDirtyWorktreeError extends DaytonaConflictError {}
+/** A git merge produced conflicts (code `GIT_MERGE_CONFLICT`). */
 export class DaytonaGitMergeConflictError extends DaytonaConflictError {}
 
 // --- Filesystem (daemon) ---
+/** The file does not exist in the sandbox (code `FILE_NOT_FOUND`). */
 export class DaytonaFileNotFoundError extends DaytonaNotFoundError {}
+/** Access to the sandbox file was denied (code `FILE_ACCESS_DENIED`). */
 export class DaytonaFileAccessDeniedError extends DaytonaForbiddenError {}
 
 // --- LSP (daemon) ---
+/** The LSP server must be initialized first (code `LSP_SERVER_NOT_INITIALIZED`). */
 export class DaytonaLspServerNotInitializedError extends DaytonaBadRequestError {}
 
 // --- Process / session (daemon) ---
+/** Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`). */
 export class DaytonaProcessExecutionTimeoutError extends DaytonaTimeoutError {}
+/** The sandbox process does not exist (code `PROCESS_NOT_FOUND`). */
 export class DaytonaProcessNotFoundError extends DaytonaNotFoundError {}
+/** The session has already ended (code `SESSION_ENDED`). */
 export class DaytonaSessionEndedError extends DaytonaGoneError {}
+/** The session command already finished (code `COMMAND_ALREADY_COMPLETED`). */
 export class DaytonaCommandAlreadyCompletedError extends DaytonaGoneError {}
 
 // --- Computer-use (daemon) ---
+/** The accessibility service is unavailable (code `A11Y_UNAVAILABLE`). */
 export class DaytonaA11yUnavailableError extends DaytonaServiceUnavailableError {}
+/** A screen recording is still active (code `RECORDING_STILL_ACTIVE`). */
 export class DaytonaRecordingStillActiveError extends DaytonaConflictError {}
+/** ffmpeg is not available for recording (code `RECORDING_FFMPEG_NOT_FOUND`). */
 export class DaytonaRecordingFfmpegNotFoundError extends DaytonaServiceUnavailableError {}
 
 /**

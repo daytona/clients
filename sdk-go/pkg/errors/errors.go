@@ -152,6 +152,7 @@ var (
 	ErrInternalServer      = &DaytonaError{StatusCode: http.StatusInternalServerError}
 	ErrBadGateway          = &DaytonaError{StatusCode: http.StatusBadGateway}
 	ErrServiceUnavailable  = &DaytonaError{StatusCode: http.StatusServiceUnavailable}
+	ErrGatewayTimeout      = &DaytonaError{StatusCode: http.StatusGatewayTimeout}
 
 	// Deprecated: use ErrBadRequest. Kept so existing callers do not break.
 	ErrValidation = ErrBadRequest

@@ -61,11 +61,13 @@ in_frontmatter { next }
 # Store potential anchor for next section
 /<a id=/ {
     anchor = $0
+    seen_section = 1
     next
 }
 
 # When we hit a section header
 /^## / {
+    seen_section = 1
     # If this is our target section
     if ($0 ~ "^## " section "$") {
         # Store this section (with its anchor if we just saw one)
@@ -89,6 +91,10 @@ in_frontmatter { next }
     }
     next
 }
+
+# Content before the first section/anchor was already emitted by the first
+# pass (TEMP_FILE); re-collecting it here would duplicate it in the output.
+!seen_section { next }
 
 # Handle content lines
 {

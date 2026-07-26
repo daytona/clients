@@ -23,7 +23,6 @@ from ..common.errors import (
     DaytonaConnectionError,
     DaytonaConnectionTimeoutError,
     DaytonaError,
-    _resolve_error_class,
     create_daytona_error,
     error_class_from_status_code,
 )
@@ -50,16 +49,19 @@ OPENAPI_EXCEPTIONS = (
     OpenApiExceptionToolboxAsync,
 )
 
-# Order matters: subclasses before their bases. ConnectionError does NOT catch
-# the broader OSError family.
+# Order matters: subclasses before their bases. NewConnectionError must precede
+# ConnectTimeoutError because urllib3 declares it as a ConnectTimeoutError
+# subclass even though it represents a connection failure, not a timeout.
+# ConnectionError does NOT catch the broader OSError family.
 TRANSPORT_ERROR_TO_DAYTONA_ERROR: tuple[tuple[type[BaseException], type[DaytonaError]], ...] = (
+    (urllib3.exceptions.NewConnectionError, DaytonaConnectionError),
     (aiohttp.ServerTimeoutError, DaytonaConnectionTimeoutError),
     (urllib3.exceptions.ReadTimeoutError, DaytonaConnectionTimeoutError),
     (urllib3.exceptions.ConnectTimeoutError, DaytonaConnectionTimeoutError),
+    (urllib3.exceptions.TimeoutError, DaytonaConnectionTimeoutError),
     (httpx.TimeoutException, DaytonaConnectionTimeoutError),
     (TimeoutError, DaytonaConnectionTimeoutError),
     (aiohttp.ClientConnectorError, DaytonaConnectionError),
-    (urllib3.exceptions.NewConnectionError, DaytonaConnectionError),
     (aiohttp.ServerDisconnectedError, DaytonaConnectionError),
     (aiohttp.ClientPayloadError, DaytonaConnectionError),
     (aiohttp.ClientOSError, DaytonaConnectionError),
@@ -151,8 +153,7 @@ def intercept_errors(
                 msg, code, source = _parse_openapi_exception(e)
                 status_code = getattr(e, "status", None)
                 headers = cast(Mapping[str, Any] | None, getattr(e, "headers", None))
-                error_cls = _resolve_error_class(status_code, code, source)
-                raise error_cls(
+                raise create_daytona_error(
                     _prefix_message(message_prefix, msg),
                     status_code=status_code,
                     headers=headers,

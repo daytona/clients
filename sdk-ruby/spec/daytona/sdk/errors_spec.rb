@@ -37,6 +37,26 @@ RSpec.describe Daytona::Sdk do
       expect(described_class::ConnectionTimeoutError < described_class::ConnectionError).to be(true)
     end
 
+    it 'falls back to cause metadata for headers like it does for status_code, code and source' do
+      api_error = DaytonaApiClient::ApiError.new(
+        code: 429,
+        response_headers: { 'Retry-After' => '60' },
+        response_body: '{"statusCode":429,"message":"slow down","code":"RATE_LIMITED","source":"DAYTONA_API"}'
+      )
+      error = begin
+        begin
+          raise api_error
+        rescue DaytonaApiClient::ApiError
+          raise described_class::Error, 'wrapped'
+        end
+      rescue described_class::Error => e
+        e
+      end
+
+      expect(error.headers).to eq({ 'Retry-After' => '60' })
+      expect(error.status_code).to eq(429)
+    end
+
     it 'wires every domain class to the matching HTTP-status parent' do
       pairs = {
         described_class::GitAuthFailedError => described_class::AuthenticationError,

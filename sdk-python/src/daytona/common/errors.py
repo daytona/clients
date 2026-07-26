@@ -4,16 +4,21 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
 from typing_extensions import override
 
-#: Wire-format ``source`` identifiers set by the translation layer when a
-#: Daytona service stamps them on the wire envelope. ``source = None`` means
-#: the response did not carry a structured envelope (treat as opaque).
+#: Wire-format ``source`` identifier for errors originating from the Daytona
+#: API. ``source = None`` means the response did not carry a structured
+#: envelope (treat as opaque).
 SOURCE_API = "DAYTONA_API"
+#: Wire-format ``source`` identifier for errors originating from the sandbox
+#: daemon (toolbox).
 SOURCE_DAEMON = "DAYTONA_DAEMON"
+#: Wire-format ``source`` identifier for errors originating from the Daytona
+#: proxy.
 SOURCE_PROXY = "DAYTONA_PROXY"
 
 
@@ -68,6 +73,16 @@ class DaytonaError(Exception):
         self.code: str | None = code
         self.source: str | None = source
         self.headers: dict[str, Any] = dict(headers or {})
+
+    @property
+    def error_code(self) -> str | None:
+        """Deprecated alias of :attr:`code`, kept for backward compatibility."""
+        warnings.warn(
+            "DaytonaError.error_code is deprecated; use DaytonaError.code instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.code
 
     @override
     def __repr__(self) -> str:

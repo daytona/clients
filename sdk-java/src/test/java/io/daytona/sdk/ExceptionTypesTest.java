@@ -61,9 +61,11 @@ class ExceptionTypesTest {
     }
 
     @Test
-    void connectionAndTimeoutExceptionsUseGenericStatusCode() {
+    void connectionExceptionUsesGenericStatusCodeAndTimeoutDefaultsTo408() {
         assertThat(new DaytonaConnectionException("offline").getStatusCode()).isZero();
-        assertThat(new DaytonaTimeoutException("late").getStatusCode()).isZero();
+        assertThat(new DaytonaTimeoutException("late").getStatusCode()).isEqualTo(DaytonaTimeoutException.STATUS_CODE);
+        assertThat(new DaytonaTimeoutException("late", new RuntimeException("cause")).getStatusCode())
+                .isEqualTo(DaytonaTimeoutException.STATUS_CODE);
     }
 
     @Test

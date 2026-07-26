@@ -202,6 +202,8 @@ module Daytona
       nil
     rescue *Sdk::API_ERROR_CLASSES, Sdk::Error => e
       raise Sdk.wrap_error(e, 'Failed to download file')
+    rescue IOError, SystemCallError => e
+      raise Sdk::Error, "Failed to download file: #{e.message}"
     end
 
     # Uploads a file to the specified path in the Sandbox. If a file already exists at
@@ -279,6 +281,8 @@ module Daytona
                                  cancel_event: cancel_event)
     rescue *Sdk::API_ERROR_CLASSES, Sdk::Error => e
       raise Sdk.wrap_error(e, 'Failed to upload file')
+    rescue IOError, SystemCallError => e
+      raise Sdk::Error, "Failed to upload file: #{e.message}"
     end
 
     # Uploads multiple files to the Sandbox. If files already exist at the destination paths,
@@ -298,7 +302,7 @@ module Daytona
     #   sandbox.fs.upload_files(files)
     def upload_files(files)
       files.each { |file_upload| upload_file(file_upload.source, file_upload.destination) }
-    rescue *Sdk::API_ERROR_CLASSES => e
+    rescue *Sdk::API_ERROR_CLASSES, Sdk::Error => e
       raise Sdk.wrap_error(e, 'Failed to upload files')
     end
 

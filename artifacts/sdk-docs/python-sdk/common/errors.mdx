@@ -9,9 +9,27 @@ hideTitleOnPage: true
 SOURCE_API = "DAYTONA_API"
 ```
 
-Wire-format ``source`` identifiers set by the translation layer when a
-Daytona service stamps them on the wire envelope. ``source = None`` means
-the response did not carry a structured envelope (treat as opaque).
+Wire-format ``source`` identifier for errors originating from the Daytona
+API. ``source = None`` means the response did not carry a structured
+envelope (treat as opaque).
+
+##### SOURCE\_DAEMON
+
+```python
+SOURCE_DAEMON = "DAYTONA_DAEMON"
+```
+
+Wire-format ``source`` identifier for errors originating from the sandbox
+daemon (toolbox).
+
+##### SOURCE\_PROXY
+
+```python
+SOURCE_PROXY = "DAYTONA_PROXY"
+```
+
+Wire-format ``source`` identifier for errors originating from the Daytona
+proxy.
 
 ## DaytonaError
 
@@ -68,16 +86,14 @@ Initialize Daytona error.
   Left as ``None`` for SDK-side errors and for responses from
   services that don't emit the envelope.
 
-
-##### SOURCE\_API
+#### DaytonaError.error\_code
 
 ```python
-SOURCE_API = "DAYTONA_API"
+@property
+def error_code() -> str | None
 ```
 
-Wire-format ``source`` identifiers set by the translation layer when a
-Daytona service stamps them on the wire envelope. ``source = None`` means
-the response did not carry a structured envelope (treat as opaque).
+Deprecated alias of :attr:`code`, kept for backward compatibility.
 
 ## DaytonaNotFoundError
 

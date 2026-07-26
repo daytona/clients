@@ -709,7 +709,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 //
 //	sandbox, err := client.Get(ctx, "my-sandbox")
 //	if err != nil {
-//	    if stderrors.Is(err, errors.ErrNotFound) {
+//	    if errors.Is(err, sdkerrors.ErrNotFound) {
 //	        log.Println("Sandbox not found")
 //	    }
 //	    return err

@@ -79,6 +79,16 @@ func TestErrorsIs_StatusClassSentinels(t *testing.T) {
 	}
 }
 
+func TestErrorsIs_GatewayTimeoutSentinel(t *testing.T) {
+	err := sdkerrors.NewDaytonaError("gateway timed out", http.StatusGatewayTimeout, nil)
+	if !stderrors.Is(err, sdkerrors.ErrGatewayTimeout) {
+		t.Fatalf("errors.Is(err, ErrGatewayTimeout) = false")
+	}
+	if stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) should be false for 504 (408 sentinel)")
+	}
+}
+
 func TestErrorsIs_DomainCodeAlsoMatchesParentStatus(t *testing.T) {
 	body := []byte(`{"statusCode":401,"message":"creds rejected","code":"GIT_AUTH_FAILED","source":"DAYTONA_DAEMON"}`)
 	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusUnauthorized, nil)

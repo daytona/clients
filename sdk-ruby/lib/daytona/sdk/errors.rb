@@ -31,19 +31,19 @@ module Daytona
     #     puts e.status_code, e.code, e.source
     #   end
     class Error < StandardError
-      attr_reader :headers
-
       def initialize(message = nil, status_code: nil, code: nil, source: nil, headers: nil)
         super(message)
         @status_code = status_code
         @code = code
         @source = source
-        @headers = headers || {}
+        @headers = headers
       end
 
       def status_code = @status_code || metadata_from_cause[:status_code]
 
       def code = @code || metadata_from_cause[:code]
+
+      def headers = @headers || metadata_from_cause[:headers] || {}
 
       # Returns the originating service, or `nil` if unknown. Falls back to
       # metadata carried by `cause` so a re-raised ApiError keeps its

@@ -414,6 +414,14 @@ RSpec.describe Daytona::FileSystem do
       expect { fs.upload_files([Daytona::FileUpload.new('content', '/dest')]) }
         .to raise_error(Daytona::Sdk::Error, /Failed to upload files: boom/)
     end
+
+    it 'adds batch context to errors already wrapped by upload_file' do
+      allow(toolbox_api).to receive(:upload_file)
+        .and_raise(DaytonaToolboxApiClient::ApiError.new(code: 404, message: 'missing'))
+
+      expect { fs.upload_files([Daytona::FileUpload.new('content', '/dest')]) }
+        .to raise_error(Daytona::Sdk::NotFoundError, /Failed to upload files: Failed to upload file:/)
+    end
   end
 
   describe '#find_files' do

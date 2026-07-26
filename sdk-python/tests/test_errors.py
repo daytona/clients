@@ -51,6 +51,11 @@ class TestDaytonaError:
         err = DaytonaError("msg", headers=None)
         assert err.headers == {}
 
+    def test_error_code_is_deprecated_alias_of_code(self):
+        err = DaytonaError("boom", code="FILE_NOT_FOUND")
+        with pytest.warns(DeprecationWarning, match="error_code is deprecated"):
+            assert err.error_code == "FILE_NOT_FOUND"
+
 
 class TestDaytonaNotFoundError:
     def test_inherits_daytona_error(self):
@@ -213,6 +218,34 @@ class TestTransportErrorMapping:
         @intercept_errors(message_prefix="Failed to get session: ")
         def fn():
             raise urllib3.exceptions.ConnectTimeoutError("Connection timed out")
+
+        with pytest.raises(DaytonaConnectionTimeoutError):
+            fn()
+
+    def test_urllib3_new_connection_error_maps_to_connection_error_not_timeout(self):
+        # urllib3 declares NewConnectionError as a ConnectTimeoutError subclass
+        # even though it represents ECONNREFUSED-style failures; the mapping
+        # must classify it as a connection error, not a timeout.
+        import urllib3.exceptions
+
+        from daytona._utils.errors import intercept_errors
+
+        @intercept_errors()
+        def fn():
+            raise urllib3.exceptions.NewConnectionError(None, "connection refused")
+
+        with pytest.raises(DaytonaConnectionError) as exc_info:
+            fn()
+        assert not isinstance(exc_info.value, DaytonaConnectionTimeoutError)
+
+    def test_urllib3_base_timeout_error_maps_to_connection_timeout_error(self):
+        import urllib3.exceptions
+
+        from daytona._utils.errors import intercept_errors
+
+        @intercept_errors()
+        def fn():
+            raise urllib3.exceptions.TimeoutError("pool timeout")
 
         with pytest.raises(DaytonaConnectionTimeoutError):
             fn()

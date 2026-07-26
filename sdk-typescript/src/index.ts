@@ -32,6 +32,10 @@ export { Process } from './Process'
 // export { LspServer } from './LspServer'
 // export type { LspLanguageId, Position } from './LspServer'
 export {
+  // Wire-format `source` identifiers for matching against `error.source`
+  SOURCE_API,
+  SOURCE_DAEMON,
+  SOURCE_PROXY,
   // Base + status-code classes
   DaytonaError,
   DaytonaBadRequestError,
