@@ -54,6 +54,7 @@ public class Daytona implements AutoCloseable {
     private final SnapshotService snapshot;
     private final VolumeService volume;
     private final SecretService secret;
+    private final WarmPoolService warmPool;
     private final EventDispatcher eventDispatcher;
     private final EventSubscriptionManager subscriptionManager;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -93,6 +94,7 @@ public class Daytona implements AutoCloseable {
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
+        this.warmPool = new WarmPoolService(new io.daytona.api.client.api.WarmPoolsApi(apiClient));
         @SuppressWarnings("deprecation")
         boolean legacyPolling = config.isUseDeprecatedPolling();
         if (!legacyPolling) {
@@ -533,6 +535,15 @@ public class Daytona implements AutoCloseable {
      */
     public SecretService secret() {
         return secret;
+    }
+
+    /**
+     * Returns Warm Pool management service.
+     *
+     * @return warm pool service instance
+     */
+    public WarmPoolService warmPool() {
+        return warmPool;
     }
 
     /**

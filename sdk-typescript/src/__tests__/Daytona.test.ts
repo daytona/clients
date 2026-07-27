@@ -52,6 +52,7 @@ jest.mock(
     ConfigApi: jest.fn(() => mockConfigApi),
     VolumesApi: jest.fn(() => mockVolumesApi),
     SecretApi: jest.fn(() => mockSecretApi),
+    WarmPoolsApi: jest.fn(() => ({})),
     SandboxState: {
       PENDING_BUILD: 'pending_build',
       STARTED: 'started',
