@@ -25,6 +25,9 @@ module Daytona
     # @return [Daytona::SecretService]
     attr_reader :secret
 
+    # @return [Daytona::WarmPoolService]
+    attr_reader :warm_pool
+
     # @return [DaytonaApiClient::ObjectStorageApi]
     attr_reader :object_storage_api
 
@@ -53,6 +56,7 @@ module Daytona
       @analytics_api_url_mutex = Mutex.new
       @volume = VolumeService.new(DaytonaApiClient::VolumesApi.new(api_client), otel_state:)
       @secret = SecretService.new(DaytonaApiClient::SecretApi.new(api_client), otel_state:)
+      @warm_pool = WarmPoolService.new(DaytonaApiClient::WarmPoolsApi.new(api_client), otel_state:)
       @object_storage_api = DaytonaApiClient::ObjectStorageApi.new(api_client)
       @snapshots_api = DaytonaApiClient::SnapshotsApi.new(api_client)
       @snapshot = SnapshotService.new(

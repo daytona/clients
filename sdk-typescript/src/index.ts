@@ -87,6 +87,7 @@ export { Sandbox } from './Sandbox'
 export type { ListSandboxesQuery, SandboxMetrics } from './Sandbox'
 export type { Secret, CreateSecretParams, UpdateSecretParams, ListSecretsQuery, ListSecretsResponse } from './Secret'
 export type { CreateSnapshotParams, ListSnapshotsQuery } from './Snapshot'
+export type { WarmPool } from './WarmPool'
 export { ComputerUse, Mouse, Keyboard, Screenshot, Display, Accessibility } from './ComputerUse'
 export type {
   BarChart,
@@ -116,6 +117,7 @@ export {
   ListSecretsPaginatedSortEnum,
   ListSecretsPaginatedOrderEnum,
 } from '@daytona/api-client'
+export type { CreateWarmPool, UpdateWarmPool } from '@daytona/api-client'
 export type {
   FileInfo,
   GitStatus,

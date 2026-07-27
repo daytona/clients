@@ -132,6 +132,9 @@ type Client struct {
 
 	// Secret provides methods for managing organization secrets.
 	Secret *SecretService
+
+	// WarmPool provides methods for managing warm pools of ready sandboxes.
+	WarmPool *WarmPoolService
 }
 
 // NewClient creates a new Daytona client with default configuration.
@@ -272,6 +275,7 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	client.Volume = NewVolumeService(client)
 	client.Snapshot = NewSnapshotService(client)
 	client.Secret = NewSecretService(client)
+	client.WarmPool = NewWarmPoolService(client)
 	client.subscriptionManager = common.NewEventSubscriptionManager(nil)
 
 	token := client.apiKey

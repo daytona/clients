@@ -130,6 +130,27 @@ def build_secret_dto(overrides = {})
   instance_double(DaytonaApiClient::Secret, **attrs)
 end
 
+def build_warm_pool_dto(overrides = {})
+  attrs = {
+    id: 'wp-123',
+    organization_id: 'org-1',
+    snapshot: 'test-snapshot',
+    target: 'us',
+    pool: 5,
+    current_size: 3,
+    cpu: 2,
+    mem: 4,
+    disk: 10,
+    os_user: 'daytona',
+    env: {},
+    error_reason: nil,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z'
+  }.merge(overrides)
+
+  instance_double(DaytonaApiClient::WarmPool, **attrs)
+end
+
 def build_snapshot_dto(overrides = {})
   attrs = {
     id: 'snap-123',
