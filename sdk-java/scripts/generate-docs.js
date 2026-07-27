@@ -504,6 +504,11 @@ function buildClassDoc(classData) {
         lines.push('')
       }
 
+      if (ctor.javadoc.deprecated) {
+        lines.push(`**Deprecated**: ${ctor.javadoc.deprecated}`)
+        lines.push('')
+      }
+
       pushParamsSection(lines, ctor.parameters, ctor.javadoc.params)
       pushThrowsSection(lines, collectThrows(ctor.throwsTypes, ctor.javadoc.throws))
     }
@@ -523,6 +528,11 @@ function buildClassDoc(classData) {
 
       if (method.javadoc.description) {
         lines.push(method.javadoc.description)
+        lines.push('')
+      }
+
+      if (method.javadoc.deprecated) {
+        lines.push(`**Deprecated**: ${method.javadoc.deprecated}`)
         lines.push('')
       }
 

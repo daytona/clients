@@ -67,6 +67,8 @@ public boolean isUseDeprecatedPolling()
 
 Returns whether legacy polling mode is enabled instead of WebSocket event streaming.
 
+**Deprecated**: Polling-only mode will be removed in a future release; event streaming is the default and falls back to polling automatically when WebSockets are unavailable.
+
 **Returns**:
 
 - `boolean` - `true` if deprecated polling mode is active
@@ -149,6 +151,8 @@ public Builder useDeprecatedPolling(boolean useDeprecatedPolling)
 Observe sandbox state by legacy polling instead of WebSocket event streaming.
 Defaults to `false` (event streaming). Can also be enabled via the
 `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
+
+**Deprecated**: Polling-only mode will be removed in a future release; event streaming is the default and falls back to polling automatically when WebSockets are unavailable.
 
 **Parameters**:
 
