@@ -13,6 +13,7 @@ connection-resilience smoke test that previously lived in
 ``test_conn_resilience.py``).  Add more cases as new async surface area is
 introduced or when a regression needs a guard.
 """
+
 from __future__ import annotations
 
 import asyncio

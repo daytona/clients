@@ -153,36 +153,28 @@ def _parse_metric_timestamp(value: str) -> datetime:
 
 class _SystemMetrics(Protocol):
     @property
-    def cpu_count(self) -> int | None:
-        ...
+    def cpu_count(self) -> int | None: ...
 
     @property
-    def cpu_used_pct(self) -> float | None:
-        ...
+    def cpu_used_pct(self) -> float | None: ...
 
     @property
-    def disk_total(self) -> int | None:
-        ...
+    def disk_total(self) -> int | None: ...
 
     @property
-    def disk_used(self) -> int | None:
-        ...
+    def disk_used(self) -> int | None: ...
 
     @property
-    def mem_total(self) -> int | None:
-        ...
+    def mem_total(self) -> int | None: ...
 
     @property
-    def mem_used(self) -> int | None:
-        ...
+    def mem_used(self) -> int | None: ...
 
     @property
-    def mem_cache(self) -> int | None:
-        ...
+    def mem_cache(self) -> int | None: ...
 
     @property
-    def timestamp(self) -> str | None:
-        ...
+    def timestamp(self) -> str | None: ...
 
 
 def sandbox_metrics_from_system_metrics(system_metrics: _SystemMetrics) -> SandboxMetrics:
@@ -195,9 +187,11 @@ def sandbox_metrics_from_system_metrics(system_metrics: _SystemMetrics) -> Sandb
         mem_total=int(system_metrics.mem_total or 0),
         mem_used=int(system_metrics.mem_used or 0),
         mem_cache=int(system_metrics.mem_cache or 0),
-        timestamp=_parse_metric_timestamp(system_metrics.timestamp)
-        if system_metrics.timestamp
-        else datetime.now(timezone.utc),
+        timestamp=(
+            _parse_metric_timestamp(system_metrics.timestamp)
+            if system_metrics.timestamp
+            else datetime.now(timezone.utc)
+        ),
     )
 
 
