@@ -741,16 +741,54 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
-  describe '#experimental_create_snapshot' do
+  describe '#create_snapshot' do
     it 'creates a snapshot and waits for completion' do
       allow(sandbox_api).to receive(:create_sandbox_snapshot).with('sandbox-123', anything)
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
 
-      sandbox.experimental_create_snapshot(name: 'snap-1', timeout: 5)
+      sandbox.create_snapshot(name: 'snap-1', timeout: 5)
 
       expect(sandbox_api).to have_received(:create_sandbox_snapshot) do |_id, request|
         expect(request.name).to eq('snap-1')
       end
+    end
+  end
+
+  describe '#fork' do
+    it 'forks the sandbox and returns the forked sandbox' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: DaytonaApiClient::SandboxState::STARTED)
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto)
+
+      result = sandbox.fork(name: 'my-fork', timeout: 5)
+
+      expect(result).to be_a(Daytona::Sandbox)
+      expect(result.id).to eq('forked-456')
+      expect(sandbox_api).to have_received(:fork_sandbox) do |_id, request|
+        expect(request.name).to eq('my-fork')
+      end
+    end
+  end
+
+  describe '#experimental_create_snapshot (deprecated)' do
+    it 'delegates to #create_snapshot and emits a deprecation warning' do
+      allow(sandbox).to receive(:create_snapshot)
+
+      expect { sandbox.experimental_create_snapshot(name: 'snap-1', timeout: 5) }
+        .to output(/DEPRECATION.*experimental_create_snapshot/).to_stderr
+
+      expect(sandbox).to have_received(:create_snapshot).with(name: 'snap-1', timeout: 5)
+    end
+  end
+
+  describe '#experimental_fork (deprecated)' do
+    it 'delegates to #fork and emits a deprecation warning' do
+      allow(sandbox).to receive(:fork)
+
+      expect { sandbox.experimental_fork(name: 'my-fork', timeout: 5) }
+        .to output(/DEPRECATION.*experimental_fork/).to_stderr
+
+      expect(sandbox).to have_received(:fork).with(name: 'my-fork', timeout: 5)
     end
   end
 

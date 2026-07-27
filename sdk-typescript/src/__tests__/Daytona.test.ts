@@ -129,6 +129,7 @@ jest.mock('../Sandbox', () => ({
       stop: jest.fn(),
       delete: jest.fn(),
       waitUntilStarted: jest.fn(),
+      fork: jest.fn(),
       _experimental_fork: jest.fn(),
     }
     mockSandboxCtor(dto, ...rest)
@@ -539,6 +540,7 @@ describe('Daytona', () => {
         .mockRejectedValue(
           new DaytonaTimeoutError('slow start', 504, undefined, 'PROCESS_EXECUTION_TIMEOUT', 'DAYTONA_DAEMON'),
         ),
+      fork: jest.fn(),
       _experimental_fork: jest.fn(),
     }))
 
@@ -594,18 +596,30 @@ describe('Daytona', () => {
     expect(call[5]).toBe('{"team":"sdk","env":"test"}') // labels JSON
   })
 
-  it('delegates experimental fork to the sandbox instance', async () => {
+  it('delegates fork to the sandbox instance', async () => {
     const { Daytona } = await import('../Daytona')
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
 
     const sandbox = {
-      _experimental_fork: jest.fn().mockResolvedValue({ id: 'forked' }),
+      fork: jest.fn().mockResolvedValue({ id: 'forked' }),
     }
 
-    await expect(instance._experimental_fork(sandbox as never, { name: 'forked' }, 12)).resolves.toEqual({
+    await expect(instance.fork(sandbox as never, { name: 'forked' }, 12)).resolves.toEqual({
       id: 'forked',
     })
-    expect(sandbox._experimental_fork).toHaveBeenCalledWith({ name: 'forked' }, 12)
+    expect(sandbox.fork).toHaveBeenCalledWith({ name: 'forked' }, 12)
+  })
+
+  it('_experimental_fork delegates to fork', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    const forkSpy = jest.spyOn(instance, 'fork').mockResolvedValue({ id: 'forked' } as never)
+
+    await expect(instance._experimental_fork({} as never, { name: 'alias' }, 7)).resolves.toEqual({
+      id: 'forked',
+    })
+    expect(forkSpy).toHaveBeenCalledWith({}, { name: 'alias' }, 7)
   })
 
   it('delegates get/list/start/stop/delete methods', async () => {

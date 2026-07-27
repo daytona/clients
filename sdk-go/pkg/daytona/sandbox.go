@@ -1713,48 +1713,48 @@ func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []
 	})
 }
 
-// ExperimentalFork forks the sandbox with a default timeout of 60 seconds,
+// Fork forks the sandbox with a default timeout of 60 seconds,
 // creating a new sandbox with an identical filesystem.
 //
 // The forked sandbox is a copy-on-write clone of the original. It starts
 // with the same disk contents but operates independently from that point on.
-// ExperimentalFork waits for the new sandbox to reach the "started" state before returning.
+// Fork waits for the new sandbox to reach the "started" state before returning.
 //
 // Example:
 //
-//	forked, err := sandbox.ExperimentalFork(ctx, nil)
+//	forked, err := sandbox.Fork(ctx, nil)
 //	if err != nil {
 //	    return err
 //	}
 //	fmt.Printf("Forked sandbox: %s\n", forked.ID)
-func (s *Sandbox) ExperimentalFork(ctx context.Context, name *string) (*Sandbox, error) {
-	return withInstrumentation(ctx, s.otel, "Sandbox", "ExperimentalFork", func(ctx context.Context) (*Sandbox, error) {
-		return s.ExperimentalForkWithTimeout(ctx, name, 60*time.Second)
+func (s *Sandbox) Fork(ctx context.Context, name *string) (*Sandbox, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "Fork", func(ctx context.Context) (*Sandbox, error) {
+		return s.ForkWithTimeout(ctx, name, 60*time.Second)
 	})
 }
 
-// ExperimentalForkWithTimeout forks the sandbox with a custom timeout,
+// ForkWithTimeout forks the sandbox with a custom timeout,
 // creating a new sandbox with an identical filesystem.
 //
 // The forked sandbox is a copy-on-write clone of the original. It starts
 // with the same disk contents but operates independently from that point on.
-// ExperimentalForkWithTimeout waits for the new sandbox to reach the "started" state before returning.
+// ForkWithTimeout waits for the new sandbox to reach the "started" state before returning.
 // 0 means no timeout.
 //
 // Example:
 //
-//	forked, err := sandbox.ExperimentalForkWithTimeout(ctx, nil, 2*time.Minute)
+//	forked, err := sandbox.ForkWithTimeout(ctx, nil, 2*time.Minute)
 //	if err != nil {
 //	    return err
 //	}
 //	fmt.Printf("Forked sandbox: %s\n", forked.ID)
-func (s *Sandbox) ExperimentalForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error) {
-	return withInstrumentation(ctx, s.otel, "Sandbox", "ExperimentalForkWithTimeout", func(ctx context.Context) (*Sandbox, error) {
-		return s.doExperimentalForkWithTimeout(ctx, name, timeout)
+func (s *Sandbox) ForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error) {
+	return withInstrumentation(ctx, s.otel, "Sandbox", "ForkWithTimeout", func(ctx context.Context) (*Sandbox, error) {
+		return s.doForkWithTimeout(ctx, name, timeout)
 	})
 }
 
-func (s *Sandbox) doExperimentalForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error) {
+func (s *Sandbox) doForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error) {
 	if timeout < 0 {
 		return nil, errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
 	}
@@ -1791,7 +1791,21 @@ func (s *Sandbox) doExperimentalForkWithTimeout(ctx context.Context, name *strin
 	return forked, nil
 }
 
-// ExperimentalCreateSnapshot creates a snapshot from the current state of the sandbox
+// ExperimentalFork forks the sandbox with a default timeout of 60 seconds.
+//
+// Deprecated: Use Fork instead. This method will be removed in a future release.
+func (s *Sandbox) ExperimentalFork(ctx context.Context, name *string) (*Sandbox, error) {
+	return s.Fork(ctx, name)
+}
+
+// ExperimentalForkWithTimeout forks the sandbox with a custom timeout.
+//
+// Deprecated: Use ForkWithTimeout instead. This method will be removed in a future release.
+func (s *Sandbox) ExperimentalForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error) {
+	return s.ForkWithTimeout(ctx, name, timeout)
+}
+
+// CreateSnapshot creates a snapshot from the current state of the sandbox
 // with a default timeout of 60 seconds.
 //
 // This captures the sandbox's filesystem into a reusable snapshot that can be
@@ -1800,29 +1814,43 @@ func (s *Sandbox) doExperimentalForkWithTimeout(ctx context.Context, name *strin
 //
 // Example:
 //
-//	err := sandbox.ExperimentalCreateSnapshot(ctx, "my-snapshot")
+//	err := sandbox.CreateSnapshot(ctx, "my-snapshot")
 //	if err != nil {
 //	    return err
 //	}
-func (s *Sandbox) ExperimentalCreateSnapshot(ctx context.Context, name string) error {
-	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ExperimentalCreateSnapshot", func(ctx context.Context) error {
-		return s.ExperimentalCreateSnapshotWithTimeout(ctx, name, 60*time.Second)
+func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) error {
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "CreateSnapshot", func(ctx context.Context) error {
+		return s.CreateSnapshotWithTimeout(ctx, name, 60*time.Second)
 	})
 }
 
-// ExperimentalCreateSnapshotWithTimeout creates a snapshot from the current state of the sandbox
+// CreateSnapshotWithTimeout creates a snapshot from the current state of the sandbox
 // with a custom timeout. 0 means no timeout.
 //
 // Example:
 //
-//	err := sandbox.ExperimentalCreateSnapshotWithTimeout(ctx, "my-snapshot", 2*time.Minute)
-func (s *Sandbox) ExperimentalCreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error {
-	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ExperimentalCreateSnapshotWithTimeout", func(ctx context.Context) error {
-		return s.doExperimentalCreateSnapshotWithTimeout(ctx, name, timeout)
+//	err := sandbox.CreateSnapshotWithTimeout(ctx, "my-snapshot", 2*time.Minute)
+func (s *Sandbox) CreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error {
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "CreateSnapshotWithTimeout", func(ctx context.Context) error {
+		return s.doCreateSnapshotWithTimeout(ctx, name, timeout)
 	})
 }
 
-func (s *Sandbox) doExperimentalCreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error {
+// ExperimentalCreateSnapshot creates a snapshot from the current state of the sandbox.
+//
+// Deprecated: Use CreateSnapshot instead. This method will be removed in a future release.
+func (s *Sandbox) ExperimentalCreateSnapshot(ctx context.Context, name string) error {
+	return s.CreateSnapshot(ctx, name)
+}
+
+// ExperimentalCreateSnapshotWithTimeout creates a snapshot with a custom timeout.
+//
+// Deprecated: Use CreateSnapshotWithTimeout instead. This method will be removed in a future release.
+func (s *Sandbox) ExperimentalCreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error {
+	return s.CreateSnapshotWithTimeout(ctx, name, timeout)
+}
+
+func (s *Sandbox) doCreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error {
 	if timeout < 0 {
 		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
 	}

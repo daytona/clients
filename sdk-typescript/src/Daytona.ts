@@ -922,12 +922,20 @@ export class Daytona implements AsyncDisposable {
    *
    * @example
    * const sandbox = await daytona.get('my-sandbox-id');
-   * const forked = await daytona._experimental_fork(sandbox, { name: 'my-fork' });
+   * const forked = await daytona.fork(sandbox, { name: 'my-fork' });
    * console.log(`Forked sandbox: ${forked.id}`);
    */
   @WithInstrumentation()
+  public async fork(sandbox: Sandbox, params?: { name?: string }, timeout = 60): Promise<Sandbox> {
+    return await sandbox.fork(params, timeout)
+  }
+
+  /**
+   * @deprecated Use `fork` instead. This method will be removed in a future version.
+   * @see {@link Daytona.fork}
+   */
   public async _experimental_fork(sandbox: Sandbox, params?: { name?: string }, timeout = 60): Promise<Sandbox> {
-    return await sandbox._experimental_fork(params, timeout)
+    return this.fork(sandbox, params, timeout)
   }
 
   /**

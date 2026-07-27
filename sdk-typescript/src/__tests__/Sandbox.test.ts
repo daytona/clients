@@ -300,11 +300,31 @@ describe('Sandbox', () => {
     sandboxApi.createSandboxSnapshot.mockResolvedValue(createApiResponse({ ...baseDto, state: 'started' }))
     sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'started' }))
 
-    await sandbox._experimental_createSnapshot('snap-1', 5)
+    await sandbox.createSnapshot('snap-1', 5)
 
     expect(sandboxApi.createSandboxSnapshot).toHaveBeenCalledWith('sb-1', { name: 'snap-1' }, undefined, {
       timeout: 5000,
     })
+  })
+
+  it('_experimental_createSnapshot delegates to createSnapshot', async () => {
+    const { sandbox } = makeSandbox()
+    const spy = jest.spyOn(sandbox, 'createSnapshot').mockResolvedValue(undefined)
+
+    await sandbox._experimental_createSnapshot('snap-2', 10)
+
+    expect(spy).toHaveBeenCalledWith('snap-2', 10)
+  })
+
+  it('_experimental_fork delegates to fork', async () => {
+    const { sandbox } = makeSandbox()
+    const fakeFork = { id: 'forked-sb' } as unknown as import('../Sandbox').Sandbox
+    const spy = jest.spyOn(sandbox, 'fork').mockResolvedValue(fakeFork)
+
+    const result = await sandbox._experimental_fork({ name: 'clone' }, 30)
+
+    expect(spy).toHaveBeenCalledWith({ name: 'clone' }, 30)
+    expect(result).toBe(fakeFork)
   })
 
   it('waitUntilStarted throws when sandbox enters an error state', async () => {

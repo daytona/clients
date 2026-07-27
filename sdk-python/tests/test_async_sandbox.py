@@ -364,6 +364,41 @@ class TestAsyncSandboxPollingSemantics:
             )
         )
 
-        forked = await sandbox._experimental_fork(name="my-fork", timeout=0)
+        forked = await sandbox.fork(name="my-fork", timeout=0)
         mock_async_sandbox_api.get_toolbox_proxy_url.assert_called_once_with("forked-id")
         assert forked.toolbox_proxy_url == "http://hydrated-fork:2280"
+
+    @pytest.mark.asyncio
+    async def test_experimental_fork_delegates_and_warns(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED, toolbox_proxy_url="http://original:2280")
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        fork_dto = make_sandbox_dto(
+            sandbox_id="forked-id",
+            state=SandboxState.STARTED,
+            toolbox_proxy_url="http://forked:2280",
+        )
+        mock_async_sandbox_api.fork_sandbox = AsyncMock(return_value=fork_dto)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(
+                sandbox_id="forked-id", state=SandboxState.STARTED, toolbox_proxy_url="http://forked:2280"
+            )
+        )
+
+        with pytest.warns(DeprecationWarning, match="Use `fork` instead"):
+            forked = await sandbox._experimental_fork(name="my-fork", timeout=0)
+        assert forked.id == "forked-id"
+
+    @pytest.mark.asyncio
+    async def test_experimental_create_snapshot_delegates_and_warns(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        snapshot_dto = make_sandbox_dto(state=SandboxState.STARTED)
+        mock_async_sandbox_api.create_sandbox_snapshot = AsyncMock(return_value=snapshot_dto)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTED))
+
+        with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
+            await sandbox._experimental_create_snapshot("my-snapshot", timeout=0)

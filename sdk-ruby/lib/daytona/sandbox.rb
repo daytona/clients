@@ -839,7 +839,7 @@ module Daytona
     # @param name [String, nil] Optional name for the forked Sandbox
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s)
     # @return [Daytona::Sandbox] The forked Sandbox
-    def experimental_fork(name: nil, timeout: DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
+    def fork(name: nil, timeout: DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
       forked_dto = nil
       with_timeout(
         timeout:,
@@ -867,7 +867,7 @@ module Daytona
     # @param name [String] Name for the new snapshot
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s)
     # @return [void]
-    def experimental_create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
+    def create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
       with_timeout(
         timeout:,
         message: "Sandbox #{id} snapshot failed within the #{timeout} seconds timeout period",
@@ -876,6 +876,18 @@ module Daytona
           process_response(response)
         }
       ) { wait_for_snapshot_complete }
+    end
+
+    # @deprecated Use {#fork} instead. This method will be removed in a future version.
+    def experimental_fork(name: nil, timeout: DEFAULT_TIMEOUT)
+      warn('[DEPRECATION] `experimental_fork` is deprecated. Use `fork` instead.', uplevel: 1)
+      fork(name:, timeout:)
+    end
+
+    # @deprecated Use {#create_snapshot} instead. This method will be removed in a future version.
+    def experimental_create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
+      warn('[DEPRECATION] `experimental_create_snapshot` is deprecated. Use `create_snapshot` instead.', uplevel: 1)
+      create_snapshot(name:, timeout:)
     end
 
     # Pauses the Sandbox, freezing all running processes.
@@ -907,7 +919,7 @@ module Daytona
                 :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,
                 :create_lsp_server, :validate_ssh_access, :wait_for_sandbox_start,
                 :wait_for_sandbox_stop, :resize, :wait_for_resize_complete,
-                :experimental_fork, :experimental_create_snapshot, :pause
+                :fork, :create_snapshot, :pause
 
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
                :ttl_minutes=,
@@ -919,7 +931,7 @@ module Daytona
                :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,
                :create_lsp_server, :validate_ssh_access, :wait_for_sandbox_start,
                :wait_for_sandbox_stop, :resize, :wait_for_resize_complete,
-               :experimental_fork, :experimental_create_snapshot, :pause,
+               :fork, :create_snapshot, :pause,
                component: 'Sandbox'
 
     private

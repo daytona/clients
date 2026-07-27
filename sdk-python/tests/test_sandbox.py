@@ -281,3 +281,53 @@ class TestSandboxPollingSemantics:
         ]
         sandbox.pause(timeout=0)
         assert sandbox.state == SandboxState.STOPPED
+
+    def test_fork(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED, toolbox_proxy_url="http://original:2280")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+
+        fork_dto = make_sandbox_dto(
+            sandbox_id="forked-id",
+            state=SandboxState.STARTED,
+            toolbox_proxy_url="http://forked:2280",
+        )
+        mock_sandbox_api.fork_sandbox = MagicMock(return_value=fork_dto)
+        mock_sandbox_api.get_sandbox = MagicMock(
+            return_value=make_sandbox_dto(
+                sandbox_id="forked-id", state=SandboxState.STARTED, toolbox_proxy_url="http://forked:2280"
+            )
+        )
+
+        forked = sandbox.fork(name="my-fork", timeout=0)
+        assert forked.id == "forked-id"
+
+    def test_experimental_fork_delegates_and_warns(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED, toolbox_proxy_url="http://original:2280")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+
+        fork_dto = make_sandbox_dto(
+            sandbox_id="forked-id",
+            state=SandboxState.STARTED,
+            toolbox_proxy_url="http://forked:2280",
+        )
+        mock_sandbox_api.fork_sandbox = MagicMock(return_value=fork_dto)
+        mock_sandbox_api.get_sandbox = MagicMock(
+            return_value=make_sandbox_dto(
+                sandbox_id="forked-id", state=SandboxState.STARTED, toolbox_proxy_url="http://forked:2280"
+            )
+        )
+
+        with pytest.warns(DeprecationWarning, match="Use `fork` instead"):
+            forked = sandbox._experimental_fork(name="my-fork", timeout=0)
+        assert forked.id == "forked-id"
+
+    def test_experimental_create_snapshot_delegates_and_warns(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.STARTED)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+
+        snapshot_dto = make_sandbox_dto(state=SandboxState.STARTED)
+        mock_sandbox_api.create_sandbox_snapshot = MagicMock(return_value=snapshot_dto)
+        mock_sandbox_api.get_sandbox = MagicMock(return_value=make_sandbox_dto(state=SandboxState.STARTED))
+
+        with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
+            sandbox._experimental_create_snapshot("my-snapshot", timeout=0)

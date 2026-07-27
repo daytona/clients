@@ -1189,23 +1189,35 @@ public class Sandbox {
      * Forks this Sandbox, creating a new Sandbox with an identical filesystem.
      * Uses default timeout of 60 seconds.
      *
+     * <p>Example usage:
+     * <pre>{@code
+     * Sandbox forked = sandbox.fork();
+     * System.out.println(forked.getId());
+     * }</pre>
+     *
      * @return the forked {@link Sandbox} in started state
      * @throws DaytonaException if the fork operation fails or times out
      */
-    public Sandbox experimentalFork() {
-        return experimentalFork(null, 60);
+    public Sandbox fork() {
+        return fork(null, 60);
     }
 
     /**
      * Forks this Sandbox, creating a new Sandbox with an identical filesystem.
      * The forked Sandbox is a copy-on-write clone of the original.
      *
+     * <p>Example usage:
+     * <pre>{@code
+     * Sandbox forked = sandbox.fork("my-fork", 120);
+     * System.out.println(forked.getId());
+     * }</pre>
+     *
      * @param name optional name for the forked Sandbox; {@code null} for auto-generated
      * @param timeoutSeconds maximum seconds to wait for the forked Sandbox to start; {@code 0} disables timeout
      * @return the forked {@link Sandbox} in started state
      * @throws DaytonaException if the fork operation fails or times out
      */
-    public Sandbox experimentalFork(String name, long timeoutSeconds) {
+    public Sandbox fork(String name, long timeoutSeconds) {
         ForkSandbox forkReq = new ForkSandbox();
         if (name != null) {
             forkReq.setName(name);
@@ -1219,25 +1231,63 @@ public class Sandbox {
     }
 
     /**
+     * Forks this Sandbox, creating a new Sandbox with an identical filesystem.
+     * Uses default timeout of 60 seconds.
+     *
+     * @return the forked {@link Sandbox} in started state
+     * @throws DaytonaException if the fork operation fails or times out
+     * @deprecated Use {@link #fork()} instead. This method will be removed in a future version.
+     */
+    @Deprecated
+    public Sandbox experimentalFork() {
+        return fork(null, 60);
+    }
+
+    /**
+     * Forks this Sandbox, creating a new Sandbox with an identical filesystem.
+     * The forked Sandbox is a copy-on-write clone of the original.
+     *
+     * @param name optional name for the forked Sandbox; {@code null} for auto-generated
+     * @param timeoutSeconds maximum seconds to wait for the forked Sandbox to start; {@code 0} disables timeout
+     * @return the forked {@link Sandbox} in started state
+     * @throws DaytonaException if the fork operation fails or times out
+     * @deprecated Use {@link #fork(String, long)} instead. This method will be removed in a future version.
+     */
+    @Deprecated
+    public Sandbox experimentalFork(String name, long timeoutSeconds) {
+        return fork(name, timeoutSeconds);
+    }
+
+    /**
      * Creates a snapshot from the current state of this Sandbox.
      * Uses default timeout of 60 seconds.
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * sandbox.createSnapshot("my-snapshot");
+     * }</pre>
      *
      * @param name name for the new snapshot
      * @throws DaytonaException if the snapshot operation fails
      */
-    public void experimentalCreateSnapshot(String name) {
-        experimentalCreateSnapshot(name, 60);
+    public void createSnapshot(String name) {
+        createSnapshot(name, 60);
     }
 
     /**
      * Creates a snapshot from the current state of this Sandbox.
      * The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
      *
+     * <p>Example usage:
+     * <pre>{@code
+     * sandbox.createSnapshot("my-snapshot", 120);
+     * }</pre>
+     *
      * @param name name for the new snapshot
      * @param timeoutSeconds reserved timeout parameter for parity with other SDKs
      * @throws DaytonaException if the snapshot operation fails
      */
-    public void experimentalCreateSnapshot(String name, long timeoutSeconds) {
+    public void createSnapshot(String name, long timeoutSeconds) {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -1250,6 +1300,33 @@ public class Sandbox {
             populateFromDTO(response);
         }
         waitForSnapshotComplete(timeoutSeconds);
+    }
+
+    /**
+     * Creates a snapshot from the current state of this Sandbox.
+     * Uses default timeout of 60 seconds.
+     *
+     * @param name name for the new snapshot
+     * @throws DaytonaException if the snapshot operation fails
+     * @deprecated Use {@link #createSnapshot(String)} instead. This method will be removed in a future version.
+     */
+    @Deprecated
+    public void experimentalCreateSnapshot(String name) {
+        createSnapshot(name, 60);
+    }
+
+    /**
+     * Creates a snapshot from the current state of this Sandbox.
+     * The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
+     *
+     * @param name name for the new snapshot
+     * @param timeoutSeconds reserved timeout parameter for parity with other SDKs
+     * @throws DaytonaException if the snapshot operation fails
+     * @deprecated Use {@link #createSnapshot(String, long)} instead. This method will be removed in a future version.
+     */
+    @Deprecated
+    public void experimentalCreateSnapshot(String name, long timeoutSeconds) {
+        createSnapshot(name, timeoutSeconds);
     }
 
     private void waitForSnapshotComplete(long timeoutSeconds) {

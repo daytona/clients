@@ -1169,7 +1169,7 @@ class AsyncSandbox(SandboxDto):
     @intercept_errors(message_prefix="Failed to fork sandbox: ")
     @with_timeout()
     @with_instrumentation()
-    async def _experimental_fork(self, name: str | None = None, timeout: float | None = 60) -> "AsyncSandbox":
+    async def fork(self, name: str | None = None, timeout: float | None = 60) -> "AsyncSandbox":
         """Forks the Sandbox, creating a new Sandbox with an identical filesystem.
 
         The forked Sandbox is a copy-on-write clone of the original. It starts
@@ -1188,7 +1188,7 @@ class AsyncSandbox(SandboxDto):
         Example:
             ```python
             sandbox = await daytona.get("my-sandbox")
-            forked = await sandbox._experimental_fork(name="my-fork")
+            forked = await sandbox.fork(name="my-fork")
             print(f"Forked sandbox: {forked.id}")
             ```
         """
@@ -1212,10 +1212,14 @@ class AsyncSandbox(SandboxDto):
         await forked.wait_for_sandbox_start(timeout=0)
         return forked
 
+    @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
+    async def _experimental_fork(self, name: str | None = None, timeout: float | None = 60) -> "AsyncSandbox":
+        return await self.fork(name=name, timeout=timeout)
+
     @intercept_errors(message_prefix="Failed to create snapshot: ")
     @with_timeout()
     @with_instrumentation()
-    async def _experimental_create_snapshot(self, name: str, timeout: float | None = 60) -> None:
+    async def create_snapshot(self, name: str, timeout: float | None = 60) -> None:
         """Creates a snapshot from the current state of the Sandbox.
 
         This captures the Sandbox's filesystem into a reusable snapshot that can be
@@ -1232,7 +1236,7 @@ class AsyncSandbox(SandboxDto):
         Example:
             ```python
             sandbox = await daytona.get("my-sandbox")
-            await sandbox._experimental_create_snapshot("my-snapshot")
+            await sandbox.create_snapshot("my-snapshot")
             print("Snapshot created successfully")
             ```
         """
@@ -1248,6 +1252,12 @@ class AsyncSandbox(SandboxDto):
         target_states = [s for s in SandboxState if s not in exclude]
 
         await self._wait_for_state(target_states, error_states)
+
+    @deprecated(
+        reason=("Method is deprecated. Use `create_snapshot` instead. This method will be removed in a future version.")
+    )
+    async def _experimental_create_snapshot(self, name: str, timeout: float | None = 60) -> None:
+        return await self.create_snapshot(name=name, timeout=timeout)
 
     @intercept_errors(message_prefix="Failed to pause sandbox")
     @with_timeout()

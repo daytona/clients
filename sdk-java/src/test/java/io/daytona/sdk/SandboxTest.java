@@ -356,25 +356,25 @@ class SandboxTest {
     }
 
     @Test
-    void experimentalForkAndSnapshotDelegate() {
+    void forkAndSnapshotDelegate() {
         when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-2", SandboxState.STARTED));
         io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
         io.daytona.api.client.model.Sandbox started = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
         when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull())).thenReturn(snapshotting);
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(started);
 
-        Sandbox forked = sandbox.experimentalFork("forked", 2);
-        sandbox.experimentalCreateSnapshot("snap-1", 2);
+        Sandbox forked = sandbox.fork("forked", 2);
+        sandbox.createSnapshot("snap-1", 2);
 
         assertThat(forked.getId()).isEqualTo("sb-2");
         verify(sandboxApi).createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull());
     }
 
     @Test
-    void experimentalForkDefaultArgumentsOmitName() {
+    void forkDefaultArgumentsOmitName() {
         when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-4", SandboxState.STARTED));
 
-        sandbox.experimentalFork();
+        sandbox.fork();
 
         ArgumentCaptor<ForkSandbox> captor = ArgumentCaptor.forClass(ForkSandbox.class);
         verify(sandboxApi).forkSandbox(eq("sb-1"), captor.capture(), isNull());
@@ -382,24 +382,68 @@ class SandboxTest {
     }
 
     @Test
-    void experimentalCreateSnapshotFailsForErrorState() {
+    void createSnapshotFailsForErrorState() {
         io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
         io.daytona.api.client.model.Sandbox error = TestSupport.mainSandbox("sb-1", SandboxState.ERROR);
         when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull())).thenReturn(snapshotting);
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(error);
 
-        assertThatThrownBy(() -> sandbox.experimentalCreateSnapshot("snap-err", 2))
+        assertThatThrownBy(() -> sandbox.createSnapshot("snap-err", 2))
                 .hasMessageContaining("Sandbox entered error state: error");
     }
 
     @Test
-    void experimentalCreateSnapshotTimesOutWhenSnapshottingPersists() {
+    void createSnapshotTimesOutWhenSnapshottingPersists() {
         io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
         when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull())).thenReturn(snapshotting);
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(snapshotting, snapshotting);
 
-        assertThatThrownBy(() -> sandbox.experimentalCreateSnapshot("snap-timeout", 2))
+        assertThatThrownBy(() -> sandbox.createSnapshot("snap-timeout", 2))
                 .hasMessageContaining("did not reach target state within 2 seconds");
+    }
+
+    @Test
+    void deprecatedExperimentalForkDelegatesToFork() {
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-3", SandboxState.STARTED));
+
+        @SuppressWarnings("deprecation")
+        Sandbox forked = sandbox.experimentalFork("dep-fork", 2);
+
+        assertThat(forked.getId()).isEqualTo("sb-3");
+        verify(sandboxApi).forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull());
+    }
+
+    @Test
+    void deprecatedExperimentalForkNoArgDelegatesToFork() {
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-5", SandboxState.STARTED));
+
+        @SuppressWarnings("deprecation")
+        Sandbox forked = sandbox.experimentalFork();
+
+        assertThat(forked.getId()).isEqualTo("sb-5");
+        ArgumentCaptor<ForkSandbox> captor = ArgumentCaptor.forClass(ForkSandbox.class);
+        verify(sandboxApi).forkSandbox(eq("sb-1"), captor.capture(), isNull());
+        assertThat(captor.getValue().getName()).isNull();
+    }
+
+    @Test
+    void deprecatedExperimentalCreateSnapshotDelegatesToCreateSnapshot() {
+        io.daytona.api.client.model.Sandbox snapshotting = TestSupport.mainSandbox("sb-1", SandboxState.SNAPSHOTTING);
+        io.daytona.api.client.model.Sandbox started = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        when(sandboxApi.createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull())).thenReturn(snapshotting);
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(started);
+
+        @SuppressWarnings("deprecation")
+        Object unused = callDeprecatedCreateSnapshot("snap-dep", 2);
+
+        verify(sandboxApi).createSandboxSnapshot(eq("sb-1"), any(CreateSandboxSnapshot.class), isNull());
+    }
+
+    /** Helper to call deprecated void method in an expression context for @SuppressWarnings. */
+    @SuppressWarnings("deprecation")
+    private Object callDeprecatedCreateSnapshot(String name, long timeout) {
+        sandbox.experimentalCreateSnapshot(name, timeout);
+        return null;
     }
 
     @ParameterizedTest

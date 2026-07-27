@@ -546,8 +546,60 @@ func TestSandboxPreviewAndLabelOperations(t *testing.T) {
 	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
 }
 
-func TestSandboxExperimentalOperations(t *testing.T) {
+func TestSandboxForkAndSnapshot(t *testing.T) {
 	t.Run("fork succeeds and waits for start", func(t *testing.T) {
+		var getCount int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost:
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("forked", "forked-name", apiclient.SANDBOXSTATE_STARTING))
+			case http.MethodGet:
+				getCount++
+				state := apiclient.SANDBOXSTATE_STARTING
+				if getCount > 1 {
+					state = apiclient.SANDBOXSTATE_STARTED
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("forked", "forked-name", state))
+			default:
+				w.WriteHeader(http.StatusOK)
+			}
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+		forked, err := sandbox.ForkWithTimeout(context.Background(), strPtr("forked-name"), 3*time.Second)
+		require.NoError(t, err)
+		assert.Equal(t, "forked", forked.ID)
+	})
+
+	t.Run("create snapshot waits until snapshotting finishes", func(t *testing.T) {
+		var getCount int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost:
+				w.WriteHeader(http.StatusOK)
+			case http.MethodGet:
+				getCount++
+				state := apiclient.SANDBOXSTATE_SNAPSHOTTING
+				if getCount > 1 {
+					state = apiclient.SANDBOXSTATE_STARTED
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+			default:
+				w.WriteHeader(http.StatusOK)
+			}
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+		require.NoError(t, sandbox.CreateSnapshotWithTimeout(context.Background(), "snap-name", 2*time.Second))
+	})
+}
+
+func TestSandboxDeprecatedAliases(t *testing.T) {
+	t.Run("ExperimentalFork delegates to Fork", func(t *testing.T) {
 		var getCount int
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
@@ -573,7 +625,7 @@ func TestSandboxExperimentalOperations(t *testing.T) {
 		assert.Equal(t, "forked", forked.ID)
 	})
 
-	t.Run("create snapshot waits until snapshotting finishes", func(t *testing.T) {
+	t.Run("ExperimentalCreateSnapshot delegates to CreateSnapshot", func(t *testing.T) {
 		var getCount int
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
