@@ -22,6 +22,8 @@ module DaytonaToolboxApiClient
     CodeGitPushRejected = "GIT_PUSH_REJECTED".freeze
     CodeGitDirtyWorktree = "GIT_DIRTY_WORKTREE".freeze
     CodeGitMergeConflict = "GIT_MERGE_CONFLICT".freeze
+    CodeGitTransportFailed = "GIT_TRANSPORT_FAILED".freeze
+    CodeGitRemoteRejected = "GIT_REMOTE_REJECTED".freeze
     CodeFileNotFound = "FILE_NOT_FOUND".freeze
     CodeFileAccessDenied = "FILE_ACCESS_DENIED".freeze
     CodeLspServerNotInitialized = "LSP_SERVER_NOT_INITIALIZED".freeze
@@ -45,7 +47,7 @@ module DaytonaToolboxApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeFileNotFound, CodeFileAccessDenied, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeGitTransportFailed, CodeGitRemoteRejected, CodeFileNotFound, CodeFileAccessDenied, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

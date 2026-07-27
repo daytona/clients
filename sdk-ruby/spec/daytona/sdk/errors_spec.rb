@@ -66,6 +66,8 @@ RSpec.describe Daytona::Sdk do
         described_class::GitPushRejectedError => described_class::ConflictError,
         described_class::GitDirtyWorktreeError => described_class::ConflictError,
         described_class::GitMergeConflictError => described_class::ConflictError,
+        described_class::GitTransportFailedError => described_class::BadGatewayError,
+        described_class::GitRemoteRejectedError => described_class::UnprocessableEntityError,
         described_class::FileNotFoundError => described_class::NotFoundError,
         described_class::FileAccessDeniedError => described_class::ForbiddenError,
         described_class::LspServerNotInitializedError => described_class::ValidationError,
@@ -177,6 +179,24 @@ RSpec.describe Daytona::Sdk do
         expect(err.source).to eq('DAYTONA_DAEMON')
         expect(err.status_code).to eq(status)
       end
+    end
+
+    it 'routes GIT_TRANSPORT_FAILED to GitTransportFailedError' do
+      body = '{"message":"dial tcp: lookup nonexistent.invalid: no such host","code":"GIT_TRANSPORT_FAILED","source":"DAYTONA_DAEMON"}'
+      err  = described_class.wrap_error(api_error(502, body))
+
+      expect(err).to be_a(described_class::GitTransportFailedError)
+      expect(err).to be_a(described_class::BadGatewayError) # inheritance
+      expect(err.code).to eq('GIT_TRANSPORT_FAILED')
+    end
+
+    it 'routes GIT_REMOTE_REJECTED to GitRemoteRejectedError' do
+      body = '{"message":"command error on refs/heads/main: pre-receive hook declined","code":"GIT_REMOTE_REJECTED","source":"DAYTONA_DAEMON"}'
+      err  = described_class.wrap_error(api_error(422, body))
+
+      expect(err).to be_a(described_class::GitRemoteRejectedError)
+      expect(err).to be_a(described_class::UnprocessableEntityError) # inheritance
+      expect(err.code).to eq('GIT_REMOTE_REJECTED')
     end
 
     it 'prepends the prefix to the message' do

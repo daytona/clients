@@ -18,6 +18,8 @@ import {
   DaytonaFileNotFoundError,
   DaytonaFileReadFailedError,
   DaytonaGitAuthFailedError,
+  DaytonaGitRemoteRejectedError,
+  DaytonaGitTransportFailedError,
   DaytonaGoneError,
   DaytonaInternalServerError,
   DaytonaInvalidArgumentError,
@@ -192,6 +194,20 @@ describe('Domain code classification with status-class inheritance', () => {
     expect(err).toBeInstanceOf(DaytonaFileReadFailedError)
     expect(err).toBeInstanceOf(DaytonaInternalServerError)
     expect(err.code).toBe('FILE_READ_FAILED')
+  })
+
+  it('daemon GIT_TRANSPORT_FAILED inherits from DaytonaBadGatewayError', () => {
+    const err = createDaytonaError('dns lookup failed', 502, undefined, 'GIT_TRANSPORT_FAILED', 'DAYTONA_DAEMON')
+    expect(err).toBeInstanceOf(DaytonaGitTransportFailedError)
+    expect(err).toBeInstanceOf(DaytonaBadGatewayError)
+    expect(err.code).toBe('GIT_TRANSPORT_FAILED')
+  })
+
+  it('daemon GIT_REMOTE_REJECTED inherits from DaytonaUnprocessableEntityError', () => {
+    const err = createDaytonaError('pre-receive hook declined', 422, undefined, 'GIT_REMOTE_REJECTED', 'DAYTONA_DAEMON')
+    expect(err).toBeInstanceOf(DaytonaGitRemoteRejectedError)
+    expect(err).toBeInstanceOf(DaytonaUnprocessableEntityError)
+    expect(err.code).toBe('GIT_REMOTE_REJECTED')
   })
 
   it('falls back to status class when (source, code) is unknown', () => {

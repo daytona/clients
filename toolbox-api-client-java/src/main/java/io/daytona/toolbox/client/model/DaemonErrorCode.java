@@ -43,6 +43,10 @@ public enum DaemonErrorCode {
   
   CodeGitMergeConflict("GIT_MERGE_CONFLICT"),
   
+  CodeGitTransportFailed("GIT_TRANSPORT_FAILED"),
+  
+  CodeGitRemoteRejected("GIT_REMOTE_REJECTED"),
+  
   CodeFileNotFound("FILE_NOT_FOUND"),
   
   CodeFileAccessDenied("FILE_ACCESS_DENIED"),

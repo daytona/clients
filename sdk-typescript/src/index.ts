@@ -67,6 +67,8 @@ export {
   DaytonaGitPushRejectedError,
   DaytonaGitDirtyWorktreeError,
   DaytonaGitMergeConflictError,
+  DaytonaGitTransportFailedError,
+  DaytonaGitRemoteRejectedError,
   DaytonaFileNotFoundError,
   DaytonaFileAccessDeniedError,
   DaytonaInvalidFilePathError,

@@ -178,6 +178,10 @@ export class DaytonaGitPushRejectedError extends DaytonaConflictError {}
 export class DaytonaGitDirtyWorktreeError extends DaytonaConflictError {}
 /** A git merge produced conflicts (code `GIT_MERGE_CONFLICT`). */
 export class DaytonaGitMergeConflictError extends DaytonaConflictError {}
+/** The git remote was unreachable — DNS, TLS, connection or timeout failure (code `GIT_TRANSPORT_FAILED`). */
+export class DaytonaGitTransportFailedError extends DaytonaBadGatewayError {}
+/** The git remote rejected the operation — hooks, branch protection or quota (code `GIT_REMOTE_REJECTED`). */
+export class DaytonaGitRemoteRejectedError extends DaytonaUnprocessableEntityError {}
 
 // --- Filesystem (daemon) ---
 /** The file does not exist in the sandbox (code `FILE_NOT_FOUND`). */
@@ -230,6 +234,8 @@ const CODE_TO_ERROR_CLASS: Record<string, typeof DaytonaError> = {
   'DAYTONA_DAEMON|GIT_PUSH_REJECTED': DaytonaGitPushRejectedError,
   'DAYTONA_DAEMON|GIT_DIRTY_WORKTREE': DaytonaGitDirtyWorktreeError,
   'DAYTONA_DAEMON|GIT_MERGE_CONFLICT': DaytonaGitMergeConflictError,
+  'DAYTONA_DAEMON|GIT_TRANSPORT_FAILED': DaytonaGitTransportFailedError,
+  'DAYTONA_DAEMON|GIT_REMOTE_REJECTED': DaytonaGitRemoteRejectedError,
   'DAYTONA_DAEMON|FILE_NOT_FOUND': DaytonaFileNotFoundError,
   'DAYTONA_DAEMON|FILE_ACCESS_DENIED': DaytonaFileAccessDeniedError,
   'DAYTONA_DAEMON|INVALID_FILE_PATH': DaytonaInvalidFilePathError,

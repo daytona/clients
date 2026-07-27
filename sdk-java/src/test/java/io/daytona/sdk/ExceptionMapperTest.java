@@ -302,6 +302,38 @@ class ExceptionMapperTest {
     }
 
     @Test
+    void gitTransportFailedMapsToDomainClass() {
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(
+                    502, "bad gateway", null,
+                    "{\"message\":\"dial tcp: lookup nonexistent.invalid: no such host\",\"code\":\"GIT_TRANSPORT_FAILED\",\"source\":\"DAYTONA_DAEMON\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaGitTransportFailedException.class)
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaBadGatewayException.class)
+                .satisfies(error -> {
+                    DaytonaException exception = (DaytonaException) error;
+                    assertThat(exception.getCode()).isEqualTo("GIT_TRANSPORT_FAILED");
+                    assertThat(exception.getSource()).isEqualTo("DAYTONA_DAEMON");
+                });
+    }
+
+    @Test
+    void gitRemoteRejectedMapsToDomainClass() {
+        assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
+            throw new io.daytona.api.client.ApiException(
+                    422, "unprocessable", null,
+                    "{\"message\":\"command error on refs/heads/main: pre-receive hook declined\",\"code\":\"GIT_REMOTE_REJECTED\",\"source\":\"DAYTONA_DAEMON\"}");
+        }))
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaGitRemoteRejectedException.class)
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaUnprocessableEntityException.class)
+                .satisfies(error -> {
+                    DaytonaException exception = (DaytonaException) error;
+                    assertThat(exception.getCode()).isEqualTo("GIT_REMOTE_REJECTED");
+                    assertThat(exception.getSource()).isEqualTo("DAYTONA_DAEMON");
+                });
+    }
+
+    @Test
     void unknownCodeFallsBackToStatusClass() {
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
             throw new io.daytona.api.client.ApiException(

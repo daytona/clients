@@ -107,6 +107,36 @@ func TestErrorsIs_DomainCodeAlsoMatchesParentStatus(t *testing.T) {
 	}
 }
 
+func TestErrorsIs_GitTransportFailedMatchesBadGateway(t *testing.T) {
+	body := []byte(`{"statusCode":502,"message":"dial tcp: lookup nonexistent.invalid: no such host","code":"GIT_TRANSPORT_FAILED","source":"DAYTONA_DAEMON"}`)
+	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusBadGateway, nil)
+
+	if !stderrors.Is(err, sdkerrors.ErrGitTransportFailed) {
+		t.Fatalf("errors.Is(err, ErrGitTransportFailed) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrBadGateway) {
+		t.Fatalf("errors.Is(err, ErrBadGateway) = false; want true (domain inherits from status)")
+	}
+	if stderrors.Is(err, sdkerrors.ErrGitRemoteRejected) {
+		t.Fatalf("errors.Is(err, ErrGitRemoteRejected) = true; want false (different code)")
+	}
+}
+
+func TestErrorsIs_GitRemoteRejectedMatchesUnprocessableEntity(t *testing.T) {
+	body := []byte(`{"statusCode":422,"message":"command error on refs/heads/main: pre-receive hook declined","code":"GIT_REMOTE_REJECTED","source":"DAYTONA_DAEMON"}`)
+	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusUnprocessableEntity, nil)
+
+	if !stderrors.Is(err, sdkerrors.ErrGitRemoteRejected) {
+		t.Fatalf("errors.Is(err, ErrGitRemoteRejected) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrUnprocessableEntity) {
+		t.Fatalf("errors.Is(err, ErrUnprocessableEntity) = false; want true (domain inherits from status)")
+	}
+	if stderrors.Is(err, sdkerrors.ErrGitTransportFailed) {
+		t.Fatalf("errors.Is(err, ErrGitTransportFailed) = true; want false (different code)")
+	}
+}
+
 func TestErrorsIs_DomainCodesRequireBothSourceAndCode(t *testing.T) {
 	body := []byte(`{"statusCode":404,"code":"FILE_NOT_FOUND","source":"DAYTONA_API"}`)
 	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusNotFound, nil)

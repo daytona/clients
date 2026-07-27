@@ -21,7 +21,9 @@ import io.daytona.sdk.exception.DaytonaGitBranchNotFoundException;
 import io.daytona.sdk.exception.DaytonaGitDirtyWorktreeException;
 import io.daytona.sdk.exception.DaytonaGitMergeConflictException;
 import io.daytona.sdk.exception.DaytonaGitPushRejectedException;
+import io.daytona.sdk.exception.DaytonaGitRemoteRejectedException;
 import io.daytona.sdk.exception.DaytonaGitRepoNotFoundException;
+import io.daytona.sdk.exception.DaytonaGitTransportFailedException;
 import io.daytona.sdk.exception.DaytonaGoneException;
 import io.daytona.sdk.exception.DaytonaInternalServerException;
 import io.daytona.sdk.exception.DaytonaInvalidFilePathException;
@@ -206,6 +208,8 @@ final class ExceptionMapper {
         map.put(SRC_DAEMON + "|GIT_PUSH_REJECTED", DaytonaGitPushRejectedException::new);
         map.put(SRC_DAEMON + "|GIT_DIRTY_WORKTREE", DaytonaGitDirtyWorktreeException::new);
         map.put(SRC_DAEMON + "|GIT_MERGE_CONFLICT", DaytonaGitMergeConflictException::new);
+        map.put(SRC_DAEMON + "|GIT_TRANSPORT_FAILED", DaytonaGitTransportFailedException::new);
+        map.put(SRC_DAEMON + "|GIT_REMOTE_REJECTED", DaytonaGitRemoteRejectedException::new);
 
         // Daemon: filesystem
         map.put(SRC_DAEMON + "|FILE_NOT_FOUND", DaytonaFileNotFoundException::new);

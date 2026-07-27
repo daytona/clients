@@ -5859,6 +5859,8 @@ components:
       - GIT_PUSH_REJECTED
       - GIT_DIRTY_WORKTREE
       - GIT_MERGE_CONFLICT
+      - GIT_TRANSPORT_FAILED
+      - GIT_REMOTE_REJECTED
       - FILE_NOT_FOUND
       - FILE_ACCESS_DENIED
       - LSP_SERVER_NOT_INITIALIZED
@@ -5888,6 +5890,8 @@ components:
       - CodeGitPushRejected
       - CodeGitDirtyWorktree
       - CodeGitMergeConflict
+      - CodeGitTransportFailed
+      - CodeGitRemoteRejected
       - CodeFileNotFound
       - CodeFileAccessDenied
       - CodeLspServerNotInitialized

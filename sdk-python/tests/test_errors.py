@@ -14,6 +14,8 @@ from daytona.common.errors import (
     DaytonaConnectionTimeoutError,
     DaytonaError,
     DaytonaFileReadFailedError,
+    DaytonaGitRemoteRejectedError,
+    DaytonaGitTransportFailedError,
     DaytonaGoneError,
     DaytonaInternalServerError,
     DaytonaInvalidFilePathError,
@@ -150,6 +152,30 @@ class TestErrorFactories:
         assert isinstance(error, expected_cls)
         assert error.code == code
         assert error.source == SOURCE_DAEMON
+
+    def test_git_transport_failed_routes_to_bad_gateway_subclass(self):
+        error = create_daytona_error(
+            "dns lookup failed",
+            status_code=502,
+            code="GIT_TRANSPORT_FAILED",
+            source="DAYTONA_DAEMON",
+        )
+
+        assert isinstance(error, DaytonaGitTransportFailedError)
+        assert isinstance(error, DaytonaBadGatewayError)
+        assert error.code == "GIT_TRANSPORT_FAILED"
+
+    def test_git_remote_rejected_routes_to_unprocessable_subclass(self):
+        error = create_daytona_error(
+            "pre-receive hook declined",
+            status_code=422,
+            code="GIT_REMOTE_REJECTED",
+            source="DAYTONA_DAEMON",
+        )
+
+        assert isinstance(error, DaytonaGitRemoteRejectedError)
+        assert isinstance(error, DaytonaUnprocessableEntityError)
+        assert error.code == "GIT_REMOTE_REJECTED"
 
 
 class TestStatusCodeClassification:

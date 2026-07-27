@@ -251,6 +251,10 @@ An upstream gateway returned an invalid response (HTTP 502).
 
 - `DaytonaError`
 
+### Extended by
+
+- `DaytonaGitTransportFailedError`
+
 ### Accessors
 
 #### errorCode
@@ -1507,6 +1511,79 @@ new DaytonaGitPushRejectedError(
 ##### Inherited from
 
 `DaytonaConflictError`.`constructor`
+## DaytonaGitRemoteRejectedError
+
+The git remote rejected the operation — hooks, branch protection or quota (code `GIT_REMOTE_REJECTED`).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaUnprocessableEntityError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaUnprocessableEntityError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaUnprocessableEntityError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaUnprocessableEntityError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaUnprocessableEntityError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaUnprocessableEntityError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### new DaytonaGitRemoteRejectedError()
+
+```ts
+new DaytonaGitRemoteRejectedError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaGitRemoteRejectedError
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaGitRemoteRejectedError`
+
+##### Inherited from
+
+`DaytonaUnprocessableEntityError`.`constructor`
 ## DaytonaGitRepoNotFoundError
 
 The git remote repository was not found (code `GIT_REPO_NOT_FOUND`).
@@ -1580,6 +1657,79 @@ new DaytonaGitRepoNotFoundError(
 ##### Inherited from
 
 `DaytonaNotFoundError`.`constructor`
+## DaytonaGitTransportFailedError
+
+The git remote was unreachable — DNS, TLS, connection or timeout failure (code `GIT_TRANSPORT_FAILED`).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaBadGatewayError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaBadGatewayError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaBadGatewayError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaBadGatewayError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaBadGatewayError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaBadGatewayError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### new DaytonaGitTransportFailedError()
+
+```ts
+new DaytonaGitTransportFailedError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaGitTransportFailedError
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaGitTransportFailedError`
+
+##### Inherited from
+
+`DaytonaBadGatewayError`.`constructor`
 ## DaytonaGoneError
 
 The resource existed but is permanently gone (HTTP 410).
@@ -2711,6 +2861,10 @@ The request was well-formed but semantically invalid (HTTP 422).
 **Extends:**
 
 - `DaytonaError`
+
+### Extended by
+
+- `DaytonaGitRemoteRejectedError`
 
 ### Accessors
 

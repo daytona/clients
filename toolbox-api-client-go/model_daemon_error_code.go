@@ -26,6 +26,8 @@ const (
 	DAEMONERRORCODE_CodeGitPushRejected DaemonErrorCode = "GIT_PUSH_REJECTED"
 	DAEMONERRORCODE_CodeGitDirtyWorktree DaemonErrorCode = "GIT_DIRTY_WORKTREE"
 	DAEMONERRORCODE_CodeGitMergeConflict DaemonErrorCode = "GIT_MERGE_CONFLICT"
+	DAEMONERRORCODE_CodeGitTransportFailed DaemonErrorCode = "GIT_TRANSPORT_FAILED"
+	DAEMONERRORCODE_CodeGitRemoteRejected DaemonErrorCode = "GIT_REMOTE_REJECTED"
 	DAEMONERRORCODE_CodeFileNotFound DaemonErrorCode = "FILE_NOT_FOUND"
 	DAEMONERRORCODE_CodeFileAccessDenied DaemonErrorCode = "FILE_ACCESS_DENIED"
 	DAEMONERRORCODE_CodeLspServerNotInitialized DaemonErrorCode = "LSP_SERVER_NOT_INITIALIZED"
@@ -58,6 +60,8 @@ var AllowedDaemonErrorCodeEnumValues = []DaemonErrorCode{
 	"GIT_PUSH_REJECTED",
 	"GIT_DIRTY_WORKTREE",
 	"GIT_MERGE_CONFLICT",
+	"GIT_TRANSPORT_FAILED",
+	"GIT_REMOTE_REJECTED",
 	"FILE_NOT_FOUND",
 	"FILE_ACCESS_DENIED",
 	"LSP_SERVER_NOT_INITIALIZED",

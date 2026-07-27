@@ -120,6 +120,8 @@ module Daytona
     class GitPushRejectedError < ConflictError; end
     class GitDirtyWorktreeError < ConflictError; end
     class GitMergeConflictError < ConflictError; end
+    class GitTransportFailedError < BadGatewayError; end
+    class GitRemoteRejectedError < UnprocessableEntityError; end
 
     # Daemon: filesystem
     class FileNotFoundError < NotFoundError; end
@@ -177,6 +179,8 @@ module Daytona
       [SOURCE_DAEMON, 'GIT_PUSH_REJECTED'] => GitPushRejectedError,
       [SOURCE_DAEMON, 'GIT_DIRTY_WORKTREE'] => GitDirtyWorktreeError,
       [SOURCE_DAEMON, 'GIT_MERGE_CONFLICT'] => GitMergeConflictError,
+      [SOURCE_DAEMON, 'GIT_TRANSPORT_FAILED'] => GitTransportFailedError,
+      [SOURCE_DAEMON, 'GIT_REMOTE_REJECTED'] => GitRemoteRejectedError,
 
       # Daemon: filesystem
       [SOURCE_DAEMON, 'FILE_NOT_FOUND'] => FileNotFoundError,

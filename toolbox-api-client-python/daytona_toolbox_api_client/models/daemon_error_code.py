@@ -33,6 +33,8 @@ class DaemonErrorCode(str, Enum):
     CodeGitPushRejected = 'GIT_PUSH_REJECTED'
     CodeGitDirtyWorktree = 'GIT_DIRTY_WORKTREE'
     CodeGitMergeConflict = 'GIT_MERGE_CONFLICT'
+    CodeGitTransportFailed = 'GIT_TRANSPORT_FAILED'
+    CodeGitRemoteRejected = 'GIT_REMOTE_REJECTED'
     CodeFileNotFound = 'FILE_NOT_FOUND'
     CodeFileAccessDenied = 'FILE_ACCESS_DENIED'
     CodeLspServerNotInitialized = 'LSP_SERVER_NOT_INITIALIZED'

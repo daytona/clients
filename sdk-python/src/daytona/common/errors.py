@@ -259,6 +259,14 @@ class DaytonaGitMergeConflictError(DaytonaConflictError):
     """Git merge has conflicts that need manual resolution."""
 
 
+class DaytonaGitTransportFailedError(DaytonaBadGatewayError):
+    """The git remote was unreachable (DNS, TLS, connection or timeout failure)."""
+
+
+class DaytonaGitRemoteRejectedError(DaytonaUnprocessableEntityError):
+    """The git remote rejected the operation (hooks, branch protection or quota)."""
+
+
 # Filesystem.
 class DaytonaFileNotFoundError(DaytonaNotFoundError):
     """Filesystem entry was not found."""
@@ -343,6 +351,8 @@ CODE_TO_ERROR: dict[tuple[str, str], type[DaytonaError]] = {
     (SOURCE_DAEMON, "GIT_PUSH_REJECTED"): DaytonaGitPushRejectedError,
     (SOURCE_DAEMON, "GIT_DIRTY_WORKTREE"): DaytonaGitDirtyWorktreeError,
     (SOURCE_DAEMON, "GIT_MERGE_CONFLICT"): DaytonaGitMergeConflictError,
+    (SOURCE_DAEMON, "GIT_TRANSPORT_FAILED"): DaytonaGitTransportFailedError,
+    (SOURCE_DAEMON, "GIT_REMOTE_REJECTED"): DaytonaGitRemoteRejectedError,
     # Daemon: filesystem
     (SOURCE_DAEMON, "FILE_NOT_FOUND"): DaytonaFileNotFoundError,
     (SOURCE_DAEMON, "FILE_ACCESS_DENIED"): DaytonaFileAccessDeniedError,
