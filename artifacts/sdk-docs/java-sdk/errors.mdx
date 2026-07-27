@@ -1959,7 +1959,18 @@ public DaytonaUnprocessableEntityException(String message, Throwable cause, Stri
 
 ## DaytonaValidationException
 
-DaytonaValidationException class for Daytona SDK.
+Raised for semantic validation failures (HTTP 422).
+
+The mapper throws this subclass for 422 responses so that pre-existing
+`catch (DaytonaValidationException e)` blocks keep matching, while
+`catch (DaytonaUnprocessableEntityException e)` also matches via the
+parent class.
+
+Exists for backward compatibility only. Deleting this class (and
+switching the 422 case in `ExceptionMapper` back to the parent) is
+the whole removal.
+
+**Deprecated**: Use `DaytonaUnprocessableEntityException` instead.
 
 ### Constructors
 

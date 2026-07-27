@@ -44,6 +44,8 @@ export class DaytonaError extends Error {
   /**
    * @deprecated Use {@link DaytonaError.code} instead. Kept so existing
    * `err.errorCode` reads keep returning the machine-readable code.
+   * @returns the machine-readable error code, or `undefined` when the
+   * response did not carry one (same as {@link DaytonaError.code})
    */
   get errorCode(): string | undefined {
     return this.code

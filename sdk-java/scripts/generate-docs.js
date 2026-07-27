@@ -162,7 +162,7 @@ function cleanJavadocInline(text) {
 }
 
 function parseJavadoc(raw) {
-  if (!raw) return { description: '', params: {}, returns: '', throws: [] }
+  if (!raw) return { description: '', params: {}, returns: '', throws: [], deprecated: '' }
 
   const lines = raw
     .replace(/^\s*\/\*\*/, '')
@@ -173,6 +173,7 @@ function parseJavadoc(raw) {
   const descriptionLines = []
   const params = {}
   let returns = ''
+  let deprecated = ''
   const throws = []
   let currentTag = null
 
@@ -210,6 +211,12 @@ function parseJavadoc(raw) {
       continue
     }
 
+    if (line.startsWith('@deprecated')) {
+      deprecated = line.replace(/^@deprecated\s*/, '').trim()
+      currentTag = { kind: 'deprecated' }
+      continue
+    }
+
     if (line.startsWith('@')) {
       currentTag = null
       continue
@@ -228,6 +235,11 @@ function parseJavadoc(raw) {
 
     if (currentTag.kind === 'return') {
       returns = returns ? `${returns} ${line}` : line
+      continue
+    }
+
+    if (currentTag.kind === 'deprecated') {
+      deprecated = deprecated ? `${deprecated} ${line}` : line
       continue
     }
 
@@ -256,6 +268,7 @@ function parseJavadoc(raw) {
     description,
     params: Object.fromEntries(Object.entries(params).map(([k, v]) => [k, cleanJavadocInline(v)])),
     returns: cleanJavadocInline(returns),
+    deprecated: cleanJavadocInline(deprecated),
     throws: throws.map((item) => ({
       type: String(item.type || '').trim(),
       description: cleanJavadocInline(item.description || ''),
@@ -275,7 +288,7 @@ function findMatchingBrace(source, openBraceIndex) {
 
 function findClassBlock(source, className) {
   const rx = new RegExp(
-    `((?:\\s*\/\\*\\*[\\s\\S]*?\\*\\/\\s*)?)\\s*public\\s+(?:static\\s+)?(?:final\\s+)?class\\s+${className}\\b[^\\{]*\\{`,
+    `((?:\\s*\/\\*\\*[\\s\\S]*?\\*\\/\\s*)?)(?:\\s*@\\w+(?:\\([^)]*\\))?)*\\s*public\\s+(?:static\\s+)?(?:final\\s+)?class\\s+${className}\\b[^\\{]*\\{`,
     'm',
   )
   const match = rx.exec(source)
@@ -459,6 +472,11 @@ function buildClassDoc(classData) {
   const classDescription = classData.javadoc.description || `${classData.className} class for Daytona SDK.`
   lines.push(classDescription)
   lines.push('')
+
+  if (classData.javadoc.deprecated) {
+    lines.push(`**Deprecated**: ${classData.javadoc.deprecated}`)
+    lines.push('')
+  }
 
   if (classData.fields.length) {
     lines.push('**Properties**:')
