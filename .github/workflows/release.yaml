@@ -19,6 +19,9 @@ jobs:
   release:
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
+    # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
+    # for required-reviewer approval before secrets resolve.
+    environment: release
     permissions:
       contents: write
     env:
