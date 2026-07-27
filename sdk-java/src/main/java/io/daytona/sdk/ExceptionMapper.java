@@ -34,7 +34,7 @@ import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaServiceUnavailableException;
 import io.daytona.sdk.exception.DaytonaSessionEndedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
-import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
+import io.daytona.sdk.exception.DaytonaValidationException;
 
 import java.net.SocketTimeoutException;
 import java.util.Collections;
@@ -153,7 +153,7 @@ final class ExceptionMapper {
                 case 410:
                     return new DaytonaGoneException(message, cause, errorDetails.code(), errorDetails.source());
                 case 422:
-                    return new DaytonaUnprocessableEntityException(message, cause, errorDetails.code(), errorDetails.source());
+                    return new DaytonaValidationException(message, cause, errorDetails.code(), errorDetails.source());
                 case 429:
                     return new DaytonaRateLimitException(message, cause, errorDetails.code(), errorDetails.source());
                 case 500:

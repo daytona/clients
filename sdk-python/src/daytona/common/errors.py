@@ -138,12 +138,6 @@ class DaytonaForbiddenError(DaytonaError):
     """
 
 
-#: Deprecated alias for :class:`DaytonaForbiddenError`. Kept so existing
-#: ``except DaytonaAuthorizationError`` blocks continue to work; new code
-#: should use ``DaytonaForbiddenError`` directly.
-DaytonaAuthorizationError = DaytonaForbiddenError
-
-
 class DaytonaRateLimitError(DaytonaError):
     """Error for when rate limit is exceeded (HTTP 429).
 
@@ -188,12 +182,6 @@ class DaytonaBadRequestError(DaytonaError):
             print(exc.message)
         ```
     """
-
-
-#: Deprecated alias for :class:`DaytonaBadRequestError`. Kept so existing
-#: ``except DaytonaValidationError`` blocks continue to work; new code
-#: should use ``DaytonaBadRequestError`` directly.
-DaytonaValidationError = DaytonaBadRequestError
 
 
 class DaytonaTimeoutError(DaytonaError):
@@ -407,3 +395,18 @@ def create_daytona_error(
         code=code,
         source=source,
     )
+
+
+# =============================================================================
+# Backward-compatibility aliases. New functionality belongs above, not here.
+# Every name below exists solely so pre-typed-error-model user code keeps
+# working, and can be removed as a block in a future major release.
+# =============================================================================
+
+#: Deprecated alias for :class:`DaytonaForbiddenError`. Kept so existing
+#: ``except DaytonaAuthorizationError`` blocks continue to work.
+DaytonaAuthorizationError = DaytonaForbiddenError
+
+#: Deprecated alias for :class:`DaytonaBadRequestError`. Kept so existing
+#: ``except DaytonaValidationError`` blocks continue to work.
+DaytonaValidationError = DaytonaBadRequestError

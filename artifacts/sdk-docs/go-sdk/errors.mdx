@@ -44,17 +44,37 @@ if errors.As(err, &de) {
 - [Variables](<#variables>)
 - [func ConvertAPIError\(err error, httpResp \*http.Response\) error](<#ConvertAPIError>)
 - [func ConvertToolboxError\(err error, httpResp \*http.Response\) error](<#ConvertToolboxError>)
+- [type DaytonaAuthenticationError](<#DaytonaAuthenticationError>)
+  - [func NewDaytonaAuthenticationError\(message string, headers http.Header\) \*DaytonaAuthenticationError](<#NewDaytonaAuthenticationError>)
+  - [func \(e \*DaytonaAuthenticationError\) Unwrap\(\) error](<#DaytonaAuthenticationError.Unwrap>)
+- [type DaytonaConflictError](<#DaytonaConflictError>)
+  - [func NewDaytonaConflictError\(message string, headers http.Header\) \*DaytonaConflictError](<#NewDaytonaConflictError>)
+  - [func \(e \*DaytonaConflictError\) Unwrap\(\) error](<#DaytonaConflictError.Unwrap>)
 - [type DaytonaError](<#DaytonaError>)
   - [func NewDaytonaConnectionError\(message string\) \*DaytonaError](<#NewDaytonaConnectionError>)
   - [func NewDaytonaError\(message string, statusCode int, headers http.Header\) \*DaytonaError](<#NewDaytonaError>)
   - [func NewDaytonaErrorFromBody\(body \[\]byte, statusCode int, headers http.Header\) \*DaytonaError](<#NewDaytonaErrorFromBody>)
   - [func NewDaytonaTimeoutError\(message string\) \*DaytonaError](<#NewDaytonaTimeoutError>)
   - [func NewDaytonaValidationError\(message string, headers http.Header\) \*DaytonaError](<#NewDaytonaValidationError>)
+  - [func \(e \*DaytonaError\) As\(target any\) bool](<#DaytonaError.As>)
   - [func \(e \*DaytonaError\) Error\(\) string](<#DaytonaError.Error>)
   - [func \(e \*DaytonaError\) Is\(target error\) bool](<#DaytonaError.Is>)
+- [type DaytonaForbiddenError](<#DaytonaForbiddenError>)
+  - [func NewDaytonaForbiddenError\(message string, headers http.Header\) \*DaytonaForbiddenError](<#NewDaytonaForbiddenError>)
+  - [func \(e \*DaytonaForbiddenError\) Unwrap\(\) error](<#DaytonaForbiddenError.Unwrap>)
 - [type DaytonaNotFoundError](<#DaytonaNotFoundError>)
+  - [func NewDaytonaNotFoundError\(message string, headers http.Header\) \*DaytonaNotFoundError](<#NewDaytonaNotFoundError>)
+  - [func \(e \*DaytonaNotFoundError\) Unwrap\(\) error](<#DaytonaNotFoundError.Unwrap>)
+- [type DaytonaRateLimitError](<#DaytonaRateLimitError>)
+  - [func NewDaytonaRateLimitError\(message string, headers http.Header\) \*DaytonaRateLimitError](<#NewDaytonaRateLimitError>)
+  - [func \(e \*DaytonaRateLimitError\) Unwrap\(\) error](<#DaytonaRateLimitError.Unwrap>)
+- [type DaytonaServerError](<#DaytonaServerError>)
+  - [func NewDaytonaServerError\(message string, statusCode int, headers http.Header\) \*DaytonaServerError](<#NewDaytonaServerError>)
+  - [func \(e \*DaytonaServerError\) Unwrap\(\) error](<#DaytonaServerError.Unwrap>)
 - [type DaytonaTimeoutError](<#DaytonaTimeoutError>)
+  - [func \(e \*DaytonaTimeoutError\) Unwrap\(\) error](<#DaytonaTimeoutError.Unwrap>)
 - [type DaytonaValidationError](<#DaytonaValidationError>)
+  - [func \(e \*DaytonaValidationError\) Unwrap\(\) error](<#DaytonaValidationError.Unwrap>)
 
 
 ## Constants
@@ -142,6 +162,60 @@ func ConvertToolboxError(err error, httpResp *http.Response) error
 
 ConvertToolboxError converts an error returned by the generated toolbox\-api\-client\-go into a \`\*DaytonaError\`.
 
+<a name="DaytonaAuthenticationError"></a>
+## type DaytonaAuthenticationError
+
+Deprecated: match with \`errors.Is\(err, ErrAuthentication\)\` instead.
+
+```go
+type DaytonaAuthenticationError struct{ *DaytonaError }
+```
+
+<a name="NewDaytonaAuthenticationError"></a>
+### func NewDaytonaAuthenticationError
+
+```go
+func NewDaytonaAuthenticationError(message string, headers http.Header) *DaytonaAuthenticationError
+```
+
+Deprecated: use NewDaytonaError\(message, http.StatusUnauthorized, headers\).
+
+<a name="DaytonaAuthenticationError.Unwrap"></a>
+### func \(\*DaytonaAuthenticationError\) Unwrap
+
+```go
+func (e *DaytonaAuthenticationError) Unwrap() error
+```
+
+
+
+<a name="DaytonaConflictError"></a>
+## type DaytonaConflictError
+
+Deprecated: match with \`errors.Is\(err, ErrConflict\)\` instead.
+
+```go
+type DaytonaConflictError struct{ *DaytonaError }
+```
+
+<a name="NewDaytonaConflictError"></a>
+### func NewDaytonaConflictError
+
+```go
+func NewDaytonaConflictError(message string, headers http.Header) *DaytonaConflictError
+```
+
+Deprecated: use NewDaytonaError\(message, http.StatusConflict, headers\).
+
+<a name="DaytonaConflictError.Unwrap"></a>
+### func \(\*DaytonaConflictError\) Unwrap
+
+```go
+func (e *DaytonaConflictError) Unwrap() error
+```
+
+
+
 <a name="DaytonaError"></a>
 ## type DaytonaError
 
@@ -202,6 +276,15 @@ func NewDaytonaValidationError(message string, headers http.Header) *DaytonaErro
 
 Deprecated: use NewDaytonaError\(message, http.StatusBadRequest, headers\).
 
+<a name="DaytonaError.As"></a>
+### func \(\*DaytonaError\) As
+
+```go
+func (e *DaytonaError) As(target any) bool
+```
+
+As lets \`errors.As\` populate the deprecated typed errors with their original status\-code semantics, even though the SDK only produces \*DaytonaError. Runs only after the stdlib's direct assignability check, so \`errors.As\(err, &de\)\` with a \*DaytonaError target is unaffected.
+
 <a name="DaytonaError.Error"></a>
 ### func \(\*DaytonaError\) Error
 
@@ -225,30 +308,147 @@ Is implements the \`errors.Is\` contract. A target matches when it is one of the
 
 Because the SDK always stamps the HTTP status alongside the domain code, \`errors.Is\(err, ErrGitAuthFailed\)\` and \`errors.Is\(err, ErrAuthentication\)\` both match the same underlying error — mirroring the inheritance hierarchy used by the Python/TypeScript/Java SDKs.
 
+<a name="DaytonaForbiddenError"></a>
+## type DaytonaForbiddenError
+
+Deprecated: match with \`errors.Is\(err, ErrForbidden\)\` instead.
+
+```go
+type DaytonaForbiddenError struct{ *DaytonaError }
+```
+
+<a name="NewDaytonaForbiddenError"></a>
+### func NewDaytonaForbiddenError
+
+```go
+func NewDaytonaForbiddenError(message string, headers http.Header) *DaytonaForbiddenError
+```
+
+Deprecated: use NewDaytonaError\(message, http.StatusForbidden, headers\).
+
+<a name="DaytonaForbiddenError.Unwrap"></a>
+### func \(\*DaytonaForbiddenError\) Unwrap
+
+```go
+func (e *DaytonaForbiddenError) Unwrap() error
+```
+
+
+
 <a name="DaytonaNotFoundError"></a>
 ## type DaytonaNotFoundError
 
-Deprecated: use DaytonaError directly. Kept for backward compatibility with older callers that used named status\-specific Go types in errors.As.
+Deprecated: match with \`errors.Is\(err, ErrNotFound\)\` instead.
 
 ```go
-type DaytonaNotFoundError = DaytonaError
+type DaytonaNotFoundError struct{ *DaytonaError }
 ```
+
+<a name="NewDaytonaNotFoundError"></a>
+### func NewDaytonaNotFoundError
+
+```go
+func NewDaytonaNotFoundError(message string, headers http.Header) *DaytonaNotFoundError
+```
+
+Deprecated: use NewDaytonaError\(message, http.StatusNotFound, headers\).
+
+<a name="DaytonaNotFoundError.Unwrap"></a>
+### func \(\*DaytonaNotFoundError\) Unwrap
+
+```go
+func (e *DaytonaNotFoundError) Unwrap() error
+```
+
+
+
+<a name="DaytonaRateLimitError"></a>
+## type DaytonaRateLimitError
+
+Deprecated: match with \`errors.Is\(err, ErrRateLimit\)\` instead.
+
+```go
+type DaytonaRateLimitError struct{ *DaytonaError }
+```
+
+<a name="NewDaytonaRateLimitError"></a>
+### func NewDaytonaRateLimitError
+
+```go
+func NewDaytonaRateLimitError(message string, headers http.Header) *DaytonaRateLimitError
+```
+
+Deprecated: use NewDaytonaError\(message, http.StatusTooManyRequests, headers\).
+
+<a name="DaytonaRateLimitError.Unwrap"></a>
+### func \(\*DaytonaRateLimitError\) Unwrap
+
+```go
+func (e *DaytonaRateLimitError) Unwrap() error
+```
+
+
+
+<a name="DaytonaServerError"></a>
+## type DaytonaServerError
+
+Deprecated: match with \`errors.Is\(err, ErrInternalServer\)\` or compare StatusCode \>= 500 on \*DaytonaError instead.
+
+```go
+type DaytonaServerError struct{ *DaytonaError }
+```
+
+<a name="NewDaytonaServerError"></a>
+### func NewDaytonaServerError
+
+```go
+func NewDaytonaServerError(message string, statusCode int, headers http.Header) *DaytonaServerError
+```
+
+Deprecated: use NewDaytonaError\(message, statusCode, headers\).
+
+<a name="DaytonaServerError.Unwrap"></a>
+### func \(\*DaytonaServerError\) Unwrap
+
+```go
+func (e *DaytonaServerError) Unwrap() error
+```
+
+
 
 <a name="DaytonaTimeoutError"></a>
 ## type DaytonaTimeoutError
 
-Deprecated: use DaytonaError directly. Kept for backward compatibility with older callers that used named status\-specific Go types in errors.As.
+Deprecated: match with \`errors.Is\(err, ErrTimeout\)\` or \`errors.Is\(err, ErrGatewayTimeout\)\` instead.
 
 ```go
-type DaytonaTimeoutError = DaytonaError
+type DaytonaTimeoutError struct{ *DaytonaError }
 ```
+
+<a name="DaytonaTimeoutError.Unwrap"></a>
+### func \(\*DaytonaTimeoutError\) Unwrap
+
+```go
+func (e *DaytonaTimeoutError) Unwrap() error
+```
+
+
 
 <a name="DaytonaValidationError"></a>
 ## type DaytonaValidationError
 
-Deprecated: use DaytonaError directly. Kept for backward compatibility with older callers that used named status\-specific Go types in errors.As.
+Deprecated: match with \`errors.Is\(err, ErrBadRequest\)\` instead.
 
 ```go
-type DaytonaValidationError = DaytonaError
+type DaytonaValidationError struct{ *DaytonaError }
 ```
+
+<a name="DaytonaValidationError.Unwrap"></a>
+### func \(\*DaytonaValidationError\) Unwrap
+
+```go
+func (e *DaytonaValidationError) Unwrap() error
+```
+
+
 

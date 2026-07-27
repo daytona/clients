@@ -14,6 +14,7 @@ require 'websocket-client-simple'
 
 require_relative 'sdk/version'
 require_relative 'sdk/errors'
+require_relative 'sdk/deprecated'
 require_relative 'sdk/file_download_patch'
 require_relative 'config'
 require_relative 'otel'

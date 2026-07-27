@@ -40,6 +40,14 @@ export class DaytonaError extends Error {
     this.code = code
     this.source = source
   }
+
+  /**
+   * @deprecated Use {@link DaytonaError.code} instead. Kept so existing
+   * `err.errorCode` reads keep returning the machine-readable code.
+   */
+  get errorCode(): string | undefined {
+    return this.code
+  }
 }
 
 // HTTP-status classes — one per status code Daytona services emit.
@@ -69,6 +77,16 @@ export class DaytonaInternalServerError extends DaytonaError {}
 export class DaytonaBadGatewayError extends DaytonaError {}
 /** The service is temporarily unable to handle the request (HTTP 503). */
 export class DaytonaServiceUnavailableError extends DaytonaError {}
+
+// ============================================================================
+// Backward-compatibility subclasses. New functionality belongs elsewhere in
+// this file, not here. These are what the 400/403 entries of
+// STATUS_CODE_TO_ERROR throw so pre-rename `instanceof` checks keep matching.
+// They must stay declared BEFORE that map (TDZ) and in this file (import
+// cycle), and can be removed together with those two map entries in a future
+// major release. The deprecated `errorCode` getter on DaytonaError belongs to
+// the same removal set.
+// ============================================================================
 
 /**
  * @deprecated Use {@link DaytonaBadRequestError} instead. Re-exported so

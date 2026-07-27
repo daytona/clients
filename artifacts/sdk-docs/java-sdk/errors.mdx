@@ -1956,3 +1956,55 @@ public DaytonaUnprocessableEntityException(String message, Throwable cause, Stri
 - `cause` _Throwable_ -
 - `code` _String_ -
 - `source` _String_ -
+
+## DaytonaValidationException
+
+DaytonaValidationException class for Daytona SDK.
+
+### Constructors
+
+#### new DaytonaValidationException()
+```java
+public DaytonaValidationException(String message)
+```
+
+Creates a validation exception.
+
+**Parameters**:
+
+- `message` _String_ - error description
+
+#### new DaytonaValidationException()
+```java
+public DaytonaValidationException(String message, Throwable cause)
+```
+
+Creates a validation exception with a cause.
+
+**Parameters**:
+
+- `message` _String_ - error description
+- `cause` _Throwable_ - root cause
+
+#### new DaytonaValidationException()
+```java
+public DaytonaValidationException(String message, String code, String source)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `code` _String_ -
+- `source` _String_ -
+
+#### new DaytonaValidationException()
+```java
+public DaytonaValidationException(String message, Throwable cause, String code, String source)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `cause` _Throwable_ -
+- `code` _String_ -
+- `source` _String_ -

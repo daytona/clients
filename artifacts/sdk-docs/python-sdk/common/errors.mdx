@@ -147,16 +147,6 @@ except DaytonaForbiddenError as exc:
     print(exc.message)
 ```
 
-##### DaytonaAuthorizationError
-
-```python
-DaytonaAuthorizationError = DaytonaForbiddenError
-```
-
-Deprecated alias for :class:`DaytonaForbiddenError`. Kept so existing
-``except DaytonaAuthorizationError`` blocks continue to work; new code
-should use ``DaytonaForbiddenError`` directly.
-
 ## DaytonaRateLimitError
 
 ```python
@@ -214,16 +204,6 @@ try:
 except DaytonaBadRequestError as exc:
     print(exc.message)
 ```
-
-##### DaytonaValidationError
-
-```python
-DaytonaValidationError = DaytonaBadRequestError
-```
-
-Deprecated alias for :class:`DaytonaBadRequestError`. Kept so existing
-``except DaytonaValidationError`` blocks continue to work; new code
-should use ``DaytonaBadRequestError`` directly.
 
 ## DaytonaTimeoutError
 
@@ -458,4 +438,22 @@ Create the appropriate DaytonaError subclass from structured error metadata.
 
 Resolution order: ``(source, code)`` exact match → HTTP status code → base
 :class:`DaytonaError`.
+
+##### DaytonaAuthorizationError
+
+```python
+DaytonaAuthorizationError = DaytonaForbiddenError
+```
+
+Deprecated alias for :class:`DaytonaForbiddenError`. Kept so existing
+``except DaytonaAuthorizationError`` blocks continue to work.
+
+##### DaytonaValidationError
+
+```python
+DaytonaValidationError = DaytonaBadRequestError
+```
+
+Deprecated alias for :class:`DaytonaBadRequestError`. Kept so existing
+``except DaytonaValidationError`` blocks continue to work.
 

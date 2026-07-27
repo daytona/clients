@@ -60,7 +60,9 @@ class ExceptionMapperTest {
 
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
             throw new io.daytona.api.client.ApiException(422, "invalid", null, "{\"message\":\"bad data\"}");
-        })).isInstanceOf(DaytonaUnprocessableEntityException.class).hasMessage("bad data");
+        })).isInstanceOf(DaytonaUnprocessableEntityException.class)
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaValidationException.class)
+                .hasMessage("bad data");
 
         assertThatThrownBy(() -> ExceptionMapper.callMain(() -> {
             throw new io.daytona.api.client.ApiException(429, "limit", null, "{\"message\":\"too many\"}");

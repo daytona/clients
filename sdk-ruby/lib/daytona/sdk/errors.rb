@@ -64,10 +64,6 @@ module Daytona
     # HTTP 400 — request was rejected as malformed or invalid.
     class BadRequestError < Error; end
 
-    # @deprecated Use {BadRequestError} instead. Kept as an alias so existing
-    #   `rescue Daytona::Sdk::ValidationError` blocks keep working.
-    ValidationError = BadRequestError
-
     # HTTP 401 — authentication failed or credentials missing.
     class AuthenticationError < Error; end
 

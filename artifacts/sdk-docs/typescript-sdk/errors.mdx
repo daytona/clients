@@ -26,6 +26,27 @@ The accessibility service is unavailable (code `A11Y_UNAVAILABLE`).
 
 - `DaytonaServiceUnavailableError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaServiceUnavailableError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaA11yUnavailableError()
@@ -81,6 +102,27 @@ Authentication failed — missing or invalid credentials (HTTP 401).
 
 - `DaytonaGitAuthFailedError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaAuthenticationError()
@@ -134,6 +176,27 @@ Use DaytonaForbiddenError instead.
 
 - `DaytonaForbiddenError`
 
+### Accessors
+
+#### ~~errorCode~~
+
+_Inherited from_: `DaytonaForbiddenError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaAuthorizationError()
@@ -184,6 +247,27 @@ An upstream gateway returned an invalid response (HTTP 502).
 **Extends:**
 
 - `DaytonaError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -241,6 +325,27 @@ The request was malformed or invalid (HTTP 400).
 - `DaytonaValidationError`
 - `DaytonaLspServerNotInitializedError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaBadRequestError()
@@ -291,6 +396,27 @@ The session command already finished (code `COMMAND_ALREADY_COMPLETED`).
 **Extends:**
 
 - `DaytonaGoneError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaGoneError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -351,6 +477,27 @@ The request conflicts with the current state of the resource (HTTP 409).
 - `DaytonaGitMergeConflictError`
 - `DaytonaRecordingStillActiveError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaConflictError()
@@ -406,6 +553,27 @@ Network connection failure (can't connect or mid-request drop).
 
 - `DaytonaConnectionTimeoutError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaConnectionError()
@@ -456,6 +624,27 @@ Transport-layer timeout (connect / read). Subclass of DaytonaConnectionError.
 **Extends:**
 
 - `DaytonaConnectionError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConnectionError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -522,6 +711,25 @@ unless the caller (or the translation layer) sets it.
 - `DaytonaServiceUnavailableError`
 - `DaytonaConnectionError`
 
+### Accessors
+
+#### errorCode
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaError()
@@ -575,6 +783,27 @@ Access to the sandbox file was denied (code `FILE_ACCESS_DENIED`).
 
 - `DaytonaForbiddenError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaForbiddenError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaFileAccessDeniedError()
@@ -625,6 +854,27 @@ The file does not exist in the sandbox (code `FILE_NOT_FOUND`).
 **Extends:**
 
 - `DaytonaNotFoundError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaNotFoundError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -682,6 +932,27 @@ The authenticated caller lacks permission for the operation (HTTP 403).
 - `DaytonaAuthorizationError`
 - `DaytonaFileAccessDeniedError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaForbiddenError()
@@ -732,6 +1003,27 @@ Git authentication against the remote failed (code `GIT_AUTH_FAILED`).
 **Extends:**
 
 - `DaytonaAuthenticationError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaAuthenticationError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -784,6 +1076,27 @@ The git branch already exists (code `GIT_BRANCH_EXISTS`).
 
 - `DaytonaConflictError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaGitBranchExistsError()
@@ -834,6 +1147,27 @@ The git branch does not exist (code `GIT_BRANCH_NOT_FOUND`).
 **Extends:**
 
 - `DaytonaNotFoundError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaNotFoundError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -886,6 +1220,27 @@ The operation requires a clean worktree (code `GIT_DIRTY_WORKTREE`).
 
 - `DaytonaConflictError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaGitDirtyWorktreeError()
@@ -936,6 +1291,27 @@ A git merge produced conflicts (code `GIT_MERGE_CONFLICT`).
 **Extends:**
 
 - `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -988,6 +1364,27 @@ The git push was rejected by the remote (code `GIT_PUSH_REJECTED`).
 
 - `DaytonaConflictError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaGitPushRejectedError()
@@ -1038,6 +1435,27 @@ The git remote repository was not found (code `GIT_REPO_NOT_FOUND`).
 **Extends:**
 
 - `DaytonaNotFoundError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaNotFoundError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1095,6 +1513,27 @@ The resource existed but is permanently gone (HTTP 410).
 - `DaytonaSessionEndedError`
 - `DaytonaCommandAlreadyCompletedError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaGoneError()
@@ -1146,6 +1585,27 @@ A Daytona service failed unexpectedly (HTTP 500).
 
 - `DaytonaError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaInternalServerError()
@@ -1196,6 +1656,27 @@ The LSP server must be initialized first (code `LSP_SERVER_NOT_INITIALIZED`).
 **Extends:**
 
 - `DaytonaBadRequestError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaBadRequestError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1255,6 +1736,27 @@ The requested resource does not exist (HTTP 404).
 - `DaytonaFileNotFoundError`
 - `DaytonaProcessNotFoundError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaNotFoundError()
@@ -1305,6 +1807,27 @@ Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`).
 **Extends:**
 
 - `DaytonaTimeoutError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaTimeoutError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1357,6 +1880,27 @@ The sandbox process does not exist (code `PROCESS_NOT_FOUND`).
 
 - `DaytonaNotFoundError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaNotFoundError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaProcessNotFoundError()
@@ -1407,6 +1951,27 @@ The caller exceeded a rate limit (HTTP 429).
 **Extends:**
 
 - `DaytonaError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1459,6 +2024,27 @@ ffmpeg is not available for recording (code `RECORDING_FFMPEG_NOT_FOUND`).
 
 - `DaytonaServiceUnavailableError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaServiceUnavailableError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaRecordingFfmpegNotFoundError()
@@ -1509,6 +2095,27 @@ A screen recording is still active (code `RECORDING_STILL_ACTIVE`).
 **Extends:**
 
 - `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1566,6 +2173,27 @@ The service is temporarily unable to handle the request (HTTP 503).
 - `DaytonaA11yUnavailableError`
 - `DaytonaRecordingFfmpegNotFoundError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaServiceUnavailableError()
@@ -1616,6 +2244,27 @@ The session has already ended (code `SESSION_ENDED`).
 **Extends:**
 
 - `DaytonaGoneError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaGoneError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1672,6 +2321,27 @@ The operation timed out (HTTP 408, or 504 when a gateway timed out).
 
 - `DaytonaProcessExecutionTimeoutError`
 
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
+
 ### Constructors
 
 #### new DaytonaTimeoutError()
@@ -1722,6 +2392,27 @@ The request was well-formed but semantically invalid (HTTP 422).
 **Extends:**
 
 - `DaytonaError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 
@@ -1777,6 +2468,27 @@ blocks keep working.
 **Extends:**
 
 - `DaytonaBadRequestError`
+
+### Accessors
+
+#### ~~errorCode~~
+
+_Inherited from_: `DaytonaBadRequestError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string`
 
 ### Constructors
 

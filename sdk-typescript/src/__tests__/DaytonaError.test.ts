@@ -39,6 +39,12 @@ describe('DaytonaError construction', () => {
     expect(err.source).toBe('DAYTONA_RUNNER')
   })
 
+  it('exposes code through the deprecated errorCode alias', () => {
+    const err = new DaytonaError('boom', 404, undefined, 'FILE_NOT_FOUND', 'DAYTONA_DAEMON')
+    expect(err.errorCode).toBe('FILE_NOT_FOUND')
+    expect(new DaytonaError('plain').errorCode).toBeUndefined()
+  })
+
   test.each([
     [DaytonaNotFoundError, 'DaytonaNotFoundError'],
     [DaytonaRateLimitError, 'DaytonaRateLimitError'],

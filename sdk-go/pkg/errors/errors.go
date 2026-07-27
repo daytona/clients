@@ -65,18 +65,6 @@ type DaytonaError struct {
 	Headers    http.Header
 }
 
-// Deprecated: use DaytonaError directly. Kept for backward compatibility with
-// older callers that used named status-specific Go types in errors.As.
-type DaytonaTimeoutError = DaytonaError
-
-// Deprecated: use DaytonaError directly. Kept for backward compatibility with
-// older callers that used named status-specific Go types in errors.As.
-type DaytonaNotFoundError = DaytonaError
-
-// Deprecated: use DaytonaError directly. Kept for backward compatibility with
-// older callers that used named status-specific Go types in errors.As.
-type DaytonaValidationError = DaytonaError
-
 func (e *DaytonaError) Error() string {
 	if e.StatusCode != 0 {
 		return fmt.Sprintf("Daytona error (status %d): %s", e.StatusCode, e.Message)
