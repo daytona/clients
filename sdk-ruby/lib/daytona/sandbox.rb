@@ -878,12 +878,16 @@ module Daytona
       ) { wait_for_snapshot_complete }
     end
 
+    # Deprecated: Use +fork+ instead. This method will be removed in a future version.
+    #
     # @deprecated Use {#fork} instead. This method will be removed in a future version.
     def experimental_fork(name: nil, timeout: DEFAULT_TIMEOUT)
       warn('[DEPRECATION] `experimental_fork` is deprecated. Use `fork` instead.', uplevel: 1)
       fork(name:, timeout:)
     end
 
+    # Deprecated: Use +create_snapshot+ instead. This method will be removed in a future version.
+    #
     # @deprecated Use {#create_snapshot} instead. This method will be removed in a future version.
     def experimental_create_snapshot(name:, timeout: DEFAULT_TIMEOUT)
       warn('[DEPRECATION] `experimental_create_snapshot` is deprecated. Use `create_snapshot` instead.', uplevel: 1)

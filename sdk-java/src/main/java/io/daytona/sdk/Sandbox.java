@@ -1287,7 +1287,7 @@ public class Sandbox {
      * }</pre>
      *
      * @param name name for the new snapshot
-     * @param timeoutSeconds reserved timeout parameter for parity with other SDKs
+     * @param timeoutSeconds maximum seconds to wait for the snapshot operation to complete; {@code 0} disables timeout
      * @throws DaytonaException if the snapshot operation fails
      */
     public void createSnapshot(String name, long timeoutSeconds) {
@@ -1323,7 +1323,7 @@ public class Sandbox {
      * The Sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
      *
      * @param name name for the new snapshot
-     * @param timeoutSeconds reserved timeout parameter for parity with other SDKs
+     * @param timeoutSeconds maximum seconds to wait for the snapshot operation to complete; {@code 0} disables timeout
      * @throws DaytonaException if the snapshot operation fails
      * @deprecated Use {@link #createSnapshot(String, long)} instead. This method will be removed in a future version.
      */

@@ -551,6 +551,9 @@ export class Sandbox {
   }
 
   /**
+   * @param {string} name - Name for the new snapshot
+   * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
+   *                            Defaults to 60-second timeout.
    * @deprecated Use `createSnapshot` instead. This method will be removed in a future version.
    * @see {@link Sandbox.createSnapshot}
    */

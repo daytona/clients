@@ -100,13 +100,14 @@ Daytona.list rather than constructing directly.
 #### ~~\_experimental\_createSnapshot()~~
 
 ```ts
-_experimental_createSnapshot(name: string, timeout: number): Promise<void>
+_experimental_createSnapshot(name: string, timeout?: number): Promise<void>
 ```
 
 **Parameters**:
 
-- `name` _string_
-- `timeout` _number = 60_
+- `name` _string_ - Name for the new snapshot
+- `timeout?` _number = 60_ - Maximum time to wait in seconds. 0 means no timeout.
+    Defaults to 60-second timeout.
 
 
 **Returns**:

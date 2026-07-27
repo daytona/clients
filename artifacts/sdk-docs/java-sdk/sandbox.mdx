@@ -672,7 +672,7 @@ sandbox.createSnapshot("my-snapshot", 120);
 **Parameters**:
 
 - `name` _String_ - name for the new snapshot
-- `timeoutSeconds` _long_ - reserved timeout parameter for parity with other SDKs
+- `timeoutSeconds` _long_ - maximum seconds to wait for the snapshot operation to complete; `0` disables timeout
 
 **Throws**:
 
@@ -709,7 +709,7 @@ The Sandbox will temporarily enter a 'snapshotting' state and return to its prev
 **Parameters**:
 
 - `name` _String_ - name for the new snapshot
-- `timeoutSeconds` _long_ - reserved timeout parameter for parity with other SDKs
+- `timeoutSeconds` _long_ - maximum seconds to wait for the snapshot operation to complete; `0` disables timeout
 
 **Throws**:
 
