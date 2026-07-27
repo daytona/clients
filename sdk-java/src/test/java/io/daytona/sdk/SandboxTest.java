@@ -371,6 +371,14 @@ class SandboxTest {
     }
 
     @Test
+    void forkRejectsNegativeTimeoutBeforeApiCall() {
+        assertThatThrownBy(() -> sandbox.fork("forked", -1))
+                .hasMessageContaining("Timeout must be non-negative");
+
+        verify(sandboxApi, org.mockito.Mockito.never()).forkSandbox(any(), any(), any());
+    }
+
+    @Test
     void forkDefaultArgumentsOmitName() {
         when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(TestSupport.mainSandbox("sb-4", SandboxState.STARTED));
 

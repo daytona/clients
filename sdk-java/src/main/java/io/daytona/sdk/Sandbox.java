@@ -1218,6 +1218,9 @@ public class Sandbox {
      * @throws DaytonaException if the fork operation fails or times out
      */
     public Sandbox fork(String name, long timeoutSeconds) {
+        if (timeoutSeconds < 0) {
+            throw new DaytonaException("Timeout must be non-negative");
+        }
         ForkSandbox forkReq = new ForkSandbox();
         if (name != null) {
             forkReq.setName(name);
