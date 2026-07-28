@@ -26,7 +26,7 @@ import type {
   MetricSeries,
 } from '@daytona/api-client'
 import { Daytona } from './Daytona'
-import type { Resources } from './Daytona'
+import type { ForkSandboxParams, Resources } from './Daytona'
 import {
   FileSystemApi,
   GitApi,
@@ -455,7 +455,7 @@ export class Sandbox {
    * The forked Sandbox is a copy-on-write clone of the original. It starts
    * with the same disk contents but operates independently from that point on.
    *
-   * @param {object} [params] - Fork parameters
+   * @param {ForkSandboxParams} [params] - Fork parameters
    * @param {string} [params.name] - Optional name for the forked Sandbox. If not provided, a unique name will be generated.
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
    *                            Defaults to 60-second timeout.
@@ -470,7 +470,7 @@ export class Sandbox {
    */
   @WithInstrumentation()
   @withEvents
-  public async fork(params?: { name?: string }, timeout = 60): Promise<Sandbox> {
+  public async fork(params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     if (timeout < 0) {
       throw new DaytonaValidationError('Timeout must be a non-negative number')
     }
@@ -507,7 +507,7 @@ export class Sandbox {
    * @deprecated Use `fork` instead. This method will be removed in a future version.
    * @see {@link Sandbox.fork}
    */
-  public async _experimental_fork(params?: { name?: string }, timeout = 60): Promise<Sandbox> {
+  public async _experimental_fork(params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     return this.fork(params, timeout)
   }
 

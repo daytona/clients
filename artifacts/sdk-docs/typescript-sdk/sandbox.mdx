@@ -127,14 +127,12 @@ Sandbox.createSnapshot
 #### ~~\_experimental\_fork()~~
 
 ```ts
-_experimental_fork(params?: {
-  name: string;
-}, timeout?: number): Promise<Sandbox>
+_experimental_fork(params?: ForkSandboxParams, timeout?: number): Promise<Sandbox>
 ```
 
 **Parameters**:
 
-- `params?` _###### name?_ - `string`
+- `params?` _ForkSandboxParams_
 - `timeout?` _number = 60_
 
 
@@ -337,9 +335,7 @@ Expires a signed preview url for the sandbox at the specified port.
 #### fork()
 
 ```ts
-fork(params?: {
-  name: string;
-}, timeout?: number): Promise<Sandbox>
+fork(params?: ForkSandboxParams, timeout?: number): Promise<Sandbox>
 ```
 
 Forks the Sandbox, creating a new Sandbox with an identical filesystem.
@@ -349,8 +345,7 @@ with the same disk contents but operates independently from that point on.
 
 **Parameters**:
 
-- `params?` _Fork parameters_
-- `name?` _string_ - Optional name for the forked Sandbox. If not provided, a unique name will be generated.
+- `params?` _ForkSandboxParams_ - Fork parameters
 - `timeout?` _number = 60_ - Maximum time to wait in seconds. 0 means no timeout.
     Defaults to 60-second timeout.
 

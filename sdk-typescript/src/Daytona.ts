@@ -220,6 +220,16 @@ export type CreateSandboxFromSnapshotParams = CreateSandboxBaseParams & {
 }
 
 /**
+ * Parameters for forking a Sandbox.
+ *
+ * @property {string} [name] - Optional name for the forked Sandbox. If not provided, a unique name will be generated.
+ */
+export type ForkSandboxParams = {
+  /** Optional name for the forked Sandbox. If not provided, a unique name will be generated. */
+  name?: string
+}
+
+/**
  * Main class for interacting with the Daytona API.
  * Provides methods for creating, managing, and interacting with Daytona Sandboxes.
  * Can be initialized either with explicit configuration or using environment variables.
@@ -915,7 +925,7 @@ export class Daytona implements AsyncDisposable {
    * Forks a Sandbox, creating a new Sandbox with an identical filesystem.
    *
    * @param {Sandbox} sandbox - The Sandbox to fork
-   * @param {object} [params] - Fork parameters
+   * @param {ForkSandboxParams} [params] - Fork parameters
    * @param {string} [params.name] - Optional name for the forked Sandbox
    * @param {number} [timeout] - Timeout in seconds (0 means no timeout, default is 60)
    * @returns {Promise<Sandbox>} The forked Sandbox
@@ -926,7 +936,7 @@ export class Daytona implements AsyncDisposable {
    * console.log(`Forked sandbox: ${forked.id}`);
    */
   @WithInstrumentation()
-  public async fork(sandbox: Sandbox, params?: { name?: string }, timeout = 60): Promise<Sandbox> {
+  public async fork(sandbox: Sandbox, params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     return await sandbox.fork(params, timeout)
   }
 
@@ -934,7 +944,7 @@ export class Daytona implements AsyncDisposable {
    * @deprecated Use `fork` instead. This method will be removed in a future version.
    * @see {@link Daytona.fork}
    */
-  public async _experimental_fork(sandbox: Sandbox, params?: { name?: string }, timeout = 60): Promise<Sandbox> {
+  public async _experimental_fork(sandbox: Sandbox, params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     return this.fork(sandbox, params, timeout)
   }
 

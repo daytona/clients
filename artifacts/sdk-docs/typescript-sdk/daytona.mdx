@@ -83,16 +83,14 @@ When JWT token is provided without an organization ID
 ```ts
 _experimental_fork(
    sandbox: Sandbox, 
-   params?: {
-  name: string;
- }, 
+   params?: ForkSandboxParams, 
 timeout?: number): Promise<Sandbox>
 ```
 
 **Parameters**:
 
 - `sandbox` _Sandbox_
-- `params?` _###### name?_ - `string`
+- `params?` _ForkSandboxParams_
 - `timeout?` _number = 60_
 
 
@@ -262,9 +260,7 @@ await daytona.delete(sandbox);
 ```ts
 fork(
    sandbox: Sandbox, 
-   params?: {
-  name: string;
- }, 
+   params?: ForkSandboxParams, 
 timeout?: number): Promise<Sandbox>
 ```
 
@@ -273,8 +269,7 @@ Forks a Sandbox, creating a new Sandbox with an identical filesystem.
 **Parameters**:
 
 - `sandbox` _Sandbox_ - The Sandbox to fork
-- `params?` _Fork parameters_
-- `name?` _string_ - Optional name for the forked Sandbox
+- `params?` _ForkSandboxParams_ - Fork parameters
 - `timeout?` _number = 60_ - Timeout in seconds (0 means no timeout, default is 60)
 
 
@@ -569,6 +564,22 @@ Represents a volume mount for a Sandbox.
 **Extends:**
 
 - `SandboxVolume`
+## ForkSandboxParams
+
+```ts
+type ForkSandboxParams = {
+  name: string;
+};
+```
+
+Parameters for forking a Sandbox.
+
+**Type declaration**:
+
+- `name?` _string_ - Optional name for the forked Sandbox. If not provided, a unique name will be generated.
+    
+
+
 ## CODE\_TOOLBOX\_LANGUAGE\_LABEL
 
 ```ts

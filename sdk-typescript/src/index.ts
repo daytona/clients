@@ -9,6 +9,7 @@ export type {
   CreateSandboxFromImageParams,
   CreateSandboxFromSnapshotParams,
   DaytonaConfig,
+  ForkSandboxParams,
   Resources,
   VolumeMount,
 } from './Daytona'
