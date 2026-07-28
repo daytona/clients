@@ -43,7 +43,12 @@ import { FileSystem } from './FileSystem'
 import { Git } from './Git'
 import { Process } from './Process'
 import { LspLanguageId, LspServer } from './LspServer'
-import { DaytonaError, DaytonaNotFoundError, DaytonaTimeoutError, DaytonaValidationError } from './errors/DaytonaError'
+import {
+  DaytonaError,
+  DaytonaInvalidArgumentError,
+  DaytonaNotFoundError,
+  DaytonaTimeoutError,
+} from './errors/DaytonaError'
 import { CODE_TOOLBOX_LANGUAGE_LABEL } from './Daytona'
 import { ComputerUse } from './ComputerUse'
 import type { AxiosInstance } from 'axios'
@@ -385,7 +390,7 @@ export class Sandbox {
   @withEvents
   public async start(timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -411,7 +416,7 @@ export class Sandbox {
   @withEvents
   public async recover(timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -440,7 +445,7 @@ export class Sandbox {
   @withEvents
   public async stop(timeout = 60, force = false): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
     const startTime = Date.now()
     await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
@@ -460,7 +465,7 @@ export class Sandbox {
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
    *                            Defaults to 60-second timeout.
    * @returns {Promise<Sandbox>} The forked Sandbox.
-   * @throws {DaytonaValidationError} - If timeout is a negative number
+   * @throws {DaytonaInvalidArgumentError} - If timeout is a negative number
    * @throws {DaytonaError} - If the fork operation fails or times out
    *
    * @example
@@ -472,7 +477,7 @@ export class Sandbox {
   @withEvents
   public async fork(params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -522,7 +527,7 @@ export class Sandbox {
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
    *                            Defaults to 60-second timeout.
    * @returns {Promise<void>}
-   * @throws {DaytonaValidationError} - If timeout is a negative number
+   * @throws {DaytonaInvalidArgumentError} - If timeout is a negative number
    * @throws {DaytonaError} - If the snapshot operation fails or times out
    *
    * @example
@@ -534,7 +539,7 @@ export class Sandbox {
   @withEvents
   public async createSnapshot(name: string, timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -585,7 +590,7 @@ export class Sandbox {
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
    *                            Defaults to 60-second timeout.
    * @returns {Promise<void>}
-   * @throws {DaytonaValidationError} - If timeout is a negative number
+   * @throws {DaytonaInvalidArgumentError} - If timeout is a negative number
    * @throws {DaytonaError} - If the pause operation fails or times out
    *
    * @example
@@ -597,7 +602,7 @@ export class Sandbox {
   @withEvents
   public async pause(timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -640,7 +645,7 @@ export class Sandbox {
   @withEvents
   public async delete(timeout = 60, wait = false): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
@@ -684,7 +689,7 @@ export class Sandbox {
   @withEvents
   public async waitUntilStarted(timeout = 60) {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     if (this.state === SandboxState.STARTED) {
@@ -715,7 +720,7 @@ export class Sandbox {
   @withEvents
   public async waitUntilStopped(timeout = 60) {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     // Treat destroyed as stopped to cover ephemeral sandboxes that are automatically deleted after stopping
@@ -790,7 +795,7 @@ export class Sandbox {
   @withEvents
   public async setAutostopInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
-      throw new DaytonaValidationError('autoStopInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoStopInterval must be a non-negative integer')
     }
 
     await this.sandboxApi.setAutostopInterval(this.id, interval)
@@ -823,7 +828,7 @@ export class Sandbox {
   @WithInstrumentation()
   public async setAutoPauseInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
-      throw new DaytonaValidationError('autoPauseInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoPauseInterval must be a non-negative integer')
     }
 
     await this.sandboxApi.setAutoPauseInterval(this.id, interval)
@@ -851,7 +856,7 @@ export class Sandbox {
   @WithInstrumentation()
   public async setTtl(ttlMinutes: number): Promise<void> {
     if (!Number.isInteger(ttlMinutes) || ttlMinutes < 0) {
-      throw new DaytonaValidationError('ttlMinutes must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('ttlMinutes must be a non-negative integer')
     }
 
     await this.sandboxApi.setTtl(this.id, ttlMinutes)
@@ -877,7 +882,7 @@ export class Sandbox {
   @withEvents
   public async setAutoArchiveInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
-      throw new DaytonaValidationError('autoArchiveInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoArchiveInterval must be a non-negative integer')
     }
     await this.sandboxApi.setAutoArchiveInterval(this.id, interval)
     this.autoArchiveInterval = interval
@@ -934,7 +939,7 @@ export class Sandbox {
       settings.networkAllowList === undefined &&
       settings.domainAllowList === undefined
     ) {
-      throw new DaytonaValidationError(
+      throw new DaytonaInvalidArgumentError(
         'At least one of networkBlockAll, networkAllowList or domainAllowList must be set',
       )
     }
@@ -1148,10 +1153,10 @@ export class Sandbox {
   @withEvents
   public async resize(resources: Pick<Resources, 'cpu' | 'memory' | 'disk'>, timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
     if ('gpu' in resources || 'gpuType' in resources) {
-      throw new DaytonaValidationError(
+      throw new DaytonaInvalidArgumentError(
         'Resize does not support changes to gpu or gpuType — to change GPU, create a new Sandbox',
       )
     }
@@ -1183,7 +1188,7 @@ export class Sandbox {
   @withEvents
   public async waitForResizeComplete(timeout = 60): Promise<void> {
     if (timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     if (this.state !== SandboxState.RESIZING) {

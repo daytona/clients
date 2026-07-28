@@ -10,15 +10,20 @@ import {
   DaytonaAuthenticationError,
   DaytonaAuthorizationError,
   DaytonaBadGatewayError,
+  DaytonaBadRequestError,
   DaytonaConflictError,
   DaytonaConnectionError,
   DaytonaConnectionTimeoutError,
   DaytonaError,
   DaytonaFileNotFoundError,
+  DaytonaFileReadFailedError,
   DaytonaGitAuthFailedError,
   DaytonaGoneError,
   DaytonaInternalServerError,
+  DaytonaInvalidArgumentError,
+  DaytonaInvalidFilePathError,
   DaytonaNotFoundError,
+  DaytonaProcessExecutionTimeoutError,
   DaytonaRateLimitError,
   DaytonaServiceUnavailableError,
   DaytonaSessionEndedError,
@@ -59,6 +64,68 @@ describe('DaytonaError construction', () => {
   it('preserves deprecated alias class names', () => {
     expect(new DaytonaValidationError('bad request').name).toBe('DaytonaValidationError')
     expect(new DaytonaAuthorizationError('forbidden').name).toBe('DaytonaAuthorizationError')
+  })
+})
+
+describe('DaytonaInvalidArgumentError (client-side validation)', () => {
+  it('carries no response metadata', () => {
+    const err = new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
+    expect(err.name).toBe('DaytonaInvalidArgumentError')
+    expect(err.message).toBe('Timeout must be a non-negative number')
+    expect(err.statusCode).toBeUndefined()
+    expect(err.code).toBeUndefined()
+    expect(err.source).toBeUndefined()
+  })
+
+  it('still matches legacy validation catches', () => {
+    const err = new DaytonaInvalidArgumentError('bad arg')
+    expect(err).toBeInstanceOf(DaytonaValidationError)
+    expect(err).toBeInstanceOf(DaytonaBadRequestError)
+    expect(err).toBeInstanceOf(DaytonaError)
+  })
+
+  it('is distinct from server-returned 400 and 422 errors', () => {
+    const local = new DaytonaInvalidArgumentError('bad arg')
+    const badRequest = createDaytonaError('server rejected', 400)
+    const unprocessable = createDaytonaError('semantically invalid', 422)
+
+    expect(badRequest).not.toBeInstanceOf(DaytonaInvalidArgumentError)
+    expect(unprocessable).not.toBeInstanceOf(DaytonaInvalidArgumentError)
+    expect(local).not.toBeInstanceOf(DaytonaUnprocessableEntityError)
+    expect(badRequest.statusCode).toBe(400)
+    expect(local.statusCode).toBeUndefined()
+  })
+
+  it('is not produced by status-code classification', () => {
+    expect(errorClassFromStatusCode(400)).not.toBe(DaytonaInvalidArgumentError)
+  })
+})
+
+describe('DaytonaConnectionTimeoutError legacy timeout compatibility', () => {
+  it('matches DaytonaTimeoutError as well as DaytonaConnectionError', () => {
+    const err = new DaytonaConnectionTimeoutError('Operation timed out')
+    expect(err).toBeInstanceOf(DaytonaTimeoutError)
+    expect(err).toBeInstanceOf(DaytonaConnectionError)
+    expect(err).toBeInstanceOf(DaytonaError)
+  })
+
+  it('does not make plain connection errors look like timeouts', () => {
+    expect(new DaytonaConnectionError('ECONNREFUSED')).not.toBeInstanceOf(DaytonaTimeoutError)
+  })
+
+  it('does not leak the widened match into DaytonaTimeoutError subclasses', () => {
+    const err = new DaytonaConnectionTimeoutError('Operation timed out')
+    expect(err).not.toBeInstanceOf(DaytonaProcessExecutionTimeoutError)
+  })
+
+  it('leaves ordinary timeout classification untouched', () => {
+    const err = createDaytonaError('gateway timed out', 504)
+    expect(err).toBeInstanceOf(DaytonaTimeoutError)
+    expect(err).not.toBeInstanceOf(DaytonaConnectionError)
+
+    const processTimeout = createDaytonaError('too slow', 408, undefined, 'PROCESS_EXECUTION_TIMEOUT', 'DAYTONA_DAEMON')
+    expect(processTimeout).toBeInstanceOf(DaytonaProcessExecutionTimeoutError)
+    expect(processTimeout).toBeInstanceOf(DaytonaTimeoutError)
   })
 })
 
@@ -111,6 +178,20 @@ describe('Domain code classification with status-class inheritance', () => {
     const err = createDaytonaError('a11y bus down', 503, undefined, 'A11Y_UNAVAILABLE', 'DAYTONA_DAEMON')
     expect(err).toBeInstanceOf(DaytonaA11yUnavailableError)
     expect(err).toBeInstanceOf(DaytonaServiceUnavailableError)
+  })
+
+  it('daemon INVALID_FILE_PATH inherits from DaytonaBadRequestError', () => {
+    const err = createDaytonaError('invalid file path: ..', 400, undefined, 'INVALID_FILE_PATH', 'DAYTONA_DAEMON')
+    expect(err).toBeInstanceOf(DaytonaInvalidFilePathError)
+    expect(err).toBeInstanceOf(DaytonaBadRequestError)
+    expect(err.code).toBe('INVALID_FILE_PATH')
+  })
+
+  it('daemon FILE_READ_FAILED inherits from DaytonaInternalServerError', () => {
+    const err = createDaytonaError('failed to access file', 500, undefined, 'FILE_READ_FAILED', 'DAYTONA_DAEMON')
+    expect(err).toBeInstanceOf(DaytonaFileReadFailedError)
+    expect(err).toBeInstanceOf(DaytonaInternalServerError)
+    expect(err.code).toBe('FILE_READ_FAILED')
   })
 
   it('falls back to status class when (source, code) is unknown', () => {

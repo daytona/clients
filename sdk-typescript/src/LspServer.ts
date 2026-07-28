@@ -5,7 +5,7 @@
 
 import { LspApi } from '@daytona/toolbox-api-client'
 import type { CompletionList, LspSymbol } from '@daytona/toolbox-api-client'
-import { DaytonaValidationError } from './errors/DaytonaError'
+import { DaytonaInvalidArgumentError } from './errors/DaytonaError'
 import { WithInstrumentation } from './utils/otel.decorator'
 
 /**
@@ -56,7 +56,7 @@ export class LspServer {
     private readonly apiClient: LspApi,
   ) {
     if (!Object.values(LspLanguageId).includes(this.languageId)) {
-      throw new DaytonaValidationError(
+      throw new DaytonaInvalidArgumentError(
         `Invalid languageId: ${this.languageId}. Supported values are: ${Object.values(LspLanguageId).join(', ')}`,
       )
     }

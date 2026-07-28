@@ -40,6 +40,8 @@ export {
   // Base + status-code classes
   DaytonaError,
   DaytonaBadRequestError,
+  // Client-side (pre-flight) argument validation
+  DaytonaInvalidArgumentError,
   // Deprecated aliases
   DaytonaValidationError,
   DaytonaAuthenticationError,
@@ -67,6 +69,8 @@ export {
   DaytonaGitMergeConflictError,
   DaytonaFileNotFoundError,
   DaytonaFileAccessDeniedError,
+  DaytonaInvalidFilePathError,
+  DaytonaFileReadFailedError,
   DaytonaLspServerNotInitializedError,
   DaytonaProcessExecutionTimeoutError,
   DaytonaProcessNotFoundError,

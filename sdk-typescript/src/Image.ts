@@ -5,7 +5,7 @@
 
 import * as pathe from 'pathe'
 import { quote, parse as parseShellQuote } from 'shell-quote'
-import { DaytonaNotFoundError, DaytonaValidationError } from './errors/DaytonaError'
+import { DaytonaInvalidArgumentError, DaytonaNotFoundError } from './errors/DaytonaError'
 import { dynamicRequire } from './utils/Import'
 
 const SUPPORTED_PYTHON_SERIES = ['3.9', '3.10', '3.11', '3.12', '3.13'] as const
@@ -120,7 +120,7 @@ export class Image {
       throw new DaytonaNotFoundError(`Requirements file ${requirementsTxt} does not exist`)
     }
     if (!fs.statSync(expandedPath).isFile()) {
-      throw new DaytonaValidationError(`Requirements path ${requirementsTxt} exists but is not a file`)
+      throw new DaytonaInvalidArgumentError(`Requirements path ${requirementsTxt} exists but is not a file`)
     }
 
     const extraArgs = this.formatPipInstallArgs(options)
@@ -154,7 +154,7 @@ export class Image {
       throw new DaytonaNotFoundError(`pyproject.toml file ${pyprojectToml} does not exist`)
     }
     if (!fs.statSync(expandedPath).isFile()) {
-      throw new DaytonaValidationError(`pyproject.toml path ${pyprojectToml} exists but is not a file`)
+      throw new DaytonaInvalidArgumentError(`pyproject.toml path ${pyprojectToml} exists but is not a file`)
     }
 
     let tomlData: any
@@ -163,7 +163,7 @@ export class Image {
       tomlData = toml.parse(fs.readFileSync(expandedPath, 'utf-8')) as any
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      throw new DaytonaValidationError(`Invalid pyproject.toml file ${pyprojectToml}: ${errorMessage}`)
+      throw new DaytonaInvalidArgumentError(`Invalid pyproject.toml file ${pyprojectToml}: ${errorMessage}`)
     }
 
     const dependencies: string[] = []
@@ -173,7 +173,7 @@ export class Image {
         'No [project.dependencies] section in pyproject.toml file. ' +
         'See https://packaging.python.org/en/latest/guides/writing-pyproject-toml ' +
         'for further file format guidelines.'
-      throw new DaytonaValidationError(msg)
+      throw new DaytonaInvalidArgumentError(msg)
     }
 
     dependencies.push(...tomlData.project.dependencies)
@@ -181,7 +181,7 @@ export class Image {
     if (options?.optionalDependencies && tomlData.project['optional-dependencies']) {
       const optionalGroups = tomlData.project['optional-dependencies']
       if (typeof optionalGroups !== 'object' || Array.isArray(optionalGroups)) {
-        throw new DaytonaValidationError('optional-dependencies must be a mapping in pyproject.toml')
+        throw new DaytonaInvalidArgumentError('optional-dependencies must be a mapping in pyproject.toml')
       }
 
       for (const group of options.optionalDependencies) {
@@ -221,7 +221,7 @@ export class Image {
       throw new DaytonaNotFoundError(`Local file ${localPath} does not exist`)
     }
     if (!fs.statSync(expandedPath).isFile()) {
-      throw new DaytonaValidationError(`Local path ${localPath} exists but is not a file`)
+      throw new DaytonaInvalidArgumentError(`Local path ${localPath} exists but is not a file`)
     }
 
     this._contextList.push({ sourcePath: expandedPath, archivePath: expandedPath })
@@ -252,7 +252,7 @@ export class Image {
       throw new DaytonaNotFoundError(`Local directory ${localPath} does not exist`)
     }
     if (!fs.statSync(expandedPath).isDirectory()) {
-      throw new DaytonaValidationError(`Local path ${localPath} exists but is not a directory`)
+      throw new DaytonaInvalidArgumentError(`Local path ${localPath} exists but is not a directory`)
     }
 
     this._contextList.push({ sourcePath: expandedPath, archivePath: expandedPath })
@@ -304,7 +304,7 @@ export class Image {
       .map(([key]) => key)
 
     if (nonStringKeys.length) {
-      throw new DaytonaValidationError(`Image ENV variables must be strings. Invalid keys: ${nonStringKeys}`)
+      throw new DaytonaInvalidArgumentError(`Image ENV variables must be strings. Invalid keys: ${nonStringKeys}`)
     }
 
     for (const [key, val] of Object.entries(envVars)) {
@@ -343,7 +343,7 @@ export class Image {
    */
   entrypoint(entrypointCommands: string[]): Image {
     if (!Array.isArray(entrypointCommands) || !entrypointCommands.every((x) => typeof x === 'string')) {
-      throw new DaytonaValidationError('entrypoint_commands must be a list of strings')
+      throw new DaytonaInvalidArgumentError('entrypoint_commands must be a list of strings')
     }
 
     const argsStr = entrypointCommands.map((arg) => `"${arg}"`).join(', ')
@@ -365,7 +365,7 @@ export class Image {
    */
   cmd(cmd: string[]): Image {
     if (!Array.isArray(cmd) || !cmd.every((x) => typeof x === 'string')) {
-      throw new DaytonaValidationError('Image CMD must be a list of strings')
+      throw new DaytonaInvalidArgumentError('Image CMD must be a list of strings')
     }
 
     const cmdStr = cmd.map((arg) => `"${arg}"`).join(', ')
@@ -397,7 +397,7 @@ export class Image {
         throw new DaytonaNotFoundError(`Context directory ${contextDir} does not exist`)
       }
       if (!fs.statSync(expandedPath).isDirectory()) {
-        throw new DaytonaValidationError(`Context path ${contextDir} exists but is not a directory`)
+        throw new DaytonaInvalidArgumentError(`Context path ${contextDir} exists but is not a directory`)
       }
     }
 
@@ -438,7 +438,7 @@ export class Image {
       throw new DaytonaNotFoundError(`Dockerfile ${path} does not exist`)
     }
     if (!fs.statSync(expandedPath).isFile()) {
-      throw new DaytonaValidationError(`Dockerfile path ${path} exists but is not a file`)
+      throw new DaytonaInvalidArgumentError(`Dockerfile path ${path} exists but is not a file`)
     }
 
     const dockerfileContent = fs.readFileSync(expandedPath, 'utf-8')
@@ -562,7 +562,7 @@ export class Image {
           flatten(item)
         }
       } else {
-        throw new DaytonaValidationError(`${functionName}: ${argName} must only contain strings`)
+        throw new DaytonaInvalidArgumentError(`${functionName}: ${argName} must only contain strings`)
       }
     }
 
@@ -583,7 +583,7 @@ export class Image {
     }
 
     if (!SUPPORTED_PYTHON_SERIES.includes(pythonVersion)) {
-      throw new DaytonaValidationError(
+      throw new DaytonaInvalidArgumentError(
         `Unsupported Python version: ${pythonVersion}. ` +
           `Daytona supports the following series: ${SUPPORTED_PYTHON_SERIES.join(', ')}`,
       )

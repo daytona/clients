@@ -63,8 +63,26 @@ export class DaytonaAuthenticationError extends DaytonaError {}
 export class DaytonaForbiddenError extends DaytonaError {}
 /** The requested resource does not exist (HTTP 404). */
 export class DaytonaNotFoundError extends DaytonaError {}
-/** The operation timed out (HTTP 408, or 504 when a gateway timed out). */
-export class DaytonaTimeoutError extends DaytonaError {}
+/**
+ * The operation timed out (HTTP 408, or 504 when a gateway timed out).
+ *
+ * Also matches {@link DaytonaConnectionTimeoutError} via `instanceof`, even
+ * though that class sits under {@link DaytonaConnectionError} in the prototype
+ * chain. Transport timeouts were raised as `DaytonaTimeoutError` before
+ * `DaytonaConnectionTimeoutError` existed, so this keeps pre-existing
+ * `catch (err) { if (err instanceof DaytonaTimeoutError) ... }` blocks working
+ * — the same compatibility the Python SDK gets from inheriting both classes.
+ */
+export class DaytonaTimeoutError extends DaytonaError {
+  static [Symbol.hasInstance](value: unknown): boolean {
+    // Only the base class widens; subclasses (e.g. ProcessExecutionTimeout)
+    // must keep exact prototype-chain semantics.
+    if (this === DaytonaTimeoutError && value instanceof DaytonaConnectionTimeoutError) {
+      return true
+    }
+    return Function.prototype[Symbol.hasInstance].call(this, value)
+  }
+}
 /** The request conflicts with the current state of the resource (HTTP 409). */
 export class DaytonaConflictError extends DaytonaError {}
 /** The resource existed but is permanently gone (HTTP 410). */
@@ -91,9 +109,17 @@ export class DaytonaServiceUnavailableError extends DaytonaError {}
 // ============================================================================
 
 /**
- * @deprecated Use {@link DaytonaBadRequestError} instead. Re-exported so
- * existing `catch (err) { if (err instanceof DaytonaValidationError) ... }`
- * blocks keep working.
+ * Legacy umbrella for validation failures. Kept so existing
+ * `catch (err) { if (err instanceof DaytonaValidationError) ... }` blocks keep
+ * matching both server-returned HTTP 400s and locally rejected arguments.
+ *
+ * @deprecated Do not throw or catch this directly in new code. Branch on the
+ * precise class instead:
+ * - {@link DaytonaInvalidArgumentError} — the SDK rejected your arguments
+ *   locally, before any request was sent.
+ * - {@link DaytonaBadRequestError} — a Daytona service returned HTTP 400.
+ * - {@link DaytonaUnprocessableEntityError} — a Daytona service returned
+ *   HTTP 422 (well-formed but semantically invalid).
  */
 export class DaytonaValidationError extends DaytonaBadRequestError {}
 
@@ -101,6 +127,33 @@ export class DaytonaValidationError extends DaytonaBadRequestError {}
  * @deprecated Use {@link DaytonaForbiddenError} instead.
  */
 export class DaytonaAuthorizationError extends DaytonaForbiddenError {}
+
+// Not part of the deprecated set above. It extends DaytonaValidationError only
+// so pre-existing `instanceof DaytonaValidationError` / `DaytonaBadRequestError`
+// catches keep matching local argument rejections; reparent it directly onto
+// DaytonaError in the next major.
+
+/**
+ * The SDK rejected the caller's arguments locally, before any request was
+ * sent. `statusCode`, `code` and `source` are always `undefined` — no Daytona
+ * service was contacted, so there is no HTTP status to report.
+ *
+ * Distinct from {@link DaytonaBadRequestError} (a service returned HTTP 400)
+ * and {@link DaytonaUnprocessableEntityError} (a service returned HTTP 422).
+ * This one always means: fix the arguments at the call site.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await sandbox.setAutoStopInterval(-1)
+ * } catch (err) {
+ *   if (err instanceof DaytonaInvalidArgumentError) {
+ *     // never reached the API — the value itself is invalid
+ *   }
+ * }
+ * ```
+ */
+export class DaytonaInvalidArgumentError extends DaytonaValidationError {}
 
 /** Network connection failure (can't connect or mid-request drop). */
 export class DaytonaConnectionError extends DaytonaError {}
@@ -131,6 +184,10 @@ export class DaytonaGitMergeConflictError extends DaytonaConflictError {}
 export class DaytonaFileNotFoundError extends DaytonaNotFoundError {}
 /** Access to the sandbox file was denied (code `FILE_ACCESS_DENIED`). */
 export class DaytonaFileAccessDeniedError extends DaytonaForbiddenError {}
+/** The supplied file path was rejected by the daemon (code `INVALID_FILE_PATH`). */
+export class DaytonaInvalidFilePathError extends DaytonaBadRequestError {}
+/** The daemon could not read the sandbox file (code `FILE_READ_FAILED`). */
+export class DaytonaFileReadFailedError extends DaytonaInternalServerError {}
 
 // --- LSP (daemon) ---
 /** The LSP server must be initialized first (code `LSP_SERVER_NOT_INITIALIZED`). */
@@ -160,7 +217,9 @@ export class DaytonaRecordingFfmpegNotFoundError extends DaytonaServiceUnavailab
  *
  * Code strings are kept inline (not imported from the generated clients) so
  * tests that virtual-mock the API client modules don't break module init.
- * Drift is caught by the cross-language code-catalog generator + CI checks.
+ *
+ * There is currently NO automated drift check against the daemon's
+ * `DaemonErrorCode` enum — keep this map in sync by hand when codes are added.
  */
 const CODE_TO_ERROR_CLASS: Record<string, typeof DaytonaError> = {
   // Daemon
@@ -173,6 +232,8 @@ const CODE_TO_ERROR_CLASS: Record<string, typeof DaytonaError> = {
   'DAYTONA_DAEMON|GIT_MERGE_CONFLICT': DaytonaGitMergeConflictError,
   'DAYTONA_DAEMON|FILE_NOT_FOUND': DaytonaFileNotFoundError,
   'DAYTONA_DAEMON|FILE_ACCESS_DENIED': DaytonaFileAccessDeniedError,
+  'DAYTONA_DAEMON|INVALID_FILE_PATH': DaytonaInvalidFilePathError,
+  'DAYTONA_DAEMON|FILE_READ_FAILED': DaytonaFileReadFailedError,
   'DAYTONA_DAEMON|LSP_SERVER_NOT_INITIALIZED': DaytonaLspServerNotInitializedError,
   'DAYTONA_DAEMON|PROCESS_EXECUTION_TIMEOUT': DaytonaProcessExecutionTimeoutError,
   'DAYTONA_DAEMON|PROCESS_NOT_FOUND': DaytonaProcessNotFoundError,

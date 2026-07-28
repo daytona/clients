@@ -22,8 +22,8 @@ import {
   DaytonaAuthenticationError,
   createAxiosDaytonaError,
   DaytonaError,
+  DaytonaInvalidArgumentError,
   DaytonaTimeoutError,
-  DaytonaValidationError,
 } from './errors/DaytonaError'
 import { Image } from './Image'
 import { Sandbox } from './Sandbox'
@@ -555,7 +555,7 @@ export class Daytona implements AsyncDisposable {
     if (params.language) {
       const validLanguages = Object.values(CodeLanguage) as string[]
       if (!validLanguages.includes(params.language)) {
-        throw new DaytonaValidationError(
+        throw new DaytonaInvalidArgumentError(
           `Invalid ${CODE_TOOLBOX_LANGUAGE_LABEL}: ${params.language}. Supported languages: ${validLanguages.join(', ')}`,
         )
       }
@@ -563,31 +563,33 @@ export class Daytona implements AsyncDisposable {
     }
 
     if (options.timeout < 0) {
-      throw new DaytonaValidationError('Timeout must be a non-negative number')
+      throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     if (
       params.autoStopInterval !== undefined &&
       (!Number.isInteger(params.autoStopInterval) || params.autoStopInterval < 0)
     ) {
-      throw new DaytonaValidationError('autoStopInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoStopInterval must be a non-negative integer')
     }
 
     if (
       params.autoPauseInterval !== undefined &&
       (!Number.isInteger(params.autoPauseInterval) || params.autoPauseInterval < 0)
     ) {
-      throw new DaytonaValidationError('autoPauseInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoPauseInterval must be a non-negative integer')
     }
 
     if (params.autoStopInterval && params.autoPauseInterval) {
-      throw new DaytonaValidationError(
+      throw new DaytonaInvalidArgumentError(
         'autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value',
       )
     }
 
     if (params.autoPauseInterval && (params.ephemeral || params.autoDeleteInterval === 0)) {
-      throw new DaytonaValidationError('Ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0')
+      throw new DaytonaInvalidArgumentError(
+        'Ephemeral sandboxes cannot have auto-pause enabled. Set autoPauseInterval to 0',
+      )
     }
 
     if (params.ephemeral) {
@@ -603,11 +605,11 @@ export class Daytona implements AsyncDisposable {
       params.autoArchiveInterval !== undefined &&
       (!Number.isInteger(params.autoArchiveInterval) || params.autoArchiveInterval < 0)
     ) {
-      throw new DaytonaValidationError('autoArchiveInterval must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('autoArchiveInterval must be a non-negative integer')
     }
 
     if (params.ttlMinutes !== undefined && (!Number.isInteger(params.ttlMinutes) || params.ttlMinutes < 0)) {
-      throw new DaytonaValidationError('ttlMinutes must be a non-negative integer')
+      throw new DaytonaInvalidArgumentError('ttlMinutes must be a non-negative integer')
     }
 
     try {
