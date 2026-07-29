@@ -55,6 +55,8 @@ class PtyHandle:
         handle_resize: Callable[[PtySize], PtySessionInfo] | None = None,
         handle_kill: Callable[[], None] | None = None,
         ws_context_manager: AbstractContextManager[WebSocketSession] | None = None,
+        result_resolver: Callable[[], PtyResult] | None = None,
+        connection_established: bool = False,
     ):
         """
         Initialize the PTY handle.
@@ -74,9 +76,11 @@ class PtyHandle:
         self._session_id: str = session_id
         self._handle_resize: Callable[[PtySize], PtySessionInfo] | None = handle_resize
         self._handle_kill: Callable[[], None] | None = handle_kill
+        self._result_resolver: Callable[[], PtyResult] | None = result_resolver
+        self._result_resolved: bool = False
 
         self._connected: bool = True  # WebSocket is already connected
-        self._connection_established: bool = False  # Still need to wait for control message
+        self._connection_established: bool = connection_established
         self._exit_code: int | None = None
         self._error: str | None = None
 
@@ -275,10 +279,28 @@ class PtyHandle:
             if not self._error:
                 self._error = str(e)
 
+        self._resolve_result_if_needed()
+
         return PtyResult(
             exit_code=self._exit_code,
             error=self._error,
         )
+
+    def _resolve_result_if_needed(self) -> None:
+        if self._result_resolved or self._result_resolver is None:
+            return
+        self._result_resolved = True
+        try:
+            result = self._result_resolver()
+        except Exception as e:
+            if not self._error:
+                self._error = str(e)
+            return
+
+        if result.exit_code is not None:
+            self._exit_code = result.exit_code
+        if result.error is not None:
+            self._error = result.error
 
     def disconnect(self) -> None:
         """Disconnect from the PTY session"""

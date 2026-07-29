@@ -6,17 +6,28 @@
 import { Configuration, ProcessApi } from '@daytona/toolbox-api-client'
 import type {
   Command,
+  InfoApi,
+  Process as ProcessRecord,
   Session,
   SessionExecuteRequest,
   SessionExecuteResponse as ApiSessionExecuteResponse,
   CodeRunRequest,
   PtySessionInfo,
 } from '@daytona/toolbox-api-client'
+import type { ProcessHandle } from './ProcessHandle'
 import type { ExecuteResponse } from './types/ExecuteResponse'
+import { ProcessV2Client } from './ProcessV2Client'
 import { parseChart } from './types/Charts'
 import { stdDemuxStream } from './utils/Stream'
 import { PtyHandle } from './PtyHandle'
 import type { PtyCreateOptions, PtyConnectOptions } from './types/Pty'
+import type {
+  ProcessListFilter,
+  ProcessRunOptions,
+  ProcessRunResult,
+  ProcessStartOptions,
+  SerializedProcessHandle,
+} from './types/ProcessV2'
 import { createSandboxWebSocket } from './utils/WebSocket'
 import { toBuffer } from './utils/Binary'
 import { WithInstrumentation } from './utils/otel.decorator'
@@ -55,18 +66,36 @@ export interface SessionCommandLogsResponse {
   stderr?: string
 }
 
+function resolveSandboxIdFromBasePath(basePath: string): string {
+  const normalized = basePath.replace(/\/+$/, '')
+  const slashIndex = normalized.lastIndexOf('/')
+  return slashIndex === -1 ? normalized : normalized.slice(slashIndex + 1)
+}
+
 /**
  * Handles process and code execution within a Sandbox.
  *
  * @class
  */
 export class Process {
+  private readonly processV2: ProcessV2Client
+
   constructor(
     private readonly clientConfig: Configuration,
     private readonly apiClient: ProcessApi,
     private readonly getPreviewToken: () => Promise<string>,
     private readonly language?: string,
-  ) {}
+    sandboxId?: string,
+    infoApi?: Pick<InfoApi, 'getVersion'>,
+  ) {
+    this.processV2 = new ProcessV2Client(
+      clientConfig,
+      apiClient,
+      getPreviewToken,
+      sandboxId ?? resolveSandboxIdFromBasePath(clientConfig.basePath),
+      infoApi,
+    )
+  }
 
   /**
    * Executes a shell command in the Sandbox.
@@ -201,6 +230,31 @@ export class Process {
         charts,
       },
     }
+  }
+
+  @WithInstrumentation()
+  public async start(options: ProcessStartOptions = {}): Promise<ProcessHandle> {
+    return await this.processV2.start(options)
+  }
+
+  @WithInstrumentation()
+  public async run(options: ProcessRunOptions = {}): Promise<ProcessRunResult> {
+    return await this.processV2.run(options)
+  }
+
+  @WithInstrumentation()
+  public async get(id: string): Promise<ProcessHandle> {
+    return await this.processV2.get(id)
+  }
+
+  @WithInstrumentation()
+  public async list(filter?: ProcessListFilter): Promise<ProcessRecord[]> {
+    return await this.processV2.list(filter)
+  }
+
+  @WithInstrumentation()
+  public async fromJSON(serialized: SerializedProcessHandle): Promise<ProcessHandle> {
+    return await this.processV2.fromJSON(serialized)
   }
 
   /**

@@ -21,6 +21,7 @@ var _ MappedNullable = &ExecuteResponse{}
 // ExecuteResponse struct for ExecuteResponse
 type ExecuteResponse struct {
 	ExitCode *int32 `json:"exitCode,omitempty"`
+	ProcessId *string `json:"processId,omitempty"`
 	Result string `json:"result"`
 	AdditionalProperties map[string]interface{}
 }
@@ -77,6 +78,38 @@ func (o *ExecuteResponse) SetExitCode(v int32) {
 	o.ExitCode = &v
 }
 
+// GetProcessId returns the ProcessId field value if set, zero value otherwise.
+func (o *ExecuteResponse) GetProcessId() string {
+	if o == nil || IsNil(o.ProcessId) {
+		var ret string
+		return ret
+	}
+	return *o.ProcessId
+}
+
+// GetProcessIdOk returns a tuple with the ProcessId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ExecuteResponse) GetProcessIdOk() (*string, bool) {
+	if o == nil || IsNil(o.ProcessId) {
+		return nil, false
+	}
+	return o.ProcessId, true
+}
+
+// HasProcessId returns a boolean if a field has been set.
+func (o *ExecuteResponse) HasProcessId() bool {
+	if o != nil && !IsNil(o.ProcessId) {
+		return true
+	}
+
+	return false
+}
+
+// SetProcessId gets a reference to the given string and assigns it to the ProcessId field.
+func (o *ExecuteResponse) SetProcessId(v string) {
+	o.ProcessId = &v
+}
+
 // GetResult returns the Result field value
 func (o *ExecuteResponse) GetResult() string {
 	if o == nil {
@@ -113,6 +146,9 @@ func (o ExecuteResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.ExitCode) {
 		toSerialize["exitCode"] = o.ExitCode
+	}
+	if !IsNil(o.ProcessId) {
+		toSerialize["processId"] = o.ProcessId
 	}
 	toSerialize["result"] = o.Result
 
@@ -159,6 +195,7 @@ func (o *ExecuteResponse) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "exitCode")
+		delete(additionalProperties, "processId")
 		delete(additionalProperties, "result")
 		o.AdditionalProperties = additionalProperties
 	}

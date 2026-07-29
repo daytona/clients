@@ -209,7 +209,7 @@ class AsyncSandbox(SandboxDto):
 
         self._fs = AsyncFileSystem(FileSystemApi(self._toolbox_api))
         self._git = AsyncGit(GitApi(self._toolbox_api))
-        self._process = AsyncProcess(language, ProcessApi(self._toolbox_api))
+        self._process = AsyncProcess(language, ProcessApi(self._toolbox_api), sandbox_id=self.id)
         self._computer_use = AsyncComputerUse(ComputerUseApi(self._toolbox_api))
         self._code_interpreter = AsyncCodeInterpreter(InterpreterApi(self._toolbox_api))
         self._info_api: InfoApi = InfoApi(self._toolbox_api)

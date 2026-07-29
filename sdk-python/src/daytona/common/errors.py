@@ -45,6 +45,9 @@ class DaytonaError(Exception):
             did not carry a structured envelope. Otherwise one of
             :data:`SOURCE_API`, :data:`SOURCE_DAEMON`, :data:`SOURCE_PROXY`.
         headers (dict[str, Any]): Response headers (empty for client-side errors).
+        details (dict[str, str]): Machine-readable recovery data from the error
+            envelope's ``details`` map, e.g. ``processId`` for NAME_CONFLICT.
+            Empty when the response carried none.
     """
 
     def __init__(
@@ -54,6 +57,7 @@ class DaytonaError(Exception):
         headers: Mapping[str, Any] | None = None,
         code: str | None = None,
         source: str | None = None,
+        details: Mapping[str, str] | None = None,
     ):
         """Initialize Daytona error.
 
@@ -66,6 +70,8 @@ class DaytonaError(Exception):
             source (str | None): Originating service from the wire envelope.
                 Left as ``None`` for SDK-side errors and for responses from
                 services that don't emit the envelope.
+            details (Mapping[str, str] | None): Machine-readable recovery data
+                from the wire envelope.
         """
         super().__init__(message)
         self.message: str = message
@@ -73,6 +79,7 @@ class DaytonaError(Exception):
         self.code: str | None = code
         self.source: str | None = source
         self.headers: dict[str, Any] = dict(headers or {})
+        self.details: dict[str, str] = dict(details or {})
 
     @property
     def error_code(self) -> str | None:
@@ -282,6 +289,54 @@ class DaytonaProcessNotFoundError(DaytonaNotFoundError):
     """The requested process is not running."""
 
 
+class DaytonaNameConflictError(DaytonaConflictError):
+    pass
+
+
+class DaytonaProcessCursorExpiredError(DaytonaConflictError):
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        headers: Mapping[str, Any] | None = None,
+        code: str | None = None,
+        source: str | None = None,
+        first_available_cursor: str | None = None,
+    ):
+        super().__init__(
+            message,
+            status_code=status_code,
+            headers=headers,
+            code=code,
+            source=source,
+        )
+        self.first_available_cursor: str | None = first_available_cursor
+
+
+class DaytonaProtectedProcessError(DaytonaForbiddenError):
+    pass
+
+
+class DaytonaStdinClosedError(DaytonaConflictError):
+    pass
+
+
+class DaytonaStdinUnavailableError(DaytonaConflictError):
+    pass
+
+
+class DaytonaProcessTerminalError(DaytonaConflictError):
+    pass
+
+
+class DaytonaUnsupportedOperationError(DaytonaBadRequestError):
+    pass
+
+
+class DaytonaDaemonUpgradeRequiredError(DaytonaError):
+    pass
+
+
 class DaytonaSessionEndedError(DaytonaGoneError):
     """The shell session has ended."""
 
@@ -343,6 +398,13 @@ CODE_TO_ERROR: dict[tuple[str, str], type[DaytonaError]] = {
     # Daemon: process / session
     (SOURCE_DAEMON, "PROCESS_EXECUTION_TIMEOUT"): DaytonaProcessExecutionTimeoutError,
     (SOURCE_DAEMON, "PROCESS_NOT_FOUND"): DaytonaProcessNotFoundError,
+    (SOURCE_DAEMON, "NAME_CONFLICT"): DaytonaNameConflictError,
+    (SOURCE_DAEMON, "CURSOR_EXPIRED"): DaytonaProcessCursorExpiredError,
+    (SOURCE_DAEMON, "PROTECTED_PROCESS"): DaytonaProtectedProcessError,
+    (SOURCE_DAEMON, "STDIN_CLOSED"): DaytonaStdinClosedError,
+    (SOURCE_DAEMON, "STDIN_UNAVAILABLE"): DaytonaStdinUnavailableError,
+    (SOURCE_DAEMON, "PROCESS_TERMINAL"): DaytonaProcessTerminalError,
+    (SOURCE_DAEMON, "UNSUPPORTED_OPERATION"): DaytonaUnsupportedOperationError,
     (SOURCE_DAEMON, "SESSION_ENDED"): DaytonaSessionEndedError,
     (SOURCE_DAEMON, "COMMAND_ALREADY_COMPLETED"): DaytonaCommandAlreadyCompletedError,
     # Daemon: computer-use
@@ -380,6 +442,7 @@ def create_daytona_error(
     headers: Mapping[str, Any] | None = None,
     code: str | None = None,
     source: str | None = None,
+    details: Mapping[str, str] | None = None,
 ) -> DaytonaError:
     """Create the appropriate DaytonaError subclass from structured error metadata.
 
@@ -388,13 +451,18 @@ def create_daytona_error(
     """
 
     error_cls = _resolve_error_class(status_code, code, source)
-    return error_cls(
+    error = error_cls(
         message,
         status_code=status_code,
         headers=headers,
         code=code,
         source=source,
     )
+    # Set after construction: subclasses define their own __init__ signatures,
+    # so details cannot be passed as a constructor kwarg generically.
+    if details:
+        error.details = dict(details)
+    return error
 
 
 # =============================================================================

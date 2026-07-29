@@ -6,39 +6,87 @@ from __future__ import annotations
 import base64
 import json
 import re
+from collections.abc import Callable, Iterator, Mapping
+from typing import TypeVar
 from urllib.parse import urlencode
 
 import httpx
 import httpx_ws
+from pydantic import ValidationError
 
 from daytona_toolbox_api_client import (
     CodeRunRequest,
     Command,
+    CreateProcessRequest,
     CreateSessionRequest,
     ExecuteRequest,
+    KillProcessRequest,
+    Process as ToolboxProcessRecord,
     ProcessApi,
+    ProcessLogFrame,
+    ProcessLogPage,
+    ProcessResult,
+    ProcessStdinRequest,
     PtyResizeRequest,
     PtySessionInfo,
+    ResizeProcessRequest,
     Session,
     SessionSendInputRequest,
 )
+from daytona_toolbox_api_client.exceptions import OpenApiException as ToolboxOpenApiException
 
 from .._utils.errors import create_daytona_error, intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.stream import std_demux_stream_httpx_ws
 from .._utils.timeout import http_timeout
+from ..common.errors import (
+    SOURCE_DAEMON,
+    DaytonaDaemonUpgradeRequiredError,
+    DaytonaError,
+    DaytonaUnsupportedOperationError,
+    DaytonaValidationError,
+)
 from ..common.charts import parse_chart
 from ..common.process import (
     CodeRunParams,
     ExecuteResponse,
     ExecutionArtifacts,
+    LegacySessionResponse,
     OutputHandler,
+    ProcessHandleJSON,
+    ProcessKeepLogsName,
+    ProcessKindName,
+    ProcessLogEncoding,
+    ProcessStateFilter,
+    ProcessStdinModeName,
     SessionCommandLogsResponse,
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
 from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
+from ..handle.process_handle import (
+    ProcessHandle,
+    ProcessStreamEofEvent,
+    ProcessStreamEvent,
+    ProcessStreamLogEvent,
+    ProcessStreamStateEvent,
+    ProcessStreamWarningEvent,
+)
 from ..handle.pty_handle import PtyHandle
+from ..internal.process_v2 import (
+    CreateProcessPayload,
+    KillProcessPayload,
+    ProcessStdinPayload,
+    ResizeProcessPayload,
+    decode_process_handle_json,
+    normalize_process_stdin,
+    process_v2_error_from_response,
+    pty_result_from_process_result,
+    should_mark_process_v2_supported,
+)
+from ..internal.sse import ServerSentEvent, ServerSentEventParser
+
+_ProcessV2ResultT = TypeVar("_ProcessV2ResultT")
 
 
 class Process:
@@ -49,6 +97,7 @@ class Process:
         language: str,
         api_client: ProcessApi,
         http_client: httpx.Client,
+        sandbox_id: str = "",
     ):
         """Initialize a new Process instance.
 
@@ -59,6 +108,13 @@ class Process:
         self._language: str = language
         self._api_client: ProcessApi = api_client
         self._http_client: httpx.Client = http_client
+        self._sandbox_id: str = sandbox_id
+        self._process_v2_supported: bool | None = None
+        self._process_v2_support_error: DaytonaDaemonUpgradeRequiredError | None = None
+
+    @property
+    def sandbox_id(self) -> str:
+        return self._sandbox_id
 
     async def _consume_log_websocket(
         self,
@@ -239,6 +295,427 @@ class Process:
             additional_properties=response.additional_properties,
         )
 
+    @intercept_errors(message_prefix="Failed to start process: ")
+    @with_instrumentation()
+    def start(
+        self,
+        *,
+        argv: list[str] | None = None,
+        shell_command: str | None = None,
+        shell: str | None = None,
+        login: bool = False,
+        name: str | None = None,
+        session_id: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        user: str | None = None,
+        stdin: ProcessStdinModeName | None = None,
+        timeout_ms: int | None = None,
+        kind: ProcessKindName | None = None,
+        terminal: PtySize | None = None,
+        term: str | None = None,
+        keep_logs: ProcessKeepLogsName | None = None,
+    ) -> ProcessHandle:
+        process = self._create_process(
+            argv=argv,
+            shell_command=shell_command,
+            shell=shell,
+            login=login,
+            name=name,
+            session_id=session_id,
+            cwd=cwd,
+            env=env,
+            user=user,
+            stdin=stdin,
+            timeout_ms=timeout_ms,
+            kind=kind,
+            terminal=terminal,
+            term=term,
+            keep_logs=keep_logs,
+        )
+        return ProcessHandle(self, process.id)
+
+    @intercept_errors(message_prefix="Failed to run process: ")
+    @with_instrumentation()
+    def run(
+        self,
+        *,
+        argv: list[str] | None = None,
+        shell_command: str | None = None,
+        shell: str | None = None,
+        login: bool = False,
+        name: str | None = None,
+        session_id: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        user: str | None = None,
+        stdin: ProcessStdinModeName | None = None,
+        timeout_ms: int | None = None,
+        wait_timeout_ms: int | None = None,
+        kind: ProcessKindName | None = None,
+        terminal: PtySize | None = None,
+        term: str | None = None,
+        keep_logs: ProcessKeepLogsName | None = None,
+    ) -> ProcessResult:
+        process = self._create_process(
+            argv=argv,
+            shell_command=shell_command,
+            shell=shell,
+            login=login,
+            name=name,
+            session_id=session_id,
+            cwd=cwd,
+            env=env,
+            user=user,
+            stdin=stdin,
+            timeout_ms=timeout_ms,
+            kind=kind,
+            terminal=terminal,
+            term=term,
+            keep_logs=keep_logs or "on_exit_ttl",
+        )
+        return self._wait_for_process(process.id, timeout_ms=wait_timeout_ms)
+
+    @intercept_errors(message_prefix="Failed to get process: ")
+    @with_instrumentation()
+    def get(self, id: str) -> ProcessHandle:
+        _ = self._get_process_record(id)
+        return ProcessHandle(self, id)
+
+    @intercept_errors(message_prefix="Failed to list processes: ")
+    @with_instrumentation()
+    def list(
+        self,
+        *,
+        state: ProcessStateFilter | None = None,
+        kind: ProcessKindName | None = None,
+        session_id: str | None = None,
+        name: str | None = None,
+        pid: int | None = None,
+    ) -> list[ProcessHandle]:
+        processes = self._invoke_process_v2(
+            self._api_client.list_processes_v2,
+            state=state,
+            kind=kind,
+            session_id=session_id,
+            name=name,
+            pid=pid,
+        )
+        return [ProcessHandle(self, process.id) for process in processes]
+
+    @intercept_errors(message_prefix="Failed to rehydrate process handle: ")
+    def from_json(self, data: ProcessHandleJSON | Mapping[str, str]) -> ProcessHandle:
+        sandbox_id, process_id = decode_process_handle_json(data)
+        if self._sandbox_id and sandbox_id != self._sandbox_id:
+            raise DaytonaValidationError(
+                f"Serialized process handle belongs to sandbox {sandbox_id}, current sandbox is {self._sandbox_id}",
+            )
+        return ProcessHandle(self, process_id)
+
+    def _create_process(
+        self,
+        *,
+        argv: list[str] | None,
+        shell_command: str | None,
+        shell: str | None,
+        login: bool,
+        name: str | None,
+        session_id: str | None,
+        cwd: str | None,
+        env: dict[str, str] | None,
+        user: str | None,
+        stdin: ProcessStdinModeName | None,
+        timeout_ms: int | None,
+        kind: ProcessKindName | None,
+        terminal: PtySize | None,
+        term: str | None,
+        keep_logs: ProcessKeepLogsName | None,
+    ) -> ToolboxProcessRecord:
+        has_argv = argv is not None and len(argv) > 0
+        has_shell_command = shell_command is not None and shell_command.strip() != ""
+        is_pty = kind == "pty"
+
+        if has_argv and has_shell_command:
+            raise DaytonaValidationError("Process start requires exactly one of argv or shell_command")
+        if not has_argv and not has_shell_command and not is_pty:
+            raise DaytonaValidationError("Process start requires exactly one of argv or shell_command")
+        if term is not None and terminal is None:
+            raise DaytonaValidationError("Process terminal term requires terminal size")
+
+        payload: CreateProcessPayload = {}
+        if has_argv and argv is not None:
+            payload["argv"] = argv
+        if has_shell_command and shell_command is not None:
+            payload["shell_command"] = shell_command
+        if shell is not None:
+            payload["shell"] = shell
+        if login:
+            payload["login"] = True
+        if name is not None:
+            payload["name"] = name
+        if session_id is not None:
+            payload["session_id"] = session_id
+        if cwd is not None:
+            payload["cwd"] = cwd
+        if env is not None:
+            payload["env"] = env
+        if user is not None:
+            payload["user"] = user
+        if stdin is not None:
+            payload["stdin"] = stdin
+        if timeout_ms is not None:
+            payload["timeout_ms"] = timeout_ms
+        if kind is not None:
+            payload["kind"] = kind
+        if terminal is not None:
+            terminal_payload: dict[str, int | str] = {"cols": terminal.cols, "rows": terminal.rows}
+            if term is not None:
+                terminal_payload["term"] = term
+            payload["terminal"] = terminal_payload
+        if keep_logs is not None:
+            payload["keep_logs"] = keep_logs
+
+        request = CreateProcessRequest.model_validate(payload)
+        return self._invoke_process_v2(self._api_client.create_process_v2, request=request)
+
+    def _get_process_record(self, process_id: str) -> ToolboxProcessRecord:
+        return self._invoke_process_v2(self._api_client.get_process_v2, id=process_id)
+
+    def _get_process_logs(
+        self,
+        process_id: str,
+        *,
+        cursor: str | None,
+        limit: int | None,
+        encoding: ProcessLogEncoding,
+    ) -> ProcessLogPage:
+        return self._invoke_process_v2(
+            self._api_client.get_process_logs_v2,
+            id=process_id,
+            cursor=cursor,
+            limit=limit,
+            encoding=encoding,
+        )
+
+    def _stream_process_logs(self, process_id: str, *, cursor: str | None) -> Iterator[ProcessStreamEvent]:
+        if self._process_v2_support_error is not None:
+            raise self._process_v2_support_error
+
+        _, url, headers, *_ = self._api_client._get_process_logs_v2_serialize(
+            id=process_id,
+            cursor=cursor,
+            limit=None,
+            encoding="text",
+            follow=True,
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
+        )
+        stream_headers = dict(headers)
+        stream_headers["Accept"] = "text/event-stream"
+
+        parser = ServerSentEventParser()
+        with self._http_client.stream("GET", url, headers=stream_headers, timeout=None) as response:
+            if response.status_code >= 400:
+                body = response.read().decode("utf-8", errors="replace")
+                error = process_v2_error_from_response(
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    body=body,
+                    fallback_message=body,
+                )
+                self._remember_process_v2_error(error)
+                raise error
+
+            self._process_v2_supported = True
+            for line in response.iter_lines():
+                raw_event = parser.feed_line(line)
+                if raw_event is None:
+                    continue
+                event = self._deserialize_stream_event(raw_event)
+                yield event
+                if event.type == "eof":
+                    return
+
+            final_event = parser.finalize()
+            if final_event is None:
+                return
+            event = self._deserialize_stream_event(final_event)
+            yield event
+
+    def _send_process_stdin(self, process_id: str, data: str | bytes) -> None:
+        payload: ProcessStdinPayload = {"data": normalize_process_stdin(data)}
+        request = ProcessStdinRequest.model_validate(payload)
+        _ = self._invoke_process_v2(self._api_client.send_process_stdin_v2, id=process_id, request=request)
+
+    def _send_process_stdin_eof(self, process_id: str) -> None:
+        payload: ProcessStdinPayload = {"eof": True}
+        request = ProcessStdinRequest.model_validate(payload)
+        _ = self._invoke_process_v2(self._api_client.send_process_stdin_v2, id=process_id, request=request)
+
+    def _signal_process(
+        self,
+        process_id: str,
+        *,
+        signal: str,
+        escalate_after_ms: int | None,
+        escalate_to: str,
+    ) -> None:
+        payload: KillProcessPayload = {"signal": signal}
+        if escalate_after_ms is not None:
+            payload["escalate_after_ms"] = escalate_after_ms
+            payload["escalate_to"] = escalate_to
+        request = KillProcessRequest.model_validate(payload)
+        _ = self._invoke_process_v2(self._api_client.signal_process_v2, id=process_id, request=request)
+
+    def _resize_process(self, process_id: str, *, cols: int, rows: int) -> None:
+        payload: ResizeProcessPayload = {"cols": cols, "rows": rows}
+        request = ResizeProcessRequest.model_validate(payload)
+        _ = self._invoke_process_v2(self._api_client.resize_process_v2, id=process_id, request=request)
+
+    def _wait_for_process(self, process_id: str, *, timeout_ms: int | None = None) -> ProcessResult:
+        return self._invoke_process_v2(self._api_client.wait_for_process_v2, id=process_id, timeout_ms=timeout_ms)
+
+    def _attach_process_terminal(self, process_id: str) -> PtyHandle:
+        process = self._get_process_record(process_id)
+        if process.kind != "pty":
+            raise DaytonaUnsupportedOperationError(
+                "attach is only supported for kind=pty processes",
+                status_code=400,
+                code="UNSUPPORTED_OPERATION",
+                source=SOURCE_DAEMON,
+            )
+
+        _, url, headers, *_ = self._api_client._attach_process_v2_serialize(
+            id=process_id,
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
+        )
+        ws_url = re.sub(r"^http", "ws", url)
+
+        try:
+            ws_cm = httpx_ws.connect_ws(ws_url, self._http_client, headers=headers)
+            ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
+        except httpx_ws.WebSocketUpgradeError as e:
+            raise create_daytona_error(
+                f"WebSocket upgrade failed with HTTP {e.response.status_code}",
+                status_code=e.response.status_code,
+                headers=e.response.headers,
+            ) from e
+
+        def resize_handler(pty_size: PtySize) -> PtySessionInfo:
+            self._resize_process(process_id, cols=pty_size.cols, rows=pty_size.rows)
+            return PtySessionInfo.model_validate(
+                {
+                    "active": True,
+                    "cols": pty_size.cols,
+                    "createdAt": process.created_at,
+                    "cwd": process.cwd,
+                    "envs": process.env or {},
+                    "id": process_id,
+                    "lazyStart": False,
+                    "rows": pty_size.rows,
+                }
+            )
+
+        def kill_handler() -> None:
+            self._signal_process(process_id, signal="SIGTERM", escalate_after_ms=None, escalate_to="SIGKILL")
+
+        def result_resolver() -> PtyResult:
+            result = self._wait_for_process(process_id)
+            return pty_result_from_process_result(
+                exit_code=result.exit_code,
+                reason=result.reason,
+                signal=result.signal,
+            )
+
+        return PtyHandle(
+            ws,
+            session_id=process_id,
+            handle_resize=resize_handler,
+            handle_kill=kill_handler,
+            ws_context_manager=ws_cm,
+            result_resolver=result_resolver,
+            connection_established=True,
+        )
+
+    def _deserialize_stream_event(self, event: ServerSentEvent) -> ProcessStreamEvent:
+        match event.event:
+            case "log":
+                frame = ProcessLogFrame.from_json(event.data)
+                if frame is None:
+                    raise DaytonaError("Process log event payload is missing")
+                return ProcessStreamLogEvent(cursor=frame.cursor, frame=frame)
+            case "state":
+                payload = json.loads(event.data)
+                if not isinstance(payload, dict):
+                    raise DaytonaError("Process state event payload must be an object")
+                cursor = payload.get("cursor")
+                if not isinstance(cursor, str):
+                    raise DaytonaError("Process state event payload must include cursor")
+                process = ToolboxProcessRecord.from_dict(payload)
+                if process is None:
+                    raise DaytonaError("Process state event payload is missing")
+                return ProcessStreamStateEvent(cursor=cursor, process=process)
+            case "warning":
+                payload = json.loads(event.data)
+                if not isinstance(payload, dict):
+                    raise DaytonaError("Process warning event payload must be an object")
+                cursor = payload.get("cursor")
+                message = payload.get("message")
+                first_available_cursor = payload.get("firstAvailableCursor")
+                if not isinstance(cursor, str) or not isinstance(message, str) or not isinstance(first_available_cursor, str):
+                    raise DaytonaError("Process warning event payload is invalid")
+                return ProcessStreamWarningEvent(
+                    cursor=cursor,
+                    message=message,
+                    first_available_cursor=first_available_cursor,
+                )
+            case "eof":
+                payload = json.loads(event.data)
+                if not isinstance(payload, dict):
+                    raise DaytonaError("Process EOF event payload must be an object")
+                cursor = payload.get("cursor")
+                if not isinstance(cursor, str):
+                    raise DaytonaError("Process EOF event payload must include cursor")
+                return ProcessStreamEofEvent(cursor=cursor)
+            case _:
+                raise DaytonaError(f"Unknown process log event: {event.event}")
+
+    def _invoke_process_v2(
+        self,
+        operation: Callable[..., _ProcessV2ResultT],
+        **kwargs: object,
+    ) -> _ProcessV2ResultT:
+        if self._process_v2_support_error is not None:
+            raise self._process_v2_support_error
+
+        try:
+            result = operation(**kwargs)
+        except ToolboxOpenApiException as exc:
+            headers = exc.headers if isinstance(exc.headers, Mapping) else None
+            error = process_v2_error_from_response(
+                status_code=exc.status,
+                headers=headers,
+                body=exc.body,
+                fallback_message=str(exc),
+            )
+            self._remember_process_v2_error(error)
+            raise error from exc
+
+        self._process_v2_supported = True
+        return result
+
+    def _remember_process_v2_error(self, error: DaytonaError) -> None:
+        if should_mark_process_v2_supported(error.status_code, error.source, error.code):
+            self._process_v2_supported = True
+            return
+        if isinstance(error, DaytonaDaemonUpgradeRequiredError):
+            self._process_v2_support_error = error
+
     @intercept_errors(message_prefix="Failed to create session: ")
     @with_instrumentation()
     def create_session(self, session_id: str, request_timeout: float | None = None) -> None:
@@ -269,7 +746,7 @@ class Process:
         self._api_client.create_session(request=request, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to get session: ")
-    def get_session(self, session_id: str, request_timeout: float | None = None) -> Session:
+    def get_session(self, session_id: str, request_timeout: float | None = None) -> LegacySessionResponse[Command] | Session:
         """Gets a session in the Sandbox.
 
         Args:
@@ -291,10 +768,13 @@ class Process:
                 print(f"Command: {cmd.command}")
             ```
         """
-        return self._api_client.get_session(session_id=session_id, _request_timeout=http_timeout(request_timeout))
+        try:
+            return self._api_client.get_session(session_id=session_id, _request_timeout=http_timeout(request_timeout))
+        except ValidationError:
+            return self._get_legacy_session(session_id=session_id, request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to get sandbox entrypoint session: ")
-    def get_entrypoint_session(self, request_timeout: float | None = None) -> Session:
+    def get_entrypoint_session(self, request_timeout: float | None = None) -> LegacySessionResponse[Command] | Session:
         """Gets the sandbox entrypoint session.
 
         Args:
@@ -315,7 +795,10 @@ class Process:
                 print(f"Command: {cmd.command}")
             ```
         """
-        return self._api_client.get_entrypoint_session(_request_timeout=http_timeout(request_timeout))
+        try:
+            return self._api_client.get_entrypoint_session(_request_timeout=http_timeout(request_timeout))
+        except ValidationError:
+            return self._get_legacy_entrypoint_session(request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to get session command: ")
     @with_instrumentation()
@@ -565,7 +1048,7 @@ class Process:
 
     @intercept_errors(message_prefix="Failed to list sessions: ")
     @with_instrumentation()
-    def list_sessions(self, request_timeout: float | None = None) -> list[Session]:
+    def list_sessions(self, request_timeout: float | None = None) -> list[LegacySessionResponse[Command] | Session]:
         """Lists all sessions in the Sandbox.
 
         Args:
@@ -585,7 +1068,82 @@ class Process:
                 print(f"  Commands: {len(session.commands)}")
             ```
         """
-        return self._api_client.list_sessions(_request_timeout=http_timeout(request_timeout))
+        try:
+            return self._api_client.list_sessions(_request_timeout=http_timeout(request_timeout))
+        except ValidationError:
+            return self._list_legacy_sessions(request_timeout=request_timeout)
+
+    def _get_legacy_session(
+        self,
+        *,
+        session_id: str,
+        request_timeout: float | None,
+    ) -> LegacySessionResponse[Command]:
+        _, url, headers, *_ = self._api_client._get_session_serialize(
+            session_id=session_id,
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
+        )
+        return self._fetch_legacy_session(url=url, headers=headers, request_timeout=request_timeout)
+
+    def _get_legacy_entrypoint_session(self, *, request_timeout: float | None) -> LegacySessionResponse[Command]:
+        _, url, headers, *_ = self._api_client._get_entrypoint_session_serialize(
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
+        )
+        return self._fetch_legacy_session(url=url, headers=headers, request_timeout=request_timeout)
+
+    def _list_legacy_sessions(self, *, request_timeout: float | None) -> list[LegacySessionResponse[Command]]:
+        _, url, headers, *_ = self._api_client._list_sessions_serialize(
+            _request_auth=None,
+            _content_type=None,
+            _headers=None,
+            _host_index=None,
+        )
+        response = self._http_client.get(url, headers=headers, timeout=http_timeout(request_timeout))
+        body = response.text
+        payload = json.loads(body)
+        if not isinstance(payload, list):
+            raise DaytonaError("Session list response must be an array")
+        return [self._deserialize_legacy_session_payload(item) for item in payload]
+
+    def _fetch_legacy_session(
+        self,
+        *,
+        url: str,
+        headers: dict[str, str],
+        request_timeout: float | None,
+    ) -> LegacySessionResponse[Command]:
+        response = self._http_client.get(url, headers=headers, timeout=http_timeout(request_timeout))
+        return self._deserialize_legacy_session_body(response.text)
+
+    def _deserialize_legacy_session_body(self, body: str) -> LegacySessionResponse[Command]:
+        payload = json.loads(body)
+        return self._deserialize_legacy_session_payload(payload)
+
+    def _deserialize_legacy_session_payload(self, payload: object) -> LegacySessionResponse[Command]:
+        if not isinstance(payload, dict):
+            raise DaytonaError("Session response must be an object")
+        session_id = payload.get("sessionId")
+        commands_payload = payload.get("commands")
+        if not isinstance(session_id, str):
+            raise DaytonaError("Session response must include sessionId")
+        if not isinstance(commands_payload, list):
+            raise DaytonaError("Session response must include commands")
+
+        commands: list[Command] = []
+        for command_payload in commands_payload:
+            if not isinstance(command_payload, dict):
+                raise DaytonaError("Session command payload must be an object")
+            command = Command.from_dict(command_payload)
+            if command is None:
+                raise DaytonaError("Session command payload is missing")
+            commands.append(command)
+        return LegacySessionResponse(session_id=session_id, commands=commands)
 
     @intercept_errors(message_prefix="Failed to delete session: ")
     @with_instrumentation()

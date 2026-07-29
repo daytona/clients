@@ -20,6 +20,7 @@ var _ MappedNullable = &InitializeRequest{}
 
 // InitializeRequest struct for InitializeRequest
 type InitializeRequest struct {
+	SandboxId *string `json:"sandboxId,omitempty"`
 	Token string `json:"token"`
 	AdditionalProperties map[string]interface{}
 }
@@ -42,6 +43,38 @@ func NewInitializeRequest(token string) *InitializeRequest {
 func NewInitializeRequestWithDefaults() *InitializeRequest {
 	this := InitializeRequest{}
 	return &this
+}
+
+// GetSandboxId returns the SandboxId field value if set, zero value otherwise.
+func (o *InitializeRequest) GetSandboxId() string {
+	if o == nil || IsNil(o.SandboxId) {
+		var ret string
+		return ret
+	}
+	return *o.SandboxId
+}
+
+// GetSandboxIdOk returns a tuple with the SandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *InitializeRequest) GetSandboxIdOk() (*string, bool) {
+	if o == nil || IsNil(o.SandboxId) {
+		return nil, false
+	}
+	return o.SandboxId, true
+}
+
+// HasSandboxId returns a boolean if a field has been set.
+func (o *InitializeRequest) HasSandboxId() bool {
+	if o != nil && !IsNil(o.SandboxId) {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxId gets a reference to the given string and assigns it to the SandboxId field.
+func (o *InitializeRequest) SetSandboxId(v string) {
+	o.SandboxId = &v
 }
 
 // GetToken returns the Token field value
@@ -78,6 +111,9 @@ func (o InitializeRequest) MarshalJSON() ([]byte, error) {
 
 func (o InitializeRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.SandboxId) {
+		toSerialize["sandboxId"] = o.SandboxId
+	}
 	toSerialize["token"] = o.Token
 
 	for key, value := range o.AdditionalProperties {
@@ -122,6 +158,7 @@ func (o *InitializeRequest) UnmarshalJSON(data []byte) (err error) {
 	additionalProperties := make(map[string]interface{})
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "sandboxId")
 		delete(additionalProperties, "token")
 		o.AdditionalProperties = additionalProperties
 	}

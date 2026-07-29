@@ -22,6 +22,10 @@ import type { DaemonErrorCode } from './daemon-error-code';
  */
 export interface ErrorResponse {
     'code'?: DaemonErrorCode;
+    /**
+     * Details mirrors common-go: machine-readable recovery data, e.g. firstAvailableCursor for CURSOR_EXPIRED or processId for NAME_CONFLICT.
+     */
+    'details'?: { [key: string]: string; };
     'message': string;
     'method'?: string;
     'path': string;

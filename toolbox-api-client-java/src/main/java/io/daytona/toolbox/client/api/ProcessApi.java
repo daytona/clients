@@ -30,15 +30,24 @@ import java.io.IOException;
 import io.daytona.toolbox.client.model.CodeRunRequest;
 import io.daytona.toolbox.client.model.CodeRunResponse;
 import io.daytona.toolbox.client.model.Command;
+import io.daytona.toolbox.client.model.CreateProcessRequest;
+import io.daytona.toolbox.client.model.CreateProcessSessionRequest;
 import io.daytona.toolbox.client.model.CreateSessionRequest;
 import io.daytona.toolbox.client.model.ErrorResponse;
 import io.daytona.toolbox.client.model.ExecuteRequest;
 import io.daytona.toolbox.client.model.ExecuteResponse;
+import io.daytona.toolbox.client.model.KillProcessRequest;
+import io.daytona.toolbox.client.model.Process;
+import io.daytona.toolbox.client.model.ProcessLogPage;
+import io.daytona.toolbox.client.model.ProcessResult;
+import io.daytona.toolbox.client.model.ProcessSession;
+import io.daytona.toolbox.client.model.ProcessStdinRequest;
 import io.daytona.toolbox.client.model.PtyCreateRequest;
 import io.daytona.toolbox.client.model.PtyCreateResponse;
 import io.daytona.toolbox.client.model.PtyListResponse;
 import io.daytona.toolbox.client.model.PtyResizeRequest;
 import io.daytona.toolbox.client.model.PtySessionInfo;
+import io.daytona.toolbox.client.model.ResizeProcessRequest;
 import io.daytona.toolbox.client.model.Session;
 import io.daytona.toolbox.client.model.SessionCommandLogsResponse;
 import io.daytona.toolbox.client.model.SessionExecuteRequest;
@@ -88,6 +97,423 @@ public class ProcessApi {
         this.localCustomBaseUrl = customBaseUrl;
     }
 
+    /**
+     * Build call for attachProcessV2
+     * @param id Process ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 101 </td><td> Switching Protocols - WebSocket connection established </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call attachProcessV2Call(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/attach"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "*/*"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call attachProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling attachProcessV2(Async)");
+        }
+
+        return attachProcessV2Call(id, _callback);
+
+    }
+
+    /**
+     * Attach to a PTY process
+     * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+     * @param id Process ID (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 101 </td><td> Switching Protocols - WebSocket connection established </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public void attachProcessV2(@javax.annotation.Nonnull String id) throws ApiException {
+        attachProcessV2WithHttpInfo(id);
+    }
+
+    /**
+     * Attach to a PTY process
+     * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+     * @param id Process ID (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 101 </td><td> Switching Protocols - WebSocket connection established </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> attachProcessV2WithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
+        okhttp3.Call localVarCall = attachProcessV2ValidateBeforeCall(id, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Attach to a PTY process (asynchronously)
+     * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+     * @param id Process ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 101 </td><td> Switching Protocols - WebSocket connection established </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call attachProcessV2Async(@javax.annotation.Nonnull String id, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = attachProcessV2ValidateBeforeCall(id, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for cleanupProcessV2
+     * @param id Process ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cleanupProcessV2Call(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "DELETE", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call cleanupProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling cleanupProcessV2(Async)");
+        }
+
+        return cleanupProcessV2Call(id, _callback);
+
+    }
+
+    /**
+     * Clean up a process
+     * Purge a terminal process record and its retained logs
+     * @param id Process ID (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public void cleanupProcessV2(@javax.annotation.Nonnull String id) throws ApiException {
+        cleanupProcessV2WithHttpInfo(id);
+    }
+
+    /**
+     * Clean up a process
+     * Purge a terminal process record and its retained logs
+     * @param id Process ID (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> cleanupProcessV2WithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
+        okhttp3.Call localVarCall = cleanupProcessV2ValidateBeforeCall(id, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Clean up a process (asynchronously)
+     * Purge a terminal process record and its retained logs
+     * @param id Process ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cleanupProcessV2Async(@javax.annotation.Nonnull String id, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = cleanupProcessV2ValidateBeforeCall(id, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for closeProcessSessionV2
+     * @param id Session ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeProcessSessionV2Call(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/sessions/{id}/close"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call closeProcessSessionV2ValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling closeProcessSessionV2(Async)");
+        }
+
+        return closeProcessSessionV2Call(id, _callback);
+
+    }
+
+    /**
+     * Close a process session
+     * Close a unified process session and its backing kernel process
+     * @param id Session ID (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public void closeProcessSessionV2(@javax.annotation.Nonnull String id) throws ApiException {
+        closeProcessSessionV2WithHttpInfo(id);
+    }
+
+    /**
+     * Close a process session
+     * Close a unified process session and its backing kernel process
+     * @param id Session ID (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> closeProcessSessionV2WithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
+        okhttp3.Call localVarCall = closeProcessSessionV2ValidateBeforeCall(id, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Close a process session (asynchronously)
+     * Close a unified process session and its backing kernel process
+     * @param id Session ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeProcessSessionV2Async(@javax.annotation.Nonnull String id, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = closeProcessSessionV2ValidateBeforeCall(id, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
     /**
      * Build call for codeRun
      * @param request Code execution request (required)
@@ -352,6 +778,292 @@ public class ProcessApi {
 
         okhttp3.Call localVarCall = connectPtySessionValidateBeforeCall(sessionId, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for createProcessSessionV2
+     * @param request Session creation request (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createProcessSessionV2Call(@javax.annotation.Nonnull CreateProcessSessionRequest request, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = request;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/sessions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call createProcessSessionV2ValidateBeforeCall(@javax.annotation.Nonnull CreateProcessSessionRequest request, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'request' is set
+        if (request == null) {
+            throw new ApiException("Missing the required parameter 'request' when calling createProcessSessionV2(Async)");
+        }
+
+        return createProcessSessionV2Call(request, _callback);
+
+    }
+
+    /**
+     * Create a process session
+     * Create a unified process session backed by a persistent shell or interpreter kernel
+     * @param request Session creation request (required)
+     * @return ProcessSession
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ProcessSession createProcessSessionV2(@javax.annotation.Nonnull CreateProcessSessionRequest request) throws ApiException {
+        ApiResponse<ProcessSession> localVarResp = createProcessSessionV2WithHttpInfo(request);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Create a process session
+     * Create a unified process session backed by a persistent shell or interpreter kernel
+     * @param request Session creation request (required)
+     * @return ApiResponse&lt;ProcessSession&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ProcessSession> createProcessSessionV2WithHttpInfo(@javax.annotation.Nonnull CreateProcessSessionRequest request) throws ApiException {
+        okhttp3.Call localVarCall = createProcessSessionV2ValidateBeforeCall(request, null);
+        Type localVarReturnType = new TypeToken<ProcessSession>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Create a process session (asynchronously)
+     * Create a unified process session backed by a persistent shell or interpreter kernel
+     * @param request Session creation request (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createProcessSessionV2Async(@javax.annotation.Nonnull CreateProcessSessionRequest request, final ApiCallback<ProcessSession> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = createProcessSessionV2ValidateBeforeCall(request, _callback);
+        Type localVarReturnType = new TypeToken<ProcessSession>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for createProcessV2
+     * @param request Process creation request (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createProcessV2Call(@javax.annotation.Nonnull CreateProcessRequest request, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = request;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call createProcessV2ValidateBeforeCall(@javax.annotation.Nonnull CreateProcessRequest request, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'request' is set
+        if (request == null) {
+            throw new ApiException("Missing the required parameter 'request' when calling createProcessV2(Async)");
+        }
+
+        return createProcessV2Call(request, _callback);
+
+    }
+
+    /**
+     * Create and start a process
+     * Create a unified process record and start supervising it
+     * @param request Process creation request (required)
+     * @return Process
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public Process createProcessV2(@javax.annotation.Nonnull CreateProcessRequest request) throws ApiException {
+        ApiResponse<Process> localVarResp = createProcessV2WithHttpInfo(request);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Create and start a process
+     * Create a unified process record and start supervising it
+     * @param request Process creation request (required)
+     * @return ApiResponse&lt;Process&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Process> createProcessV2WithHttpInfo(@javax.annotation.Nonnull CreateProcessRequest request) throws ApiException {
+        okhttp3.Call localVarCall = createProcessV2ValidateBeforeCall(request, null);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Create and start a process (asynchronously)
+     * Create a unified process record and start supervising it
+     * @param request Process creation request (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call createProcessV2Async(@javax.annotation.Nonnull CreateProcessRequest request, final ApiCallback<Process> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = createProcessV2ValidateBeforeCall(request, _callback);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
     /**
@@ -1293,6 +2005,460 @@ public class ProcessApi {
         return localVarCall;
     }
     /**
+     * Build call for getProcessLogsV2
+     * @param id Process ID (required)
+     * @param cursor Resume cursor (optional)
+     * @param limit Maximum number of frames to return (optional)
+     * @param encoding Frame encoding (optional)
+     * @param follow Stream log frames over Server-Sent Events (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessLogsV2Call(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String encoding, @javax.annotation.Nullable Boolean follow, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/logs"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        if (cursor != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("cursor", cursor));
+        }
+
+        if (limit != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("limit", limit));
+        }
+
+        if (encoding != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("encoding", encoding));
+        }
+
+        if (follow != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("follow", follow));
+        }
+
+        final String[] localVarAccepts = {
+            "application/json",
+            "text/event-stream"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getProcessLogsV2ValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String encoding, @javax.annotation.Nullable Boolean follow, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling getProcessLogsV2(Async)");
+        }
+
+        return getProcessLogsV2Call(id, cursor, limit, encoding, follow, _callback);
+
+    }
+
+    /**
+     * Get process logs
+     * Return a page of log frames or stream log frames over Server-Sent Events when follow&#x3D;true
+     * @param id Process ID (required)
+     * @param cursor Resume cursor (optional)
+     * @param limit Maximum number of frames to return (optional)
+     * @param encoding Frame encoding (optional)
+     * @param follow Stream log frames over Server-Sent Events (optional)
+     * @return ProcessLogPage
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ProcessLogPage getProcessLogsV2(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String encoding, @javax.annotation.Nullable Boolean follow) throws ApiException {
+        ApiResponse<ProcessLogPage> localVarResp = getProcessLogsV2WithHttpInfo(id, cursor, limit, encoding, follow);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get process logs
+     * Return a page of log frames or stream log frames over Server-Sent Events when follow&#x3D;true
+     * @param id Process ID (required)
+     * @param cursor Resume cursor (optional)
+     * @param limit Maximum number of frames to return (optional)
+     * @param encoding Frame encoding (optional)
+     * @param follow Stream log frames over Server-Sent Events (optional)
+     * @return ApiResponse&lt;ProcessLogPage&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ProcessLogPage> getProcessLogsV2WithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String encoding, @javax.annotation.Nullable Boolean follow) throws ApiException {
+        okhttp3.Call localVarCall = getProcessLogsV2ValidateBeforeCall(id, cursor, limit, encoding, follow, null);
+        Type localVarReturnType = new TypeToken<ProcessLogPage>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get process logs (asynchronously)
+     * Return a page of log frames or stream log frames over Server-Sent Events when follow&#x3D;true
+     * @param id Process ID (required)
+     * @param cursor Resume cursor (optional)
+     * @param limit Maximum number of frames to return (optional)
+     * @param encoding Frame encoding (optional)
+     * @param follow Stream log frames over Server-Sent Events (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessLogsV2Async(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String encoding, @javax.annotation.Nullable Boolean follow, final ApiCallback<ProcessLogPage> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getProcessLogsV2ValidateBeforeCall(id, cursor, limit, encoding, follow, _callback);
+        Type localVarReturnType = new TypeToken<ProcessLogPage>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getProcessSessionV2
+     * @param id Session ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessSessionV2Call(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/sessions/{id}"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getProcessSessionV2ValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling getProcessSessionV2(Async)");
+        }
+
+        return getProcessSessionV2Call(id, _callback);
+
+    }
+
+    /**
+     * Get process session details
+     * Get a unified process session by id
+     * @param id Session ID (required)
+     * @return ProcessSession
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ProcessSession getProcessSessionV2(@javax.annotation.Nonnull String id) throws ApiException {
+        ApiResponse<ProcessSession> localVarResp = getProcessSessionV2WithHttpInfo(id);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get process session details
+     * Get a unified process session by id
+     * @param id Session ID (required)
+     * @return ApiResponse&lt;ProcessSession&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ProcessSession> getProcessSessionV2WithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
+        okhttp3.Call localVarCall = getProcessSessionV2ValidateBeforeCall(id, null);
+        Type localVarReturnType = new TypeToken<ProcessSession>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get process session details (asynchronously)
+     * Get a unified process session by id
+     * @param id Session ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessSessionV2Async(@javax.annotation.Nonnull String id, final ApiCallback<ProcessSession> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getProcessSessionV2ValidateBeforeCall(id, _callback);
+        Type localVarReturnType = new TypeToken<ProcessSession>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getProcessV2
+     * @param id Process ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessV2Call(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling getProcessV2(Async)");
+        }
+
+        return getProcessV2Call(id, _callback);
+
+    }
+
+    /**
+     * Get process details
+     * Get a unified process record by its process id
+     * @param id Process ID (required)
+     * @return Process
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public Process getProcessV2(@javax.annotation.Nonnull String id) throws ApiException {
+        ApiResponse<Process> localVarResp = getProcessV2WithHttpInfo(id);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get process details
+     * Get a unified process record by its process id
+     * @param id Process ID (required)
+     * @return ApiResponse&lt;Process&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Process> getProcessV2WithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
+        okhttp3.Call localVarCall = getProcessV2ValidateBeforeCall(id, null);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get process details (asynchronously)
+     * Get a unified process record by its process id
+     * @param id Process ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getProcessV2Async(@javax.annotation.Nonnull String id, final ApiCallback<Process> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getProcessV2ValidateBeforeCall(id, _callback);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for getPtySession
      * @param sessionId PTY session ID (required)
      * @param _callback Callback for upload/download progress
@@ -1870,6 +3036,292 @@ public class ProcessApi {
         return localVarCall;
     }
     /**
+     * Build call for listProcessSessionsV2
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listProcessSessionsV2Call(final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/sessions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listProcessSessionsV2ValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return listProcessSessionsV2Call(_callback);
+
+    }
+
+    /**
+     * List process sessions
+     * List unified process sessions
+     * @return List&lt;ProcessSession&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<ProcessSession> listProcessSessionsV2() throws ApiException {
+        ApiResponse<List<ProcessSession>> localVarResp = listProcessSessionsV2WithHttpInfo();
+        return localVarResp.getData();
+    }
+
+    /**
+     * List process sessions
+     * List unified process sessions
+     * @return ApiResponse&lt;List&lt;ProcessSession&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<ProcessSession>> listProcessSessionsV2WithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = listProcessSessionsV2ValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<List<ProcessSession>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List process sessions (asynchronously)
+     * List unified process sessions
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listProcessSessionsV2Async(final ApiCallback<List<ProcessSession>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listProcessSessionsV2ValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<List<ProcessSession>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for listProcessesV2
+     * @param state Process state filter (optional)
+     * @param kind Process kind filter (optional)
+     * @param sessionId Session ID filter (optional)
+     * @param name Process name filter (optional)
+     * @param pid Process PID metadata filter (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listProcessesV2Call(@javax.annotation.Nullable String state, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String sessionId, @javax.annotation.Nullable String name, @javax.annotation.Nullable Integer pid, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        if (state != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("state", state));
+        }
+
+        if (kind != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("kind", kind));
+        }
+
+        if (sessionId != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("sessionId", sessionId));
+        }
+
+        if (name != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("name", name));
+        }
+
+        if (pid != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("pid", pid));
+        }
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listProcessesV2ValidateBeforeCall(@javax.annotation.Nullable String state, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String sessionId, @javax.annotation.Nullable String name, @javax.annotation.Nullable Integer pid, final ApiCallback _callback) throws ApiException {
+        return listProcessesV2Call(state, kind, sessionId, name, pid, _callback);
+
+    }
+
+    /**
+     * List processes
+     * List unified process records with optional state, kind, session, name, and pid filters
+     * @param state Process state filter (optional)
+     * @param kind Process kind filter (optional)
+     * @param sessionId Session ID filter (optional)
+     * @param name Process name filter (optional)
+     * @param pid Process PID metadata filter (optional)
+     * @return List&lt;Process&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<Process> listProcessesV2(@javax.annotation.Nullable String state, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String sessionId, @javax.annotation.Nullable String name, @javax.annotation.Nullable Integer pid) throws ApiException {
+        ApiResponse<List<Process>> localVarResp = listProcessesV2WithHttpInfo(state, kind, sessionId, name, pid);
+        return localVarResp.getData();
+    }
+
+    /**
+     * List processes
+     * List unified process records with optional state, kind, session, name, and pid filters
+     * @param state Process state filter (optional)
+     * @param kind Process kind filter (optional)
+     * @param sessionId Session ID filter (optional)
+     * @param name Process name filter (optional)
+     * @param pid Process PID metadata filter (optional)
+     * @return ApiResponse&lt;List&lt;Process&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<Process>> listProcessesV2WithHttpInfo(@javax.annotation.Nullable String state, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String sessionId, @javax.annotation.Nullable String name, @javax.annotation.Nullable Integer pid) throws ApiException {
+        okhttp3.Call localVarCall = listProcessesV2ValidateBeforeCall(state, kind, sessionId, name, pid, null);
+        Type localVarReturnType = new TypeToken<List<Process>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List processes (asynchronously)
+     * List unified process records with optional state, kind, session, name, and pid filters
+     * @param state Process state filter (optional)
+     * @param kind Process kind filter (optional)
+     * @param sessionId Session ID filter (optional)
+     * @param name Process name filter (optional)
+     * @param pid Process PID metadata filter (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listProcessesV2Async(@javax.annotation.Nullable String state, @javax.annotation.Nullable String kind, @javax.annotation.Nullable String sessionId, @javax.annotation.Nullable String name, @javax.annotation.Nullable Integer pid, final ApiCallback<List<Process>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listProcessesV2ValidateBeforeCall(state, kind, sessionId, name, pid, _callback);
+        Type localVarReturnType = new TypeToken<List<Process>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for listPtySessions
      * @param _callback Callback for upload/download progress
      * @return Call to execute
@@ -2108,6 +3560,159 @@ public class ProcessApi {
 
         okhttp3.Call localVarCall = listSessionsValidateBeforeCall(_callback);
         Type localVarReturnType = new TypeToken<List<Session>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for resizeProcessV2
+     * @param id Process ID (required)
+     * @param request Resize request (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resizeProcessV2Call(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ResizeProcessRequest request, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = request;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/resize"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call resizeProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ResizeProcessRequest request, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling resizeProcessV2(Async)");
+        }
+
+        // verify the required parameter 'request' is set
+        if (request == null) {
+            throw new ApiException("Missing the required parameter 'request' when calling resizeProcessV2(Async)");
+        }
+
+        return resizeProcessV2Call(id, request, _callback);
+
+    }
+
+    /**
+     * Resize a PTY process
+     * Resize the terminal geometry of a running kind&#x3D;pty process
+     * @param id Process ID (required)
+     * @param request Resize request (required)
+     * @return Process
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public Process resizeProcessV2(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ResizeProcessRequest request) throws ApiException {
+        ApiResponse<Process> localVarResp = resizeProcessV2WithHttpInfo(id, request);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Resize a PTY process
+     * Resize the terminal geometry of a running kind&#x3D;pty process
+     * @param id Process ID (required)
+     * @param request Resize request (required)
+     * @return ApiResponse&lt;Process&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Process> resizeProcessV2WithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ResizeProcessRequest request) throws ApiException {
+        okhttp3.Call localVarCall = resizeProcessV2ValidateBeforeCall(id, request, null);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Resize a PTY process (asynchronously)
+     * Resize the terminal geometry of a running kind&#x3D;pty process
+     * @param id Process ID (required)
+     * @param request Resize request (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call resizeProcessV2Async(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ResizeProcessRequest request, final ApiCallback<Process> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = resizeProcessV2ValidateBeforeCall(id, request, _callback);
+        Type localVarReturnType = new TypeToken<Process>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -2420,6 +4025,155 @@ public class ProcessApi {
         return localVarCall;
     }
     /**
+     * Build call for sendProcessStdinV2
+     * @param id Process ID (required)
+     * @param request Stdin request (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call sendProcessStdinV2Call(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ProcessStdinRequest request, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = request;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/stdin"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call sendProcessStdinV2ValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ProcessStdinRequest request, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling sendProcessStdinV2(Async)");
+        }
+
+        // verify the required parameter 'request' is set
+        if (request == null) {
+            throw new ApiException("Missing the required parameter 'request' when calling sendProcessStdinV2(Async)");
+        }
+
+        return sendProcessStdinV2Call(id, request, _callback);
+
+    }
+
+    /**
+     * Send stdin to a process
+     * Write input to a running process and optionally close stdin
+     * @param id Process ID (required)
+     * @param request Stdin request (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public void sendProcessStdinV2(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ProcessStdinRequest request) throws ApiException {
+        sendProcessStdinV2WithHttpInfo(id, request);
+    }
+
+    /**
+     * Send stdin to a process
+     * Write input to a running process and optionally close stdin
+     * @param id Process ID (required)
+     * @param request Stdin request (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> sendProcessStdinV2WithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ProcessStdinRequest request) throws ApiException {
+        okhttp3.Call localVarCall = sendProcessStdinV2ValidateBeforeCall(id, request, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Send stdin to a process (asynchronously)
+     * Write input to a running process and optionally close stdin
+     * @param id Process ID (required)
+     * @param request Stdin request (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call sendProcessStdinV2Async(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull ProcessStdinRequest request, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = sendProcessStdinV2ValidateBeforeCall(id, request, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for sessionExecuteCommand
      * @param sessionId Session ID (required)
      * @param request Command execution request (required)
@@ -2435,6 +4189,7 @@ public class ProcessApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
         <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Gone </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -2516,6 +4271,7 @@ public class ProcessApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
         <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Gone </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -2540,6 +4296,7 @@ public class ProcessApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
         <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Gone </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -2566,6 +4323,7 @@ public class ProcessApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
         <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Gone </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -2573,6 +4331,302 @@ public class ProcessApi {
 
         okhttp3.Call localVarCall = sessionExecuteCommandValidateBeforeCall(sessionId, request, _callback);
         Type localVarReturnType = new TypeToken<SessionExecuteResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for signalProcessV2
+     * @param id Process ID (required)
+     * @param request Signal request (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call signalProcessV2Call(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull KillProcessRequest request, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = request;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/signals"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call signalProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull KillProcessRequest request, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling signalProcessV2(Async)");
+        }
+
+        // verify the required parameter 'request' is set
+        if (request == null) {
+            throw new ApiException("Missing the required parameter 'request' when calling signalProcessV2(Async)");
+        }
+
+        return signalProcessV2Call(id, request, _callback);
+
+    }
+
+    /**
+     * Signal a process
+     * Send a signal to a running process and optionally escalate after a grace period
+     * @param id Process ID (required)
+     * @param request Signal request (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public void signalProcessV2(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull KillProcessRequest request) throws ApiException {
+        signalProcessV2WithHttpInfo(id, request);
+    }
+
+    /**
+     * Signal a process
+     * Send a signal to a running process and optionally escalate after a grace period
+     * @param id Process ID (required)
+     * @param request Signal request (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> signalProcessV2WithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull KillProcessRequest request) throws ApiException {
+        okhttp3.Call localVarCall = signalProcessV2ValidateBeforeCall(id, request, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Signal a process (asynchronously)
+     * Send a signal to a running process and optionally escalate after a grace period
+     * @param id Process ID (required)
+     * @param request Signal request (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call signalProcessV2Async(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull KillProcessRequest request, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = signalProcessV2ValidateBeforeCall(id, request, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for waitForProcessV2
+     * @param id Process ID (required)
+     * @param timeoutMs Maximum wait time in milliseconds (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call waitForProcessV2Call(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Integer timeoutMs, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/process/v2/processes/{id}/wait"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        if (timeoutMs != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("timeoutMs", timeoutMs));
+        }
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call waitForProcessV2ValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Integer timeoutMs, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling waitForProcessV2(Async)");
+        }
+
+        return waitForProcessV2Call(id, timeoutMs, _callback);
+
+    }
+
+    /**
+     * Wait for a process
+     * Wait for a process to reach terminal state or for the wait timeout to elapse
+     * @param id Process ID (required)
+     * @param timeoutMs Maximum wait time in milliseconds (optional)
+     * @return ProcessResult
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ProcessResult waitForProcessV2(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Integer timeoutMs) throws ApiException {
+        ApiResponse<ProcessResult> localVarResp = waitForProcessV2WithHttpInfo(id, timeoutMs);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Wait for a process
+     * Wait for a process to reach terminal state or for the wait timeout to elapse
+     * @param id Process ID (required)
+     * @param timeoutMs Maximum wait time in milliseconds (optional)
+     * @return ApiResponse&lt;ProcessResult&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ProcessResult> waitForProcessV2WithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Integer timeoutMs) throws ApiException {
+        okhttp3.Call localVarCall = waitForProcessV2ValidateBeforeCall(id, timeoutMs, null);
+        Type localVarReturnType = new TypeToken<ProcessResult>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Wait for a process (asynchronously)
+     * Wait for a process to reach terminal state or for the wait timeout to elapse
+     * @param id Process ID (required)
+     * @param timeoutMs Maximum wait time in milliseconds (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call waitForProcessV2Async(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Integer timeoutMs, final ApiCallback<ProcessResult> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = waitForProcessV2ValidateBeforeCall(id, timeoutMs, _callback);
+        Type localVarReturnType = new TypeToken<ProcessResult>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

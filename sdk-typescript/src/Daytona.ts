@@ -26,10 +26,12 @@ import {
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { Image } from './Image'
+import type { ProcessHandle } from './ProcessHandle'
 import { Sandbox } from './Sandbox'
 import type { ListSandboxesQuery } from './Sandbox'
 import { SecretService } from './Secret'
 import { SnapshotService } from './Snapshot'
+import type { SerializedProcessHandle } from './types/ProcessV2'
 import { VolumeService } from './Volume'
 import { getPackageInfo, dynamicRequire } from './utils/Import'
 import { EventDispatcher } from './utils/EventDispatcher'
@@ -768,6 +770,19 @@ export class Daytona implements AsyncDisposable {
       this.getAnalyticsApiUrl,
       this.eventSubscriptionManager,
     )
+  }
+
+  @WithInstrumentation()
+  public async processHandleFromJSON(serialized: SerializedProcessHandle): Promise<ProcessHandle> {
+    if (serialized.sandboxId.trim() === '') {
+      throw new DaytonaInvalidArgumentError('sandboxId must not be blank')
+    }
+    if (serialized.processId.trim() === '') {
+      throw new DaytonaInvalidArgumentError('processId must not be blank')
+    }
+
+    const sandbox = await this.get(serialized.sandboxId)
+    return await sandbox.process.fromJSON(serialized)
   }
 
   /**

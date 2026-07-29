@@ -21,6 +21,8 @@ import com.google.gson.stream.JsonWriter;
 import io.daytona.toolbox.client.model.DaemonErrorCode;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -44,6 +46,14 @@ public class ErrorResponseTest {
     @Test
     public void codeTest() {
         // TODO: test code
+    }
+
+    /**
+     * Test the property 'details'
+     */
+    @Test
+    public void detailsTest() {
+        // TODO: test details
     }
 
     /**

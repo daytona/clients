@@ -37,6 +37,13 @@
         "command": "poetry run python -m pytest sdk-python/tests/test_e2e.py sdk-python/tests/test_async_e2e.py -v -s --timeout=180"
       }
     },
+    "test:golden": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "sh -c 'test -n \"$DAYTONA_API_KEY\" || { echo DAYTONA_API_KEY is required for sdk-python:test:golden; exit 1; }; poetry run python -m pytest sdk-python/tests/golden -m golden -v -s --timeout=240'"
+      }
+    },
     "add-api-clients": {
       "executor": "nx:run-commands",
       "options": {
@@ -64,10 +71,7 @@
         "commands": ["poetry run deptry .", "./scripts/poetry-lock-retry.sh"],
         "parallel": false
       },
-      "inputs": [
-        "pythonLib",
-        { "dependentTasksOutputFiles": "**/*", "transitive": true }
-      ],
+      "inputs": ["pythonLib", { "dependentTasksOutputFiles": "**/*", "transitive": true }],
       "dependsOn": ["add-api-clients"]
     },
     "build": {
@@ -83,10 +87,7 @@
     "build:_publish": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "pythonLib",
-        { "dependentTasksOutputFiles": "**/*", "transitive": true }
-      ],
+      "inputs": ["pythonLib", { "dependentTasksOutputFiles": "**/*", "transitive": true }],
       "outputs": ["{projectRoot}/dist/**"],
       "options": {
         "command": "yarn nx run sdk-python:build"

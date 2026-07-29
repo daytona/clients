@@ -22,6 +22,8 @@ import com.google.gson.stream.JsonWriter;
 import io.daytona.toolbox.client.model.DaemonErrorCode;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,6 +57,11 @@ public class ErrorResponse {
   @SerializedName(SERIALIZED_NAME_CODE)
   @javax.annotation.Nullable
   private DaemonErrorCode code;
+
+  public static final String SERIALIZED_NAME_DETAILS = "details";
+  @SerializedName(SERIALIZED_NAME_DETAILS)
+  @javax.annotation.Nullable
+  private Map<String, String> details = new HashMap<>();
 
   public static final String SERIALIZED_NAME_MESSAGE = "message";
   @SerializedName(SERIALIZED_NAME_MESSAGE)
@@ -105,6 +112,33 @@ public class ErrorResponse {
 
   public void setCode(@javax.annotation.Nullable DaemonErrorCode code) {
     this.code = code;
+  }
+
+
+  public ErrorResponse details(@javax.annotation.Nullable Map<String, String> details) {
+    this.details = details;
+    return this;
+  }
+
+  public ErrorResponse putDetailsItem(String key, String detailsItem) {
+    if (this.details == null) {
+      this.details = new HashMap<>();
+    }
+    this.details.put(key, detailsItem);
+    return this;
+  }
+
+  /**
+   * Details mirrors common-go: machine-readable recovery data, e.g. firstAvailableCursor for CURSOR_EXPIRED or processId for NAME_CONFLICT.
+   * @return details
+   */
+  @javax.annotation.Nullable
+  public Map<String, String> getDetails() {
+    return details;
+  }
+
+  public void setDetails(@javax.annotation.Nullable Map<String, String> details) {
+    this.details = details;
   }
 
 
@@ -277,6 +311,7 @@ public class ErrorResponse {
     }
     ErrorResponse errorResponse = (ErrorResponse) o;
     return Objects.equals(this.code, errorResponse.code) &&
+        Objects.equals(this.details, errorResponse.details) &&
         Objects.equals(this.message, errorResponse.message) &&
         Objects.equals(this.method, errorResponse.method) &&
         Objects.equals(this.path, errorResponse.path) &&
@@ -288,7 +323,7 @@ public class ErrorResponse {
 
   @Override
   public int hashCode() {
-    return Objects.hash(code, message, method, path, source, statusCode, timestamp, additionalProperties);
+    return Objects.hash(code, details, message, method, path, source, statusCode, timestamp, additionalProperties);
   }
 
   @Override
@@ -296,6 +331,7 @@ public class ErrorResponse {
     StringBuilder sb = new StringBuilder();
     sb.append("class ErrorResponse {\n");
     sb.append("    code: ").append(toIndentedString(code)).append("\n");
+    sb.append("    details: ").append(toIndentedString(details)).append("\n");
     sb.append("    message: ").append(toIndentedString(message)).append("\n");
     sb.append("    method: ").append(toIndentedString(method)).append("\n");
     sb.append("    path: ").append(toIndentedString(path)).append("\n");
@@ -321,7 +357,7 @@ public class ErrorResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("code", "message", "method", "path", "source", "statusCode", "timestamp"));
+    openapiFields = new HashSet<String>(Arrays.asList("code", "details", "message", "method", "path", "source", "statusCode", "timestamp"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("message", "path", "statusCode", "timestamp"));

@@ -659,4 +659,24 @@ describe('Daytona', () => {
     expect(sandboxFromGet.stop).toHaveBeenCalled()
     expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
   })
+
+  it('rehydrates a serialized process handle through the Daytona client', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+    const fromJSON = jest.fn().mockResolvedValue({ id: 'prc-1' })
+
+    mockSandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        id: 'sb-1',
+        labels: { 'code-toolbox-language': 'python' },
+        process: { fromJSON },
+      }),
+    )
+
+    await expect(instance.processHandleFromJSON({ sandboxId: 'sb-1', processId: 'prc-1' })).resolves.toEqual({
+      id: 'prc-1',
+    })
+    expect(mockSandboxApi.getSandbox).toHaveBeenCalledWith('sb-1')
+    expect(fromJSON).toHaveBeenCalledWith({ sandboxId: 'sb-1', processId: 'prc-1' })
+  })
 })

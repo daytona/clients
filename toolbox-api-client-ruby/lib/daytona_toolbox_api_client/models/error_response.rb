@@ -18,6 +18,9 @@ module DaytonaToolboxApiClient
   class ErrorResponse < ApiModelBase
     attr_accessor :code
 
+    # Details mirrors common-go: machine-readable recovery data, e.g. firstAvailableCursor for CURSOR_EXPIRED or processId for NAME_CONFLICT.
+    attr_accessor :details
+
     attr_accessor :message
 
     attr_accessor :method
@@ -56,6 +59,7 @@ module DaytonaToolboxApiClient
     def self.attribute_map
       {
         :'code' => :'code',
+        :'details' => :'details',
         :'message' => :'message',
         :'method' => :'method',
         :'path' => :'path',
@@ -79,6 +83,7 @@ module DaytonaToolboxApiClient
     def self.openapi_types
       {
         :'code' => :'DaemonErrorCode',
+        :'details' => :'Hash<String, String>',
         :'message' => :'String',
         :'method' => :'String',
         :'path' => :'String',
@@ -112,6 +117,12 @@ module DaytonaToolboxApiClient
 
       if attributes.key?(:'code')
         self.code = attributes[:'code']
+      end
+
+      if attributes.key?(:'details')
+        if (value = attributes[:'details']).is_a?(Hash)
+          self.details = value
+        end
       end
 
       if attributes.key?(:'message')
@@ -228,6 +239,7 @@ module DaytonaToolboxApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           code == o.code &&
+          details == o.details &&
           message == o.message &&
           method == o.method &&
           path == o.path &&
@@ -245,7 +257,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [code, message, method, path, source, status_code, timestamp].hash
+      [code, details, message, method, path, source, status_code, timestamp].hash
     end
 
     # Builds the object from hash

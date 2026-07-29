@@ -31,6 +31,11 @@ export class DaytonaError extends Error {
   public code?: string
   public readonly source?: string
   public headers?: ResponseHeaders
+  /**
+   * Machine-readable recovery data from the error envelope's `details` map,
+   * e.g. `processId` for NAME_CONFLICT. Avoids parsing the message.
+   */
+  public details?: Record<string, string>
 
   constructor(message: string, statusCode?: number, headers?: ResponseHeaders, code?: string, source?: string) {
     super(message)
@@ -198,6 +203,42 @@ export class DaytonaLspServerNotInitializedError extends DaytonaBadRequestError 
 export class DaytonaProcessExecutionTimeoutError extends DaytonaTimeoutError {}
 /** The sandbox process does not exist (code `PROCESS_NOT_FOUND`). */
 export class DaytonaProcessNotFoundError extends DaytonaNotFoundError {}
+export class DaytonaNameConflictError extends DaytonaConflictError {}
+export class DaytonaCursorExpiredError extends DaytonaConflictError {
+  public readonly firstAvailableCursor?: string
+
+  constructor(
+    message: string,
+    statusCode?: number,
+    headers?: ResponseHeaders,
+    code?: string,
+    source?: string,
+    firstAvailableCursor?: string,
+  ) {
+    super(message, statusCode, headers, code, source)
+    this.firstAvailableCursor = firstAvailableCursor
+  }
+}
+export class DaytonaProtectedProcessError extends DaytonaForbiddenError {}
+export class DaytonaStdinClosedError extends DaytonaConflictError {}
+export class DaytonaStdinUnavailableError extends DaytonaConflictError {}
+export class DaytonaProcessTerminalError extends DaytonaConflictError {}
+export class DaytonaUnsupportedOperationError extends DaytonaBadRequestError {}
+export class DaytonaDaemonUpgradeRequiredError extends DaytonaError {
+  public readonly daemonVersion?: string
+
+  constructor(
+    message: string,
+    statusCode?: number,
+    headers?: ResponseHeaders,
+    code?: string,
+    source?: string,
+    daemonVersion?: string,
+  ) {
+    super(message, statusCode, headers, code, source)
+    this.daemonVersion = daemonVersion
+  }
+}
 /** The session has already ended (code `SESSION_ENDED`). */
 export class DaytonaSessionEndedError extends DaytonaGoneError {}
 /** The session command already finished (code `COMMAND_ALREADY_COMPLETED`). */
@@ -237,6 +278,13 @@ const CODE_TO_ERROR_CLASS: Record<string, typeof DaytonaError> = {
   'DAYTONA_DAEMON|LSP_SERVER_NOT_INITIALIZED': DaytonaLspServerNotInitializedError,
   'DAYTONA_DAEMON|PROCESS_EXECUTION_TIMEOUT': DaytonaProcessExecutionTimeoutError,
   'DAYTONA_DAEMON|PROCESS_NOT_FOUND': DaytonaProcessNotFoundError,
+  'DAYTONA_DAEMON|NAME_CONFLICT': DaytonaNameConflictError,
+  'DAYTONA_DAEMON|CURSOR_EXPIRED': DaytonaCursorExpiredError,
+  'DAYTONA_DAEMON|PROTECTED_PROCESS': DaytonaProtectedProcessError,
+  'DAYTONA_DAEMON|STDIN_CLOSED': DaytonaStdinClosedError,
+  'DAYTONA_DAEMON|STDIN_UNAVAILABLE': DaytonaStdinUnavailableError,
+  'DAYTONA_DAEMON|PROCESS_TERMINAL': DaytonaProcessTerminalError,
+  'DAYTONA_DAEMON|UNSUPPORTED_OPERATION': DaytonaUnsupportedOperationError,
   'DAYTONA_DAEMON|SESSION_ENDED': DaytonaSessionEndedError,
   'DAYTONA_DAEMON|COMMAND_ALREADY_COMPLETED': DaytonaCommandAlreadyCompletedError,
   'DAYTONA_DAEMON|A11Y_UNAVAILABLE': DaytonaA11yUnavailableError,
@@ -311,6 +359,29 @@ function extractAxiosErrorSource(responseData?: Record<string, unknown>): string
   return typeof responseData?.source === 'string' ? responseData.source : undefined
 }
 
+// The recovery cursor rides in the shared error envelope's `details` map, not at
+// the top level, so clients read structured data instead of parsing the message.
+function extractAxiosErrorDetails(responseData?: Record<string, unknown>): Record<string, string> | undefined {
+  const details = responseData?.details
+  if (typeof details !== 'object' || details === null) {
+    return undefined
+  }
+
+  const entries = Object.entries(details as Record<string, unknown>).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string',
+  )
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
+function extractAxiosFirstAvailableCursor(responseData?: Record<string, unknown>): string | undefined {
+  const details = responseData?.details
+  if (typeof details !== 'object' || details === null) {
+    return undefined
+  }
+  const cursor = (details as Record<string, unknown>).firstAvailableCursor
+  return typeof cursor === 'string' ? cursor : undefined
+}
+
 function extractAxiosErrorMessage(error: AxiosError): string {
   if (isAxiosTimeoutError(error)) {
     return 'Operation timed out'
@@ -341,12 +412,25 @@ function extractAxiosErrorMessage(error: AxiosError): string {
  * the most specific subclass via `createDaytonaError`.
  */
 export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
+  return withErrorDetails(buildAxiosDaytonaError(error), getAxiosResponseDataObject(error))
+}
+
+function withErrorDetails(error: DaytonaError, responseData?: Record<string, unknown>): DaytonaError {
+  const details = extractAxiosErrorDetails(responseData)
+  if (details) {
+    error.details = details
+  }
+  return error
+}
+
+function buildAxiosDaytonaError(error: AxiosError): DaytonaError {
   const message = extractAxiosErrorMessage(error)
   const statusCode = error.response?.status
   const headers = error.response?.headers as ResponseHeaders | undefined
   const responseData = getAxiosResponseDataObject(error)
   const code = extractAxiosErrorCode(responseData)
   const source = extractAxiosErrorSource(responseData)
+  const firstAvailableCursor = extractAxiosFirstAvailableCursor(responseData)
 
   if (isAxiosTimeoutError(error)) {
     return new DaytonaConnectionTimeoutError(message, statusCode, headers, code, source)
@@ -354,6 +438,10 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
 
   if (!error.response && (error.request || error.code)) {
     return new DaytonaConnectionError(message, statusCode, headers, code, source)
+  }
+
+  if (code === 'CURSOR_EXPIRED' && source === SOURCE_DAEMON) {
+    return new DaytonaCursorExpiredError(message, statusCode, headers, code, source, firstAvailableCursor)
   }
 
   return createDaytonaError(message, statusCode, headers, code, source)

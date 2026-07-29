@@ -7,7 +7,7 @@ import re
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar
+from typing import ClassVar, Generic, Literal, TypeVar, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -23,6 +23,18 @@ STDERR_PREFIX: bytes = b"\x02\x02\x02"
 MAX_PREFIX_LEN: int = max(len(STDOUT_PREFIX), len(STDERR_PREFIX))
 
 _VALID_ENV_KEY_REGEX = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+ProcessLogEncoding = Literal["text", "base64"]
+ProcessStateFilter = Literal["running", "terminal", "all"]
+ProcessKindName = Literal["exec", "pty", "code"]
+ProcessStdinModeName = Literal["none", "pipe"]
+ProcessKeepLogsName = Literal["until_cleanup", "on_exit_ttl", "none"]
+
+
+class ProcessHandleJSON(TypedDict):
+    sandboxId: str
+    processId: str
 
 
 @dataclass
@@ -135,3 +147,12 @@ OutputHandler = Callable[[T], None] | Callable[[T], Awaitable[None]]
 
 Blocking synchronous operations inside handlers may cause WebSocket disconnections.
 """
+
+
+LegacySessionCommandT = TypeVar("LegacySessionCommandT")
+
+
+@dataclass
+class LegacySessionResponse(Generic[LegacySessionCommandT]):
+    session_id: str
+    commands: list[LegacySessionCommandT]

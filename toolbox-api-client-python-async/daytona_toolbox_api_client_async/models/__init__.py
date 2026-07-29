@@ -39,6 +39,8 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.computer_use_status_response import ComputerUseStatusResponse
     from daytona_toolbox_api_client_async.models.computer_use_stop_response import ComputerUseStopResponse
     from daytona_toolbox_api_client_async.models.create_context_request import CreateContextRequest
+    from daytona_toolbox_api_client_async.models.create_process_request import CreateProcessRequest
+    from daytona_toolbox_api_client_async.models.create_process_session_request import CreateProcessSessionRequest
     from daytona_toolbox_api_client_async.models.create_session_request import CreateSessionRequest
     from daytona_toolbox_api_client_async.models.daemon_error_code import DaemonErrorCode
     from daytona_toolbox_api_client_async.models.display_info import DisplayInfo
@@ -50,6 +52,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.file_status import FileStatus
     from daytona_toolbox_api_client_async.models.files_download_request import FilesDownloadRequest
     from daytona_toolbox_api_client_async.models.find_accessibility_nodes_request import FindAccessibilityNodesRequest
+    from daytona_toolbox_api_client_async.models.fs_file_result import FsFileResult
     from daytona_toolbox_api_client_async.models.git_add_remote_request import GitAddRemoteRequest
     from daytona_toolbox_api_client_async.models.git_add_request import GitAddRequest
     from daytona_toolbox_api_client_async.models.git_authenticate_request import GitAuthenticateRequest
@@ -76,6 +79,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.keyboard_hotkey_request import KeyboardHotkeyRequest
     from daytona_toolbox_api_client_async.models.keyboard_press_request import KeyboardPressRequest
     from daytona_toolbox_api_client_async.models.keyboard_type_request import KeyboardTypeRequest
+    from daytona_toolbox_api_client_async.models.kill_process_request import KillProcessRequest
     from daytona_toolbox_api_client_async.models.list_branch_response import ListBranchResponse
     from daytona_toolbox_api_client_async.models.list_contexts_response import ListContextsResponse
     from daytona_toolbox_api_client_async.models.list_recordings_response import ListRecordingsResponse
@@ -97,11 +101,25 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.mouse_scroll_request import MouseScrollRequest
     from daytona_toolbox_api_client_async.models.port_list import PortList
     from daytona_toolbox_api_client_async.models.position import Position
+    from daytona_toolbox_api_client_async.models.process import Process
     from daytona_toolbox_api_client_async.models.process_errors_response import ProcessErrorsResponse
+    from daytona_toolbox_api_client_async.models.process_keep_logs import ProcessKeepLogs
+    from daytona_toolbox_api_client_async.models.process_kind import ProcessKind
+    from daytona_toolbox_api_client_async.models.process_log_channel import ProcessLogChannel
+    from daytona_toolbox_api_client_async.models.process_log_frame import ProcessLogFrame
+    from daytona_toolbox_api_client_async.models.process_log_page import ProcessLogPage
     from daytona_toolbox_api_client_async.models.process_logs_response import ProcessLogsResponse
     from daytona_toolbox_api_client_async.models.process_restart_response import ProcessRestartResponse
+    from daytona_toolbox_api_client_async.models.process_result import ProcessResult
+    from daytona_toolbox_api_client_async.models.process_session import ProcessSession
+    from daytona_toolbox_api_client_async.models.process_shell_selector import ProcessShellSelector
+    from daytona_toolbox_api_client_async.models.process_state import ProcessState
     from daytona_toolbox_api_client_async.models.process_status import ProcessStatus
     from daytona_toolbox_api_client_async.models.process_status_response import ProcessStatusResponse
+    from daytona_toolbox_api_client_async.models.process_stdin_mode import ProcessStdinMode
+    from daytona_toolbox_api_client_async.models.process_stdin_request import ProcessStdinRequest
+    from daytona_toolbox_api_client_async.models.process_terminal_reason import ProcessTerminalReason
+    from daytona_toolbox_api_client_async.models.process_terminal_size import ProcessTerminalSize
     from daytona_toolbox_api_client_async.models.pty_create_request import PtyCreateRequest
     from daytona_toolbox_api_client_async.models.pty_create_response import PtyCreateResponse
     from daytona_toolbox_api_client_async.models.pty_list_response import PtyListResponse
@@ -110,6 +128,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.recording import Recording
     from daytona_toolbox_api_client_async.models.replace_request import ReplaceRequest
     from daytona_toolbox_api_client_async.models.replace_result import ReplaceResult
+    from daytona_toolbox_api_client_async.models.resize_process_request import ResizeProcessRequest
     from daytona_toolbox_api_client_async.models.screenshot_response import ScreenshotResponse
     from daytona_toolbox_api_client_async.models.scroll_response import ScrollResponse
     from daytona_toolbox_api_client_async.models.search_files_response import SearchFilesResponse
@@ -117,12 +136,14 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.session_command_logs_response import SessionCommandLogsResponse
     from daytona_toolbox_api_client_async.models.session_execute_request import SessionExecuteRequest
     from daytona_toolbox_api_client_async.models.session_execute_response import SessionExecuteResponse
+    from daytona_toolbox_api_client_async.models.session_kernel import SessionKernel
     from daytona_toolbox_api_client_async.models.session_send_input_request import SessionSendInputRequest
     from daytona_toolbox_api_client_async.models.start_recording_request import StartRecordingRequest
     from daytona_toolbox_api_client_async.models.status import Status
     from daytona_toolbox_api_client_async.models.stop_recording_request import StopRecordingRequest
     from daytona_toolbox_api_client_async.models.system_metrics import SystemMetrics
     from daytona_toolbox_api_client_async.models.update_env_request import UpdateEnvRequest
+    from daytona_toolbox_api_client_async.models.upload_files_response import UploadFilesResponse
     from daytona_toolbox_api_client_async.models.uploaded_file import UploadedFile
     from daytona_toolbox_api_client_async.models.user_home_dir_response import UserHomeDirResponse
     from daytona_toolbox_api_client_async.models.window_info import WindowInfo
@@ -150,6 +171,8 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "ComputerUseStatusResponse": "daytona_toolbox_api_client_async.models.computer_use_status_response",
     "ComputerUseStopResponse": "daytona_toolbox_api_client_async.models.computer_use_stop_response",
     "CreateContextRequest": "daytona_toolbox_api_client_async.models.create_context_request",
+    "CreateProcessRequest": "daytona_toolbox_api_client_async.models.create_process_request",
+    "CreateProcessSessionRequest": "daytona_toolbox_api_client_async.models.create_process_session_request",
     "CreateSessionRequest": "daytona_toolbox_api_client_async.models.create_session_request",
     "DaemonErrorCode": "daytona_toolbox_api_client_async.models.daemon_error_code",
     "DisplayInfo": "daytona_toolbox_api_client_async.models.display_info",
@@ -161,6 +184,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "FileStatus": "daytona_toolbox_api_client_async.models.file_status",
     "FilesDownloadRequest": "daytona_toolbox_api_client_async.models.files_download_request",
     "FindAccessibilityNodesRequest": "daytona_toolbox_api_client_async.models.find_accessibility_nodes_request",
+    "FsFileResult": "daytona_toolbox_api_client_async.models.fs_file_result",
     "GitAddRemoteRequest": "daytona_toolbox_api_client_async.models.git_add_remote_request",
     "GitAddRequest": "daytona_toolbox_api_client_async.models.git_add_request",
     "GitAuthenticateRequest": "daytona_toolbox_api_client_async.models.git_authenticate_request",
@@ -187,6 +211,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "KeyboardHotkeyRequest": "daytona_toolbox_api_client_async.models.keyboard_hotkey_request",
     "KeyboardPressRequest": "daytona_toolbox_api_client_async.models.keyboard_press_request",
     "KeyboardTypeRequest": "daytona_toolbox_api_client_async.models.keyboard_type_request",
+    "KillProcessRequest": "daytona_toolbox_api_client_async.models.kill_process_request",
     "ListBranchResponse": "daytona_toolbox_api_client_async.models.list_branch_response",
     "ListContextsResponse": "daytona_toolbox_api_client_async.models.list_contexts_response",
     "ListRecordingsResponse": "daytona_toolbox_api_client_async.models.list_recordings_response",
@@ -208,11 +233,25 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "MouseScrollRequest": "daytona_toolbox_api_client_async.models.mouse_scroll_request",
     "PortList": "daytona_toolbox_api_client_async.models.port_list",
     "Position": "daytona_toolbox_api_client_async.models.position",
+    "Process": "daytona_toolbox_api_client_async.models.process",
     "ProcessErrorsResponse": "daytona_toolbox_api_client_async.models.process_errors_response",
+    "ProcessKeepLogs": "daytona_toolbox_api_client_async.models.process_keep_logs",
+    "ProcessKind": "daytona_toolbox_api_client_async.models.process_kind",
+    "ProcessLogChannel": "daytona_toolbox_api_client_async.models.process_log_channel",
+    "ProcessLogFrame": "daytona_toolbox_api_client_async.models.process_log_frame",
+    "ProcessLogPage": "daytona_toolbox_api_client_async.models.process_log_page",
     "ProcessLogsResponse": "daytona_toolbox_api_client_async.models.process_logs_response",
     "ProcessRestartResponse": "daytona_toolbox_api_client_async.models.process_restart_response",
+    "ProcessResult": "daytona_toolbox_api_client_async.models.process_result",
+    "ProcessSession": "daytona_toolbox_api_client_async.models.process_session",
+    "ProcessShellSelector": "daytona_toolbox_api_client_async.models.process_shell_selector",
+    "ProcessState": "daytona_toolbox_api_client_async.models.process_state",
     "ProcessStatus": "daytona_toolbox_api_client_async.models.process_status",
     "ProcessStatusResponse": "daytona_toolbox_api_client_async.models.process_status_response",
+    "ProcessStdinMode": "daytona_toolbox_api_client_async.models.process_stdin_mode",
+    "ProcessStdinRequest": "daytona_toolbox_api_client_async.models.process_stdin_request",
+    "ProcessTerminalReason": "daytona_toolbox_api_client_async.models.process_terminal_reason",
+    "ProcessTerminalSize": "daytona_toolbox_api_client_async.models.process_terminal_size",
     "PtyCreateRequest": "daytona_toolbox_api_client_async.models.pty_create_request",
     "PtyCreateResponse": "daytona_toolbox_api_client_async.models.pty_create_response",
     "PtyListResponse": "daytona_toolbox_api_client_async.models.pty_list_response",
@@ -221,6 +260,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Recording": "daytona_toolbox_api_client_async.models.recording",
     "ReplaceRequest": "daytona_toolbox_api_client_async.models.replace_request",
     "ReplaceResult": "daytona_toolbox_api_client_async.models.replace_result",
+    "ResizeProcessRequest": "daytona_toolbox_api_client_async.models.resize_process_request",
     "ScreenshotResponse": "daytona_toolbox_api_client_async.models.screenshot_response",
     "ScrollResponse": "daytona_toolbox_api_client_async.models.scroll_response",
     "SearchFilesResponse": "daytona_toolbox_api_client_async.models.search_files_response",
@@ -228,12 +268,14 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SessionCommandLogsResponse": "daytona_toolbox_api_client_async.models.session_command_logs_response",
     "SessionExecuteRequest": "daytona_toolbox_api_client_async.models.session_execute_request",
     "SessionExecuteResponse": "daytona_toolbox_api_client_async.models.session_execute_response",
+    "SessionKernel": "daytona_toolbox_api_client_async.models.session_kernel",
     "SessionSendInputRequest": "daytona_toolbox_api_client_async.models.session_send_input_request",
     "StartRecordingRequest": "daytona_toolbox_api_client_async.models.start_recording_request",
     "Status": "daytona_toolbox_api_client_async.models.status",
     "StopRecordingRequest": "daytona_toolbox_api_client_async.models.stop_recording_request",
     "SystemMetrics": "daytona_toolbox_api_client_async.models.system_metrics",
     "UpdateEnvRequest": "daytona_toolbox_api_client_async.models.update_env_request",
+    "UploadFilesResponse": "daytona_toolbox_api_client_async.models.upload_files_response",
     "UploadedFile": "daytona_toolbox_api_client_async.models.uploaded_file",
     "UserHomeDirResponse": "daytona_toolbox_api_client_async.models.user_home_dir_response",
     "WindowInfo": "daytona_toolbox_api_client_async.models.window_info",

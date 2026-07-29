@@ -38,6 +38,14 @@ public class InitializeRequestTest {
     }
 
     /**
+     * Test the property 'sandboxId'
+     */
+    @Test
+    public void sandboxIdTest() {
+        // TODO: test sandboxId
+    }
+
+    /**
      * Test the property 'token'
      */
     @Test

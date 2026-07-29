@@ -199,6 +199,7 @@ class Sandbox(SandboxDto):
             language,
             ProcessApi(self._toolbox_api),
             http_client=http_client,
+            sandbox_id=self.id,
         )
         self._computer_use = ComputerUse(ComputerUseApi(self._toolbox_api), http_client=http_client)
         self._code_interpreter = CodeInterpreter(

@@ -24,6 +24,7 @@ from daytona_toolbox_api_client_async.models.match import Match
 from daytona_toolbox_api_client_async.models.replace_request import ReplaceRequest
 from daytona_toolbox_api_client_async.models.replace_result import ReplaceResult
 from daytona_toolbox_api_client_async.models.search_files_response import SearchFilesResponse
+from daytona_toolbox_api_client_async.models.upload_files_response import UploadFilesResponse
 from daytona_toolbox_api_client_async.models.uploaded_file import UploadedFile
 
 from daytona_toolbox_api_client_async.api_client import ApiClient, RequestSerialized
@@ -3490,7 +3491,7 @@ class FileSystemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> None:
+    ) -> UploadFilesResponse:
         """Upload multiple files
 
         Upload multiple files with their destination paths
@@ -3525,8 +3526,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -3554,7 +3555,7 @@ class FileSystemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[None]:
+    ) -> ApiResponse[UploadFilesResponse]:
         """Upload multiple files
 
         Upload multiple files with their destination paths
@@ -3589,8 +3590,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -3653,8 +3654,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,

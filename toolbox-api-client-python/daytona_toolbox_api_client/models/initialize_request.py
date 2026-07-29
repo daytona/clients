@@ -17,8 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -29,9 +29,10 @@ class InitializeRequest(BaseModel):
     """
     InitializeRequest
     """ # noqa: E501
+    sandbox_id: Optional[StrictStr] = Field(default=None, serialization_alias="sandboxId")
     token: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["token"]
+    __properties: ClassVar[List[str]] = ["sandboxId", "token"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -90,6 +91,7 @@ class InitializeRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "sandbox_id": obj.get("sandboxId"),
             "token": obj.get("token")
         })
         # store additional fields in additional_properties

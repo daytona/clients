@@ -31,6 +31,7 @@ class ErrorResponse(BaseModel):
     Error response
     """ # noqa: E501
     code: Optional[DaemonErrorCode] = None
+    details: Optional[Dict[str, StrictStr]] = Field(default=None, description="Details mirrors common-go: machine-readable recovery data, e.g. firstAvailableCursor for CURSOR_EXPIRED or processId for NAME_CONFLICT.")
     message: StrictStr
     method: Optional[StrictStr] = None
     path: StrictStr
@@ -38,7 +39,7 @@ class ErrorResponse(BaseModel):
     status_code: StrictInt = Field(serialization_alias="statusCode")
     timestamp: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["code", "message", "method", "path", "source", "statusCode", "timestamp"]
+    __properties: ClassVar[List[str]] = ["code", "details", "message", "method", "path", "source", "statusCode", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,6 +99,7 @@ class ErrorResponse(BaseModel):
 
         _obj = cls.model_validate({
             "code": obj.get("code"),
+            "details": obj.get("details"),
             "message": obj.get("message"),
             "method": obj.get("method"),
             "path": obj.get("path"),

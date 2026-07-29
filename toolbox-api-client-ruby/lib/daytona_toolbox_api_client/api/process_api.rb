@@ -19,6 +19,195 @@ module DaytonaToolboxApiClient
     def initialize(api_client = ApiClient.default)
       @api_client = api_client
     end
+    # Attach to a PTY process
+    # Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def attach_process_v2(id, opts = {})
+      attach_process_v2_with_http_info(id, opts)
+      nil
+    end
+
+    # Attach to a PTY process
+    # Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def attach_process_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.attach_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.attach_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/attach'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['*/*']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.attach_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#attach_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Clean up a process
+    # Purge a terminal process record and its retained logs
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def cleanup_process_v2(id, opts = {})
+      cleanup_process_v2_with_http_info(id, opts)
+      nil
+    end
+
+    # Clean up a process
+    # Purge a terminal process record and its retained logs
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def cleanup_process_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.cleanup_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.cleanup_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.cleanup_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:DELETE, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#cleanup_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Close a process session
+    # Close a unified process session and its backing kernel process
+    # @param id [String] Session ID
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def close_process_session_v2(id, opts = {})
+      close_process_session_v2_with_http_info(id, opts)
+      nil
+    end
+
+    # Close a process session
+    # Close a unified process session and its backing kernel process
+    # @param id [String] Session ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def close_process_session_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.close_process_session_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.close_process_session_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/sessions/{id}/close'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.close_process_session_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#close_process_session_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Execute code
     # Execute Python, JavaScript, or TypeScript code and return output, exit code, and artifacts
     # @param request [CodeRunRequest] Code execution request
@@ -146,6 +335,142 @@ module DaytonaToolboxApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: ProcessApi#connect_pty_session\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Create a process session
+    # Create a unified process session backed by a persistent shell or interpreter kernel
+    # @param request [CreateProcessSessionRequest] Session creation request
+    # @param [Hash] opts the optional parameters
+    # @return [ProcessSession]
+    def create_process_session_v2(request, opts = {})
+      data, _status_code, _headers = create_process_session_v2_with_http_info(request, opts)
+      data
+    end
+
+    # Create a process session
+    # Create a unified process session backed by a persistent shell or interpreter kernel
+    # @param request [CreateProcessSessionRequest] Session creation request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(ProcessSession, Integer, Hash)>] ProcessSession data, response status code and response headers
+    def create_process_session_v2_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.create_process_session_v2 ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ProcessApi.create_process_session_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/sessions'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'ProcessSession'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.create_process_session_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#create_process_session_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Create and start a process
+    # Create a unified process record and start supervising it
+    # @param request [CreateProcessRequest] Process creation request
+    # @param [Hash] opts the optional parameters
+    # @return [Process]
+    def create_process_v2(request, opts = {})
+      data, _status_code, _headers = create_process_v2_with_http_info(request, opts)
+      data
+    end
+
+    # Create and start a process
+    # Create a unified process record and start supervising it
+    # @param request [CreateProcessRequest] Process creation request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Process, Integer, Hash)>] Process data, response status code and response headers
+    def create_process_v2_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.create_process_v2 ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ProcessApi.create_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Process'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.create_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#create_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -597,6 +922,211 @@ module DaytonaToolboxApiClient
       return data, status_code, headers
     end
 
+    # Get process logs
+    # Return a page of log frames or stream log frames over Server-Sent Events when follow=true
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :cursor Resume cursor
+    # @option opts [Integer] :limit Maximum number of frames to return
+    # @option opts [String] :encoding Frame encoding
+    # @option opts [Boolean] :follow Stream log frames over Server-Sent Events
+    # @return [ProcessLogPage]
+    def get_process_logs_v2(id, opts = {})
+      data, _status_code, _headers = get_process_logs_v2_with_http_info(id, opts)
+      data
+    end
+
+    # Get process logs
+    # Return a page of log frames or stream log frames over Server-Sent Events when follow&#x3D;true
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :cursor Resume cursor
+    # @option opts [Integer] :limit Maximum number of frames to return
+    # @option opts [String] :encoding Frame encoding
+    # @option opts [Boolean] :follow Stream log frames over Server-Sent Events
+    # @return [Array<(ProcessLogPage, Integer, Hash)>] ProcessLogPage data, response status code and response headers
+    def get_process_logs_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.get_process_logs_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.get_process_logs_v2"
+      end
+      allowable_values = ["text", "base64", "unknown_default_open_api"]
+      if @api_client.config.client_side_validation && opts[:'encoding'] && !allowable_values.include?(opts[:'encoding'])
+        fail ArgumentError, "invalid value for \"encoding\", must be one of #{allowable_values}"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/logs'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'cursor'] = opts[:'cursor'] if !opts[:'cursor'].nil?
+      query_params[:'limit'] = opts[:'limit'] if !opts[:'limit'].nil?
+      query_params[:'encoding'] = opts[:'encoding'] if !opts[:'encoding'].nil?
+      query_params[:'follow'] = opts[:'follow'] if !opts[:'follow'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json', 'text/event-stream']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'ProcessLogPage'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.get_process_logs_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#get_process_logs_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get process session details
+    # Get a unified process session by id
+    # @param id [String] Session ID
+    # @param [Hash] opts the optional parameters
+    # @return [ProcessSession]
+    def get_process_session_v2(id, opts = {})
+      data, _status_code, _headers = get_process_session_v2_with_http_info(id, opts)
+      data
+    end
+
+    # Get process session details
+    # Get a unified process session by id
+    # @param id [String] Session ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(ProcessSession, Integer, Hash)>] ProcessSession data, response status code and response headers
+    def get_process_session_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.get_process_session_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.get_process_session_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/sessions/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'ProcessSession'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.get_process_session_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#get_process_session_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get process details
+    # Get a unified process record by its process id
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [Process]
+    def get_process_v2(id, opts = {})
+      data, _status_code, _headers = get_process_v2_with_http_info(id, opts)
+      data
+    end
+
+    # Get process details
+    # Get a unified process record by its process id
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Process, Integer, Hash)>] Process data, response status code and response headers
+    def get_process_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.get_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.get_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Process'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.get_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#get_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Get PTY session information
     # Get detailed information about a specific pseudo-terminal session
     # @param session_id [String] PTY session ID
@@ -864,6 +1394,143 @@ module DaytonaToolboxApiClient
       return data, status_code, headers
     end
 
+    # List process sessions
+    # List unified process sessions
+    # @param [Hash] opts the optional parameters
+    # @return [Array<ProcessSession>]
+    def list_process_sessions_v2(opts = {})
+      data, _status_code, _headers = list_process_sessions_v2_with_http_info(opts)
+      data
+    end
+
+    # List process sessions
+    # List unified process sessions
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Array<ProcessSession>, Integer, Hash)>] Array<ProcessSession> data, response status code and response headers
+    def list_process_sessions_v2_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.list_process_sessions_v2 ...'
+      end
+      # resource path
+      local_var_path = '/process/v2/sessions'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<ProcessSession>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.list_process_sessions_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#list_process_sessions_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # List processes
+    # List unified process records with optional state, kind, session, name, and pid filters
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :state Process state filter
+    # @option opts [String] :kind Process kind filter
+    # @option opts [String] :session_id Session ID filter
+    # @option opts [String] :name Process name filter
+    # @option opts [Integer] :pid Process PID metadata filter
+    # @return [Array<Process>]
+    def list_processes_v2(opts = {})
+      data, _status_code, _headers = list_processes_v2_with_http_info(opts)
+      data
+    end
+
+    # List processes
+    # List unified process records with optional state, kind, session, name, and pid filters
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :state Process state filter
+    # @option opts [String] :kind Process kind filter
+    # @option opts [String] :session_id Session ID filter
+    # @option opts [String] :name Process name filter
+    # @option opts [Integer] :pid Process PID metadata filter
+    # @return [Array<(Array<Process>, Integer, Hash)>] Array<Process> data, response status code and response headers
+    def list_processes_v2_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.list_processes_v2 ...'
+      end
+      allowable_values = ["running", "terminal", "all", "running", "terminal", "all", "unknown_default_open_api"]
+      if @api_client.config.client_side_validation && opts[:'state'] && !allowable_values.include?(opts[:'state'])
+        fail ArgumentError, "invalid value for \"state\", must be one of #{allowable_values}"
+      end
+      allowable_values = ["exec", "pty", "code", "exec", "pty", "code", "unknown_default_open_api"]
+      if @api_client.config.client_side_validation && opts[:'kind'] && !allowable_values.include?(opts[:'kind'])
+        fail ArgumentError, "invalid value for \"kind\", must be one of #{allowable_values}"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'state'] = opts[:'state'] if !opts[:'state'].nil?
+      query_params[:'kind'] = opts[:'kind'] if !opts[:'kind'].nil?
+      query_params[:'sessionId'] = opts[:'session_id'] if !opts[:'session_id'].nil?
+      query_params[:'name'] = opts[:'name'] if !opts[:'name'].nil?
+      query_params[:'pid'] = opts[:'pid'] if !opts[:'pid'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<Process>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.list_processes_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#list_processes_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # List all PTY sessions
     # Get a list of all active pseudo-terminal sessions
     # @param [Hash] opts the optional parameters
@@ -974,6 +1641,80 @@ module DaytonaToolboxApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: ProcessApi#list_sessions\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Resize a PTY process
+    # Resize the terminal geometry of a running kind=pty process
+    # @param id [String] Process ID
+    # @param request [ResizeProcessRequest] Resize request
+    # @param [Hash] opts the optional parameters
+    # @return [Process]
+    def resize_process_v2(id, request, opts = {})
+      data, _status_code, _headers = resize_process_v2_with_http_info(id, request, opts)
+      data
+    end
+
+    # Resize a PTY process
+    # Resize the terminal geometry of a running kind&#x3D;pty process
+    # @param id [String] Process ID
+    # @param request [ResizeProcessRequest] Resize request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Process, Integer, Hash)>] Process data, response status code and response headers
+    def resize_process_v2_with_http_info(id, request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.resize_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.resize_process_v2"
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ProcessApi.resize_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/resize'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Process'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.resize_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#resize_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -1132,6 +1873,80 @@ module DaytonaToolboxApiClient
       return data, status_code, headers
     end
 
+    # Send stdin to a process
+    # Write input to a running process and optionally close stdin
+    # @param id [String] Process ID
+    # @param request [ProcessStdinRequest] Stdin request
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def send_process_stdin_v2(id, request, opts = {})
+      send_process_stdin_v2_with_http_info(id, request, opts)
+      nil
+    end
+
+    # Send stdin to a process
+    # Write input to a running process and optionally close stdin
+    # @param id [String] Process ID
+    # @param request [ProcessStdinRequest] Stdin request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def send_process_stdin_v2_with_http_info(id, request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.send_process_stdin_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.send_process_stdin_v2"
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ProcessApi.send_process_stdin_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/stdin'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.send_process_stdin_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#send_process_stdin_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Execute command in session
     # Execute a command within an existing shell session
     # @param session_id [String] Session ID
@@ -1202,6 +2017,146 @@ module DaytonaToolboxApiClient
       data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: ProcessApi#session_execute_command\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Signal a process
+    # Send a signal to a running process and optionally escalate after a grace period
+    # @param id [String] Process ID
+    # @param request [KillProcessRequest] Signal request
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def signal_process_v2(id, request, opts = {})
+      signal_process_v2_with_http_info(id, request, opts)
+      nil
+    end
+
+    # Signal a process
+    # Send a signal to a running process and optionally escalate after a grace period
+    # @param id [String] Process ID
+    # @param request [KillProcessRequest] Signal request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def signal_process_v2_with_http_info(id, request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.signal_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.signal_process_v2"
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ProcessApi.signal_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/signals'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.signal_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#signal_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Wait for a process
+    # Wait for a process to reach terminal state or for the wait timeout to elapse
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @option opts [Integer] :timeout_ms Maximum wait time in milliseconds
+    # @return [ProcessResult]
+    def wait_for_process_v2(id, opts = {})
+      data, _status_code, _headers = wait_for_process_v2_with_http_info(id, opts)
+      data
+    end
+
+    # Wait for a process
+    # Wait for a process to reach terminal state or for the wait timeout to elapse
+    # @param id [String] Process ID
+    # @param [Hash] opts the optional parameters
+    # @option opts [Integer] :timeout_ms Maximum wait time in milliseconds
+    # @return [Array<(ProcessResult, Integer, Hash)>] ProcessResult data, response status code and response headers
+    def wait_for_process_v2_with_http_info(id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ProcessApi.wait_for_process_v2 ...'
+      end
+      # verify the required parameter 'id' is set
+      if @api_client.config.client_side_validation && id.nil?
+        fail ArgumentError, "Missing the required parameter 'id' when calling ProcessApi.wait_for_process_v2"
+      end
+      # resource path
+      local_var_path = '/process/v2/processes/{id}/wait'.sub('{' + 'id' + '}', CGI.escape(id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+      query_params[:'timeoutMs'] = opts[:'timeout_ms'] if !opts[:'timeout_ms'].nil?
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'ProcessResult'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ProcessApi.wait_for_process_v2",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ProcessApi#wait_for_process_v2\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

@@ -96,17 +96,25 @@ def is_validation_error(exc: BaseException) -> bool:
     return False
 
 
+def _copy_extra_error_attributes(source: DaytonaError, target: DaytonaError) -> None:
+    for attribute_name, attribute_value in source.__dict__.items():
+        if attribute_name in {"message", "status_code", "code", "source", "headers"}:
+            continue
+        setattr(target, attribute_name, attribute_value)
+
+
 def _parse_openapi_exception(
     exception: OpenApiDaytonaException,
-) -> tuple[str, str | None, str | None]:
-    """Extract (message, code, source) from a Daytona wire envelope in the exception body."""
+) -> tuple[str, str | None, str | None, dict[str, str] | None]:
+    """Extract (message, code, source, details) from a Daytona wire envelope in the exception body."""
     if not has_body(exception):
-        return str(exception), None, None
+        return str(exception), None, None, None
 
     body_str: str = str(exception.body)
     message: str = body_str
     code: str | None = None
     source: str | None = None
+    details: dict[str, str] | None = None
     try:
         data = json.loads(body_str)
         if isinstance(data, dict):
@@ -124,10 +132,14 @@ def _parse_openapi_exception(
             source_value: object | None = typed_data.get("source")
             if isinstance(source_value, str):
                 source = source_value
+            details_value: object | None = typed_data.get("details")
+            if isinstance(details_value, dict):
+                typed_details = cast(dict[object, object], details_value)
+                details = {k: v for k, v in typed_details.items() if isinstance(k, str) and isinstance(v, str)}
     except json.JSONDecodeError:
         pass
 
-    return message, code, source
+    return message, code, source, details
 
 
 def intercept_errors(
@@ -141,16 +153,18 @@ def intercept_errors(
     def decorator(func: F) -> F:
         def process_n_raise_exception(e: Exception) -> NoReturn:
             if isinstance(e, DaytonaError):
-                raise e.__class__(
+                copied_error = e.__class__(
                     _prefix_message(message_prefix, str(e)),
                     status_code=e.status_code,
                     headers=e.headers,
                     code=e.code,
                     source=e.source,
-                ) from e
+                )
+                _copy_extra_error_attributes(e, copied_error)
+                raise copied_error from e
 
             if isinstance(e, OPENAPI_EXCEPTIONS):
-                msg, code, source = _parse_openapi_exception(e)
+                msg, code, source, details = _parse_openapi_exception(e)
                 status_code = getattr(e, "status", None)
                 headers = cast(Mapping[str, Any] | None, getattr(e, "headers", None))
                 raise create_daytona_error(
@@ -159,6 +173,7 @@ def intercept_errors(
                     headers=headers,
                     code=code,
                     source=source,
+                    details=details,
                 ) from e
 
             for source_error, daytona_error_cls in TRANSPORT_ERROR_TO_DAYTONA_ERROR:

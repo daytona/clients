@@ -63,16 +63,20 @@ class AsyncPtyHandle:
         session_id: str | None = None,
         handle_resize: Callable[[PtySize], Awaitable[PtySessionInfo]] | None = None,
         handle_kill: Callable[[], Awaitable[None]] | None = None,
+        result_resolver: Callable[[], Awaitable[PtyResult]] | None = None,
+        connection_established: bool = False,
     ):
         self._ws: "aiohttp.ClientWebSocketResponse[bool]" = ws
         self._on_data: Callable[[bytes], None] | Callable[[bytes], Awaitable[None]] | None = on_data
         self._session_id: str | None = session_id
         self._handle_resize: Callable[[PtySize], Awaitable[PtySessionInfo]] | None = handle_resize
         self._handle_kill: Callable[[], Awaitable[None]] | None = handle_kill
+        self._result_resolver: Callable[[], Awaitable[PtyResult]] | None = result_resolver
+        self._result_resolved: bool = False
         self._exit_code: int | None = None
         self._error: str | None = None
         self._connected: bool = False
-        self._connection_established: bool = False
+        self._connection_established: bool = connection_established
 
         # Start handling WebSocket events
         self._wait: asyncio.Task[None] = asyncio.create_task(self._handle_websocket())
@@ -243,6 +247,7 @@ class AsyncPtyHandle:
                 close_code = self._ws.close_code
 
             await self._handle_close(close_code, close_reason)
+            await self._resolve_result_if_needed()
 
         except Exception as e:
             self._error = f"Unexpected error: {e}"
@@ -335,3 +340,19 @@ class AsyncPtyHandle:
             result = self._on_data(data)
             if inspect.isawaitable(result):
                 await result
+
+    async def _resolve_result_if_needed(self) -> None:
+        if self._result_resolved or self._result_resolver is None:
+            return
+        self._result_resolved = True
+        try:
+            result = await self._result_resolver()
+        except Exception as e:
+            if not self._error:
+                self._error = str(e)
+            return
+
+        if result.exit_code is not None:
+            self._exit_code = result.exit_code
+        if result.error is not None:
+            self._error = result.error

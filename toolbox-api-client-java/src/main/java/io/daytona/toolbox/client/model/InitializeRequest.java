@@ -50,6 +50,11 @@ import io.daytona.toolbox.client.JSON;
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.21.0")
 public class InitializeRequest {
+  public static final String SERIALIZED_NAME_SANDBOX_ID = "sandboxId";
+  @SerializedName(SERIALIZED_NAME_SANDBOX_ID)
+  @javax.annotation.Nullable
+  private String sandboxId;
+
   public static final String SERIALIZED_NAME_TOKEN = "token";
   @SerializedName(SERIALIZED_NAME_TOKEN)
   @javax.annotation.Nonnull
@@ -57,6 +62,25 @@ public class InitializeRequest {
 
   public InitializeRequest() {
   }
+
+  public InitializeRequest sandboxId(@javax.annotation.Nullable String sandboxId) {
+    this.sandboxId = sandboxId;
+    return this;
+  }
+
+  /**
+   * Get sandboxId
+   * @return sandboxId
+   */
+  @javax.annotation.Nullable
+  public String getSandboxId() {
+    return sandboxId;
+  }
+
+  public void setSandboxId(@javax.annotation.Nullable String sandboxId) {
+    this.sandboxId = sandboxId;
+  }
+
 
   public InitializeRequest token(@javax.annotation.Nonnull String token) {
     this.token = token;
@@ -131,19 +155,21 @@ public class InitializeRequest {
       return false;
     }
     InitializeRequest initializeRequest = (InitializeRequest) o;
-    return Objects.equals(this.token, initializeRequest.token)&&
+    return Objects.equals(this.sandboxId, initializeRequest.sandboxId) &&
+        Objects.equals(this.token, initializeRequest.token)&&
         Objects.equals(this.additionalProperties, initializeRequest.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(token, additionalProperties);
+    return Objects.hash(sandboxId, token, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class InitializeRequest {\n");
+    sb.append("    sandboxId: ").append(toIndentedString(sandboxId)).append("\n");
     sb.append("    token: ").append(toIndentedString(token)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -164,7 +190,7 @@ public class InitializeRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("token"));
+    openapiFields = new HashSet<String>(Arrays.asList("sandboxId", "token"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("token"));
@@ -190,6 +216,9 @@ public class InitializeRequest {
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
+      if ((jsonObj.get("sandboxId") != null && !jsonObj.get("sandboxId").isJsonNull()) && !jsonObj.get("sandboxId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sandboxId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sandboxId").toString()));
+      }
       if (!jsonObj.get("token").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `token` to be a primitive type in the JSON string but got `%s`", jsonObj.get("token").toString()));
       }

@@ -15,6 +15,7 @@
 
 
 export interface InitializeRequest {
+    'sandboxId'?: string;
     'token': string;
 }
 

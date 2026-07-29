@@ -47,6 +47,10 @@ public enum DaemonErrorCode {
   
   CodeFileAccessDenied("FILE_ACCESS_DENIED"),
   
+  CodeInvalidFilePath("INVALID_FILE_PATH"),
+  
+  CodeFileReadFailed("FILE_READ_FAILED"),
+  
   CodeLspServerNotInitialized("LSP_SERVER_NOT_INITIALIZED"),
   
   CodeProcessExecutionTimeout("PROCESS_EXECUTION_TIMEOUT"),
@@ -56,6 +60,22 @@ public enum DaemonErrorCode {
   CodeSessionEnded("SESSION_ENDED"),
   
   CodeCommandAlreadyCompleted("COMMAND_ALREADY_COMPLETED"),
+  
+  CodeNameConflict("NAME_CONFLICT"),
+  
+  CodeCursorExpired("CURSOR_EXPIRED"),
+  
+  CodeInvalidCursor("INVALID_CURSOR"),
+  
+  CodeProtectedProcess("PROTECTED_PROCESS"),
+  
+  CodeStdinClosed("STDIN_CLOSED"),
+  
+  CodeStdinUnavailable("STDIN_UNAVAILABLE"),
+  
+  CodeProcessTerminal("PROCESS_TERMINAL"),
+  
+  CodeUnsupportedOperation("UNSUPPORTED_OPERATION"),
   
   CodeA11yUnavailable("A11Y_UNAVAILABLE"),
   

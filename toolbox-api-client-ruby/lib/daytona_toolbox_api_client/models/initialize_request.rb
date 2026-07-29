@@ -15,11 +15,14 @@ require 'time'
 
 module DaytonaToolboxApiClient
   class InitializeRequest < ApiModelBase
+    attr_accessor :sandbox_id
+
     attr_accessor :token
 
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
+        :'sandbox_id' => :'sandboxId',
         :'token' => :'token'
       }
     end
@@ -37,6 +40,7 @@ module DaytonaToolboxApiClient
     # Attribute type mapping.
     def self.openapi_types
       {
+        :'sandbox_id' => :'String',
         :'token' => :'String'
       }
     end
@@ -62,6 +66,10 @@ module DaytonaToolboxApiClient
         end
         h[k.to_sym] = v
       }
+
+      if attributes.key?(:'sandbox_id')
+        self.sandbox_id = attributes[:'sandbox_id']
+      end
 
       if attributes.key?(:'token')
         self.token = attributes[:'token']
@@ -105,6 +113,7 @@ module DaytonaToolboxApiClient
     def ==(o)
       return true if self.equal?(o)
       self.class == o.class &&
+          sandbox_id == o.sandbox_id &&
           token == o.token
     end
 
@@ -117,7 +126,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [token].hash
+      [sandbox_id, token].hash
     end
 
     # Builds the object from hash
