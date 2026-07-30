@@ -8,6 +8,8 @@ import io.daytona.sdk.exception.DaytonaBadRequestException;
 import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaConnectionException;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.exception.DaytonaFileReadFailedException;
+import io.daytona.sdk.exception.DaytonaInvalidFilePathException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
@@ -177,6 +179,35 @@ class ExceptionMapperTest {
 
         headers.put("Retry-After", "999");
         assertThat(exception.getHeaders()).containsEntry("Retry-After", "30");
+    }
+
+    @Test
+    void mapsDaemonFilesystemCodesThroughPublicMapper() {
+        DaytonaException invalidFilePath = ExceptionMapper.map(
+                400,
+                "{" +
+                        "\"message\":\"invalid file path: path points to a directory: /tmp\"," +
+                        "\"code\":\"INVALID_FILE_PATH\"," +
+                        "\"source\":\"DAYTONA_DAEMON\"" +
+                        "}",
+                new RuntimeException("boom"));
+
+        assertThat(invalidFilePath)
+                .isInstanceOf(DaytonaInvalidFilePathException.class)
+                .isInstanceOf(DaytonaBadRequestException.class);
+
+        DaytonaException fileReadFailed = ExceptionMapper.map(
+                500,
+                "{" +
+                        "\"message\":\"failed to open file: /tmp/bad\\u0000path: invalid argument\"," +
+                        "\"code\":\"FILE_READ_FAILED\"," +
+                        "\"source\":\"DAYTONA_DAEMON\"" +
+                        "}",
+                new RuntimeException("boom"));
+
+        assertThat(fileReadFailed)
+                .isInstanceOf(DaytonaFileReadFailedException.class)
+                .isInstanceOf(io.daytona.sdk.exception.DaytonaInternalServerException.class);
     }
 
     @Test

@@ -81,6 +81,17 @@ RSpec.describe Daytona::Sdk do
         expect(child < parent).to be(true), "#{child} should inherit from #{parent}"
       end
     end
+
+    it 'wires the new filesystem daemon errors to the matching HTTP-status parents' do
+      pairs = {
+        described_class::InvalidFilePathError => described_class::BadRequestError,
+        described_class::FileReadFailedError => described_class::InternalServerError
+      }
+
+      pairs.each do |child, parent|
+        expect(child < parent).to be(true), "#{child} should inherit from #{parent}"
+      end
+    end
   end
 
   describe '.error_class_for' do
@@ -149,6 +160,23 @@ RSpec.describe Daytona::Sdk do
       expect(err).to be_a(described_class::Error)
       expect(err.code).to eq('GIT_AUTH_FAILED')
       expect(err.source).to eq('DAYTONA_DAEMON')
+    end
+
+    it 'routes the new filesystem daemon codes to their typed classes' do
+      cases = [
+        [400, 'INVALID_FILE_PATH', described_class::InvalidFilePathError],
+        [500, 'FILE_READ_FAILED', described_class::FileReadFailedError]
+      ]
+
+      cases.each do |status, code, klass|
+        body = %({"message":"typed","code":"#{code}","source":"DAYTONA_DAEMON"})
+        err = described_class.wrap_error(api_error(status, body))
+
+        expect(err).to be_a(klass)
+        expect(err.code).to eq(code)
+        expect(err.source).to eq('DAYTONA_DAEMON')
+        expect(err.status_code).to eq(status)
+      end
     end
 
     it 'prepends the prefix to the message' do

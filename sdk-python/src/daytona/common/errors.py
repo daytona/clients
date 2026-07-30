@@ -268,6 +268,14 @@ class DaytonaFileAccessDeniedError(DaytonaForbiddenError):
     """Insufficient permissions for the filesystem operation."""
 
 
+class DaytonaInvalidFilePathError(DaytonaBadRequestError):
+    """The daemon rejected the supplied file path (code ``INVALID_FILE_PATH``)."""
+
+
+class DaytonaFileReadFailedError(DaytonaInternalServerError):
+    """The daemon could not read the sandbox file (code ``FILE_READ_FAILED``)."""
+
+
 # LSP.
 class DaytonaLspServerNotInitializedError(DaytonaBadRequestError):
     """LSP server must be started via /lsp/start first."""
@@ -338,6 +346,8 @@ CODE_TO_ERROR: dict[tuple[str, str], type[DaytonaError]] = {
     # Daemon: filesystem
     (SOURCE_DAEMON, "FILE_NOT_FOUND"): DaytonaFileNotFoundError,
     (SOURCE_DAEMON, "FILE_ACCESS_DENIED"): DaytonaFileAccessDeniedError,
+    (SOURCE_DAEMON, "INVALID_FILE_PATH"): DaytonaInvalidFilePathError,
+    (SOURCE_DAEMON, "FILE_READ_FAILED"): DaytonaFileReadFailedError,
     # Daemon: lsp
     (SOURCE_DAEMON, "LSP_SERVER_NOT_INITIALIZED"): DaytonaLspServerNotInitializedError,
     # Daemon: process / session

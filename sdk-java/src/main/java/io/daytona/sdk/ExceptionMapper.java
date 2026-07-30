@@ -13,6 +13,7 @@ import io.daytona.sdk.exception.DaytonaConnectionException;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaFileAccessDeniedException;
 import io.daytona.sdk.exception.DaytonaFileNotFoundException;
+import io.daytona.sdk.exception.DaytonaFileReadFailedException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaGitAuthFailedException;
 import io.daytona.sdk.exception.DaytonaGitBranchExistsException;
@@ -23,6 +24,7 @@ import io.daytona.sdk.exception.DaytonaGitPushRejectedException;
 import io.daytona.sdk.exception.DaytonaGitRepoNotFoundException;
 import io.daytona.sdk.exception.DaytonaGoneException;
 import io.daytona.sdk.exception.DaytonaInternalServerException;
+import io.daytona.sdk.exception.DaytonaInvalidFilePathException;
 import io.daytona.sdk.exception.DaytonaLspServerNotInitializedException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaProcessExecutionTimeoutException;
@@ -208,6 +210,8 @@ final class ExceptionMapper {
         // Daemon: filesystem
         map.put(SRC_DAEMON + "|FILE_NOT_FOUND", DaytonaFileNotFoundException::new);
         map.put(SRC_DAEMON + "|FILE_ACCESS_DENIED", DaytonaFileAccessDeniedException::new);
+        map.put(SRC_DAEMON + "|INVALID_FILE_PATH", DaytonaInvalidFilePathException::new);
+        map.put(SRC_DAEMON + "|FILE_READ_FAILED", DaytonaFileReadFailedException::new);
 
         // Daemon: lsp
         map.put(SRC_DAEMON + "|LSP_SERVER_NOT_INITIALIZED", DaytonaLspServerNotInitializedException::new);

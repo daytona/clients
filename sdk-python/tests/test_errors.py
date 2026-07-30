@@ -8,12 +8,15 @@ from __future__ import annotations
 import pytest
 
 from daytona.common.errors import (
+    SOURCE_DAEMON,
     DaytonaBadGatewayError,
     DaytonaConnectionError,
     DaytonaConnectionTimeoutError,
     DaytonaError,
+    DaytonaFileReadFailedError,
     DaytonaGoneError,
     DaytonaInternalServerError,
+    DaytonaInvalidFilePathError,
     DaytonaNotFoundError,
     DaytonaRateLimitError,
     DaytonaServiceUnavailableError,
@@ -128,6 +131,25 @@ class TestErrorFactories:
 
         assert isinstance(error, DaytonaNotFoundError)
         assert error.code == "NOT_FOUND"
+
+    @pytest.mark.parametrize(
+        "code,status_code,expected_cls",
+        [
+            ("INVALID_FILE_PATH", 400, DaytonaInvalidFilePathError),
+            ("FILE_READ_FAILED", 500, DaytonaFileReadFailedError),
+        ],
+    )
+    def test_create_daytona_error_uses_daemon_code_override(self, code, status_code, expected_cls):
+        error = create_daytona_error(
+            "filesystem failure",
+            status_code=status_code,
+            code=code,
+            source=SOURCE_DAEMON,
+        )
+
+        assert isinstance(error, expected_cls)
+        assert error.code == code
+        assert error.source == SOURCE_DAEMON
 
 
 class TestStatusCodeClassification:

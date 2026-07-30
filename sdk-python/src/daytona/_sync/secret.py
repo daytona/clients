@@ -53,6 +53,7 @@ class SecretService:
             cursor = None
             while True:
                 page = daytona.secret.list(cursor=cursor, limit=50)
+                print(f"Fetched {len(page.items)} of {page.total} secrets")
                 for secret in page.items:
                     print(f"{secret.name} ({secret.id})")
                 if page.next_cursor is None:

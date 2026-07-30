@@ -30,7 +30,7 @@ import (
 // Example:
 //
 //	// Create a snapshot from an existing image
-//	snapshot, logChan, err := client.Snapshots.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "my-python-env",
 //	    Image: "python:3.11-slim",
 //	})
@@ -47,7 +47,7 @@ import (
 //	image := daytona.Base("python:3.11-slim").
 //	    PipInstall([]string{"numpy", "pandas"}).
 //	    Workdir("/app")
-//	snapshot, logChan, err := client.Snapshots.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "custom-python-env",
 //	    Image: image,
 //	})
@@ -76,16 +76,16 @@ func NewSnapshotService(client *Client) *SnapshotService {
 //
 // Example:
 //
-//	// List first page with default limit
-//	result, err := client.Snapshots.List(ctx, nil, nil)
+//	pageNumber, pageSize := 2, 10
+//	page, err := client.Snapshot.List(ctx, &pageNumber, &pageSize)
 //	if err != nil {
 //	    return err
 //	}
 //
-//	// List with pagination
-//	page, limit := 2, 10
-//	result, err := client.Snapshots.List(ctx, &page, &limit)
-//	fmt.Printf("Page %d of %d, total: %d\n", result.Page, result.TotalPages, result.Total)
+//	fmt.Printf("Page %d of %d (%d snapshots total)\n", page.Page, page.TotalPages, page.Total)
+//	for _, snapshot := range page.Items {
+//	    fmt.Printf("%s (%s)\n", snapshot.Name, snapshot.ImageName)
+//	}
 //
 // Returns [types.PaginatedSnapshots] containing the snapshots and pagination info.
 func (s *SnapshotService) List(ctx context.Context, page *int, limit *int) (*types.PaginatedSnapshots, error) {
@@ -126,7 +126,7 @@ func (s *SnapshotService) List(ctx context.Context, page *int, limit *int) (*typ
 //
 // Example:
 //
-//	snapshot, err := client.Snapshots.Get(ctx, "my-python-env")
+//	snapshot, err := client.Snapshot.Get(ctx, "my-python-env")
 //	if err != nil {
 //	    return err
 //	}
@@ -159,7 +159,7 @@ func (s *SnapshotService) Get(ctx context.Context, nameOrID string) (*types.Snap
 // Example:
 //
 //	// Create from Docker Hub image
-//	snapshot, logChan, err := client.Snapshots.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "my-env",
 //	    Image: "python:3.11-slim",
 //	})
@@ -174,7 +174,7 @@ func (s *SnapshotService) Get(ctx context.Context, nameOrID string) (*types.Snap
 //
 //	// Create with custom image and resources
 //	image := daytona.Base("python:3.11").PipInstall([]string{"numpy"})
-//	snapshot, logChan, err := client.Snapshots.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "custom-env",
 //	    Image: image,
 //	    Resources: &types.Resources{CPU: 2, Memory: 4096},
@@ -341,7 +341,7 @@ func (s *SnapshotService) processImageContext(ctx context.Context, image *Docker
 //
 // Example:
 //
-//	err := client.Snapshots.Delete(ctx, snapshot)
+//	err := client.Snapshot.Delete(ctx, snapshot)
 //	if err != nil {
 //	    return err
 //	}

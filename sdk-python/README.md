@@ -168,3 +168,53 @@ completions = lsp.completions('path/to/file.py', {"line": 10, "character": 15})
 ```
 
 Code in [\_sync](./src/daytona/_sync/) directory shouldn't be edited directly. It should be generated from the corresponding async code in the [\_async](./src/daytona/_async/) directory using the SDK generation scripts in the [scripts](./scripts/) directory.
+
+## List method return shapes
+
+Each `list` method returns a different shape depending on the resource. The table below shows the exact return type and how to access the elements.
+
+| Method | Return type (sync) | Return type (async) | Shape | Access elements |
+| --- | --- | --- | --- | --- |
+| `daytona.snapshot.list(page?, limit?)` | `PaginatedSnapshots` | `PaginatedSnapshots` | Paginated wrapper | `result.items` |
+| `daytona.secret.list(cursor?, limit?, ...)` | `ListSecretsResponse` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.items` |
+| `daytona.volume.list()` | `list[Volume]` | `list[Volume]` | Bare list | iterate directly |
+| `daytona.list(query?)` | `Iterator[Sandbox]` | `AsyncIterator[Sandbox]` | Lazy iterator | `for sandbox in daytona.list()` |
+
+`PaginatedSnapshots` and `ListSecretsResponse` are **wrapper objects**, not lists. Calling list methods like `.append()` directly on them raises `AttributeError`. Always go through `.items`:
+
+```python
+# snapshots — page-number pagination
+result = daytona.snapshot.list(page=1, limit=20)
+# result.items       → list[Snapshot]
+# result.total       → int (total across all pages)
+# result.page        → int (current page, 1-indexed)
+# result.total_pages → int
+for snapshot in result.items:
+    print(snapshot.name)
+
+# secrets — cursor pagination
+cursor = None
+while True:
+    page = daytona.secret.list(cursor=cursor, limit=50)
+    # page.items       → list[Secret]
+    # page.total       → int
+    # page.next_cursor → str | None (None = no more pages)
+    for secret in page.items:
+        print(secret.name)
+    if page.next_cursor is None:
+        break
+    cursor = page.next_cursor
+
+# volumes — bare list, iterate directly
+volumes = daytona.volume.list()
+for vol in volumes:
+    print(vol.name)
+
+# sandboxes — lazy iterator, fetches pages on demand
+from daytona import ListSandboxesQuery
+
+for sandbox in daytona.list(ListSandboxesQuery(labels={"env": "dev"})):
+    print(sandbox.id)
+```
+
+The async client (`AsyncDaytona`) uses the same field names. Replace `for sandbox in` with `async for sandbox in` for the sandbox iterator.

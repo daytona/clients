@@ -31,8 +31,9 @@ module Daytona
     #
     # @example
     #   daytona = Daytona::Daytona.new
-    #   response = daytona.snapshot.list(page: 1, limit: 10)
-    #   snapshots.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" }
+    #   page = daytona.snapshot.list(page: 2, limit: 10)
+    #   puts "Page #{page.page} of #{page.total_pages} (#{page.total} snapshots total)"
+    #   page.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" }
     def list(page: nil, limit: nil)
       raise Sdk::Error, 'page must be positive integer' if page && page < 1
 

@@ -174,3 +174,46 @@ const completions = await lsp.completions('path/to/file.ts', {
   character: 15,
 })
 ```
+
+## List method return shapes
+
+Each `list` method returns a different shape depending on the resource. The table below shows the exact return type and how to access the elements.
+
+| Method | Return type | Shape | Access elements |
+| --- | --- | --- | --- |
+| `daytona.snapshot.list(page?, limit?)` | `Promise<PaginatedSnapshots>` | Paginated wrapper | `result.items.forEach(...)` |
+| `daytona.secret.list(query?)` | `Promise<ListSecretsResponse>` | Cursor-paginated wrapper | `page.items.forEach(...)` |
+| `daytona.volume.list()` | `Promise<Volume[]>` | Bare array | `volumes.forEach(...)` |
+| `daytona.list(query?)` | `AsyncIterableIterator<Sandbox>` | Lazy iterator | `for await (const s of daytona.list())` |
+
+`PaginatedSnapshots` and `ListSecretsResponse` are **wrapper objects**, not arrays. Calling `.map()` or `.forEach()` directly on them throws `TypeError: result.map is not a function`. Always go through `.items`:
+
+```typescript
+// snapshots — page-number pagination
+const result = await daytona.snapshot.list(1, 20)
+// result.items  → Snapshot[]
+// result.total  → number (total across all pages)
+// result.page   → number (current page, 1-indexed)
+// result.totalPages → number
+result.items.forEach(snapshot => console.log(snapshot.name))
+
+// secrets — cursor pagination
+let cursor: string | undefined
+do {
+  const page = await daytona.secret.list({ cursor, limit: 50 })
+  // page.items      → Secret[]
+  // page.total      → number
+  // page.nextCursor → string | null (null = no more pages)
+  page.items.forEach(secret => console.log(secret.name))
+  cursor = page.nextCursor ?? undefined
+} while (cursor)
+
+// volumes — bare array, iterate directly
+const volumes = await daytona.volume.list()
+volumes.forEach(vol => console.log(vol.name))
+
+// sandboxes — lazy async iterator, fetches pages on demand
+for await (const sandbox of daytona.list({ labels: { env: 'dev' } })) {
+  console.log(sandbox.id)
+}
+```

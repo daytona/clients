@@ -27,7 +27,7 @@ import (
 //	    Env("PYTHONUNBUFFERED", "1")
 //
 //	// Use with snapshot creation
-//	snapshot, logChan, err := client.Snapshots.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "my-python-env",
 //	    DockerImage: image,
 //	})

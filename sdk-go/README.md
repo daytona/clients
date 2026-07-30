@@ -246,6 +246,82 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "long-running-command")
 - `Create(ctx, name) (*Volume, error)` - Create a new volume
 - `Delete(ctx, volume) error` - Delete a volume
 
+## List method return shapes
+
+Each `List` method returns a different shape depending on the resource. The table below shows the exact return type and how to access the elements.
+
+| Method | Return type | Shape | Access elements |
+| --- | --- | --- | --- |
+| `client.Snapshot.List(ctx, page, limit)` | `(*types.PaginatedSnapshots, error)` | Paginated wrapper | `result.Items` |
+| `client.Secret.List(ctx, query)` | `(*types.ListSecretsResponse, error)` | Cursor-paginated wrapper | `page.Items` |
+| `client.Volume.List(ctx)` | `([]*types.Volume, error)` | Bare slice | iterate directly |
+| `client.List(ctx, query)` | `*SandboxIterator` | Lazy pull iterator | `iter.Next()` / `iter.Value()` |
+| `client.ListSeq(ctx, query)` | `iter.Seq2[*Sandbox, error]` | Go 1.23 range-over-func | `for s, err := range client.ListSeq(...)` |
+
+`types.PaginatedSnapshots` and `types.ListSecretsResponse` are **wrapper structs**, not slices. Ranging over them directly does not compile. Always use the `.Items` field:
+
+```go
+// snapshots — page-number pagination
+page, limit := 1, 20
+result, err := client.Snapshot.List(ctx, &page, &limit)
+if err != nil {
+    log.Fatal(err)
+}
+// result.Items      → []*types.Snapshot
+// result.Total      → int (total across all pages)
+// result.Page       → int (current page, 1-indexed)
+// result.TotalPages → int
+for _, snap := range result.Items {
+    fmt.Println(snap.Name)
+}
+
+// secrets — cursor pagination
+query := &types.ListSecretsQuery{}
+for {
+    page, err := client.Secret.List(ctx, query)
+    if err != nil {
+        log.Fatal(err)
+    }
+    // page.Items      → []*types.Secret
+    // page.Total      → int
+    // page.NextCursor → *string (nil = no more pages)
+    for _, secret := range page.Items {
+        fmt.Println(secret.Name)
+    }
+    if page.NextCursor == nil {
+        break
+    }
+    query.Cursor = page.NextCursor
+}
+
+// volumes — bare slice, iterate directly
+volumes, err := client.Volume.List(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+for _, vol := range volumes {
+    fmt.Println(vol.Name)
+}
+
+// sandboxes — pull iterator (all Go versions)
+iter := client.List(ctx, nil)
+defer iter.Close()
+for iter.Next() {
+    fmt.Println(iter.Value().ID)
+}
+if err := iter.Err(); err != nil {
+    log.Fatal(err)
+}
+
+// sandboxes — range-over-func (Go 1.23+)
+for sandbox, err := range client.ListSeq(ctx, nil) {
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(sandbox.ID)
+}
+```
+
 ## License
 
 Apache-2.0

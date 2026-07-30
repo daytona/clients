@@ -125,6 +125,12 @@ module Daytona
     class FileNotFoundError < NotFoundError; end
     class FileAccessDeniedError < ForbiddenError; end
 
+    # The supplied file path was rejected by the daemon (code `INVALID_FILE_PATH`).
+    class InvalidFilePathError < BadRequestError; end
+
+    # The daemon could not read the sandbox file (code `FILE_READ_FAILED`).
+    class FileReadFailedError < InternalServerError; end
+
     # Daemon: LSP
     class LspServerNotInitializedError < BadRequestError; end
 
@@ -175,6 +181,8 @@ module Daytona
       # Daemon: filesystem
       [SOURCE_DAEMON, 'FILE_NOT_FOUND'] => FileNotFoundError,
       [SOURCE_DAEMON, 'FILE_ACCESS_DENIED'] => FileAccessDeniedError,
+      [SOURCE_DAEMON, 'INVALID_FILE_PATH'] => InvalidFilePathError,
+      [SOURCE_DAEMON, 'FILE_READ_FAILED'] => FileReadFailedError,
 
       # Daemon: LSP
       [SOURCE_DAEMON, 'LSP_SERVER_NOT_INITIALIZED'] => LspServerNotInitializedError,

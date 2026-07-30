@@ -150,6 +150,56 @@ func TestNewDaytonaErrorFromBody_FillsAllFields(t *testing.T) {
 	}
 }
 
+func TestNewDaytonaErrorFromBody_MapsAdditionalFilesystemDaemonCodes(t *testing.T) {
+	tests := []struct {
+		name         string
+		body         []byte
+		wantCode     string
+		wantStatus   int
+		wantSentinel error
+		wantParent   error
+	}{
+		{
+			name:         "INVALID_FILE_PATH",
+			body:         []byte(`{"statusCode":400,"message":"invalid file path: path points to a directory: /tmp","code":"INVALID_FILE_PATH","source":"DAYTONA_DAEMON"}`),
+			wantCode:     "INVALID_FILE_PATH",
+			wantStatus:   http.StatusBadRequest,
+			wantSentinel: sdkerrors.ErrInvalidFilePath,
+			wantParent:   sdkerrors.ErrBadRequest,
+		},
+		{
+			name:         "FILE_READ_FAILED",
+			body:         []byte(`{"statusCode":500,"message":"failed to open file: open /tmp/\u0000bad: invalid argument","code":"FILE_READ_FAILED","source":"DAYTONA_DAEMON"}`),
+			wantCode:     "FILE_READ_FAILED",
+			wantStatus:   http.StatusInternalServerError,
+			wantSentinel: sdkerrors.ErrFileReadFailed,
+			wantParent:   sdkerrors.ErrInternalServer,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := sdkerrors.NewDaytonaErrorFromBody(tt.body, tt.wantStatus, nil)
+
+			if err.Code != tt.wantCode {
+				t.Fatalf("Code = %q, want %q", err.Code, tt.wantCode)
+			}
+			if err.Source != sdkerrors.SourceDaemon {
+				t.Fatalf("Source = %q, want %q", err.Source, sdkerrors.SourceDaemon)
+			}
+			if err.StatusCode != tt.wantStatus {
+				t.Fatalf("StatusCode = %d, want %d", err.StatusCode, tt.wantStatus)
+			}
+			if !stderrors.Is(err, tt.wantSentinel) {
+				t.Fatalf("errors.Is(err, %v) = false", tt.wantSentinel)
+			}
+			if !stderrors.Is(err, tt.wantParent) {
+				t.Fatalf("errors.Is(err, %v) = false", tt.wantParent)
+			}
+		})
+	}
+}
+
 func TestNewDaytonaErrorFromBody_PrefersBodyStatusCode(t *testing.T) {
 	body := []byte(`{"statusCode":410,"message":"gone"}`)
 	err := sdkerrors.NewDaytonaErrorFromBody(body, http.StatusInternalServerError, nil)

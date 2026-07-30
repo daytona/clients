@@ -65,12 +65,14 @@ func NewSecretService(client *Client) *SecretService {
 //
 // Example:
 //
-//	query := &types.ListSecretsQuery{}
+//	limit := 50
+//	query := &types.ListSecretsQuery{Limit: &limit}
 //	for {
 //	    page, err := client.Secret.List(ctx, query)
 //	    if err != nil {
 //	        return err
 //	    }
+//	    fmt.Printf("Fetched %d of %d secrets\n", len(page.Items), page.Total)
 //	    for _, secret := range page.Items {
 //	        fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
 //	    }

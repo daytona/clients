@@ -21,19 +21,19 @@ import (
 // Example:
 //
 //	// Create a new volume
-//	volume, err := client.Volumes.Create(ctx, "my-data-volume")
+//	volume, err := client.Volume.Create(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait for volume to be ready
-//	volume, err = client.Volumes.WaitForReady(ctx, volume, 60*time.Second)
+//	volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// List all volumes
-//	volumes, err := client.Volumes.List(ctx)
+//	volumes, err := client.Volume.List(ctx)
 type VolumeService struct {
 	client *Client
 	otel   *otelState
@@ -55,7 +55,7 @@ func NewVolumeService(client *Client) *VolumeService {
 //
 // Example:
 //
-//	volumes, err := client.Volumes.List(ctx)
+//	volumes, err := client.Volume.List(ctx)
 //	if err != nil {
 //	    return err
 //	}
@@ -89,7 +89,7 @@ func (v *VolumeService) List(ctx context.Context) ([]*types.Volume, error) {
 //
 // Example:
 //
-//	volume, err := client.Volumes.Get(ctx, "my-data-volume")
+//	volume, err := client.Volume.Get(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
@@ -118,13 +118,13 @@ func (v *VolumeService) Get(ctx context.Context, name string) (*types.Volume, er
 //
 // Example:
 //
-//	volume, err := client.Volumes.Create(ctx, "my-data-volume")
+//	volume, err := client.Volume.Create(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait for volume to be ready
-//	volume, err = client.Volumes.WaitForReady(ctx, volume, 60*time.Second)
+//	volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
 //
 // Returns the created [types.Volume] or an error.
 func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume, error) {
@@ -151,7 +151,7 @@ func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume,
 //
 // Example:
 //
-//	err := client.Volumes.Delete(ctx, volume)
+//	err := client.Volume.Delete(ctx, volume)
 //	if err != nil {
 //	    return err
 //	}
@@ -180,13 +180,13 @@ func (v *VolumeService) Delete(ctx context.Context, volume *types.Volume) error 
 //
 // Example:
 //
-//	volume, err := client.Volumes.Create(ctx, "my-volume")
+//	volume, err := client.Volume.Create(ctx, "my-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait up to 2 minutes for the volume to be ready
-//	volume, err = client.Volumes.WaitForReady(ctx, volume, 2*time.Minute)
+//	volume, err = client.Volume.WaitForReady(ctx, volume, 2*time.Minute)
 //	if err != nil {
 //	    return fmt.Errorf("volume failed to become ready: %w", err)
 //	}

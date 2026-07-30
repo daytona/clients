@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ['support@daytona.io']
 
   spec.summary = 'Ruby SDK for Daytona'
-  spec.description = 'High-level Ruby SDK for Daytona: sandboxes, git, filesystem, LSP, process, and object storage.'
+  spec.description = 'High-level Ruby SDK for Daytona: sandboxes, git, filesystem, LSP, process, and object storage. Requires Ruby >= 3.2.'
   spec.homepage = 'https://github.com/daytona/clients'
   spec.license = 'Apache-2.0'
   spec.required_ruby_version = '>= 3.2.0'

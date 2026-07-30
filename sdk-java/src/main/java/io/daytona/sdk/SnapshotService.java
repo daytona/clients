@@ -165,6 +165,17 @@ public class SnapshotService {
     /**
      * Lists snapshots with pagination.
      *
+     * <pre>{@code
+     * try (Daytona daytona = new Daytona()) {
+     *     PaginatedSnapshots page = daytona.snapshot().list(2, 10);
+     *     System.out.printf("Page %d of %d (%d snapshots total)%n",
+     *             page.getPage(), page.getTotalPages(), page.getTotal());
+     *     for (var snapshot : page.getItems()) {
+     *         System.out.println(snapshot.getName() + " (" + snapshot.getImageName() + ")");
+     *     }
+     * }
+     * }</pre>
+     *
      * @param page page number starting from 1; defaults to 1 when {@code null}
      * @param limit maximum number of items per page; defaults to 10 when {@code null}
      * @return paginated snapshot result

@@ -55,8 +55,9 @@ class AsyncSnapshotService:
         Example:
             ```python
             async with AsyncDaytona() as daytona:
-                result = await daytona.snapshot.list(page=2, limit=10)
-                for snapshot in result.items:
+                page = await daytona.snapshot.list(page=2, limit=10)
+                print(f"Page {page.page} of {page.total_pages} ({page.total} snapshots total)")
+                for snapshot in page.items:
                     print(f"{snapshot.name} ({snapshot.image_name})")
             ```
         """

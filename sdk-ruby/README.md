@@ -6,10 +6,18 @@ The SDK provides an interface for sandbox management, file system operations, Gi
 
 ## Installation
 
+Requires **Ruby >= 3.2**. Check your version with `ruby -v` before installing — on older versions the install fails with a Bundler/RubyGems resolver error rather than a clear message.
+
 Install the package using **gem**:
 
 ```bash
 gem install daytona
+```
+
+or add it to your **Gemfile**:
+
+```ruby
+gem 'daytona'
 ```
 
 ## Get API key
@@ -181,4 +189,46 @@ completions = lsp_server.completions(
   path: 'workspace/project/main.py',
   position: Daytona::LspServer::Position.new(line: 10, character: 15)
 )
+```
+
+## List method return shapes
+
+Each `list` method returns a different shape depending on the resource. The table below shows the exact return type and how to access the elements.
+
+| Method | Return type | Shape | Access elements |
+| --- | --- | --- | --- |
+| `daytona.snapshot.list(page:, limit:)` | `Daytona::PaginatedResource` | Paginated wrapper | `result.items.each` |
+| `daytona.secret.list(cursor:, limit:, ...)` | `Daytona::ListSecretsResponse` | Cursor-paginated wrapper | `page.items.each` |
+| `daytona.volume.list` | `Array<Daytona::Volume>` | Bare array | iterate directly |
+| `daytona.list(query)` | `Enumerator<Daytona::Sandbox>` | Lazy enumerator | `.each { \|s\| ... }` |
+
+`PaginatedResource` and `ListSecretsResponse` are **wrapper objects**, not arrays. Calling `.each` or `.map` directly on them raises `NoMethodError`. Always go through `.items`:
+
+```ruby
+# snapshots — page-number pagination
+result = daytona.snapshot.list(page: 1, limit: 20)
+# result.items       => Array<Daytona::Snapshot>
+# result.total       => Float (total across all pages)
+# result.page        => Float (current page, 1-indexed)
+# result.total_pages => Float
+result.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" }
+
+# secrets — cursor pagination
+cursor = nil
+loop do
+  page = daytona.secret.list(cursor: cursor, limit: 100)
+  # page.items       => Array<Daytona::Secret>
+  # page.total       => Float
+  # page.next_cursor => String | nil (nil = no more pages)
+  page.items.each { |secret| puts secret.name }
+  cursor = page.next_cursor
+  break if cursor.nil?
+end
+
+# volumes — bare array, iterate directly
+daytona.volume.list.each { |vol| puts vol.name }
+
+# sandboxes — lazy enumerator, fetches pages on demand
+query = Daytona::ListSandboxesQuery.new(labels: { 'env' => 'dev' })
+daytona.list(query).each { |sandbox| puts sandbox.id }
 ```

@@ -6,6 +6,10 @@ The SDK provides an interface for sandbox management, file system operations, Gi
 
 ## Installation
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.daytona/sdk?label=io.daytona%3Asdk)](https://central.sonatype.com/artifact/io.daytona/sdk/versions)
+
+Replace `x.y.z` below with the version shown in the badge above.
+
 Add the dependency using **Gradle**:
 
 ```kotlin
@@ -173,4 +177,70 @@ List<LspSymbol> symbols = lsp.documentSymbols("typescript", "path/to/project", "
 
 // Get completions
 CompletionList completions = lsp.completions("typescript", "path/to/project", "path/to/file.ts", 10, 15);
+```
+
+## List method return shapes
+
+Each `list` method returns a different shape depending on the resource. The table below shows the exact return type and how to access the elements.
+
+| Method | Return type | Shape | Access elements |
+| --- | --- | --- | --- |
+| `daytona.snapshot().list(page, limit)` | `PaginatedSnapshots` | Paginated wrapper | `result.getItems()` |
+| `daytona.secret().list(query)` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.getItems()` |
+| `daytona.volume().list()` | `List<Volume>` | Bare list | iterate directly |
+| `daytona.list(query)` | `Iterable<Sandbox>` | Lazy iterable | `for (Sandbox s : daytona.list(...))` |
+| `daytona.listStream(query)` | `Stream<Sandbox>` | Java Stream | `.forEach(...)` / `.filter(...)` |
+
+`PaginatedSnapshots` and `ListSecretsResponse` are **wrapper objects**, not lists. Calling stream or iteration methods directly on them does not compile. Always use the getter:
+
+```java
+import io.daytona.sdk.Daytona;
+import io.daytona.sdk.model.PaginatedSnapshots;
+import io.daytona.sdk.model.ListSecretsResponse;
+import io.daytona.sdk.model.ListSecretsQuery;
+import io.daytona.sdk.model.ListSandboxesQuery;
+
+try (Daytona daytona = new Daytona()) {
+
+    // snapshots — page-number pagination
+    PaginatedSnapshots result = daytona.snapshot().list(1, 20);
+    // result.getItems()      → List<Snapshot>
+    // result.getTotal()      → int (total across all pages)
+    // result.getPage()       → int (current page, 1-indexed)
+    // result.getTotalPages() → int
+    for (var snapshot : result.getItems()) {
+        System.out.println(snapshot.getName());
+    }
+
+    // secrets — cursor pagination
+    ListSecretsQuery query = new ListSecretsQuery();
+    query.setLimit(50);
+    while (true) {
+        ListSecretsResponse page = daytona.secret().list(query);
+        // page.getItems()      → List<Secret>
+        // page.getTotal()      → int
+        // page.getNextCursor() → String | null (null = no more pages)
+        for (var secret : page.getItems()) {
+            System.out.println(secret.getName());
+        }
+        if (page.getNextCursor() == null) break;
+        query.setCursor(page.getNextCursor());
+    }
+
+    // volumes — bare list, iterate directly
+    for (var vol : daytona.volume().list()) {
+        System.out.println(vol.getName());
+    }
+
+    // sandboxes — lazy iterable, fetches pages on demand
+    ListSandboxesQuery sbQuery = new ListSandboxesQuery();
+    for (var sandbox : daytona.list(sbQuery)) {
+        System.out.println(sandbox.getId());
+    }
+
+    // sandboxes — Stream variant (auto-closes on terminal operation)
+    try (var stream = daytona.listStream()) {
+        stream.forEach(sb -> System.out.println(sb.getId()));
+    }
+}
 ```

@@ -58,6 +58,16 @@ public class SecretService {
     /**
      * Lists Secrets in the organization one page at a time, using default query parameters.
      *
+     * <pre>{@code
+     * try (Daytona daytona = new Daytona()) {
+     *     ListSecretsResponse page = daytona.secret().list();
+     *     System.out.printf("Fetched %d of %d secrets%n", page.getItems().size(), page.getTotal());
+     *     for (var secret : page.getItems()) {
+     *         System.out.println(secret.getName() + " (" + secret.getId() + ")");
+     *     }
+     * }
+     * }</pre>
+     *
      * @return page of Secrets; {@code nextCursor} is {@code null} when there are no more pages
      * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
      */
@@ -68,6 +78,25 @@ public class SecretService {
     /**
      * Lists Secrets in the organization one page at a time. Pass the {@code nextCursor} from a
      * previous response as the query {@code cursor} to fetch the next page.
+     *
+     * <pre>{@code
+     * try (Daytona daytona = new Daytona()) {
+     *     ListSecretsQuery query = new ListSecretsQuery();
+     *     query.setLimit(50);
+     *
+     *     while (true) {
+     *         ListSecretsResponse page = daytona.secret().list(query);
+     *         System.out.printf("Fetched %d of %d secrets%n", page.getItems().size(), page.getTotal());
+     *         for (var secret : page.getItems()) {
+     *             System.out.println(secret.getName() + " (" + secret.getId() + ")");
+     *         }
+     *         if (page.getNextCursor() == null) {
+     *             break;
+     *         }
+     *         query.setCursor(page.getNextCursor());
+     *     }
+     * }
+     * }</pre>
      *
      * @param query optional filter, sort, and pagination parameters; may be {@code null}
      * @return page of Secrets; {@code nextCursor} is {@code null} when there are no more pages
