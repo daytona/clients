@@ -25,7 +25,7 @@ import (
 //
 // SnapshotService enables creating, managing, and deleting snapshots that serve as
 // templates for sandboxes. Snapshots can be built from Docker images or custom
-// [DockerImage] definitions with build contexts. Access through [Client.Snapshots].
+// [DockerImage] definitions with build contexts. Access through [Client.Snapshot].
 //
 // Example:
 //
@@ -59,7 +59,7 @@ type SnapshotService struct {
 // NewSnapshotService creates a new SnapshotService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access SnapshotService through [Client.Snapshots] rather than
+// Users should access SnapshotService through [Client.Snapshot] rather than
 // creating it directly.
 func NewSnapshotService(client *Client) *SnapshotService {
 	return &SnapshotService{

@@ -186,10 +186,10 @@ Each `list` method returns a different shape depending on the resource. The tabl
 | Method | Return type | Shape | Access elements |
 | --- | --- | --- | --- |
 | `daytona.snapshot().list(page, limit)` | `PaginatedSnapshots` | Paginated wrapper | `result.getItems()` |
-| `daytona.secret().list(query)` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.getItems()` |
+| `daytona.secret().list()` / `list(query)` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.getItems()` |
 | `daytona.volume().list()` | `List<Volume>` | Bare list | iterate directly |
-| `daytona.list(query)` | `Iterable<Sandbox>` | Lazy iterable | `for (Sandbox s : daytona.list(...))` |
-| `daytona.listStream(query)` | `Stream<Sandbox>` | Java Stream | `.forEach(...)` / `.filter(...)` |
+| `daytona.list()` / `list(query)` | `Iterable<Sandbox>` | Lazy iterable | `for (Sandbox s : daytona.list(...))` |
+| `daytona.listStream()` / `listStream(query)` | `Stream<Sandbox>` | Java Stream | `.forEach(...)` / `.filter(...)` |
 
 `PaginatedSnapshots` and `ListSecretsResponse` are **wrapper objects**, not lists. Calling stream or iteration methods directly on them does not compile. Always use the getter:
 

@@ -5485,7 +5485,7 @@ Returns the updated \[types.Secret\] or an error if the ID is unknown \(404\).
 
 SnapshotService provides snapshot \(image template\) management operations.
 
-SnapshotService enables creating, managing, and deleting snapshots that serve as templates for sandboxes. Snapshots can be built from Docker images or custom [DockerImage](<#DockerImage>) definitions with build contexts. Access through \[Client.Snapshots\].
+SnapshotService enables creating, managing, and deleting snapshots that serve as templates for sandboxes. Snapshots can be built from Docker images or custom [DockerImage](<#DockerImage>) definitions with build contexts. Access through \[Client.Snapshot\].
 
 Example:
 
@@ -5529,7 +5529,7 @@ func NewSnapshotService(client *Client) *SnapshotService
 
 NewSnapshotService creates a new SnapshotService.
 
-This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access SnapshotService through \[Client.Snapshots\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access SnapshotService through \[Client.Snapshot\] rather than creating it directly.
 
 <a name="SnapshotService.Create"></a>
 ### func \(\*SnapshotService\) Create
@@ -5691,7 +5691,7 @@ WithUploadProgress returns an option that enables progress tracking for streamin
 
 VolumeService provides persistent storage volume management operations.
 
-VolumeService enables creating, managing, and deleting persistent storage volumes that can be attached to sandboxes. Volumes persist data independently of sandbox lifecycle and can be shared between sandboxes. Access through \[Client.Volumes\].
+VolumeService enables creating, managing, and deleting persistent storage volumes that can be attached to sandboxes. Volumes persist data independently of sandbox lifecycle and can be shared between sandboxes. Access through \[Client.Volume\].
 
 Example:
 
@@ -5727,7 +5727,7 @@ func NewVolumeService(client *Client) *VolumeService
 
 NewVolumeService creates a new VolumeService.
 
-This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access VolumeService through \[Client.Volumes\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access VolumeService through \[Client.Volume\] rather than creating it directly.
 
 <a name="VolumeService.Create"></a>
 ### func \(\*VolumeService\) Create

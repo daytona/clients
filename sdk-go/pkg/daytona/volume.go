@@ -16,7 +16,7 @@ import (
 //
 // VolumeService enables creating, managing, and deleting persistent storage volumes
 // that can be attached to sandboxes. Volumes persist data independently of sandbox
-// lifecycle and can be shared between sandboxes. Access through [Client.Volumes].
+// lifecycle and can be shared between sandboxes. Access through [Client.Volume].
 //
 // Example:
 //
@@ -42,7 +42,7 @@ type VolumeService struct {
 // NewVolumeService creates a new VolumeService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access VolumeService through [Client.Volumes] rather than
+// Users should access VolumeService through [Client.Volume] rather than
 // creating it directly.
 func NewVolumeService(client *Client) *VolumeService {
 	return &VolumeService{
