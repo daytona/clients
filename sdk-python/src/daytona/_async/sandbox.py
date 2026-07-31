@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
@@ -85,7 +86,7 @@ def with_events(cls: _T) -> _T:
         if not callable(method):
             continue
 
-        if asyncio.iscoroutinefunction(method):
+        if inspect.iscoroutinefunction(method):
 
             @functools.wraps(method)
             async def async_wrapper(self: Any, *args: Any, _m: Any = method, **kwargs: Any) -> Any:

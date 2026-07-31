@@ -3,7 +3,6 @@
 
 """OpenTelemetry instrumentation decorators for tracing and metrics."""
 
-import asyncio
 import functools
 import inspect
 import time
@@ -119,7 +118,7 @@ def with_span(
 
             return cast(F, sync_gen_wrapper)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args: object, **kwargs: object) -> object:
@@ -246,7 +245,7 @@ def with_metric(
 
             return cast(F, sync_gen_wrapper)
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
