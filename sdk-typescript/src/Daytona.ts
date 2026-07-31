@@ -44,6 +44,8 @@ import type { NodeSDK } from '@opentelemetry/sdk-node'
 
 export const CODE_TOOLBOX_LANGUAGE_LABEL = 'code-toolbox-language'
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 24 * 60 * 60 * 1000
+
 /**
  * Represents a volume mount for a Sandbox.
  *
@@ -108,6 +110,19 @@ export interface DaytonaConfig {
    * WebSockets are unavailable.
    */
   useDeprecatedPolling?: boolean
+  /**
+   * Maximum time in milliseconds the SDK waits for a single HTTP response before
+   * failing the request. Applies to the Daytona API client and to the toolbox
+   * clients of every Sandbox obtained from this Daytona instance. Defaults to
+   * 24 hours; `0` disables the deadline.
+   *
+   * This is a client-side deadline only — it does not cancel the operation on
+   * the server. Calls that carry their own operation or execution timeout
+   * (e.g. `create`, `start`, `stop`, `fork`, `process.executeCommand`,
+   * `process.codeRun`) are not capped by this value; their HTTP wait is
+   * bounded by that per-call timeout instead.
+   */
+  requestTimeoutMs?: number
   /** Configuration for experimental features */
   _experimental?: Record<string, any>
 }
@@ -287,6 +302,7 @@ export class Daytona implements AsyncDisposable {
   private readonly jwtToken?: string
   private readonly organizationId?: string
   private readonly apiUrl: string
+  private readonly requestTimeoutMs?: number
   private otelSdk?: NodeSDK
   private eventDispatcher?: EventDispatcher
   private eventSubscriptionManager: EventSubscriptionManager
@@ -309,6 +325,13 @@ export class Daytona implements AsyncDisposable {
       this.organizationId = config?.organizationId
       apiUrl = config?.apiUrl || config?.serverUrl
       this.target = config?.target
+      if (
+        config?.requestTimeoutMs !== undefined &&
+        (!Number.isFinite(config.requestTimeoutMs) || config.requestTimeoutMs < 0)
+      ) {
+        throw new DaytonaInvalidArgumentError('requestTimeoutMs must be a non-negative finite number of milliseconds')
+      }
+      this.requestTimeoutMs = config?.requestTimeoutMs
     }
 
     let _envReader: DaytonaEnvReader | null | undefined
@@ -375,7 +398,7 @@ export class Daytona implements AsyncDisposable {
       },
     })
 
-    const axiosInstance = Daytona.createAxiosInstance()
+    const axiosInstance = Daytona.createAxiosInstance(this.requestTimeoutMs)
 
     this.sandboxApi = new SandboxApi(configuration, '', axiosInstance)
     this.objectStorageApi = new ObjectStorageApi(configuration, '', axiosInstance)
@@ -721,7 +744,7 @@ export class Daytona implements AsyncDisposable {
       const sandbox = new Sandbox(
         await this.ensureToolboxProxyUrl(sandboxInstance),
         new Configuration(structuredClone(this.clientConfig)),
-        Daytona.createAxiosInstance(),
+        Daytona.createAxiosInstance(this.requestTimeoutMs),
         this.sandboxApi,
         this.getAnalyticsApiUrl,
         this.eventSubscriptionManager,
@@ -763,7 +786,7 @@ export class Daytona implements AsyncDisposable {
     return new Sandbox(
       sandboxInstance,
       structuredClone(this.clientConfig),
-      Daytona.createAxiosInstance(),
+      Daytona.createAxiosInstance(this.requestTimeoutMs),
       this.sandboxApi,
       this.getAnalyticsApiUrl,
       this.eventSubscriptionManager,
@@ -782,7 +805,7 @@ export class Daytona implements AsyncDisposable {
    * }
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
-    const { sandboxApi, clientConfig, eventSubscriptionManager } = this
+    const { sandboxApi, clientConfig, eventSubscriptionManager, requestTimeoutMs } = this
     const getAnalyticsApiUrl = this.getAnalyticsApiUrl
     const ensureToolboxProxyUrl = this.ensureToolboxProxyUrl.bind(this)
     const tracer = trace.getTracer('')
@@ -862,7 +885,7 @@ export class Daytona implements AsyncDisposable {
           yield new Sandbox(
             hydratedSandbox,
             structuredClone(clientConfig),
-            Daytona.createAxiosInstance(),
+            Daytona.createAxiosInstance(requestTimeoutMs),
             sandboxApi,
             getAnalyticsApiUrl,
             eventSubscriptionManager,
@@ -970,9 +993,9 @@ export class Daytona implements AsyncDisposable {
   /**
    * @hidden
    */
-  public static createAxiosInstance(): AxiosInstance {
+  public static createAxiosInstance(requestTimeoutMs?: number): AxiosInstance {
     const axiosInstance = axios.create({
-      timeout: 24 * 60 * 60 * 1000, // 24 hours
+      timeout: requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     })
 
     // Request interceptor: Inject trace context into headers

@@ -209,13 +209,26 @@ describe('Domain code classification with status-class inheritance', () => {
 
 describe('Axios error mapping', () => {
   it('classifies Axios timeouts as DaytonaConnectionTimeoutError', () => {
-    const error = new AxiosError('timeout of 1000ms exceeded', 'ECONNABORTED')
+    const error = new AxiosError('timeout of 1000ms exceeded', 'ECONNABORTED', { timeout: 1000 } as never)
 
     const daytonaError = createAxiosDaytonaError(error)
 
     expect(daytonaError).toBeInstanceOf(DaytonaConnectionTimeoutError)
     expect(daytonaError).toBeInstanceOf(DaytonaConnectionError)
-    expect(daytonaError.message).toBe('Operation timed out')
+    expect(daytonaError.message).toBe(
+      'HTTP request timed out after 1000ms waiting for a response. This is a client-side deadline' +
+        ' (DaytonaConfig.requestTimeoutMs, or the per-call operation/execution timeout); any operation' +
+        ' already started on the server may still be running.',
+    )
+  })
+
+  it('omits the deadline value when the request config carries no timeout', () => {
+    const error = new AxiosError('timeout of 0ms exceeded', 'ETIMEDOUT')
+
+    const daytonaError = createAxiosDaytonaError(error)
+
+    expect(daytonaError).toBeInstanceOf(DaytonaConnectionTimeoutError)
+    expect(daytonaError.message).toContain('HTTP request timed out waiting for a response')
   })
 
   it('classifies network failures without a response as DaytonaConnectionError', () => {

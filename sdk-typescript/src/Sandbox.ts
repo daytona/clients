@@ -296,7 +296,11 @@ export class Sandbox {
       basePath: analyticsApiUrl,
       apiKey: this.clientConfig.baseOptions?.headers?.Authorization,
     })
-    return new AnalyticsTelemetryApi(analyticsConfig, undefined, Daytona.createAxiosInstance())
+    return new AnalyticsTelemetryApi(
+      analyticsConfig,
+      undefined,
+      Daytona.createAxiosInstance(this.axiosInstance.defaults.timeout),
+    )
   }
 
   /**
@@ -496,7 +500,7 @@ export class Sandbox {
     const forkedSandbox = new Sandbox(
       sandboxWithProxyUrl,
       structuredClone(this.clientConfig),
-      Daytona.createAxiosInstance(),
+      Daytona.createAxiosInstance(this.axiosInstance.defaults.timeout),
       this.sandboxApi,
       this.getAnalyticsApiUrl,
       this.subscriptionManager,

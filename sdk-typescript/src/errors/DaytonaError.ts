@@ -313,7 +313,13 @@ function extractAxiosErrorSource(responseData?: Record<string, unknown>): string
 
 function extractAxiosErrorMessage(error: AxiosError): string {
   if (isAxiosTimeoutError(error)) {
-    return 'Operation timed out'
+    const deadline =
+      typeof error.config?.timeout === 'number' && error.config.timeout > 0 ? ` after ${error.config.timeout}ms` : ''
+    return (
+      `HTTP request timed out${deadline} waiting for a response. This is a client-side deadline` +
+      ' (DaytonaConfig.requestTimeoutMs, or the per-call operation/execution timeout); any operation' +
+      ' already started on the server may still be running.'
+    )
   }
 
   const responseData = getAxiosResponseDataObject(error)

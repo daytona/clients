@@ -216,6 +216,52 @@ describe('Daytona', () => {
     delete process.env.DAYTONA_USE_DEPRECATED_POLLING
   })
 
+  it('creates axios instances with the 24h default timeout when requestTimeoutMs is omitted', async () => {
+    const { Daytona } = await import('../Daytona')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 24 * 60 * 60 * 1000 }))
+  })
+
+  it('applies requestTimeoutMs to the API client axios instance', async () => {
+    const { Daytona } = await import('../Daytona')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', requestTimeoutMs: 5000 })
+
+    expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 5000 }))
+  })
+
+  it('disables the HTTP timeout when requestTimeoutMs is 0', async () => {
+    const { Daytona } = await import('../Daytona')
+
+    new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', requestTimeoutMs: 0 })
+
+    expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 0 }))
+  })
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid requestTimeoutMs %p', async (value) => {
+    const { Daytona } = await import('../Daytona')
+
+    expect(() => new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', requestTimeoutMs: value })).toThrow(
+      'requestTimeoutMs must be a non-negative finite number of milliseconds',
+    )
+  })
+
+  it('propagates requestTimeoutMs to sandbox toolbox axios instances', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us', requestTimeoutMs: 7000 })
+
+    mockSandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-timeout', state: 'started', toolboxProxyUrl: 'http://sandbox-proxy/' }),
+    )
+    mockAxiosCreate.mockClear()
+
+    await instance.get('sb-timeout')
+
+    expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 7000 }))
+  })
+
   it('reads constructor values from env when config omitted', async () => {
     process.env.DAYTONA_API_KEY = 'env-key'
     process.env.DAYTONA_API_URL = 'https://env.daytona/api'
