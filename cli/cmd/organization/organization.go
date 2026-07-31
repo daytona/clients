@@ -31,4 +31,5 @@ func init() {
 	OrganizationCmd.AddCommand(CreateCmd)
 	OrganizationCmd.AddCommand(UseCmd)
 	OrganizationCmd.AddCommand(DeleteCmd)
+	OrganizationCmd.AddCommand(MembersCmd)
 }
