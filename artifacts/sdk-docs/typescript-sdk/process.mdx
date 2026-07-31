@@ -41,7 +41,8 @@ new Process(
    clientConfig: Configuration, 
    apiClient: ProcessApi, 
    getPreviewToken: () => Promise<string>, 
-   language?: string): Process
+   language?: string, 
+   requestTimeoutMs?: number): Process
 ```
 
 **Parameters**:
@@ -50,6 +51,7 @@ new Process(
 - `apiClient` _ProcessApi_
 - `getPreviewToken` _\(\) =\> Promise\<string\>_
 - `language?` _string_
+- `requestTimeoutMs?` _number_
 
 
 **Returns**:

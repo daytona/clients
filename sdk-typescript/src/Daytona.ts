@@ -748,6 +748,7 @@ export class Daytona implements AsyncDisposable {
         this.sandboxApi,
         this.getAnalyticsApiUrl,
         this.eventSubscriptionManager,
+        this.requestTimeoutMs,
       )
 
       if (sandbox.state !== 'started') {
@@ -790,6 +791,7 @@ export class Daytona implements AsyncDisposable {
       this.sandboxApi,
       this.getAnalyticsApiUrl,
       this.eventSubscriptionManager,
+      this.requestTimeoutMs,
     )
   }
 
@@ -889,6 +891,7 @@ export class Daytona implements AsyncDisposable {
             sandboxApi,
             getAnalyticsApiUrl,
             eventSubscriptionManager,
+            requestTimeoutMs,
           )
         }
 

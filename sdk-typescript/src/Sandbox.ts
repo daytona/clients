@@ -194,6 +194,7 @@ export class Sandbox {
     private readonly sandboxApi: SandboxApi,
     private readonly getAnalyticsApiUrl: () => Promise<string | undefined>,
     private readonly subscriptionManager: EventSubscriptionManager,
+    private readonly requestTimeoutMs?: number,
   ) {
     this.processSandboxDto(sandboxDto)
 
@@ -207,6 +208,7 @@ export class Sandbox {
       new ProcessApi(this.clientConfig, '', this.axiosInstance),
       getPreviewToken,
       language,
+      this.requestTimeoutMs,
     )
     this.codeInterpreter = new CodeInterpreter(
       this.clientConfig,
@@ -296,11 +298,7 @@ export class Sandbox {
       basePath: analyticsApiUrl,
       apiKey: this.clientConfig.baseOptions?.headers?.Authorization,
     })
-    return new AnalyticsTelemetryApi(
-      analyticsConfig,
-      undefined,
-      Daytona.createAxiosInstance(this.axiosInstance.defaults.timeout),
-    )
+    return new AnalyticsTelemetryApi(analyticsConfig, undefined, Daytona.createAxiosInstance(this.requestTimeoutMs))
   }
 
   /**
@@ -500,10 +498,11 @@ export class Sandbox {
     const forkedSandbox = new Sandbox(
       sandboxWithProxyUrl,
       structuredClone(this.clientConfig),
-      Daytona.createAxiosInstance(this.axiosInstance.defaults.timeout),
+      Daytona.createAxiosInstance(this.requestTimeoutMs),
       this.sandboxApi,
       this.getAnalyticsApiUrl,
       this.subscriptionManager,
+      this.requestTimeoutMs,
     )
 
     const timeElapsed = Date.now() - startTime

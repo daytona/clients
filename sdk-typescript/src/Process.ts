@@ -35,17 +35,6 @@ const PTY_EXIT_CONTROL_SUBPROTOCOL = 'X-Daytona-Pty-Exit-Control'
 // mirroring Go's execContext (timeout + 5s) and Python's `_request_timeout = timeout + 5`.
 const EXEC_TIMEOUT_BUFFER_MS = 5000
 
-// With an explicit execution timeout the HTTP wait must not be capped by the
-// client-wide timeout (DaytonaConfig.requestTimeoutMs): the request is bounded
-// by the execution timeout + buffer instead. A non-positive timeout leaves the
-// wait uncapped (0 disables the server-side limit; negatives fail fast at the API).
-function execRequestOptions(timeout?: number): RawAxiosRequestConfig | undefined {
-  if (timeout === undefined) {
-    return undefined
-  }
-  return { timeout: timeout > 0 ? timeout * 1000 + EXEC_TIMEOUT_BUFFER_MS : 0 }
-}
-
 /**
  * Parameters for code execution.
  */
@@ -82,7 +71,21 @@ export class Process {
     private readonly apiClient: ProcessApi,
     private readonly getPreviewToken: () => Promise<string>,
     private readonly language?: string,
+    private readonly requestTimeoutMs?: number,
   ) {}
+
+  // With an explicit execution timeout the HTTP wait must not be capped by a
+  // configured bounded DaytonaConfig.requestTimeoutMs: the request is bounded by
+  // the execution timeout + buffer instead. A non-positive execution timeout
+  // leaves the wait uncapped (0 disables the server-side limit; negatives fail
+  // fast at the API). Without a configured positive requestTimeoutMs no override
+  // is applied, preserving the client-wide default deadline as-is.
+  private execRequestOptions(timeout?: number): RawAxiosRequestConfig | undefined {
+    if (timeout === undefined || this.requestTimeoutMs === undefined || this.requestTimeoutMs <= 0) {
+      return undefined
+    }
+    return { timeout: timeout > 0 ? timeout * 1000 + EXEC_TIMEOUT_BUFFER_MS : 0 }
+  }
 
   /**
    * Executes a shell command in the Sandbox.
@@ -125,7 +128,7 @@ export class Process {
         cwd: cwd,
         envs: env && Object.keys(env).length ? env : undefined,
       },
-      execRequestOptions(timeout),
+      this.execRequestOptions(timeout),
     )
 
     const result = response.data.result ?? ''
@@ -211,7 +214,7 @@ export class Process {
       envs: params?.env,
       timeout,
     }
-    const response = await this.apiClient.codeRun(request, execRequestOptions(timeout))
+    const response = await this.apiClient.codeRun(request, this.execRequestOptions(timeout))
     const data = response.data
 
     const charts = data.artifacts?.charts?.map(parseChart) ?? []
