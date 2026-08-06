@@ -13,6 +13,7 @@ import {
   SandboxState,
   SecretApi,
   VolumesApi,
+  WarmPoolsApi,
   ConfigApi,
 } from '@daytona/api-client'
 import type { GpuType, SandboxVolume } from '@daytona/api-client'
@@ -31,6 +32,7 @@ import type { ListSandboxesQuery } from './Sandbox'
 import { SecretService } from './Secret'
 import { SnapshotService } from './Snapshot'
 import { VolumeService } from './Volume'
+import { WarmPoolService } from './WarmPool'
 import { getPackageInfo, dynamicRequire } from './utils/Import'
 import { EventDispatcher } from './utils/EventDispatcher'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
@@ -252,6 +254,7 @@ export type ForkSandboxParams = {
  * @property {VolumeService} volume - Service for managing Daytona Volumes
  * @property {SnapshotService} snapshot - Service for managing Daytona Snapshots
  * @property {SecretService} secret - Service for managing Daytona Secrets
+ * @property {WarmPoolService} warmPool - Service for managing Daytona Warm Pools
  *
  * @example
  * // Using environment variables
@@ -309,6 +312,7 @@ export class Daytona implements AsyncDisposable {
   public readonly volume: VolumeService
   public readonly snapshot: SnapshotService
   public readonly secret: SecretService
+  public readonly warmPool: WarmPoolService
 
   /**
    * Creates a new Daytona client instance.
@@ -405,6 +409,7 @@ export class Daytona implements AsyncDisposable {
     this.configApi = new ConfigApi(configuration, '', axiosInstance)
     this.volume = new VolumeService(new VolumesApi(configuration, '', axiosInstance))
     this.secret = new SecretService(new SecretApi(configuration, '', axiosInstance))
+    this.warmPool = new WarmPoolService(new WarmPoolsApi(configuration, '', axiosInstance))
     this.snapshot = new SnapshotService(
       configuration,
       new SnapshotsApi(configuration, '', axiosInstance),

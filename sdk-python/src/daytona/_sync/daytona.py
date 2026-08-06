@@ -26,6 +26,7 @@ from daytona_api_client import ApiClient, ConfigApi, Configuration, CreateBuildI
 from daytona_api_client import GpuType as SyncGpuType
 from daytona_api_client import ObjectStorageApi, SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
+from daytona_api_client import WarmPoolsApi
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
@@ -53,6 +54,7 @@ from .sandbox import Sandbox
 from .secret import SecretService
 from .snapshot import SnapshotService
 from .volume import VolumeService
+from .warm_pool import WarmPoolService
 
 
 class Daytona:
@@ -65,6 +67,7 @@ class Daytona:
         volume (VolumeService): Service for managing volumes.
         snapshot (SnapshotService): Service for managing snapshots.
         secret (SecretService): Service for managing secrets.
+        warm_pool (WarmPoolService): Service for managing warm pools.
 
     Example:
         Using environment variables:
@@ -244,6 +247,7 @@ class Daytona:
             SnapshotsApi(self._api_client), self._object_storage_api, self._target
         )
         self.secret: SecretService = SecretService(SecretApi(self._api_client))
+        self.warm_pool: WarmPoolService = WarmPoolService(WarmPoolsApi(self._api_client))
 
         env = env_reader or DaytonaEnvReader()
         use_deprecated_polling = resolve_bool_flag(

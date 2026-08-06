@@ -236,6 +236,44 @@ type ListSecretsResponse struct {
 	NextCursor *string
 }
 
+// WarmPool represents a warm pool of ready-to-use sandboxes for a snapshot.
+//
+// CurrentSize versus Pool is the pool's status: CurrentSize is the number of
+// ready warm sandboxes, Pool is the desired number. ErrorReason is set when
+// the pool cannot be filled.
+type WarmPool struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organizationId"`
+	// Snapshot is the snapshot the pool keeps warm sandboxes for.
+	Snapshot string `json:"snapshot"`
+	// Target is the target region of the pool.
+	Target string `json:"target"`
+	// Pool is the desired number of warm sandboxes.
+	Pool int `json:"pool"`
+	// CurrentSize is the current number of ready warm sandboxes in the pool.
+	CurrentSize int               `json:"currentSize"`
+	CPU         int               `json:"cpu"`
+	Mem         int               `json:"mem"`
+	Disk        int               `json:"disk"`
+	OsUser      string            `json:"osUser"`
+	Env         map[string]string `json:"env"`
+	// ErrorReason is set when the pool cannot be filled.
+	ErrorReason *string   `json:"errorReason,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// CreateWarmPoolParams contains parameters for creating a warm pool.
+type CreateWarmPoolParams struct {
+	// Snapshot is the snapshot (ID or name) to keep warm sandboxes for.
+	Snapshot string
+	// Pool is the number of warm sandboxes to keep ready.
+	Pool int
+	// Target is the target region for the warm pool. Defaults to the
+	// organization default region when nil.
+	Target *string
+}
+
 // Snapshot represents a Daytona snapshot
 type Snapshot struct {
 	ID             string     `json:"id"`

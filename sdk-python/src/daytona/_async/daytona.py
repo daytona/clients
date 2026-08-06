@@ -40,6 +40,7 @@ from daytona_api_client_async import (
     SnapshotsApi,
 )
 from daytona_api_client_async import VolumesApi as VolumesApi
+from daytona_api_client_async import WarmPoolsApi
 from daytona_toolbox_api_client_async import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
@@ -67,6 +68,7 @@ from .sandbox import AsyncSandbox
 from .secret import AsyncSecretService
 from .snapshot import AsyncSnapshotService
 from .volume import AsyncVolumeService
+from .warm_pool import AsyncWarmPoolService
 
 _MISSING_HAPPY_EYEBALLS_DELAY = object()
 
@@ -112,6 +114,7 @@ class AsyncDaytona:
         volume (AsyncVolumeService): Service for managing volumes.
         snapshot (AsyncSnapshotService): Service for managing snapshots.
         secret (AsyncSecretService): Service for managing secrets.
+        warm_pool (AsyncWarmPoolService): Service for managing warm pools.
 
     Example:
         Using environment variables:
@@ -312,6 +315,7 @@ class AsyncDaytona:
             self._shared_session,
         )
         self.secret: AsyncSecretService = AsyncSecretService(SecretApi(self._api_client))
+        self.warm_pool: AsyncWarmPoolService = AsyncWarmPoolService(WarmPoolsApi(self._api_client))
 
         use_deprecated_polling = resolve_bool_flag(
             config.use_deprecated_polling if config else None,

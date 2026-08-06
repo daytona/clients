@@ -103,6 +103,7 @@ if TYPE_CHECKING:
     from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
     from .common.snapshot import CreateSnapshotParams
     from .common.volume import VolumeMount
+    from .common.warm_pool import WarmPool
 
 __all__ = [
     "Daytona",
@@ -139,6 +140,7 @@ __all__ = [
     "CancelEvent",
     "FileUpload",
     "VolumeMount",
+    "WarmPool",
     "Secret",
     "CreateSecretParams",
     "UpdateSecretParams",
@@ -319,6 +321,8 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateSnapshotParams": "common.snapshot",
     # common.volume
     "VolumeMount": "common.volume",
+    # common.warm_pool
+    "WarmPool": "common.warm_pool",
     # common.secret
     "Secret": "common.secret",
     "CreateSecretParams": "common.secret",
