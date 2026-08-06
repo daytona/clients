@@ -74,7 +74,7 @@ The dashboard provides comprehensive monitoring across multiple pages:
 The dashboard uses template variables for flexible filtering:
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `$datasource` | Prometheus data source selector | Auto-detected |
 | `$service` | Filter by `service_name` label (multi-select) | All services |
 | `$interval` | Time aggregation interval (for custom panels) | 1m |
@@ -94,7 +94,7 @@ The `$interval` variable is available for custom panels you may add:
 ### Resource Overview Page
 
 | Widget | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | Sandbox Count | Stat | Total number of active sandboxes reporting metrics |
 | Critical Services | Stat | Count of services exceeding resource thresholds (with color coding) |
 | Services Resource Overview | Table | Detailed metrics per service (CPU%, Memory%, Disk%, limits) |
@@ -109,7 +109,7 @@ The `$interval` variable is available for custom panels you may add:
 ### CPU Details Page
 
 | Widget | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | CPU Utilization Timeseries | Time Series | Detailed CPU usage over time per service |
 | Current CPU by Service | Stat | Current CPU % with threshold coloring |
 | CPU Limit by Service | Table | CPU cores limit, average, and peak usage |
@@ -118,7 +118,7 @@ The `$interval` variable is available for custom panels you may add:
 ### Memory Details Page
 
 | Widget | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | Memory Utilization Timeseries | Time Series | Memory usage percentage over time |
 | Current Memory by Service | Stat | Current memory % with threshold coloring |
 | Memory Usage in GB | Time Series (Area) | Absolute memory usage in gigabytes |
@@ -127,7 +127,7 @@ The `$interval` variable is available for custom panels you may add:
 ### Disk Details Page
 
 | Widget | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | Disk Utilization Timeseries | Time Series | Disk usage percentage over time |
 | Current Disk by Service | Stat | Current disk % with threshold coloring |
 | Disk Usage in GB | Time Series (Area) | Absolute disk usage in gigabytes |
@@ -138,7 +138,7 @@ The `$interval` variable is available for custom panels you may add:
 The dashboard includes pre-configured color thresholds for visual alerting:
 
 | Resource | Warning (Yellow) | Critical (Red) |
-|----------|-----------------|----------------|
+| ---------- | ----------------- | ---------------- |
 | CPU | 70% | 85% |
 | Memory | 80% | 90% |
 | Disk | 75% | 85% |
@@ -150,7 +150,7 @@ These thresholds are configured in stat panels and provide immediate visual feed
 All metrics follow the OTEL to Prometheus naming convention (dots become underscores, units are appended as suffixes):
 
 | OTEL Metric | Prometheus Metric | Description | Unit |
-|-------------|-------------------|-------------|------|
+| ------------- | ------------------- | ------------- | ------ |
 | `daytona.sandbox.cpu.utilization` | `daytona_sandbox_cpu_utilization_percent` | CPU usage percentage | % (0-100) |
 | `daytona.sandbox.cpu.limit` | `daytona_sandbox_cpu_limit_cores` | CPU cores limit | cores |
 | `daytona.sandbox.memory.utilization` | `daytona_sandbox_memory_utilization_percent` | Memory usage percentage | % (0-100) |

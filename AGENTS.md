@@ -7,7 +7,7 @@ Use the Nix dev shells (`nix develop`) when running builds locally — this repo
 ## Dev Shells
 
 | Shell | Command | Use |
-|---|---|---|
+| --- | --- | --- |
 | `default` | `nix develop` | All client toolchains |
 | `go` | `nix develop .#go` | CLI, Go SDK, Go generated clients |
 | `node` | `nix develop .#node` | TypeScript SDK and generated clients |
@@ -20,7 +20,7 @@ Each shell **auto-installs** its language's dependencies on first entry (idempot
 ## Project Map
 
 | Path | Purpose |
-|---|---|
+| --- | --- |
 | `cli` | Daytona CLI and embedded MCP server (Go) |
 | `sdk-typescript` | TypeScript SDK (`@daytona/sdk`) |
 | `sdk-python` | Python SDK (`daytona`) |

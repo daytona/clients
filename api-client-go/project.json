@@ -10,12 +10,13 @@
     },
     "build": {
       "executor": "@nx-go/nx-go:build",
+      "outputs": ["{workspaceRoot}/dist/api-client-go"],
       "inputs": [
         "goProduction"
       ],
       "options": {
-        "main": "./{projectRoot}",
-        "outputPath": "dist/api-client-go"
+        "main": ".",
+        "outputPath": "../dist/api-client-go"
       }
     },
     "lint": {

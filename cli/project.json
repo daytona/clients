@@ -7,10 +7,11 @@
   "targets": {
     "build": {
       "executor": "@nx-go/nx-go:build",
+      "outputs": ["{workspaceRoot}/dist/cli/cli"],
       "inputs": ["goProduction"],
       "options": {
-        "main": "{projectRoot}/main.go",
-        "outputPath": "dist/cli/cli"
+        "main": "main.go",
+        "outputPath": "../dist/cli/cli"
       }
     },
     "format": {

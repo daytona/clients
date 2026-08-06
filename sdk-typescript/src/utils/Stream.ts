@@ -223,7 +223,7 @@ export function stdDemuxStream(
 
         // Calculate how many bytes we can safely process
         // We need to keep bytes that could potentially be the start of a prefix marker
-        let safeLen = buf.length
+        let safeLen: number
 
         // Check if the last few bytes could be part of a prefix marker
         if (buf.length >= MAX_PREFIX_LEN) {

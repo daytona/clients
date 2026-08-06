@@ -17,7 +17,7 @@ hideTitleOnPage: true
 ## parseChart()
 
 ```ts
-function parseChart(chart: Chart): Chart
+function parseChart(chart: Chart): Chart;
 ```
 
 **Parameters**:
@@ -40,9 +40,15 @@ type BarChart = Chart2D & {
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"bar"_
+#### type
+
+```ts
+type: "bar";
+```
+
+***
 
 
 ## BarData
@@ -62,9 +68,15 @@ type BoxAndWhiskerChart = Chart2D & {
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"box\_and\_whisker"_
+#### type
+
+```ts
+type: "box_and_whisker";
+```
+
+***
 
 
 ## BoxAndWhiskerData
@@ -111,9 +123,15 @@ type CompositeChart = Pick<GeneratedChart, "type" | "title" | "png" | "elements"
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"composite\_chart"_
+#### type
+
+```ts
+type: "composite_chart";
+```
+
+***
 
 
 ## LineChart
@@ -124,9 +142,15 @@ type LineChart = PointChart & {
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"line"_
+#### type
+
+```ts
+type: "line";
+```
+
+***
 
 
 ## PieChart
@@ -137,9 +161,15 @@ type PieChart = Pick<GeneratedChart, "type" | "title" | "png" | "elements"> & {
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"pie"_
+#### type
+
+```ts
+type: "pie";
+```
+
+***
 
 
 ## PieData
@@ -189,7 +219,10 @@ type ScatterChart = PointChart & {
 };
 ```
 
-**Type declaration**:
+### Type Declaration
 
-- `type` _"scatter"_
+#### type
 
+```ts
+type: "scatter";
+```

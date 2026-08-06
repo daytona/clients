@@ -1391,7 +1391,7 @@ export class Sandbox {
       const doPoll = async () => {
         if (settled) return
 
-        let refreshed = false
+        let refreshed: boolean
         try {
           if (safeRefresh) {
             refreshed = await this.refreshDataSafe()

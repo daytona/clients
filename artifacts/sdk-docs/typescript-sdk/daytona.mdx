@@ -53,10 +53,10 @@ await using daytona = new Daytona({
 
 ### Constructors
 
-#### new Daytona()
+#### Constructor
 
 ```ts
-new Daytona(config?: DaytonaConfig): Daytona
+new Daytona(config?: DaytonaConfig): Daytona;
 ```
 
 Creates a new Daytona client instance.
@@ -84,7 +84,7 @@ When JWT token is provided without an organization ID
 _experimental_fork(
    sandbox: Sandbox, 
    params?: ForkSandboxParams, 
-timeout?: number): Promise<Sandbox>
+timeout?: number): Promise<Sandbox>;
 ```
 
 **Parameters**:
@@ -106,12 +106,10 @@ Use `fork` instead. This method will be removed in a future version.
 
 Daytona.fork
 
-***
-
 #### \[asyncDispose\]()
 
 ```ts
-asyncDispose: Promise<void>
+asyncDispose: Promise<void>;
 ```
 
 **Returns**:
@@ -124,16 +122,14 @@ asyncDispose: Promise<void>
 AsyncDisposable.[asyncDispose]
 ```
 
-***
-
 #### create()
 
 ##### Call Signature
 
 ```ts
 create(params?: CreateSandboxFromSnapshotParams, options?: {
-  timeout: number;
-}): Promise<Sandbox>
+  timeout?: number;
+}): Promise<Sandbox>;
 ```
 
 Creates Sandboxes from specified or default snapshot. You can specify various parameters,
@@ -175,9 +171,9 @@ const sandbox = await daytona.create(params, { timeout: 100 });
 
 ```ts
 create(params?: CreateSandboxFromImageParams, options?: {
-  onSnapshotCreateLogs: (chunk: string) => void;
-  timeout: number;
-}): Promise<Sandbox>
+  onSnapshotCreateLogs?: (chunk: string) => void;
+  timeout?: number;
+}): Promise<Sandbox>;
 ```
 
 Creates Sandboxes from specified image available on some registry or declarative Daytona Image. You can specify various parameters,
@@ -222,15 +218,13 @@ const params: CreateSandboxFromImageParams = {
 const sandbox = await daytona.create(params, { timeout: 100, onSnapshotCreateLogs: console.log });
 ```
 
-***
-
 #### delete()
 
 ```ts
 delete(
    sandbox: Sandbox, 
-   timeout: number, 
-wait: boolean): Promise<void>
+   timeout?: number, 
+wait?: boolean): Promise<void>;
 ```
 
 Deletes a Sandbox.
@@ -238,8 +232,8 @@ Deletes a Sandbox.
 **Parameters**:
 
 - `sandbox` _Sandbox_ - The Sandbox to delete
-- `timeout` _number = 60_ - Timeout in seconds (0 means no timeout, default is 60)
-- `wait` _boolean = false_ - If true, wait until the Sandbox is destroyed (default is false)
+- `timeout?` _number = 60_ - Timeout in seconds (0 means no timeout, default is 60)
+- `wait?` _boolean = false_ - If true, wait until the Sandbox is destroyed (default is false)
 
 
 **Returns**:
@@ -253,15 +247,13 @@ const sandbox = await daytona.get('my-sandbox-id');
 await daytona.delete(sandbox);
 ```
 
-***
-
 #### fork()
 
 ```ts
 fork(
    sandbox: Sandbox, 
    params?: ForkSandboxParams, 
-timeout?: number): Promise<Sandbox>
+timeout?: number): Promise<Sandbox>;
 ```
 
 Forks a Sandbox, creating a new Sandbox with an identical filesystem.
@@ -285,12 +277,10 @@ const forked = await daytona.fork(sandbox, { name: 'my-fork' });
 console.log(`Forked sandbox: ${forked.id}`);
 ```
 
-***
-
 #### get()
 
 ```ts
-get(sandboxIdOrName: string): Promise<Sandbox>
+get(sandboxIdOrName: string): Promise<Sandbox>;
 ```
 
 Gets a Sandbox by its ID or name.
@@ -311,12 +301,10 @@ const sandbox = await daytona.get('my-sandbox-id-or-name');
 console.log(`Sandbox state: ${sandbox.state}`);
 ```
 
-***
-
 #### list()
 
 ```ts
-list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox>
+list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox>;
 ```
 
 Iterates over Sandboxes matching the given query.
@@ -338,12 +326,10 @@ for await (const sandbox of daytona.list({ labels: { env: 'dev' } })) {
 }
 ```
 
-***
-
 #### start()
 
 ```ts
-start(sandbox: Sandbox, timeout?: number): Promise<void>
+start(sandbox: Sandbox, timeout?: number): Promise<void>;
 ```
 
 Starts a Sandbox and waits for it to be ready.
@@ -366,12 +352,10 @@ const sandbox = await daytona.get('my-sandbox-id');
 await daytona.start(sandbox, 60);
 ```
 
-***
-
 #### stop()
 
 ```ts
-stop(sandbox: Sandbox): Promise<void>
+stop(sandbox: Sandbox): Promise<void>;
 ```
 
 Stops a Sandbox.
@@ -578,18 +562,19 @@ Represents a volume mount for a Sandbox.
 
 ```ts
 type ForkSandboxParams = {
-  name: string;
+  name?: string;
 };
 ```
 
-Parameters for forking a Sandbox.
-
-**Type declaration**:
+**Properties**:
 
 - `name?` _string_ - Optional name for the forked Sandbox. If not provided, a unique name will be generated.
     
 
 
+
+
+Parameters for forking a Sandbox.
 ## CODE\_TOOLBOX\_LANGUAGE\_LABEL
 
 ```ts

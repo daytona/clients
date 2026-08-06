@@ -60,7 +60,7 @@ after the prefix maps to the repo subdir, versioned by the tag `<pkg>/vX.Y.Z`.
 ## Module → import path → tag
 
 | Dir | Module path | `go get` | Tag |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `sdk-go/` | `go.daytona.io/sdk-go` | `go get go.daytona.io/sdk-go` | `sdk-go/vX.Y.Z` |
 | `api-client-go/` | `go.daytona.io/api-client-go` | `go get go.daytona.io/api-client-go` | `api-client-go/vX.Y.Z` |
 | `toolbox-api-client-go/` | `go.daytona.io/toolbox-api-client-go` | `go get go.daytona.io/toolbox-api-client-go` | `toolbox-api-client-go/vX.Y.Z` |
