@@ -23,7 +23,8 @@
         "commands": [
           "rm -rf {projectRoot}/src/*",
           "yarn run openapi-generator-cli generate --git-repo-id=clients --git-user-id=daytona -i openapi-specs/api.json -g typescript-axios --additional-properties=supportsES6=true,typescriptThreePlus=true,withSeparateModelsAndApi=true,apiPackage=api,modelPackage=models,useTags=true,enumPropertyNaming=UPPERCASE,enumUnknownDefaultCase=true --type-mappings=DateTime=Date -o api-client/src",
-          "bash hack/ts-client/postprocess.sh api-client/src api-client-typescript"
+          "bash hack/ts-client/postprocess.sh api-client/src api-client-typescript",
+          "bash hack/ts-client/fix-axios-response-type.sh api-client/src"
         ],
         "parallel": false
       }

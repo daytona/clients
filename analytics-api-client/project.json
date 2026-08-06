@@ -17,12 +17,16 @@
     },
     "generate:api-client": {
       "executor": "nx:run-commands",
-      "inputs": ["apiClient"],
+      "inputs": [
+        "apiClient",
+        "{workspaceRoot}/hack/ts-client/fix-axios-response-type.sh"
+      ],
       "outputs": ["{projectRoot}/src"],
       "options": {
         "commands": [
           "find {projectRoot}/src -mindepth 1 ! -name '.openapi-generator-ignore' -exec rm -rf {} +",
-          "yarn run openapi-generator-cli generate --git-repo-id=clients --git-user-id=daytona -i openapi-specs/analytics.json -g typescript-axios --additional-properties=supportsES6=true,typescriptThreePlus=true,withSeparateModelsAndApi=true,apiPackage=api,modelPackage=models,useTags=true,enumPropertyNaming=UPPERCASE --type-mappings=DateTime=Date -o analytics-api-client/src"
+          "yarn run openapi-generator-cli generate --git-repo-id=clients --git-user-id=daytona -i openapi-specs/analytics.json -g typescript-axios --additional-properties=supportsES6=true,typescriptThreePlus=true,withSeparateModelsAndApi=true,apiPackage=api,modelPackage=models,useTags=true,enumPropertyNaming=UPPERCASE --type-mappings=DateTime=Date -o analytics-api-client/src",
+          "bash hack/ts-client/fix-axios-response-type.sh analytics-api-client/src"
         ],
         "parallel": false
       }

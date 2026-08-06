@@ -49,7 +49,11 @@
       "{workspaceRoot}/hack/go-client/openapi-templates/**/*",
       "{workspaceRoot}/hack/go-client/postprocess.sh"
     ],
-    "tsApiClient": ["apiClient", "{workspaceRoot}/hack/ts-client/postprocess.sh"]
+    "tsApiClient": [
+      "apiClient",
+      "{workspaceRoot}/hack/ts-client/postprocess.sh",
+      "{workspaceRoot}/hack/ts-client/fix-axios-response-type.sh"
+    ]
   },
   "plugins": [],
   "generators": {
