@@ -43,8 +43,16 @@ sed -i \
   -e 's|\(return axios\.request<T, R>(axiosRequestArgs)\);|\1 as Promise<R>;|' \
   "$COMMON"
 
+# Verify BOTH substitutions landed: either one silently becoming a no-op still
+# reintroduces TS2527, so both are checked to fail at generation time.
 if ! grep -q '): Promise<R> => {' "$COMMON"; then
-  echo "ERROR: failed to annotate createRequestFunction in $COMMON" >&2
+  echo "ERROR: failed to annotate createRequestFunction return type in $COMMON" >&2
+  echo "       The generated shape likely changed -- update this script." >&2
+  exit 1
+fi
+
+if ! grep -q 'return axios\.request<T, R>(axiosRequestArgs) as Promise<R>;' "$COMMON"; then
+  echo "ERROR: failed to apply the Promise<R> cast in $COMMON" >&2
   echo "       The generated shape likely changed -- update this script." >&2
   exit 1
 fi
