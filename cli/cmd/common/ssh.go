@@ -16,12 +16,11 @@ import (
 // so that strings.Fields cannot yield an extra token for ssh(1) to read as an
 // option.
 //
-// The token accepts the full NanoID URL alphabet except as a first character,
-// where '-' is excluded: the destination is rendered as "token@host", so a token
-// starting with '-' would make the whole argument look like an ssh(1) option.
-// Current servers already strip '_' and '-' from the token alphabet, but servers
-// older than that change emit plain nanoid(32), and roughly 64% of those tokens
-// contain at least one of the two.
+// The token is opaque to the CLI, so the only constraint that matters is the first
+// character: the destination is rendered as "token@host", and a token starting with
+// '-' would make the whole argument read as an ssh(1) option. The rest of the
+// NanoID URL alphabet is accepted rather than pinned to the alphabet the API
+// happens to use today, so a change there cannot break already-released clients.
 //
 // \A and \z rather than ^ and $ so the end-of-text guarantee is local to the
 // pattern and survives a later (?m) or a port to a PCRE-family engine, where $
@@ -41,9 +40,10 @@ var sshCommandPattern = regexp.MustCompile(
 // - "ssh token@host" (port 22)
 // - "ssh -p port token@host"
 func ParseSSHCommand(sshCommand string) ([]string, error) {
-	// The longest matchable command is around 300 bytes, so the length check never
-	// rejects anything the pattern would accept; it bounds the cost of scanning a
-	// hostile multi-megabyte response.
+	// The pattern bounds the host but not the token, so total length is bounded
+	// here rather than by the pattern. The purpose is to cap the cost of scanning a
+	// hostile multi-megabyte response; 512 bytes leaves roughly 15x headroom over
+	// the longest command any server emits, which carries a 32 character token.
 	//
 	// The error deliberately omits the server-supplied string: it is unbounded and
 	// carries the SSH access token, which would end up in scrollback and CI logs.

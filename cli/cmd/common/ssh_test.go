@@ -11,9 +11,9 @@ import (
 
 const testToken = "Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv"
 
-// Servers older than the change that restricted the token alphabet emit plain
-// nanoid(32), whose alphabet includes '_' and '-'.
-const legacyToken = "Ab3Cd4_f5Gh6Ij7Kl8Mn9Op0Qr1St2U-"
+// The token is opaque to the CLI: any NanoID over the full URL alphabet is accepted
+// so long as it does not start with '-'.
+const urlAlphabetToken = "Ab3Cd4_f5Gh6Ij7Kl8Mn9Op0Qr1St2U-"
 
 // Shapes the API actually emits, across every SSH gateway configuration in use.
 func TestParseSSHCommandAcceptsServerShapes(t *testing.T) {
@@ -29,8 +29,8 @@ func TestParseSSHCommandAcceptsServerShapes(t *testing.T) {
 		// Emitted when the SSH gateway is addressed by an IPv6 literal.
 		{"ipv6 host", "ssh -p 2222 " + testToken + "@[::1]", []string{"-p", "2222", testToken + "@[::1]"}},
 		{"absolute fqdn", "ssh -p 2222 " + testToken + "@gateway.example.com.", []string{"-p", "2222", testToken + "@gateway.example.com."}},
-		// Legacy nanoid(32) tokens from an older or self-hosted API.
-		{"legacy token", "ssh -p 2222 " + legacyToken + "@ssh.example.com", []string{"-p", "2222", legacyToken + "@ssh.example.com"}},
+		// Any NanoID over the full URL alphabet, not only the subset the API emits today.
+		{"url alphabet token", "ssh -p 2222 " + urlAlphabetToken + "@ssh.example.com", []string{"-p", "2222", urlAlphabetToken + "@ssh.example.com"}},
 		{"token starting with underscore", "ssh _" + testToken + "@h.example.com", []string{"_" + testToken + "@h.example.com"}},
 		{
 			"long elb hostname",
@@ -87,7 +87,7 @@ func TestParseSSHCommandRejectsInjection(t *testing.T) {
 		// The boundary of the widened token class: '-' is legal inside a token but
 		// never first, or the whole destination reads as an ssh option.
 		"ssh -" + testToken + "@h",
-		"ssh -" + legacyToken + "@h",
+		"ssh -" + urlAlphabetToken + "@h",
 		"ssh " + testToken + "@-h",
 		"ssh " + testToken + "@...",
 		"SSH " + testToken + "@h",
@@ -102,17 +102,32 @@ func TestParseSSHCommandRejectsInjection(t *testing.T) {
 	}
 }
 
-// The longest command the pattern can match is around 300 bytes, so the length
-// guard never rejects anything the pattern would have accepted. It exists to bound
-// the cost of scanning a hostile multi-megabyte response, which the pattern would
-// otherwise walk in full before failing.
+// The length guard caps the cost of scanning a hostile multi-megabyte response,
+// which the pattern would otherwise walk in full before failing.
 func TestParseSSHCommandRejectsOversizedInput(t *testing.T) {
-	sizes := []int{600, 1 << 20}
-
-	for _, size := range sizes {
+	for _, size := range []int{600, 1 << 20} {
 		if _, err := ParseSSHCommand("ssh " + testToken + "@" + strings.Repeat("a", size)); err == nil {
 			t.Errorf("accepted a command with a %d byte host", size)
 		}
+	}
+}
+
+// The pattern bounds the host but not the token, so the guard is what bounds total
+// length. This pins where that boundary falls: a token far larger than any server
+// emits is refused even though the pattern alone would match it.
+func TestParseSSHCommandBoundsTotalLength(t *testing.T) {
+	host := "@ssh.example.com"
+
+	if _, err := ParseSSHCommand("ssh -p 2222 " + strings.Repeat("a", 400) + host); err != nil {
+		t.Errorf("rejected a 400 byte token, which is within the limit: %v", err)
+	}
+
+	oversized := "ssh -p 2222 " + strings.Repeat("a", 500) + host
+	if !sshCommandPattern.MatchString(oversized) {
+		t.Error("expected the pattern itself to match; the guard is what should reject this")
+	}
+	if _, err := ParseSSHCommand(oversized); err == nil {
+		t.Error("accepted a command over the length limit")
 	}
 }
 
