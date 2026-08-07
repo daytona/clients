@@ -11,6 +11,10 @@ import (
 
 const testToken = "Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv"
 
+// Servers older than the change that restricted the token alphabet emit plain
+// nanoid(32), whose alphabet includes '_' and '-'.
+const legacyToken = "Ab3Cd4_f5Gh6Ij7Kl8Mn9Op0Qr1St2U-"
+
 // Shapes the API actually emits, across every SSH gateway configuration in use.
 func TestParseSSHCommandAcceptsServerShapes(t *testing.T) {
 	tests := []struct {
@@ -25,6 +29,9 @@ func TestParseSSHCommandAcceptsServerShapes(t *testing.T) {
 		// Emitted when the SSH gateway is addressed by an IPv6 literal.
 		{"ipv6 host", "ssh -p 2222 " + testToken + "@[::1]", []string{"-p", "2222", testToken + "@[::1]"}},
 		{"absolute fqdn", "ssh -p 2222 " + testToken + "@gateway.example.com.", []string{"-p", "2222", testToken + "@gateway.example.com."}},
+		// Legacy nanoid(32) tokens from an older or self-hosted API.
+		{"legacy token", "ssh -p 2222 " + legacyToken + "@ssh.example.com", []string{"-p", "2222", legacyToken + "@ssh.example.com"}},
+		{"token starting with underscore", "ssh _" + testToken + "@h.example.com", []string{"_" + testToken + "@h.example.com"}},
 		{
 			"long elb hostname",
 			"ssh -p 2222 " + testToken + "@a027787affaac46229a4a91ee7c07b6e-625769887.us-west-2.elb.amazonaws.com",
@@ -77,7 +84,10 @@ func TestParseSSHCommandRejectsInjection(t *testing.T) {
 		"ssh " + testToken + "@h;id",
 		"ssh " + testToken + "@tok@evil.example.com",
 		"ssh " + testToken + "@ssh://evil.com",
+		// The boundary of the widened token class: '-' is legal inside a token but
+		// never first, or the whole destination reads as an ssh option.
 		"ssh -" + testToken + "@h",
+		"ssh -" + legacyToken + "@h",
 		"ssh " + testToken + "@-h",
 		"ssh " + testToken + "@...",
 		"SSH " + testToken + "@h",

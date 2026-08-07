@@ -16,11 +16,18 @@ import (
 // so that strings.Fields cannot yield an extra token for ssh(1) to read as an
 // option.
 //
+// The token accepts the full NanoID URL alphabet except as a first character,
+// where '-' is excluded: the destination is rendered as "token@host", so a token
+// starting with '-' would make the whole argument look like an ssh(1) option.
+// Current servers already strip '_' and '-' from the token alphabet, but servers
+// older than that change emit plain nanoid(32), and roughly 64% of those tokens
+// contain at least one of the two.
+//
 // \A and \z rather than ^ and $ so the end-of-text guarantee is local to the
 // pattern and survives a later (?m) or a port to a PCRE-family engine, where $
 // also matches before a trailing newline.
 var sshCommandPattern = regexp.MustCompile(
-	`\Assh (?:-p [0-9]{1,5} )?[A-Za-z0-9]+@(?:\[[0-9A-Fa-f:.]{2,45}\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?\.?)\z`,
+	`\Assh (?:-p [0-9]{1,5} )?[A-Za-z0-9_][A-Za-z0-9_-]*@(?:\[[0-9A-Fa-f:.]{2,45}\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?\.?)\z`,
 )
 
 // ParseSSHCommand parses the SSH command string returned by the API.
