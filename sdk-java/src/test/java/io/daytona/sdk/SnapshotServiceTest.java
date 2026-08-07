@@ -9,6 +9,7 @@ import io.daytona.api.client.model.SnapshotDto;
 import io.daytona.api.client.model.SnapshotState;
 import io.daytona.api.client.model.Url;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.model.PaginatedSnapshots;
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,11 +40,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SnapshotServiceTest {
+
+    private static final String CANONICAL_UUID = "11111111-1111-4111-8111-111111111111";
 
     @Mock
     private SnapshotsApi snapshotsApi;
@@ -186,14 +192,132 @@ class SnapshotServiceTest {
     }
 
     @Test
-    void getAndDeleteDelegate() {
+    void getDelegates() {
         when(snapshotsApi.getSnapshot("snapshot", null)).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
 
         Snapshot snapshot = snapshotService.get("snapshot");
-        snapshotService.delete("snap-1");
 
         assertThat(snapshot.getName()).isEqualTo("snapshot");
-        verify(snapshotsApi).removeSnapshot("snap-1", null);
+        assertThat(snapshot.getId()).isEqualTo("snap-1");
+    }
+
+    @Test
+    void deleteByNameResolvesIdFirstThenRemoves() {
+        when(snapshotsApi.getSnapshot("the-name", null))
+                .thenReturn(snapshotDto(CANONICAL_UUID, "the-name", SnapshotState.ACTIVE));
+
+        snapshotService.delete("the-name");
+
+        InOrder order = inOrder(snapshotsApi);
+        order.verify(snapshotsApi).getSnapshot("the-name", null);
+        order.verify(snapshotsApi).removeSnapshot(CANONICAL_UUID, null);
+        order.verifyNoMoreInteractions();
+    }
+
+    @Test
+    void deleteByUuidCallsRemoveDirectlyWithoutResolution() {
+        snapshotService.delete(CANONICAL_UUID);
+
+        verify(snapshotsApi).removeSnapshot(CANONICAL_UUID, null);
+        verify(snapshotsApi, never()).getSnapshot(any(), any());
+    }
+
+    @Test
+    void deleteByUuidFormattedNameFallsBackToResolutionAfter404() {
+        String other = "22222222-2222-4222-8222-222222222222";
+        io.daytona.api.client.ApiException notFound =
+                new io.daytona.api.client.ApiException(404, "boom", null, "{\"message\":\"not found\"}");
+        org.mockito.Mockito.doThrow(notFound)
+                .doNothing()
+                .when(snapshotsApi).removeSnapshot(any(), isNull());
+        when(snapshotsApi.getSnapshot(CANONICAL_UUID, null))
+                .thenReturn(snapshotDto(other, CANONICAL_UUID, SnapshotState.ACTIVE));
+
+        snapshotService.delete(CANONICAL_UUID);
+
+        InOrder order = inOrder(snapshotsApi);
+        order.verify(snapshotsApi).removeSnapshot(CANONICAL_UUID, null);
+        order.verify(snapshotsApi).getSnapshot(CANONICAL_UUID, null);
+        order.verify(snapshotsApi).removeSnapshot(other, null);
+        order.verifyNoMoreInteractions();
+    }
+
+    @Test
+    void deleteByUuidForbiddenPropagatesAndDoesNotResolve() throws Exception {
+        org.mockito.Mockito.doThrow(new io.daytona.api.client.ApiException(403, "boom", null, "{\"message\":\"denied\"}"))
+                .when(snapshotsApi).removeSnapshot(CANONICAL_UUID, null);
+
+        assertThatThrownBy(() -> snapshotService.delete(CANONICAL_UUID))
+                .isInstanceOf(DaytonaForbiddenException.class)
+                .hasMessage("denied");
+        verify(snapshotsApi, never()).getSnapshot(any(), any());
+    }
+
+    @Test
+    void deleteByNamePropagatesNotFoundFromResolution() {
+        when(snapshotsApi.getSnapshot("missing", null))
+                .thenThrow(new io.daytona.api.client.ApiException(404, "boom", null, "{\"message\":\"gone\"}"));
+
+        assertThatThrownBy(() -> snapshotService.delete("missing"))
+                .isInstanceOf(DaytonaNotFoundException.class)
+                .hasMessage("gone");
+    }
+
+    @Test
+    void deleteSnapshotOverloadUsesDtoIdDirectly() {
+        Snapshot snapshot = new Snapshot();
+        snapshot.setId(CANONICAL_UUID);
+        snapshot.setName("some-name");
+
+        snapshotService.delete(snapshot);
+
+        verify(snapshotsApi).removeSnapshot(CANONICAL_UUID, null);
+        verify(snapshotsApi, never()).getSnapshot(any(), any());
+    }
+
+    @Test
+    void activateByNameResolvesFirstAndReturnsMappedSnapshot() {
+        when(snapshotsApi.getSnapshot("the-name", null))
+                .thenReturn(snapshotDto(CANONICAL_UUID, "the-name", SnapshotState.INACTIVE));
+        when(snapshotsApi.activateSnapshot(CANONICAL_UUID, null))
+                .thenReturn(snapshotDto(CANONICAL_UUID, "the-name", SnapshotState.ACTIVE));
+
+        Snapshot result = snapshotService.activate("the-name");
+
+        assertThat(result.getId()).isEqualTo(CANONICAL_UUID);
+        assertThat(result.getName()).isEqualTo("the-name");
+        assertThat(result.getState()).isEqualTo("active");
+        InOrder order = inOrder(snapshotsApi);
+        order.verify(snapshotsApi).getSnapshot("the-name", null);
+        order.verify(snapshotsApi).activateSnapshot(CANONICAL_UUID, null);
+        order.verifyNoMoreInteractions();
+    }
+
+    @Test
+    void activateByUuidCallsActivateDirectlyWithoutResolution() {
+        when(snapshotsApi.activateSnapshot(CANONICAL_UUID, null))
+                .thenReturn(snapshotDto(CANONICAL_UUID, "the-name", SnapshotState.ACTIVE));
+
+        Snapshot result = snapshotService.activate(CANONICAL_UUID);
+
+        assertThat(result.getId()).isEqualTo(CANONICAL_UUID);
+        verify(snapshotsApi).activateSnapshot(CANONICAL_UUID, null);
+        verify(snapshotsApi, never()).getSnapshot(any(), any());
+    }
+
+    @Test
+    void activateSnapshotOverloadUsesDtoIdDirectly() {
+        Snapshot snapshot = new Snapshot();
+        snapshot.setId(CANONICAL_UUID);
+        snapshot.setName("some-name");
+        when(snapshotsApi.activateSnapshot(CANONICAL_UUID, null))
+                .thenReturn(snapshotDto(CANONICAL_UUID, "some-name", SnapshotState.ACTIVE));
+
+        Snapshot result = snapshotService.activate(snapshot);
+
+        assertThat(result.getState()).isEqualTo("active");
+        verify(snapshotsApi).activateSnapshot(CANONICAL_UUID, null);
+        verify(snapshotsApi, never()).getSnapshot(any(), any());
     }
 
     @ParameterizedTest

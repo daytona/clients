@@ -58,6 +58,8 @@ RSpec.describe Daytona::SnapshotService do
   end
 
   describe '#delete' do
+    let(:uuid) { '11111111-2222-4333-8444-555555555555' }
+
     it 'removes snapshot by id' do
       snapshot = Daytona::Snapshot.from_dto(build_snapshot_dto)
       allow(snapshots_api).to receive(:remove_snapshot).with('snap-123')
@@ -65,6 +67,63 @@ RSpec.describe Daytona::SnapshotService do
       service.delete(snapshot)
 
       expect(snapshots_api).to have_received(:remove_snapshot).with('snap-123')
+    end
+
+    it 'resolves a name to an id before deleting' do
+      dto = build_snapshot_dto(id: 'snap-123', name: 'the-name')
+      allow(snapshots_api).to receive(:get_snapshot).with('the-name').and_return(dto)
+      allow(snapshots_api).to receive(:remove_snapshot).with('snap-123')
+
+      service.delete('the-name')
+
+      expect(snapshots_api).to have_received(:get_snapshot).with('the-name').ordered
+      expect(snapshots_api).to have_received(:remove_snapshot).with('snap-123').ordered
+    end
+
+    it 'deletes by uuid string directly without resolving' do
+      allow(snapshots_api).to receive(:remove_snapshot).with(uuid)
+      allow(snapshots_api).to receive(:get_snapshot)
+
+      service.delete(uuid)
+
+      expect(snapshots_api).to have_received(:remove_snapshot).with(uuid)
+      expect(snapshots_api).not_to have_received(:get_snapshot)
+    end
+
+    it 'falls back to name resolution when the optimistic uuid delete returns 404' do
+      resolved_dto = build_snapshot_dto(id: 'snap-real', name: uuid)
+      call_sequence = []
+      allow(snapshots_api).to receive(:remove_snapshot) do |arg|
+        call_sequence << [:remove_snapshot, arg]
+        raise DaytonaApiClient::ApiError.new(code: 404, message: 'not found') if arg == uuid
+
+        nil
+      end
+      allow(snapshots_api).to receive(:get_snapshot).with(uuid) do |arg|
+        call_sequence << [:get_snapshot, arg]
+        resolved_dto
+      end
+
+      service.delete(uuid)
+
+      expect(call_sequence).to eq(
+        [
+          [:remove_snapshot, uuid],
+          [:get_snapshot, uuid],
+          [:remove_snapshot, 'snap-real']
+        ]
+      )
+    end
+
+    it 're-raises non-404 errors from the optimistic uuid delete without resolving' do
+      error = DaytonaApiClient::ApiError.new(code: 403, message: 'forbidden')
+      allow(snapshots_api).to receive(:remove_snapshot).with(uuid).and_raise(error)
+      allow(snapshots_api).to receive(:get_snapshot)
+
+      expect { service.delete(uuid) }.to raise_error(DaytonaApiClient::ApiError) do |e|
+        expect(e.code).to eq(403)
+      end
+      expect(snapshots_api).not_to have_received(:get_snapshot)
     end
   end
 
@@ -78,6 +137,20 @@ RSpec.describe Daytona::SnapshotService do
 
       expect(result).to be_a(Daytona::Snapshot)
       expect(result.state).to eq('active')
+    end
+
+    it 'resolves a name string before activating' do
+      dto = build_snapshot_dto(id: 'snap-123', name: 'my-snap')
+      activated_dto = build_snapshot_dto(id: 'snap-123', name: 'my-snap', state: 'active')
+      allow(snapshots_api).to receive(:get_snapshot).with('my-snap').and_return(dto)
+      allow(snapshots_api).to receive(:activate_snapshot).with('snap-123').and_return(activated_dto)
+
+      result = service.activate('my-snap')
+
+      expect(result).to be_a(Daytona::Snapshot)
+      expect(result.state).to eq('active')
+      expect(snapshots_api).to have_received(:get_snapshot).with('my-snap').ordered
+      expect(snapshots_api).to have_received(:activate_snapshot).with('snap-123').ordered
     end
   end
 

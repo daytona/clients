@@ -6,20 +6,37 @@ package daytona
 import (
 	"bufio"
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// snapshotIDRegex mirrors the server's uuid.validate() check
+// (RFC 4122 v1-5 + the nil UUID) so client and server always agree on what
+// is ID-shaped. It is intentionally stricter than google/uuid's Validate,
+// which accepts dashless, braced, and URN forms and all versions — using
+// that looser check here would turn the name-fallback path into 400s at the
+// server, because DELETE/activate accept UUIDs only.
+var snapshotIDRegex = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$`)
+
+// isSnapshotID reports whether s is a canonical RFC 4122 v1-5 UUID or the
+// nil UUID (00000000-...). Snapshot IDs are UUIDs, but snapshot NAMES may
+// also be UUID-shaped strings, so callers still have to disambiguate.
+func isSnapshotID(s string) bool {
+	return snapshotIDRegex.MatchString(s)
+}
 
 // SnapshotService provides snapshot (image template) management operations.
 //
@@ -362,6 +379,157 @@ func (s *SnapshotService) Delete(ctx context.Context, snapshot *types.Snapshot) 
 	})
 }
 
+// resolveSnapshotIDForIDOnlyOp turns a name-or-ID reference into the concrete
+// snapshot ID that ID-only endpoints (DELETE, activate) can accept.
+//
+// The algorithm matches the TypeScript and Python SDKs: if the reference is
+// UUID-shaped, try the ID-only op optimistically first (idOp) — the server
+// accepts UUIDs there and we save a round trip. If that returns 404, the
+// reference may be a UUID-formatted NAME (snapshot names may be UUID-shaped),
+// so fall through to GET /snapshots/{nameOrID} which the server resolves by
+// ID or name, and return the resolved ID. Non-UUID references skip the
+// optimistic call and go straight to GET.
+//
+// idOp is called at most once per invocation; on a non-404 error it is
+// returned to the caller unchanged. The bool return indicates whether idOp
+// was invoked and fully handled the operation (i.e. the caller is done).
+func (s *SnapshotService) resolveSnapshotIDForIDOnlyOp(
+	ctx context.Context,
+	nameOrID string,
+	idOp func(ctx context.Context, id string) (*http.Response, error),
+) (id string, done bool, err error) {
+	if isSnapshotID(nameOrID) {
+		httpResp, opErr := idOp(ctx, nameOrID)
+		if opErr == nil {
+			return nameOrID, true, nil
+		}
+		convertedErr := s.client.handleAPIError(opErr, httpResp)
+		if !stderrors.Is(convertedErr, sdkerrors.ErrNotFound) {
+			return "", true, convertedErr
+		}
+		// 404 → nameOrID may be a UUID-formatted NAME; fall through to resolve.
+	}
+
+	result, httpResp, getErr := s.client.apiClient.SnapshotsAPI.GetSnapshot(
+		s.client.getAuthContext(ctx),
+		nameOrID,
+	).Execute()
+	if getErr != nil {
+		return "", true, s.client.handleAPIError(getErr, httpResp)
+	}
+	return result.GetId(), false, nil
+}
+
+// DeleteByNameOrID permanently removes a snapshot referenced by name or ID.
+//
+// The reference may be either the snapshot's ID (a UUID) or its name. Because
+// snapshot names may themselves be UUID-shaped, the SDK cannot decide upfront
+// which one was intended; it uses an optimistic-then-fallback strategy that
+// mirrors the TypeScript and Python SDKs.
+//
+// Call-count behavior:
+//   - Plain UUID that IS the ID: 1 request (DELETE only).
+//   - Non-UUID name: 2 requests (GET then DELETE).
+//   - UUID-shaped string that turns out to be a NAME: 3 requests
+//     (DELETE returns 404 → GET resolves the name → DELETE by resolved ID).
+//
+// Sandboxes created from this snapshot will continue to work, but no new
+// sandboxes can be created from it after deletion.
+//
+// Parameters:
+//   - nameOrID: The snapshot's ID or name
+//
+// Example:
+//
+//	err := client.Snapshot.DeleteByNameOrID(ctx, "my-python-env")
+//	if err != nil {
+//	    return err
+//	}
+//
+// Returns an error if the snapshot cannot be found or deletion fails.
+func (s *SnapshotService) DeleteByNameOrID(ctx context.Context, nameOrID string) error {
+	return withInstrumentationVoid(ctx, s.otel, "Snapshot", "DeleteByNameOrID", func(ctx context.Context) error {
+		removeOp := func(ctx context.Context, id string) (*http.Response, error) {
+			return s.client.apiClient.SnapshotsAPI.RemoveSnapshot(
+				s.client.getAuthContext(ctx),
+				id,
+			).Execute()
+		}
+
+		resolvedID, done, err := s.resolveSnapshotIDForIDOnlyOp(ctx, nameOrID, removeOp)
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+
+		httpResp, err := removeOp(ctx, resolvedID)
+		if err != nil {
+			return s.client.handleAPIError(err, httpResp)
+		}
+		return nil
+	})
+}
+
+// Activate transitions a snapshot into the ACTIVE state so new sandboxes can
+// be created from it.
+//
+// The reference may be either the snapshot's ID (a UUID) or its name. Because
+// snapshot names may themselves be UUID-shaped, the SDK cannot decide upfront
+// which one was intended; it uses an optimistic-then-fallback strategy that
+// mirrors the TypeScript and Python SDKs.
+//
+// Call-count behavior:
+//   - Plain UUID that IS the ID: 1 request (POST /snapshots/{id}/activate only).
+//   - Non-UUID name: 2 requests (GET then POST).
+//   - UUID-shaped string that turns out to be a NAME: 3 requests
+//     (POST returns 404 → GET resolves the name → POST by resolved ID).
+//
+// Parameters:
+//   - nameOrID: The snapshot's ID or name
+//
+// Example:
+//
+//	snapshot, err := client.Snapshot.Activate(ctx, "my-python-env")
+//	if err != nil {
+//	    return err
+//	}
+//	fmt.Printf("Snapshot %s: %s\n", snapshot.Name, snapshot.State)
+//
+// Returns the activated [types.Snapshot] or an error if the snapshot cannot
+// be found or activation fails.
+func (s *SnapshotService) Activate(ctx context.Context, nameOrID string) (*types.Snapshot, error) {
+	return withInstrumentation(ctx, s.otel, "Snapshot", "Activate", func(ctx context.Context) (*types.Snapshot, error) {
+		var activatedDto *apiclient.SnapshotDto
+
+		activateOp := func(ctx context.Context, id string) (*http.Response, error) {
+			result, httpResp, err := s.client.apiClient.SnapshotsAPI.ActivateSnapshot(
+				s.client.getAuthContext(ctx),
+				id,
+			).Execute()
+			if err == nil {
+				activatedDto = result
+			}
+			return httpResp, err
+		}
+
+		resolvedID, done, err := s.resolveSnapshotIDForIDOnlyOp(ctx, nameOrID, activateOp)
+		if err != nil {
+			return nil, err
+		}
+		if done {
+			return mapSnapshotFromAPI(activatedDto), nil
+		}
+
+		httpResp, err := activateOp(ctx, resolvedID)
+		if err != nil {
+			return nil, s.client.handleAPIError(err, httpResp)
+		}
+		return mapSnapshotFromAPI(activatedDto), nil
+	})
+}
+
 // streamSnapshotBuildLogs streams build logs for a snapshot until it reaches a terminal state
 func (s *SnapshotService) streamSnapshotBuildLogs(ctx context.Context, snapshot *apiclient.SnapshotDto, logChan chan<- string) error {
 	terminalStates := map[apiclient.SnapshotState]bool{
@@ -468,7 +636,7 @@ func (s *SnapshotService) streamSnapshotBuildLogs(ctx context.Context, snapshot 
 	}
 
 	// Check for streaming errors (ignore context cancellation as it's expected when stopping the stream)
-	if streamErr != nil && !errors.Is(streamErr, context.Canceled) {
+	if streamErr != nil && !stderrors.Is(streamErr, context.Canceled) {
 		return streamErr
 	}
 

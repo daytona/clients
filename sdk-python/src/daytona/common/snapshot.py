@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel
 
 from daytona_api_client import BuildInfo
@@ -14,6 +16,18 @@ from daytona_api_client_async import SnapshotDto as AsyncSnapshotDto
 
 from .image import Image
 from .sandbox import Resources
+
+# Matches RFC 4122 UUIDs (versions 1-5) and the nil UUID - the same set the
+# Daytona API recognizes as snapshot IDs. Anything else is treated as a name.
+_UUID_PATTERN = re.compile(
+    r"^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+    + r"|00000000-0000-0000-0000-000000000000)$",
+    re.IGNORECASE,
+)
+
+
+def is_snapshot_id(value: str) -> bool:
+    return _UUID_PATTERN.match(value) is not None
 
 
 class Snapshot(SyncSnapshotDto):

@@ -22,6 +22,8 @@ class TestSyncSnapshotService:
 
     def _make_snapshot_dto(self, name="test-snapshot"):
         dto = MagicMock()
+        dto.id = "snap-123"
+        dto.name = name
         dto.model_dump.return_value = {
             "id": "snap-123",
             "organization_id": "org-1",
@@ -100,6 +102,51 @@ class TestSyncSnapshotService:
         service.delete(snap)
         api.remove_snapshot.assert_called_once_with("snap-123")
 
+    def test_delete_by_name(self):
+        service, api = self._make_service()
+        api.get_snapshot.return_value = self._make_snapshot_dto()
+        api.remove_snapshot.return_value = None
+
+        service.delete("test-snapshot")
+
+        api.get_snapshot.assert_called_once_with("test-snapshot")
+        api.remove_snapshot.assert_called_once_with("snap-123")
+
+    def test_delete_by_uuid_id_skips_resolution(self):
+        service, api = self._make_service()
+        api.remove_snapshot.return_value = None
+        snapshot_id = "9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa"
+
+        service.delete(snapshot_id)
+
+        api.get_snapshot.assert_not_called()
+        api.remove_snapshot.assert_called_once_with(snapshot_id)
+
+    def test_delete_by_uuid_name_falls_back_to_resolution(self):
+        from daytona_api_client.exceptions import NotFoundException
+
+        service, api = self._make_service()
+        uuid_name = "9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa"
+        api.remove_snapshot.side_effect = [NotFoundException(), None]
+        api.get_snapshot.return_value = self._make_snapshot_dto(name=uuid_name)
+
+        service.delete(uuid_name)
+
+        api.get_snapshot.assert_called_once_with(uuid_name)
+        assert api.remove_snapshot.call_args_list[0].args == (uuid_name,)
+        assert api.remove_snapshot.call_args_list[1].args == ("snap-123",)
+
+    def test_delete_by_uuid_propagates_non_404(self):
+        from daytona_api_client.exceptions import ForbiddenException
+
+        service, api = self._make_service()
+        api.remove_snapshot.side_effect = ForbiddenException()
+
+        with pytest.raises(DaytonaError):
+            service.delete("9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa")
+
+        api.get_snapshot.assert_not_called()
+
     def test_activate(self):
         service, api = self._make_service()
         api.activate_snapshot.return_value = self._make_snapshot_dto(name="active-snapshot")
@@ -107,6 +154,16 @@ class TestSyncSnapshotService:
         result = service.activate(Snapshot.model_validate(self._make_snapshot_dto().model_dump()))
 
         assert result.name == "active-snapshot"
+
+    def test_activate_by_name(self):
+        service, api = self._make_service()
+        api.get_snapshot.return_value = self._make_snapshot_dto()
+        api.activate_snapshot.return_value = self._make_snapshot_dto(name="active-snapshot")
+
+        result = service.activate("test-snapshot")
+
+        assert result.name == "active-snapshot"
+        api.activate_snapshot.assert_called_once_with("snap-123")
 
     def test_process_image_context_returns_empty_for_images_without_context(self):
         assert (
@@ -145,6 +202,8 @@ class TestAsyncSnapshotService:
 
     def _make_snapshot_dto(self, name="test-snapshot"):
         dto = MagicMock()
+        dto.id = "snap-123"
+        dto.name = name
         dto.model_dump.return_value = {
             "id": "snap-123",
             "organization_id": "org-1",
@@ -219,6 +278,66 @@ class TestAsyncSnapshotService:
         )
         await service.delete(snap)
         api.remove_snapshot.assert_called_once_with("snap-123")
+
+    @pytest.mark.asyncio
+    async def test_delete_by_name(self):
+        service, api = self._make_service()
+        api.get_snapshot.return_value = self._make_snapshot_dto()
+        api.remove_snapshot.return_value = None
+
+        await service.delete("test-snapshot")
+
+        api.get_snapshot.assert_called_once_with("test-snapshot")
+        api.remove_snapshot.assert_called_once_with("snap-123")
+
+    @pytest.mark.asyncio
+    async def test_delete_by_uuid_id_skips_resolution(self):
+        service, api = self._make_service()
+        api.remove_snapshot.return_value = None
+        snapshot_id = "9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa"
+
+        await service.delete(snapshot_id)
+
+        api.get_snapshot.assert_not_called()
+        api.remove_snapshot.assert_called_once_with(snapshot_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_by_uuid_name_falls_back_to_resolution(self):
+        from daytona_api_client_async.exceptions import NotFoundException
+
+        service, api = self._make_service()
+        uuid_name = "9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa"
+        api.remove_snapshot.side_effect = [NotFoundException(), None]
+        api.get_snapshot.return_value = self._make_snapshot_dto(name=uuid_name)
+
+        await service.delete(uuid_name)
+
+        api.get_snapshot.assert_called_once_with(uuid_name)
+        assert api.remove_snapshot.call_args_list[0].args == (uuid_name,)
+        assert api.remove_snapshot.call_args_list[1].args == ("snap-123",)
+
+    @pytest.mark.asyncio
+    async def test_delete_by_uuid_propagates_non_404(self):
+        from daytona_api_client_async.exceptions import ForbiddenException
+
+        service, api = self._make_service()
+        api.remove_snapshot.side_effect = ForbiddenException()
+
+        with pytest.raises(DaytonaError):
+            await service.delete("9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa")
+
+        api.get_snapshot.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_activate_by_name(self):
+        service, api = self._make_service()
+        api.get_snapshot.return_value = self._make_snapshot_dto()
+        api.activate_snapshot.return_value = self._make_snapshot_dto(name="active-snapshot")
+
+        result = await service.activate("test-snapshot")
+
+        assert result.name == "active-snapshot"
+        api.activate_snapshot.assert_called_once_with("snap-123")
 
     @pytest.mark.asyncio
     async def test_activate(self):

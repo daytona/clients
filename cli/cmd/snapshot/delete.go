@@ -6,6 +6,7 @@ package snapshot
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	apiclient "github.com/daytona/clients/api-client-go"
 	apiclient_cli "github.com/daytona/clients/cli/apiclient"
@@ -71,6 +72,21 @@ var DeleteCmd = &cobra.Command{
 		}
 
 		snapshotIdOrName := args[0]
+
+		// Optimistic path: a UUID-shaped argument may be a real snapshot ID, so try
+		// DELETE directly and save a round trip. On 404 the argument may instead be
+		// a UUID-formatted NAME (snapshot names may be UUID-shaped), so we fall
+		// through to the name-resolving GET; the server accepts ID-or-name there.
+		if isSnapshotId(snapshotIdOrName) {
+			res, err := apiClient.SnapshotsAPI.RemoveSnapshot(ctx, snapshotIdOrName).Execute()
+			if err == nil {
+				view_common.RenderInfoMessageBold(fmt.Sprintf("Snapshot %s deleted", snapshotIdOrName))
+				return nil
+			}
+			if res == nil || res.StatusCode != http.StatusNotFound {
+				return apiclient_cli.HandleErrorResponse(res, err)
+			}
+		}
 
 		snapshot, res, err := apiClient.SnapshotsAPI.GetSnapshot(ctx, snapshotIdOrName).Execute()
 		if err != nil {

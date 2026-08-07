@@ -37,14 +37,14 @@ new SnapshotService(
 #### activate()
 
 ```ts
-activate(snapshot: Snapshot): Promise<Snapshot>;
+activate(snapshot: string | Snapshot): Promise<Snapshot>;
 ```
 
 Activates a snapshot.
 
 **Parameters**:
 
-- `snapshot` _Snapshot_ - Snapshot to activate
+- `snapshot` _string \| Snapshot_ - Snapshot to activate, or its ID or name
 
 
 **Returns**:
@@ -84,14 +84,14 @@ await daytona.snapshot.create({ name: 'my-snapshot', image: image }, { onLogs: c
 #### delete()
 
 ```ts
-delete(snapshot: Snapshot): Promise<void>;
+delete(snapshot: string | Snapshot): Promise<void>;
 ```
 
 Deletes a Snapshot.
 
 **Parameters**:
 
-- `snapshot` _Snapshot_ - Snapshot to delete
+- `snapshot` _string \| Snapshot_ - Snapshot to delete, or its ID or name
 
 
 **Returns**:
@@ -106,22 +106,21 @@ If the Snapshot does not exist or cannot be deleted
 
 ```ts
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.get("snapshot-name");
-await daytona.snapshot.delete(snapshot);
+await daytona.snapshot.delete("snapshot-name");
 console.log("Snapshot deleted successfully");
 ```
 
 #### get()
 
 ```ts
-get(name: string): Promise<Snapshot>;
+get(idOrName: string): Promise<Snapshot>;
 ```
 
-Gets a Snapshot by its name.
+Gets a Snapshot by its ID or name.
 
 **Parameters**:
 
-- `name` _string_ - Name of the Snapshot to retrieve
+- `idOrName` _string_ - ID or name of the Snapshot to retrieve
 
 
 **Returns**:

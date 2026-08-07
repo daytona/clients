@@ -8,6 +8,7 @@ import io.daytona.api.client.model.CreateBuildInfo;
 import io.daytona.api.client.model.CreateSnapshot;
 import io.daytona.api.client.model.SandboxClass;
 import io.daytona.sdk.exception.DaytonaException;
+import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.model.PaginatedSnapshots;
 import io.daytona.sdk.model.Snapshot;
 import okhttp3.OkHttpClient;
@@ -17,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 /**
  * Service for managing Daytona Snapshots.
@@ -24,6 +27,16 @@ import java.util.function.Consumer;
  * <p>Provides operations to create, list, retrieve, and delete snapshots.
  */
 public class SnapshotService {
+    /**
+     * Matches RFC 4122 UUIDs (versions 1-5) and the nil UUID — the same set the
+     * Daytona API recognizes as snapshot IDs. Anything else is treated as a name.
+     *
+     * <p>Note: {@link java.util.UUID#fromString(String)} is intentionally NOT used
+     * for validation because it accepts non-canonical forms (e.g. {@code 1-1-1-1-1}).
+     */
+    private static final Pattern SNAPSHOT_ID_PATTERN = Pattern.compile(
+            "(?i)^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$");
+
     private final SnapshotsApi snapshotsApi;
     private final OkHttpClient httpClient;
     private final String apiKey;
@@ -215,13 +228,96 @@ public class SnapshotService {
     }
 
     /**
-     * Deletes a snapshot by ID.
+     * Deletes a snapshot by ID or name.
      *
-     * @param id snapshot identifier
+     * <p>Snapshot names may themselves be UUID-formatted, so a UUID-shaped input is first
+     * tried directly against the ID-only delete endpoint (1 call) and only resolved through
+     * the ID-or-name {@code GET /snapshots} lookup on a 404. Non-UUID input is resolved first (2 calls);
+     * a UUID-formatted name costs 3 calls in the worst case.
+     *
+     * @param nameOrId snapshot identifier or name
      * @throws io.daytona.sdk.exception.DaytonaException if deletion fails
      */
-    public void delete(String id) {
-        ExceptionMapper.runMain(() -> snapshotsApi.removeSnapshot(id, null));
+    public void delete(String nameOrId) {
+        callWithResolvedId(nameOrId, id -> {
+            ExceptionMapper.runMain(() -> snapshotsApi.removeSnapshot(id, null));
+            return null;
+        });
+    }
+
+    /**
+     * Deletes a snapshot using its already-known identifier.
+     *
+     * <p>Issues a single delete call — no resolution is performed.
+     *
+     * @param snapshot snapshot to delete; its {@link Snapshot#getId() id} is used verbatim
+     * @throws io.daytona.sdk.exception.DaytonaException if deletion fails
+     */
+    public void delete(Snapshot snapshot) {
+        ExceptionMapper.runMain(() -> snapshotsApi.removeSnapshot(snapshot.getId(), null));
+    }
+
+    /**
+     * Activates a snapshot by ID or name.
+     *
+     * <p>Snapshot names may themselves be UUID-formatted, so a UUID-shaped input is first
+     * tried directly against the ID-only activate endpoint (1 call) and only resolved through
+     * the ID-or-name {@code GET /snapshots} lookup on a 404. Non-UUID input is resolved first (2 calls);
+     * a UUID-formatted name costs 3 calls in the worst case.
+     *
+     * @param nameOrId snapshot identifier or name
+     * @return the activated {@link Snapshot}
+     * @throws io.daytona.sdk.exception.DaytonaException if activation fails or no snapshot is found
+     */
+    public Snapshot activate(String nameOrId) {
+        io.daytona.api.client.model.SnapshotDto snapshotDto = callWithResolvedId(
+                nameOrId,
+                id -> ExceptionMapper.callMain(() -> snapshotsApi.activateSnapshot(id, null)));
+        return toSnapshot(snapshotDto);
+    }
+
+    /**
+     * Activates a snapshot using its already-known identifier.
+     *
+     * <p>Issues a single activate call — no resolution is performed.
+     *
+     * @param snapshot snapshot to activate; its {@link Snapshot#getId() id} is used verbatim
+     * @return the activated {@link Snapshot}
+     * @throws io.daytona.sdk.exception.DaytonaException if activation fails
+     */
+    public Snapshot activate(Snapshot snapshot) {
+        io.daytona.api.client.model.SnapshotDto snapshotDto = ExceptionMapper.callMain(
+                () -> snapshotsApi.activateSnapshot(snapshot.getId(), null));
+        return toSnapshot(snapshotDto);
+    }
+
+    /**
+     * Invokes an ID-based Snapshot operation, resolving {@code nameOrId} with as few API
+     * calls as possible.
+     *
+     * <p>A UUID-shaped input is optimistically tried as an ID (1 call). If the API responds
+     * 404, the input may still be a UUID-formatted name; the method falls back to
+     * {@link #get(String) get} to resolve the real ID and retries the operation. Any 404
+     * from the final call — or from {@code get()} — propagates to the caller.
+     *
+     * @param nameOrId snapshot identifier or name
+     * @param operation ID-only operation to invoke
+     * @param <T> operation return type
+     */
+    private <T> T callWithResolvedId(String nameOrId, Function<String, T> operation) {
+        if (isSnapshotId(nameOrId)) {
+            try {
+                return operation.apply(nameOrId);
+            } catch (DaytonaNotFoundException e) {
+                // Not an existing ID — may still be a UUID-formatted name; fall through to resolution.
+            }
+        }
+        Snapshot resolved = get(nameOrId);
+        return operation.apply(resolved.getId());
+    }
+
+    private static boolean isSnapshotId(String value) {
+        return value != null && SNAPSHOT_ID_PATTERN.matcher(value).matches();
     }
 
     private String stateString(io.daytona.api.client.model.SnapshotDto dto) {

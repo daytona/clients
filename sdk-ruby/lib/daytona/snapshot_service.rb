@@ -50,7 +50,10 @@ module Daytona
 
     # Delete a Snapshot.
     #
-    # @param snapshot [Daytona::Snapshot] Snapshot to delete
+    # @param snapshot [Daytona::Snapshot, String] Snapshot to delete, or its ID or name.
+    #   Call cost: 1 API call for a Snapshot object or UUID string; 2 for a name
+    #   (resolve, then delete); up to 3 in the worst case for a UUID-formatted name
+    #   (the optimistic delete 404s, then resolve + delete).
     # @return [void]
     #
     # @example
@@ -58,11 +61,13 @@ module Daytona
     #   snapshot = daytona.snapshot.get("demo")
     #   daytona.snapshot.delete(snapshot)
     #   puts "Snapshot deleted"
-    def delete(snapshot) = snapshots_api.remove_snapshot(snapshot.id)
+    def delete(snapshot)
+      call_with_resolved_id(snapshot) { |id| snapshots_api.remove_snapshot(id) }
+    end
 
-    # Get a Snapshot by name.
+    # Get a Snapshot by ID or name.
     #
-    # @param name [String] Name of the Snapshot to get
+    # @param name [String] ID or name of the Snapshot to get
     # @return [Daytona::Snapshot] The Snapshot object
     #
     # @example
@@ -126,11 +131,15 @@ module Daytona
       Snapshot.from_dto(snapshot)
     end
 
-    # Activate a snapshot
+    # Activate a snapshot.
     #
-    # @param snapshot [Daytona::Snapshot] The snapshot instance
+    # @param snapshot [Daytona::Snapshot, String] The Snapshot instance, or its ID or name.
+    #   Call cost matches `delete`: 1 for an object or UUID string, 2 for a name,
+    #   up to 3 for a UUID-formatted name (optimistic 404 then resolve + activate).
     # @return [Daytona::Snapshot]
-    def activate(snapshot) = Snapshot.from_dto(snapshots_api.activate_snapshot(snapshot.id))
+    def activate(snapshot)
+      Snapshot.from_dto(call_with_resolved_id(snapshot) { |id| snapshots_api.activate_snapshot(id) })
+    end
 
     instrument :list, :delete, :get, :create, :activate, component: 'SnapshotService'
 
@@ -174,6 +183,30 @@ module Daytona
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state
+
+    # Invoke an ID-based Snapshot operation, resolving the given identifier with as
+    # few API calls as possible. Snapshot names may themselves be UUID-formatted, so
+    # a UUID-shaped string is first tried directly as an ID (single call) and only
+    # resolved through the API on a 404. Any other string costs one resolution call.
+    #
+    # @param snapshot [Daytona::Snapshot, String] Snapshot instance, ID, or name
+    # @yield [String] resolved Snapshot ID
+    # @yieldreturn [Object] operation result
+    # @return [Object] whatever the block returns
+    def call_with_resolved_id(snapshot)
+      return yield(snapshot.id) unless snapshot.is_a?(String)
+
+      if Snapshot.id?(snapshot)
+        begin
+          return yield(snapshot)
+        rescue DaytonaApiClient::ApiError => e
+          raise unless e.code == 404
+        end
+      end
+
+      resolved = snapshots_api.get_snapshot(snapshot)
+      yield(resolved.id)
+    end
 
     # Wait for snapshot to reach a terminal state (ACTIVE, ERROR, or BUILD_FAILED)
     # Optionally streams logs if on_logs callback is provided

@@ -310,8 +310,10 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*SecretService\) Update\(ctx context.Context, secretID string, params \*types.UpdateSecretParams\) \(\*types.Secret, error\)](<#SecretService.Update>)
 - [type SnapshotService](<#SnapshotService>)
   - [func NewSnapshotService\(client \*Client\) \*SnapshotService](<#NewSnapshotService>)
+  - [func \(s \*SnapshotService\) Activate\(ctx context.Context, nameOrID string\) \(\*types.Snapshot, error\)](<#SnapshotService.Activate>)
   - [func \(s \*SnapshotService\) Create\(ctx context.Context, params \*types.CreateSnapshotParams\) \(\*types.Snapshot, \<\-chan string, error\)](<#SnapshotService.Create>)
   - [func \(s \*SnapshotService\) Delete\(ctx context.Context, snapshot \*types.Snapshot\) error](<#SnapshotService.Delete>)
+  - [func \(s \*SnapshotService\) DeleteByNameOrID\(ctx context.Context, nameOrID string\) error](<#SnapshotService.DeleteByNameOrID>)
   - [func \(s \*SnapshotService\) Get\(ctx context.Context, nameOrID string\) \(\*types.Snapshot, error\)](<#SnapshotService.Get>)
   - [func \(s \*SnapshotService\) List\(ctx context.Context, page \*int, limit \*int\) \(\*types.PaginatedSnapshots, error\)](<#SnapshotService.List>)
 - [type UploadProgress](<#UploadProgress>)
@@ -5531,6 +5533,39 @@ NewSnapshotService creates a new SnapshotService.
 
 This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access SnapshotService through \[Client.Snapshot\] rather than creating it directly.
 
+<a name="SnapshotService.Activate"></a>
+### func \(\*SnapshotService\) Activate
+
+```go
+func (s *SnapshotService) Activate(ctx context.Context, nameOrID string) (*types.Snapshot, error)
+```
+
+Activate transitions a snapshot into the ACTIVE state so new sandboxes can be created from it.
+
+The reference may be either the snapshot's ID \(a UUID\) or its name. Because snapshot names may themselves be UUID\-shaped, the SDK cannot decide upfront which one was intended; it uses an optimistic\-then\-fallback strategy that mirrors the TypeScript and Python SDKs.
+
+Call\-count behavior:
+
+- Plain UUID that IS the ID: 1 request \(POST /snapshots/\{id\}/activate only\).
+- Non\-UUID name: 2 requests \(GET then POST\).
+- UUID\-shaped string that turns out to be a NAME: 3 requests \(POST returns 404 → GET resolves the name → POST by resolved ID\).
+
+Parameters:
+
+- nameOrID: The snapshot's ID or name
+
+Example:
+
+```
+snapshot, err := client.Snapshot.Activate(ctx, "my-python-env")
+if err != nil {
+    return err
+}
+fmt.Printf("Snapshot %s: %s\n", snapshot.Name, snapshot.State)
+```
+
+Returns the activated \[types.Snapshot\] or an error if the snapshot cannot be found or activation fails.
+
 <a name="SnapshotService.Create"></a>
 ### func \(\*SnapshotService\) Create
 
@@ -5599,6 +5634,40 @@ if err != nil {
 ```
 
 Returns an error if deletion fails.
+
+<a name="SnapshotService.DeleteByNameOrID"></a>
+### func \(\*SnapshotService\) DeleteByNameOrID
+
+```go
+func (s *SnapshotService) DeleteByNameOrID(ctx context.Context, nameOrID string) error
+```
+
+DeleteByNameOrID permanently removes a snapshot referenced by name or ID.
+
+The reference may be either the snapshot's ID \(a UUID\) or its name. Because snapshot names may themselves be UUID\-shaped, the SDK cannot decide upfront which one was intended; it uses an optimistic\-then\-fallback strategy that mirrors the TypeScript and Python SDKs.
+
+Call\-count behavior:
+
+- Plain UUID that IS the ID: 1 request \(DELETE only\).
+- Non\-UUID name: 2 requests \(GET then DELETE\).
+- UUID\-shaped string that turns out to be a NAME: 3 requests \(DELETE returns 404 → GET resolves the name → DELETE by resolved ID\).
+
+Sandboxes created from this snapshot will continue to work, but no new sandboxes can be created from it after deletion.
+
+Parameters:
+
+- nameOrID: The snapshot's ID or name
+
+Example:
+
+```
+err := client.Snapshot.DeleteByNameOrID(ctx, "my-python-env")
+if err != nil {
+    return err
+}
+```
+
+Returns an error if the snapshot cannot be found or deletion fails.
 
 <a name="SnapshotService.Get"></a>
 ### func \(\*SnapshotService\) Get

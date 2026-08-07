@@ -5,7 +5,7 @@
 
 import { ObjectStorageApi, SnapshotsApi, SnapshotState, SandboxClass, Configuration } from '@daytona/api-client'
 import type { SnapshotDto, CreateSnapshot, PaginatedSnapshots as PaginatedSnapshotsDto } from '@daytona/api-client'
-import { DaytonaError } from './errors/DaytonaError'
+import { DaytonaError, DaytonaNotFoundError } from './errors/DaytonaError'
 import { Image } from './Image'
 import type { Resources } from './Daytona'
 import { processStreamingResponse } from './utils/Stream'
@@ -67,6 +67,13 @@ export type CreateSnapshotParams = {
 }
 
 /**
+ * Matches RFC 4122 UUIDs (versions 1-5) and the nil UUID — the same set the
+ * Daytona API recognizes as snapshot IDs. Anything else is treated as a name.
+ */
+const UUID_REGEX =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i
+
+/**
  * Service for managing Daytona Snapshots. Can be used to list, get, create and delete Snapshots.
  *
  * @class
@@ -104,9 +111,9 @@ export class SnapshotService {
   }
 
   /**
-   * Gets a Snapshot by its name.
+   * Gets a Snapshot by its ID or name.
    *
-   * @param {string} name - Name of the Snapshot to retrieve
+   * @param {string} idOrName - ID or name of the Snapshot to retrieve
    * @returns {Promise<Snapshot>} The requested Snapshot
    * @throws {Error} If the Snapshot does not exist or cannot be accessed
    *
@@ -116,27 +123,26 @@ export class SnapshotService {
    * console.log(`Snapshot ${snapshot.name} is in state ${snapshot.state}`);
    */
   @WithInstrumentation()
-  async get(name: string): Promise<Snapshot> {
-    const response = await this.snapshotsApi.getSnapshot(name)
+  async get(idOrName: string): Promise<Snapshot> {
+    const response = await this.snapshotsApi.getSnapshot(idOrName)
     return response.data as Snapshot
   }
 
   /**
    * Deletes a Snapshot.
    *
-   * @param {Snapshot} snapshot - Snapshot to delete
+   * @param {Snapshot | string} snapshot - Snapshot to delete, or its ID or name
    * @returns {Promise<void>}
    * @throws {Error} If the Snapshot does not exist or cannot be deleted
    *
    * @example
    * const daytona = new Daytona();
-   * const snapshot = await daytona.snapshot.get("snapshot-name");
-   * await daytona.snapshot.delete(snapshot);
+   * await daytona.snapshot.delete("snapshot-name");
    * console.log("Snapshot deleted successfully");
    */
   @WithInstrumentation()
-  async delete(snapshot: Snapshot): Promise<void> {
-    await this.snapshotsApi.removeSnapshot(snapshot.id)
+  async delete(snapshot: Snapshot | string): Promise<void> {
+    await this.callWithResolvedId(snapshot, async (id) => this.snapshotsApi.removeSnapshot(id))
   }
 
   /**
@@ -263,12 +269,46 @@ export class SnapshotService {
   /**
    * Activates a snapshot.
    *
-   * @param {Snapshot} snapshot - Snapshot to activate
+   * @param {Snapshot | string} snapshot - Snapshot to activate, or its ID or name
    * @returns {Promise<Snapshot>} The activated Snapshot instance
    */
   @WithInstrumentation()
-  async activate(snapshot: Snapshot): Promise<Snapshot> {
-    return (await this.snapshotsApi.activateSnapshot(snapshot.id)).data as Snapshot
+  async activate(snapshot: Snapshot | string): Promise<Snapshot> {
+    return await this.callWithResolvedId(
+      snapshot,
+      async (id) => (await this.snapshotsApi.activateSnapshot(id)).data as Snapshot,
+    )
+  }
+
+  /**
+   * Invokes an ID-based Snapshot operation, resolving the given identifier with as few
+   * API calls as possible.
+   *
+   * Snapshot names may themselves be UUID-formatted, so a UUID-shaped string is first
+   * tried directly as an ID (single call) and only resolved through the API on a miss.
+   * Everything else is a name and requires one resolution call.
+   *
+   * @param {Snapshot | string} snapshot - Snapshot instance, ID or name
+   * @param {(id: string) => Promise<T>} operation - ID-based operation to invoke
+   */
+  private async callWithResolvedId<T>(snapshot: Snapshot | string, operation: (id: string) => Promise<T>): Promise<T> {
+    if (typeof snapshot !== 'string') {
+      return await operation(snapshot.id)
+    }
+
+    if (UUID_REGEX.test(snapshot)) {
+      try {
+        return await operation(snapshot)
+      } catch (error) {
+        if (!(error instanceof DaytonaNotFoundError)) {
+          throw error
+        }
+        // Not an existing ID — may still be a UUID-formatted name; fall through to resolution.
+      }
+    }
+
+    const resolved = await this.snapshotsApi.getSnapshot(snapshot)
+    return await operation(resolved.data.id)
   }
 
   /**

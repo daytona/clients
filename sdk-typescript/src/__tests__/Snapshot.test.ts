@@ -5,6 +5,7 @@ import type { Configuration } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
 import { SnapshotService } from '../Snapshot'
 import { Image } from '../Image'
+import { DaytonaForbiddenError, DaytonaNotFoundError } from '../errors/DaytonaError'
 
 const mockProcessStreamingResponse = jest.fn()
 const mockDynamicImport = jest.fn()
@@ -71,6 +72,52 @@ describe('SnapshotService', () => {
     })
     await expect(service.get('snap1')).resolves.toEqual({ id: 's1', name: 'snap1' })
     await service.delete({ id: 's1' } as never)
+  })
+
+  it('deletes snapshot by name with a single resolution call', async () => {
+    snapshotsApi.getSnapshot.mockResolvedValue(createApiResponse({ id: 's1', name: 'snap1' }))
+    snapshotsApi.removeSnapshot.mockResolvedValue(createApiResponse(undefined))
+
+    await service.delete('snap1')
+
+    expect(snapshotsApi.getSnapshot).toHaveBeenCalledTimes(1)
+    expect(snapshotsApi.getSnapshot).toHaveBeenCalledWith('snap1')
+    expect(snapshotsApi.removeSnapshot).toHaveBeenCalledTimes(1)
+    expect(snapshotsApi.removeSnapshot).toHaveBeenCalledWith('s1')
+  })
+
+  it('deletes snapshot by UUID id without resolution', async () => {
+    const id = '9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa'
+    snapshotsApi.removeSnapshot.mockResolvedValue(createApiResponse(undefined))
+
+    await service.delete(id)
+
+    expect(snapshotsApi.getSnapshot).not.toHaveBeenCalled()
+    expect(snapshotsApi.removeSnapshot).toHaveBeenCalledTimes(1)
+    expect(snapshotsApi.removeSnapshot).toHaveBeenCalledWith(id)
+  })
+
+  it('falls back to name resolution when UUID-formatted name is not an id', async () => {
+    const uuidName = '9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa'
+    snapshotsApi.removeSnapshot
+      .mockRejectedValueOnce(new DaytonaNotFoundError('not found'))
+      .mockResolvedValueOnce(createApiResponse(undefined))
+    snapshotsApi.getSnapshot.mockResolvedValue(createApiResponse({ id: 'real-id', name: uuidName }))
+
+    await service.delete(uuidName)
+
+    expect(snapshotsApi.removeSnapshot).toHaveBeenNthCalledWith(1, uuidName)
+    expect(snapshotsApi.getSnapshot).toHaveBeenCalledWith(uuidName)
+    expect(snapshotsApi.removeSnapshot).toHaveBeenNthCalledWith(2, 'real-id')
+  })
+
+  it('propagates non-404 errors from delete by UUID without resolution', async () => {
+    const id = '9f0a2b52-6a5f-4bd6-9c1e-1c9a1cf7d3aa'
+    snapshotsApi.removeSnapshot.mockRejectedValue(new DaytonaForbiddenError('forbidden'))
+
+    await expect(service.delete(id)).rejects.toThrow('forbidden')
+    expect(snapshotsApi.getSnapshot).not.toHaveBeenCalled()
+    expect(snapshotsApi.removeSnapshot).toHaveBeenCalledTimes(1)
   })
 
   it('creates snapshot from image name with resources and region', async () => {
@@ -181,5 +228,14 @@ describe('SnapshotService', () => {
     snapshotsApi.activateSnapshot.mockResolvedValue(createApiResponse({ id: 's1', name: 'snap1', state: 'active' }))
 
     await expect(service.activate({ id: 's1' } as never)).resolves.toEqual({ id: 's1', name: 'snap1', state: 'active' })
+  })
+
+  it('activates snapshots by name', async () => {
+    snapshotsApi.getSnapshot.mockResolvedValue(createApiResponse({ id: 's1', name: 'snap1' }))
+    snapshotsApi.activateSnapshot.mockResolvedValue(createApiResponse({ id: 's1', name: 'snap1', state: 'active' }))
+
+    await expect(service.activate('snap1')).resolves.toEqual({ id: 's1', name: 'snap1', state: 'active' })
+    expect(snapshotsApi.getSnapshot).toHaveBeenCalledWith('snap1')
+    expect(snapshotsApi.activateSnapshot).toHaveBeenCalledWith('s1')
   })
 })

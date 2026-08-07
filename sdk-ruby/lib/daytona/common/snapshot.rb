@@ -43,6 +43,14 @@ module Daytona
   end
 
   class Snapshot
+    # Matches RFC 4122 UUIDs (versions 1-5) and the nil UUID - the same set the
+    # Daytona API recognizes as snapshot IDs. Anything else is treated as a name.
+    SNAPSHOT_ID_PATTERN = Regexp.new(
+      '\A(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}' \
+      '|00000000-0000-0000-0000-000000000000)\z',
+      Regexp::IGNORECASE
+    ).freeze
+
     # @return [String] Unique identifier for the Snapshot
     attr_reader :id
 
@@ -120,5 +128,11 @@ module Daytona
     # @param dto [DaytonaApiClient::SnapshotDto] The snapshot DTO from the API
     # @return [Daytona::Snapshot] The snapshot instance
     def self.from_dto(dto) = new(dto)
+
+    # Whether the given value looks like a Snapshot ID (a UUID) rather than a name.
+    #
+    # @param value [Object] value to test
+    # @return [Boolean] true when value is a UUID-shaped String
+    def self.id?(value) = value.is_a?(String) && SNAPSHOT_ID_PATTERN.match?(value)
   end
 end
