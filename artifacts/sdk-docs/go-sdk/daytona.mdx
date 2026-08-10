@@ -328,6 +328,12 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(v \*VolumeService\) Get\(ctx context.Context, name string\) \(\*types.Volume, error\)](<#VolumeService.Get>)
   - [func \(v \*VolumeService\) List\(ctx context.Context\) \(\[\]\*types.Volume, error\)](<#VolumeService.List>)
   - [func \(v \*VolumeService\) WaitForReady\(ctx context.Context, volume \*types.Volume, timeout time.Duration\) \(\*types.Volume, error\)](<#VolumeService.WaitForReady>)
+- [type WarmPoolService](<#WarmPoolService>)
+  - [func NewWarmPoolService\(client \*Client\) \*WarmPoolService](<#NewWarmPoolService>)
+  - [func \(w \*WarmPoolService\) Create\(ctx context.Context, params \*types.CreateWarmPoolParams\) \(\*types.WarmPool, error\)](<#WarmPoolService.Create>)
+  - [func \(w \*WarmPoolService\) Delete\(ctx context.Context, warmPoolID string\) error](<#WarmPoolService.Delete>)
+  - [func \(w \*WarmPoolService\) List\(ctx context.Context\) \(\[\]\*types.WarmPool, error\)](<#WarmPoolService.List>)
+  - [func \(w \*WarmPoolService\) Update\(ctx context.Context, warmPoolID string, pool int\) \(\*types.WarmPool, error\)](<#WarmPoolService.Update>)
 
 
 ## Constants
@@ -528,6 +534,9 @@ type Client struct {
 
     // Secret provides methods for managing organization secrets.
     Secret *SecretService
+
+    // WarmPool provides methods for managing warm pools of ready sandboxes.
+    WarmPool *WarmPoolService
     // contains filtered or unexported fields
 }
 ```
@@ -5978,4 +5987,145 @@ if err != nil {
 ```
 
 Returns the updated \[types.Volume\] when ready, or an error if the timeout expires or the volume enters an error state.
+
+<a name="WarmPoolService"></a>
+## type WarmPoolService
+
+WarmPoolService provides warm pool management operations.
+
+WarmPoolService enables listing, creating, updating, and deleting warm pools of ready\-to\-use sandboxes for a snapshot. A pool's CurrentSize versus Pool is its status: CurrentSize is the number of ready warm sandboxes, Pool is the desired number, and ErrorReason is set when the pool cannot be filled. Access through \[Client.WarmPool\].
+
+Example:
+
+```
+// Create a new warm pool
+pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+    Snapshot: "my-snapshot",
+    Pool:     5,
+})
+if err != nil {
+    return err
+}
+
+// List all warm pools
+pools, err := client.WarmPool.List(ctx)
+```
+
+```go
+type WarmPoolService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewWarmPoolService"></a>
+### func NewWarmPoolService
+
+```go
+func NewWarmPoolService(client *Client) *WarmPoolService
+```
+
+NewWarmPoolService creates a new WarmPoolService.
+
+This is typically called internally by the SDK when creating a [Client](<#Client>). Users should access WarmPoolService through \[Client.WarmPool\] rather than creating it directly.
+
+<a name="WarmPoolService.Create"></a>
+### func \(\*WarmPoolService\) Create
+
+```go
+func (w *WarmPoolService) Create(ctx context.Context, params *types.CreateWarmPoolParams) (*types.WarmPool, error)
+```
+
+Create creates a new warm pool.
+
+A pool for the same snapshot and region may exist only once; a duplicate returns a conflict error.
+
+Parameters:
+
+- params: Warm pool creation parameters including snapshot, desired pool size, and optional target region
+
+Example:
+
+```
+pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+    Snapshot: "my-snapshot",
+    Pool:     5,
+})
+if err != nil {
+    return err
+}
+```
+
+Returns the created \[types.WarmPool\] or an error.
+
+<a name="WarmPoolService.Delete"></a>
+### func \(\*WarmPoolService\) Delete
+
+```go
+func (w *WarmPoolService) Delete(ctx context.Context, warmPoolID string) error
+```
+
+Delete permanently removes a warm pool.
+
+Parameters:
+
+- warmPoolID: The warm pool ID
+
+Example:
+
+```
+err := client.WarmPool.Delete(ctx, warmPoolID)
+if err != nil {
+    return err
+}
+```
+
+Returns an error if the ID is unknown \(404\) or deletion fails.
+
+<a name="WarmPoolService.List"></a>
+### func \(\*WarmPoolService\) List
+
+```go
+func (w *WarmPoolService) List(ctx context.Context) ([]*types.WarmPool, error)
+```
+
+List returns all warm pools in the organization.
+
+Example:
+
+```
+pools, err := client.WarmPool.List(ctx)
+if err != nil {
+    return err
+}
+for _, pool := range pools {
+    fmt.Printf("%s: %d/%d ready\n", pool.Snapshot, pool.CurrentSize, pool.Pool)
+}
+```
+
+Returns a slice of \[types.WarmPool\] or an error if the request fails.
+
+<a name="WarmPoolService.Update"></a>
+### func \(\*WarmPoolService\) Update
+
+```go
+func (w *WarmPoolService) Update(ctx context.Context, warmPoolID string, pool int) (*types.WarmPool, error)
+```
+
+Update sets the desired size of a warm pool.
+
+Parameters:
+
+- warmPoolID: The warm pool ID
+- pool: New desired number of warm sandboxes \(0 drains the pool\)
+
+Example:
+
+```
+pool, err := client.WarmPool.Update(ctx, warmPoolID, 10)
+if err != nil {
+    return err
+}
+```
+
+Returns the updated \[types.WarmPool\] or an error if the ID is unknown \(404\).
 

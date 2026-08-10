@@ -1,3 +1,6 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from daytona_api_client_async import CreateWarmPool, UpdateWarmPool, WarmPoolsApi

@@ -1,3 +1,6 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package daytona
 
 import (
@@ -56,6 +59,40 @@ func TestWarmPoolList(t *testing.T) {
 	assert.Equal(t, "my-snapshot", pools[0].Snapshot)
 	assert.Equal(t, 5, pools[0].Pool)
 	assert.Equal(t, 3, pools[0].CurrentSize)
+}
+
+func TestWarmPoolUpdate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPatch, r.Method)
+		require.Equal(t, "/warm-pools/wp-1", r.URL.Path)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		require.EqualValues(t, 7, body["pool"])
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":             "wp-1",
+			"organizationId": "org-1",
+			"snapshot":       "my-snapshot",
+			"target":         "us",
+			"pool":           7,
+			"currentSize":    3,
+			"cpu":            2,
+			"mem":            4,
+			"disk":           10,
+			"osUser":         "daytona",
+			"env":            map[string]string{},
+			"createdAt":      "2025-01-01T00:00:00Z",
+			"updatedAt":      "2025-01-02T00:00:00Z",
+		})
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+
+	updated, err := client.WarmPool.Update(context.Background(), "wp-1", 7)
+	require.NoError(t, err)
+	assert.Equal(t, 7, updated.Pool)
+	assert.Equal(t, "wp-1", updated.ID)
 }
 
 func TestWarmPoolListError(t *testing.T) {
