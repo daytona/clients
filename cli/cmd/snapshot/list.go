@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	pageFlag  int
-	limitFlag int
+	pageFlag            int
+	limitFlag           int
+	sourceSandboxIdFlag string
 )
 
 var ListCmd = &cobra.Command{
@@ -43,7 +44,13 @@ var ListCmd = &cobra.Command{
 			limit = float32(limitFlag)
 		}
 
-		snapshots, res, err := apiClient.SnapshotsAPI.GetAllSnapshots(ctx).Page(page).Limit(limit).Execute()
+		req := apiClient.SnapshotsAPI.GetAllSnapshots(ctx).Page(page).Limit(limit)
+
+		if sourceSandboxIdFlag != "" {
+			req = req.SourceSandboxId(sourceSandboxIdFlag)
+		}
+
+		snapshots, res, err := req.Execute()
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return apiclient.HandleErrorResponse(res, err)
@@ -74,4 +81,5 @@ func init() {
 	common.RegisterFormatFlag(ListCmd)
 	ListCmd.Flags().IntVarP(&pageFlag, "page", "p", 1, "Page number for pagination (starting from 1)")
 	ListCmd.Flags().IntVarP(&limitFlag, "limit", "l", 100, "Maximum number of items per page")
+	ListCmd.Flags().StringVar(&sourceSandboxIdFlag, "source-sandbox-id", "", "Filter by the ID of the sandbox the snapshot was created from")
 }

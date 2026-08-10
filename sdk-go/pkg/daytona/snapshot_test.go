@@ -140,6 +140,22 @@ func TestSnapshotSuccessOperations(t *testing.T) {
 		assert.Equal(t, "snap-1", snapshot.ID)
 	})
 
+	t.Run("list with query sends the sourceSandboxId param", func(t *testing.T) {
+		var gotSourceSandboxID string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotSourceSandboxID = r.URL.Query().Get("sourceSandboxId")
+			writeJSONResponse(t, w, http.StatusOK, map[string]any{"items": []any{testSnapshotPayload("snap-1", "first", apiclient.SNAPSHOTSTATE_ACTIVE)}, "total": 1, "page": 1, "totalPages": 1})
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sourceSandboxID := "sandbox-1"
+		list, err := client.Snapshot.ListWithQuery(context.Background(), &ListSnapshotsQuery{SourceSandboxID: &sourceSandboxID})
+		require.NoError(t, err)
+		assert.Len(t, list.Items, 1)
+		assert.Equal(t, "sandbox-1", gotSourceSandboxID)
+	})
+
 	t.Run("create with image streams logs for active snapshot", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch {
@@ -195,13 +211,17 @@ func TestSnapshotLogStreamingHelpers(t *testing.T) {
 		size := *apiclient.NewNullableFloat32(&sizeVal)
 		errorReason := *apiclient.NewNullableString(nil)
 		lastUsedAt := *apiclient.NewNullableTime(nil)
-		apiSnapshot := apiclient.NewSnapshotDto("snap-3", false, "mapped", apiclient.SNAPSHOTSTATE_ACTIVE, size, []string{"python"}, 1, 0, 1024, 10, errorReason, now, now, lastUsedAt)
+		sourceSandboxIDVal := "sandbox-9"
+		sourceSandboxID := *apiclient.NewNullableString(&sourceSandboxIDVal)
+		apiSnapshot := apiclient.NewSnapshotDto("snap-3", false, "mapped", apiclient.SNAPSHOTSTATE_ACTIVE, size, []string{"python"}, 1, 0, 1024, 10, errorReason, now, now, lastUsedAt, sourceSandboxID)
 		apiSnapshot.SetOrganizationId("org-9")
 		apiSnapshot.SetImageName("python:3.12")
 		mapped := mapSnapshotFromAPI(apiSnapshot)
 		require.NotNil(t, mapped.Size)
 		assert.Equal(t, 42.5, *mapped.Size)
 		assert.Equal(t, "org-9", mapped.OrganizationID)
+		require.NotNil(t, mapped.SourceSandboxID)
+		assert.Equal(t, "sandbox-9", *mapped.SourceSandboxID)
 	})
 }
 

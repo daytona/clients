@@ -213,6 +213,14 @@ public class SnapshotDtoTest {
     }
 
     /**
+     * Test the property 'sourceSandboxId'
+     */
+    @Test
+    public void sourceSandboxIdTest() {
+        // TODO: test sourceSandboxId
+    }
+
+    /**
      * Test the property 'sandboxClass'
      */
     @Test

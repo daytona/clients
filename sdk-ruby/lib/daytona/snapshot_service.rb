@@ -26,6 +26,7 @@ module Daytona
     #
     # @param page [Integer, Nil]
     # @param limit [Integer, Nil]
+    # @param source_sandbox_id [String, Nil] Filter by the ID of the sandbox the snapshot was created from
     # @return [Daytona::PaginatedResource] Paginated list of all Snapshots
     # @raise [Daytona::Sdk::Error]
     #
@@ -34,12 +35,12 @@ module Daytona
     #   page = daytona.snapshot.list(page: 2, limit: 10)
     #   puts "Page #{page.page} of #{page.total_pages} (#{page.total} snapshots total)"
     #   page.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" }
-    def list(page: nil, limit: nil)
+    def list(page: nil, limit: nil, source_sandbox_id: nil)
       raise Sdk::Error, 'page must be positive integer' if page && page < 1
 
       raise Sdk::Error, 'limit must be positive integer' if limit && limit < 1
 
-      response = snapshots_api.get_all_snapshots(page:, limit:)
+      response = snapshots_api.get_all_snapshots(page:, limit:, source_sandbox_id:)
       PaginatedResource.new(
         total: response.total,
         page: response.page,

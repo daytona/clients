@@ -55,9 +55,10 @@ class SnapshotDto(BaseModel):
     region_ids: Optional[List[StrictStr]] = Field(default=None, description="IDs of regions where the snapshot is available", serialization_alias="regionIds")
     initial_runner_id: Optional[StrictStr] = Field(default=None, description="The initial runner ID of the snapshot", serialization_alias="initialRunnerId")
     ref: Optional[StrictStr] = Field(default=None, description="The snapshot reference")
+    source_sandbox_id: Optional[StrictStr] = Field(description="The ID of the sandbox the snapshot was created from", serialization_alias="sourceSandboxId")
     sandbox_class: Optional[StrictStr] = Field(default=None, description="The sandbox class of the snapshot", serialization_alias="sandboxClass")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "general", "name", "imageName", "state", "size", "entrypoint", "cpu", "gpu", "gpuType", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt", "buildInfo", "regionIds", "initialRunnerId", "ref", "sandboxClass"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "general", "name", "imageName", "state", "size", "entrypoint", "cpu", "gpu", "gpuType", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt", "buildInfo", "regionIds", "initialRunnerId", "ref", "sourceSandboxId", "sandboxClass"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -127,6 +128,11 @@ class SnapshotDto(BaseModel):
         if self.last_used_at is None and "last_used_at" in self.model_fields_set:
             _dict['lastUsedAt'] = None
 
+        # set to None if source_sandbox_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.source_sandbox_id is None and "source_sandbox_id" in self.model_fields_set:
+            _dict['sourceSandboxId'] = None
+
         return _dict
 
     @classmethod
@@ -160,6 +166,7 @@ class SnapshotDto(BaseModel):
             "region_ids": obj.get("regionIds"),
             "initial_runner_id": obj.get("initialRunnerId"),
             "ref": obj.get("ref"),
+            "source_sandbox_id": obj.get("sourceSandboxId"),
             "sandbox_class": obj.get("sandboxClass")
         })
         # store additional fields in additional_properties

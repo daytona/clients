@@ -39,12 +39,15 @@ class SnapshotService:
 
     @intercept_errors(message_prefix="Failed to list snapshots: ")
     @with_instrumentation()
-    def list(self, page: int | None = None, limit: int | None = None) -> PaginatedSnapshots:
+    def list(
+        self, page: int | None = None, limit: int | None = None, source_sandbox_id: str | None = None
+    ) -> PaginatedSnapshots:
         """Returns paginated list of Snapshots.
 
         Args:
             page (int | None): Page number for pagination (starting from 1).
             limit (int | None): Maximum number of items per page.
+            source_sandbox_id (str | None): Filter by the ID of the sandbox the snapshot was created from.
 
         Returns:
             PaginatedSnapshots: Paginated list of Snapshots.
@@ -64,7 +67,7 @@ class SnapshotService:
         if limit is not None and limit < 1:
             raise DaytonaValidationError("limit must be a positive integer")
 
-        response = self.__snapshots_api.get_all_snapshots(limit=limit, page=page)
+        response = self.__snapshots_api.get_all_snapshots(limit=limit, page=page, source_sandbox_id=source_sandbox_id)
         return PaginatedSnapshots(
             items=[Snapshot.from_dto(snapshot) for snapshot in response.items],
             total=response.total,

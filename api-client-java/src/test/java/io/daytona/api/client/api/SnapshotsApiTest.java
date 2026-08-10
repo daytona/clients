@@ -85,9 +85,10 @@ public class SnapshotsApiTest {
         BigDecimal page = null;
         BigDecimal limit = null;
         String name = null;
+        String sourceSandboxId = null;
         String sort = null;
         String order = null;
-        PaginatedSnapshots response = api.getAllSnapshots(xDaytonaOrganizationID, page, limit, name, sort, order);
+        PaginatedSnapshots response = api.getAllSnapshots(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order);
         // TODO: test validations
     }
 

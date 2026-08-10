@@ -70,8 +70,23 @@ describe('SnapshotService', () => {
       page: 1,
       totalPages: 1,
     })
+    expect(snapshotsApi.getAllSnapshots).toHaveBeenCalledWith(undefined, 1, 10, undefined, undefined)
     await expect(service.get('snap1')).resolves.toEqual({ id: 's1', name: 'snap1' })
     await service.delete({ id: 's1' } as never)
+  })
+
+  it('lists snapshots with a query object including sourceSandboxId', async () => {
+    snapshotsApi.getAllSnapshots.mockResolvedValue(
+      createApiResponse({ items: [{ id: 's1', name: 'snap1' }], total: 1, page: 1, totalPages: 1 }),
+    )
+
+    await expect(service.list({ page: 2, limit: 5, sourceSandboxId: 'sandbox-1' })).resolves.toEqual({
+      items: [{ id: 's1', name: 'snap1' }],
+      total: 1,
+      page: 1,
+      totalPages: 1,
+    })
+    expect(snapshotsApi.getAllSnapshots).toHaveBeenCalledWith(undefined, 2, 5, undefined, 'sandbox-1')
   })
 
   it('deletes snapshot by name with a single resolution call', async () => {

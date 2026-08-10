@@ -4214,6 +4214,15 @@ paths:
           example: abc123
           type: string
         style: form
+      - description: Filter by the ID of the sandbox the snapshot was created from
+        explode: true
+        in: query
+        name: sourceSandboxId
+        required: false
+        schema:
+          example: sandbox123
+          type: string
+        style: form
       - description: Field to sort by
         explode: true
         in: query
@@ -10908,6 +10917,7 @@ components:
         - entrypoint
         - entrypoint
         errorReason: errorReason
+        sourceSandboxId: sandbox123
         name: name
         id: id
         state: ""
@@ -10980,6 +10990,11 @@ components:
           description: The snapshot reference
           example: daytonaio/sandbox:latest
           type: string
+        sourceSandboxId:
+          description: The ID of the sandbox the snapshot was created from
+          example: sandbox123
+          nullable: true
+          type: string
         sandboxClass:
           description: The sandbox class of the snapshot
           enum:
@@ -11007,6 +11022,7 @@ components:
       - mem
       - name
       - size
+      - sourceSandboxId
       - state
       - updatedAt
       type: object
@@ -11035,6 +11051,7 @@ components:
           - entrypoint
           - entrypoint
           errorReason: errorReason
+          sourceSandboxId: sandbox123
           name: name
           id: id
           state: ""
@@ -11061,6 +11078,7 @@ components:
           - entrypoint
           - entrypoint
           errorReason: errorReason
+          sourceSandboxId: sandbox123
           name: name
           id: id
           state: ""

@@ -48,6 +48,8 @@ type SnapshotDto struct {
 	InitialRunnerId *string `json:"initialRunnerId,omitempty"`
 	// The snapshot reference
 	Ref *string `json:"ref,omitempty"`
+	// The ID of the sandbox the snapshot was created from
+	SourceSandboxId NullableString `json:"sourceSandboxId"`
 	// The sandbox class of the snapshot
 	SandboxClass *string `json:"sandboxClass,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -59,7 +61,7 @@ type _SnapshotDto SnapshotDto
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSnapshotDto(id string, general bool, name string, state SnapshotState, size NullableFloat32, entrypoint []string, cpu float32, gpu float32, mem float32, disk float32, errorReason NullableString, createdAt time.Time, updatedAt time.Time, lastUsedAt NullableTime) *SnapshotDto {
+func NewSnapshotDto(id string, general bool, name string, state SnapshotState, size NullableFloat32, entrypoint []string, cpu float32, gpu float32, mem float32, disk float32, errorReason NullableString, createdAt time.Time, updatedAt time.Time, lastUsedAt NullableTime, sourceSandboxId NullableString) *SnapshotDto {
 	this := SnapshotDto{}
 	this.Id = id
 	this.General = general
@@ -75,6 +77,7 @@ func NewSnapshotDto(id string, general bool, name string, state SnapshotState, s
 	this.CreatedAt = createdAt
 	this.UpdatedAt = updatedAt
 	this.LastUsedAt = lastUsedAt
+	this.SourceSandboxId = sourceSandboxId
 	return &this
 }
 
@@ -654,6 +657,32 @@ func (o *SnapshotDto) SetRef(v string) {
 	o.Ref = &v
 }
 
+// GetSourceSandboxId returns the SourceSandboxId field value
+// If the value is explicit nil, the zero value for string will be returned
+func (o *SnapshotDto) GetSourceSandboxId() string {
+	if o == nil || o.SourceSandboxId.Get() == nil {
+		var ret string
+		return ret
+	}
+
+	return *o.SourceSandboxId.Get()
+}
+
+// GetSourceSandboxIdOk returns a tuple with the SourceSandboxId field value
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *SnapshotDto) GetSourceSandboxIdOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SourceSandboxId.Get(), o.SourceSandboxId.IsSet()
+}
+
+// SetSourceSandboxId sets field value
+func (o *SnapshotDto) SetSourceSandboxId(v string) {
+	o.SourceSandboxId.Set(&v)
+}
+
 // GetSandboxClass returns the SandboxClass field value if set, zero value otherwise.
 func (o *SnapshotDto) GetSandboxClass() string {
 	if o == nil || IsNil(o.SandboxClass) {
@@ -733,6 +762,7 @@ func (o SnapshotDto) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Ref) {
 		toSerialize["ref"] = o.Ref
 	}
+	toSerialize["sourceSandboxId"] = o.SourceSandboxId.Get()
 	if !IsNil(o.SandboxClass) {
 		toSerialize["sandboxClass"] = o.SandboxClass
 	}
@@ -763,6 +793,7 @@ func (o *SnapshotDto) UnmarshalJSON(data []byte) (err error) {
 		"createdAt",
 		"updatedAt",
 		"lastUsedAt",
+		"sourceSandboxId",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -813,6 +844,7 @@ func (o *SnapshotDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "regionIds")
 		delete(additionalProperties, "initialRunnerId")
 		delete(additionalProperties, "ref")
+		delete(additionalProperties, "sourceSandboxId")
 		delete(additionalProperties, "sandboxClass")
 		o.AdditionalProperties = additionalProperties
 	}

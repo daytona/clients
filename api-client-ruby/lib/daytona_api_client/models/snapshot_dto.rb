@@ -62,6 +62,9 @@ module DaytonaApiClient
     # The snapshot reference
     attr_accessor :ref
 
+    # The ID of the sandbox the snapshot was created from
+    attr_accessor :source_sandbox_id
+
     # The sandbox class of the snapshot
     attr_accessor :sandbox_class
 
@@ -111,6 +114,7 @@ module DaytonaApiClient
         :'region_ids' => :'regionIds',
         :'initial_runner_id' => :'initialRunnerId',
         :'ref' => :'ref',
+        :'source_sandbox_id' => :'sourceSandboxId',
         :'sandbox_class' => :'sandboxClass'
       }
     end
@@ -149,6 +153,7 @@ module DaytonaApiClient
         :'region_ids' => :'Array<String>',
         :'initial_runner_id' => :'String',
         :'ref' => :'String',
+        :'source_sandbox_id' => :'String',
         :'sandbox_class' => :'String'
       }
     end
@@ -160,6 +165,7 @@ module DaytonaApiClient
         :'entrypoint',
         :'error_reason',
         :'last_used_at',
+        :'source_sandbox_id',
       ])
     end
 
@@ -293,6 +299,12 @@ module DaytonaApiClient
 
       if attributes.key?(:'ref')
         self.ref = attributes[:'ref']
+      end
+
+      if attributes.key?(:'source_sandbox_id')
+        self.source_sandbox_id = attributes[:'source_sandbox_id']
+      else
+        self.source_sandbox_id = nil
       end
 
       if attributes.key?(:'sandbox_class')
@@ -503,6 +515,7 @@ module DaytonaApiClient
           region_ids == o.region_ids &&
           initial_runner_id == o.initial_runner_id &&
           ref == o.ref &&
+          source_sandbox_id == o.source_sandbox_id &&
           sandbox_class == o.sandbox_class
     end
 
@@ -515,7 +528,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, general, name, image_name, state, size, entrypoint, cpu, gpu, gpu_type, mem, disk, error_reason, created_at, updated_at, last_used_at, build_info, region_ids, initial_runner_id, ref, sandbox_class].hash
+      [id, organization_id, general, name, image_name, state, size, entrypoint, cpu, gpu, gpu_type, mem, disk, error_reason, created_at, updated_at, last_used_at, build_info, region_ids, initial_runner_id, ref, source_sandbox_id, sandbox_class].hash
     end
 
     # Builds the object from hash

@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -170,7 +171,7 @@ class SnapshotServiceTest {
         response.setTotal(BigDecimal.valueOf(2));
         response.setPage(BigDecimal.ONE);
         response.setTotalPages(BigDecimal.ONE);
-        when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), isNull(), isNull())).thenReturn(response);
+        when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), isNull(), isNull(), isNull())).thenReturn(response);
 
         PaginatedSnapshots snapshots = snapshotService.list(null, null);
 
@@ -180,8 +181,22 @@ class SnapshotServiceTest {
     }
 
     @Test
+    void listPassesSourceSandboxIdFilter() {
+        io.daytona.api.client.model.PaginatedSnapshots response = new io.daytona.api.client.model.PaginatedSnapshots();
+        response.setItems(Arrays.asList(snapshotDto("snap-1", "one", SnapshotState.ACTIVE)));
+        response.setTotal(BigDecimal.ONE);
+        response.setPage(BigDecimal.ONE);
+        response.setTotalPages(BigDecimal.ONE);
+        when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), eq("sandbox-1"), isNull(), isNull())).thenReturn(response);
+
+        PaginatedSnapshots snapshots = snapshotService.list(null, null, "sandbox-1");
+
+        assertThat(snapshots.getItems()).extracting(Snapshot::getName).containsExactly("one");
+    }
+
+    @Test
     void listReturnsDefaultsWhenApiReturnsNull() {
-        when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), isNull(), isNull())).thenReturn(null);
+        when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), isNull(), isNull(), isNull())).thenReturn(null);
 
         PaginatedSnapshots snapshots = snapshotService.list(2, 3);
 

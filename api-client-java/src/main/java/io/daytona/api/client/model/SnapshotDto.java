@@ -162,6 +162,11 @@ public class SnapshotDto {
   @javax.annotation.Nullable
   private String ref;
 
+  public static final String SERIALIZED_NAME_SOURCE_SANDBOX_ID = "sourceSandboxId";
+  @SerializedName(SERIALIZED_NAME_SOURCE_SANDBOX_ID)
+  @javax.annotation.Nullable
+  private String sourceSandboxId;
+
   /**
    * The sandbox class of the snapshot
    */
@@ -643,6 +648,25 @@ public class SnapshotDto {
   }
 
 
+  public SnapshotDto sourceSandboxId(@javax.annotation.Nullable String sourceSandboxId) {
+    this.sourceSandboxId = sourceSandboxId;
+    return this;
+  }
+
+  /**
+   * The ID of the sandbox the snapshot was created from
+   * @return sourceSandboxId
+   */
+  @javax.annotation.Nullable
+  public String getSourceSandboxId() {
+    return sourceSandboxId;
+  }
+
+  public void setSourceSandboxId(@javax.annotation.Nullable String sourceSandboxId) {
+    this.sourceSandboxId = sourceSandboxId;
+  }
+
+
   public SnapshotDto sandboxClass(@javax.annotation.Nullable SandboxClassEnum sandboxClass) {
     this.sandboxClass = sandboxClass;
     return this;
@@ -737,13 +761,14 @@ public class SnapshotDto {
         Objects.equals(this.regionIds, snapshotDto.regionIds) &&
         Objects.equals(this.initialRunnerId, snapshotDto.initialRunnerId) &&
         Objects.equals(this.ref, snapshotDto.ref) &&
+        Objects.equals(this.sourceSandboxId, snapshotDto.sourceSandboxId) &&
         Objects.equals(this.sandboxClass, snapshotDto.sandboxClass)&&
         Objects.equals(this.additionalProperties, snapshotDto.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, general, name, imageName, state, size, entrypoint, cpu, gpu, gpuType, mem, disk, errorReason, createdAt, updatedAt, lastUsedAt, buildInfo, regionIds, initialRunnerId, ref, sandboxClass, additionalProperties);
+    return Objects.hash(id, organizationId, general, name, imageName, state, size, entrypoint, cpu, gpu, gpuType, mem, disk, errorReason, createdAt, updatedAt, lastUsedAt, buildInfo, regionIds, initialRunnerId, ref, sourceSandboxId, sandboxClass, additionalProperties);
   }
 
   @Override
@@ -771,6 +796,7 @@ public class SnapshotDto {
     sb.append("    regionIds: ").append(toIndentedString(regionIds)).append("\n");
     sb.append("    initialRunnerId: ").append(toIndentedString(initialRunnerId)).append("\n");
     sb.append("    ref: ").append(toIndentedString(ref)).append("\n");
+    sb.append("    sourceSandboxId: ").append(toIndentedString(sourceSandboxId)).append("\n");
     sb.append("    sandboxClass: ").append(toIndentedString(sandboxClass)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -791,10 +817,10 @@ public class SnapshotDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "general", "name", "imageName", "state", "size", "entrypoint", "cpu", "gpu", "gpuType", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt", "buildInfo", "regionIds", "initialRunnerId", "ref", "sandboxClass"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "general", "name", "imageName", "state", "size", "entrypoint", "cpu", "gpu", "gpuType", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt", "buildInfo", "regionIds", "initialRunnerId", "ref", "sourceSandboxId", "sandboxClass"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "general", "name", "state", "size", "entrypoint", "cpu", "gpu", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "general", "name", "state", "size", "entrypoint", "cpu", "gpu", "mem", "disk", "errorReason", "createdAt", "updatedAt", "lastUsedAt", "sourceSandboxId"));
   }
 
   /**
@@ -857,6 +883,9 @@ public class SnapshotDto {
       }
       if ((jsonObj.get("ref") != null && !jsonObj.get("ref").isJsonNull()) && !jsonObj.get("ref").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `ref` to be a primitive type in the JSON string but got `%s`", jsonObj.get("ref").toString()));
+      }
+      if ((jsonObj.get("sourceSandboxId") != null && !jsonObj.get("sourceSandboxId").isJsonNull()) && !jsonObj.get("sourceSandboxId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sourceSandboxId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sourceSandboxId").toString()));
       }
       if ((jsonObj.get("sandboxClass") != null && !jsonObj.get("sandboxClass").isJsonNull()) && !jsonObj.get("sandboxClass").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sandboxClass` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sandboxClass").toString()));

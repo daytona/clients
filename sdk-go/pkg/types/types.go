@@ -255,6 +255,9 @@ type Snapshot struct {
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
 	LastUsedAt     *time.Time `json:"lastUsedAt,omitempty"`
+	// ID of the sandbox the snapshot was created from; nil for snapshots not
+	// created from a sandbox (e.g. registry-pulled or declaratively built)
+	SourceSandboxID *string `json:"sourceSandboxId,omitempty"`
 }
 
 // FileInfo represents file metadata

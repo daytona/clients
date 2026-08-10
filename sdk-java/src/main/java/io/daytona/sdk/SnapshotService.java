@@ -195,10 +195,23 @@ public class SnapshotService {
      * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
      */
     public PaginatedSnapshots list(Integer page, Integer limit) {
+        return list(page, limit, null);
+    }
+
+    /**
+     * Lists snapshots with pagination, optionally filtered by source sandbox.
+     *
+     * @param page page number starting from 1; defaults to 1 when {@code null}
+     * @param limit maximum number of items per page; defaults to 10 when {@code null}
+     * @param sourceSandboxId filter by the ID of the sandbox the snapshot was created from; ignored when {@code null}
+     * @return paginated snapshot result
+     * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
+     */
+    public PaginatedSnapshots list(Integer page, Integer limit, String sourceSandboxId) {
         int p = page == null ? 1 : page;
         int l = limit == null ? 10 : limit;
         io.daytona.api.client.model.PaginatedSnapshots result = ExceptionMapper.callMain(
-                () -> snapshotsApi.getAllSnapshots(null, BigDecimal.valueOf(p), BigDecimal.valueOf(l), null, null, null)
+                () -> snapshotsApi.getAllSnapshots(null, BigDecimal.valueOf(p), BigDecimal.valueOf(l), null, sourceSandboxId, null, null)
         );
 
         PaginatedSnapshots output = new PaginatedSnapshots();

@@ -467,6 +467,7 @@ type SnapshotsAPIGetAllSnapshotsRequest struct {
 	page *float32
 	limit *float32
 	name *string
+	sourceSandboxId *string
 	sort *string
 	order *string
 }
@@ -492,6 +493,12 @@ func (r SnapshotsAPIGetAllSnapshotsRequest) Limit(limit float32) SnapshotsAPIGet
 // Filter by partial name match
 func (r SnapshotsAPIGetAllSnapshotsRequest) Name(name string) SnapshotsAPIGetAllSnapshotsRequest {
 	r.name = &name
+	return r
+}
+
+// Filter by the ID of the sandbox the snapshot was created from
+func (r SnapshotsAPIGetAllSnapshotsRequest) SourceSandboxId(sourceSandboxId string) SnapshotsAPIGetAllSnapshotsRequest {
+	r.sourceSandboxId = &sourceSandboxId
 	return r
 }
 
@@ -561,6 +568,9 @@ func (a *SnapshotsAPIService) GetAllSnapshotsExecute(r SnapshotsAPIGetAllSnapsho
 	}
 	if r.name != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "name", r.name, "form", "")
+	}
+	if r.sourceSandboxId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sourceSandboxId", r.sourceSandboxId, "form", "")
 	}
 	if r.sort != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "form", "")

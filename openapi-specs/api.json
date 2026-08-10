@@ -6149,6 +6149,16 @@
             }
           },
           {
+            "name": "sourceSandboxId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by the ID of the sandbox the snapshot was created from",
+            "schema": {
+              "example": "sandbox123",
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -14344,6 +14354,12 @@
             "description": "The snapshot reference",
             "example": "daytonaio/sandbox:latest"
           },
+          "sourceSandboxId": {
+            "type": "string",
+            "description": "The ID of the sandbox the snapshot was created from",
+            "example": "sandbox123",
+            "nullable": true
+          },
           "sandboxClass": {
             "type": "string",
             "description": "The sandbox class of the snapshot",
@@ -14376,7 +14392,8 @@
           "errorReason",
           "createdAt",
           "updatedAt",
-          "lastUsedAt"
+          "lastUsedAt",
+          "sourceSandboxId"
         ]
       },
       "PaginatedSnapshots": {

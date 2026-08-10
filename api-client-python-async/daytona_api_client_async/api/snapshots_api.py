@@ -886,6 +886,7 @@ class SnapshotsApi:
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
+        source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
         _request_timeout: Union[
@@ -912,6 +913,8 @@ class SnapshotsApi:
         :type limit: float
         :param name: Filter by partial name match
         :type name: str
+        :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from
+        :type source_sandbox_id: str
         :param sort: Field to sort by
         :type sort: str
         :param order: Direction to sort by
@@ -943,6 +946,7 @@ class SnapshotsApi:
             page=page,
             limit=limit,
             name=name,
+            source_sandbox_id=source_sandbox_id,
             sort=sort,
             order=order,
             _request_auth=_request_auth,
@@ -972,6 +976,7 @@ class SnapshotsApi:
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
+        source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
         _request_timeout: Union[
@@ -998,6 +1003,8 @@ class SnapshotsApi:
         :type limit: float
         :param name: Filter by partial name match
         :type name: str
+        :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from
+        :type source_sandbox_id: str
         :param sort: Field to sort by
         :type sort: str
         :param order: Direction to sort by
@@ -1029,6 +1036,7 @@ class SnapshotsApi:
             page=page,
             limit=limit,
             name=name,
+            source_sandbox_id=source_sandbox_id,
             sort=sort,
             order=order,
             _request_auth=_request_auth,
@@ -1058,6 +1066,7 @@ class SnapshotsApi:
         page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
         limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
+        source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
         _request_timeout: Union[
@@ -1084,6 +1093,8 @@ class SnapshotsApi:
         :type limit: float
         :param name: Filter by partial name match
         :type name: str
+        :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from
+        :type source_sandbox_id: str
         :param sort: Field to sort by
         :type sort: str
         :param order: Direction to sort by
@@ -1115,6 +1126,7 @@ class SnapshotsApi:
             page=page,
             limit=limit,
             name=name,
+            source_sandbox_id=source_sandbox_id,
             sort=sort,
             order=order,
             _request_auth=_request_auth,
@@ -1139,6 +1151,7 @@ class SnapshotsApi:
         page,
         limit,
         name,
+        source_sandbox_id,
         sort,
         order,
         _request_auth,
@@ -1174,6 +1187,10 @@ class SnapshotsApi:
         if name is not None:
             
             _query_params.append(('name', name))
+            
+        if source_sandbox_id is not None:
+            
+            _query_params.append(('sourceSandboxId', source_sandbox_id))
             
         if sort is not None:
             

@@ -102,6 +102,9 @@ module Daytona
     # @return [DaytonaApiClient::BuildInfo, nil] Build information for the snapshot
     attr_reader :build_info
 
+    # @return [String, nil] ID of the sandbox the Snapshot was created from
+    attr_reader :source_sandbox_id
+
     # @param snapshot_dto [DaytonaApiClient::SnapshotDto] The snapshot DTO from the API
     def initialize(snapshot_dto) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       @id = snapshot_dto.id
@@ -121,6 +124,7 @@ module Daytona
       @updated_at = snapshot_dto.updated_at
       @last_used_at = snapshot_dto.last_used_at
       @build_info = snapshot_dto.build_info
+      @source_sandbox_id = snapshot_dto.source_sandbox_id
     end
 
     # Creates a Snapshot instance from a SnapshotDto

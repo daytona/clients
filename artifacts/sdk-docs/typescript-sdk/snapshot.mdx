@@ -141,6 +141,33 @@ console.log(`Snapshot ${snapshot.name} is in state ${snapshot.state}`);
 
 #### list()
 
+##### Call Signature
+
+```ts
+list(query?: ListSnapshotsQuery): Promise<PaginatedSnapshots>;
+```
+
+List paginated list of Snapshots.
+
+**Parameters**:
+
+- `query?` _ListSnapshotsQuery_ - Pagination and filter options
+
+**Returns**:
+
+- `Promise<PaginatedSnapshots>` - Paginated list of Snapshots
+
+**Example:**
+
+```ts
+const daytona = new Daytona();
+const { items, total, page: currentPage, totalPages } = await daytona.snapshot.list({ page: 2, limit: 10 });
+console.log(`Page ${currentPage} of ${totalPages} (${total} snapshots total)`);
+items.forEach(snapshot => console.log(`${snapshot.name} (${snapshot.imageName})`));
+```
+
+##### Call Signature
+
 ```ts
 list(page?: number, limit?: number): Promise<PaginatedSnapshots>;
 ```
@@ -152,23 +179,24 @@ List paginated list of Snapshots.
 - `page?` _number_ - Page number for pagination (starting from 1)
 - `limit?` _number_ - Maximum number of items per page
 
-
 **Returns**:
 
 - `Promise<PaginatedSnapshots>` - Paginated list of Snapshots
 
-**Example:**
+###### Deprecated
 
-```ts
-const daytona = new Daytona();
-const { items, total, page: currentPage, totalPages } = await daytona.snapshot.list(2, 10);
-console.log(`Page ${currentPage} of ${totalPages} (${total} snapshots total)`);
-items.forEach(snapshot => console.log(`${snapshot.name} (${snapshot.imageName})`));
-```
+Use `list(query)` with a ListSnapshotsQuery object instead.
 
 ***
 
 
+## ListSnapshotsQuery
+
+**Properties**:
+
+- `limit?` _number_ - Maximum number of items per page
+- `page?` _number_ - Page number for pagination (starting from 1)
+- `sourceSandboxId?` _string_ - Filter by the ID of the sandbox the snapshot was created from
 ## PaginatedSnapshots
 
 Represents a paginated list of Daytona Snapshots.

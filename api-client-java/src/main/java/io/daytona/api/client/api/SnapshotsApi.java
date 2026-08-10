@@ -497,6 +497,7 @@ public class SnapshotsApi {
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
      * @param name Filter by partial name match (optional)
+     * @param sourceSandboxId Filter by the ID of the sandbox the snapshot was created from (optional)
      * @param sort Field to sort by (optional, default to lastUsedAt)
      * @param order Direction to sort by (optional, default to desc)
      * @param _callback Callback for upload/download progress
@@ -509,7 +510,7 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getAllSnapshotsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call getAllSnapshotsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -546,6 +547,10 @@ public class SnapshotsApi {
             localVarQueryParams.addAll(localVarApiClient.parameterToPair("name", name));
         }
 
+        if (sourceSandboxId != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("sourceSandboxId", sourceSandboxId));
+        }
+
         if (sort != null) {
             localVarQueryParams.addAll(localVarApiClient.parameterToPair("sort", sort));
         }
@@ -579,8 +584,8 @@ public class SnapshotsApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call getAllSnapshotsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
-        return getAllSnapshotsCall(xDaytonaOrganizationID, page, limit, name, sort, order, _callback);
+    private okhttp3.Call getAllSnapshotsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+        return getAllSnapshotsCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, _callback);
 
     }
 
@@ -591,6 +596,7 @@ public class SnapshotsApi {
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
      * @param name Filter by partial name match (optional)
+     * @param sourceSandboxId Filter by the ID of the sandbox the snapshot was created from (optional)
      * @param sort Field to sort by (optional, default to lastUsedAt)
      * @param order Direction to sort by (optional, default to desc)
      * @return PaginatedSnapshots
@@ -602,8 +608,8 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public PaginatedSnapshots getAllSnapshots(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
-        ApiResponse<PaginatedSnapshots> localVarResp = getAllSnapshotsWithHttpInfo(xDaytonaOrganizationID, page, limit, name, sort, order);
+    public PaginatedSnapshots getAllSnapshots(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+        ApiResponse<PaginatedSnapshots> localVarResp = getAllSnapshotsWithHttpInfo(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order);
         return localVarResp.getData();
     }
 
@@ -614,6 +620,7 @@ public class SnapshotsApi {
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
      * @param name Filter by partial name match (optional)
+     * @param sourceSandboxId Filter by the ID of the sandbox the snapshot was created from (optional)
      * @param sort Field to sort by (optional, default to lastUsedAt)
      * @param order Direction to sort by (optional, default to desc)
      * @return ApiResponse&lt;PaginatedSnapshots&gt;
@@ -625,8 +632,8 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<PaginatedSnapshots> getAllSnapshotsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
-        okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sort, order, null);
+    public ApiResponse<PaginatedSnapshots> getAllSnapshotsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+        okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, null);
         Type localVarReturnType = new TypeToken<PaginatedSnapshots>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
@@ -638,6 +645,7 @@ public class SnapshotsApi {
      * @param page Page number of the results (optional, default to 1)
      * @param limit Number of results per page (optional, default to 100)
      * @param name Filter by partial name match (optional)
+     * @param sourceSandboxId Filter by the ID of the sandbox the snapshot was created from (optional)
      * @param sort Field to sort by (optional, default to lastUsedAt)
      * @param order Direction to sort by (optional, default to desc)
      * @param _callback The callback to be executed when the API call finishes
@@ -650,9 +658,9 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getAllSnapshotsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<PaginatedSnapshots> _callback) throws ApiException {
+    public okhttp3.Call getAllSnapshotsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<PaginatedSnapshots> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sort, order, _callback);
+        okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, _callback);
         Type localVarReturnType = new TypeToken<PaginatedSnapshots>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;

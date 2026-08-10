@@ -184,6 +184,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(k \*KeyboardService\) Press\(ctx context.Context, key string, modifiers \[\]string\) error](<#KeyboardService.Press>)
   - [func \(k \*KeyboardService\) Type\(ctx context.Context, text string, delay \*int\) error](<#KeyboardService.Type>)
 - [type ListSandboxesQuery](<#ListSandboxesQuery>)
+- [type ListSnapshotsQuery](<#ListSnapshotsQuery>)
 - [type LspServerService](<#LspServerService>)
   - [func NewLspServerService\(toolboxClient \*toolbox.APIClient, languageID types.LspLanguageID, projectPath string, otel \*otelState\) \*LspServerService](<#NewLspServerService>)
   - [func \(l \*LspServerService\) Completions\(ctx context.Context, path string, position types.Position\) \(any, error\)](<#LspServerService.Completions>)
@@ -316,6 +317,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*SnapshotService\) DeleteByNameOrID\(ctx context.Context, nameOrID string\) error](<#SnapshotService.DeleteByNameOrID>)
   - [func \(s \*SnapshotService\) Get\(ctx context.Context, nameOrID string\) \(\*types.Snapshot, error\)](<#SnapshotService.Get>)
   - [func \(s \*SnapshotService\) List\(ctx context.Context, page \*int, limit \*int\) \(\*types.PaginatedSnapshots, error\)](<#SnapshotService.List>)
+  - [func \(s \*SnapshotService\) ListWithQuery\(ctx context.Context, query \*ListSnapshotsQuery\) \(\*types.PaginatedSnapshots, error\)](<#SnapshotService.ListWithQuery>)
 - [type UploadProgress](<#UploadProgress>)
 - [type UploadStreamOption](<#UploadStreamOption>)
   - [func WithUploadProgress\(fn func\(UploadProgress\)\) UploadStreamOption](<#WithUploadProgress>)
@@ -2713,6 +2715,22 @@ type ListSandboxesQuery struct {
     Sort *apiclient.SandboxListSortField
     // Sort direction
     Order *apiclient.SandboxListSortDirection
+}
+```
+
+<a name="ListSnapshotsQuery"></a>
+## type ListSnapshotsQuery
+
+ListSnapshotsQuery contains pagination and filter parameters for listing snapshots.
+
+```go
+type ListSnapshotsQuery struct {
+    // Page number (1-indexed), nil for first page
+    Page *int
+    // Maximum snapshots per page, nil for default
+    Limit *int
+    // Filter by the ID of the sandbox the snapshot was created from
+    SourceSandboxID *string
 }
 ```
 
@@ -5720,6 +5738,27 @@ if err != nil {
 fmt.Printf("Page %d of %d (%d snapshots total)\n", page.Page, page.TotalPages, page.Total)
 for _, snapshot := range page.Items {
     fmt.Printf("%s (%s)\n", snapshot.Name, snapshot.ImageName)
+}
+```
+
+Returns \[types.PaginatedSnapshots\] containing the snapshots and pagination info.
+
+<a name="SnapshotService.ListWithQuery"></a>
+### func \(\*SnapshotService\) ListWithQuery
+
+```go
+func (s *SnapshotService) ListWithQuery(ctx context.Context, query *ListSnapshotsQuery) (*types.PaginatedSnapshots, error)
+```
+
+ListWithQuery returns snapshots matching the given query.
+
+Example:
+
+```
+sandboxID := "b8f6e2d0-1234-5678-9abc-def012345678"
+page, err := client.Snapshot.ListWithQuery(ctx, &daytona.ListSnapshotsQuery{SourceSandboxID: &sandboxID})
+if err != nil {
+    return err
 }
 ```
 

@@ -32,7 +32,7 @@ def initialize(snapshots_api:, object_storage_api:, default_region_id: nil, otel
 #### list()
 
 ```ruby
-def list(page: nil, limit: nil)
+def list(page: nil, limit: nil, source_sandbox_id: nil)
 
 ```
 
@@ -42,6 +42,7 @@ List all Snapshots.
 
 - `page` _Integer, Nil_ -
 - `limit` _Integer, Nil_ -
+- `source_sandbox_id` _String, Nil_ - Filter by the ID of the sandbox the snapshot was created from
 
 **Returns**:
 

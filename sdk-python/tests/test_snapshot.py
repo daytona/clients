@@ -43,6 +43,7 @@ class TestSyncSnapshotService:
             "created_at": "2025-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z",
             "last_used_at": "2025-01-01T00:00:00Z",
+            "source_sandbox_id": None,
         }
         return dto
 
@@ -57,6 +58,17 @@ class TestSyncSnapshotService:
         result = service.list()
         assert result.total == 1
         assert len(result.items) == 1
+
+    def test_list_passes_source_sandbox_id(self):
+        service, api = self._make_service()
+        mock_response = MagicMock()
+        mock_response.items = []
+        mock_response.total = 0
+        mock_response.page = 1
+        mock_response.total_pages = 0
+        api.get_all_snapshots.return_value = mock_response
+        service.list(source_sandbox_id="sandbox-1")
+        api.get_all_snapshots.assert_called_once_with(limit=None, page=None, source_sandbox_id="sandbox-1")
 
     def test_list_invalid_page_raises(self):
         service, _ = self._make_service()
@@ -97,6 +109,7 @@ class TestSyncSnapshotService:
                 "created_at": "2025-01-01T00:00:00Z",
                 "updated_at": "2025-01-01T00:00:00Z",
                 "last_used_at": "2025-01-01T00:00:00Z",
+                "source_sandbox_id": None,
             }
         )
         service.delete(snap)
@@ -223,6 +236,7 @@ class TestAsyncSnapshotService:
             "created_at": "2025-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z",
             "last_used_at": "2025-01-01T00:00:00Z",
+            "source_sandbox_id": None,
         }
         return dto
 
@@ -237,6 +251,18 @@ class TestAsyncSnapshotService:
         api.get_all_snapshots.return_value = mock_response
         result = await service.list()
         assert result.total == 1
+
+    @pytest.mark.asyncio
+    async def test_list_passes_source_sandbox_id(self):
+        service, api = self._make_service()
+        mock_response = MagicMock()
+        mock_response.items = []
+        mock_response.total = 0
+        mock_response.page = 1
+        mock_response.total_pages = 0
+        api.get_all_snapshots.return_value = mock_response
+        await service.list(source_sandbox_id="sandbox-1")
+        api.get_all_snapshots.assert_called_once_with(limit=None, page=None, source_sandbox_id="sandbox-1")
 
     @pytest.mark.asyncio
     async def test_list_invalid_page_raises(self):
@@ -274,6 +300,7 @@ class TestAsyncSnapshotService:
                 "created_at": "2025-01-01T00:00:00Z",
                 "updated_at": "2025-01-01T00:00:00Z",
                 "last_used_at": "2025-01-01T00:00:00Z",
+                "source_sandbox_id": None,
             }
         )
         await service.delete(snap)

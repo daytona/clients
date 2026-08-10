@@ -220,6 +220,7 @@ module DaytonaApiClient
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
+    # @option opts [String] :source_sandbox_id Filter by the ID of the sandbox the snapshot was created from
     # @option opts [String] :sort Field to sort by (default to 'lastUsedAt')
     # @option opts [String] :order Direction to sort by (default to 'desc')
     # @return [PaginatedSnapshots]
@@ -234,6 +235,7 @@ module DaytonaApiClient
     # @option opts [Float] :page Page number of the results (default to 1)
     # @option opts [Float] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
+    # @option opts [String] :source_sandbox_id Filter by the ID of the sandbox the snapshot was created from
     # @option opts [String] :sort Field to sort by (default to 'lastUsedAt')
     # @option opts [String] :order Direction to sort by (default to 'desc')
     # @return [Array<(PaginatedSnapshots, Integer, Hash)>] PaginatedSnapshots data, response status code and response headers
@@ -269,6 +271,7 @@ module DaytonaApiClient
       query_params[:'page'] = opts[:'page'] if !opts[:'page'].nil?
       query_params[:'limit'] = opts[:'limit'] if !opts[:'limit'].nil?
       query_params[:'name'] = opts[:'name'] if !opts[:'name'].nil?
+      query_params[:'sourceSandboxId'] = opts[:'source_sandbox_id'] if !opts[:'source_sandbox_id'].nil?
       query_params[:'sort'] = opts[:'sort'] if !opts[:'sort'].nil?
       query_params[:'order'] = opts[:'order'] if !opts[:'order'].nil?
 

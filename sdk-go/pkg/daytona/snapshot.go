@@ -106,14 +106,45 @@ func NewSnapshotService(client *Client) *SnapshotService {
 //
 // Returns [types.PaginatedSnapshots] containing the snapshots and pagination info.
 func (s *SnapshotService) List(ctx context.Context, page *int, limit *int) (*types.PaginatedSnapshots, error) {
+	return s.ListWithQuery(ctx, &ListSnapshotsQuery{Page: page, Limit: limit})
+}
+
+// ListSnapshotsQuery contains pagination and filter parameters for listing snapshots.
+type ListSnapshotsQuery struct {
+	// Page number (1-indexed), nil for first page
+	Page *int
+	// Maximum snapshots per page, nil for default
+	Limit *int
+	// Filter by the ID of the sandbox the snapshot was created from
+	SourceSandboxID *string
+}
+
+// ListWithQuery returns snapshots matching the given query.
+//
+// Example:
+//
+//	sandboxID := "b8f6e2d0-1234-5678-9abc-def012345678"
+//	page, err := client.Snapshot.ListWithQuery(ctx, &daytona.ListSnapshotsQuery{SourceSandboxID: &sandboxID})
+//	if err != nil {
+//	    return err
+//	}
+//
+// Returns [types.PaginatedSnapshots] containing the snapshots and pagination info.
+func (s *SnapshotService) ListWithQuery(ctx context.Context, query *ListSnapshotsQuery) (*types.PaginatedSnapshots, error) {
 	return withInstrumentation(ctx, s.otel, "Snapshot", "List", func(ctx context.Context) (*types.PaginatedSnapshots, error) {
 		req := s.client.apiClient.SnapshotsAPI.GetAllSnapshots(s.client.getAuthContext(ctx))
 
-		if page != nil {
-			req = req.Page(float32(*page))
+		if query == nil {
+			query = &ListSnapshotsQuery{}
 		}
-		if limit != nil {
-			req = req.Limit(float32(*limit))
+		if query.Page != nil {
+			req = req.Page(float32(*query.Page))
+		}
+		if query.Limit != nil {
+			req = req.Limit(float32(*query.Limit))
+		}
+		if query.SourceSandboxID != nil {
+			req = req.SourceSandboxId(*query.SourceSandboxID)
 		}
 
 		result, httpResp, err := req.Execute()
@@ -764,6 +795,10 @@ func mapSnapshotFromAPI(apiSnapshot *apiclient.SnapshotDto) *types.Snapshot {
 
 	if lastUsedAt, ok := apiSnapshot.GetLastUsedAtOk(); ok && lastUsedAt != nil {
 		snapshot.LastUsedAt = lastUsedAt
+	}
+
+	if sourceSandboxID, ok := apiSnapshot.GetSourceSandboxIdOk(); ok && sourceSandboxID != nil {
+		snapshot.SourceSandboxID = sourceSandboxID
 	}
 
 	return snapshot

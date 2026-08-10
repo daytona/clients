@@ -61,6 +61,10 @@ export interface SnapshotDto {
      */
     'ref'?: string;
     /**
+     * The ID of the sandbox the snapshot was created from
+     */
+    'sourceSandboxId': string | null;
+    /**
      * The sandbox class of the snapshot
      */
     'sandboxClass'?: SnapshotDtoSandboxClassEnum;

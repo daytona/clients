@@ -44,7 +44,8 @@ Service for managing Daytona Snapshots. Can be used to list, get, create and del
 @intercept_errors(message_prefix="Failed to list snapshots: ")
 @with_instrumentation()
 def list(page: int | None = None,
-         limit: int | None = None) -> PaginatedSnapshots
+         limit: int | None = None,
+         source_sandbox_id: str | None = None) -> PaginatedSnapshots
 ```
 
 Returns paginated list of Snapshots.
@@ -53,6 +54,7 @@ Returns paginated list of Snapshots.
 
 - `page` _int | None_ - Page number for pagination (starting from 1).
 - `limit` _int | None_ - Maximum number of items per page.
+- `source_sandbox_id` _str | None_ - Filter by the ID of the sandbox the snapshot was created from.
   
 
 **Returns**:

@@ -148,6 +148,27 @@ System.out.println(snapshot.getName() + " (" + snapshot.getImageName() + ")");
 
 - `io.daytona.sdk.exception.DaytonaException` - if the API request fails
 
+#### list()
+```java
+public PaginatedSnapshots list(Integer page, Integer limit, String sourceSandboxId)
+```
+
+Lists snapshots with pagination, optionally filtered by source sandbox.
+
+**Parameters**:
+
+- `page` _Integer_ - page number starting from 1; defaults to 1 when `null`
+- `limit` _Integer_ - maximum number of items per page; defaults to 10 when `null`
+- `sourceSandboxId` _String_ - filter by the ID of the sandbox the snapshot was created from; ignored when `null`
+
+**Returns**:
+
+- `PaginatedSnapshots` - paginated snapshot result
+
+**Throws**:
+
+- `io.daytona.sdk.exception.DaytonaException` - if the API request fails
+
 #### get()
 ```java
 public Snapshot get(String nameOrId)

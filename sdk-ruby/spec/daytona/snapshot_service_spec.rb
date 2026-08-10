@@ -18,7 +18,8 @@ RSpec.describe Daytona::SnapshotService do
     it 'returns PaginatedResource of Snapshots' do
       dto = build_snapshot_dto
       paginated = instance_double(DaytonaApiClient::PaginatedSnapshots, total: 1, page: 1, total_pages: 1, items: [dto])
-      allow(snapshots_api).to receive(:get_all_snapshots).with(page: nil, limit: nil).and_return(paginated)
+      allow(snapshots_api).to receive(:get_all_snapshots).with(page: nil, limit: nil,
+                                                               source_sandbox_id: nil).and_return(paginated)
 
       result = service.list
 
@@ -29,11 +30,22 @@ RSpec.describe Daytona::SnapshotService do
 
     it 'passes pagination params' do
       paginated = instance_double(DaytonaApiClient::PaginatedSnapshots, total: 5, page: 2, total_pages: 3, items: [])
-      allow(snapshots_api).to receive(:get_all_snapshots).with(page: 2, limit: 10).and_return(paginated)
+      allow(snapshots_api).to receive(:get_all_snapshots).with(page: 2, limit: 10,
+                                                               source_sandbox_id: nil).and_return(paginated)
 
       result = service.list(page: 2, limit: 10)
 
       expect(result.page).to eq(2)
+    end
+
+    it 'passes the source sandbox id filter' do
+      paginated = instance_double(DaytonaApiClient::PaginatedSnapshots, total: 1, page: 1, total_pages: 1, items: [])
+      allow(snapshots_api).to receive(:get_all_snapshots).with(page: nil, limit: nil,
+                                                               source_sandbox_id: 'sandbox-1').and_return(paginated)
+
+      result = service.list(source_sandbox_id: 'sandbox-1')
+
+      expect(result.total).to eq(1)
     end
 
     it 'raises on invalid page' do

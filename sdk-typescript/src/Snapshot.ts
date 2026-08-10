@@ -66,6 +66,23 @@ export type CreateSnapshotParams = {
   sandboxClass?: SandboxClass
 }
 
+export interface ListSnapshotsQuery {
+  /**
+   * Page number for pagination (starting from 1)
+   * */
+  page?: number
+
+  /**
+   * Maximum number of items per page
+   * */
+  limit?: number
+
+  /**
+   * Filter by the ID of the sandbox the snapshot was created from
+   * */
+  sourceSandboxId?: string
+}
+
 /**
  * Matches RFC 4122 UUIDs (versions 1-5) and the nil UUID — the same set the
  * Daytona API recognizes as snapshot IDs. Anything else is treated as a name.
@@ -89,19 +106,36 @@ export class SnapshotService {
   /**
    * List paginated list of Snapshots.
    *
-   * @param {number} [page] - Page number for pagination (starting from 1)
-   * @param {number} [limit] - Maximum number of items per page
+   * @param {ListSnapshotsQuery} [query] - Pagination and filter options
    * @returns {Promise<PaginatedSnapshots>} Paginated list of Snapshots
    *
    * @example
    * const daytona = new Daytona();
-   * const { items, total, page: currentPage, totalPages } = await daytona.snapshot.list(2, 10);
+   * const { items, total, page: currentPage, totalPages } = await daytona.snapshot.list({ page: 2, limit: 10 });
    * console.log(`Page ${currentPage} of ${totalPages} (${total} snapshots total)`);
    * items.forEach(snapshot => console.log(`${snapshot.name} (${snapshot.imageName})`));
    */
+  async list(query?: ListSnapshotsQuery): Promise<PaginatedSnapshots>
+  /**
+   * List paginated list of Snapshots.
+   *
+   * @param {number} [page] - Page number for pagination (starting from 1)
+   * @param {number} [limit] - Maximum number of items per page
+   * @returns {Promise<PaginatedSnapshots>} Paginated list of Snapshots
+   *
+   * @deprecated Use `list(query)` with a {@link ListSnapshotsQuery} object instead.
+   */
+  async list(page?: number, limit?: number): Promise<PaginatedSnapshots>
   @WithInstrumentation()
-  async list(page?: number, limit?: number): Promise<PaginatedSnapshots> {
-    const response = await this.snapshotsApi.getAllSnapshots(undefined, page, limit)
+  async list(pageOrQuery?: number | ListSnapshotsQuery, limit?: number): Promise<PaginatedSnapshots> {
+    const query: ListSnapshotsQuery = typeof pageOrQuery === 'object' ? pageOrQuery : { page: pageOrQuery, limit }
+    const response = await this.snapshotsApi.getAllSnapshots(
+      undefined,
+      query.page,
+      query.limit,
+      undefined,
+      query.sourceSandboxId,
+    )
     return {
       items: response.data.items.map((snapshot) => snapshot as Snapshot),
       total: response.data.total,
