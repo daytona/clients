@@ -190,7 +190,8 @@ jobs:
         with:
           deno-version: v2.x
       - name: Install Azure Functions Core Tools
-        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+        # pinned: 4.13.1/4.13.2 zips are missing from the Azure CDN (404), unpin once fixed upstream
+        run: npm install -g azure-functions-core-tools@4.13.0 --unsafe-perm true
       - name: Install Playwright Chromium
         run: npx --yes playwright@1.48 install --with-deps chromium
       - name: Run TypeScript SDK runtime compatibility tests
