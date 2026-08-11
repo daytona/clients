@@ -54,6 +54,15 @@ module DaytonaApiClient
     # Whether the sandbox http preview is public
     attr_accessor :public
 
+    # Whether to block all network access for the sandbox
+    attr_accessor :network_block_all
+
+    # Comma-separated list of allowed CIDR network addresses for the sandbox
+    attr_accessor :network_allow_list
+
+    # Comma-separated list of allowed domains for the sandbox
+    attr_accessor :domain_allow_list
+
     # The CPU quota for the sandbox
     attr_accessor :cpu
 
@@ -146,6 +155,9 @@ module DaytonaApiClient
         :'error_reason' => :'errorReason',
         :'recoverable' => :'recoverable',
         :'public' => :'public',
+        :'network_block_all' => :'networkBlockAll',
+        :'network_allow_list' => :'networkAllowList',
+        :'domain_allow_list' => :'domainAllowList',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
         :'gpu_type' => :'gpuType',
@@ -193,6 +205,9 @@ module DaytonaApiClient
         :'error_reason' => :'String',
         :'recoverable' => :'Boolean',
         :'public' => :'Boolean',
+        :'network_block_all' => :'Boolean',
+        :'network_allow_list' => :'String',
+        :'domain_allow_list' => :'String',
         :'cpu' => :'Float',
         :'gpu' => :'Float',
         :'gpu_type' => :'GpuType',
@@ -298,6 +313,20 @@ module DaytonaApiClient
         self.public = attributes[:'public']
       else
         self.public = nil
+      end
+
+      if attributes.key?(:'network_block_all')
+        self.network_block_all = attributes[:'network_block_all']
+      else
+        self.network_block_all = nil
+      end
+
+      if attributes.key?(:'network_allow_list')
+        self.network_allow_list = attributes[:'network_allow_list']
+      end
+
+      if attributes.key?(:'domain_allow_list')
+        self.domain_allow_list = attributes[:'domain_allow_list']
       end
 
       if attributes.key?(:'cpu')
@@ -416,6 +445,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "public", public cannot be nil.')
       end
 
+      if @network_block_all.nil?
+        invalid_properties.push('invalid value for "network_block_all", network_block_all cannot be nil.')
+      end
+
       if @cpu.nil?
         invalid_properties.push('invalid value for "cpu", cpu cannot be nil.')
       end
@@ -453,6 +486,7 @@ module DaytonaApiClient
       return false if @target.nil?
       return false if @user.nil?
       return false if @public.nil?
+      return false if @network_block_all.nil?
       return false if @cpu.nil?
       return false if @gpu.nil?
       return false if @memory.nil?
@@ -522,6 +556,16 @@ module DaytonaApiClient
       end
 
       @public = public
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] network_block_all Value to be assigned
+    def network_block_all=(network_block_all)
+      if network_block_all.nil?
+        fail ArgumentError, 'network_block_all cannot be nil'
+      end
+
+      @network_block_all = network_block_all
     end
 
     # Custom attribute writer method with validation
@@ -612,6 +656,9 @@ module DaytonaApiClient
           error_reason == o.error_reason &&
           recoverable == o.recoverable &&
           public == o.public &&
+          network_block_all == o.network_block_all &&
+          network_allow_list == o.network_allow_list &&
+          domain_allow_list == o.domain_allow_list &&
           cpu == o.cpu &&
           gpu == o.gpu &&
           gpu_type == o.gpu_type &&
@@ -641,7 +688,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, created_at, updated_at, last_activity_at, daemon_version, warm_pool_id, toolbox_proxy_url].hash
+      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, network_block_all, network_allow_list, domain_allow_list, cpu, gpu, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, created_at, updated_at, last_activity_at, daemon_version, warm_pool_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

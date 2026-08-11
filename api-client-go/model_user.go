@@ -28,6 +28,8 @@ type User struct {
 	Name string `json:"name"`
 	// User email
 	Email string `json:"email"`
+	// Whether the user email address has been verified
+	EmailVerified bool `json:"emailVerified"`
 	// User public keys
 	PublicKeys []UserPublicKey `json:"publicKeys"`
 	// Creation timestamp
@@ -41,11 +43,12 @@ type _User User
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUser(id string, name string, email string, publicKeys []UserPublicKey, createdAt time.Time) *User {
+func NewUser(id string, name string, email string, emailVerified bool, publicKeys []UserPublicKey, createdAt time.Time) *User {
 	this := User{}
 	this.Id = id
 	this.Name = name
 	this.Email = email
+	this.EmailVerified = emailVerified
 	this.PublicKeys = publicKeys
 	this.CreatedAt = createdAt
 	return &this
@@ -131,6 +134,30 @@ func (o *User) SetEmail(v string) {
 	o.Email = v
 }
 
+// GetEmailVerified returns the EmailVerified field value
+func (o *User) GetEmailVerified() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.EmailVerified
+}
+
+// GetEmailVerifiedOk returns a tuple with the EmailVerified field value
+// and a boolean to check if the value has been set.
+func (o *User) GetEmailVerifiedOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.EmailVerified, true
+}
+
+// SetEmailVerified sets field value
+func (o *User) SetEmailVerified(v bool) {
+	o.EmailVerified = v
+}
+
 // GetPublicKeys returns the PublicKeys field value
 func (o *User) GetPublicKeys() []UserPublicKey {
 	if o == nil {
@@ -192,6 +219,7 @@ func (o User) ToMap() (map[string]interface{}, error) {
 	toSerialize["id"] = o.Id
 	toSerialize["name"] = o.Name
 	toSerialize["email"] = o.Email
+	toSerialize["emailVerified"] = o.EmailVerified
 	toSerialize["publicKeys"] = o.PublicKeys
 	toSerialize["createdAt"] = o.CreatedAt
 
@@ -210,6 +238,7 @@ func (o *User) UnmarshalJSON(data []byte) (err error) {
 		"id",
 		"name",
 		"email",
+		"emailVerified",
 		"publicKeys",
 		"createdAt",
 	}
@@ -244,6 +273,7 @@ func (o *User) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "id")
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "email")
+		delete(additionalProperties, "emailVerified")
 		delete(additionalProperties, "publicKeys")
 		delete(additionalProperties, "createdAt")
 		o.AdditionalProperties = additionalProperties

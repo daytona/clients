@@ -64,6 +64,9 @@ export const ApiKeyListPermissionsEnum = {
     MANAGE_API_KEYS: 'manage:api_keys',
     MANAGE_SECRETS: 'manage:secrets',
     READ_LIMITS: 'read:limits',
+    MANAGE_SSO: 'manage:sso',
+    READ_BILLING: 'read:billing',
+    MANAGE_BILLING: 'manage:billing',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 

@@ -42,6 +42,9 @@ module DaytonaApiClient
     # Comma-separated list of allowed domains for the sandbox
     attr_accessor :domain_allow_list
 
+    # Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
+    attr_accessor :outbound_proxy_url
+
     # The target (region) where the sandbox will be created
     attr_accessor :target
 
@@ -72,7 +75,7 @@ module DaytonaApiClient
     # Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
     attr_accessor :auto_delete_interval
 
-    # Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+    # Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
     attr_accessor :ttl_minutes
 
     # Array of volumes to attach to the sandbox
@@ -99,6 +102,7 @@ module DaytonaApiClient
         :'network_block_all' => :'networkBlockAll',
         :'network_allow_list' => :'networkAllowList',
         :'domain_allow_list' => :'domainAllowList',
+        :'outbound_proxy_url' => :'outboundProxyUrl',
         :'target' => :'target',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
@@ -139,6 +143,7 @@ module DaytonaApiClient
         :'network_block_all' => :'Boolean',
         :'network_allow_list' => :'String',
         :'domain_allow_list' => :'String',
+        :'outbound_proxy_url' => :'String',
         :'target' => :'String',
         :'cpu' => :'Integer',
         :'gpu' => :'Integer',
@@ -217,6 +222,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'domain_allow_list')
         self.domain_allow_list = attributes[:'domain_allow_list']
+      end
+
+      if attributes.key?(:'outbound_proxy_url')
+        self.outbound_proxy_url = attributes[:'outbound_proxy_url']
       end
 
       if attributes.key?(:'target')
@@ -315,6 +324,7 @@ module DaytonaApiClient
           network_block_all == o.network_block_all &&
           network_allow_list == o.network_allow_list &&
           domain_allow_list == o.domain_allow_list &&
+          outbound_proxy_url == o.outbound_proxy_url &&
           target == o.target &&
           cpu == o.cpu &&
           gpu == o.gpu &&
@@ -341,7 +351,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

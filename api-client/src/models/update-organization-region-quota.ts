@@ -43,6 +43,10 @@ export interface UpdateOrganizationRegionQuota {
      * Disk maximum per requested GPU unit for GPU sandboxes.
      */
     'maxDiskPerGpu'?: number | null;
+    /**
+     * Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
+     */
+    'maxSandboxLifespan'?: number | null;
 }
 
 

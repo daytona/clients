@@ -25,12 +25,19 @@ import type { PosthogConfig } from './posthog-config';
 // May contain unused imports in some cases
 // @ts-ignore
 import type { RateLimitConfig } from './rate-limit-config';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { SsoOidcConfig } from './sso-oidc-config';
 
 export interface DaytonaConfiguration {
     /**
      * Daytona version
      */
     'version': string;
+    /**
+     * Commit sha of the source the app was built from
+     */
+    'buildSha'?: string;
     /**
      * PostHog configuration
      */
@@ -39,6 +46,14 @@ export interface DaytonaConfiguration {
      * OIDC configuration
      */
     'oidc': OidcConfig;
+    /**
+     * OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+     */
+    'ssoOidc'?: SsoOidcConfig;
+    /**
+     * Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.
+     */
+    'forcedFeatureFlags'?: Array<string>;
     /**
      * Whether linked accounts are enabled
      */

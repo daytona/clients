@@ -113,6 +113,8 @@ function withEvents<This, Args extends unknown[], Return>(
  * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
  * (not returned by list results; call `refreshData()` on each item to populate)
+ * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
+ * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [linkedSandboxId] - ID of the Sandbox this Sandbox is linked to. When set, the Sandbox is co-located on the same runner as the linked Sandbox.
  * (not returned by list results; call `refreshData()` on each item to populate)
  *
@@ -156,6 +158,7 @@ export class Sandbox {
   public networkBlockAll?: boolean
   public networkAllowList?: string
   public domainAllowList?: string
+  public outboundProxyUrl?: string
   public linkedSandboxId?: string
   public toolboxProxyUrl: string
 
@@ -1465,6 +1468,7 @@ export class Sandbox {
       this.networkBlockAll = sandboxDto.networkBlockAll
       this.networkAllowList = sandboxDto.networkAllowList
       this.domainAllowList = sandboxDto.domainAllowList
+      this.outboundProxyUrl = sandboxDto.outboundProxyUrl
       this.linkedSandboxId = sandboxDto.linkedSandboxId
       this.volumes = sandboxDto.volumes
       this.buildInfo = sandboxDto.buildInfo

@@ -968,6 +968,13 @@ type AdminAPIAdminDeleteRunnerRequest struct {
 	ctx context.Context
 	ApiService AdminAPI
 	id string
+	force *bool
+}
+
+// Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
+func (r AdminAPIAdminDeleteRunnerRequest) Force(force bool) AdminAPIAdminDeleteRunnerRequest {
+	r.force = &force
+	return r
 }
 
 func (r AdminAPIAdminDeleteRunnerRequest) Execute() (*http.Response, error) {
@@ -1009,6 +1016,9 @@ func (a *AdminAPIService) AdminDeleteRunnerExecute(r AdminAPIAdminDeleteRunnerRe
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.force != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "force", r.force, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

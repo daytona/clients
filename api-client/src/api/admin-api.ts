@@ -335,10 +335,11 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        adminDeleteRunner: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        adminDeleteRunner: async (id: string, force?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('adminDeleteRunner', 'id', id)
             const localVarPath = `/admin/runners/{id}`
@@ -359,6 +360,10 @@ export const AdminApiAxiosParamCreator = function (configuration?: Configuration
             await setBearerAuthToObject(localVarHeaderParameter, configuration)
 
             // authentication oauth2 required
+
+            if (force !== undefined) {
+                localVarQueryParameter['force'] = force;
+            }
 
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -1262,11 +1267,12 @@ export const AdminApiFp = function(configuration?: Configuration) {
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async adminDeleteRunner(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.adminDeleteRunner(id, options);
+        async adminDeleteRunner(id: string, force?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.adminDeleteRunner(id, force, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminApi.adminDeleteRunner']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1589,11 +1595,12 @@ export const AdminApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        adminDeleteRunner(id: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.adminDeleteRunner(id, options).then((request) => request(axios, basePath));
+        adminDeleteRunner(id: string, force?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.adminDeleteRunner(id, force, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1866,11 +1873,12 @@ export class AdminApi extends BaseAPI {
      * 
      * @summary Delete runner
      * @param {string} id Runner ID
+     * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public adminDeleteRunner(id: string, options?: RawAxiosRequestConfig) {
-        return AdminApiFp(this.configuration).adminDeleteRunner(id, options).then((request) => request(this.axios, this.basePath));
+    public adminDeleteRunner(id: string, force?: boolean, options?: RawAxiosRequestConfig) {
+        return AdminApiFp(this.configuration).adminDeleteRunner(id, force, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

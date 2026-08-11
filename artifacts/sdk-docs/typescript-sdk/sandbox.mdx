@@ -46,6 +46,8 @@ Represents a Daytona Sandbox.
 - `networkBlockAll?` _boolean_ - Whether to block all network access for the Sandbox
     (not returned by list results; call `refreshData()` on each item to populate)
 - `organizationId` _string_ - Organization ID of the Sandbox
+- `outboundProxyUrl?` _string_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
+    (not returned by list results; call `refreshData()` on each item to populate)
 - `process` _Process_ - Process execution interface
 - `public` _boolean_ - Whether the Sandbox is publicly accessible
 - `recoverable?` _boolean_ - Whether the Sandbox error is recoverable.

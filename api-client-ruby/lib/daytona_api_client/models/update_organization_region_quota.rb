@@ -44,6 +44,9 @@ module DaytonaApiClient
     # Disk maximum per requested GPU unit for GPU sandboxes.
     attr_accessor :max_disk_per_gpu
 
+    # Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
+    attr_accessor :max_sandbox_lifespan
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -81,7 +84,8 @@ module DaytonaApiClient
         :'max_disk_per_non_ephemeral_sandbox' => :'maxDiskPerNonEphemeralSandbox',
         :'max_cpu_per_gpu' => :'maxCpuPerGpu',
         :'max_memory_per_gpu' => :'maxMemoryPerGpu',
-        :'max_disk_per_gpu' => :'maxDiskPerGpu'
+        :'max_disk_per_gpu' => :'maxDiskPerGpu',
+        :'max_sandbox_lifespan' => :'maxSandboxLifespan'
       }
     end
 
@@ -110,7 +114,8 @@ module DaytonaApiClient
         :'max_disk_per_non_ephemeral_sandbox' => :'Float',
         :'max_cpu_per_gpu' => :'Float',
         :'max_memory_per_gpu' => :'Float',
-        :'max_disk_per_gpu' => :'Float'
+        :'max_disk_per_gpu' => :'Float',
+        :'max_sandbox_lifespan' => :'Float'
       }
     end
 
@@ -128,7 +133,8 @@ module DaytonaApiClient
         :'max_disk_per_non_ephemeral_sandbox',
         :'max_cpu_per_gpu',
         :'max_memory_per_gpu',
-        :'max_disk_per_gpu'
+        :'max_disk_per_gpu',
+        :'max_sandbox_lifespan'
       ])
     end
 
@@ -209,6 +215,10 @@ module DaytonaApiClient
       if attributes.key?(:'max_disk_per_gpu')
         self.max_disk_per_gpu = attributes[:'max_disk_per_gpu']
       end
+
+      if attributes.key?(:'max_sandbox_lifespan')
+        self.max_sandbox_lifespan = attributes[:'max_sandbox_lifespan']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -243,7 +253,8 @@ module DaytonaApiClient
           max_disk_per_non_ephemeral_sandbox == o.max_disk_per_non_ephemeral_sandbox &&
           max_cpu_per_gpu == o.max_cpu_per_gpu &&
           max_memory_per_gpu == o.max_memory_per_gpu &&
-          max_disk_per_gpu == o.max_disk_per_gpu
+          max_disk_per_gpu == o.max_disk_per_gpu &&
+          max_sandbox_lifespan == o.max_sandbox_lifespan
     end
 
     # @see the `==` method
@@ -255,7 +266,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [sandbox_class, total_cpu_quota, total_memory_quota, total_disk_quota, total_gpu_quota, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu, max_memory_per_gpu, max_disk_per_gpu].hash
+      [sandbox_class, total_cpu_quota, total_memory_quota, total_disk_quota, total_gpu_quota, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu, max_memory_per_gpu, max_disk_per_gpu, max_sandbox_lifespan].hash
     end
 
     # Builds the object from hash

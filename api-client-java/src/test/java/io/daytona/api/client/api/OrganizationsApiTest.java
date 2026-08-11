@@ -16,16 +16,19 @@ package io.daytona.api.client.api;
 import io.daytona.api.client.ApiException;
 import io.daytona.api.client.model.AvailableSandboxClass;
 import java.math.BigDecimal;
+import io.daytona.api.client.model.CreateIdentityProvider;
 import io.daytona.api.client.model.CreateOrganization;
 import io.daytona.api.client.model.CreateOrganizationInvitation;
 import io.daytona.api.client.model.CreateOrganizationRole;
 import io.daytona.api.client.model.CreateRegion;
 import io.daytona.api.client.model.CreateRegionResponse;
+import io.daytona.api.client.model.IdentityProvider;
 import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.OrganizationInvitation;
 import io.daytona.api.client.model.OrganizationPreviewWarning;
 import io.daytona.api.client.model.OrganizationRole;
 import io.daytona.api.client.model.OrganizationSandboxDefaultLimitedNetworkEgress;
+import io.daytona.api.client.model.OrganizationSsoEnabled;
 import io.daytona.api.client.model.OrganizationSuspension;
 import io.daytona.api.client.model.OrganizationUsageOverview;
 import io.daytona.api.client.model.OrganizationUser;
@@ -33,6 +36,9 @@ import io.daytona.api.client.model.OtelConfig;
 import io.daytona.api.client.model.RegenerateApiKeyResponse;
 import io.daytona.api.client.model.Region;
 import io.daytona.api.client.model.SnapshotManagerCredentials;
+import io.daytona.api.client.model.TestIdentityProviderConnection;
+import io.daytona.api.client.model.TestIdentityProviderConnectionResponse;
+import io.daytona.api.client.model.UpdateIdentityProvider;
 import io.daytona.api.client.model.UpdateOrganizationDefaultRegion;
 import io.daytona.api.client.model.UpdateOrganizationInvitation;
 import io.daytona.api.client.model.UpdateOrganizationMemberAccess;
@@ -90,6 +96,19 @@ public class OrganizationsApiTest {
     public void createOrganizationTest() throws ApiException {
         CreateOrganization createOrganization = null;
         Organization response = api.createOrganization(createOrganization);
+        // TODO: test validations
+    }
+
+    /**
+     * Create organization identity provider
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void createOrganizationIdentityProviderTest() throws ApiException {
+        String organizationId = null;
+        CreateIdentityProvider createIdentityProvider = null;
+        IdentityProvider response = api.createOrganizationIdentityProvider(organizationId, createIdentityProvider);
         // TODO: test validations
     }
 
@@ -157,6 +176,19 @@ public class OrganizationsApiTest {
     }
 
     /**
+     * Delete organization identity provider
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void deleteOrganizationIdentityProviderTest() throws ApiException {
+        String organizationId = null;
+        String id = null;
+        api.deleteOrganizationIdentityProvider(organizationId, id);
+        // TODO: test validations
+    }
+
+    /**
      * Delete organization member
      *
      * @throws ApiException if the Api call fails
@@ -216,6 +248,19 @@ public class OrganizationsApiTest {
     public void getOrganizationTest() throws ApiException {
         String organizationId = null;
         Organization response = api.getOrganization(organizationId);
+        // TODO: test validations
+    }
+
+    /**
+     * Get organization identity provider
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getOrganizationIdentityProviderTest() throws ApiException {
+        String organizationId = null;
+        String id = null;
+        IdentityProvider response = api.getOrganizationIdentityProvider(organizationId, id);
         // TODO: test validations
     }
 
@@ -312,6 +357,18 @@ public class OrganizationsApiTest {
     public void listAvailableSandboxClassesTest() throws ApiException {
         String organizationId = null;
         List<AvailableSandboxClass> response = api.listAvailableSandboxClasses(organizationId);
+        // TODO: test validations
+    }
+
+    /**
+     * List organization identity providers
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listOrganizationIdentityProvidersTest() throws ApiException {
+        String organizationId = null;
+        List<IdentityProvider> response = api.listOrganizationIdentityProviders(organizationId);
         // TODO: test validations
     }
 
@@ -439,6 +496,19 @@ public class OrganizationsApiTest {
     }
 
     /**
+     * Test OIDC identity provider connection
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void testOrganizationIdentityProviderConnectionTest() throws ApiException {
+        String organizationId = null;
+        TestIdentityProviderConnection testIdentityProviderConnection = null;
+        TestIdentityProviderConnectionResponse response = api.testOrganizationIdentityProviderConnection(organizationId, testIdentityProviderConnection);
+        // TODO: test validations
+    }
+
+    /**
      * Unsuspend organization
      *
      * @throws ApiException if the Api call fails
@@ -474,6 +544,20 @@ public class OrganizationsApiTest {
         String organizationId = null;
         Map<String, Object> requestBody = null;
         api.updateExperimentalConfig(organizationId, requestBody);
+        // TODO: test validations
+    }
+
+    /**
+     * Update organization identity provider
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateOrganizationIdentityProviderTest() throws ApiException {
+        String organizationId = null;
+        String id = null;
+        UpdateIdentityProvider updateIdentityProvider = null;
+        IdentityProvider response = api.updateOrganizationIdentityProvider(organizationId, id, updateIdentityProvider);
         // TODO: test validations
     }
 
@@ -555,6 +639,19 @@ public class OrganizationsApiTest {
         String roleId = null;
         UpdateOrganizationRole updateOrganizationRole = null;
         OrganizationRole response = api.updateOrganizationRole(organizationId, roleId, updateOrganizationRole);
+        // TODO: test validations
+    }
+
+    /**
+     * Update organization SSO entitlement
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateOrganizationSsoEnabledTest() throws ApiException {
+        String organizationId = null;
+        OrganizationSsoEnabled organizationSsoEnabled = null;
+        api.updateOrganizationSsoEnabled(organizationId, organizationSsoEnabled);
         // TODO: test validations
     }
 

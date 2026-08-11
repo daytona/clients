@@ -29,6 +29,9 @@ module DaytonaApiClient
 
     attr_accessor :email_verified
 
+    # Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.
+    attr_accessor :email_verified_source
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -60,7 +63,8 @@ module DaytonaApiClient
         :'personal_organization_quota' => :'personalOrganizationQuota',
         :'personal_organization_default_region_id' => :'personalOrganizationDefaultRegionId',
         :'role' => :'role',
-        :'email_verified' => :'emailVerified'
+        :'email_verified' => :'emailVerified',
+        :'email_verified_source' => :'emailVerifiedSource'
       }
     end
 
@@ -83,7 +87,8 @@ module DaytonaApiClient
         :'personal_organization_quota' => :'CreateOrganizationQuota',
         :'personal_organization_default_region_id' => :'String',
         :'role' => :'String',
-        :'email_verified' => :'Boolean'
+        :'email_verified' => :'Boolean',
+        :'email_verified_source' => :'String'
       }
     end
 
@@ -111,8 +116,6 @@ module DaytonaApiClient
 
       if attributes.key?(:'id')
         self.id = attributes[:'id']
-      else
-        self.id = nil
       end
 
       if attributes.key?(:'name')
@@ -140,6 +143,10 @@ module DaytonaApiClient
       if attributes.key?(:'email_verified')
         self.email_verified = attributes[:'email_verified']
       end
+
+      if attributes.key?(:'email_verified_source')
+        self.email_verified_source = attributes[:'email_verified_source']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -147,10 +154,6 @@ module DaytonaApiClient
     def list_invalid_properties
       warn '[DEPRECATED] the `list_invalid_properties` method is obsolete'
       invalid_properties = Array.new
-      if @id.nil?
-        invalid_properties.push('invalid value for "id", id cannot be nil.')
-      end
-
       if @name.nil?
         invalid_properties.push('invalid value for "name", name cannot be nil.')
       end
@@ -162,21 +165,12 @@ module DaytonaApiClient
     # @return true if the model is valid
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
-      return false if @id.nil?
       return false if @name.nil?
       role_validator = EnumAttributeValidator.new('String', ["admin", "user", "unknown_default_open_api"])
       return false unless role_validator.valid?(@role)
+      email_verified_source_validator = EnumAttributeValidator.new('String', ["auth0", "admin", "sso", "unknown_default_open_api"])
+      return false unless email_verified_source_validator.valid?(@email_verified_source)
       true
-    end
-
-    # Custom attribute writer method with validation
-    # @param [Object] id Value to be assigned
-    def id=(id)
-      if id.nil?
-        fail ArgumentError, 'id cannot be nil'
-      end
-
-      @id = id
     end
 
     # Custom attribute writer method with validation
@@ -199,6 +193,16 @@ module DaytonaApiClient
       @role = role
     end
 
+    # Custom attribute writer method checking allowed values (enum).
+    # @param [Object] email_verified_source Object to be assigned
+    def email_verified_source=(email_verified_source)
+      validator = EnumAttributeValidator.new('String', ["auth0", "admin", "sso", "unknown_default_open_api"])
+      unless validator.valid?(email_verified_source)
+        fail ArgumentError, "invalid value for \"email_verified_source\", must be one of #{validator.allowable_values}."
+      end
+      @email_verified_source = email_verified_source
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -210,7 +214,8 @@ module DaytonaApiClient
           personal_organization_quota == o.personal_organization_quota &&
           personal_organization_default_region_id == o.personal_organization_default_region_id &&
           role == o.role &&
-          email_verified == o.email_verified
+          email_verified == o.email_verified &&
+          email_verified_source == o.email_verified_source
     end
 
     # @see the `==` method
@@ -222,7 +227,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, email, personal_organization_quota, personal_organization_default_region_id, role, email_verified].hash
+      [id, name, email, personal_organization_quota, personal_organization_default_region_id, role, email_verified, email_verified_source].hash
     end
 
     # Builds the object from hash

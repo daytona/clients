@@ -75,6 +75,10 @@ export interface Sandbox {
      */
     'domainAllowList'?: string;
     /**
+     * Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.
+     */
+    'outboundProxyUrl'?: string;
+    /**
      * The target environment for the sandbox
      */
     'target': string;

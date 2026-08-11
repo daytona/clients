@@ -24,6 +24,9 @@ module DaytonaApiClient
     # User email
     attr_accessor :email
 
+    # Whether the user email address has been verified
+    attr_accessor :email_verified
+
     # User public keys
     attr_accessor :public_keys
 
@@ -36,6 +39,7 @@ module DaytonaApiClient
         :'id' => :'id',
         :'name' => :'name',
         :'email' => :'email',
+        :'email_verified' => :'emailVerified',
         :'public_keys' => :'publicKeys',
         :'created_at' => :'createdAt'
       }
@@ -57,6 +61,7 @@ module DaytonaApiClient
         :'id' => :'String',
         :'name' => :'String',
         :'email' => :'String',
+        :'email_verified' => :'Boolean',
         :'public_keys' => :'Array<UserPublicKey>',
         :'created_at' => :'Time'
       }
@@ -102,6 +107,12 @@ module DaytonaApiClient
         self.email = nil
       end
 
+      if attributes.key?(:'email_verified')
+        self.email_verified = attributes[:'email_verified']
+      else
+        self.email_verified = nil
+      end
+
       if attributes.key?(:'public_keys')
         if (value = attributes[:'public_keys']).is_a?(Array)
           self.public_keys = value
@@ -134,6 +145,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "email", email cannot be nil.')
       end
 
+      if @email_verified.nil?
+        invalid_properties.push('invalid value for "email_verified", email_verified cannot be nil.')
+      end
+
       if @public_keys.nil?
         invalid_properties.push('invalid value for "public_keys", public_keys cannot be nil.')
       end
@@ -152,6 +167,7 @@ module DaytonaApiClient
       return false if @id.nil?
       return false if @name.nil?
       return false if @email.nil?
+      return false if @email_verified.nil?
       return false if @public_keys.nil?
       return false if @created_at.nil?
       true
@@ -188,6 +204,16 @@ module DaytonaApiClient
     end
 
     # Custom attribute writer method with validation
+    # @param [Object] email_verified Value to be assigned
+    def email_verified=(email_verified)
+      if email_verified.nil?
+        fail ArgumentError, 'email_verified cannot be nil'
+      end
+
+      @email_verified = email_verified
+    end
+
+    # Custom attribute writer method with validation
     # @param [Object] public_keys Value to be assigned
     def public_keys=(public_keys)
       if public_keys.nil?
@@ -215,6 +241,7 @@ module DaytonaApiClient
           id == o.id &&
           name == o.name &&
           email == o.email &&
+          email_verified == o.email_verified &&
           public_keys == o.public_keys &&
           created_at == o.created_at
     end
@@ -228,7 +255,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, email, public_keys, created_at].hash
+      [id, name, email, email_verified, public_keys, created_at].hash
     end
 
     # Builds the object from hash

@@ -162,6 +162,7 @@ public class Sandbox {
     private Boolean networkBlockAll;
     private String networkAllowList;
     private String domainAllowList;
+    private String outboundProxyUrl;
     private List<SandboxVolume> volumes;
     private BuildInfo buildInfo;
     private String backupCreatedAt;
@@ -866,6 +867,7 @@ public class Sandbox {
         this.networkBlockAll = d.getNetworkBlockAll();
         this.networkAllowList = d.getNetworkAllowList();
         this.domainAllowList = d.getDomainAllowList();
+        this.outboundProxyUrl = d.getOutboundProxyUrl();
         this.volumes = d.getVolumes() == null ? null : Collections.unmodifiableList(d.getVolumes());
         this.buildInfo = d.getBuildInfo();
         this.backupCreatedAt = d.getBackupCreatedAt();
@@ -1460,6 +1462,16 @@ public class Sandbox {
      * @return allowed domains, or {@code null}
      */
     public String getDomainAllowList() { return domainAllowList; }
+    /**
+     * Returns the outbound proxy URL to route the sandbox HTTP(S) traffic through, if any.
+     *
+     * <p>Not returned by {@link Daytona#list}; call {@link #refreshData()} on each item to populate.
+     * Applied via the HTTP(S)_PROXY environment variables; combine with domainAllowList for
+     * network-layer enforcement.
+     *
+     * @return outbound proxy URL, or {@code null}
+     */
+    public String getOutboundProxyUrl() { return outboundProxyUrl; }
     /**
      * Returns volumes attached to the Sandbox.
      *

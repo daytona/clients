@@ -31,15 +31,16 @@ class CreateUser(BaseModel):
     """
     CreateUser
     """ # noqa: E501
-    id: StrictStr
+    id: Optional[StrictStr] = None
     name: StrictStr
     email: Optional[StrictStr] = None
     personal_organization_quota: Optional[CreateOrganizationQuota] = Field(default=None, serialization_alias="personalOrganizationQuota")
     personal_organization_default_region_id: Optional[StrictStr] = Field(default=None, serialization_alias="personalOrganizationDefaultRegionId")
     role: Optional[StrictStr] = None
     email_verified: Optional[StrictBool] = Field(default=None, serialization_alias="emailVerified")
+    email_verified_source: Optional[StrictStr] = Field(default=None, description="Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.", serialization_alias="emailVerifiedSource")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "email", "personalOrganizationQuota", "personalOrganizationDefaultRegionId", "role", "emailVerified"]
+    __properties: ClassVar[List[str]] = ["id", "name", "email", "personalOrganizationQuota", "personalOrganizationDefaultRegionId", "role", "emailVerified", "emailVerifiedSource"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -107,7 +108,8 @@ class CreateUser(BaseModel):
             "personal_organization_quota": CreateOrganizationQuota.from_dict(obj["personalOrganizationQuota"]) if obj.get("personalOrganizationQuota") is not None else None,
             "personal_organization_default_region_id": obj.get("personalOrganizationDefaultRegionId"),
             "role": obj.get("role"),
-            "email_verified": obj.get("emailVerified")
+            "email_verified": obj.get("emailVerified"),
+            "email_verified_source": obj.get("emailVerifiedSource")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

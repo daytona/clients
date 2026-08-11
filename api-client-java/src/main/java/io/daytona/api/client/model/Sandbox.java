@@ -115,6 +115,11 @@ public class Sandbox {
   @javax.annotation.Nullable
   private String domainAllowList;
 
+  public static final String SERIALIZED_NAME_OUTBOUND_PROXY_URL = "outboundProxyUrl";
+  @SerializedName(SERIALIZED_NAME_OUTBOUND_PROXY_URL)
+  @javax.annotation.Nullable
+  private String outboundProxyUrl;
+
   public static final String SERIALIZED_NAME_TARGET = "target";
   @SerializedName(SERIALIZED_NAME_TARGET)
   @javax.annotation.Nonnull
@@ -600,6 +605,25 @@ public class Sandbox {
 
   public void setDomainAllowList(@javax.annotation.Nullable String domainAllowList) {
     this.domainAllowList = domainAllowList;
+  }
+
+
+  public Sandbox outboundProxyUrl(@javax.annotation.Nullable String outboundProxyUrl) {
+    this.outboundProxyUrl = outboundProxyUrl;
+    return this;
+  }
+
+  /**
+   * Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.
+   * @return outboundProxyUrl
+   */
+  @javax.annotation.Nullable
+  public String getOutboundProxyUrl() {
+    return outboundProxyUrl;
+  }
+
+  public void setOutboundProxyUrl(@javax.annotation.Nullable String outboundProxyUrl) {
+    this.outboundProxyUrl = outboundProxyUrl;
   }
 
 
@@ -1216,6 +1240,7 @@ public class Sandbox {
         Objects.equals(this.networkBlockAll, sandbox.networkBlockAll) &&
         Objects.equals(this.networkAllowList, sandbox.networkAllowList) &&
         Objects.equals(this.domainAllowList, sandbox.domainAllowList) &&
+        Objects.equals(this.outboundProxyUrl, sandbox.outboundProxyUrl) &&
         Objects.equals(this.target, sandbox.target) &&
         Objects.equals(this.cpu, sandbox.cpu) &&
         Objects.equals(this.gpu, sandbox.gpu) &&
@@ -1249,7 +1274,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1267,6 +1292,7 @@ public class Sandbox {
     sb.append("    networkBlockAll: ").append(toIndentedString(networkBlockAll)).append("\n");
     sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
+    sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
@@ -1314,7 +1340,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
@@ -1360,6 +1386,9 @@ public class Sandbox {
       }
       if ((jsonObj.get("domainAllowList") != null && !jsonObj.get("domainAllowList").isJsonNull()) && !jsonObj.get("domainAllowList").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `domainAllowList` to be a primitive type in the JSON string but got `%s`", jsonObj.get("domainAllowList").toString()));
+      }
+      if ((jsonObj.get("outboundProxyUrl") != null && !jsonObj.get("outboundProxyUrl").isJsonNull()) && !jsonObj.get("outboundProxyUrl").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `outboundProxyUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("outboundProxyUrl").toString()));
       }
       if (!jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));

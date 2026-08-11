@@ -140,6 +140,18 @@ def domain_allow_list()
 - `String, nil` - Comma-separated list of allowed domains for the sandbox.
 Not returned by list results; call #refresh on each item to populate.
 
+#### outbound_proxy_url()
+
+```ruby
+def outbound_proxy_url()
+
+```
+
+**Returns**:
+
+- `String, nil` - Outbound proxy URL to route the sandbox HTTP(S) traffic through.
+Not returned by list results; call #refresh on each item to populate.
+
 #### target()
 
 ```ruby

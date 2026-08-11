@@ -584,6 +584,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.DomainAllowList != nil {
 		createReq.SetDomainAllowList(*baseParams.DomainAllowList)
 	}
+	if baseParams.OutboundProxyUrl != nil {
+		createReq.SetOutboundProxyUrl(*baseParams.OutboundProxyUrl)
+	}
 	if baseParams.LinkedSandbox != "" {
 		createReq.SetLinkedSandbox(baseParams.LinkedSandbox)
 	}

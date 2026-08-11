@@ -69,6 +69,11 @@ public class User {
   @javax.annotation.Nonnull
   private String email;
 
+  public static final String SERIALIZED_NAME_EMAIL_VERIFIED = "emailVerified";
+  @SerializedName(SERIALIZED_NAME_EMAIL_VERIFIED)
+  @javax.annotation.Nonnull
+  private Boolean emailVerified;
+
   public static final String SERIALIZED_NAME_PUBLIC_KEYS = "publicKeys";
   @SerializedName(SERIALIZED_NAME_PUBLIC_KEYS)
   @javax.annotation.Nonnull
@@ -136,6 +141,25 @@ public class User {
 
   public void setEmail(@javax.annotation.Nonnull String email) {
     this.email = email;
+  }
+
+
+  public User emailVerified(@javax.annotation.Nonnull Boolean emailVerified) {
+    this.emailVerified = emailVerified;
+    return this;
+  }
+
+  /**
+   * Whether the user email address has been verified
+   * @return emailVerified
+   */
+  @javax.annotation.Nonnull
+  public Boolean getEmailVerified() {
+    return emailVerified;
+  }
+
+  public void setEmailVerified(@javax.annotation.Nonnull Boolean emailVerified) {
+    this.emailVerified = emailVerified;
   }
 
 
@@ -242,6 +266,7 @@ public class User {
     return Objects.equals(this.id, user.id) &&
         Objects.equals(this.name, user.name) &&
         Objects.equals(this.email, user.email) &&
+        Objects.equals(this.emailVerified, user.emailVerified) &&
         Objects.equals(this.publicKeys, user.publicKeys) &&
         Objects.equals(this.createdAt, user.createdAt)&&
         Objects.equals(this.additionalProperties, user.additionalProperties);
@@ -249,7 +274,7 @@ public class User {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, email, publicKeys, createdAt, additionalProperties);
+    return Objects.hash(id, name, email, emailVerified, publicKeys, createdAt, additionalProperties);
   }
 
   @Override
@@ -259,6 +284,7 @@ public class User {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
+    sb.append("    emailVerified: ").append(toIndentedString(emailVerified)).append("\n");
     sb.append("    publicKeys: ").append(toIndentedString(publicKeys)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
@@ -280,10 +306,10 @@ public class User {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "publicKeys", "createdAt"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "publicKeys", "createdAt"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "email", "publicKeys", "createdAt"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "publicKeys", "createdAt"));
   }
 
   /**

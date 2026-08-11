@@ -185,6 +185,7 @@ export interface Resources {
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
+ * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
  * @property {boolean} [ephemeral] - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
  * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
@@ -205,6 +206,7 @@ export type CreateSandboxBaseParams = {
   networkBlockAll?: boolean
   networkAllowList?: string
   domainAllowList?: string
+  outboundProxyUrl?: string
   ephemeral?: boolean
   linkedSandbox?: string
   secrets?: Record<string, string>
@@ -691,6 +693,7 @@ export class Daytona implements AsyncDisposable {
           networkBlockAll: params.networkBlockAll,
           networkAllowList: params.networkAllowList,
           domainAllowList: params.domainAllowList,
+          outboundProxyUrl: params.outboundProxyUrl,
           linkedSandbox: params.linkedSandbox,
           secrets: params.secrets
             ? Object.entries(params.secrets).map(([envVar, secretName]) => ({ [envVar]: secretName }))

@@ -38,6 +38,8 @@ type CreateSandbox struct {
 	NetworkAllowList *string `json:"networkAllowList,omitempty"`
 	// Comma-separated list of allowed domains for the sandbox
 	DomainAllowList *string `json:"domainAllowList,omitempty"`
+	// Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
+	OutboundProxyUrl *string `json:"outboundProxyUrl,omitempty"`
 	// The target (region) where the sandbox will be created
 	Target *string `json:"target,omitempty"`
 	// CPU cores allocated to the sandbox
@@ -58,7 +60,7 @@ type CreateSandbox struct {
 	AutoArchiveInterval *int32 `json:"autoArchiveInterval,omitempty"`
 	// Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)
 	AutoDeleteInterval *int32 `json:"autoDeleteInterval,omitempty"`
-	// Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+	// Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
 	TtlMinutes *int32 `json:"ttlMinutes,omitempty"`
 	// Array of volumes to attach to the sandbox
 	Volumes []SandboxVolume `json:"volumes,omitempty"`
@@ -376,6 +378,38 @@ func (o *CreateSandbox) HasDomainAllowList() bool {
 // SetDomainAllowList gets a reference to the given string and assigns it to the DomainAllowList field.
 func (o *CreateSandbox) SetDomainAllowList(v string) {
 	o.DomainAllowList = &v
+}
+
+// GetOutboundProxyUrl returns the OutboundProxyUrl field value if set, zero value otherwise.
+func (o *CreateSandbox) GetOutboundProxyUrl() string {
+	if o == nil || IsNil(o.OutboundProxyUrl) {
+		var ret string
+		return ret
+	}
+	return *o.OutboundProxyUrl
+}
+
+// GetOutboundProxyUrlOk returns a tuple with the OutboundProxyUrl field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetOutboundProxyUrlOk() (*string, bool) {
+	if o == nil || IsNil(o.OutboundProxyUrl) {
+		return nil, false
+	}
+	return o.OutboundProxyUrl, true
+}
+
+// HasOutboundProxyUrl returns a boolean if a field has been set.
+func (o *CreateSandbox) HasOutboundProxyUrl() bool {
+	if o != nil && !IsNil(o.OutboundProxyUrl) {
+		return true
+	}
+
+	return false
+}
+
+// SetOutboundProxyUrl gets a reference to the given string and assigns it to the OutboundProxyUrl field.
+func (o *CreateSandbox) SetOutboundProxyUrl(v string) {
+	o.OutboundProxyUrl = &v
 }
 
 // GetTarget returns the Target field value if set, zero value otherwise.
@@ -895,6 +929,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.DomainAllowList) {
 		toSerialize["domainAllowList"] = o.DomainAllowList
 	}
+	if !IsNil(o.OutboundProxyUrl) {
+		toSerialize["outboundProxyUrl"] = o.OutboundProxyUrl
+	}
 	if !IsNil(o.Target) {
 		toSerialize["target"] = o.Target
 	}
@@ -971,6 +1008,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "networkBlockAll")
 		delete(additionalProperties, "networkAllowList")
 		delete(additionalProperties, "domainAllowList")
+		delete(additionalProperties, "outboundProxyUrl")
 		delete(additionalProperties, "target")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")

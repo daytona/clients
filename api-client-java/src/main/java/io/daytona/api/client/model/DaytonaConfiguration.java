@@ -23,10 +23,13 @@ import io.daytona.api.client.model.Announcement;
 import io.daytona.api.client.model.OidcConfig;
 import io.daytona.api.client.model.PosthogConfig;
 import io.daytona.api.client.model.RateLimitConfig;
+import io.daytona.api.client.model.SsoOidcConfig;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -62,6 +65,11 @@ public class DaytonaConfiguration {
   @javax.annotation.Nonnull
   private String version;
 
+  public static final String SERIALIZED_NAME_BUILD_SHA = "buildSha";
+  @SerializedName(SERIALIZED_NAME_BUILD_SHA)
+  @javax.annotation.Nullable
+  private String buildSha;
+
   public static final String SERIALIZED_NAME_POSTHOG = "posthog";
   @SerializedName(SERIALIZED_NAME_POSTHOG)
   @javax.annotation.Nullable
@@ -71,6 +79,16 @@ public class DaytonaConfiguration {
   @SerializedName(SERIALIZED_NAME_OIDC)
   @javax.annotation.Nonnull
   private OidcConfig oidc;
+
+  public static final String SERIALIZED_NAME_SSO_OIDC = "ssoOidc";
+  @SerializedName(SERIALIZED_NAME_SSO_OIDC)
+  @javax.annotation.Nullable
+  private SsoOidcConfig ssoOidc;
+
+  public static final String SERIALIZED_NAME_FORCED_FEATURE_FLAGS = "forcedFeatureFlags";
+  @SerializedName(SERIALIZED_NAME_FORCED_FEATURE_FLAGS)
+  @javax.annotation.Nullable
+  private List<String> forcedFeatureFlags = new ArrayList<>();
 
   public static final String SERIALIZED_NAME_LINKED_ACCOUNTS_ENABLED = "linkedAccountsEnabled";
   @SerializedName(SERIALIZED_NAME_LINKED_ACCOUNTS_ENABLED)
@@ -174,6 +192,25 @@ public class DaytonaConfiguration {
   }
 
 
+  public DaytonaConfiguration buildSha(@javax.annotation.Nullable String buildSha) {
+    this.buildSha = buildSha;
+    return this;
+  }
+
+  /**
+   * Commit sha of the source the app was built from
+   * @return buildSha
+   */
+  @javax.annotation.Nullable
+  public String getBuildSha() {
+    return buildSha;
+  }
+
+  public void setBuildSha(@javax.annotation.Nullable String buildSha) {
+    this.buildSha = buildSha;
+  }
+
+
   public DaytonaConfiguration posthog(@javax.annotation.Nullable PosthogConfig posthog) {
     this.posthog = posthog;
     return this;
@@ -209,6 +246,52 @@ public class DaytonaConfiguration {
 
   public void setOidc(@javax.annotation.Nonnull OidcConfig oidc) {
     this.oidc = oidc;
+  }
+
+
+  public DaytonaConfiguration ssoOidc(@javax.annotation.Nullable SsoOidcConfig ssoOidc) {
+    this.ssoOidc = ssoOidc;
+    return this;
+  }
+
+  /**
+   * OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+   * @return ssoOidc
+   */
+  @javax.annotation.Nullable
+  public SsoOidcConfig getSsoOidc() {
+    return ssoOidc;
+  }
+
+  public void setSsoOidc(@javax.annotation.Nullable SsoOidcConfig ssoOidc) {
+    this.ssoOidc = ssoOidc;
+  }
+
+
+  public DaytonaConfiguration forcedFeatureFlags(@javax.annotation.Nullable List<String> forcedFeatureFlags) {
+    this.forcedFeatureFlags = forcedFeatureFlags;
+    return this;
+  }
+
+  public DaytonaConfiguration addForcedFeatureFlagsItem(String forcedFeatureFlagsItem) {
+    if (this.forcedFeatureFlags == null) {
+      this.forcedFeatureFlags = new ArrayList<>();
+    }
+    this.forcedFeatureFlags.add(forcedFeatureFlagsItem);
+    return this;
+  }
+
+  /**
+   * Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.
+   * @return forcedFeatureFlags
+   */
+  @javax.annotation.Nullable
+  public List<String> getForcedFeatureFlags() {
+    return forcedFeatureFlags;
+  }
+
+  public void setForcedFeatureFlags(@javax.annotation.Nullable List<String> forcedFeatureFlags) {
+    this.forcedFeatureFlags = forcedFeatureFlags;
   }
 
 
@@ -579,8 +662,11 @@ public class DaytonaConfiguration {
     }
     DaytonaConfiguration daytonaConfiguration = (DaytonaConfiguration) o;
     return Objects.equals(this.version, daytonaConfiguration.version) &&
+        Objects.equals(this.buildSha, daytonaConfiguration.buildSha) &&
         Objects.equals(this.posthog, daytonaConfiguration.posthog) &&
         Objects.equals(this.oidc, daytonaConfiguration.oidc) &&
+        Objects.equals(this.ssoOidc, daytonaConfiguration.ssoOidc) &&
+        Objects.equals(this.forcedFeatureFlags, daytonaConfiguration.forcedFeatureFlags) &&
         Objects.equals(this.linkedAccountsEnabled, daytonaConfiguration.linkedAccountsEnabled) &&
         Objects.equals(this.announcements, daytonaConfiguration.announcements) &&
         Objects.equals(this.pylonAppId, daytonaConfiguration.pylonAppId) &&
@@ -602,7 +688,7 @@ public class DaytonaConfiguration {
 
   @Override
   public int hashCode() {
-    return Objects.hash(version, posthog, oidc, linkedAccountsEnabled, announcements, pylonAppId, proxyTemplateUrl, proxyToolboxUrl, defaultSnapshot, dashboardUrl, maxAutoArchiveInterval, maintananceMode, environment, billingApiUrl, analyticsApiUrl, stripePublishableKey, sshGatewayCommand, sshGatewayPublicKey, rateLimit, additionalProperties);
+    return Objects.hash(version, buildSha, posthog, oidc, ssoOidc, forcedFeatureFlags, linkedAccountsEnabled, announcements, pylonAppId, proxyTemplateUrl, proxyToolboxUrl, defaultSnapshot, dashboardUrl, maxAutoArchiveInterval, maintananceMode, environment, billingApiUrl, analyticsApiUrl, stripePublishableKey, sshGatewayCommand, sshGatewayPublicKey, rateLimit, additionalProperties);
   }
 
   @Override
@@ -610,8 +696,11 @@ public class DaytonaConfiguration {
     StringBuilder sb = new StringBuilder();
     sb.append("class DaytonaConfiguration {\n");
     sb.append("    version: ").append(toIndentedString(version)).append("\n");
+    sb.append("    buildSha: ").append(toIndentedString(buildSha)).append("\n");
     sb.append("    posthog: ").append(toIndentedString(posthog)).append("\n");
     sb.append("    oidc: ").append(toIndentedString(oidc)).append("\n");
+    sb.append("    ssoOidc: ").append(toIndentedString(ssoOidc)).append("\n");
+    sb.append("    forcedFeatureFlags: ").append(toIndentedString(forcedFeatureFlags)).append("\n");
     sb.append("    linkedAccountsEnabled: ").append(toIndentedString(linkedAccountsEnabled)).append("\n");
     sb.append("    announcements: ").append(toIndentedString(announcements)).append("\n");
     sb.append("    pylonAppId: ").append(toIndentedString(pylonAppId)).append("\n");
@@ -647,7 +736,7 @@ public class DaytonaConfiguration {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("version", "posthog", "oidc", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"));
+    openapiFields = new HashSet<String>(Arrays.asList("version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("version", "oidc", "linkedAccountsEnabled", "announcements", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment"));
@@ -676,12 +765,23 @@ public class DaytonaConfiguration {
       if (!jsonObj.get("version").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `version` to be a primitive type in the JSON string but got `%s`", jsonObj.get("version").toString()));
       }
+      if ((jsonObj.get("buildSha") != null && !jsonObj.get("buildSha").isJsonNull()) && !jsonObj.get("buildSha").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `buildSha` to be a primitive type in the JSON string but got `%s`", jsonObj.get("buildSha").toString()));
+      }
       // validate the optional field `posthog`
       if (jsonObj.get("posthog") != null && !jsonObj.get("posthog").isJsonNull()) {
         PosthogConfig.validateJsonElement(jsonObj.get("posthog"));
       }
       // validate the required field `oidc`
       OidcConfig.validateJsonElement(jsonObj.get("oidc"));
+      // validate the optional field `ssoOidc`
+      if (jsonObj.get("ssoOidc") != null && !jsonObj.get("ssoOidc").isJsonNull()) {
+        SsoOidcConfig.validateJsonElement(jsonObj.get("ssoOidc"));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("forcedFeatureFlags") != null && !jsonObj.get("forcedFeatureFlags").isJsonNull() && !jsonObj.get("forcedFeatureFlags").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `forcedFeatureFlags` to be an array in the JSON string but got `%s`", jsonObj.get("forcedFeatureFlags").toString()));
+      }
       if ((jsonObj.get("pylonAppId") != null && !jsonObj.get("pylonAppId").isJsonNull()) && !jsonObj.get("pylonAppId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `pylonAppId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("pylonAppId").toString()));
       }

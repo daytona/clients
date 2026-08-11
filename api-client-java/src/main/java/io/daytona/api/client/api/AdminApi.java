@@ -893,6 +893,7 @@ public class AdminApi {
     /**
      * Build call for adminDeleteRunner
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -903,7 +904,7 @@ public class AdminApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call adminDeleteRunnerCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call adminDeleteRunnerCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -929,6 +930,10 @@ public class AdminApi {
         Map<String, String> localVarCookieParams = new HashMap<String, String>();
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
+        if (force != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("force", force));
+        }
+
         final String[] localVarAccepts = {
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
@@ -948,13 +953,13 @@ public class AdminApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call adminDeleteRunnerValidateBeforeCall(@javax.annotation.Nonnull String id, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call adminDeleteRunnerValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'id' is set
         if (id == null) {
             throw new ApiException("Missing the required parameter 'id' when calling adminDeleteRunner(Async)");
         }
 
-        return adminDeleteRunnerCall(id, _callback);
+        return adminDeleteRunnerCall(id, force, _callback);
 
     }
 
@@ -962,6 +967,7 @@ public class AdminApi {
      * Delete runner
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
@@ -970,14 +976,15 @@ public class AdminApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public void adminDeleteRunner(@javax.annotation.Nonnull String id) throws ApiException {
-        adminDeleteRunnerWithHttpInfo(id);
+    public void adminDeleteRunner(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force) throws ApiException {
+        adminDeleteRunnerWithHttpInfo(id, force);
     }
 
     /**
      * Delete runner
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @return ApiResponse&lt;Void&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -987,8 +994,8 @@ public class AdminApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Void> adminDeleteRunnerWithHttpInfo(@javax.annotation.Nonnull String id) throws ApiException {
-        okhttp3.Call localVarCall = adminDeleteRunnerValidateBeforeCall(id, null);
+    public ApiResponse<Void> adminDeleteRunnerWithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force) throws ApiException {
+        okhttp3.Call localVarCall = adminDeleteRunnerValidateBeforeCall(id, force, null);
         return localVarApiClient.execute(localVarCall);
     }
 
@@ -996,6 +1003,7 @@ public class AdminApi {
      * Delete runner (asynchronously)
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -1006,9 +1014,9 @@ public class AdminApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call adminDeleteRunnerAsync(@javax.annotation.Nonnull String id, final ApiCallback<Void> _callback) throws ApiException {
+    public okhttp3.Call adminDeleteRunnerAsync(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, final ApiCallback<Void> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = adminDeleteRunnerValidateBeforeCall(id, _callback);
+        okhttp3.Call localVarCall = adminDeleteRunnerValidateBeforeCall(id, force, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }

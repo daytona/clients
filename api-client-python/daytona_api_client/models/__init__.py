@@ -28,11 +28,14 @@ if TYPE_CHECKING:
     from daytona_api_client.models.api_key_list import ApiKeyList
     from daytona_api_client.models.api_key_response import ApiKeyResponse
     from daytona_api_client.models.audit_log import AuditLog
+    from daytona_api_client.models.audit_scenarios import AuditScenarios
+    from daytona_api_client.models.audit_target_scenario import AuditTargetScenario
     from daytona_api_client.models.available_sandbox_class import AvailableSandboxClass
     from daytona_api_client.models.build_info import BuildInfo
     from daytona_api_client.models.create_api_key import CreateApiKey
     from daytona_api_client.models.create_build_info import CreateBuildInfo
     from daytona_api_client.models.create_docker_registry import CreateDockerRegistry
+    from daytona_api_client.models.create_identity_provider import CreateIdentityProvider
     from daytona_api_client.models.create_linked_account import CreateLinkedAccount
     from daytona_api_client.models.create_organization import CreateOrganization
     from daytona_api_client.models.create_organization_invitation import CreateOrganizationInvitation
@@ -58,6 +61,7 @@ if TYPE_CHECKING:
     from daytona_api_client.models.health_controller_check200_response import HealthControllerCheck200Response
     from daytona_api_client.models.health_controller_check200_response_info_value import HealthControllerCheck200ResponseInfoValue
     from daytona_api_client.models.health_controller_check503_response import HealthControllerCheck503Response
+    from daytona_api_client.models.identity_provider import IdentityProvider
     from daytona_api_client.models.int_filter import IntFilter
     from daytona_api_client.models.job import Job
     from daytona_api_client.models.job_status import JobStatus
@@ -69,11 +73,14 @@ if TYPE_CHECKING:
     from daytona_api_client.models.metric_series import MetricSeries
     from daytona_api_client.models.metrics_response import MetricsResponse
     from daytona_api_client.models.oidc_config import OidcConfig
+    from daytona_api_client.models.oidc_id_p_config import OidcIdPConfig
+    from daytona_api_client.models.oidc_id_p_config_response import OidcIdPConfigResponse
     from daytona_api_client.models.organization import Organization
     from daytona_api_client.models.organization_invitation import OrganizationInvitation
     from daytona_api_client.models.organization_preview_warning import OrganizationPreviewWarning
     from daytona_api_client.models.organization_role import OrganizationRole
     from daytona_api_client.models.organization_sandbox_default_limited_network_egress import OrganizationSandboxDefaultLimitedNetworkEgress
+    from daytona_api_client.models.organization_sso_enabled import OrganizationSsoEnabled
     from daytona_api_client.models.organization_suspension import OrganizationSuspension
     from daytona_api_client.models.organization_usage_overview import OrganizationUsageOverview
     from daytona_api_client.models.organization_user import OrganizationUser
@@ -84,6 +91,7 @@ if TYPE_CHECKING:
     from daytona_api_client.models.paginated_sandboxes_deprecated import PaginatedSandboxesDeprecated
     from daytona_api_client.models.paginated_snapshots import PaginatedSnapshots
     from daytona_api_client.models.paginated_traces import PaginatedTraces
+    from daytona_api_client.models.pending_sso_link import PendingSsoLink
     from daytona_api_client.models.poll_jobs_response import PollJobsResponse
     from daytona_api_client.models.port_preview_url import PortPreviewUrl
     from daytona_api_client.models.posthog_config import PosthogConfig
@@ -124,14 +132,19 @@ if TYPE_CHECKING:
     from daytona_api_client.models.snapshot_state import SnapshotState
     from daytona_api_client.models.ssh_access_dto import SshAccessDto
     from daytona_api_client.models.ssh_access_validation_dto import SshAccessValidationDto
+    from daytona_api_client.models.sso_oidc_config import SsoOidcConfig
     from daytona_api_client.models.storage_access_dto import StorageAccessDto
     from daytona_api_client.models.string_filter import StringFilter
+    from daytona_api_client.models.test_identity_provider_connection import TestIdentityProviderConnection
+    from daytona_api_client.models.test_identity_provider_connection_response import TestIdentityProviderConnectionResponse
     from daytona_api_client.models.toolbox_proxy_url import ToolboxProxyUrl
     from daytona_api_client.models.trace_span import TraceSpan
     from daytona_api_client.models.trace_summary import TraceSummary
     from daytona_api_client.models.update_docker_registry import UpdateDockerRegistry
+    from daytona_api_client.models.update_identity_provider import UpdateIdentityProvider
     from daytona_api_client.models.update_job_status import UpdateJobStatus
     from daytona_api_client.models.update_last_activity import UpdateLastActivity
+    from daytona_api_client.models.update_oidc_id_p_config import UpdateOidcIdPConfig
     from daytona_api_client.models.update_organization_default_region import UpdateOrganizationDefaultRegion
     from daytona_api_client.models.update_organization_invitation import UpdateOrganizationInvitation
     from daytona_api_client.models.update_organization_member_access import UpdateOrganizationMemberAccess
@@ -163,11 +176,14 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "ApiKeyList": "daytona_api_client.models.api_key_list",
     "ApiKeyResponse": "daytona_api_client.models.api_key_response",
     "AuditLog": "daytona_api_client.models.audit_log",
+    "AuditScenarios": "daytona_api_client.models.audit_scenarios",
+    "AuditTargetScenario": "daytona_api_client.models.audit_target_scenario",
     "AvailableSandboxClass": "daytona_api_client.models.available_sandbox_class",
     "BuildInfo": "daytona_api_client.models.build_info",
     "CreateApiKey": "daytona_api_client.models.create_api_key",
     "CreateBuildInfo": "daytona_api_client.models.create_build_info",
     "CreateDockerRegistry": "daytona_api_client.models.create_docker_registry",
+    "CreateIdentityProvider": "daytona_api_client.models.create_identity_provider",
     "CreateLinkedAccount": "daytona_api_client.models.create_linked_account",
     "CreateOrganization": "daytona_api_client.models.create_organization",
     "CreateOrganizationInvitation": "daytona_api_client.models.create_organization_invitation",
@@ -193,6 +209,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "HealthControllerCheck200Response": "daytona_api_client.models.health_controller_check200_response",
     "HealthControllerCheck200ResponseInfoValue": "daytona_api_client.models.health_controller_check200_response_info_value",
     "HealthControllerCheck503Response": "daytona_api_client.models.health_controller_check503_response",
+    "IdentityProvider": "daytona_api_client.models.identity_provider",
     "IntFilter": "daytona_api_client.models.int_filter",
     "Job": "daytona_api_client.models.job",
     "JobStatus": "daytona_api_client.models.job_status",
@@ -204,11 +221,14 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "MetricSeries": "daytona_api_client.models.metric_series",
     "MetricsResponse": "daytona_api_client.models.metrics_response",
     "OidcConfig": "daytona_api_client.models.oidc_config",
+    "OidcIdPConfig": "daytona_api_client.models.oidc_id_p_config",
+    "OidcIdPConfigResponse": "daytona_api_client.models.oidc_id_p_config_response",
     "Organization": "daytona_api_client.models.organization",
     "OrganizationInvitation": "daytona_api_client.models.organization_invitation",
     "OrganizationPreviewWarning": "daytona_api_client.models.organization_preview_warning",
     "OrganizationRole": "daytona_api_client.models.organization_role",
     "OrganizationSandboxDefaultLimitedNetworkEgress": "daytona_api_client.models.organization_sandbox_default_limited_network_egress",
+    "OrganizationSsoEnabled": "daytona_api_client.models.organization_sso_enabled",
     "OrganizationSuspension": "daytona_api_client.models.organization_suspension",
     "OrganizationUsageOverview": "daytona_api_client.models.organization_usage_overview",
     "OrganizationUser": "daytona_api_client.models.organization_user",
@@ -219,6 +239,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "PaginatedSandboxesDeprecated": "daytona_api_client.models.paginated_sandboxes_deprecated",
     "PaginatedSnapshots": "daytona_api_client.models.paginated_snapshots",
     "PaginatedTraces": "daytona_api_client.models.paginated_traces",
+    "PendingSsoLink": "daytona_api_client.models.pending_sso_link",
     "PollJobsResponse": "daytona_api_client.models.poll_jobs_response",
     "PortPreviewUrl": "daytona_api_client.models.port_preview_url",
     "PosthogConfig": "daytona_api_client.models.posthog_config",
@@ -259,14 +280,19 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SnapshotState": "daytona_api_client.models.snapshot_state",
     "SshAccessDto": "daytona_api_client.models.ssh_access_dto",
     "SshAccessValidationDto": "daytona_api_client.models.ssh_access_validation_dto",
+    "SsoOidcConfig": "daytona_api_client.models.sso_oidc_config",
     "StorageAccessDto": "daytona_api_client.models.storage_access_dto",
     "StringFilter": "daytona_api_client.models.string_filter",
+    "TestIdentityProviderConnection": "daytona_api_client.models.test_identity_provider_connection",
+    "TestIdentityProviderConnectionResponse": "daytona_api_client.models.test_identity_provider_connection_response",
     "ToolboxProxyUrl": "daytona_api_client.models.toolbox_proxy_url",
     "TraceSpan": "daytona_api_client.models.trace_span",
     "TraceSummary": "daytona_api_client.models.trace_summary",
     "UpdateDockerRegistry": "daytona_api_client.models.update_docker_registry",
+    "UpdateIdentityProvider": "daytona_api_client.models.update_identity_provider",
     "UpdateJobStatus": "daytona_api_client.models.update_job_status",
     "UpdateLastActivity": "daytona_api_client.models.update_last_activity",
+    "UpdateOidcIdPConfig": "daytona_api_client.models.update_oidc_id_p_config",
     "UpdateOrganizationDefaultRegion": "daytona_api_client.models.update_organization_default_region",
     "UpdateOrganizationInvitation": "daytona_api_client.models.update_organization_invitation",
     "UpdateOrganizationMemberAccess": "daytona_api_client.models.update_organization_member_access",

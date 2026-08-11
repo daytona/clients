@@ -115,6 +115,10 @@ type SandboxBaseParams struct {
 	NetworkBlockAll  bool
 	NetworkAllowList *string
 	DomainAllowList  *string
+	// OutboundProxyUrl is the outbound proxy URL the sandbox HTTP(S) traffic is
+	// routed through. Applied via the HTTP(S)_PROXY environment variables;
+	// combine with DomainAllowList for network-layer enforcement.
+	OutboundProxyUrl *string
 	Ephemeral        bool
 	// LinkedSandbox is the ID or name of an existing sandbox to link the new sandbox to.
 	// The new sandbox will be scheduled on the same runner as the linked sandbox so a local

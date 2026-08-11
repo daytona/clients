@@ -47,6 +47,12 @@ type SandboxListItem struct {
 	Recoverable *bool `json:"recoverable,omitempty"`
 	// Whether the sandbox http preview is public
 	Public bool `json:"public"`
+	// Whether to block all network access for the sandbox
+	NetworkBlockAll bool `json:"networkBlockAll"`
+	// Comma-separated list of allowed CIDR network addresses for the sandbox
+	NetworkAllowList *string `json:"networkAllowList,omitempty"`
+	// Comma-separated list of allowed domains for the sandbox
+	DomainAllowList *string `json:"domainAllowList,omitempty"`
 	// The CPU quota for the sandbox
 	Cpu float32 `json:"cpu"`
 	// The GPU quota for the sandbox
@@ -92,7 +98,7 @@ type _SandboxListItem SandboxListItem
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSandboxListItem(id string, organizationId string, name string, target string, user string, public bool, cpu float32, gpu float32, memory float32, disk float32, labels map[string]string, toolboxProxyUrl string) *SandboxListItem {
+func NewSandboxListItem(id string, organizationId string, name string, target string, user string, public bool, networkBlockAll bool, cpu float32, gpu float32, memory float32, disk float32, labels map[string]string, toolboxProxyUrl string) *SandboxListItem {
 	this := SandboxListItem{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -100,6 +106,7 @@ func NewSandboxListItem(id string, organizationId string, name string, target st
 	this.Target = target
 	this.User = user
 	this.Public = public
+	this.NetworkBlockAll = networkBlockAll
 	this.Cpu = cpu
 	this.Gpu = gpu
 	this.Memory = memory
@@ -483,6 +490,94 @@ func (o *SandboxListItem) GetPublicOk() (*bool, bool) {
 // SetPublic sets field value
 func (o *SandboxListItem) SetPublic(v bool) {
 	o.Public = v
+}
+
+// GetNetworkBlockAll returns the NetworkBlockAll field value
+func (o *SandboxListItem) GetNetworkBlockAll() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.NetworkBlockAll
+}
+
+// GetNetworkBlockAllOk returns a tuple with the NetworkBlockAll field value
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetNetworkBlockAllOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.NetworkBlockAll, true
+}
+
+// SetNetworkBlockAll sets field value
+func (o *SandboxListItem) SetNetworkBlockAll(v bool) {
+	o.NetworkBlockAll = v
+}
+
+// GetNetworkAllowList returns the NetworkAllowList field value if set, zero value otherwise.
+func (o *SandboxListItem) GetNetworkAllowList() string {
+	if o == nil || IsNil(o.NetworkAllowList) {
+		var ret string
+		return ret
+	}
+	return *o.NetworkAllowList
+}
+
+// GetNetworkAllowListOk returns a tuple with the NetworkAllowList field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetNetworkAllowListOk() (*string, bool) {
+	if o == nil || IsNil(o.NetworkAllowList) {
+		return nil, false
+	}
+	return o.NetworkAllowList, true
+}
+
+// HasNetworkAllowList returns a boolean if a field has been set.
+func (o *SandboxListItem) HasNetworkAllowList() bool {
+	if o != nil && !IsNil(o.NetworkAllowList) {
+		return true
+	}
+
+	return false
+}
+
+// SetNetworkAllowList gets a reference to the given string and assigns it to the NetworkAllowList field.
+func (o *SandboxListItem) SetNetworkAllowList(v string) {
+	o.NetworkAllowList = &v
+}
+
+// GetDomainAllowList returns the DomainAllowList field value if set, zero value otherwise.
+func (o *SandboxListItem) GetDomainAllowList() string {
+	if o == nil || IsNil(o.DomainAllowList) {
+		var ret string
+		return ret
+	}
+	return *o.DomainAllowList
+}
+
+// GetDomainAllowListOk returns a tuple with the DomainAllowList field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetDomainAllowListOk() (*string, bool) {
+	if o == nil || IsNil(o.DomainAllowList) {
+		return nil, false
+	}
+	return o.DomainAllowList, true
+}
+
+// HasDomainAllowList returns a boolean if a field has been set.
+func (o *SandboxListItem) HasDomainAllowList() bool {
+	if o != nil && !IsNil(o.DomainAllowList) {
+		return true
+	}
+
+	return false
+}
+
+// SetDomainAllowList gets a reference to the given string and assigns it to the DomainAllowList field.
+func (o *SandboxListItem) SetDomainAllowList(v string) {
+	o.DomainAllowList = &v
 }
 
 // GetCpu returns the Cpu field value
@@ -1050,6 +1145,13 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 		toSerialize["recoverable"] = o.Recoverable
 	}
 	toSerialize["public"] = o.Public
+	toSerialize["networkBlockAll"] = o.NetworkBlockAll
+	if !IsNil(o.NetworkAllowList) {
+		toSerialize["networkAllowList"] = o.NetworkAllowList
+	}
+	if !IsNil(o.DomainAllowList) {
+		toSerialize["domainAllowList"] = o.DomainAllowList
+	}
 	toSerialize["cpu"] = o.Cpu
 	toSerialize["gpu"] = o.Gpu
 	if !IsNil(o.GpuType) {
@@ -1111,6 +1213,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		"target",
 		"user",
 		"public",
+		"networkBlockAll",
 		"cpu",
 		"gpu",
 		"memory",
@@ -1159,6 +1262,9 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "errorReason")
 		delete(additionalProperties, "recoverable")
 		delete(additionalProperties, "public")
+		delete(additionalProperties, "networkBlockAll")
+		delete(additionalProperties, "networkAllowList")
+		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")
 		delete(additionalProperties, "gpuType")

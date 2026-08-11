@@ -39,6 +39,8 @@ type RegionQuota struct {
 	MaxMemoryPerGpu NullableFloat32 `json:"maxMemoryPerGpu"`
 	// Disk maximum per requested GPU unit for GPU sandboxes.
 	MaxDiskPerGpu NullableFloat32 `json:"maxDiskPerGpu"`
+	// Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
+	MaxSandboxLifespan NullableFloat32 `json:"maxSandboxLifespan"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -48,7 +50,7 @@ type _RegionQuota RegionQuota
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRegionQuota(organizationId string, regionId string, sandboxClass SandboxClass, totalCpuQuota float32, totalMemoryQuota float32, totalDiskQuota float32, totalGpuQuota float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpu NullableFloat32, maxMemoryPerGpu NullableFloat32, maxDiskPerGpu NullableFloat32) *RegionQuota {
+func NewRegionQuota(organizationId string, regionId string, sandboxClass SandboxClass, totalCpuQuota float32, totalMemoryQuota float32, totalDiskQuota float32, totalGpuQuota float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpu NullableFloat32, maxMemoryPerGpu NullableFloat32, maxDiskPerGpu NullableFloat32, maxSandboxLifespan NullableFloat32) *RegionQuota {
 	this := RegionQuota{}
 	this.OrganizationId = organizationId
 	this.RegionId = regionId
@@ -64,6 +66,7 @@ func NewRegionQuota(organizationId string, regionId string, sandboxClass Sandbox
 	this.MaxCpuPerGpu = maxCpuPerGpu
 	this.MaxMemoryPerGpu = maxMemoryPerGpu
 	this.MaxDiskPerGpu = maxDiskPerGpu
+	this.MaxSandboxLifespan = maxSandboxLifespan
 	return &this
 }
 
@@ -457,6 +460,32 @@ func (o *RegionQuota) SetMaxDiskPerGpu(v float32) {
 	o.MaxDiskPerGpu.Set(&v)
 }
 
+// GetMaxSandboxLifespan returns the MaxSandboxLifespan field value
+// If the value is explicit nil, the zero value for float32 will be returned
+func (o *RegionQuota) GetMaxSandboxLifespan() float32 {
+	if o == nil || o.MaxSandboxLifespan.Get() == nil {
+		var ret float32
+		return ret
+	}
+
+	return *o.MaxSandboxLifespan.Get()
+}
+
+// GetMaxSandboxLifespanOk returns a tuple with the MaxSandboxLifespan field value
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *RegionQuota) GetMaxSandboxLifespanOk() (*float32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.MaxSandboxLifespan.Get(), o.MaxSandboxLifespan.IsSet()
+}
+
+// SetMaxSandboxLifespan sets field value
+func (o *RegionQuota) SetMaxSandboxLifespan(v float32) {
+	o.MaxSandboxLifespan.Set(&v)
+}
+
 func (o RegionQuota) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -484,6 +513,7 @@ func (o RegionQuota) ToMap() (map[string]interface{}, error) {
 	toSerialize["maxCpuPerGpu"] = o.MaxCpuPerGpu.Get()
 	toSerialize["maxMemoryPerGpu"] = o.MaxMemoryPerGpu.Get()
 	toSerialize["maxDiskPerGpu"] = o.MaxDiskPerGpu.Get()
+	toSerialize["maxSandboxLifespan"] = o.MaxSandboxLifespan.Get()
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -511,6 +541,7 @@ func (o *RegionQuota) UnmarshalJSON(data []byte) (err error) {
 		"maxCpuPerGpu",
 		"maxMemoryPerGpu",
 		"maxDiskPerGpu",
+		"maxSandboxLifespan",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -555,6 +586,7 @@ func (o *RegionQuota) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "maxCpuPerGpu")
 		delete(additionalProperties, "maxMemoryPerGpu")
 		delete(additionalProperties, "maxDiskPerGpu")
+		delete(additionalProperties, "maxSandboxLifespan")
 		o.AdditionalProperties = additionalProperties
 	}
 

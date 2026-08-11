@@ -16,6 +16,7 @@ package io.daytona.api.client.api;
 import io.daytona.api.client.ApiException;
 import io.daytona.api.client.model.AccountProvider;
 import io.daytona.api.client.model.CreateLinkedAccount;
+import io.daytona.api.client.model.PendingSsoLink;
 import io.daytona.api.client.model.User;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,30 @@ import java.util.Map;
 public class UsersApiTest {
 
     private final UsersApi api = new UsersApi();
+
+    /**
+     * Confirm (link) a pending SSO account link
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void confirmPendingSsoLinkTest() throws ApiException {
+        String id = null;
+        api.confirmPendingSsoLink(id);
+        // TODO: test validations
+    }
+
+    /**
+     * Dismiss a pending SSO account link
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void dismissPendingSsoLinkTest() throws ApiException {
+        String id = null;
+        api.dismissPendingSsoLink(id);
+        // TODO: test validations
+    }
 
     /**
      * Enroll in SMS MFA
@@ -75,6 +100,17 @@ public class UsersApiTest {
     public void linkAccountTest() throws ApiException {
         CreateLinkedAccount createLinkedAccount = null;
         api.linkAccount(createLinkedAccount);
+        // TODO: test validations
+    }
+
+    /**
+     * List pending SSO account links for the authenticated user
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listPendingSsoLinksTest() throws ApiException {
+        List<PendingSsoLink> response = api.listPendingSsoLinks();
         // TODO: test validations
     }
 

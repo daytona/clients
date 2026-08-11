@@ -18,11 +18,20 @@ module DaytonaApiClient
     # Daytona version
     attr_accessor :version
 
+    # Commit sha of the source the app was built from
+    attr_accessor :build_sha
+
     # PostHog configuration
     attr_accessor :posthog
 
     # OIDC configuration
     attr_accessor :oidc
+
+    # OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+    attr_accessor :sso_oidc
+
+    # Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.
+    attr_accessor :forced_feature_flags
 
     # Whether linked accounts are enabled
     attr_accessor :linked_accounts_enabled
@@ -76,8 +85,11 @@ module DaytonaApiClient
     def self.attribute_map
       {
         :'version' => :'version',
+        :'build_sha' => :'buildSha',
         :'posthog' => :'posthog',
         :'oidc' => :'oidc',
+        :'sso_oidc' => :'ssoOidc',
+        :'forced_feature_flags' => :'forcedFeatureFlags',
         :'linked_accounts_enabled' => :'linkedAccountsEnabled',
         :'announcements' => :'announcements',
         :'pylon_app_id' => :'pylonAppId',
@@ -111,8 +123,11 @@ module DaytonaApiClient
     def self.openapi_types
       {
         :'version' => :'String',
+        :'build_sha' => :'String',
         :'posthog' => :'PosthogConfig',
         :'oidc' => :'OidcConfig',
+        :'sso_oidc' => :'SsoOidcConfig',
+        :'forced_feature_flags' => :'Array<String>',
         :'linked_accounts_enabled' => :'Boolean',
         :'announcements' => :'Hash<String, Announcement>',
         :'pylon_app_id' => :'String',
@@ -160,6 +175,10 @@ module DaytonaApiClient
         self.version = nil
       end
 
+      if attributes.key?(:'build_sha')
+        self.build_sha = attributes[:'build_sha']
+      end
+
       if attributes.key?(:'posthog')
         self.posthog = attributes[:'posthog']
       end
@@ -168,6 +187,16 @@ module DaytonaApiClient
         self.oidc = attributes[:'oidc']
       else
         self.oidc = nil
+      end
+
+      if attributes.key?(:'sso_oidc')
+        self.sso_oidc = attributes[:'sso_oidc']
+      end
+
+      if attributes.key?(:'forced_feature_flags')
+        if (value = attributes[:'forced_feature_flags']).is_a?(Array)
+          self.forced_feature_flags = value
+        end
       end
 
       if attributes.key?(:'linked_accounts_enabled')
@@ -441,8 +470,11 @@ module DaytonaApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           version == o.version &&
+          build_sha == o.build_sha &&
           posthog == o.posthog &&
           oidc == o.oidc &&
+          sso_oidc == o.sso_oidc &&
+          forced_feature_flags == o.forced_feature_flags &&
           linked_accounts_enabled == o.linked_accounts_enabled &&
           announcements == o.announcements &&
           pylon_app_id == o.pylon_app_id &&
@@ -470,7 +502,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [version, posthog, oidc, linked_accounts_enabled, announcements, pylon_app_id, proxy_template_url, proxy_toolbox_url, default_snapshot, dashboard_url, max_auto_archive_interval, maintanance_mode, environment, billing_api_url, analytics_api_url, stripe_publishable_key, ssh_gateway_command, ssh_gateway_public_key, rate_limit].hash
+      [version, build_sha, posthog, oidc, sso_oidc, forced_feature_flags, linked_accounts_enabled, announcements, pylon_app_id, proxy_template_url, proxy_toolbox_url, default_snapshot, dashboard_url, max_auto_archive_interval, maintanance_mode, environment, billing_api_url, analytics_api_url, stripe_publishable_key, ssh_gateway_command, ssh_gateway_public_key, rate_limit].hash
     end
 
     # Builds the object from hash

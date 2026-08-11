@@ -1719,6 +1719,7 @@ class AdminApi:
     def admin_delete_runner(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
+        force: Annotated[Optional[StrictBool], Field(description="Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1737,6 +1738,8 @@ class AdminApi:
 
         :param id: Runner ID (required)
         :type id: str
+        :param force: Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1761,6 +1764,7 @@ class AdminApi:
 
         _param = self._admin_delete_runner_serialize(
             id=id,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1785,6 +1789,7 @@ class AdminApi:
     def admin_delete_runner_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
+        force: Annotated[Optional[StrictBool], Field(description="Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1803,6 +1808,8 @@ class AdminApi:
 
         :param id: Runner ID (required)
         :type id: str
+        :param force: Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1827,6 +1834,7 @@ class AdminApi:
 
         _param = self._admin_delete_runner_serialize(
             id=id,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1851,6 +1859,7 @@ class AdminApi:
     def admin_delete_runner_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
+        force: Annotated[Optional[StrictBool], Field(description="Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1869,6 +1878,8 @@ class AdminApi:
 
         :param id: Runner ID (required)
         :type id: str
+        :param force: Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1893,6 +1904,7 @@ class AdminApi:
 
         _param = self._admin_delete_runner_serialize(
             id=id,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1912,6 +1924,7 @@ class AdminApi:
     def _admin_delete_runner_serialize(
         self,
         id,
+        force,
         _request_auth,
         _content_type,
         _headers,
@@ -1936,6 +1949,10 @@ class AdminApi:
         if id is not None:
             _path_params['id'] = id
         # process the query parameters
+        if force is not None:
+            
+            _query_params.append(('force', force))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter

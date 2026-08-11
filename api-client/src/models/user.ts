@@ -31,6 +31,10 @@ export interface User {
      */
     'email': string;
     /**
+     * Whether the user email address has been verified
+     */
+    'emailVerified': boolean;
+    /**
      * User public keys
      */
     'publicKeys': Array<UserPublicKey>;

@@ -45,8 +45,9 @@ class UpdateOrganizationRegionQuota(BaseModel):
     max_cpu_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="CPU maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxCpuPerGpu")
     max_memory_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Memory maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxMemoryPerGpu")
     max_disk_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Disk maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxDiskPerGpu")
+    max_sandbox_lifespan: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.", serialization_alias="maxSandboxLifespan")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu"]
+    __properties: ClassVar[List[str]] = ["sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu", "maxSandboxLifespan"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -153,6 +154,11 @@ class UpdateOrganizationRegionQuota(BaseModel):
         if self.max_disk_per_gpu is None and "max_disk_per_gpu" in self.model_fields_set:
             _dict['maxDiskPerGpu'] = None
 
+        # set to None if max_sandbox_lifespan (nullable) is None
+        # and model_fields_set contains the field
+        if self.max_sandbox_lifespan is None and "max_sandbox_lifespan" in self.model_fields_set:
+            _dict['maxSandboxLifespan'] = None
+
         return _dict
 
     @classmethod
@@ -177,7 +183,8 @@ class UpdateOrganizationRegionQuota(BaseModel):
             "max_disk_per_non_ephemeral_sandbox": obj.get("maxDiskPerNonEphemeralSandbox"),
             "max_cpu_per_gpu": obj.get("maxCpuPerGpu"),
             "max_memory_per_gpu": obj.get("maxMemoryPerGpu"),
-            "max_disk_per_gpu": obj.get("maxDiskPerGpu")
+            "max_disk_per_gpu": obj.get("maxDiskPerGpu"),
+            "max_sandbox_lifespan": obj.get("maxSandboxLifespan")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

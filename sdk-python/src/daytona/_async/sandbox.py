@@ -159,6 +159,10 @@ class AsyncSandbox(SandboxDto):
             the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
         domain_allow_list (str | None): Comma-separated list of allowed domains for
             the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
+        outbound_proxy_url (str | None): Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
+            Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on
+            its own); combine with domain_allow_list for unbypassable network-layer enforcement. (not returned by
+            list results; call `refresh_data()` on each item to populate).
         toolbox_proxy_url (str): The toolbox proxy URL for the Sandbox.
     """
 
@@ -1460,6 +1464,7 @@ class AsyncSandbox(SandboxDto):
             )
             self.network_allow_list: str | None = sandbox_dto.network_allow_list
             self.domain_allow_list: str | None = sandbox_dto.domain_allow_list
+            self.outbound_proxy_url: str | None = sandbox_dto.outbound_proxy_url
             self.volumes: list[SandboxVolume] | None = sandbox_dto.volumes
             self.build_info: BuildInfo | None = sandbox_dto.build_info
             self.backup_created_at: str | None = sandbox_dto.backup_created_at

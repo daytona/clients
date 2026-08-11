@@ -80,6 +80,18 @@ export interface SandboxListItem {
      */
     'public': boolean;
     /**
+     * Whether to block all network access for the sandbox
+     */
+    'networkBlockAll': boolean;
+    /**
+     * Comma-separated list of allowed CIDR network addresses for the sandbox
+     */
+    'networkAllowList'?: string;
+    /**
+     * Comma-separated list of allowed domains for the sandbox
+     */
+    'domainAllowList'?: string;
+    /**
      * The CPU quota for the sandbox
      */
     'cpu': number;

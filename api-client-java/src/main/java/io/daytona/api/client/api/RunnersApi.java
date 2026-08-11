@@ -216,6 +216,7 @@ public class RunnersApi {
     /**
      * Build call for deleteRunner
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
@@ -227,7 +228,7 @@ public class RunnersApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call deleteRunnerCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call deleteRunnerCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -253,6 +254,10 @@ public class RunnersApi {
         Map<String, String> localVarCookieParams = new HashMap<String, String>();
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
+        if (force != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("force", force));
+        }
+
         final String[] localVarAccepts = {
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
@@ -277,13 +282,13 @@ public class RunnersApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call deleteRunnerValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call deleteRunnerValidateBeforeCall(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'id' is set
         if (id == null) {
             throw new ApiException("Missing the required parameter 'id' when calling deleteRunner(Async)");
         }
 
-        return deleteRunnerCall(id, xDaytonaOrganizationID, _callback);
+        return deleteRunnerCall(id, force, xDaytonaOrganizationID, _callback);
 
     }
 
@@ -291,6 +296,7 @@ public class RunnersApi {
      * Delete runner
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -300,14 +306,15 @@ public class RunnersApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public void deleteRunner(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
-        deleteRunnerWithHttpInfo(id, xDaytonaOrganizationID);
+    public void deleteRunner(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        deleteRunnerWithHttpInfo(id, force, xDaytonaOrganizationID);
     }
 
     /**
      * Delete runner
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return ApiResponse&lt;Void&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -318,8 +325,8 @@ public class RunnersApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Void> deleteRunnerWithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
-        okhttp3.Call localVarCall = deleteRunnerValidateBeforeCall(id, xDaytonaOrganizationID, null);
+    public ApiResponse<Void> deleteRunnerWithHttpInfo(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = deleteRunnerValidateBeforeCall(id, force, xDaytonaOrganizationID, null);
         return localVarApiClient.execute(localVarCall);
     }
 
@@ -327,6 +334,7 @@ public class RunnersApi {
      * Delete runner (asynchronously)
      * 
      * @param id Runner ID (required)
+     * @param force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready. (optional)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
@@ -338,9 +346,9 @@ public class RunnersApi {
         <tr><td> 204 </td><td>  </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call deleteRunnerAsync(@javax.annotation.Nonnull String id, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Void> _callback) throws ApiException {
+    public okhttp3.Call deleteRunnerAsync(@javax.annotation.Nonnull String id, @javax.annotation.Nullable Boolean force, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Void> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = deleteRunnerValidateBeforeCall(id, xDaytonaOrganizationID, _callback);
+        okhttp3.Call localVarCall = deleteRunnerValidateBeforeCall(id, force, xDaytonaOrganizationID, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }
@@ -978,6 +986,123 @@ public class RunnersApi {
 
         okhttp3.Call localVarCall = getRunnersBySnapshotRefValidateBeforeCall(ref, _callback);
         Type localVarReturnType = new TypeToken<List<RunnerSnapshotDto>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getSnapshotRefsForAuthenticatedRunner
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Snapshot refs the runner is expected to have </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSnapshotRefsForAuthenticatedRunnerCall(final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/runners/me/snapshots";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getSnapshotRefsForAuthenticatedRunnerValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return getSnapshotRefsForAuthenticatedRunnerCall(_callback);
+
+    }
+
+    /**
+     * Get snapshot refs for authenticated runner
+     * 
+     * @return List&lt;String&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Snapshot refs the runner is expected to have </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<String> getSnapshotRefsForAuthenticatedRunner() throws ApiException {
+        ApiResponse<List<String>> localVarResp = getSnapshotRefsForAuthenticatedRunnerWithHttpInfo();
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get snapshot refs for authenticated runner
+     * 
+     * @return ApiResponse&lt;List&lt;String&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Snapshot refs the runner is expected to have </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<String>> getSnapshotRefsForAuthenticatedRunnerWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getSnapshotRefsForAuthenticatedRunnerValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<List<String>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get snapshot refs for authenticated runner (asynchronously)
+     * 
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Snapshot refs the runner is expected to have </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSnapshotRefsForAuthenticatedRunnerAsync(final ApiCallback<List<String>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getSnapshotRefsForAuthenticatedRunnerValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<List<String>>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

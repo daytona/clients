@@ -22,10 +22,13 @@ import io.daytona.api.client.model.Announcement;
 import io.daytona.api.client.model.OidcConfig;
 import io.daytona.api.client.model.PosthogConfig;
 import io.daytona.api.client.model.RateLimitConfig;
+import io.daytona.api.client.model.SsoOidcConfig;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -53,6 +56,14 @@ public class DaytonaConfigurationTest {
     }
 
     /**
+     * Test the property 'buildSha'
+     */
+    @Test
+    public void buildShaTest() {
+        // TODO: test buildSha
+    }
+
+    /**
      * Test the property 'posthog'
      */
     @Test
@@ -66,6 +77,22 @@ public class DaytonaConfigurationTest {
     @Test
     public void oidcTest() {
         // TODO: test oidc
+    }
+
+    /**
+     * Test the property 'ssoOidc'
+     */
+    @Test
+    public void ssoOidcTest() {
+        // TODO: test ssoOidc
+    }
+
+    /**
+     * Test the property 'forcedFeatureFlags'
+     */
+    @Test
+    public void forcedFeatureFlagsTest() {
+        // TODO: test forcedFeatureFlags
     }
 
     /**

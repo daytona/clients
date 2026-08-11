@@ -1251,6 +1251,53 @@
         ]
       }
     },
+    "/organizations/{organizationId}/sso-enabled": {
+      "post": {
+        "operationId": "updateOrganizationSsoEnabled",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationSsoEnabled"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "SSO entitlement updated successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Update organization SSO entitlement",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/organizations/{organizationId}/experimental-config": {
       "put": {
         "operationId": "updateExperimentalConfig",
@@ -2281,6 +2328,317 @@
           }
         ],
         "summary": "Regenerate snapshot manager credentials for a region",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/identity-providers": {
+      "post": {
+        "operationId": "createOrganizationIdentityProvider",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIdentityProvider"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Identity provider created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Create organization identity provider",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "get": {
+        "operationId": "listOrganizationIdentityProviders",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of identity providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IdentityProvider"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "List organization identity providers",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/identity-providers/{id}": {
+      "get": {
+        "operationId": "getOrganizationIdentityProvider",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identity provider ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identity provider details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Get organization identity provider",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "operationId": "updateOrganizationIdentityProvider",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identity provider ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdentityProvider"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Identity provider updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Update organization identity provider",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteOrganizationIdentityProvider",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identity provider ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Identity provider deleted successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Delete organization identity provider",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/organizations/{organizationId}/identity-providers/test-connection": {
+      "post": {
+        "operationId": "testOrganizationIdentityProviderConnection",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestIdentityProviderConnection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connection test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestIdentityProviderConnectionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Test OIDC identity provider connection",
         "tags": [
           "organizations"
         ]
@@ -5672,6 +6030,43 @@
         ]
       }
     },
+    "/runners/me/snapshots": {
+      "get": {
+        "operationId": "getSnapshotRefsForAuthenticatedRunner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Snapshot refs the runner is expected to have",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Get snapshot refs for authenticated runner",
+        "tags": [
+          "runners"
+        ]
+      }
+    },
     "/runners/by-sandbox/{sandboxId}": {
       "get": {
         "operationId": "getRunnerBySandboxId",
@@ -5824,6 +6219,15 @@
             "description": "Runner ID",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -8196,6 +8600,115 @@
         ]
       }
     },
+    "/users/me/pending-sso-links": {
+      "get": {
+        "operationId": "listPendingSsoLinks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Pending SSO account links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendingSsoLink"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "List pending SSO account links for the authenticated user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/pending-sso-links/{id}/confirm": {
+      "post": {
+        "operationId": "confirmPendingSsoLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "SSO identity linked"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Confirm (link) a pending SSO account link",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/pending-sso-links/{id}": {
+      "delete": {
+        "operationId": "dismissPendingSsoLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Pending SSO link dismissed"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Dismiss a pending SSO account link",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/admin/runners": {
       "post": {
         "operationId": "adminCreateRunner",
@@ -8338,6 +8851,15 @@
             "description": "Runner ID",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -9803,6 +10325,29 @@
         ]
       }
     },
+    "/audit/scenarios": {
+      "get": {
+        "description": "Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.",
+        "operationId": "getAuditScenarios",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Supported audit log scenarios grouped by target type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditScenarios"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get supported audit log scenarios",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/object-storage/push-access": {
       "get": {
         "operationId": "getPushAccess",
@@ -10492,6 +11037,25 @@
           "audience"
         ]
       },
+      "SsoOidcConfig": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "description": "OIDC issuer for org-SSO logins (Daytona Auth)",
+            "example": "https://api.example.com/api/oidc"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "OIDC client ID for org-SSO logins",
+            "example": "daytona-dashboard"
+          }
+        },
+        "required": [
+          "issuer",
+          "clientId"
+        ]
+      },
       "RateLimitEntry": {
         "type": "object",
         "properties": {
@@ -10560,6 +11124,11 @@
             "description": "Daytona version",
             "example": "0.0.1"
           },
+          "buildSha": {
+            "type": "string",
+            "description": "Commit sha of the source the app was built from",
+            "example": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+          },
           "posthog": {
             "description": "PostHog configuration",
             "allOf": [
@@ -10575,6 +11144,21 @@
                 "$ref": "#/components/schemas/OidcConfig"
               }
             ]
+          },
+          "ssoOidc": {
+            "description": "OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SsoOidcConfig"
+              }
+            ]
+          },
+          "forcedFeatureFlags": {
+            "description": "Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "linkedAccountsEnabled": {
             "type": "boolean",
@@ -10713,7 +11297,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -10733,7 +11320,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           },
@@ -10792,7 +11382,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -10812,7 +11405,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           },
@@ -10874,7 +11470,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -10894,7 +11493,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           },
@@ -10966,7 +11568,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -10986,7 +11591,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           },
@@ -11223,6 +11831,10 @@
             "type": "boolean",
             "description": "Whether the proxy shows the preview URL warning page for this organization"
           },
+          "ssoEnabled": {
+            "type": "boolean",
+            "description": "Whether this organization may configure SSO identity providers"
+          },
           "defaultRegionId": {
             "type": "string",
             "description": "Default region ID"
@@ -11291,6 +11903,7 @@
           "snapshotDeactivationTimeoutMinutes",
           "sandboxLimitedNetworkEgress",
           "previewWarningEnabled",
+          "ssoEnabled",
           "authenticatedRateLimit",
           "sandboxCreateRateLimit",
           "sandboxLifecycleRateLimit",
@@ -11653,6 +12266,11 @@
             "type": "number",
             "nullable": true,
             "description": "Disk maximum per requested GPU unit for GPU sandboxes."
+          },
+          "maxSandboxLifespan": {
+            "type": "number",
+            "nullable": true,
+            "description": "Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled."
           }
         },
         "required": [
@@ -11709,6 +12327,18 @@
           "previewWarningEnabled"
         ]
       },
+      "OrganizationSsoEnabled": {
+        "type": "object",
+        "properties": {
+          "ssoEnabled": {
+            "type": "boolean",
+            "description": "Whether this organization may configure SSO identity providers"
+          }
+        },
+        "required": [
+          "ssoEnabled"
+        ]
+      },
       "CreateOrganizationRole": {
         "type": "object",
         "properties": {
@@ -11745,7 +12375,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -11765,7 +12398,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           }
@@ -11812,7 +12448,10 @@
                 "read:audit_logs",
                 "manage:api_keys",
                 "manage:secrets",
-                "read:limits"
+                "read:limits",
+                "manage:sso",
+                "read:billing",
+                "manage:billing"
               ],
               "x-enum-varnames": [
                 "WRITE_REGISTRIES",
@@ -11832,7 +12471,10 @@
                 "READ_AUDIT_LOGS",
                 "MANAGE_API_KEYS",
                 "MANAGE_SECRETS",
-                "READ_LIMITS"
+                "READ_LIMITS",
+                "MANAGE_SSO",
+                "READ_BILLING",
+                "MANAGE_BILLING"
               ]
             }
           }
@@ -12192,6 +12834,327 @@
           "password"
         ]
       },
+      "OidcIdPConfig": {
+        "type": "object",
+        "properties": {
+          "issuerUrl": {
+            "type": "string",
+            "description": "OIDC Issuer URL",
+            "example": "https://company.okta.com"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "OAuth Client ID",
+            "example": "abc123"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "OAuth Client Secret",
+            "example": "secret123"
+          },
+          "scope": {
+            "type": "string",
+            "description": "OAuth scopes",
+            "example": "openid email profile"
+          }
+        },
+        "required": [
+          "issuerUrl",
+          "clientId",
+          "clientSecret"
+        ]
+      },
+      "CreateIdentityProvider": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name for the identity provider",
+            "example": "Company Okta"
+          },
+          "oidcConfig": {
+            "description": "OIDC configuration",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OidcIdPConfig"
+              }
+            ]
+          },
+          "emailDomains": {
+            "description": "Email domains used for IdP discovery on the login form and to validate the user identity returned by the IdP. Required and must be non-empty unless `allowAnyDomain` is true.",
+            "example": [
+              "company.com",
+              "corp.company.com"
+            ],
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowAnyDomain": {
+            "type": "boolean",
+            "description": "When true, the IdP accepts any email domain returned by the external provider. Disables the post-callback domain check and allows `emailDomains` to be empty. Only enable for trusted IdPs that strictly control which users can authenticate.",
+            "example": false,
+            "default": false
+          },
+          "trustEmailVerified": {
+            "type": "boolean",
+            "description": "When true, skip the `email_verified` claim check on SSO logins through this identity provider. Only intended for providers that never emit the claim (e.g. Microsoft Entra ID). Risky: only enable if the IdP strictly controls its users' email addresses.",
+            "example": false,
+            "default": false
+          },
+          "defaultAssignedRoleIds": {
+            "description": "Organization role IDs assigned to users who join the organization via SSO through this identity provider. Roles must be global or belong to this organization. Empty (default) grants the lowest access: membership with no resource permissions.",
+            "example": [
+              "00000000-0000-0000-0000-000000000001"
+            ],
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the identity provider is enabled",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "oidcConfig",
+          "emailDomains"
+        ]
+      },
+      "OidcIdPConfigResponse": {
+        "type": "object",
+        "properties": {
+          "issuerUrl": {
+            "type": "string",
+            "description": "OIDC Issuer URL",
+            "example": "https://company.okta.com"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "OAuth Client ID",
+            "example": "abc123"
+          },
+          "scope": {
+            "type": "string",
+            "description": "OAuth scopes",
+            "example": "openid email profile"
+          }
+        },
+        "required": [
+          "issuerUrl",
+          "clientId"
+        ]
+      },
+      "IdentityProvider": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization ID",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for the identity provider",
+            "example": "Company Okta"
+          },
+          "oidcConfig": {
+            "description": "OIDC configuration (secret redacted)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OidcIdPConfigResponse"
+              }
+            ]
+          },
+          "emailDomains": {
+            "description": "Email domains used for IdP discovery on the login form. May be empty when `allowAnyDomain` is true.",
+            "example": [
+              "company.com",
+              "corp.company.com"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowAnyDomain": {
+            "type": "boolean",
+            "description": "Whether the IdP accepts any email domain returned by the external provider",
+            "example": false
+          },
+          "trustEmailVerified": {
+            "type": "boolean",
+            "description": "Whether the `email_verified` claim check is skipped on SSO logins through this identity provider",
+            "example": false
+          },
+          "defaultAssignedRoleIds": {
+            "description": "Organization role IDs assigned to users who join via SSO through this identity provider",
+            "example": [
+              "00000000-0000-0000-0000-000000000001"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the identity provider is enabled",
+            "example": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Creation timestamp",
+            "example": "2025-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Last update timestamp",
+            "example": "2025-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "name",
+          "oidcConfig",
+          "emailDomains",
+          "allowAnyDomain",
+          "trustEmailVerified",
+          "defaultAssignedRoleIds",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateOidcIdPConfig": {
+        "type": "object",
+        "properties": {
+          "issuerUrl": {
+            "type": "string",
+            "description": "OIDC Issuer URL",
+            "example": "https://company.okta.com"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "OAuth Client ID",
+            "example": "abc123"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "OAuth Client Secret",
+            "example": "secret123"
+          },
+          "scope": {
+            "type": "string",
+            "description": "OAuth scopes",
+            "example": "openid email profile"
+          }
+        }
+      },
+      "UpdateIdentityProvider": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name for the identity provider",
+            "example": "Company Okta"
+          },
+          "oidcConfig": {
+            "description": "OIDC configuration",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpdateOidcIdPConfig"
+              }
+            ]
+          },
+          "emailDomains": {
+            "description": "Email domains used for IdP discovery on the login form and to validate the user identity returned by the IdP. If provided and `allowAnyDomain` is not being set to true, must contain at least one domain. To clear domains in the same request, set `allowAnyDomain: true` and `emailDomains: []`.",
+            "example": [
+              "company.com",
+              "corp.company.com"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowAnyDomain": {
+            "type": "boolean",
+            "description": "When true, the IdP accepts any email domain returned by the external provider. Disables the post-callback domain check and allows `emailDomains` to be empty. Only enable for trusted IdPs that strictly control which users can authenticate.",
+            "example": false
+          },
+          "trustEmailVerified": {
+            "type": "boolean",
+            "description": "When true, skip the `email_verified` claim check on SSO logins through this identity provider. Only intended for providers that never emit the claim (e.g. Microsoft Entra ID). Risky: only enable if the IdP strictly controls its users' email addresses.",
+            "example": false
+          },
+          "defaultAssignedRoleIds": {
+            "description": "Organization role IDs assigned to users who join the organization via SSO through this identity provider. Roles must be global or belong to this organization. Empty grants the lowest access: membership with no resource permissions.",
+            "example": [
+              "00000000-0000-0000-0000-000000000001"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the identity provider is enabled",
+            "example": true
+          }
+        }
+      },
+      "TestIdentityProviderConnection": {
+        "type": "object",
+        "properties": {
+          "issuerUrl": {
+            "type": "string",
+            "description": "OIDC Issuer URL to test",
+            "example": "https://company.okta.com"
+          }
+        },
+        "required": [
+          "issuerUrl"
+        ]
+      },
+      "TestIdentityProviderConnectionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the connection test was successful",
+            "example": true
+          },
+          "issuer": {
+            "type": "string",
+            "description": "The discovered issuer from the OIDC configuration",
+            "example": "https://company.okta.com"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the connection test failed"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
       "UserPublicKey": {
         "type": "object",
         "properties": {
@@ -12224,6 +13187,10 @@
             "type": "string",
             "description": "User email"
           },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "Whether the user email address has been verified"
+          },
           "publicKeys": {
             "description": "User public keys",
             "type": "array",
@@ -12241,6 +13208,7 @@
           "id",
           "name",
           "email",
+          "emailVerified",
           "publicKeys",
           "createdAt"
         ]
@@ -12414,6 +13382,21 @@
             "description": "Whether the sandbox http preview is public",
             "example": false
           },
+          "networkBlockAll": {
+            "type": "boolean",
+            "description": "Whether to block all network access for the sandbox",
+            "example": false
+          },
+          "networkAllowList": {
+            "type": "string",
+            "description": "Comma-separated list of allowed CIDR network addresses for the sandbox",
+            "example": "192.168.1.0/16,10.0.0.0/24"
+          },
+          "domainAllowList": {
+            "type": "string",
+            "description": "Comma-separated list of allowed domains for the sandbox",
+            "example": "example.com,*.daytona.io"
+          },
           "cpu": {
             "type": "number",
             "description": "The CPU quota for the sandbox",
@@ -12527,6 +13510,7 @@
           "target",
           "user",
           "public",
+          "networkBlockAll",
           "cpu",
           "gpu",
           "memory",
@@ -12688,6 +13672,11 @@
             "type": "string",
             "description": "Comma-separated list of allowed domains for the sandbox",
             "example": "example.com,*.daytona.io"
+          },
+          "outboundProxyUrl": {
+            "type": "string",
+            "description": "Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.",
+            "example": "http://user:pass@proxy.example.com:3128"
           },
           "target": {
             "type": "string",
@@ -12992,6 +13981,11 @@
             "description": "Comma-separated list of allowed domains for the sandbox",
             "example": "example.com,*.daytona.io"
           },
+          "outboundProxyUrl": {
+            "type": "string",
+            "description": "Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.",
+            "example": "http://user:pass@proxy.example.com:3128"
+          },
           "target": {
             "type": "string",
             "description": "The target (region) where the sandbox will be created",
@@ -13049,7 +14043,7 @@
           },
           "ttlMinutes": {
             "type": "integer",
-            "description": "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.",
+            "description": "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.",
             "example": 1440
           },
           "volumes": {
@@ -13481,6 +14475,11 @@
             "type": "number",
             "nullable": true,
             "description": "Disk maximum per requested GPU unit for GPU sandboxes."
+          },
+          "maxSandboxLifespan": {
+            "type": "number",
+            "nullable": true,
+            "description": "Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled."
           }
         },
         "required": [
@@ -13497,7 +14496,8 @@
           "maxDiskPerNonEphemeralSandbox",
           "maxCpuPerGpu",
           "maxMemoryPerGpu",
-          "maxDiskPerGpu"
+          "maxDiskPerGpu",
+          "maxSandboxLifespan"
         ]
       },
       "CreateRunner": {
@@ -15104,6 +16104,41 @@
           }
         }
       },
+      "PendingSsoLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "idpName": {
+            "type": "string",
+            "description": "Display name of the identity provider requesting to be linked"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization that configured the identity provider"
+          },
+          "providerEmail": {
+            "type": "string",
+            "nullable": true,
+            "description": "Email asserted by the identity provider"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "idpName",
+          "organizationId",
+          "providerEmail",
+          "createdAt",
+          "expiresAt"
+        ]
+      },
       "AdminCreateRunner": {
         "type": "object",
         "properties": {
@@ -15237,10 +16272,18 @@
           },
           "emailVerified": {
             "type": "boolean"
+          },
+          "emailVerifiedSource": {
+            "type": "string",
+            "enum": [
+              "auth0",
+              "admin",
+              "sso"
+            ],
+            "description": "Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset."
           }
         },
         "required": [
-          "id",
           "name"
         ]
       },
@@ -15581,6 +16624,11 @@
             "type": "number",
             "nullable": true,
             "description": "Disk maximum per requested GPU unit for GPU sandboxes."
+          },
+          "maxSandboxLifespan": {
+            "type": "number",
+            "nullable": true,
+            "description": "Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled."
           }
         },
         "required": [
@@ -15653,6 +16701,123 @@
           "retryCount",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "AuditTargetScenario": {
+        "type": "object",
+        "properties": {
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "api_key",
+              "organization",
+              "organization_invitation",
+              "organization_role",
+              "organization_user",
+              "docker_registry",
+              "runner",
+              "sandbox",
+              "snapshot",
+              "user",
+              "volume",
+              "warm_pool",
+              "region",
+              "secret",
+              "other",
+              "identity_provider"
+            ],
+            "description": "Resource type the actions apply to. Scenarios that are not scoped to a specific resource type (e.g. leaving an organization) are grouped under \"other\"."
+          },
+          "actions": {
+            "type": "array",
+            "description": "Actions that can be audited against this target type, sorted alphabetically.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "create",
+                "read",
+                "update",
+                "delete",
+                "login",
+                "register",
+                "change_password",
+                "set_default",
+                "update_access",
+                "update_quota",
+                "create_region_quota",
+                "update_region_quota",
+                "delete_region_quota",
+                "suspend",
+                "unsuspend",
+                "accept",
+                "decline",
+                "link_account",
+                "unlink_account",
+                "leave_organization",
+                "regenerate_key_pair",
+                "update_scheduling",
+                "update_draining",
+                "start",
+                "stop",
+                "resize",
+                "replace_labels",
+                "create_backup",
+                "update_public_status",
+                "rotate_signing_key",
+                "set_auto_stop_interval",
+                "set_auto_pause_interval",
+                "set_ttl",
+                "set_auto_archive_interval",
+                "set_auto_delete_interval",
+                "archive",
+                "snapshot",
+                "fork",
+                "pause",
+                "get_port_preview_url",
+                "set_general_status",
+                "activate",
+                "deactivate",
+                "update_network_settings",
+                "update_secrets",
+                "send_webhook_message",
+                "initialize_webhooks",
+                "update_sandbox_default_limited_network_egress",
+                "update_preview_warning",
+                "update_sso_enabled",
+                "update_otel_config",
+                "delete_otel_config",
+                "create_ssh_access",
+                "revoke_ssh_access",
+                "recover",
+                "regenerate_proxy_api_key",
+                "regenerate_ssh_gateway_api_key",
+                "regenerate_snapshot_manager_credentials",
+                "auto_stop",
+                "auto_archive",
+                "auto_delete",
+                "ttl_expire"
+              ]
+            }
+          }
+        },
+        "required": [
+          "targetType",
+          "actions"
+        ]
+      },
+      "AuditScenarios": {
+        "type": "object",
+        "properties": {
+          "targets": {
+            "description": "Supported audit log scenarios grouped by target type. Derived at runtime from the audited routes and system events, sorted by target type.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditTargetScenario"
+            }
+          }
+        },
+        "required": [
+          "targets"
         ]
       },
       "StorageAccessDto": {

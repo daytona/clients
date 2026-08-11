@@ -117,6 +117,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'outboundProxyUrl'
+     */
+    @Test
+    public void outboundProxyUrlTest() {
+        // TODO: test outboundProxyUrl
+    }
+
+    /**
      * Test the property 'target'
      */
     @Test

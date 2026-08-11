@@ -47,6 +47,9 @@ class SandboxListItem(BaseModel):
     error_reason: Optional[StrictStr] = Field(default=None, description="The error reason of the sandbox", serialization_alias="errorReason")
     recoverable: Optional[StrictBool] = Field(default=None, description="Whether the sandbox error is recoverable.")
     public: StrictBool = Field(description="Whether the sandbox http preview is public")
+    network_block_all: StrictBool = Field(description="Whether to block all network access for the sandbox", serialization_alias="networkBlockAll")
+    network_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed CIDR network addresses for the sandbox", serialization_alias="networkAllowList")
+    domain_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed domains for the sandbox", serialization_alias="domainAllowList")
     cpu: Union[StrictFloat, StrictInt] = Field(description="The CPU quota for the sandbox")
     gpu: Union[StrictFloat, StrictInt] = Field(description="The GPU quota for the sandbox")
     gpu_type: Optional[GpuType] = Field(default=None, description="The GPU type assigned to the sandbox", serialization_alias="gpuType")
@@ -66,7 +69,7 @@ class SandboxListItem(BaseModel):
     warm_pool_id: Optional[StrictStr] = Field(default=None, description="Id of the warm pool this sandbox waits in; set only while it is an unclaimed member", serialization_alias="warmPoolId")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -138,6 +141,9 @@ class SandboxListItem(BaseModel):
             "error_reason": obj.get("errorReason"),
             "recoverable": obj.get("recoverable"),
             "public": obj.get("public"),
+            "network_block_all": obj.get("networkBlockAll"),
+            "network_allow_list": obj.get("networkAllowList"),
+            "domain_allow_list": obj.get("domainAllowList"),
             "cpu": obj.get("cpu"),
             "gpu": obj.get("gpu"),
             "gpu_type": obj.get("gpuType"),

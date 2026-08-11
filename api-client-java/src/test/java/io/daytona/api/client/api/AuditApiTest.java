@@ -14,6 +14,7 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
+import io.daytona.api.client.model.AuditScenarios;
 import java.math.BigDecimal;
 import io.daytona.api.client.model.DateFilter;
 import io.daytona.api.client.model.IntFilter;
@@ -35,6 +36,19 @@ import java.util.Map;
 public class AuditApiTest {
 
     private final AuditApi api = new AuditApi();
+
+    /**
+     * Get supported audit log scenarios
+     *
+     * Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getAuditScenariosTest() throws ApiException {
+        AuditScenarios response = api.getAuditScenarios();
+        // TODO: test validations
+    }
 
     /**
      * Get audit logs for organization

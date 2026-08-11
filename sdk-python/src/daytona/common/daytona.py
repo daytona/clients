@@ -169,6 +169,9 @@ class CreateSandboxBaseParams(BaseModel):
         network_block_all (bool | None): Whether to block all network access for the Sandbox.
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for the Sandbox.
         domain_allow_list (str | None): Comma-separated list of allowed domains for the Sandbox.
+        outbound_proxy_url (str | None): Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied
+            via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own);
+            combine with domain_allow_list for unbypassable network-layer enforcement.
         ephemeral (bool | None): Whether the Sandbox should be ephemeral.
             If True, auto_delete_interval will be set to 0.
         linked_sandbox (str | None): ID or name of an existing Sandbox to link the new Sandbox to. The new
@@ -193,6 +196,7 @@ class CreateSandboxBaseParams(BaseModel):
     network_block_all: bool | None = None
     network_allow_list: str | None = None
     domain_allow_list: str | None = None
+    outbound_proxy_url: str | None = None
     ephemeral: bool | None = None
     linked_sandbox: str | None = None
 

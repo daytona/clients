@@ -66,6 +66,14 @@ public class UserTest {
     }
 
     /**
+     * Test the property 'emailVerified'
+     */
+    @Test
+    public void emailVerifiedTest() {
+        // TODO: test emailVerified
+    }
+
+    /**
      * Test the property 'publicKeys'
      */
     @Test

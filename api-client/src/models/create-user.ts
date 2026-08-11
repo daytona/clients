@@ -18,13 +18,17 @@
 import type { CreateOrganizationQuota } from './create-organization-quota';
 
 export interface CreateUser {
-    'id': string;
+    'id'?: string;
     'name': string;
     'email'?: string;
     'personalOrganizationQuota'?: CreateOrganizationQuota;
     'personalOrganizationDefaultRegionId'?: string;
     'role'?: CreateUserRoleEnum;
     'emailVerified'?: boolean;
+    /**
+     * Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.
+     */
+    'emailVerifiedSource'?: CreateUserEmailVerifiedSourceEnum;
 }
 
 export const CreateUserRoleEnum = {
@@ -34,5 +38,13 @@ export const CreateUserRoleEnum = {
 } as const;
 
 export type CreateUserRoleEnum = typeof CreateUserRoleEnum[keyof typeof CreateUserRoleEnum];
+export const CreateUserEmailVerifiedSourceEnum = {
+    AUTH0: 'auth0',
+    ADMIN: 'admin',
+    SSO: 'sso',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+
+export type CreateUserEmailVerifiedSourceEnum = typeof CreateUserEmailVerifiedSourceEnum[keyof typeof CreateUserEmailVerifiedSourceEnum];
 
 

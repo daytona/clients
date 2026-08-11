@@ -24,6 +24,30 @@ import (
 type UsersAPI interface {
 
 	/*
+	ConfirmPendingSsoLink Confirm (link) a pending SSO account link
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id
+	@return UsersAPIConfirmPendingSsoLinkRequest
+	*/
+	ConfirmPendingSsoLink(ctx context.Context, id string) UsersAPIConfirmPendingSsoLinkRequest
+
+	// ConfirmPendingSsoLinkExecute executes the request
+	ConfirmPendingSsoLinkExecute(r UsersAPIConfirmPendingSsoLinkRequest) (*http.Response, error)
+
+	/*
+	DismissPendingSsoLink Dismiss a pending SSO account link
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id
+	@return UsersAPIDismissPendingSsoLinkRequest
+	*/
+	DismissPendingSsoLink(ctx context.Context, id string) UsersAPIDismissPendingSsoLinkRequest
+
+	// DismissPendingSsoLinkExecute executes the request
+	DismissPendingSsoLinkExecute(r UsersAPIDismissPendingSsoLinkRequest) (*http.Response, error)
+
+	/*
 	EnrollInSmsMfa Enroll in SMS MFA
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -71,6 +95,18 @@ type UsersAPI interface {
 	LinkAccountExecute(r UsersAPILinkAccountRequest) (*http.Response, error)
 
 	/*
+	ListPendingSsoLinks List pending SSO account links for the authenticated user
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIListPendingSsoLinksRequest
+	*/
+	ListPendingSsoLinks(ctx context.Context) UsersAPIListPendingSsoLinksRequest
+
+	// ListPendingSsoLinksExecute executes the request
+	//  @return []PendingSsoLink
+	ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLinksRequest) ([]PendingSsoLink, *http.Response, error)
+
+	/*
 	UnlinkAccount Unlink account
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -86,6 +122,186 @@ type UsersAPI interface {
 
 // UsersAPIService UsersAPI service
 type UsersAPIService service
+
+type UsersAPIConfirmPendingSsoLinkRequest struct {
+	ctx context.Context
+	ApiService UsersAPI
+	id string
+}
+
+func (r UsersAPIConfirmPendingSsoLinkRequest) Execute() (*http.Response, error) {
+	return r.ApiService.ConfirmPendingSsoLinkExecute(r)
+}
+
+/*
+ConfirmPendingSsoLink Confirm (link) a pending SSO account link
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return UsersAPIConfirmPendingSsoLinkRequest
+*/
+func (a *UsersAPIService) ConfirmPendingSsoLink(ctx context.Context, id string) UsersAPIConfirmPendingSsoLinkRequest {
+	return UsersAPIConfirmPendingSsoLinkRequest{
+		ApiService: a,
+		ctx: ctx,
+		id: id,
+	}
+}
+
+// Execute executes the request
+func (a *UsersAPIService) ConfirmPendingSsoLinkExecute(r UsersAPIConfirmPendingSsoLinkRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.ConfirmPendingSsoLink")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/users/me/pending-sso-links/{id}/confirm"
+	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
+type UsersAPIDismissPendingSsoLinkRequest struct {
+	ctx context.Context
+	ApiService UsersAPI
+	id string
+}
+
+func (r UsersAPIDismissPendingSsoLinkRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DismissPendingSsoLinkExecute(r)
+}
+
+/*
+DismissPendingSsoLink Dismiss a pending SSO account link
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param id
+ @return UsersAPIDismissPendingSsoLinkRequest
+*/
+func (a *UsersAPIService) DismissPendingSsoLink(ctx context.Context, id string) UsersAPIDismissPendingSsoLinkRequest {
+	return UsersAPIDismissPendingSsoLinkRequest{
+		ApiService: a,
+		ctx: ctx,
+		id: id,
+	}
+}
+
+// Execute executes the request
+func (a *UsersAPIService) DismissPendingSsoLinkExecute(r UsersAPIDismissPendingSsoLinkRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.DismissPendingSsoLink")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/users/me/pending-sso-links/{id}"
+	localVarPath = strings.Replace(localVarPath, "{"+"id"+"}", url.PathEscape(parameterValueToString(r.id, "id")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
 
 type UsersAPIEnrollInSmsMfaRequest struct {
 	ctx context.Context
@@ -473,6 +689,103 @@ func (a *UsersAPIService) LinkAccountExecute(r UsersAPILinkAccountRequest) (*htt
 	}
 
 	return localVarHTTPResponse, nil
+}
+
+type UsersAPIListPendingSsoLinksRequest struct {
+	ctx context.Context
+	ApiService UsersAPI
+}
+
+func (r UsersAPIListPendingSsoLinksRequest) Execute() ([]PendingSsoLink, *http.Response, error) {
+	return r.ApiService.ListPendingSsoLinksExecute(r)
+}
+
+/*
+ListPendingSsoLinks List pending SSO account links for the authenticated user
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return UsersAPIListPendingSsoLinksRequest
+*/
+func (a *UsersAPIService) ListPendingSsoLinks(ctx context.Context) UsersAPIListPendingSsoLinksRequest {
+	return UsersAPIListPendingSsoLinksRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []PendingSsoLink
+func (a *UsersAPIService) ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLinksRequest) ([]PendingSsoLink, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []PendingSsoLink
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.ListPendingSsoLinks")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/users/me/pending-sso-links"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type UsersAPIUnlinkAccountRequest struct {

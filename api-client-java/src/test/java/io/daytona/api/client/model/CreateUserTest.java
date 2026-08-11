@@ -94,4 +94,12 @@ public class CreateUserTest {
         // TODO: test emailVerified
     }
 
+    /**
+     * Test the property 'emailVerifiedSource'
+     */
+    @Test
+    public void emailVerifiedSourceTest() {
+        // TODO: test emailVerifiedSource
+    }
+
 }

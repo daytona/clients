@@ -1021,6 +1021,21 @@ Not returned by `Daytona#list`; call `#refreshData()` on each item to populate.
 
 - `String` - allowed domains, or `null`
 
+#### getOutboundProxyUrl()
+```java
+public String getOutboundProxyUrl()
+```
+
+Returns the outbound proxy URL to route the sandbox HTTP(S) traffic through, if any.
+
+Not returned by `Daytona#list`; call `#refreshData()` on each item to populate.
+Applied via the HTTP(S)_PROXY environment variables; combine with domainAllowList for
+network-layer enforcement.
+
+**Returns**:
+
+- `String` - outbound proxy URL, or `null`
+
 #### getVolumes()
 ```java
 public List<SandboxVolume> getVolumes()

@@ -149,6 +149,30 @@ public class SandboxListItemTest {
     }
 
     /**
+     * Test the property 'networkBlockAll'
+     */
+    @Test
+    public void networkBlockAllTest() {
+        // TODO: test networkBlockAll
+    }
+
+    /**
+     * Test the property 'networkAllowList'
+     */
+    @Test
+    public void networkAllowListTest() {
+        // TODO: test networkAllowList
+    }
+
+    /**
+     * Test the property 'domainAllowList'
+     */
+    @Test
+    public void domainAllowListTest() {
+        // TODO: test domainAllowList
+    }
+
+    /**
      * Test the property 'cpu'
      */
     @Test

@@ -138,7 +138,8 @@ public class AdminApiTest {
     @Test
     public void adminDeleteRunnerTest() throws ApiException {
         String id = null;
-        api.adminDeleteRunner(id);
+        Boolean force = null;
+        api.adminDeleteRunner(id, force);
         // TODO: test validations
     }
 

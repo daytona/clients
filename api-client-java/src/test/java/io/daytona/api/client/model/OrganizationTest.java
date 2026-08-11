@@ -193,6 +193,14 @@ public class OrganizationTest {
     }
 
     /**
+     * Test the property 'ssoEnabled'
+     */
+    @Test
+    public void ssoEnabledTest() {
+        // TODO: test ssoEnabled
+    }
+
+    /**
      * Test the property 'defaultRegionId'
      */
     @Test

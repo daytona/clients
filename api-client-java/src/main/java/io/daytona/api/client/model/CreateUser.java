@@ -53,7 +53,7 @@ import io.daytona.api.client.JSON;
 public class CreateUser {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private String id;
 
   public static final String SERIALIZED_NAME_NAME = "name";
@@ -140,10 +140,71 @@ public class CreateUser {
   @javax.annotation.Nullable
   private Boolean emailVerified;
 
+  /**
+   * Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.
+   */
+  @JsonAdapter(EmailVerifiedSourceEnum.Adapter.class)
+  public enum EmailVerifiedSourceEnum {
+    AUTH0("auth0"),
+    
+    ADMIN("admin"),
+    
+    SSO("sso"),
+    
+    UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
+
+    private String value;
+
+    EmailVerifiedSourceEnum(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    public static EmailVerifiedSourceEnum fromValue(String value) {
+      for (EmailVerifiedSourceEnum b : EmailVerifiedSourceEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      return UNKNOWN_DEFAULT_OPEN_API;
+    }
+
+    public static class Adapter extends TypeAdapter<EmailVerifiedSourceEnum> {
+      @Override
+      public void write(final JsonWriter jsonWriter, final EmailVerifiedSourceEnum enumeration) throws IOException {
+        jsonWriter.value(enumeration.getValue());
+      }
+
+      @Override
+      public EmailVerifiedSourceEnum read(final JsonReader jsonReader) throws IOException {
+        String value =  jsonReader.nextString();
+        return EmailVerifiedSourceEnum.fromValue(value);
+      }
+    }
+
+    public static void validateJsonElement(JsonElement jsonElement) throws IOException {
+      String value = jsonElement.getAsString();
+      EmailVerifiedSourceEnum.fromValue(value);
+    }
+  }
+
+  public static final String SERIALIZED_NAME_EMAIL_VERIFIED_SOURCE = "emailVerifiedSource";
+  @SerializedName(SERIALIZED_NAME_EMAIL_VERIFIED_SOURCE)
+  @javax.annotation.Nullable
+  private EmailVerifiedSourceEnum emailVerifiedSource;
+
   public CreateUser() {
   }
 
-  public CreateUser id(@javax.annotation.Nonnull String id) {
+  public CreateUser id(@javax.annotation.Nullable String id) {
     this.id = id;
     return this;
   }
@@ -152,12 +213,12 @@ public class CreateUser {
    * Get id
    * @return id
    */
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   public String getId() {
     return id;
   }
 
-  public void setId(@javax.annotation.Nonnull String id) {
+  public void setId(@javax.annotation.Nullable String id) {
     this.id = id;
   }
 
@@ -275,6 +336,25 @@ public class CreateUser {
     this.emailVerified = emailVerified;
   }
 
+
+  public CreateUser emailVerifiedSource(@javax.annotation.Nullable EmailVerifiedSourceEnum emailVerifiedSource) {
+    this.emailVerifiedSource = emailVerifiedSource;
+    return this;
+  }
+
+  /**
+   * Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.
+   * @return emailVerifiedSource
+   */
+  @javax.annotation.Nullable
+  public EmailVerifiedSourceEnum getEmailVerifiedSource() {
+    return emailVerifiedSource;
+  }
+
+  public void setEmailVerifiedSource(@javax.annotation.Nullable EmailVerifiedSourceEnum emailVerifiedSource) {
+    this.emailVerifiedSource = emailVerifiedSource;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -336,13 +416,14 @@ public class CreateUser {
         Objects.equals(this.personalOrganizationQuota, createUser.personalOrganizationQuota) &&
         Objects.equals(this.personalOrganizationDefaultRegionId, createUser.personalOrganizationDefaultRegionId) &&
         Objects.equals(this.role, createUser.role) &&
-        Objects.equals(this.emailVerified, createUser.emailVerified)&&
+        Objects.equals(this.emailVerified, createUser.emailVerified) &&
+        Objects.equals(this.emailVerifiedSource, createUser.emailVerifiedSource)&&
         Objects.equals(this.additionalProperties, createUser.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, email, personalOrganizationQuota, personalOrganizationDefaultRegionId, role, emailVerified, additionalProperties);
+    return Objects.hash(id, name, email, personalOrganizationQuota, personalOrganizationDefaultRegionId, role, emailVerified, emailVerifiedSource, additionalProperties);
   }
 
   @Override
@@ -356,6 +437,7 @@ public class CreateUser {
     sb.append("    personalOrganizationDefaultRegionId: ").append(toIndentedString(personalOrganizationDefaultRegionId)).append("\n");
     sb.append("    role: ").append(toIndentedString(role)).append("\n");
     sb.append("    emailVerified: ").append(toIndentedString(emailVerified)).append("\n");
+    sb.append("    emailVerifiedSource: ").append(toIndentedString(emailVerifiedSource)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -375,10 +457,10 @@ public class CreateUser {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "personalOrganizationQuota", "personalOrganizationDefaultRegionId", "role", "emailVerified"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "personalOrganizationQuota", "personalOrganizationDefaultRegionId", "role", "emailVerified", "emailVerifiedSource"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("name"));
   }
 
   /**
@@ -401,7 +483,7 @@ public class CreateUser {
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (!jsonObj.get("id").isJsonPrimitive()) {
+      if ((jsonObj.get("id") != null && !jsonObj.get("id").isJsonNull()) && !jsonObj.get("id").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `id` to be a primitive type in the JSON string but got `%s`", jsonObj.get("id").toString()));
       }
       if (!jsonObj.get("name").isJsonPrimitive()) {
@@ -423,6 +505,13 @@ public class CreateUser {
       // validate the optional field `role`
       if (jsonObj.get("role") != null && !jsonObj.get("role").isJsonNull()) {
         RoleEnum.validateJsonElement(jsonObj.get("role"));
+      }
+      if ((jsonObj.get("emailVerifiedSource") != null && !jsonObj.get("emailVerifiedSource").isJsonNull()) && !jsonObj.get("emailVerifiedSource").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `emailVerifiedSource` to be a primitive type in the JSON string but got `%s`", jsonObj.get("emailVerifiedSource").toString()));
+      }
+      // validate the optional field `emailVerifiedSource`
+      if (jsonObj.get("emailVerifiedSource") != null && !jsonObj.get("emailVerifiedSource").isJsonNull()) {
+        EmailVerifiedSourceEnum.validateJsonElement(jsonObj.get("emailVerifiedSource"));
       }
   }
 

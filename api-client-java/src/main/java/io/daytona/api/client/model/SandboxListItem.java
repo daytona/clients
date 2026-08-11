@@ -122,6 +122,21 @@ public class SandboxListItem {
   @javax.annotation.Nonnull
   private Boolean _public;
 
+  public static final String SERIALIZED_NAME_NETWORK_BLOCK_ALL = "networkBlockAll";
+  @SerializedName(SERIALIZED_NAME_NETWORK_BLOCK_ALL)
+  @javax.annotation.Nonnull
+  private Boolean networkBlockAll;
+
+  public static final String SERIALIZED_NAME_NETWORK_ALLOW_LIST = "networkAllowList";
+  @SerializedName(SERIALIZED_NAME_NETWORK_ALLOW_LIST)
+  @javax.annotation.Nullable
+  private String networkAllowList;
+
+  public static final String SERIALIZED_NAME_DOMAIN_ALLOW_LIST = "domainAllowList";
+  @SerializedName(SERIALIZED_NAME_DOMAIN_ALLOW_LIST)
+  @javax.annotation.Nullable
+  private String domainAllowList;
+
   public static final String SERIALIZED_NAME_CPU = "cpu";
   @SerializedName(SERIALIZED_NAME_CPU)
   @javax.annotation.Nonnull
@@ -519,6 +534,63 @@ public class SandboxListItem {
 
   public void setPublic(@javax.annotation.Nonnull Boolean _public) {
     this._public = _public;
+  }
+
+
+  public SandboxListItem networkBlockAll(@javax.annotation.Nonnull Boolean networkBlockAll) {
+    this.networkBlockAll = networkBlockAll;
+    return this;
+  }
+
+  /**
+   * Whether to block all network access for the sandbox
+   * @return networkBlockAll
+   */
+  @javax.annotation.Nonnull
+  public Boolean getNetworkBlockAll() {
+    return networkBlockAll;
+  }
+
+  public void setNetworkBlockAll(@javax.annotation.Nonnull Boolean networkBlockAll) {
+    this.networkBlockAll = networkBlockAll;
+  }
+
+
+  public SandboxListItem networkAllowList(@javax.annotation.Nullable String networkAllowList) {
+    this.networkAllowList = networkAllowList;
+    return this;
+  }
+
+  /**
+   * Comma-separated list of allowed CIDR network addresses for the sandbox
+   * @return networkAllowList
+   */
+  @javax.annotation.Nullable
+  public String getNetworkAllowList() {
+    return networkAllowList;
+  }
+
+  public void setNetworkAllowList(@javax.annotation.Nullable String networkAllowList) {
+    this.networkAllowList = networkAllowList;
+  }
+
+
+  public SandboxListItem domainAllowList(@javax.annotation.Nullable String domainAllowList) {
+    this.domainAllowList = domainAllowList;
+    return this;
+  }
+
+  /**
+   * Comma-separated list of allowed domains for the sandbox
+   * @return domainAllowList
+   */
+  @javax.annotation.Nullable
+  public String getDomainAllowList() {
+    return domainAllowList;
+  }
+
+  public void setDomainAllowList(@javax.annotation.Nullable String domainAllowList) {
+    this.domainAllowList = domainAllowList;
   }
 
 
@@ -939,6 +1011,9 @@ public class SandboxListItem {
         Objects.equals(this.errorReason, sandboxListItem.errorReason) &&
         Objects.equals(this.recoverable, sandboxListItem.recoverable) &&
         Objects.equals(this._public, sandboxListItem._public) &&
+        Objects.equals(this.networkBlockAll, sandboxListItem.networkBlockAll) &&
+        Objects.equals(this.networkAllowList, sandboxListItem.networkAllowList) &&
+        Objects.equals(this.domainAllowList, sandboxListItem.domainAllowList) &&
         Objects.equals(this.cpu, sandboxListItem.cpu) &&
         Objects.equals(this.gpu, sandboxListItem.gpu) &&
         Objects.equals(this.gpuType, sandboxListItem.gpuType) &&
@@ -962,7 +1037,7 @@ public class SandboxListItem {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, networkBlockAll, networkAllowList, domainAllowList, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -982,6 +1057,9 @@ public class SandboxListItem {
     sb.append("    errorReason: ").append(toIndentedString(errorReason)).append("\n");
     sb.append("    recoverable: ").append(toIndentedString(recoverable)).append("\n");
     sb.append("    _public: ").append(toIndentedString(_public)).append("\n");
+    sb.append("    networkBlockAll: ").append(toIndentedString(networkBlockAll)).append("\n");
+    sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
+    sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
@@ -1019,10 +1097,10 @@ public class SandboxListItem {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "networkBlockAll", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
   }
 
   /**
@@ -1080,6 +1158,12 @@ public class SandboxListItem {
       }
       if ((jsonObj.get("errorReason") != null && !jsonObj.get("errorReason").isJsonNull()) && !jsonObj.get("errorReason").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `errorReason` to be a primitive type in the JSON string but got `%s`", jsonObj.get("errorReason").toString()));
+      }
+      if ((jsonObj.get("networkAllowList") != null && !jsonObj.get("networkAllowList").isJsonNull()) && !jsonObj.get("networkAllowList").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `networkAllowList` to be a primitive type in the JSON string but got `%s`", jsonObj.get("networkAllowList").toString()));
+      }
+      if ((jsonObj.get("domainAllowList") != null && !jsonObj.get("domainAllowList").isJsonNull()) && !jsonObj.get("domainAllowList").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `domainAllowList` to be a primitive type in the JSON string but got `%s`", jsonObj.get("domainAllowList").toString()));
       }
       // validate the optional field `gpuType`
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull()) {

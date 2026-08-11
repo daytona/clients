@@ -87,11 +87,12 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteRunner: async (id: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteRunner: async (id: string, force?: boolean, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('deleteRunner', 'id', id)
             const localVarPath = `/runners/{id}`
@@ -112,6 +113,10 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
             await setBearerAuthToObject(localVarHeaderParameter, configuration)
 
             // authentication oauth2 required
+
+            if (force !== undefined) {
+                localVarQueryParameter['force'] = force;
+            }
 
 
             if (xDaytonaOrganizationID != null) {
@@ -331,6 +336,42 @@ export const RunnersApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Get snapshot refs for authenticated runner
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSnapshotRefsForAuthenticatedRunner: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/runners/me/snapshots`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary List all runners
          * @param {string} [regionId] Filter runners by region ID
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -529,12 +570,13 @@ export const RunnersApiFp = function(configuration?: Configuration) {
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deleteRunner(id: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteRunner(id, xDaytonaOrganizationID, options);
+        async deleteRunner(id: string, force?: boolean, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteRunner(id, force, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['RunnersApi.deleteRunner']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -602,6 +644,18 @@ export const RunnersApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getRunnersBySnapshotRef(ref, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['RunnersApi.getRunnersBySnapshotRef']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get snapshot refs for authenticated runner
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getSnapshotRefsForAuthenticatedRunner(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<string>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getSnapshotRefsForAuthenticatedRunner(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['RunnersApi.getSnapshotRefsForAuthenticatedRunner']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -683,12 +737,13 @@ export const RunnersApiFactory = function (configuration?: Configuration, basePa
          * 
          * @summary Delete runner
          * @param {string} id Runner ID
+         * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteRunner(id: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.deleteRunner(id, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        deleteRunner(id: string, force?: boolean, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteRunner(id, force, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -739,6 +794,15 @@ export const RunnersApiFactory = function (configuration?: Configuration, basePa
          */
         getRunnersBySnapshotRef(ref: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<RunnerSnapshotDto>> {
             return localVarFp.getRunnersBySnapshotRef(ref, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get snapshot refs for authenticated runner
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSnapshotRefsForAuthenticatedRunner(options?: RawAxiosRequestConfig): AxiosPromise<Array<string>> {
+            return localVarFp.getSnapshotRefsForAuthenticatedRunner(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -806,12 +870,13 @@ export class RunnersApi extends BaseAPI {
      * 
      * @summary Delete runner
      * @param {string} id Runner ID
+     * @param {boolean} [force] Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public deleteRunner(id: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
-        return RunnersApiFp(this.configuration).deleteRunner(id, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    public deleteRunner(id: string, force?: boolean, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return RunnersApiFp(this.configuration).deleteRunner(id, force, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -867,6 +932,16 @@ export class RunnersApi extends BaseAPI {
      */
     public getRunnersBySnapshotRef(ref: string, options?: RawAxiosRequestConfig) {
         return RunnersApiFp(this.configuration).getRunnersBySnapshotRef(ref, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get snapshot refs for authenticated runner
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getSnapshotRefsForAuthenticatedRunner(options?: RawAxiosRequestConfig) {
+        return RunnersApiFp(this.configuration).getSnapshotRefsForAuthenticatedRunner(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

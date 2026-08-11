@@ -429,6 +429,7 @@ module DaytonaApiClient
     # Delete runner
     # @param id [String] Runner ID
     # @param [Hash] opts the optional parameters
+    # @option opts [Boolean] :force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
     # @return [nil]
     def admin_delete_runner(id, opts = {})
       admin_delete_runner_with_http_info(id, opts)
@@ -438,6 +439,7 @@ module DaytonaApiClient
     # Delete runner
     # @param id [String] Runner ID
     # @param [Hash] opts the optional parameters
+    # @option opts [Boolean] :force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
     # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
     def admin_delete_runner_with_http_info(id, opts = {})
       if @api_client.config.debugging
@@ -452,6 +454,7 @@ module DaytonaApiClient
 
       # query parameters
       query_params = opts[:query_params] || {}
+      query_params[:'force'] = opts[:'force'] if !opts[:'force'].nil?
 
       # header parameters
       header_params = opts[:header_params] || {}

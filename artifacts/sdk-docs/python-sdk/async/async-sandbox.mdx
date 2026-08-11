@@ -61,6 +61,10 @@ Represents a Daytona Sandbox.
   the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
 - `domain_allow_list` _str | None_ - Comma-separated list of allowed domains for
   the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
+- `outbound_proxy_url` _str | None_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
+  Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on
+  its own); combine with domain_allow_list for unbypassable network-layer enforcement. (not returned by
+  list results; call `refresh_data()` on each item to populate).
 - `toolbox_proxy_url` _str_ - The toolbox proxy URL for the Sandbox.
 
 ##### env: `dict[str, str] | None`

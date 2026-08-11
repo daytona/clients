@@ -587,6 +587,7 @@ public class Daytona implements AutoCloseable {
         if (params.getTtlMinutes() != null) body.setTtlMinutes(params.getTtlMinutes());
         if (params.getNetworkBlockAll() != null) body.setNetworkBlockAll(params.getNetworkBlockAll());
         if (params.getDomainAllowList() != null) body.setDomainAllowList(params.getDomainAllowList());
+        if (params.getOutboundProxyUrl() != null) body.setOutboundProxyUrl(params.getOutboundProxyUrl());
         if (params.getLinkedSandbox() != null) body.setLinkedSandbox(params.getLinkedSandbox());
         if (params.getVolumes() != null) {
             List<SandboxVolume> volumes = new ArrayList<SandboxVolume>();

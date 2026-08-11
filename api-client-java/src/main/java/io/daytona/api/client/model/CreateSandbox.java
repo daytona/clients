@@ -102,6 +102,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private String domainAllowList;
 
+  public static final String SERIALIZED_NAME_OUTBOUND_PROXY_URL = "outboundProxyUrl";
+  @SerializedName(SERIALIZED_NAME_OUTBOUND_PROXY_URL)
+  @javax.annotation.Nullable
+  private String outboundProxyUrl;
+
   public static final String SERIALIZED_NAME_TARGET = "target";
   @SerializedName(SERIALIZED_NAME_TARGET)
   @javax.annotation.Nullable
@@ -367,6 +372,25 @@ public class CreateSandbox {
   }
 
 
+  public CreateSandbox outboundProxyUrl(@javax.annotation.Nullable String outboundProxyUrl) {
+    this.outboundProxyUrl = outboundProxyUrl;
+    return this;
+  }
+
+  /**
+   * Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
+   * @return outboundProxyUrl
+   */
+  @javax.annotation.Nullable
+  public String getOutboundProxyUrl() {
+    return outboundProxyUrl;
+  }
+
+  public void setOutboundProxyUrl(@javax.annotation.Nullable String outboundProxyUrl) {
+    this.outboundProxyUrl = outboundProxyUrl;
+  }
+
+
   public CreateSandbox target(@javax.annotation.Nullable String target) {
     this.target = target;
     return this;
@@ -571,7 +595,7 @@ public class CreateSandbox {
   }
 
   /**
-   * Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+   * Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
    * @return ttlMinutes
    */
   @javax.annotation.Nullable
@@ -739,6 +763,7 @@ public class CreateSandbox {
         Objects.equals(this.networkBlockAll, createSandbox.networkBlockAll) &&
         Objects.equals(this.networkAllowList, createSandbox.networkAllowList) &&
         Objects.equals(this.domainAllowList, createSandbox.domainAllowList) &&
+        Objects.equals(this.outboundProxyUrl, createSandbox.outboundProxyUrl) &&
         Objects.equals(this.target, createSandbox.target) &&
         Objects.equals(this.cpu, createSandbox.cpu) &&
         Objects.equals(this.gpu, createSandbox.gpu) &&
@@ -759,7 +784,7 @@ public class CreateSandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, target, cpu, gpu, gpuType, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -775,6 +800,7 @@ public class CreateSandbox {
     sb.append("    networkBlockAll: ").append(toIndentedString(networkBlockAll)).append("\n");
     sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
+    sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
@@ -809,7 +835,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -842,6 +868,9 @@ public class CreateSandbox {
       }
       if ((jsonObj.get("domainAllowList") != null && !jsonObj.get("domainAllowList").isJsonNull()) && !jsonObj.get("domainAllowList").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `domainAllowList` to be a primitive type in the JSON string but got `%s`", jsonObj.get("domainAllowList").toString()));
+      }
+      if ((jsonObj.get("outboundProxyUrl") != null && !jsonObj.get("outboundProxyUrl").isJsonNull()) && !jsonObj.get("outboundProxyUrl").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `outboundProxyUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("outboundProxyUrl").toString()));
       }
       if ((jsonObj.get("target") != null && !jsonObj.get("target").isJsonNull()) && !jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));

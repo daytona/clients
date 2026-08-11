@@ -91,6 +91,7 @@ module DaytonaApiClient
     # Delete runner
     # @param id [String] Runner ID
     # @param [Hash] opts the optional parameters
+    # @option opts [Boolean] :force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [nil]
     def delete_runner(id, opts = {})
@@ -101,6 +102,7 @@ module DaytonaApiClient
     # Delete runner
     # @param id [String] Runner ID
     # @param [Hash] opts the optional parameters
+    # @option opts [Boolean] :force Delete the runner without waiting for sandboxes already marked for destruction. Requires the runner to have stopped reporting as ready.
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
     def delete_runner_with_http_info(id, opts = {})
@@ -116,6 +118,7 @@ module DaytonaApiClient
 
       # query parameters
       query_params = opts[:query_params] || {}
+      query_params[:'force'] = opts[:'force'] if !opts[:'force'].nil?
 
       # header parameters
       header_params = opts[:header_params] || {}
@@ -449,6 +452,61 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: RunnersApi#get_runners_by_snapshot_ref\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get snapshot refs for authenticated runner
+    # @param [Hash] opts the optional parameters
+    # @return [Array<String>]
+    def get_snapshot_refs_for_authenticated_runner(opts = {})
+      data, _status_code, _headers = get_snapshot_refs_for_authenticated_runner_with_http_info(opts)
+      data
+    end
+
+    # Get snapshot refs for authenticated runner
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Array<String>, Integer, Hash)>] Array<String> data, response status code and response headers
+    def get_snapshot_refs_for_authenticated_runner_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: RunnersApi.get_snapshot_refs_for_authenticated_runner ...'
+      end
+      # resource path
+      local_var_path = '/runners/me/snapshots'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<String>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"RunnersApi.get_snapshot_refs_for_authenticated_runner",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: RunnersApi#get_snapshot_refs_for_authenticated_runner\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

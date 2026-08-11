@@ -31,6 +31,7 @@ public class CreateSandboxParams {
     private Map<String, String> secrets;
     private Boolean networkBlockAll;
     private String domainAllowList;
+    private String outboundProxyUrl;
     private String linkedSandbox;
 
     /**
@@ -253,6 +254,26 @@ public class CreateSandboxParams {
      * @param domainAllowList allowed domains
      */
     public void setDomainAllowList(String domainAllowList) { this.domainAllowList = domainAllowList; }
+
+    /**
+     * Returns the outbound proxy URL to route the sandbox HTTP(S) traffic through.
+     *
+     * <p>Applied via the HTTP(S)_PROXY environment variables; combine with domainAllowList for
+     * network-layer enforcement.
+     *
+     * @return outbound proxy URL, or {@code null}
+     */
+    public String getOutboundProxyUrl() { return outboundProxyUrl; }
+
+    /**
+     * Sets the outbound proxy URL to route the sandbox HTTP(S) traffic through.
+     *
+     * <p>Applied via the HTTP(S)_PROXY environment variables; combine with domainAllowList for
+     * network-layer enforcement.
+     *
+     * @param outboundProxyUrl outbound proxy URL
+     */
+    public void setOutboundProxyUrl(String outboundProxyUrl) { this.outboundProxyUrl = outboundProxyUrl; }
 
     /**
      * Returns the ID or name of an existing Sandbox to link the new Sandbox to.

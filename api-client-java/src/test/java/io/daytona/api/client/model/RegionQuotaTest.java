@@ -162,4 +162,12 @@ public class RegionQuotaTest {
         // TODO: test maxDiskPerGpu
     }
 
+    /**
+     * Test the property 'maxSandboxLifespan'
+     */
+    @Test
+    public void maxSandboxLifespanTest() {
+        // TODO: test maxSandboxLifespan
+    }
+
 }

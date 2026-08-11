@@ -19,6 +19,63 @@ module DaytonaApiClient
     def initialize(api_client = ApiClient.default)
       @api_client = api_client
     end
+    # Get supported audit log scenarios
+    # Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+    # @param [Hash] opts the optional parameters
+    # @return [AuditScenarios]
+    def get_audit_scenarios(opts = {})
+      data, _status_code, _headers = get_audit_scenarios_with_http_info(opts)
+      data
+    end
+
+    # Get supported audit log scenarios
+    # Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(AuditScenarios, Integer, Hash)>] AuditScenarios data, response status code and response headers
+    def get_audit_scenarios_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: AuditApi.get_audit_scenarios ...'
+      end
+      # resource path
+      local_var_path = '/audit/scenarios'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'AuditScenarios'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"AuditApi.get_audit_scenarios",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: AuditApi#get_audit_scenarios\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Get audit logs for organization
     # @param organization_id [String] Organization ID
     # @param [Hash] opts the optional parameters

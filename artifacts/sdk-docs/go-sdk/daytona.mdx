@@ -4392,6 +4392,12 @@ type Sandbox struct {
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
     DomainAllowList *string
 
+    // OutboundProxyUrl is the outbound proxy URL the sandbox HTTP(S) traffic is
+    // routed through. Applied via the HTTP(S)_PROXY environment variables;
+    // combine with DomainAllowList for network-layer enforcement.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    OutboundProxyUrl *string
+
     FileSystem      *FileSystemService      // File system operations
     Git             *GitService             // Git operations
     Process         *ProcessService         // Process and PTY operations
@@ -4826,7 +4832,7 @@ func (s *Sandbox) RefreshData(ctx context.Context) error
 
 RefreshData refreshes the sandbox data from the API.
 
-This updates all sandbox fields from the server, including those not populated by [Client.List](<#Client.List>) \(Env, NetworkBlockAll, NetworkAllowList, DomainAllowList, Volumes, BuildInfo, BackupCreatedAt\).
+This updates all sandbox fields from the server, including those not populated by [Client.List](<#Client.List>) \(Env, NetworkBlockAll, NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes, BuildInfo, BackupCreatedAt\).
 
 Example:
 

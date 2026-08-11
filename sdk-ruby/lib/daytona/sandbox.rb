@@ -88,6 +88,10 @@ module Daytona
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :domain_allow_list
 
+    # @return [String, nil] Outbound proxy URL to route the sandbox HTTP(S) traffic through.
+    #   Not returned by list results; call #refresh on each item to populate.
+    attr_reader :outbound_proxy_url
+
     # @return [String] The target environment for the sandbox
     attr_reader :target
 
@@ -1109,6 +1113,7 @@ module Daytona
         @network_block_all = sandbox_dto.network_block_all
         @network_allow_list = sandbox_dto.network_allow_list
         @domain_allow_list = sandbox_dto.domain_allow_list
+        @outbound_proxy_url = sandbox_dto.outbound_proxy_url
         @volumes = sandbox_dto.volumes
         @build_info = sandbox_dto.build_info
         @backup_created_at = sandbox_dto.backup_created_at

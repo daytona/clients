@@ -21,13 +21,15 @@ var _ MappedNullable = &CreateUser{}
 
 // CreateUser struct for CreateUser
 type CreateUser struct {
-	Id string `json:"id"`
+	Id *string `json:"id,omitempty"`
 	Name string `json:"name"`
 	Email *string `json:"email,omitempty"`
 	PersonalOrganizationQuota *CreateOrganizationQuota `json:"personalOrganizationQuota,omitempty"`
 	PersonalOrganizationDefaultRegionId *string `json:"personalOrganizationDefaultRegionId,omitempty"`
 	Role *string `json:"role,omitempty"`
 	EmailVerified *bool `json:"emailVerified,omitempty"`
+	// Provenance of the email verification. Defaults to auth0 when emailVerified is true and unset.
+	EmailVerifiedSource *string `json:"emailVerifiedSource,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -37,9 +39,8 @@ type _CreateUser CreateUser
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewCreateUser(id string, name string) *CreateUser {
+func NewCreateUser(name string) *CreateUser {
 	this := CreateUser{}
-	this.Id = id
 	this.Name = name
 	return &this
 }
@@ -52,28 +53,36 @@ func NewCreateUserWithDefaults() *CreateUser {
 	return &this
 }
 
-// GetId returns the Id field value
+// GetId returns the Id field value if set, zero value otherwise.
 func (o *CreateUser) GetId() string {
-	if o == nil {
+	if o == nil || IsNil(o.Id) {
 		var ret string
 		return ret
 	}
-
-	return o.Id
+	return *o.Id
 }
 
-// GetIdOk returns a tuple with the Id field value
+// GetIdOk returns a tuple with the Id field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *CreateUser) GetIdOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Id) {
 		return nil, false
 	}
-	return &o.Id, true
+	return o.Id, true
 }
 
-// SetId sets field value
+// HasId returns a boolean if a field has been set.
+func (o *CreateUser) HasId() bool {
+	if o != nil && !IsNil(o.Id) {
+		return true
+	}
+
+	return false
+}
+
+// SetId gets a reference to the given string and assigns it to the Id field.
 func (o *CreateUser) SetId(v string) {
-	o.Id = v
+	o.Id = &v
 }
 
 // GetName returns the Name field value
@@ -260,6 +269,38 @@ func (o *CreateUser) SetEmailVerified(v bool) {
 	o.EmailVerified = &v
 }
 
+// GetEmailVerifiedSource returns the EmailVerifiedSource field value if set, zero value otherwise.
+func (o *CreateUser) GetEmailVerifiedSource() string {
+	if o == nil || IsNil(o.EmailVerifiedSource) {
+		var ret string
+		return ret
+	}
+	return *o.EmailVerifiedSource
+}
+
+// GetEmailVerifiedSourceOk returns a tuple with the EmailVerifiedSource field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateUser) GetEmailVerifiedSourceOk() (*string, bool) {
+	if o == nil || IsNil(o.EmailVerifiedSource) {
+		return nil, false
+	}
+	return o.EmailVerifiedSource, true
+}
+
+// HasEmailVerifiedSource returns a boolean if a field has been set.
+func (o *CreateUser) HasEmailVerifiedSource() bool {
+	if o != nil && !IsNil(o.EmailVerifiedSource) {
+		return true
+	}
+
+	return false
+}
+
+// SetEmailVerifiedSource gets a reference to the given string and assigns it to the EmailVerifiedSource field.
+func (o *CreateUser) SetEmailVerifiedSource(v string) {
+	o.EmailVerifiedSource = &v
+}
+
 func (o CreateUser) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -270,7 +311,9 @@ func (o CreateUser) MarshalJSON() ([]byte, error) {
 
 func (o CreateUser) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["id"] = o.Id
+	if !IsNil(o.Id) {
+		toSerialize["id"] = o.Id
+	}
 	toSerialize["name"] = o.Name
 	if !IsNil(o.Email) {
 		toSerialize["email"] = o.Email
@@ -287,6 +330,9 @@ func (o CreateUser) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.EmailVerified) {
 		toSerialize["emailVerified"] = o.EmailVerified
 	}
+	if !IsNil(o.EmailVerifiedSource) {
+		toSerialize["emailVerifiedSource"] = o.EmailVerifiedSource
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -300,7 +346,6 @@ func (o *CreateUser) UnmarshalJSON(data []byte) (err error) {
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
-		"id",
 		"name",
 	}
 
@@ -338,6 +383,7 @@ func (o *CreateUser) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "personalOrganizationDefaultRegionId")
 		delete(additionalProperties, "role")
 		delete(additionalProperties, "emailVerified")
+		delete(additionalProperties, "emailVerifiedSource")
 		o.AdditionalProperties = additionalProperties
 	}
 

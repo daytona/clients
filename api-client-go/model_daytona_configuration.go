@@ -23,10 +23,16 @@ var _ MappedNullable = &DaytonaConfiguration{}
 type DaytonaConfiguration struct {
 	// Daytona version
 	Version string `json:"version"`
+	// Commit sha of the source the app was built from
+	BuildSha *string `json:"buildSha,omitempty"`
 	// PostHog configuration
 	Posthog *PosthogConfig `json:"posthog,omitempty"`
 	// OIDC configuration
 	Oidc OidcConfig `json:"oidc"`
+	// OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+	SsoOidc *SsoOidcConfig `json:"ssoOidc,omitempty"`
+	// Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.
+	ForcedFeatureFlags []string `json:"forcedFeatureFlags,omitempty"`
 	// Whether linked accounts are enabled
 	LinkedAccountsEnabled bool `json:"linkedAccountsEnabled"`
 	// System announcements
@@ -116,6 +122,38 @@ func (o *DaytonaConfiguration) SetVersion(v string) {
 	o.Version = v
 }
 
+// GetBuildSha returns the BuildSha field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetBuildSha() string {
+	if o == nil || IsNil(o.BuildSha) {
+		var ret string
+		return ret
+	}
+	return *o.BuildSha
+}
+
+// GetBuildShaOk returns a tuple with the BuildSha field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetBuildShaOk() (*string, bool) {
+	if o == nil || IsNil(o.BuildSha) {
+		return nil, false
+	}
+	return o.BuildSha, true
+}
+
+// HasBuildSha returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasBuildSha() bool {
+	if o != nil && !IsNil(o.BuildSha) {
+		return true
+	}
+
+	return false
+}
+
+// SetBuildSha gets a reference to the given string and assigns it to the BuildSha field.
+func (o *DaytonaConfiguration) SetBuildSha(v string) {
+	o.BuildSha = &v
+}
+
 // GetPosthog returns the Posthog field value if set, zero value otherwise.
 func (o *DaytonaConfiguration) GetPosthog() PosthogConfig {
 	if o == nil || IsNil(o.Posthog) {
@@ -170,6 +208,70 @@ func (o *DaytonaConfiguration) GetOidcOk() (*OidcConfig, bool) {
 // SetOidc sets field value
 func (o *DaytonaConfiguration) SetOidc(v OidcConfig) {
 	o.Oidc = v
+}
+
+// GetSsoOidc returns the SsoOidc field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetSsoOidc() SsoOidcConfig {
+	if o == nil || IsNil(o.SsoOidc) {
+		var ret SsoOidcConfig
+		return ret
+	}
+	return *o.SsoOidc
+}
+
+// GetSsoOidcOk returns a tuple with the SsoOidc field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetSsoOidcOk() (*SsoOidcConfig, bool) {
+	if o == nil || IsNil(o.SsoOidc) {
+		return nil, false
+	}
+	return o.SsoOidc, true
+}
+
+// HasSsoOidc returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasSsoOidc() bool {
+	if o != nil && !IsNil(o.SsoOidc) {
+		return true
+	}
+
+	return false
+}
+
+// SetSsoOidc gets a reference to the given SsoOidcConfig and assigns it to the SsoOidc field.
+func (o *DaytonaConfiguration) SetSsoOidc(v SsoOidcConfig) {
+	o.SsoOidc = &v
+}
+
+// GetForcedFeatureFlags returns the ForcedFeatureFlags field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetForcedFeatureFlags() []string {
+	if o == nil || IsNil(o.ForcedFeatureFlags) {
+		var ret []string
+		return ret
+	}
+	return o.ForcedFeatureFlags
+}
+
+// GetForcedFeatureFlagsOk returns a tuple with the ForcedFeatureFlags field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetForcedFeatureFlagsOk() ([]string, bool) {
+	if o == nil || IsNil(o.ForcedFeatureFlags) {
+		return nil, false
+	}
+	return o.ForcedFeatureFlags, true
+}
+
+// HasForcedFeatureFlags returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasForcedFeatureFlags() bool {
+	if o != nil && !IsNil(o.ForcedFeatureFlags) {
+		return true
+	}
+
+	return false
+}
+
+// SetForcedFeatureFlags gets a reference to the given []string and assigns it to the ForcedFeatureFlags field.
+func (o *DaytonaConfiguration) SetForcedFeatureFlags(v []string) {
+	o.ForcedFeatureFlags = v
 }
 
 // GetLinkedAccountsEnabled returns the LinkedAccountsEnabled field value
@@ -623,10 +725,19 @@ func (o DaytonaConfiguration) MarshalJSON() ([]byte, error) {
 func (o DaytonaConfiguration) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["version"] = o.Version
+	if !IsNil(o.BuildSha) {
+		toSerialize["buildSha"] = o.BuildSha
+	}
 	if !IsNil(o.Posthog) {
 		toSerialize["posthog"] = o.Posthog
 	}
 	toSerialize["oidc"] = o.Oidc
+	if !IsNil(o.SsoOidc) {
+		toSerialize["ssoOidc"] = o.SsoOidc
+	}
+	if !IsNil(o.ForcedFeatureFlags) {
+		toSerialize["forcedFeatureFlags"] = o.ForcedFeatureFlags
+	}
 	toSerialize["linkedAccountsEnabled"] = o.LinkedAccountsEnabled
 	toSerialize["announcements"] = o.Announcements
 	if !IsNil(o.PylonAppId) {
@@ -711,8 +822,11 @@ func (o *DaytonaConfiguration) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "version")
+		delete(additionalProperties, "buildSha")
 		delete(additionalProperties, "posthog")
 		delete(additionalProperties, "oidc")
+		delete(additionalProperties, "ssoOidc")
+		delete(additionalProperties, "forcedFeatureFlags")
 		delete(additionalProperties, "linkedAccountsEnabled")
 		delete(additionalProperties, "announcements")
 		delete(additionalProperties, "pylonAppId")

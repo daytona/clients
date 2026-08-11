@@ -100,6 +100,12 @@ public class CreateApiKey {
     
     READ_LIMITS("read:limits"),
     
+    MANAGE_SSO("manage:sso"),
+    
+    READ_BILLING("read:billing"),
+    
+    MANAGE_BILLING("manage:billing"),
+    
     UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
 
     private String value;

@@ -57,8 +57,9 @@ public class RunnersApiTest {
     @Test
     public void deleteRunnerTest() throws ApiException {
         String id = null;
+        Boolean force = null;
         String xDaytonaOrganizationID = null;
-        api.deleteRunner(id, xDaytonaOrganizationID);
+        api.deleteRunner(id, force, xDaytonaOrganizationID);
         // TODO: test validations
     }
 
@@ -119,6 +120,17 @@ public class RunnersApiTest {
     public void getRunnersBySnapshotRefTest() throws ApiException {
         String ref = null;
         List<RunnerSnapshotDto> response = api.getRunnersBySnapshotRef(ref);
+        // TODO: test validations
+    }
+
+    /**
+     * Get snapshot refs for authenticated runner
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getSnapshotRefsForAuthenticatedRunnerTest() throws ApiException {
+        List<String> response = api.getSnapshotRefsForAuthenticatedRunner();
         // TODO: test validations
     }
 

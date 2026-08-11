@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { AuditScenarios } from '../models';
+// @ts-ignore
 import type { DateFilter } from '../models';
 // @ts-ignore
 import type { IntFilter } from '../models';
@@ -34,6 +36,36 @@ import type { StringFilter } from '../models';
  */
 export const AuditApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+         * @summary Get supported audit log scenarios
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAuditScenarios: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/audit/scenarios`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @summary Get audit logs for organization
@@ -183,6 +215,18 @@ export const AuditApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = AuditApiAxiosParamCreator(configuration)
     return {
         /**
+         * Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+         * @summary Get supported audit log scenarios
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getAuditScenarios(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AuditScenarios>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAuditScenarios(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuditApi.getAuditScenarios']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * 
          * @summary Get audit logs for organization
          * @param {string} organizationId Organization ID
@@ -220,6 +264,15 @@ export const AuditApiFactory = function (configuration?: Configuration, basePath
     const localVarFp = AuditApiFp(configuration)
     return {
         /**
+         * Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+         * @summary Get supported audit log scenarios
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAuditScenarios(options?: RawAxiosRequestConfig): AxiosPromise<AuditScenarios> {
+            return localVarFp.getAuditScenarios(options).then((request) => request(axios, basePath));
+        },
+        /**
          * 
          * @summary Get audit logs for organization
          * @param {string} organizationId Organization ID
@@ -251,6 +304,16 @@ export const AuditApiFactory = function (configuration?: Configuration, basePath
  * AuditApi - object-oriented interface
  */
 export class AuditApi extends BaseAPI {
+    /**
+     * Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+     * @summary Get supported audit log scenarios
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getAuditScenarios(options?: RawAxiosRequestConfig) {
+        return AuditApiFp(this.configuration).getAuditScenarios(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Get audit logs for organization

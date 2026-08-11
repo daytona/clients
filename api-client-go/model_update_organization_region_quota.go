@@ -37,6 +37,8 @@ type UpdateOrganizationRegionQuota struct {
 	MaxMemoryPerGpu NullableFloat32 `json:"maxMemoryPerGpu,omitempty"`
 	// Disk maximum per requested GPU unit for GPU sandboxes.
 	MaxDiskPerGpu NullableFloat32 `json:"maxDiskPerGpu,omitempty"`
+	// Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
+	MaxSandboxLifespan NullableFloat32 `json:"maxSandboxLifespan,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -526,6 +528,48 @@ func (o *UpdateOrganizationRegionQuota) UnsetMaxDiskPerGpu() {
 	o.MaxDiskPerGpu.Unset()
 }
 
+// GetMaxSandboxLifespan returns the MaxSandboxLifespan field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *UpdateOrganizationRegionQuota) GetMaxSandboxLifespan() float32 {
+	if o == nil || IsNil(o.MaxSandboxLifespan.Get()) {
+		var ret float32
+		return ret
+	}
+	return *o.MaxSandboxLifespan.Get()
+}
+
+// GetMaxSandboxLifespanOk returns a tuple with the MaxSandboxLifespan field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *UpdateOrganizationRegionQuota) GetMaxSandboxLifespanOk() (*float32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.MaxSandboxLifespan.Get(), o.MaxSandboxLifespan.IsSet()
+}
+
+// HasMaxSandboxLifespan returns a boolean if a field has been set.
+func (o *UpdateOrganizationRegionQuota) HasMaxSandboxLifespan() bool {
+	if o != nil && o.MaxSandboxLifespan.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetMaxSandboxLifespan gets a reference to the given NullableFloat32 and assigns it to the MaxSandboxLifespan field.
+func (o *UpdateOrganizationRegionQuota) SetMaxSandboxLifespan(v float32) {
+	o.MaxSandboxLifespan.Set(&v)
+}
+// SetMaxSandboxLifespanNil sets the value for MaxSandboxLifespan to be an explicit nil
+func (o *UpdateOrganizationRegionQuota) SetMaxSandboxLifespanNil() {
+	o.MaxSandboxLifespan.Set(nil)
+}
+
+// UnsetMaxSandboxLifespan ensures that no value is present for MaxSandboxLifespan, not even an explicit nil
+func (o *UpdateOrganizationRegionQuota) UnsetMaxSandboxLifespan() {
+	o.MaxSandboxLifespan.Unset()
+}
+
 func (o UpdateOrganizationRegionQuota) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -566,6 +610,9 @@ func (o UpdateOrganizationRegionQuota) ToMap() (map[string]interface{}, error) {
 	}
 	if o.MaxDiskPerGpu.IsSet() {
 		toSerialize["maxDiskPerGpu"] = o.MaxDiskPerGpu.Get()
+	}
+	if o.MaxSandboxLifespan.IsSet() {
+		toSerialize["maxSandboxLifespan"] = o.MaxSandboxLifespan.Get()
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -626,6 +673,7 @@ func (o *UpdateOrganizationRegionQuota) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "maxCpuPerGpu")
 		delete(additionalProperties, "maxMemoryPerGpu")
 		delete(additionalProperties, "maxDiskPerGpu")
+		delete(additionalProperties, "maxSandboxLifespan")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -43,6 +43,8 @@ type Sandbox struct {
 	NetworkAllowList *string `json:"networkAllowList,omitempty"`
 	// Comma-separated list of allowed domains for the sandbox
 	DomainAllowList *string `json:"domainAllowList,omitempty"`
+	// Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.
+	OutboundProxyUrl *string `json:"outboundProxyUrl,omitempty"`
 	// The target environment for the sandbox
 	Target string `json:"target"`
 	// The CPU quota for the sandbox
@@ -423,6 +425,38 @@ func (o *Sandbox) HasDomainAllowList() bool {
 // SetDomainAllowList gets a reference to the given string and assigns it to the DomainAllowList field.
 func (o *Sandbox) SetDomainAllowList(v string) {
 	o.DomainAllowList = &v
+}
+
+// GetOutboundProxyUrl returns the OutboundProxyUrl field value if set, zero value otherwise.
+func (o *Sandbox) GetOutboundProxyUrl() string {
+	if o == nil || IsNil(o.OutboundProxyUrl) {
+		var ret string
+		return ret
+	}
+	return *o.OutboundProxyUrl
+}
+
+// GetOutboundProxyUrlOk returns a tuple with the OutboundProxyUrl field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetOutboundProxyUrlOk() (*string, bool) {
+	if o == nil || IsNil(o.OutboundProxyUrl) {
+		return nil, false
+	}
+	return o.OutboundProxyUrl, true
+}
+
+// HasOutboundProxyUrl returns a boolean if a field has been set.
+func (o *Sandbox) HasOutboundProxyUrl() bool {
+	if o != nil && !IsNil(o.OutboundProxyUrl) {
+		return true
+	}
+
+	return false
+}
+
+// SetOutboundProxyUrl gets a reference to the given string and assigns it to the OutboundProxyUrl field.
+func (o *Sandbox) SetOutboundProxyUrl(v string) {
+	o.OutboundProxyUrl = &v
 }
 
 // GetTarget returns the Target field value
@@ -1306,6 +1340,9 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.DomainAllowList) {
 		toSerialize["domainAllowList"] = o.DomainAllowList
 	}
+	if !IsNil(o.OutboundProxyUrl) {
+		toSerialize["outboundProxyUrl"] = o.OutboundProxyUrl
+	}
 	toSerialize["target"] = o.Target
 	toSerialize["cpu"] = o.Cpu
 	toSerialize["gpu"] = o.Gpu
@@ -1445,6 +1482,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "networkBlockAll")
 		delete(additionalProperties, "networkAllowList")
 		delete(additionalProperties, "domainAllowList")
+		delete(additionalProperties, "outboundProxyUrl")
 		delete(additionalProperties, "target")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")

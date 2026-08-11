@@ -61,6 +61,10 @@ export interface CreateSandbox {
      */
     'domainAllowList'?: string;
     /**
+     * Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
+     */
+    'outboundProxyUrl'?: string;
+    /**
      * The target (region) where the sandbox will be created
      */
     'target'?: string;
@@ -101,7 +105,7 @@ export interface CreateSandbox {
      */
     'autoDeleteInterval'?: number;
     /**
-     * Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.
+     * Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
      */
     'ttlMinutes'?: number;
     /**

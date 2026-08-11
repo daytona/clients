@@ -48,6 +48,9 @@ module DaytonaApiClient
     # Comma-separated list of allowed domains for the sandbox
     attr_accessor :domain_allow_list
 
+    # Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.
+    attr_accessor :outbound_proxy_url
+
     # The target environment for the sandbox
     attr_accessor :target
 
@@ -168,6 +171,7 @@ module DaytonaApiClient
         :'network_block_all' => :'networkBlockAll',
         :'network_allow_list' => :'networkAllowList',
         :'domain_allow_list' => :'domainAllowList',
+        :'outbound_proxy_url' => :'outboundProxyUrl',
         :'target' => :'target',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
@@ -223,6 +227,7 @@ module DaytonaApiClient
         :'network_block_all' => :'Boolean',
         :'network_allow_list' => :'String',
         :'domain_allow_list' => :'String',
+        :'outbound_proxy_url' => :'String',
         :'target' => :'String',
         :'cpu' => :'Float',
         :'gpu' => :'Float',
@@ -338,6 +343,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'domain_allow_list')
         self.domain_allow_list = attributes[:'domain_allow_list']
+      end
+
+      if attributes.key?(:'outbound_proxy_url')
+        self.outbound_proxy_url = attributes[:'outbound_proxy_url']
       end
 
       if attributes.key?(:'target')
@@ -732,6 +741,7 @@ module DaytonaApiClient
           network_block_all == o.network_block_all &&
           network_allow_list == o.network_allow_list &&
           domain_allow_list == o.domain_allow_list &&
+          outbound_proxy_url == o.outbound_proxy_url &&
           target == o.target &&
           cpu == o.cpu &&
           gpu == o.gpu &&
@@ -771,7 +781,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

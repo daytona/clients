@@ -95,6 +95,10 @@ export interface Organization {
      */
     'previewWarningEnabled': boolean;
     /**
+     * Whether this organization may configure SSO identity providers
+     */
+    'ssoEnabled': boolean;
+    /**
      * Default region ID
      */
     'defaultRegionId'?: string;

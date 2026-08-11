@@ -216,6 +216,20 @@ RSpec.describe Daytona::Daytona do
       end
     end
 
+    it 'passes outbound_proxy_url through to create_sandbox' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(
+        snapshot: 'snap-1',
+        outbound_proxy_url: 'https://proxy.example'
+      )
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.outbound_proxy_url).to eq('https://proxy.example')
+      end
+    end
+
     it 'leaves secrets nil when none are provided' do
       params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1')
       allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)

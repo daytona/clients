@@ -56,6 +56,9 @@ module Daytona
     # @return [String, nil] Comma-separated list of allowed domains for the Sandbox
     attr_accessor :domain_allow_list
 
+    # @return [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through
+    attr_accessor :outbound_proxy_url
+
     # @return [Integer, nil] Time to live in minutes (0 to disable)
     attr_accessor :ttl_minutes
 
@@ -86,6 +89,9 @@ module Daytona
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
+    # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
+    #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
+    #   network-layer enforcement.
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     # @param linked_sandbox [String, nil] ID or name of an existing Sandbox to link the new Sandbox to
@@ -106,6 +112,7 @@ module Daytona
       network_block_all: nil,
       network_allow_list: nil,
       domain_allow_list: nil,
+      outbound_proxy_url: nil,
       ephemeral: nil,
       linked_sandbox: nil
     )
@@ -125,6 +132,7 @@ module Daytona
       @network_block_all = network_block_all
       @network_allow_list = network_allow_list
       @domain_allow_list = domain_allow_list
+      @outbound_proxy_url = outbound_proxy_url
       @ephemeral = ephemeral
       @linked_sandbox = linked_sandbox
 
@@ -153,6 +161,7 @@ module Daytona
         network_block_all:,
         network_allow_list:,
         domain_allow_list:,
+        outbound_proxy_url:,
         ephemeral:,
         linked_sandbox:
       }.compact
@@ -207,6 +216,9 @@ module Daytona
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
+    # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
+    #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
+    #   network-layer enforcement.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(image:, resources: nil, **args)
       @image = image
@@ -250,6 +262,9 @@ module Daytona
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
+    # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
+    #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
+    #   network-layer enforcement.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(snapshot: nil, **args)
       @snapshot = snapshot

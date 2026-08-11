@@ -24,6 +24,7 @@ from daytona_api_client_async.models.announcement import Announcement
 from daytona_api_client_async.models.oidc_config import OidcConfig
 from daytona_api_client_async.models.posthog_config import PosthogConfig
 from daytona_api_client_async.models.rate_limit_config import RateLimitConfig
+from daytona_api_client_async.models.sso_oidc_config import SsoOidcConfig
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -35,8 +36,11 @@ class DaytonaConfiguration(BaseModel):
     DaytonaConfiguration
     """ # noqa: E501
     version: StrictStr = Field(description="Daytona version")
+    build_sha: Optional[StrictStr] = Field(default=None, description="Commit sha of the source the app was built from", serialization_alias="buildSha")
     posthog: Optional[PosthogConfig] = Field(default=None, description="PostHog configuration")
     oidc: OidcConfig = Field(description="OIDC configuration")
+    sso_oidc: Optional[SsoOidcConfig] = Field(default=None, description="OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.", serialization_alias="ssoOidc")
+    forced_feature_flags: Optional[List[StrictStr]] = Field(default=None, description="Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.", serialization_alias="forcedFeatureFlags")
     linked_accounts_enabled: StrictBool = Field(description="Whether linked accounts are enabled", serialization_alias="linkedAccountsEnabled")
     announcements: Dict[str, Announcement] = Field(description="System announcements")
     pylon_app_id: Optional[StrictStr] = Field(default=None, description="Pylon application ID", serialization_alias="pylonAppId")
@@ -54,7 +58,7 @@ class DaytonaConfiguration(BaseModel):
     ssh_gateway_public_key: Optional[StrictStr] = Field(default=None, description="Base64 encoded SSH Gateway public key", serialization_alias="sshGatewayPublicKey")
     rate_limit: Optional[RateLimitConfig] = Field(default=None, description="Rate limit configuration", serialization_alias="rateLimit")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["version", "posthog", "oidc", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"]
+    __properties: ClassVar[List[str]] = ["version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -102,6 +106,9 @@ class DaytonaConfiguration(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of oidc
         if self.oidc:
             _dict['oidc'] = self.oidc.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of sso_oidc
+        if self.sso_oidc:
+            _dict['ssoOidc'] = self.sso_oidc.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each value in announcements (dict)
         _field_dict = {}
         if self.announcements:
@@ -130,8 +137,11 @@ class DaytonaConfiguration(BaseModel):
 
         _obj = cls.model_validate({
             "version": obj.get("version"),
+            "build_sha": obj.get("buildSha"),
             "posthog": PosthogConfig.from_dict(obj["posthog"]) if obj.get("posthog") is not None else None,
             "oidc": OidcConfig.from_dict(obj["oidc"]) if obj.get("oidc") is not None else None,
+            "sso_oidc": SsoOidcConfig.from_dict(obj["ssoOidc"]) if obj.get("ssoOidc") is not None else None,
+            "forced_feature_flags": obj.get("forcedFeatureFlags"),
             "linked_accounts_enabled": obj.get("linkedAccountsEnabled"),
             "announcements": dict(
                 (_k, Announcement.from_dict(_v))
