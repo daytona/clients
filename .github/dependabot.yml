@@ -35,6 +35,12 @@ updates:
       npm-prod:
         patterns:
           - "*"
+    ignore:
+      # Keep @types/node aligned with the node-version CI pins; a major ahead of the
+      # runtime typechecks against APIs that are not there. Bump it with a Node upgrade.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 
