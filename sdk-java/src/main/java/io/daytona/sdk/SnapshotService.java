@@ -69,9 +69,30 @@ public class SnapshotService {
      * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
      */
     public Snapshot create(String name, String imageName, SandboxClass sandboxClass) {
+        return create(name, imageName, sandboxClass, null);
+    }
+
+    /**
+     * Creates a snapshot from an existing image reference, available in the given regions.
+     *
+     * @param name snapshot name
+     * @param imageName source image name or tag
+     * @param sandboxClass target sandbox class; {@code null} for default
+     * @param regionIds IDs of the regions where the snapshot will be available; {@code null} or empty
+     *     for the organization default region. Duplicates are ignored and the order carries no meaning —
+     *     the server selects the region that performs the initial build or pull. Requesting more than one
+     *     region requires the multi-region snapshots feature to be enabled for the organization, is not
+     *     supported for GPU snapshots, and is only possible between regions that share an internal registry.
+     * @return created {@link Snapshot}
+     * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
+     */
+    public Snapshot create(String name, String imageName, SandboxClass sandboxClass, List<String> regionIds) {
         CreateSnapshot req = new CreateSnapshot().name(name).imageName(imageName);
         if (sandboxClass != null) {
             req.setSandboxClass(sandboxClass);
+        }
+        if (regionIds != null && !regionIds.isEmpty()) {
+            req.setRegionIds(regionIds);
         }
         io.daytona.api.client.model.SnapshotDto snapshotDto = ExceptionMapper.callMain(
                 () -> snapshotsApi.createSnapshot(req, null)
@@ -118,6 +139,26 @@ public class SnapshotService {
      * @throws DaytonaException if the API request fails or the build fails
      */
     public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass, Consumer<String> onLogs) {
+        return create(name, image, resources, sandboxClass, null, onLogs);
+    }
+
+    /**
+     * Creates a snapshot from a declarative {@link Image}, available in the given regions, with optional build log streaming.
+     *
+     * @param name snapshot name
+     * @param image declarative image definition
+     * @param resources CPU/GPU/memory/disk resources; {@code null} for defaults
+     * @param sandboxClass target sandbox class; {@code null} for default
+     * @param regionIds IDs of the regions where the snapshot will be available; {@code null} or empty
+     *     for the organization default region. Duplicates are ignored and the order carries no meaning —
+     *     the server selects the region that performs the initial build or pull. Requesting more than one
+     *     region requires the multi-region snapshots feature to be enabled for the organization, is not
+     *     supported for GPU snapshots, and is only possible between regions that share an internal registry.
+     * @param onLogs callback for build log lines; {@code null} to skip streaming
+     * @return created {@link Snapshot} in active or error state
+     * @throws DaytonaException if the API request fails or the build fails
+     */
+    public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass, List<String> regionIds, Consumer<String> onLogs) {
         CreateSnapshot req = new CreateSnapshot().name(name)
                 .buildInfo(new CreateBuildInfo().dockerfileContent(image.getDockerfile()))
                 .entrypoint(null);
@@ -132,6 +173,10 @@ public class SnapshotService {
 
         if (sandboxClass != null) {
             req.setSandboxClass(sandboxClass);
+        }
+
+        if (regionIds != null && !regionIds.isEmpty()) {
+            req.setRegionIds(regionIds);
         }
 
         final io.daytona.api.client.model.SnapshotDto[] ref = { ExceptionMapper.callMain(
@@ -344,6 +389,7 @@ public class SnapshotService {
             snapshot.setName(source.getName());
             snapshot.setImageName(source.getImageName());
             snapshot.setState(source.getState() == null ? null : source.getState().getValue());
+            snapshot.setRegionIds(source.getRegionIds());
         }
         return snapshot;
     }

@@ -226,6 +226,7 @@ type CreateSnapshotParams = {
   image: string | Image;
   name: string;
   regionId?: string;
+  regionIds?: string[];
   resources?: Resources;
   sandboxClass?: SandboxClass;
 };
@@ -238,6 +239,12 @@ type CreateSnapshotParams = {
     If an Image instance is provided, it will be used to create a new image in Daytona.
 - `name` _string_ - Name of the snapshot.
 - `regionId?` _string_ - ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+    Mutually exclusive with `regionIds`.
+- `regionIds?` _string\[\]_ - IDs of the regions where the snapshot will be available. Mutually exclusive with `regionId`.
+    When set, the client's default region (`target`) is not applied. Duplicates are ignored and the order carries no meaning —
+    the server selects the region that performs the initial build or pull. Requesting more than one region requires the
+    multi-region snapshots feature to be enabled for the organization, is not supported for GPU snapshots, and is only
+    possible between regions that share an internal registry.
 - `resources?` _Resources_ - Resources of the snapshot.
 - `sandboxClass?` _SandboxClass_ - Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
     

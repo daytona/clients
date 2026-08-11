@@ -149,7 +149,8 @@ def build_snapshot_dto(overrides = {})
     updated_at: '2025-01-01T00:00:00Z',
     last_used_at: nil,
     build_info: nil,
-    source_sandbox_id: nil
+    source_sandbox_id: nil,
+    region_ids: nil
   }.merge(overrides)
 
   instance_double(DaytonaApiClient::SnapshotDto, **attrs)

@@ -39,8 +39,10 @@ type CreateSnapshot struct {
 	Disk *int32 `json:"disk,omitempty"`
 	// Build information for the snapshot
 	BuildInfo *CreateBuildInfo `json:"buildInfo,omitempty"`
-	// ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+	// ID of the region where the snapshot will be available. Defaults to organization default region if not specified. Mutually exclusive with regionIds.
 	RegionId *string `json:"regionId,omitempty"`
+	// IDs of regions where the snapshot will be available. Mutually exclusive with regionId, and defaults to the organization default region if neither is specified. Duplicates are ignored and the order carries no meaning. Requesting more than one region requires the multi-region snapshots feature to be enabled, is not supported for GPU snapshots, and is only possible between regions that share an internal registry.
+	RegionIds []string `json:"regionIds,omitempty"`
 	// Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
 	SandboxClass *SandboxClass `json:"sandboxClass,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -378,6 +380,38 @@ func (o *CreateSnapshot) SetRegionId(v string) {
 	o.RegionId = &v
 }
 
+// GetRegionIds returns the RegionIds field value if set, zero value otherwise.
+func (o *CreateSnapshot) GetRegionIds() []string {
+	if o == nil || IsNil(o.RegionIds) {
+		var ret []string
+		return ret
+	}
+	return o.RegionIds
+}
+
+// GetRegionIdsOk returns a tuple with the RegionIds field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSnapshot) GetRegionIdsOk() ([]string, bool) {
+	if o == nil || IsNil(o.RegionIds) {
+		return nil, false
+	}
+	return o.RegionIds, true
+}
+
+// HasRegionIds returns a boolean if a field has been set.
+func (o *CreateSnapshot) HasRegionIds() bool {
+	if o != nil && !IsNil(o.RegionIds) {
+		return true
+	}
+
+	return false
+}
+
+// SetRegionIds gets a reference to the given []string and assigns it to the RegionIds field.
+func (o *CreateSnapshot) SetRegionIds(v []string) {
+	o.RegionIds = v
+}
+
 // GetSandboxClass returns the SandboxClass field value if set, zero value otherwise.
 func (o *CreateSnapshot) GetSandboxClass() SandboxClass {
 	if o == nil || IsNil(o.SandboxClass) {
@@ -448,6 +482,9 @@ func (o CreateSnapshot) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.RegionId) {
 		toSerialize["regionId"] = o.RegionId
 	}
+	if !IsNil(o.RegionIds) {
+		toSerialize["regionIds"] = o.RegionIds
+	}
 	if !IsNil(o.SandboxClass) {
 		toSerialize["sandboxClass"] = o.SandboxClass
 	}
@@ -504,6 +541,7 @@ func (o *CreateSnapshot) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "disk")
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "regionId")
+		delete(additionalProperties, "regionIds")
 		delete(additionalProperties, "sandboxClass")
 		o.AdditionalProperties = additionalProperties
 	}

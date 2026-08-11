@@ -140,6 +140,17 @@ class SnapshotService:
             name=params.name,
         )
 
+        # Must stay above the build context upload so a bad region combination costs no I/O. The API
+        # rejects requests carrying both fields, so region_ids suppresses the default region entirely.
+        if params.region_ids is not None:
+            if params.region_id is not None:
+                raise DaytonaValidationError("Specify either region_id or region_ids, not both.")
+            if not params.region_ids:
+                raise DaytonaValidationError("region_ids must contain at least one region id.")
+            create_snapshot_req.region_ids = params.region_ids
+        else:
+            create_snapshot_req.region_id = params.region_id or self.__default_region_id
+
         if isinstance(params.image, str):
             create_snapshot_req.image_name = params.image
             create_snapshot_req.entrypoint = params.entrypoint
@@ -167,7 +178,6 @@ class SnapshotService:
             create_snapshot_req.memory = params.resources.memory
             create_snapshot_req.disk = params.resources.disk
 
-        create_snapshot_req.region_id = params.region_id or self.__default_region_id
         create_snapshot_req.sandbox_class = (
             SyncSandboxClass(params.sandbox_class.value) if params.sandbox_class is not None else None
         )

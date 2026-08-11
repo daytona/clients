@@ -26,6 +26,7 @@ Represents a Daytona Snapshot which is a pre-configured sandbox.
 - `mem` _float | int_ - Memory of the Snapshot in GiB.
 - `disk` _float | int_ - Disk of the Snapshot in GiB.
 - `error_reason` _str | None_ - Error reason of the Snapshot.
+- `region_ids` _list[str] | None_ - IDs of the regions where the Snapshot is available.
 - `created_at` _str_ - Timestamp when the Snapshot was created.
 - `updated_at` _str_ - Timestamp when the Snapshot was last updated.
 - `last_used_at` _str_ - Timestamp when the Snapshot was last used.
@@ -221,7 +222,15 @@ Parameters for creating a new snapshot.
 - `resources` _Resources | None_ - Resources of the snapshot.
 - `entrypoint` _list[str] | None_ - Entrypoint of the snapshot.
 - `region_id` _str | None_ - ID of the region where the snapshot will be available.
-  Defaults to organization default region if not specified.
+  Defaults to organization default region if not specified. Mutually exclusive
+  with region_ids.
+- `region_ids` _list[str] | None_ - IDs of the regions where the snapshot will be available.
+  Mutually exclusive with region_id. When set, the client's default region (target)
+  is not applied. Duplicates are ignored and the order carries no meaning - the server
+  selects the region that performs the initial build or pull. Requesting more than one
+  region requires the multi-region snapshots feature to be enabled for the organization,
+  is not supported for GPU snapshots, and is only possible between regions that share
+  an internal registry.
 - `sandbox_class` _SandboxClass | None_ - Target sandbox class. Determines which runners
   can host sandboxes created from this snapshot.
 

@@ -105,6 +105,11 @@ public class CreateSnapshot {
   @javax.annotation.Nullable
   private String regionId;
 
+  public static final String SERIALIZED_NAME_REGION_IDS = "regionIds";
+  @SerializedName(SERIALIZED_NAME_REGION_IDS)
+  @javax.annotation.Nullable
+  private List<String> regionIds = new ArrayList<>();
+
   public static final String SERIALIZED_NAME_SANDBOX_CLASS = "sandboxClass";
   @SerializedName(SERIALIZED_NAME_SANDBOX_CLASS)
   @javax.annotation.Nullable
@@ -306,7 +311,7 @@ public class CreateSnapshot {
   }
 
   /**
-   * ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+   * ID of the region where the snapshot will be available. Defaults to organization default region if not specified. Mutually exclusive with regionIds.
    * @return regionId
    */
   @javax.annotation.Nullable
@@ -316,6 +321,33 @@ public class CreateSnapshot {
 
   public void setRegionId(@javax.annotation.Nullable String regionId) {
     this.regionId = regionId;
+  }
+
+
+  public CreateSnapshot regionIds(@javax.annotation.Nullable List<String> regionIds) {
+    this.regionIds = regionIds;
+    return this;
+  }
+
+  public CreateSnapshot addRegionIdsItem(String regionIdsItem) {
+    if (this.regionIds == null) {
+      this.regionIds = new ArrayList<>();
+    }
+    this.regionIds.add(regionIdsItem);
+    return this;
+  }
+
+  /**
+   * IDs of regions where the snapshot will be available. Mutually exclusive with regionId, and defaults to the organization default region if neither is specified. Duplicates are ignored and the order carries no meaning. Requesting more than one region requires the multi-region snapshots feature to be enabled, is not supported for GPU snapshots, and is only possible between regions that share an internal registry.
+   * @return regionIds
+   */
+  @javax.annotation.Nullable
+  public List<String> getRegionIds() {
+    return regionIds;
+  }
+
+  public void setRegionIds(@javax.annotation.Nullable List<String> regionIds) {
+    this.regionIds = regionIds;
   }
 
 
@@ -402,13 +434,14 @@ public class CreateSnapshot {
         Objects.equals(this.disk, createSnapshot.disk) &&
         Objects.equals(this.buildInfo, createSnapshot.buildInfo) &&
         Objects.equals(this.regionId, createSnapshot.regionId) &&
+        Objects.equals(this.regionIds, createSnapshot.regionIds) &&
         Objects.equals(this.sandboxClass, createSnapshot.sandboxClass)&&
         Objects.equals(this.additionalProperties, createSnapshot.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, imageName, entrypoint, cpu, gpu, gpuType, memory, disk, buildInfo, regionId, sandboxClass, additionalProperties);
+    return Objects.hash(name, imageName, entrypoint, cpu, gpu, gpuType, memory, disk, buildInfo, regionId, regionIds, sandboxClass, additionalProperties);
   }
 
   @Override
@@ -425,6 +458,7 @@ public class CreateSnapshot {
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    regionId: ").append(toIndentedString(regionId)).append("\n");
+    sb.append("    regionIds: ").append(toIndentedString(regionIds)).append("\n");
     sb.append("    sandboxClass: ").append(toIndentedString(sandboxClass)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -445,7 +479,7 @@ public class CreateSnapshot {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "imageName", "entrypoint", "cpu", "gpu", "gpuType", "memory", "disk", "buildInfo", "regionId", "sandboxClass"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "imageName", "entrypoint", "cpu", "gpu", "gpuType", "memory", "disk", "buildInfo", "regionId", "regionIds", "sandboxClass"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("name"));
@@ -491,6 +525,10 @@ public class CreateSnapshot {
       }
       if ((jsonObj.get("regionId") != null && !jsonObj.get("regionId").isJsonNull()) && !jsonObj.get("regionId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `regionId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("regionId").toString()));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("regionIds") != null && !jsonObj.get("regionIds").isJsonNull() && !jsonObj.get("regionIds").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `regionIds` to be an array in the JSON string but got `%s`", jsonObj.get("regionIds").toString()));
       }
       // validate the optional field `sandboxClass`
       if (jsonObj.get("sandboxClass") != null && !jsonObj.get("sandboxClass").isJsonNull()) {

@@ -91,6 +91,7 @@ module Daytona
     #   end
     def create(params, on_logs: nil) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       create_snapshot_req = DaytonaApiClient::CreateSnapshot.new(name: params.name)
+      apply_region_selection(create_snapshot_req, params)
 
       if params.image.is_a?(String)
         create_snapshot_req.image_name = params.image
@@ -117,7 +118,6 @@ module Daytona
         create_snapshot_req.disk = params.resources.disk
       end
 
-      create_snapshot_req.region_id = params.region_id || @default_region_id
       create_snapshot_req.sandbox_class = params.sandbox_class
 
       snapshot = snapshots_api.create_snapshot(create_snapshot_req)
@@ -184,6 +184,26 @@ module Daytona
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state
+
+    # Sets exactly one of region_id / region_ids on the request. The API rejects requests that
+    # carry both fields, so an explicit region_ids suppresses default-region injection entirely.
+    # Called before the image build context upload so a bad combination costs no I/O.
+    #
+    # @param create_snapshot_req [DaytonaApiClient::CreateSnapshot] request being built
+    # @param params [Daytona::CreateSnapshotParams] caller-supplied creation params
+    # @raise [Daytona::Sdk::Error] if both region_id and region_ids are given, or region_ids is empty
+    # @return [void]
+    def apply_region_selection(create_snapshot_req, params)
+      if params.region_ids.nil?
+        create_snapshot_req.region_id = params.region_id || default_region_id
+        return
+      end
+
+      raise Sdk::Error, 'Specify either region_id or region_ids, not both.' unless params.region_id.nil?
+      raise Sdk::Error, 'region_ids must contain at least one region id.' if params.region_ids.empty?
+
+      create_snapshot_req.region_ids = params.region_ids
+    end
 
     # Invoke an ID-based Snapshot operation, resolving the given identifier with as
     # few API calls as possible. Snapshot names may themselves be UUID-formatted, so

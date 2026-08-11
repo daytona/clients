@@ -23,8 +23,9 @@ options:
     shorthand: 'n'
     usage: Specify the Snapshot name
   - name: region
+    default_value: '[]'
     usage: |
-      ID of the region where the snapshot will be available (defaults to organization default region)
+      ID of the region where the snapshot will be available (defaults to organization default region). 'push' supports a single region
 inherited_options:
   - name: help
     default_value: 'false'

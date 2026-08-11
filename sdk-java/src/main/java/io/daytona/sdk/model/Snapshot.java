@@ -6,6 +6,8 @@ package io.daytona.sdk.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 /**
  * Snapshot metadata returned by Daytona APIs.
@@ -19,6 +21,8 @@ public class Snapshot {
     private String imageName;
     @JsonProperty("state")
     private String state;
+    @JsonProperty("regionIds")
+    private List<String> regionIds;
 
     /**
      * Returns snapshot identifier.
@@ -75,4 +79,18 @@ public class Snapshot {
      * @param state lifecycle state
      */
     public void setState(String state) { this.state = state; }
+
+    /**
+     * Returns the IDs of the regions where the snapshot is available.
+     *
+     * @return region IDs, or {@code null} when the API did not report them
+     */
+    public List<String> getRegionIds() { return regionIds; }
+
+    /**
+     * Sets the IDs of the regions where the snapshot is available.
+     *
+     * @param regionIds region IDs
+     */
+    public void setRegionIds(List<String> regionIds) { this.regionIds = regionIds; }
 }

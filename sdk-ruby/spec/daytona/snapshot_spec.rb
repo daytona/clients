@@ -14,6 +14,14 @@ RSpec.describe Daytona::CreateSnapshotParams do
     expect(params.resources).to eq(resources)
     expect(params.entrypoint).to eq(['/bin/bash'])
     expect(params.region_id).to eq('eu')
+    expect(params.region_ids).to be_nil
+  end
+
+  it 'stores region_ids for multi-region snapshots' do
+    params = described_class.new(name: 'snap', image: 'ruby:3.4', region_ids: %w[us eu])
+
+    expect(params.region_ids).to eq(%w[us eu])
+    expect(params.region_id).to be_nil
   end
 end
 
@@ -24,7 +32,8 @@ RSpec.describe Daytona::Snapshot do
       general: true,
       entrypoint: ['/bin/bash'],
       error_reason: 'none',
-      last_used_at: '2025-01-02T00:00:00Z'
+      last_used_at: '2025-01-02T00:00:00Z',
+      region_ids: %w[us eu]
     )
 
     snapshot = described_class.new(dto)
@@ -45,6 +54,7 @@ RSpec.describe Daytona::Snapshot do
     expect(snapshot.created_at).to eq('2025-01-01T00:00:00Z')
     expect(snapshot.updated_at).to eq('2025-01-01T00:00:00Z')
     expect(snapshot.last_used_at).to eq('2025-01-02T00:00:00Z')
+    expect(snapshot.region_ids).to eq(%w[us eu])
   end
 
   it 'builds a snapshot via .from_dto' do

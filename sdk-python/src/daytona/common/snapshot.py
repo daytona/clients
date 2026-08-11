@@ -47,6 +47,7 @@ class Snapshot(SyncSnapshotDto):
         mem (float | int): Memory of the Snapshot in GiB.
         disk (float | int): Disk of the Snapshot in GiB.
         error_reason (str | None): Error reason of the Snapshot.
+        region_ids (list[str] | None): IDs of the regions where the Snapshot is available.
         created_at (str): Timestamp when the Snapshot was created.
         updated_at (str): Timestamp when the Snapshot was last updated.
         last_used_at (str): Timestamp when the Snapshot was last used.
@@ -85,7 +86,15 @@ class CreateSnapshotParams(BaseModel):
         resources (Resources | None): Resources of the snapshot.
         entrypoint (list[str] | None): Entrypoint of the snapshot.
         region_id (str | None): ID of the region where the snapshot will be available.
-            Defaults to organization default region if not specified.
+            Defaults to organization default region if not specified. Mutually exclusive
+            with region_ids.
+        region_ids (list[str] | None): IDs of the regions where the snapshot will be available.
+            Mutually exclusive with region_id. When set, the client's default region (target)
+            is not applied. Duplicates are ignored and the order carries no meaning - the server
+            selects the region that performs the initial build or pull. Requesting more than one
+            region requires the multi-region snapshots feature to be enabled for the organization,
+            is not supported for GPU snapshots, and is only possible between regions that share
+            an internal registry.
         sandbox_class (SandboxClass | None): Target sandbox class. Determines which runners
             can host sandboxes created from this snapshot.
     """
@@ -95,4 +104,5 @@ class CreateSnapshotParams(BaseModel):
     resources: Resources | None = None
     entrypoint: list[str] | None = None
     region_id: str | None = None
+    region_ids: list[str] | None = None
     sandbox_class: SandboxClass | None = None

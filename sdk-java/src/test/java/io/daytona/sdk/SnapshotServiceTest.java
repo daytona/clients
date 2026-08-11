@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,6 +84,56 @@ class SnapshotServiceTest {
         assertThat(captor.getValue().getName()).isEqualTo("snapshot");
         assertThat(captor.getValue().getImageName()).isEqualTo("python:3.12");
         assertThat(captor.getValue().getBuildInfo()).isNull();
+    }
+
+    @Test
+    void createFromImageNameSendsRegionIds() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+
+        snapshotService.create("snapshot", "python:3.12", null, Arrays.asList("us", "eu"));
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionIds()).containsExactly("us", "eu");
+        assertThat(captor.getValue().getRegionId()).isNull();
+    }
+
+    @Test
+    void createFromImageNameOmitsRegionIdsWhenNullOrEmpty() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+
+        snapshotService.create("snapshot", "python:3.12", null, Collections.emptyList());
+        snapshotService.create("snapshot", "python:3.12", null, null);
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi, times(2)).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getAllValues()).allSatisfy(request -> {
+            assertThat(request.getRegionIds()).isNullOrEmpty();
+            assertThat(request.getRegionId()).isNull();
+        });
+    }
+
+    @Test
+    void createFromDeclarativeImageSendsRegionIds() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+
+        snapshotService.create("snapshot", Image.base("python:3.12"), null, null, Arrays.asList("us", "eu"), null);
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionIds()).containsExactly("us", "eu");
+        assertThat(captor.getValue().getRegionId()).isNull();
+    }
+
+    @Test
+    void createMapsRegionIdsFromResponse() {
+        SnapshotDto dto = snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE);
+        dto.setRegionIds(Arrays.asList("us", "eu"));
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(dto);
+
+        Snapshot snapshot = snapshotService.create("snapshot", "python:3.12");
+
+        assertThat(snapshot.getRegionIds()).containsExactly("us", "eu");
     }
 
     @Test

@@ -108,6 +108,8 @@ func TestMapSnapshotFromAPI(t *testing.T) {
 	apiSnapshot.SetOrganizationId("org-1")
 	apiSnapshot.SetImageName("python:3.11")
 
+	apiSnapshot.SetRegionIds([]string{"us", "eu"})
+
 	snapshot := mapSnapshotFromAPI(apiSnapshot)
 	assert.Equal(t, "snap-1", snapshot.ID)
 	assert.Equal(t, "test-snapshot", snapshot.Name)
@@ -117,6 +119,83 @@ func TestMapSnapshotFromAPI(t *testing.T) {
 	assert.Equal(t, 4, snapshot.CPU)
 	assert.Equal(t, 8, snapshot.Memory)
 	assert.Equal(t, 30, snapshot.Disk)
+	assert.Equal(t, []string{"us", "eu"}, snapshot.RegionIDs)
+}
+
+func TestMapSnapshotFromAPIWithoutRegionIds(t *testing.T) {
+	apiSnapshot := apiclient.NewSnapshotDtoWithDefaults()
+	apiSnapshot.SetId("snap-1")
+	apiSnapshot.SetName("test-snapshot")
+	apiSnapshot.SetState("active")
+
+	snapshot := mapSnapshotFromAPI(apiSnapshot)
+	assert.Nil(t, snapshot.RegionIDs)
+}
+
+// captureCreateSnapshotBody runs Snapshot.Create against a stub API and returns the decoded
+// request body, so tests can assert exactly which region fields reach the wire.
+func captureCreateSnapshotBody(t *testing.T, params *types.CreateSnapshotParams) map[string]any {
+	t.Helper()
+
+	var body map[string]any
+	payload := testSnapshotPayload("snap-1", params.Name, apiclient.SNAPSHOTSTATE_ACTIVE)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost:
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			writeJSONResponse(t, w, http.StatusOK, payload)
+		case strings.Contains(r.URL.Path, "build-logs"):
+			_, _ = w.Write([]byte("build line\n"))
+		default:
+			writeJSONResponse(t, w, http.StatusOK, payload)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	_, logChan, err := client.Snapshot.Create(context.Background(), params)
+	require.NoError(t, err)
+
+	// Drain under a deadline: the build-log goroutine is incidental here, and an unbounded
+	// receive would turn any streaming change into a hung test rather than a failed assertion.
+	if logChan != nil {
+		deadline := time.After(10 * time.Second)
+	drain:
+		for {
+			select {
+			case _, ok := <-logChan:
+				if !ok {
+					break drain
+				}
+			case <-deadline:
+				break drain
+			}
+		}
+	}
+
+	require.NotNil(t, body)
+	return body
+}
+
+func TestSnapshotCreateSendsRegionIds(t *testing.T) {
+	body := captureCreateSnapshotBody(t, &types.CreateSnapshotParams{
+		Name:      "multi-region-snap",
+		Image:     "ubuntu:22.04",
+		RegionIDs: []string{"us", "eu"},
+	})
+
+	assert.Equal(t, []any{"us", "eu"}, body["regionIds"])
+	assert.NotContains(t, body, "regionId")
+}
+
+func TestSnapshotCreateOmitsRegionIdsWhenEmpty(t *testing.T) {
+	body := captureCreateSnapshotBody(t, &types.CreateSnapshotParams{
+		Name:  "default-region-snap",
+		Image: "ubuntu:22.04",
+	})
+
+	assert.NotContains(t, body, "regionIds")
+	assert.NotContains(t, body, "regionId")
 }
 
 func TestSnapshotSuccessOperations(t *testing.T) {

@@ -11650,6 +11650,9 @@ components:
         entrypoint: sleep infinity
         name: ubuntu-4vcpu-8ram-100gb
         cpu: 1
+        regionIds:
+        - us
+        - eu
         gpu: 0
         gpuType:
         - H100
@@ -11698,8 +11701,22 @@ components:
           description: Build information for the snapshot
         regionId:
           description: ID of the region where the snapshot will be available. Defaults
-            to organization default region if not specified.
+            to organization default region if not specified. Mutually exclusive with
+            regionIds.
           type: string
+        regionIds:
+          description: "IDs of regions where the snapshot will be available. Mutually\
+            \ exclusive with regionId, and defaults to the organization default region\
+            \ if neither is specified. Duplicates are ignored and the order carries\
+            \ no meaning. Requesting more than one region requires the multi-region\
+            \ snapshots feature to be enabled, is not supported for GPU snapshots,\
+            \ and is only possible between regions that share an internal registry."
+          example:
+          - us
+          - eu
+          items:
+            type: string
+          type: array
         sandboxClass:
           allOf:
           - $ref: "#/components/schemas/SandboxClass"

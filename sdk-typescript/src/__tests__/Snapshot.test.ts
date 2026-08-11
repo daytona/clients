@@ -5,7 +5,7 @@ import type { Configuration } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
 import { SnapshotService } from '../Snapshot'
 import { Image } from '../Image'
-import { DaytonaForbiddenError, DaytonaNotFoundError } from '../errors/DaytonaError'
+import { DaytonaForbiddenError, DaytonaInvalidArgumentError, DaytonaNotFoundError } from '../errors/DaytonaError'
 
 const mockProcessStreamingResponse = jest.fn()
 const mockDynamicImport = jest.fn()
@@ -147,6 +147,72 @@ describe('SnapshotService', () => {
 
     expect(snapshot).toEqual({ id: 's2', name: 'snap2', state: 'active' })
     expect(snapshotsApi.createSnapshot).toHaveBeenCalled()
+  })
+
+  it('applies the default region when neither regionId nor regionIds is given', async () => {
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's2', name: 'snap2', state: 'active' }))
+
+    await service.create({ name: 'snap2', image: 'python:3.12' })
+
+    const [req] = snapshotsApi.createSnapshot.mock.calls[0]
+    expect(req.regionId).toBe('eu')
+    expect(req.regionIds).toBeUndefined()
+  })
+
+  it('sends only regionId when regionId is given explicitly', async () => {
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's2', name: 'snap2', state: 'active' }))
+
+    await service.create({ name: 'snap2', image: 'python:3.12', regionId: 'us' })
+
+    const [req] = snapshotsApi.createSnapshot.mock.calls[0]
+    expect(req.regionId).toBe('us')
+    expect(req.regionIds).toBeUndefined()
+  })
+
+  it('sends regionIds without the default region so the API never receives both', async () => {
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's2', name: 'snap2', state: 'active' }))
+
+    await service.create({ name: 'snap2', image: 'python:3.12', regionIds: ['us', 'eu'] })
+
+    const [req] = snapshotsApi.createSnapshot.mock.calls[0]
+    expect(req.regionIds).toEqual(['us', 'eu'])
+    expect(req.regionId).toBeUndefined()
+  })
+
+  it('sends a single-element regionIds unchanged', async () => {
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's2', name: 'snap2', state: 'active' }))
+
+    await service.create({ name: 'snap2', image: 'python:3.12', regionIds: ['us'] })
+
+    const [req] = snapshotsApi.createSnapshot.mock.calls[0]
+    expect(req.regionIds).toEqual(['us'])
+    expect(req.regionId).toBeUndefined()
+  })
+
+  it('rejects regionId and regionIds together without calling the API', async () => {
+    await expect(
+      service.create({ name: 'snap2', image: 'python:3.12', regionId: 'us', regionIds: ['eu'] }),
+    ).rejects.toThrow(new DaytonaInvalidArgumentError('Specify either regionId or regionIds, not both.'))
+    expect(snapshotsApi.createSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('rejects an empty regionIds array without calling the API', async () => {
+    await expect(service.create({ name: 'snap2', image: 'python:3.12', regionIds: [] })).rejects.toThrow(
+      new DaytonaInvalidArgumentError('regionIds must contain at least one region id.'),
+    )
+    expect(snapshotsApi.createSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid region combination before uploading the image build context', async () => {
+    const processImageContext = jest.spyOn(SnapshotService, 'processImageContext')
+
+    await expect(
+      service.create({ name: 'snap2', image: Image.base('python:3.12'), regionId: 'us', regionIds: ['eu'] }),
+    ).rejects.toThrow(DaytonaInvalidArgumentError)
+
+    expect(processImageContext).not.toHaveBeenCalled()
+    expect(objectStorageApi.getPushAccess).not.toHaveBeenCalled()
+    expect(snapshotsApi.createSnapshot).not.toHaveBeenCalled()
   })
 
   it('passes timeout values in milliseconds to snapshot creation', async () => {

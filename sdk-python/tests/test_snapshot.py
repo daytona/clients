@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from daytona.common.errors import DaytonaError
+from daytona.common.errors import DaytonaError, DaytonaValidationError
 from daytona.common.image import Image
-from daytona.common.snapshot import Snapshot
+from daytona.common.snapshot import CreateSnapshotParams, Snapshot
 
 
 class TestSyncSnapshotService:
@@ -203,6 +203,60 @@ class TestSyncSnapshotService:
 
             assert service.process_image_context(object_storage_api, image) == ["ctx-hash"]
             assert mock_storage_cls.call_args.kwargs["region"] == "us-east-2"
+
+    def _create_with(self, **kwargs):
+        service, api = self._make_service()
+        dto = self._make_snapshot_dto()
+        dto.state = "active"
+        api.create_snapshot.return_value = dto
+        service.create(CreateSnapshotParams(name="s", image="python:3.12", **kwargs), timeout=0)
+        return api.create_snapshot.call_args.args[0]
+
+    def test_create_applies_default_region_when_no_region_given(self):
+        req = self._create_with()
+        assert req.region_id == "us"
+        assert req.region_ids is None
+
+    def test_create_sends_only_region_id_when_given(self):
+        req = self._create_with(region_id="eu")
+        assert req.region_id == "eu"
+        assert req.region_ids is None
+
+    def test_create_sends_region_ids_without_default_region(self):
+        req = self._create_with(region_ids=["us", "eu"])
+        assert req.region_ids == ["us", "eu"]
+        assert req.region_id is None
+
+    def test_create_sends_single_element_region_ids(self):
+        req = self._create_with(region_ids=["eu"])
+        assert req.region_ids == ["eu"]
+        assert req.region_id is None
+
+    def test_create_rejects_region_id_and_region_ids_together(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError, match="Specify either region_id or region_ids"):
+            service.create(
+                CreateSnapshotParams(name="s", image="python:3.12", region_id="us", region_ids=["eu"]), timeout=0
+            )
+        api.create_snapshot.assert_not_called()
+
+    def test_create_rejects_empty_region_ids(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError, match="region_ids must contain at least one region id"):
+            service.create(CreateSnapshotParams(name="s", image="python:3.12", region_ids=[]), timeout=0)
+        api.create_snapshot.assert_not_called()
+
+    def test_create_rejects_invalid_region_combination_before_uploading_image_context(self):
+        from daytona._sync.snapshot import SnapshotService
+
+        service, api = self._make_service()
+        params = CreateSnapshotParams(name="s", image=Image.base("python:3.12"), region_id="us", region_ids=["eu"])
+
+        with patch.object(SnapshotService, "process_image_context") as process_image_context:
+            with pytest.raises(DaytonaValidationError, match="Specify either region_id or region_ids"):
+                service.create(params, timeout=0)
+            process_image_context.assert_not_called()
+        api.create_snapshot.assert_not_called()
 
 
 class TestAsyncSnapshotService:
@@ -405,3 +459,64 @@ class TestAsyncSnapshotService:
 
             assert await service.process_image_context(object_storage_api, image) == ["ctx-hash"]
             assert mock_storage_cls.call_args.kwargs["region"] == "us-east-2"
+
+    async def _create_with(self, **kwargs):
+        service, api = self._make_service()
+        dto = self._make_snapshot_dto()
+        dto.state = "active"
+        api.create_snapshot.return_value = dto
+        await service.create(CreateSnapshotParams(name="s", image="python:3.12", **kwargs), timeout=0)
+        return api.create_snapshot.call_args.args[0]
+
+    @pytest.mark.asyncio
+    async def test_create_applies_default_region_when_no_region_given(self):
+        req = await self._create_with()
+        assert req.region_id == "us"
+        assert req.region_ids is None
+
+    @pytest.mark.asyncio
+    async def test_create_sends_only_region_id_when_given(self):
+        req = await self._create_with(region_id="eu")
+        assert req.region_id == "eu"
+        assert req.region_ids is None
+
+    @pytest.mark.asyncio
+    async def test_create_sends_region_ids_without_default_region(self):
+        req = await self._create_with(region_ids=["us", "eu"])
+        assert req.region_ids == ["us", "eu"]
+        assert req.region_id is None
+
+    @pytest.mark.asyncio
+    async def test_create_sends_single_element_region_ids(self):
+        req = await self._create_with(region_ids=["eu"])
+        assert req.region_ids == ["eu"]
+        assert req.region_id is None
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_region_id_and_region_ids_together(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError, match="Specify either region_id or region_ids"):
+            await service.create(
+                CreateSnapshotParams(name="s", image="python:3.12", region_id="us", region_ids=["eu"]), timeout=0
+            )
+        api.create_snapshot.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_empty_region_ids(self):
+        service, api = self._make_service()
+        with pytest.raises(DaytonaValidationError, match="region_ids must contain at least one region id"):
+            await service.create(CreateSnapshotParams(name="s", image="python:3.12", region_ids=[]), timeout=0)
+        api.create_snapshot.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_invalid_region_combination_before_uploading_image_context(self):
+        from daytona._async.snapshot import AsyncSnapshotService
+
+        service, api = self._make_service()
+        params = CreateSnapshotParams(name="s", image=Image.base("python:3.12"), region_id="us", region_ids=["eu"])
+
+        with patch.object(AsyncSnapshotService, "process_image_context") as process_image_context:
+            with pytest.raises(DaytonaValidationError, match="Specify either region_id or region_ids"):
+                await service.create(params, timeout=0)
+            process_image_context.assert_not_called()
+        api.create_snapshot.assert_not_called()

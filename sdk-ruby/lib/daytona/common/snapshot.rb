@@ -20,8 +20,18 @@ module Daytona
     attr_reader :entrypoint
 
     # @return [String, nil] ID of the region where the snapshot will be available.
-    #   Defaults to organization default region if not specified.
+    #   Defaults to organization default region if not specified. Mutually exclusive
+    #   with region_ids.
     attr_reader :region_id
+
+    # @return [Array<String>, nil] IDs of the regions where the snapshot will be available.
+    #   Mutually exclusive with region_id. When set, the client's default region (target) is
+    #   not applied. Duplicates are ignored and the order carries no meaning - the server
+    #   selects the region that performs the initial build or pull. Requesting more than one
+    #   region requires the multi-region snapshots feature to be enabled for the organization,
+    #   is not supported for GPU snapshots, and is only possible between regions that share
+    #   an internal registry.
+    attr_reader :region_ids
 
     # @return [DaytonaApiClient::SandboxClass, nil] Target sandbox class.
     attr_reader :sandbox_class
@@ -31,13 +41,16 @@ module Daytona
     # @param resources [Daytona::Resources, nil] Resources of the snapshot
     # @param entrypoint [Array<String>, nil] Entrypoint of the snapshot
     # @param region_id [String, nil] ID of the region where the snapshot will be available
+    # @param region_ids [Array<String>, nil] IDs of the regions where the snapshot will be available
     # @param sandbox_class [DaytonaApiClient::SandboxClass, nil] Target sandbox class
-    def initialize(name:, image:, resources: nil, entrypoint: nil, region_id: nil, sandbox_class: nil)
+    def initialize(name:, image:, resources: nil, entrypoint: nil, region_id: nil, region_ids: nil,
+                   sandbox_class: nil)
       @name = name
       @image = image
       @resources = resources
       @entrypoint = entrypoint
       @region_id = region_id
+      @region_ids = region_ids
       @sandbox_class = sandbox_class
     end
   end
@@ -105,6 +118,9 @@ module Daytona
     # @return [String, nil] ID of the sandbox the Snapshot was created from
     attr_reader :source_sandbox_id
 
+    # @return [Array<String>, nil] IDs of the regions where the Snapshot is available
+    attr_reader :region_ids
+
     # @param snapshot_dto [DaytonaApiClient::SnapshotDto] The snapshot DTO from the API
     def initialize(snapshot_dto) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       @id = snapshot_dto.id
@@ -125,6 +141,7 @@ module Daytona
       @last_used_at = snapshot_dto.last_used_at
       @build_info = snapshot_dto.build_info
       @source_sandbox_id = snapshot_dto.source_sandbox_id
+      @region_ids = snapshot_dto.region_ids
     end
 
     # Creates a Snapshot instance from a SnapshotDto

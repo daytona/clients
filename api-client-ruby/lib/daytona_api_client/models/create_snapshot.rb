@@ -42,8 +42,11 @@ module DaytonaApiClient
     # Build information for the snapshot
     attr_accessor :build_info
 
-    # ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+    # ID of the region where the snapshot will be available. Defaults to organization default region if not specified. Mutually exclusive with regionIds.
     attr_accessor :region_id
+
+    # IDs of regions where the snapshot will be available. Mutually exclusive with regionId, and defaults to the organization default region if neither is specified. Duplicates are ignored and the order carries no meaning. Requesting more than one region requires the multi-region snapshots feature to be enabled, is not supported for GPU snapshots, and is only possible between regions that share an internal registry.
+    attr_accessor :region_ids
 
     # Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
     attr_accessor :sandbox_class
@@ -83,6 +86,7 @@ module DaytonaApiClient
         :'disk' => :'disk',
         :'build_info' => :'buildInfo',
         :'region_id' => :'regionId',
+        :'region_ids' => :'regionIds',
         :'sandbox_class' => :'sandboxClass'
       }
     end
@@ -110,6 +114,7 @@ module DaytonaApiClient
         :'disk' => :'Integer',
         :'build_info' => :'CreateBuildInfo',
         :'region_id' => :'String',
+        :'region_ids' => :'Array<String>',
         :'sandbox_class' => :'SandboxClass'
       }
     end
@@ -182,6 +187,12 @@ module DaytonaApiClient
         self.region_id = attributes[:'region_id']
       end
 
+      if attributes.key?(:'region_ids')
+        if (value = attributes[:'region_ids']).is_a?(Array)
+          self.region_ids = value
+        end
+      end
+
       if attributes.key?(:'sandbox_class')
         self.sandbox_class = attributes[:'sandbox_class']
       end
@@ -232,6 +243,7 @@ module DaytonaApiClient
           disk == o.disk &&
           build_info == o.build_info &&
           region_id == o.region_id &&
+          region_ids == o.region_ids &&
           sandbox_class == o.sandbox_class
     end
 
@@ -244,7 +256,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, image_name, entrypoint, cpu, gpu, gpu_type, memory, disk, build_info, region_id, sandbox_class].hash
+      [name, image_name, entrypoint, cpu, gpu, gpu_type, memory, disk, build_info, region_id, region_ids, sandbox_class].hash
     end
 
     # Builds the object from hash

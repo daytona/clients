@@ -5,7 +5,7 @@
 
 import { ObjectStorageApi, SnapshotsApi, SnapshotState, SandboxClass, Configuration } from '@daytona/api-client'
 import type { SnapshotDto, CreateSnapshot, PaginatedSnapshots as PaginatedSnapshotsDto } from '@daytona/api-client'
-import { DaytonaError, DaytonaNotFoundError } from './errors/DaytonaError'
+import { DaytonaError, DaytonaInvalidArgumentError, DaytonaNotFoundError } from './errors/DaytonaError'
 import { Image } from './Image'
 import type { Resources } from './Daytona'
 import { processStreamingResponse } from './utils/Stream'
@@ -55,6 +55,12 @@ export interface PaginatedSnapshots extends Omit<PaginatedSnapshotsDto, 'items'>
  * @property {Resources} resources - Resources of the snapshot.
  * @property {string[]} entrypoint - Entrypoint of the snapshot.
  * @property {string} regionId - ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+ * Mutually exclusive with `regionIds`.
+ * @property {string[]} regionIds - IDs of the regions where the snapshot will be available. Mutually exclusive with `regionId`.
+ * When set, the client's default region (`target`) is not applied. Duplicates are ignored and the order carries no meaning —
+ * the server selects the region that performs the initial build or pull. Requesting more than one region requires the
+ * multi-region snapshots feature to be enabled for the organization, is not supported for GPU snapshots, and is only
+ * possible between regions that share an internal registry.
  * @property {SandboxClass} sandboxClass - Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
  */
 export type CreateSnapshotParams = {
@@ -63,6 +69,7 @@ export type CreateSnapshotParams = {
   resources?: Resources
   entrypoint?: string[]
   regionId?: string
+  regionIds?: string[]
   sandboxClass?: SandboxClass
 }
 
@@ -201,6 +208,20 @@ export class SnapshotService {
       name: params.name,
     }
 
+    // Must stay above the build context upload so a bad region combination costs no I/O. The API
+    // rejects requests carrying both fields, so `regionIds` suppresses the default region entirely.
+    if (params.regionIds !== undefined) {
+      if (params.regionId !== undefined) {
+        throw new DaytonaInvalidArgumentError('Specify either regionId or regionIds, not both.')
+      }
+      if (params.regionIds.length === 0) {
+        throw new DaytonaInvalidArgumentError('regionIds must contain at least one region id.')
+      }
+      createSnapshotReq.regionIds = params.regionIds
+    } else {
+      createSnapshotReq.regionId = params.regionId || this.defaultRegionId
+    }
+
     if (typeof params.image === 'string') {
       createSnapshotReq.imageName = params.image
       createSnapshotReq.entrypoint = params.entrypoint
@@ -226,7 +247,6 @@ export class SnapshotService {
       createSnapshotReq.disk = params.resources.disk
     }
 
-    createSnapshotReq.regionId = params.regionId || this.defaultRegionId
     createSnapshotReq.sandboxClass = params.sandboxClass
 
     let createdSnapshot = (

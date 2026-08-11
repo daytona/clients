@@ -385,6 +385,17 @@ class TestSnapshotAndVolumeTypes:
         assert params.resources is not None
         assert params.resources.cpu == 2
         assert params.entrypoint == ["/bin/bash"]
+        assert params.region_id is None
+        assert params.region_ids is None
+
+    def test_create_snapshot_params_region_ids(self):
+        params = CreateSnapshotParams(
+            name="my-snapshot",
+            image="python:3.12",
+            region_ids=["us", "eu"],
+        )
+        assert params.region_ids == ["us", "eu"]
+        assert params.region_id is None
 
 
 class TestCharts:

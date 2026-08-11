@@ -123,6 +123,14 @@ public class CreateSnapshotTest {
     }
 
     /**
+     * Test the property 'regionIds'
+     */
+    @Test
+    public void regionIdsTest() {
+        // TODO: test regionIds
+    }
+
+    /**
      * Test the property 'sandboxClass'
      */
     @Test

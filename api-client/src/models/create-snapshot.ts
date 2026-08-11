@@ -61,9 +61,13 @@ export interface CreateSnapshot {
      */
     'buildInfo'?: CreateBuildInfo;
     /**
-     * ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+     * ID of the region where the snapshot will be available. Defaults to organization default region if not specified. Mutually exclusive with regionIds.
      */
     'regionId'?: string;
+    /**
+     * IDs of regions where the snapshot will be available. Mutually exclusive with regionId, and defaults to the organization default region if neither is specified. Duplicates are ignored and the order carries no meaning. Requesting more than one region requires the multi-region snapshots feature to be enabled, is not supported for GPU snapshots, and is only possible between regions that share an internal registry.
+     */
+    'regionIds'?: Array<string>;
     /**
      * Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
      */

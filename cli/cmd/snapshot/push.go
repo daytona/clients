@@ -34,6 +34,13 @@ var PushCmd = &cobra.Command{
 		ctx := context.Background()
 		sourceImage := args[0]
 
+		// Push uploads to one region's transient registry, but the server independently chooses which
+		// region performs the initial pull, so a multi-region push cannot guarantee the two agree.
+		regionIds := selectedRegionIds()
+		if len(regionIds) > 1 {
+			return fmt.Errorf("'daytona snapshot push' supports a single --region; push to one region, or use 'daytona snapshot create --image' with multiple --region flags")
+		}
+
 		err := common.ValidateImageName(sourceImage)
 		if err != nil {
 			return err
@@ -70,8 +77,8 @@ var PushCmd = &cobra.Command{
 		}
 
 		pushAccessRequest := apiClient.DockerRegistryAPI.GetTransientPushAccess(ctx)
-		if regionIdFlag != "" {
-			pushAccessRequest = pushAccessRequest.RegionId(regionIdFlag)
+		if len(regionIds) == 1 {
+			pushAccessRequest = pushAccessRequest.RegionId(regionIds[0])
 		}
 		tokenResponse, res, err := pushAccessRequest.Execute()
 		if err != nil {
@@ -144,8 +151,8 @@ var PushCmd = &cobra.Command{
 		if diskFlag != 0 {
 			createSnapshot.SetDisk(diskFlag)
 		}
-		if regionIdFlag != "" {
-			createSnapshot.SetRegionId(regionIdFlag)
+		if len(regionIds) == 1 {
+			createSnapshot.SetRegionId(regionIds[0])
 		}
 
 		_, res, err = apiClient.SnapshotsAPI.CreateSnapshot(ctx).CreateSnapshot(*createSnapshot).Execute()
@@ -177,7 +184,7 @@ func init() {
 	PushCmd.Flags().Int32Var(&cpuFlag, "cpu", 0, "CPU cores that will be allocated to the underlying sandboxes (default: 1)")
 	PushCmd.Flags().Int32Var(&memoryFlag, "memory", 0, "Memory that will be allocated to the underlying sandboxes in GB (default: 1)")
 	PushCmd.Flags().Int32Var(&diskFlag, "disk", 0, "Disk space that will be allocated to the underlying sandboxes in GB (default: 3)")
-	PushCmd.Flags().StringVar(&regionIdFlag, "region", "", "ID of the region where the snapshot will be available (defaults to organization default region)")
+	PushCmd.Flags().StringArrayVar(&regionIdsFlag, "region", nil, "ID of the region where the snapshot will be available (defaults to organization default region). 'push' supports a single region")
 
 	_ = PushCmd.MarkFlagRequired("name")
 }

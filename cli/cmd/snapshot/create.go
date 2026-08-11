@@ -51,8 +51,13 @@ var CreateCmd = &cobra.Command{
 		if diskFlag != 0 {
 			createSnapshot.SetDisk(diskFlag)
 		}
-		if regionIdFlag != "" {
-			createSnapshot.SetRegionId(regionIdFlag)
+		// A single --region keeps sending regionId so the request stays identical to earlier releases;
+		// only genuine multi-region requests use the newer regionIds field.
+		regionIds := selectedRegionIds()
+		if len(regionIds) == 1 {
+			createSnapshot.SetRegionId(regionIds[0])
+		} else if len(regionIds) > 1 {
+			createSnapshot.SetRegionIds(regionIds)
 		}
 		if sandboxClassFlag != "" {
 			var sc apiclient.SandboxClass
@@ -155,9 +160,21 @@ var (
 	cpuFlag            int32
 	memoryFlag         int32
 	diskFlag           int32
-	regionIdFlag       string
+	regionIdsFlag      []string
 	sandboxClassFlag   string
 )
+
+// selectedRegionIds drops blank --region values, so `--region ""` stays ignored exactly as it was
+// before the flag became repeatable.
+func selectedRegionIds() []string {
+	selected := make([]string, 0, len(regionIdsFlag))
+	for _, regionId := range regionIdsFlag {
+		if regionId != "" {
+			selected = append(selected, regionId)
+		}
+	}
+	return selected
+}
 
 func init() {
 	CreateCmd.Flags().StringVarP(&entrypointFlag, "entrypoint", "e", "", "The entrypoint command for the snapshot")
@@ -167,7 +184,7 @@ func init() {
 	CreateCmd.Flags().Int32Var(&cpuFlag, "cpu", 0, "CPU cores that will be allocated to the underlying sandboxes (default: 1)")
 	CreateCmd.Flags().Int32Var(&memoryFlag, "memory", 0, "Memory that will be allocated to the underlying sandboxes in GB (default: 1)")
 	CreateCmd.Flags().Int32Var(&diskFlag, "disk", 0, "Disk space that will be allocated to the underlying sandboxes in GB (default: 3)")
-	CreateCmd.Flags().StringVar(&regionIdFlag, "region", "", "ID of the region where the snapshot will be available (defaults to organization default region)")
+	CreateCmd.Flags().StringArrayVar(&regionIdsFlag, "region", nil, "ID of a region where the snapshot will be available (repeatable; defaults to organization default region). Specifying more than one region requires the multi-region snapshots feature to be enabled")
 	CreateCmd.Flags().StringVar(&sandboxClassFlag, "sandbox-class", "", "Target sandbox class for the snapshot. One of: 'container', 'linux-vm' or 'android' (defaults to organization/server default)")
 
 	CreateCmd.MarkFlagsMutuallyExclusive("image", "dockerfile")

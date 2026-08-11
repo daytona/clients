@@ -29,8 +29,12 @@ options:
     usage: |
       Memory that will be allocated to the underlying sandboxes in GB (default: 1)
   - name: region
+    default_value: '[]'
     usage: |
-      ID of the region where the snapshot will be available (defaults to organization default region)
+      ID of a region where the snapshot will be available (repeatable; defaults to organization default region). Specifying more than one region requires the multi-region snapshots feature to be enabled
+  - name: sandbox-class
+    usage: |
+      Target sandbox class for the snapshot. One of: 'container', 'linux-vm' or 'android' (defaults to organization/server default)
 inherited_options:
   - name: help
     default_value: 'false'

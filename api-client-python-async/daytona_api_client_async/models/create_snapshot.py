@@ -42,10 +42,11 @@ class CreateSnapshot(BaseModel):
     memory: Optional[StrictInt] = Field(default=None, description="Memory allocated to the resulting sandbox in GB")
     disk: Optional[StrictInt] = Field(default=None, description="Disk space allocated to the sandbox in GB")
     build_info: Optional[CreateBuildInfo] = Field(default=None, description="Build information for the snapshot", serialization_alias="buildInfo")
-    region_id: Optional[StrictStr] = Field(default=None, description="ID of the region where the snapshot will be available. Defaults to organization default region if not specified.", serialization_alias="regionId")
+    region_id: Optional[StrictStr] = Field(default=None, description="ID of the region where the snapshot will be available. Defaults to organization default region if not specified. Mutually exclusive with regionIds.", serialization_alias="regionId")
+    region_ids: Optional[List[StrictStr]] = Field(default=None, description="IDs of regions where the snapshot will be available. Mutually exclusive with regionId, and defaults to the organization default region if neither is specified. Duplicates are ignored and the order carries no meaning. Requesting more than one region requires the multi-region snapshots feature to be enabled, is not supported for GPU snapshots, and is only possible between regions that share an internal registry.", serialization_alias="regionIds")
     sandbox_class: Optional[SandboxClass] = Field(default=None, description="Target sandbox class. Determines which runners can host sandboxes created from this snapshot.", serialization_alias="sandboxClass")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "imageName", "entrypoint", "cpu", "gpu", "gpuType", "memory", "disk", "buildInfo", "regionId", "sandboxClass"]
+    __properties: ClassVar[List[str]] = ["name", "imageName", "entrypoint", "cpu", "gpu", "gpuType", "memory", "disk", "buildInfo", "regionId", "regionIds", "sandboxClass"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -117,6 +118,7 @@ class CreateSnapshot(BaseModel):
             "disk": obj.get("disk"),
             "build_info": CreateBuildInfo.from_dict(obj["buildInfo"]) if obj.get("buildInfo") is not None else None,
             "region_id": obj.get("regionId"),
+            "region_ids": obj.get("regionIds"),
             "sandbox_class": obj.get("sandboxClass")
         })
         # store additional fields in additional_properties

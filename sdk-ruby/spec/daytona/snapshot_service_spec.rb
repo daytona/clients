@@ -183,6 +183,68 @@ RSpec.describe Daytona::SnapshotService do
       end
     end
 
+    it 'sends region_ids without the default region so the API never receives both' do
+      created_dto = build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE)
+      allow(snapshots_api).to receive(:create_snapshot).and_return(created_dto)
+
+      params = Daytona::CreateSnapshotParams.new(name: 'my-snap', image: 'ubuntu:22.04', region_ids: %w[us eu])
+      service.create(params)
+
+      expect(snapshots_api).to have_received(:create_snapshot) do |request|
+        expect(request.region_ids).to eq(%w[us eu])
+        expect(request.region_id).to be_nil
+      end
+    end
+
+    it 'sends a single-element region_ids unchanged' do
+      created_dto = build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE)
+      allow(snapshots_api).to receive(:create_snapshot).and_return(created_dto)
+
+      params = Daytona::CreateSnapshotParams.new(name: 'my-snap', image: 'ubuntu:22.04', region_ids: ['eu'])
+      service.create(params)
+
+      expect(snapshots_api).to have_received(:create_snapshot) do |request|
+        expect(request.region_ids).to eq(['eu'])
+        expect(request.region_id).to be_nil
+      end
+    end
+
+    it 'rejects region_id and region_ids together without calling the API' do
+      allow(snapshots_api).to receive(:create_snapshot)
+
+      params = Daytona::CreateSnapshotParams.new(
+        name: 'my-snap', image: 'ubuntu:22.04', region_id: 'us', region_ids: ['eu']
+      )
+
+      expect { service.create(params) }
+        .to raise_error(Daytona::Sdk::Error, /Specify either region_id or region_ids/)
+      expect(snapshots_api).not_to have_received(:create_snapshot)
+    end
+
+    it 'rejects an empty region_ids array without calling the API' do
+      allow(snapshots_api).to receive(:create_snapshot)
+
+      params = Daytona::CreateSnapshotParams.new(name: 'my-snap', image: 'ubuntu:22.04', region_ids: [])
+
+      expect { service.create(params) }
+        .to raise_error(Daytona::Sdk::Error, /region_ids must contain at least one region id/)
+      expect(snapshots_api).not_to have_received(:create_snapshot)
+    end
+
+    it 'rejects an invalid region combination before uploading the image build context' do
+      allow(described_class).to receive(:process_image_context).and_return(['ctx-hash'])
+      allow(snapshots_api).to receive(:create_snapshot)
+
+      params = Daytona::CreateSnapshotParams.new(
+        name: 'my-snap', image: Daytona::Image.base('python:3.12'), region_id: 'us', region_ids: ['eu']
+      )
+
+      expect { service.create(params) }
+        .to raise_error(Daytona::Sdk::Error, /Specify either region_id or region_ids/)
+      expect(described_class).not_to have_received(:process_image_context)
+      expect(snapshots_api).not_to have_received(:create_snapshot)
+    end
+
     it 'creates a snapshot from an Image object with resources and image context' do
       image = Daytona::Image.base('python:3.12').entrypoint(['/bin/bash'])
       created_dto = build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE)

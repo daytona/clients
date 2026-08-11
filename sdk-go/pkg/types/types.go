@@ -149,6 +149,12 @@ type CreateSnapshotParams struct {
 	Entrypoint     []string
 	SkipValidation *bool
 	SandboxClass   *SandboxClass
+	// RegionIDs are the IDs of the regions where the snapshot will be available. When empty, the
+	// organization default region is used. Duplicates are ignored and the order carries no meaning —
+	// the server selects the region that performs the initial build or pull. Requesting more than one
+	// region requires the multi-region snapshots feature to be enabled for the organization, is not
+	// supported for GPU snapshots, and is only possible between regions that share an internal registry.
+	RegionIDs []string
 }
 
 // PaginatedSnapshots represents a paginated list of snapshots
@@ -262,6 +268,8 @@ type Snapshot struct {
 	// ID of the sandbox the snapshot was created from; nil for snapshots not
 	// created from a sandbox (e.g. registry-pulled or declaratively built)
 	SourceSandboxID *string `json:"sourceSandboxId,omitempty"`
+	// IDs of the regions where the snapshot is available
+	RegionIDs []string `json:"regionIds,omitempty"`
 }
 
 // FileInfo represents file metadata
