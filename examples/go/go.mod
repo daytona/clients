@@ -23,8 +23,8 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/daytona/clients/analytics-api-client-go v0.0.0-20260722121532-3d2223c79fe5 // indirect
-	github.com/daytona/clients/api-client-go v0.203.0 // indirect
-	github.com/daytona/clients/toolbox-api-client-go v0.203.0 // indirect
+	github.com/daytona/clients/api-client-go v0.204.0 // indirect
+	github.com/daytona/clients/toolbox-api-client-go v0.204.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
