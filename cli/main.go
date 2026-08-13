@@ -16,7 +16,6 @@ import (
 	"github.com/daytona/clients/cli/cmd/snapshot"
 	"github.com/daytona/clients/cli/cmd/volume"
 	"github.com/daytona/clients/cli/internal"
-	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -93,8 +92,6 @@ func createSandboxShortcut(original *cobra.Command) *cobra.Command {
 }
 
 func main() {
-	_ = godotenv.Load()
-
 	err := rootCmd.Execute()
 	if err != nil {
 		log.Fatal(err)
