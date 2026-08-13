@@ -86,7 +86,7 @@ export { Image } from './Image'
 export { Sandbox } from './Sandbox'
 export type { ListSandboxesQuery, SandboxMetrics } from './Sandbox'
 export type { Secret, CreateSecretParams, UpdateSecretParams, ListSecretsQuery, ListSecretsResponse } from './Secret'
-export type { CreateSnapshotParams, ListSnapshotsQuery } from './Snapshot'
+export type { CreateSnapshotParams, ListSnapshotsQuery, PaginatedSnapshots, Snapshot } from './Snapshot'
 export type { WarmPool } from './WarmPool'
 export { ComputerUse, Mouse, Keyboard, Screenshot, Display, Accessibility } from './ComputerUse'
 export type {
@@ -111,6 +111,7 @@ export type { ExecutionError, ExecutionResult, OutputMessage, RunCodeOptions } f
 export {
   GpuType,
   SandboxState,
+  SnapshotState,
   SandboxListSortField,
   SandboxListSortDirection,
   SandboxClass,
