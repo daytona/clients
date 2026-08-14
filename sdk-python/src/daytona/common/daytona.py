@@ -174,6 +174,9 @@ class CreateSandboxBaseParams(BaseModel):
             combine with domain_allow_list for unbypassable network-layer enforcement.
         ephemeral (bool | None): Whether the Sandbox should be ephemeral.
             If True, auto_delete_interval will be set to 0.
+        spot (bool | None): GPU-only. When True, the Sandbox may be instantly terminated without notice
+            to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox
+            requests no GPUs.
         linked_sandbox (str | None): ID or name of an existing Sandbox to link the new Sandbox to. The new
             Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
             established between them. Linked Sandboxes must be
@@ -198,6 +201,7 @@ class CreateSandboxBaseParams(BaseModel):
     domain_allow_list: str | None = None
     outbound_proxy_url: str | None = None
     ephemeral: bool | None = None
+    spot: bool | None = None
     linked_sandbox: str | None = None
 
     @model_validator(mode="before")

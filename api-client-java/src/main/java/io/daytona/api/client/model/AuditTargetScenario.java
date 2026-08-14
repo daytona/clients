@@ -268,6 +268,8 @@ public class AuditTargetScenario {
     
     TTL_EXPIRE("ttl_expire"),
     
+    SPOT_EVICT("spot_evict"),
+    
     UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
 
     private String value;

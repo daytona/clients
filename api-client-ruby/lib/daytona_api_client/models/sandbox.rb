@@ -60,6 +60,12 @@ module DaytonaApiClient
     # The GPU quota for the sandbox
     attr_accessor :gpu
 
+    # Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+    attr_accessor :spot
+
+    # When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
+    attr_accessor :spot_evicted_at
+
     # The GPU type assigned to the sandbox
     attr_accessor :gpu_type
 
@@ -175,6 +181,8 @@ module DaytonaApiClient
         :'target' => :'target',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
+        :'spot' => :'spot',
+        :'spot_evicted_at' => :'spotEvictedAt',
         :'gpu_type' => :'gpuType',
         :'memory' => :'memory',
         :'disk' => :'disk',
@@ -231,6 +239,8 @@ module DaytonaApiClient
         :'target' => :'String',
         :'cpu' => :'Float',
         :'gpu' => :'Float',
+        :'spot' => :'Boolean',
+        :'spot_evicted_at' => :'String',
         :'gpu_type' => :'GpuType',
         :'memory' => :'Float',
         :'disk' => :'Float',
@@ -365,6 +375,16 @@ module DaytonaApiClient
         self.gpu = attributes[:'gpu']
       else
         self.gpu = nil
+      end
+
+      if attributes.key?(:'spot')
+        self.spot = attributes[:'spot']
+      else
+        self.spot = false
+      end
+
+      if attributes.key?(:'spot_evicted_at')
+        self.spot_evicted_at = attributes[:'spot_evicted_at']
       end
 
       if attributes.key?(:'gpu_type')
@@ -745,6 +765,8 @@ module DaytonaApiClient
           target == o.target &&
           cpu == o.cpu &&
           gpu == o.gpu &&
+          spot == o.spot &&
+          spot_evicted_at == o.spot_evicted_at &&
           gpu_type == o.gpu_type &&
           memory == o.memory &&
           disk == o.disk &&
@@ -781,7 +803,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, spot, spot_evicted_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

@@ -48,6 +48,8 @@ type CreateSandbox struct {
 	Gpu *int32 `json:"gpu,omitempty"`
 	// Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.
 	GpuType []GpuType `json:"gpuType,omitempty"`
+	// GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
+	Spot *bool `json:"spot,omitempty"`
 	// Memory allocated to the sandbox in GB
 	Memory *int32 `json:"memory,omitempty"`
 	// Disk space allocated to the sandbox in GB
@@ -81,6 +83,8 @@ type _CreateSandbox CreateSandbox
 // will change when the set of required properties is changed
 func NewCreateSandbox() *CreateSandbox {
 	this := CreateSandbox{}
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -89,6 +93,8 @@ func NewCreateSandbox() *CreateSandbox {
 // but it doesn't guarantee that properties required by API are set
 func NewCreateSandboxWithDefaults() *CreateSandbox {
 	this := CreateSandbox{}
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -540,6 +546,38 @@ func (o *CreateSandbox) SetGpuType(v []GpuType) {
 	o.GpuType = v
 }
 
+// GetSpot returns the Spot field value if set, zero value otherwise.
+func (o *CreateSandbox) GetSpot() bool {
+	if o == nil || IsNil(o.Spot) {
+		var ret bool
+		return ret
+	}
+	return *o.Spot
+}
+
+// GetSpotOk returns a tuple with the Spot field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetSpotOk() (*bool, bool) {
+	if o == nil || IsNil(o.Spot) {
+		return nil, false
+	}
+	return o.Spot, true
+}
+
+// HasSpot returns a boolean if a field has been set.
+func (o *CreateSandbox) HasSpot() bool {
+	if o != nil && !IsNil(o.Spot) {
+		return true
+	}
+
+	return false
+}
+
+// SetSpot gets a reference to the given bool and assigns it to the Spot field.
+func (o *CreateSandbox) SetSpot(v bool) {
+	o.Spot = &v
+}
+
 // GetMemory returns the Memory field value if set, zero value otherwise.
 func (o *CreateSandbox) GetMemory() int32 {
 	if o == nil || IsNil(o.Memory) {
@@ -944,6 +982,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.GpuType) {
 		toSerialize["gpuType"] = o.GpuType
 	}
+	if !IsNil(o.Spot) {
+		toSerialize["spot"] = o.Spot
+	}
 	if !IsNil(o.Memory) {
 		toSerialize["memory"] = o.Memory
 	}
@@ -1013,6 +1054,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")
 		delete(additionalProperties, "gpuType")
+		delete(additionalProperties, "spot")
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")
 		delete(additionalProperties, "autoStopInterval")

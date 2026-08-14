@@ -690,7 +690,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * 
+         * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
          * @summary Get sandbox details
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -2811,7 +2811,7 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
+         * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
          * @summary Get sandbox details
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3527,7 +3527,7 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.getRegionQuotaBySandboxId(sandboxId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
+         * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
          * @summary Get sandbox details
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -4152,7 +4152,7 @@ export class SandboxApi extends BaseAPI {
     }
 
     /**
-     * 
+     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
      * @summary Get sandbox details
      * @param {string} sandboxIdOrName ID or name of the sandbox
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID

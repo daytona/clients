@@ -57,6 +57,10 @@ type SandboxListItem struct {
 	Cpu float32 `json:"cpu"`
 	// The GPU quota for the sandbox
 	Gpu float32 `json:"gpu"`
+	// Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+	Spot *bool `json:"spot,omitempty"`
+	// When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.
+	SpotEvictedAt *string `json:"spotEvictedAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
 	// The memory quota for the sandbox
@@ -109,6 +113,8 @@ func NewSandboxListItem(id string, organizationId string, name string, target st
 	this.NetworkBlockAll = networkBlockAll
 	this.Cpu = cpu
 	this.Gpu = gpu
+	var spot bool = false
+	this.Spot = &spot
 	this.Memory = memory
 	this.Disk = disk
 	this.Labels = labels
@@ -121,6 +127,8 @@ func NewSandboxListItem(id string, organizationId string, name string, target st
 // but it doesn't guarantee that properties required by API are set
 func NewSandboxListItemWithDefaults() *SandboxListItem {
 	this := SandboxListItem{}
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -626,6 +634,70 @@ func (o *SandboxListItem) GetGpuOk() (*float32, bool) {
 // SetGpu sets field value
 func (o *SandboxListItem) SetGpu(v float32) {
 	o.Gpu = v
+}
+
+// GetSpot returns the Spot field value if set, zero value otherwise.
+func (o *SandboxListItem) GetSpot() bool {
+	if o == nil || IsNil(o.Spot) {
+		var ret bool
+		return ret
+	}
+	return *o.Spot
+}
+
+// GetSpotOk returns a tuple with the Spot field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetSpotOk() (*bool, bool) {
+	if o == nil || IsNil(o.Spot) {
+		return nil, false
+	}
+	return o.Spot, true
+}
+
+// HasSpot returns a boolean if a field has been set.
+func (o *SandboxListItem) HasSpot() bool {
+	if o != nil && !IsNil(o.Spot) {
+		return true
+	}
+
+	return false
+}
+
+// SetSpot gets a reference to the given bool and assigns it to the Spot field.
+func (o *SandboxListItem) SetSpot(v bool) {
+	o.Spot = &v
+}
+
+// GetSpotEvictedAt returns the SpotEvictedAt field value if set, zero value otherwise.
+func (o *SandboxListItem) GetSpotEvictedAt() string {
+	if o == nil || IsNil(o.SpotEvictedAt) {
+		var ret string
+		return ret
+	}
+	return *o.SpotEvictedAt
+}
+
+// GetSpotEvictedAtOk returns a tuple with the SpotEvictedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetSpotEvictedAtOk() (*string, bool) {
+	if o == nil || IsNil(o.SpotEvictedAt) {
+		return nil, false
+	}
+	return o.SpotEvictedAt, true
+}
+
+// HasSpotEvictedAt returns a boolean if a field has been set.
+func (o *SandboxListItem) HasSpotEvictedAt() bool {
+	if o != nil && !IsNil(o.SpotEvictedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetSpotEvictedAt gets a reference to the given string and assigns it to the SpotEvictedAt field.
+func (o *SandboxListItem) SetSpotEvictedAt(v string) {
+	o.SpotEvictedAt = &v
 }
 
 // GetGpuType returns the GpuType field value if set, zero value otherwise.
@@ -1154,6 +1226,12 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["cpu"] = o.Cpu
 	toSerialize["gpu"] = o.Gpu
+	if !IsNil(o.Spot) {
+		toSerialize["spot"] = o.Spot
+	}
+	if !IsNil(o.SpotEvictedAt) {
+		toSerialize["spotEvictedAt"] = o.SpotEvictedAt
+	}
 	if !IsNil(o.GpuType) {
 		toSerialize["gpuType"] = o.GpuType
 	}
@@ -1267,6 +1345,8 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")
+		delete(additionalProperties, "spot")
+		delete(additionalProperties, "spotEvictedAt")
 		delete(additionalProperties, "gpuType")
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")

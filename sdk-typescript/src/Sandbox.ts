@@ -87,6 +87,9 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {string} target - Target location of the runner where the Sandbox runs
  * @property {number} cpu - Number of CPUs allocated to the Sandbox
  * @property {number} gpu - Number of GPUs allocated to the Sandbox
+ * @property {boolean} [spot] - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated to free
+ * capacity for on-demand GPU Sandboxes
+ * @property {string} [spotEvictedAt] - When the Sandbox was evicted by spot preemption
  * @property {number} memory - Amount of memory allocated to the Sandbox in GiB
  * @property {number} disk - Amount of disk space allocated to the Sandbox in GiB
  * @property {SandboxState} state - Current state of the Sandbox (e.g., "started", "stopped")
@@ -138,6 +141,8 @@ export class Sandbox {
   public target!: string
   public cpu!: number
   public gpu!: number
+  public spot?: boolean
+  public spotEvictedAt?: string
   public memory!: number
   public disk!: number
   public state?: SandboxState
@@ -1449,6 +1454,8 @@ export class Sandbox {
     this.target = sandboxDto.target
     this.cpu = sandboxDto.cpu
     this.gpu = sandboxDto.gpu
+    this.spot = sandboxDto.spot ?? false
+    this.spotEvictedAt = sandboxDto.spotEvictedAt
     this.memory = sandboxDto.memory
     this.disk = sandboxDto.disk
     this.errorReason = sandboxDto.errorReason

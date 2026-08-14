@@ -51,6 +51,10 @@ type Sandbox struct {
 	Cpu float32 `json:"cpu"`
 	// The GPU quota for the sandbox
 	Gpu float32 `json:"gpu"`
+	// Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+	Spot *bool `json:"spot,omitempty"`
+	// When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
+	SpotEvictedAt *string `json:"spotEvictedAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
 	// The memory quota for the sandbox
@@ -125,6 +129,8 @@ func NewSandbox(id string, organizationId string, name string, user string, env 
 	this.Target = target
 	this.Cpu = cpu
 	this.Gpu = gpu
+	var spot bool = false
+	this.Spot = &spot
 	this.Memory = memory
 	this.Disk = disk
 	this.ToolboxProxyUrl = toolboxProxyUrl
@@ -136,6 +142,8 @@ func NewSandbox(id string, organizationId string, name string, user string, env 
 // but it doesn't guarantee that properties required by API are set
 func NewSandboxWithDefaults() *Sandbox {
 	this := Sandbox{}
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -529,6 +537,70 @@ func (o *Sandbox) GetGpuOk() (*float32, bool) {
 // SetGpu sets field value
 func (o *Sandbox) SetGpu(v float32) {
 	o.Gpu = v
+}
+
+// GetSpot returns the Spot field value if set, zero value otherwise.
+func (o *Sandbox) GetSpot() bool {
+	if o == nil || IsNil(o.Spot) {
+		var ret bool
+		return ret
+	}
+	return *o.Spot
+}
+
+// GetSpotOk returns a tuple with the Spot field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetSpotOk() (*bool, bool) {
+	if o == nil || IsNil(o.Spot) {
+		return nil, false
+	}
+	return o.Spot, true
+}
+
+// HasSpot returns a boolean if a field has been set.
+func (o *Sandbox) HasSpot() bool {
+	if o != nil && !IsNil(o.Spot) {
+		return true
+	}
+
+	return false
+}
+
+// SetSpot gets a reference to the given bool and assigns it to the Spot field.
+func (o *Sandbox) SetSpot(v bool) {
+	o.Spot = &v
+}
+
+// GetSpotEvictedAt returns the SpotEvictedAt field value if set, zero value otherwise.
+func (o *Sandbox) GetSpotEvictedAt() string {
+	if o == nil || IsNil(o.SpotEvictedAt) {
+		var ret string
+		return ret
+	}
+	return *o.SpotEvictedAt
+}
+
+// GetSpotEvictedAtOk returns a tuple with the SpotEvictedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetSpotEvictedAtOk() (*string, bool) {
+	if o == nil || IsNil(o.SpotEvictedAt) {
+		return nil, false
+	}
+	return o.SpotEvictedAt, true
+}
+
+// HasSpotEvictedAt returns a boolean if a field has been set.
+func (o *Sandbox) HasSpotEvictedAt() bool {
+	if o != nil && !IsNil(o.SpotEvictedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetSpotEvictedAt gets a reference to the given string and assigns it to the SpotEvictedAt field.
+func (o *Sandbox) SetSpotEvictedAt(v string) {
+	o.SpotEvictedAt = &v
 }
 
 // GetGpuType returns the GpuType field value if set, zero value otherwise.
@@ -1346,6 +1418,12 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	toSerialize["target"] = o.Target
 	toSerialize["cpu"] = o.Cpu
 	toSerialize["gpu"] = o.Gpu
+	if !IsNil(o.Spot) {
+		toSerialize["spot"] = o.Spot
+	}
+	if !IsNil(o.SpotEvictedAt) {
+		toSerialize["spotEvictedAt"] = o.SpotEvictedAt
+	}
 	if !IsNil(o.GpuType) {
 		toSerialize["gpuType"] = o.GpuType
 	}
@@ -1486,6 +1564,8 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "target")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")
+		delete(additionalProperties, "spot")
+		delete(additionalProperties, "spotEvictedAt")
 		delete(additionalProperties, "gpuType")
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")

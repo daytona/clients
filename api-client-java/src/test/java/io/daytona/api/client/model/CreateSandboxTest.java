@@ -157,6 +157,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'spot'
+     */
+    @Test
+    public void spotTest() {
+        // TODO: test spot
+    }
+
+    /**
      * Test the property 'memory'
      */
     @Test

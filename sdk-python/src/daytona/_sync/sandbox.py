@@ -111,6 +111,9 @@ class Sandbox(SandboxDto):
         target (str): Target location of the runner where the Sandbox runs.
         cpu (int): Number of CPUs allocated to the Sandbox.
         gpu (int): Number of GPUs allocated to the Sandbox.
+        spot (bool): Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
+            to free capacity for on-demand GPU Sandboxes.
+        spot_evicted_at (str | None): When the Sandbox was evicted by spot preemption.
         memory (int): Amount of memory allocated to the Sandbox in GiB.
         disk (int): Amount of disk space allocated to the Sandbox in GiB.
         state (SandboxState | None): Current state of the Sandbox (e.g., "started", "stopped").
@@ -1413,6 +1416,8 @@ class Sandbox(SandboxDto):
         self.target: str = sandbox_dto.target
         self.cpu: float | int = sandbox_dto.cpu
         self.gpu: float | int = sandbox_dto.gpu
+        self.spot: bool = sandbox_dto.spot or False
+        self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
         self.memory: float | int = sandbox_dto.memory
         self.disk: float | int = sandbox_dto.disk
         self.error_reason: str | None = sandbox_dto.error_reason

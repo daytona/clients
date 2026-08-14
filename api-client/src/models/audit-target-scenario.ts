@@ -109,6 +109,7 @@ export const AuditTargetScenarioActionsEnum = {
     AUTO_ARCHIVE: 'auto_archive',
     AUTO_DELETE: 'auto_delete',
     TTL_EXPIRE: 'ttl_expire',
+    SPOT_EVICT: 'spot_evict',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 

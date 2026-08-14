@@ -2507,6 +2507,8 @@ paths:
       tags:
       - sandbox
     get:
+      description: Sandboxes destroyed by spot preemption remain retrievable for 24
+        hours so `spotEvictedAt` can be read.
       operationId: getSandbox
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -9718,6 +9720,7 @@ components:
         updatedAt: 2024-10-01T12:00:00Z
         desiredState: destroyed
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+        spotEvictedAt: 2026-08-13T12:00:00.000Z
         recoverable: true
         cpu: 2
         gpu: 0
@@ -9727,6 +9730,7 @@ components:
           daytona.io/public: "true"
         disk: 10
         autoDestroyAt: 2026-07-15T12:00:00.000Z
+        spot: false
         name: MySandbox
         backupState: None
         user: daytona
@@ -9809,6 +9813,19 @@ components:
           description: The GPU quota for the sandbox
           example: 0
           type: number
+        spot:
+          default: false
+          description: Whether this is a spot GPU sandbox. Spot sandboxes may be instantly
+            terminated to free capacity for on-demand GPU sandboxes. Absent on APIs
+            that predate this field; treat as false.
+          example: false
+          type: boolean
+        spotEvictedAt:
+          description: "When this sandbox was evicted by spot preemption. Set as soon\
+            \ as the sandbox is marked for eviction, so it is already present while\
+            \ the sandbox is still winding down."
+          example: 2026-08-13T12:00:00.000Z
+          type: string
         gpuType:
           allOf:
           - $ref: "#/components/schemas/GpuType"
@@ -9925,6 +9942,7 @@ components:
           updatedAt: 2024-10-01T12:00:00Z
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+          spotEvictedAt: 2026-08-13T12:00:00.000Z
           recoverable: true
           cpu: 2
           gpu: 0
@@ -9934,6 +9952,7 @@ components:
             daytona.io/public: "true"
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          spot: false
           name: MySandbox
           backupState: None
           user: daytona
@@ -9960,6 +9979,7 @@ components:
           updatedAt: 2024-10-01T12:00:00Z
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+          spotEvictedAt: 2026-08-13T12:00:00.000Z
           recoverable: true
           cpu: 2
           gpu: 0
@@ -9969,6 +9989,7 @@ components:
             daytona.io/public: "true"
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          spot: false
           name: MySandbox
           backupState: None
           user: daytona
@@ -10075,6 +10096,7 @@ components:
         sandboxClass: linux-vm
         desiredState: destroyed
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+        spotEvictedAt: 2026-08-13T12:00:00.000Z
         volumes:
         - mountPath: /data
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -10094,6 +10116,7 @@ components:
         target: local
         disk: 10
         autoDestroyAt: 2026-07-15T12:00:00.000Z
+        spot: false
         name: MySandbox
         backupState: None
         user: daytona
@@ -10170,6 +10193,19 @@ components:
           description: The GPU quota for the sandbox
           example: 0
           type: number
+        spot:
+          default: false
+          description: Whether this is a spot GPU sandbox. Spot sandboxes may be instantly
+            terminated to free capacity for on-demand GPU sandboxes. Absent on APIs
+            that predate this field; treat as false.
+          example: false
+          type: boolean
+        spotEvictedAt:
+          description: "When this sandbox was destroyed by spot preemption. Set only\
+            \ for spot-evicted sandboxes, which stay retrievable by ID for 24 hours\
+            \ after eviction."
+          example: 2026-08-13T12:00:00.000Z
+          type: string
         gpuType:
           allOf:
           - $ref: "#/components/schemas/GpuType"
@@ -10341,6 +10377,7 @@ components:
           sandboxClass: linux-vm
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+          spotEvictedAt: 2026-08-13T12:00:00.000Z
           volumes:
           - mountPath: /data
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -10360,6 +10397,7 @@ components:
           target: local
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          spot: false
           name: MySandbox
           backupState: None
           user: daytona
@@ -10389,6 +10427,7 @@ components:
           sandboxClass: linux-vm
           desiredState: destroyed
           networkAllowList: "192.168.1.0/16,10.0.0.0/24"
+          spotEvictedAt: 2026-08-13T12:00:00.000Z
           volumes:
           - mountPath: /data
             volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -10408,6 +10447,7 @@ components:
           target: local
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          spot: false
           name: MySandbox
           backupState: None
           user: daytona
@@ -10486,6 +10526,7 @@ components:
           daytona.io/public: "true"
         target: us
         disk: 3
+        spot: false
         name: MySandbox
         user: daytona
         autoArchiveInterval: 10080
@@ -10567,6 +10608,13 @@ components:
           items:
             $ref: "#/components/schemas/GpuType"
           type: array
+        spot:
+          default: false
+          description: "GPU-only. When true, the sandbox may be instantly terminated\
+            \ without notice to free GPU capacity for an on-demand (non-spot) GPU\
+            \ sandbox. Ignored / rejected when the sandbox requests no GPUs."
+          example: false
+          type: boolean
         memory:
           description: Memory allocated to the sandbox in GB
           example: 1
@@ -13306,6 +13354,7 @@ components:
             - auto_archive
             - auto_delete
             - ttl_expire
+            - spot_evict
             type: string
           type: array
       required:

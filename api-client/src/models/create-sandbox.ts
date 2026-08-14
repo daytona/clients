@@ -81,6 +81,10 @@ export interface CreateSandbox {
      */
     'gpuType'?: Array<GpuType>;
     /**
+     * GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
+     */
+    'spot'?: boolean;
+    /**
      * Memory allocated to the sandbox in GB
      */
     'memory'?: number;

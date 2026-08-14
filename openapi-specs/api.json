@@ -3581,6 +3581,7 @@
     },
     "/sandbox/{sandboxIdOrName}": {
       "get": {
+        "description": "Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.",
         "operationId": "getSandbox",
         "parameters": [
           {
@@ -13407,6 +13408,17 @@
             "description": "The GPU quota for the sandbox",
             "example": 0
           },
+          "spot": {
+            "type": "boolean",
+            "description": "Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.",
+            "example": false,
+            "default": false
+          },
+          "spotEvictedAt": {
+            "type": "string",
+            "description": "When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.",
+            "example": "2026-08-13T12:00:00.000Z"
+          },
           "gpuType": {
             "description": "The GPU type assigned to the sandbox",
             "example": "H100",
@@ -13692,6 +13704,17 @@
             "type": "number",
             "description": "The GPU quota for the sandbox",
             "example": 0
+          },
+          "spot": {
+            "type": "boolean",
+            "description": "Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.",
+            "example": false,
+            "default": false
+          },
+          "spotEvictedAt": {
+            "type": "string",
+            "description": "When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.",
+            "example": "2026-08-13T12:00:00.000Z"
           },
           "gpuType": {
             "description": "The GPU type assigned to the sandbox",
@@ -14010,6 +14033,12 @@
             "items": {
               "$ref": "#/components/schemas/GpuType"
             }
+          },
+          "spot": {
+            "type": "boolean",
+            "description": "GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.",
+            "example": false,
+            "default": false
           },
           "memory": {
             "type": "integer",
@@ -16795,7 +16824,8 @@
                 "auto_stop",
                 "auto_archive",
                 "auto_delete",
-                "ttl_expire"
+                "ttl_expire",
+                "spot_evict"
               ]
             }
           }

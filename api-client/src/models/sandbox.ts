@@ -91,6 +91,14 @@ export interface Sandbox {
      */
     'gpu': number;
     /**
+     * Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+     */
+    'spot'?: boolean;
+    /**
+     * When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
+     */
+    'spotEvictedAt'?: string;
+    /**
      * The GPU type assigned to the sandbox
      */
     'gpuType'?: GpuType;

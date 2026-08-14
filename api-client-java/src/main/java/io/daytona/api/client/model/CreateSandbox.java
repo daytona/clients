@@ -127,6 +127,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private List<GpuType> gpuType = new ArrayList<>();
 
+  public static final String SERIALIZED_NAME_SPOT = "spot";
+  @SerializedName(SERIALIZED_NAME_SPOT)
+  @javax.annotation.Nullable
+  private Boolean spot = false;
+
   public static final String SERIALIZED_NAME_MEMORY = "memory";
   @SerializedName(SERIALIZED_NAME_MEMORY)
   @javax.annotation.Nullable
@@ -475,6 +480,25 @@ public class CreateSandbox {
   }
 
 
+  public CreateSandbox spot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+    return this;
+  }
+
+  /**
+   * GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
+   * @return spot
+   */
+  @javax.annotation.Nullable
+  public Boolean getSpot() {
+    return spot;
+  }
+
+  public void setSpot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+  }
+
+
   public CreateSandbox memory(@javax.annotation.Nullable Integer memory) {
     this.memory = memory;
     return this;
@@ -768,6 +792,7 @@ public class CreateSandbox {
         Objects.equals(this.cpu, createSandbox.cpu) &&
         Objects.equals(this.gpu, createSandbox.gpu) &&
         Objects.equals(this.gpuType, createSandbox.gpuType) &&
+        Objects.equals(this.spot, createSandbox.spot) &&
         Objects.equals(this.memory, createSandbox.memory) &&
         Objects.equals(this.disk, createSandbox.disk) &&
         Objects.equals(this.autoStopInterval, createSandbox.autoStopInterval) &&
@@ -784,7 +809,7 @@ public class CreateSandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -805,6 +830,7 @@ public class CreateSandbox {
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
+    sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
     sb.append("    autoStopInterval: ").append(toIndentedString(autoStopInterval)).append("\n");
@@ -835,7 +861,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

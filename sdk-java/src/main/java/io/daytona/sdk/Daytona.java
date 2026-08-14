@@ -600,6 +600,7 @@ public class Daytona implements AutoCloseable {
         if (params.getDomainAllowList() != null) body.setDomainAllowList(params.getDomainAllowList());
         if (params.getOutboundProxyUrl() != null) body.setOutboundProxyUrl(params.getOutboundProxyUrl());
         if (params.getLinkedSandbox() != null) body.setLinkedSandbox(params.getLinkedSandbox());
+        if (params.getSpot() != null) body.setSpot(params.getSpot());
         if (params.getVolumes() != null) {
             List<SandboxVolume> volumes = new ArrayList<SandboxVolume>();
             for (io.daytona.sdk.model.VolumeMount mount : params.getVolumes()) {

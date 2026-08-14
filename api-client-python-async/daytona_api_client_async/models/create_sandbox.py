@@ -47,6 +47,7 @@ class CreateSandbox(BaseModel):
     cpu: Optional[StrictInt] = Field(default=None, description="CPU cores allocated to the sandbox")
     gpu: Optional[StrictInt] = Field(default=None, description="GPU units allocated to the sandbox")
     gpu_type: Optional[List[GpuType]] = Field(default=None, description="Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.", serialization_alias="gpuType")
+    spot: Optional[StrictBool] = Field(default=False, description="GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.")
     memory: Optional[StrictInt] = Field(default=None, description="Memory allocated to the sandbox in GB")
     disk: Optional[StrictInt] = Field(default=None, description="Disk space allocated to the sandbox in GB")
     auto_stop_interval: Optional[StrictInt] = Field(default=None, description="Auto-stop interval in minutes (0 means disabled)", serialization_alias="autoStopInterval")
@@ -59,7 +60,7 @@ class CreateSandbox(BaseModel):
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.", serialization_alias="linkedSandbox")
     secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -142,6 +143,7 @@ class CreateSandbox(BaseModel):
             "cpu": obj.get("cpu"),
             "gpu": obj.get("gpu"),
             "gpu_type": obj.get("gpuType"),
+            "spot": obj.get("spot") if obj.get("spot") is not None else False,
             "memory": obj.get("memory"),
             "disk": obj.get("disk"),
             "auto_stop_interval": obj.get("autoStopInterval"),

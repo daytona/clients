@@ -168,6 +168,22 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'spot'
+     */
+    @Test
+    public void spotTest() {
+        // TODO: test spot
+    }
+
+    /**
+     * Test the property 'spotEvictedAt'
+     */
+    @Test
+    public void spotEvictedAtTest() {
+        // TODO: test spotEvictedAt
+    }
+
+    /**
      * Test the property 'gpuType'
      */
     @Test

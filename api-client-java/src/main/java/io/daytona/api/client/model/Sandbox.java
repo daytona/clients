@@ -135,6 +135,16 @@ public class Sandbox {
   @javax.annotation.Nonnull
   private BigDecimal gpu;
 
+  public static final String SERIALIZED_NAME_SPOT = "spot";
+  @SerializedName(SERIALIZED_NAME_SPOT)
+  @javax.annotation.Nullable
+  private Boolean spot = false;
+
+  public static final String SERIALIZED_NAME_SPOT_EVICTED_AT = "spotEvictedAt";
+  @SerializedName(SERIALIZED_NAME_SPOT_EVICTED_AT)
+  @javax.annotation.Nullable
+  private String spotEvictedAt;
+
   public static final String SERIALIZED_NAME_GPU_TYPE = "gpuType";
   @SerializedName(SERIALIZED_NAME_GPU_TYPE)
   @javax.annotation.Nullable
@@ -681,6 +691,44 @@ public class Sandbox {
 
   public void setGpu(@javax.annotation.Nonnull BigDecimal gpu) {
     this.gpu = gpu;
+  }
+
+
+  public Sandbox spot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+    return this;
+  }
+
+  /**
+   * Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+   * @return spot
+   */
+  @javax.annotation.Nullable
+  public Boolean getSpot() {
+    return spot;
+  }
+
+  public void setSpot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+  }
+
+
+  public Sandbox spotEvictedAt(@javax.annotation.Nullable String spotEvictedAt) {
+    this.spotEvictedAt = spotEvictedAt;
+    return this;
+  }
+
+  /**
+   * When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
+   * @return spotEvictedAt
+   */
+  @javax.annotation.Nullable
+  public String getSpotEvictedAt() {
+    return spotEvictedAt;
+  }
+
+  public void setSpotEvictedAt(@javax.annotation.Nullable String spotEvictedAt) {
+    this.spotEvictedAt = spotEvictedAt;
   }
 
 
@@ -1244,6 +1292,8 @@ public class Sandbox {
         Objects.equals(this.target, sandbox.target) &&
         Objects.equals(this.cpu, sandbox.cpu) &&
         Objects.equals(this.gpu, sandbox.gpu) &&
+        Objects.equals(this.spot, sandbox.spot) &&
+        Objects.equals(this.spotEvictedAt, sandbox.spotEvictedAt) &&
         Objects.equals(this.gpuType, sandbox.gpuType) &&
         Objects.equals(this.memory, sandbox.memory) &&
         Objects.equals(this.disk, sandbox.disk) &&
@@ -1274,7 +1324,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1296,6 +1346,8 @@ public class Sandbox {
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
+    sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
+    sb.append("    spotEvictedAt: ").append(toIndentedString(spotEvictedAt)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
@@ -1340,7 +1392,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
@@ -1392,6 +1444,9 @@ public class Sandbox {
       }
       if (!jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));
+      }
+      if ((jsonObj.get("spotEvictedAt") != null && !jsonObj.get("spotEvictedAt").isJsonNull()) && !jsonObj.get("spotEvictedAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `spotEvictedAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("spotEvictedAt").toString()));
       }
       // validate the optional field `gpuType`
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull()) {

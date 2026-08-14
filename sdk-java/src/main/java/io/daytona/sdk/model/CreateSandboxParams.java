@@ -33,6 +33,7 @@ public class CreateSandboxParams {
     private String domainAllowList;
     private String outboundProxyUrl;
     private String linkedSandbox;
+    private Boolean spot;
 
     /**
      * Returns Sandbox name.
@@ -293,4 +294,21 @@ public class CreateSandboxParams {
      * @param linkedSandbox linked Sandbox identifier
      */
     public void setLinkedSandbox(String linkedSandbox) { this.linkedSandbox = linkedSandbox; }
+
+    /**
+     * Returns whether the Sandbox is requested as a spot GPU Sandbox.
+     *
+     * @return {@code true} when the Sandbox may be preempted, or {@code null} when unset
+     */
+    public Boolean getSpot() { return spot; }
+
+    /**
+     * Sets whether the Sandbox is requested as a spot GPU Sandbox.
+     *
+     * <p>GPU-only. When {@code true}, the Sandbox may be instantly terminated without notice to free
+     * GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
+     *
+     * @param spot whether the Sandbox may be preempted
+     */
+    public void setSpot(Boolean spot) { this.spot = spot; }
 }

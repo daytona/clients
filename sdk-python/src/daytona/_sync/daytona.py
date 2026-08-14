@@ -509,6 +509,7 @@ class Daytona:
             domain_allow_list=params.domain_allow_list,
             outbound_proxy_url=params.outbound_proxy_url,
             linked_sandbox=params.linked_sandbox,
+            spot=params.spot,
         )
 
         if isinstance(params, CreateSandboxFromSnapshotParams) and params.snapshot:

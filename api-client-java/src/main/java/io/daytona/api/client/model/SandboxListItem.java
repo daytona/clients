@@ -147,6 +147,16 @@ public class SandboxListItem {
   @javax.annotation.Nonnull
   private BigDecimal gpu;
 
+  public static final String SERIALIZED_NAME_SPOT = "spot";
+  @SerializedName(SERIALIZED_NAME_SPOT)
+  @javax.annotation.Nullable
+  private Boolean spot = false;
+
+  public static final String SERIALIZED_NAME_SPOT_EVICTED_AT = "spotEvictedAt";
+  @SerializedName(SERIALIZED_NAME_SPOT_EVICTED_AT)
+  @javax.annotation.Nullable
+  private String spotEvictedAt;
+
   public static final String SERIALIZED_NAME_GPU_TYPE = "gpuType";
   @SerializedName(SERIALIZED_NAME_GPU_TYPE)
   @javax.annotation.Nullable
@@ -632,6 +642,44 @@ public class SandboxListItem {
   }
 
 
+  public SandboxListItem spot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+    return this;
+  }
+
+  /**
+   * Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
+   * @return spot
+   */
+  @javax.annotation.Nullable
+  public Boolean getSpot() {
+    return spot;
+  }
+
+  public void setSpot(@javax.annotation.Nullable Boolean spot) {
+    this.spot = spot;
+  }
+
+
+  public SandboxListItem spotEvictedAt(@javax.annotation.Nullable String spotEvictedAt) {
+    this.spotEvictedAt = spotEvictedAt;
+    return this;
+  }
+
+  /**
+   * When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.
+   * @return spotEvictedAt
+   */
+  @javax.annotation.Nullable
+  public String getSpotEvictedAt() {
+    return spotEvictedAt;
+  }
+
+  public void setSpotEvictedAt(@javax.annotation.Nullable String spotEvictedAt) {
+    this.spotEvictedAt = spotEvictedAt;
+  }
+
+
   public SandboxListItem gpuType(@javax.annotation.Nullable GpuType gpuType) {
     this.gpuType = gpuType;
     return this;
@@ -1016,6 +1064,8 @@ public class SandboxListItem {
         Objects.equals(this.domainAllowList, sandboxListItem.domainAllowList) &&
         Objects.equals(this.cpu, sandboxListItem.cpu) &&
         Objects.equals(this.gpu, sandboxListItem.gpu) &&
+        Objects.equals(this.spot, sandboxListItem.spot) &&
+        Objects.equals(this.spotEvictedAt, sandboxListItem.spotEvictedAt) &&
         Objects.equals(this.gpuType, sandboxListItem.gpuType) &&
         Objects.equals(this.memory, sandboxListItem.memory) &&
         Objects.equals(this.disk, sandboxListItem.disk) &&
@@ -1037,7 +1087,7 @@ public class SandboxListItem {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, networkBlockAll, networkAllowList, domainAllowList, cpu, gpu, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, networkBlockAll, networkAllowList, domainAllowList, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
   }
 
   @Override
@@ -1062,6 +1112,8 @@ public class SandboxListItem {
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
+    sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
+    sb.append("    spotEvictedAt: ").append(toIndentedString(spotEvictedAt)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
@@ -1097,7 +1149,7 @@ public class SandboxListItem {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "networkBlockAll", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
@@ -1164,6 +1216,9 @@ public class SandboxListItem {
       }
       if ((jsonObj.get("domainAllowList") != null && !jsonObj.get("domainAllowList").isJsonNull()) && !jsonObj.get("domainAllowList").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `domainAllowList` to be a primitive type in the JSON string but got `%s`", jsonObj.get("domainAllowList").toString()));
+      }
+      if ((jsonObj.get("spotEvictedAt") != null && !jsonObj.get("spotEvictedAt").isJsonNull()) && !jsonObj.get("spotEvictedAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `spotEvictedAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("spotEvictedAt").toString()));
       }
       // validate the optional field `gpuType`
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull()) {

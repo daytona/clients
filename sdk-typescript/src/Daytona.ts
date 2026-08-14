@@ -189,6 +189,7 @@ export interface Resources {
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
  * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
  * @property {boolean} [ephemeral] - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
+ * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
  * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
  */
@@ -210,6 +211,7 @@ export type CreateSandboxBaseParams = {
   domainAllowList?: string
   outboundProxyUrl?: string
   ephemeral?: boolean
+  spot?: boolean
   linkedSandbox?: string
   secrets?: Record<string, string>
 }
@@ -687,6 +689,7 @@ export class Daytona implements AsyncDisposable {
               : Array.isArray(resources.gpuType)
                 ? resources.gpuType
                 : [resources.gpuType],
+          spot: params.spot,
           memory: resources?.memory,
           disk: resources?.disk,
           autoStopInterval: params.autoStopInterval,

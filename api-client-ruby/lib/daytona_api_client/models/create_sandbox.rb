@@ -57,6 +57,9 @@ module DaytonaApiClient
     # Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.
     attr_accessor :gpu_type
 
+    # GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
+    attr_accessor :spot
+
     # Memory allocated to the sandbox in GB
     attr_accessor :memory
 
@@ -107,6 +110,7 @@ module DaytonaApiClient
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
         :'gpu_type' => :'gpuType',
+        :'spot' => :'spot',
         :'memory' => :'memory',
         :'disk' => :'disk',
         :'auto_stop_interval' => :'autoStopInterval',
@@ -148,6 +152,7 @@ module DaytonaApiClient
         :'cpu' => :'Integer',
         :'gpu' => :'Integer',
         :'gpu_type' => :'Array<GpuType>',
+        :'spot' => :'Boolean',
         :'memory' => :'Integer',
         :'disk' => :'Integer',
         :'auto_stop_interval' => :'Integer',
@@ -246,6 +251,12 @@ module DaytonaApiClient
         end
       end
 
+      if attributes.key?(:'spot')
+        self.spot = attributes[:'spot']
+      else
+        self.spot = false
+      end
+
       if attributes.key?(:'memory')
         self.memory = attributes[:'memory']
       end
@@ -329,6 +340,7 @@ module DaytonaApiClient
           cpu == o.cpu &&
           gpu == o.gpu &&
           gpu_type == o.gpu_type &&
+          spot == o.spot &&
           memory == o.memory &&
           disk == o.disk &&
           auto_stop_interval == o.auto_stop_interval &&
@@ -351,7 +363,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

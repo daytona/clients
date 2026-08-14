@@ -101,6 +101,13 @@ module Daytona
     # @return [Float] The GPU quota for the sandbox
     attr_reader :gpu
 
+    # @return [Boolean] Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated
+    #   to free capacity for on-demand GPU sandboxes.
+    attr_reader :spot
+
+    # @return [String, nil] When the sandbox was evicted by spot preemption
+    attr_reader :spot_evicted_at
+
     # @return [Float] The memory quota for the sandbox
     attr_reader :memory
 
@@ -1085,6 +1092,8 @@ module Daytona
       @target = sandbox_dto.target
       @cpu = sandbox_dto.cpu
       @gpu = sandbox_dto.gpu
+      @spot = sandbox_dto.spot || false
+      @spot_evicted_at = sandbox_dto.spot_evicted_at
       @memory = sandbox_dto.memory
       @disk = sandbox_dto.disk
       @desired_state = sandbox_dto.desired_state

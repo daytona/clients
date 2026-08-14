@@ -74,6 +74,8 @@ type Sandbox struct {
 	Target         string                 // Target region/environment where the sandbox runs
 	Cpu            float32                // Number of CPUs allocated to the sandbox
 	Gpu            float32                // Number of GPUs allocated to the sandbox
+	Spot           bool                   // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
+	SpotEvictedAt  *string                // When the sandbox was evicted by spot preemption
 	Memory         float32                // Amount of memory allocated to the sandbox in GiB
 	Disk           float32                // Amount of disk space allocated to the sandbox in GiB
 	State          apiclient.SandboxState // Current sandbox state
@@ -173,6 +175,7 @@ type sandboxDTO interface {
 	GetTarget() string
 	GetCpu() float32
 	GetGpu() float32
+	GetSpot() bool
 	GetMemory() float32
 	GetDisk() float32
 	GetState() apiclient.SandboxState
@@ -202,6 +205,7 @@ type sandboxDTO interface {
 	GetUpdatedAtOk() (*string, bool)
 	GetLastActivityAtOk() (*string, bool)
 	GetAutoDestroyAtOk() (*string, bool)
+	GetSpotEvictedAtOk() (*string, bool)
 }
 
 // ListSandboxesQuery contains query parameters for filtering and sorting when listing sandboxes.
@@ -392,6 +396,10 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	s.Target = dto.GetTarget()
 	s.Cpu = dto.GetCpu()
 	s.Gpu = dto.GetGpu()
+	s.Spot = dto.GetSpot()
+	if v, ok := dto.GetSpotEvictedAtOk(); ok {
+		s.SpotEvictedAt = v
+	}
 	s.Memory = dto.GetMemory()
 	s.Disk = dto.GetDisk()
 	s.ToolboxProxyUrl = dto.GetToolboxProxyUrl()

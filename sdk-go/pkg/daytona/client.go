@@ -594,6 +594,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.LinkedSandbox != "" {
 		createReq.SetLinkedSandbox(baseParams.LinkedSandbox)
 	}
+	if baseParams.Spot {
+		createReq.SetSpot(true)
+	}
 
 	// Handle snapshot
 	if snapshot != "" {

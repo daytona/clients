@@ -138,6 +138,8 @@ public class Sandbox {
     private String target;
     private int cpu;
     private int gpu;
+    private boolean spot;
+    private String spotEvictedAt;
     private int memory;
     private int disk;
     private volatile String state;
@@ -854,7 +856,7 @@ public class Sandbox {
         populateCommonFields(
                 d.getId(), d.getName(), d.getOrganizationId(), d.getSnapshot(), d.getUser(),
                 d.getLabels(), d.getPublic(), d.getTarget(),
-                d.getCpu(), d.getGpu(), d.getMemory(), d.getDisk(),
+                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getMemory(), d.getDisk(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
@@ -888,7 +890,7 @@ public class Sandbox {
         populateCommonFields(
                 d.getId(), d.getName(), d.getOrganizationId(), d.getSnapshot(), d.getUser(),
                 d.getLabels(), d.getPublic(), d.getTarget(),
-                d.getCpu(), d.getGpu(), d.getMemory(), d.getDisk(),
+                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getMemory(), d.getDisk(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
@@ -905,7 +907,7 @@ public class Sandbox {
     private void populateCommonFields(
             String id, String name, String organizationId, String snapshot, String user,
             Map<String, String> labels, Boolean isPublic, String target,
-            BigDecimal cpu, BigDecimal gpu, BigDecimal memory, BigDecimal disk,
+            BigDecimal cpu, BigDecimal gpu, Boolean spot, String spotEvictedAt, BigDecimal memory, BigDecimal disk,
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
             String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt,
@@ -920,6 +922,8 @@ public class Sandbox {
         this.target = asString(target);
         this.cpu = cpu == null ? 0 : cpu.intValue();
         this.gpu = gpu == null ? 0 : gpu.intValue();
+        this.spot = spot != null && spot;
+        this.spotEvictedAt = spotEvictedAt;
         this.memory = memory == null ? 0 : memory.intValue();
         this.disk = disk == null ? 0 : disk.intValue();
         this.errorReason = errorReason;
@@ -1399,6 +1403,18 @@ public class Sandbox {
     public int getCpu() { return cpu; }
     /** @return allocated GPU units. */
     public int getGpu() { return gpu; }
+
+    /**
+     * Returns whether this is a spot GPU Sandbox.
+     *
+     * <p>Spot Sandboxes may be instantly terminated to free capacity for on-demand GPU Sandboxes.
+     *
+     * @return {@code true} when the Sandbox is preemptible.
+     */
+    public boolean isSpot() { return spot; }
+
+    /** @return when the Sandbox was evicted by spot preemption, or {@code null} when it was not. */
+    public String getSpotEvictedAt() { return spotEvictedAt; }
     /** @return allocated memory in GiB. */
     public int getMemory() { return memory; }
     /** @return allocated disk in GiB. */

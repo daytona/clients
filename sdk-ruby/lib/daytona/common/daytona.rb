@@ -65,6 +65,11 @@ module Daytona
     # @return [Boolean, nil] Whether the Sandbox should be ephemeral
     attr_accessor :ephemeral
 
+    # @return [Boolean, nil] GPU-only. When true, the Sandbox may be instantly terminated without notice
+    #   to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox
+    #   requests no GPUs.
+    attr_accessor :spot
+
     # @return [String, nil] ID or name of an existing Sandbox to link the new Sandbox to. The new
     #   Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
     #   established between them. Linked Sandboxes must be
@@ -94,6 +99,8 @@ module Daytona
     #   network-layer enforcement.
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
+    # @param spot [Boolean, nil] GPU-only. Whether the Sandbox may be instantly terminated to free GPU
+    #   capacity for an on-demand GPU Sandbox
     # @param linked_sandbox [String, nil] ID or name of an existing Sandbox to link the new Sandbox to
     def initialize( # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
       language: nil,
@@ -114,6 +121,7 @@ module Daytona
       domain_allow_list: nil,
       outbound_proxy_url: nil,
       ephemeral: nil,
+      spot: nil,
       linked_sandbox: nil
     )
       @language = language
@@ -134,6 +142,7 @@ module Daytona
       @domain_allow_list = domain_allow_list
       @outbound_proxy_url = outbound_proxy_url
       @ephemeral = ephemeral
+      @spot = spot
       @linked_sandbox = linked_sandbox
 
       # Handle ephemeral and auto_delete_interval conflict
@@ -163,6 +172,7 @@ module Daytona
         domain_allow_list:,
         outbound_proxy_url:,
         ephemeral:,
+        spot:,
         linked_sandbox:
       }.compact
     end
