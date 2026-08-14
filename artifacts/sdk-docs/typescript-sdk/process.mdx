@@ -264,6 +264,7 @@ type ProcessRunResult = ProcessResult & {
   id: string;
   stderr: string;
   stdout: string;
+  timedOut: boolean;
 };
 ```
 
@@ -292,6 +293,14 @@ readonly stderr: string;
 ```ts
 readonly stdout: string;
 ```
+
+#### timedOut
+
+```ts
+readonly timedOut: boolean;
+```
+
+True when `waitTimeoutMs` elapsed before the process exited on its own.
 
 ***
 

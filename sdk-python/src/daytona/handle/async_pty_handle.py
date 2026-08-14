@@ -75,7 +75,9 @@ class AsyncPtyHandle:
         self._result_resolved: bool = False
         self._exit_code: int | None = None
         self._error: str | None = None
-        self._connected: bool = False
+        # An already-established socket is usable right away: waiting for the background
+        # task to flip this flag would make an immediate send_input() fail spuriously.
+        self._connected: bool = connection_established
         self._connection_established: bool = connection_established
 
         # Start handling WebSocket events
@@ -251,6 +253,12 @@ class AsyncPtyHandle:
 
         except Exception as e:
             self._error = f"Unexpected error: {e}"
+            # The socket died without a close frame, so the exit metadata it would have
+            # carried has to come from the resolver instead - skipping it would make
+            # wait() report a running process as finished with no exit code. Cancellation
+            # (disconnect()) deliberately stays out of this path: CancelledError is a
+            # BaseException, so it propagates without triggering a daemon roundtrip.
+            await self._resolve_result_if_needed()
         finally:
             self._connected = False
 

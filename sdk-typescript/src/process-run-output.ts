@@ -6,6 +6,8 @@
 import type { ProcessHandle } from './ProcessHandle'
 import type { ProcessLogFrame } from '@daytona/toolbox-api-client'
 import type { ProcessRunOptions } from './types/Process'
+import { DaytonaError } from './errors/DaytonaError'
+import { base64ToUint8Array } from './utils/Binary'
 
 const MAX_LOG_PAGES = 10_000
 
@@ -30,7 +32,7 @@ function newChannelDecoders(): ChannelDecoders {
 
 function decodeFrameData(frame: ProcessLogFrame, decoder: TextDecoder): string {
   if (frame.encoding === 'base64') {
-    return decoder.decode(Buffer.from(frame.data, 'base64'), { stream: true })
+    return decoder.decode(base64ToUint8Array(frame.data), { stream: true })
   }
   return frame.data
 }
@@ -82,6 +84,15 @@ async function dispatchFrame(
 /**
  * Collects a finished (or timed-out) process's retained output by paging the
  * ledger. Used by run() when no streaming callbacks were requested.
+ *
+ * The result is bounded by what the daemon still retains: output is capped by
+ * the sandbox's log retention, so on eviction only the retained suffix comes
+ * back and the page reports `truncatedHead`. To recover deliberately, read the
+ * record's `firstAvailableCursor` (or the `warning` event on a live stream) and
+ * page {@link ProcessHandle.logs} from there yourself.
+ *
+ * @throws {DaytonaError} If the ledger exceeds the page budget, rather than
+ * returning silently partial output.
  */
 export async function collectOutputFromLogs(handle: ProcessHandle): Promise<CollectedRunOutput> {
   const collected: CollectedRunOutput = { stdout: '', stderr: '', timedOut: false }
@@ -94,12 +105,16 @@ export async function collectOutputFromLogs(handle: ProcessHandle): Promise<Coll
       await dispatchFrame(frame, decoders, collected)
     }
     if (logs.eof || logs.frames.length === 0) {
-      break
+      await flushDecoders(decoders, collected)
+      return collected
     }
     cursor = logs.nextCursor
   }
-  await flushDecoders(decoders, collected)
-  return collected
+
+  throw new DaytonaError(
+    `Process ${handle.id} has more retained output than the ${MAX_LOG_PAGES}-page collection budget. ` +
+      'Read it incrementally with handle.logs({ cursor }) or handle.streamLogs() instead.',
+  )
 }
 
 const STREAM_DEADLINE: unique symbol = Symbol('stream-deadline')
@@ -130,7 +145,12 @@ export async function streamOutputWithCallbacks(
           collected.timedOut = true
           break
         }
-        next = await Promise.race([iterator.next(), deadlineAfter(remaining)])
+        const deadlineTimer = deadlineAfter(remaining)
+        try {
+          next = await Promise.race([iterator.next(), deadlineTimer.expired])
+        } finally {
+          deadlineTimer.cancel()
+        }
         if (next === STREAM_DEADLINE) {
           collected.timedOut = true
           break
@@ -156,6 +176,20 @@ export async function streamOutputWithCallbacks(
   return collected
 }
 
-function deadlineAfter(ms: number): Promise<typeof STREAM_DEADLINE> {
-  return new Promise((resolve) => setTimeout(() => resolve(STREAM_DEADLINE), ms))
+// The losing side of every race must be cancelled: an uncancelled timer keeps
+// firing on the original deadline, pinning a Node.js event loop open and
+// retaining one timer per frame on high-volume streams.
+function deadlineAfter(ms: number): { expired: Promise<typeof STREAM_DEADLINE>; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<typeof STREAM_DEADLINE>((resolve) => {
+    timer = setTimeout(() => resolve(STREAM_DEADLINE), ms)
+  })
+  return {
+    expired,
+    cancel: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer)
+      }
+    },
+  }
 }

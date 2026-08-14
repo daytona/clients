@@ -21,14 +21,26 @@ function makeProcessRecord(id: string, overrides: Partial<ProcessRecord> = {}): 
   }
 }
 
-function makeSseResponse(chunks: readonly string[]): Response {
+function makeSseResponse(
+  chunks: readonly string[],
+  trailing?: { readonly chunks: readonly string[]; readonly afterMs: number },
+): Response {
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       for (const chunk of chunks) {
         controller.enqueue(encoder.encode(chunk))
       }
-      controller.close()
+      if (trailing === undefined) {
+        controller.close()
+        return
+      }
+      setTimeout(() => {
+        for (const chunk of trailing.chunks) {
+          controller.enqueue(encoder.encode(chunk))
+        }
+        controller.close()
+      }, trailing.afterMs)
     },
   })
 
@@ -114,6 +126,133 @@ describe('Process surface', () => {
     expect(result.handle.id).toBe('prc-2')
     expect(result.stdout).toBe('hello\n')
     expect(result.stderr).toBe('oops\n')
+  })
+
+  it('omits an empty argv so the request carries only the shell command', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2a')))
+
+    await process.start({ argv: [], shellCommand: 'echo hello' })
+
+    expect(apiClient.createProcess).toHaveBeenCalledWith({ shellCommand: 'echo hello' })
+    expect(apiClient.createProcess.mock.calls[0][0]).not.toHaveProperty('argv')
+  })
+
+  it('omits a whitespace-only shellCommand but preserves a non-blank one verbatim', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2b')))
+
+    await process.start({ argv: ['echo', 'hi'], shellCommand: '   ' })
+    expect(apiClient.createProcess).toHaveBeenNthCalledWith(1, { argv: ['echo', 'hi'] })
+    expect(apiClient.createProcess.mock.calls[0][0]).not.toHaveProperty('shellCommand')
+
+    await process.start({ shellCommand: '  echo hi  ' })
+    expect(apiClient.createProcess).toHaveBeenNthCalledWith(2, { shellCommand: '  echo hi  ' })
+  })
+
+  it('validates initial terminal dimensions before creating a pty process', async () => {
+    const { process, apiClient } = await makeProcess()
+
+    await expect(process.start({ kind: 'pty', terminal: { cols: 0, rows: 24 } })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    await expect(process.start({ kind: 'pty', terminal: { cols: 80, rows: 24.5 } })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    await expect(process.start({ kind: 'pty', terminal: { cols: Number.NaN, rows: 24 } })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    expect(apiClient.createProcess).not.toHaveBeenCalled()
+  })
+
+  it('rejects non-finite timeouts and escalation delays', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2c')))
+
+    await expect(process.start({ shellCommand: 'true', timeoutMs: Number.NaN })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    await expect(process.run({ shellCommand: 'true', waitTimeoutMs: Number.POSITIVE_INFINITY })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    expect(apiClient.createProcess).not.toHaveBeenCalled()
+
+    const handle = await process.start({ shellCommand: 'true' })
+    await expect(handle.wait({ timeoutMs: Number.NaN })).rejects.toBeInstanceOf(DaytonaInvalidArgumentError)
+    await expect(handle.kill({ escalateAfterMs: Number.NaN })).rejects.toBeInstanceOf(DaytonaInvalidArgumentError)
+    await expect(handle.kill({ escalateAfterMs: Number.POSITIVE_INFINITY })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    expect(apiClient.waitForProcess).not.toHaveBeenCalled()
+    expect(apiClient.signalProcess).not.toHaveBeenCalled()
+  })
+
+  it("rejects run with keepLogs 'none' unless output is consumed by callbacks", async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2d')))
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ exitCode: 0, reason: 'exited' }))
+
+    await expect(process.run({ shellCommand: 'true', keepLogs: 'none' })).rejects.toBeInstanceOf(
+      DaytonaInvalidArgumentError,
+    )
+    expect(apiClient.createProcess).not.toHaveBeenCalled()
+
+    await expect(process.start({ shellCommand: 'true', keepLogs: 'none' })).resolves.toBeDefined()
+    expect(apiClient.createProcess).toHaveBeenCalledWith({ shellCommand: 'true', keepLogs: 'none' })
+  })
+
+  it('reports timedOut on the collected run result', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2e')))
+    apiClient.readProcessLogs.mockResolvedValue(
+      createApiResponse({ frames: [], nextCursor: 'c0', truncatedHead: false, eof: true }),
+    )
+
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'exited', exitCode: 0 }))
+    await expect(process.run({ shellCommand: 'true' })).resolves.toMatchObject({ timedOut: false })
+
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out' }))
+    await expect(process.run({ shellCommand: 'sleep 5', waitTimeoutMs: 10 })).resolves.toMatchObject({
+      timedOut: true,
+    })
+  })
+
+  it('reports timedOut when the streaming deadline closes the run early', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2f')))
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out' }))
+    fetchMock.mockResolvedValue(
+      makeSseResponse(
+        [
+          'event: log\ndata: {"channel":"stdout","cursor":"c_1","seq":1,"timestamp":"t","data":"tick","encoding":"text"}\n\n',
+        ],
+        { chunks: ['event: eof\ndata: {"cursor":"c_2"}\n\n'], afterMs: 120 },
+      ),
+    )
+
+    const chunks: string[] = []
+    const result = await process.run({
+      shellCommand: 'sleep 5',
+      waitTimeoutMs: 25,
+      onStdout: (data) => {
+        chunks.push(data)
+      },
+    })
+
+    expect(chunks).toEqual(['tick'])
+    expect(result.timedOut).toBe(true)
+    expect(apiClient.waitForProcess).toHaveBeenCalledWith('prc-2f', 1)
+  })
+
+  it('rejects stdin bytes that are not valid UTF-8 instead of corrupting them', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2g')))
+    apiClient.sendProcessStdin.mockResolvedValue(createApiResponse(undefined))
+
+    const handle = await process.start({ argv: ['cat'], stdin: 'pipe' })
+
+    await expect(handle.stdin(new Uint8Array([0xff, 0xfe, 0x00]))).rejects.toBeInstanceOf(DaytonaInvalidArgumentError)
+    expect(apiClient.sendProcessStdin).not.toHaveBeenCalled()
   })
 
   it('rejects invalid client-side start arguments before any request is sent', async () => {

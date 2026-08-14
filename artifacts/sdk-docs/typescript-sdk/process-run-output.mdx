@@ -13,6 +13,12 @@ function collectOutputFromLogs(handle: ProcessHandle): Promise<CollectedRunOutpu
 Collects a finished (or timed-out) process's retained output by paging the
 ledger. Used by run() when no streaming callbacks were requested.
 
+The result is bounded by what the daemon still retains: output is capped by
+the sandbox's log retention, so on eviction only the retained suffix comes
+back and the page reports `truncatedHead`. To recover deliberately, read the
+record's `firstAvailableCursor` (or the `warning` event on a live stream) and
+page ProcessHandle.logs from there yourself.
+
 **Parameters**:
 
 - `handle` _ProcessHandle_
@@ -21,6 +27,11 @@ ledger. Used by run() when no streaming callbacks were requested.
 **Returns**:
 
 - `Promise<CollectedRunOutput>`
+
+**Throws**:
+
+If the ledger exceeds the page budget, rather than
+returning silently partial output.
 
 ***
 

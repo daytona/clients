@@ -371,6 +371,10 @@ class Process:
         exit metadata. Logs are retained only briefly after exit (``on_exit_ttl``),
         so read what you need from the result.
 
+        The returned ``stdout``/``stderr`` are limited to what daemon log retention still
+        holds: a process that outruns the retention budget keeps only the retained suffix,
+        so use the callbacks (or ``handle.stream_logs``) when every byte matters.
+
         Example:
             ```python
             result = sandbox.process.run(shell_command="ls -la")
@@ -422,27 +426,34 @@ class Process:
         stdout: list[str] = []
         stderr: list[str] = []
         decoder = RunFrameDecoder()
-        deadline = time.monotonic() + wait_timeout_ms / 1000 if wait_timeout_ms else None
-        # The deadline is checked between events: a blocking SSE read cannot be
-        # interrupted mid-frame, so enforcement is best-effort, like a plain
-        # wait(timeout_ms) whose process produces no output.
+        budget_s = wait_timeout_ms / 1000 if wait_timeout_ms else None
+        deadline = time.monotonic() + budget_s if budget_s is not None else None
         timed_out = False
-        for event in handle.stream_logs(cursor="start", encoding="base64"):
-            if event.type == "log":
-                side, data = decoder.decode(event.frame.channel, event.frame.data or "", event.frame.encoding)
-                if side == "stdout" and data:
-                    stdout.append(data)
-                    if on_stdout is not None:
-                        on_stdout(data)
-                elif side == "stderr" and data:
-                    stderr.append(data)
-                    if on_stderr is not None:
-                        on_stderr(data)
-            elif event.type == "eof":
-                break
-            if deadline is not None and time.monotonic() > deadline:
-                timed_out = True
-                break
+        # Two mechanisms are needed to honour the budget: the deadline check below stops a
+        # chatty stream as soon as the next event lands, while the transport read timeout
+        # stops a silent one (no events, no daemon heartbeat). A single idle read is
+        # therefore bounded by the full budget rather than by the exact remaining slice.
+        try:
+            for event in self._stream_process_logs(
+                handle.id, cursor="start", encoding="base64", read_timeout_s=budget_s
+            ):
+                if event.type == "log":
+                    side, data = decoder.decode(event.frame.channel, event.frame.data or "", event.frame.encoding)
+                    if side == "stdout" and data:
+                        stdout.append(data)
+                        if on_stdout is not None:
+                            on_stdout(data)
+                    elif side == "stderr" and data:
+                        stderr.append(data)
+                        if on_stderr is not None:
+                            on_stderr(data)
+                elif event.type == "eof":
+                    break
+                if deadline is not None and time.monotonic() > deadline:
+                    timed_out = True
+                    break
+        except httpx.TimeoutException:
+            timed_out = True
         stdout_tail, stderr_tail = decoder.flush()
         if stdout_tail:
             stdout.append(stdout_tail)
@@ -455,6 +466,14 @@ class Process:
         return "".join(stdout), "".join(stderr), timed_out
 
     def _collect_run_output(self, handle: ProcessHandle) -> tuple[str, str]:
+        """Page through the retained log frames of ``handle`` and split them per channel.
+
+        The result is bounded by daemon log retention, not by everything the process ever
+        wrote: once the ring buffer evicts a process's oldest frames, replaying from
+        ``"start"`` returns the retained suffix and the page reports ``truncated_head``.
+        Callers that must not miss output should stream live (``stream_logs`` surfaces a
+        warning event carrying ``first_available_cursor``) instead of collecting after exit.
+        """
         stdout: list[str] = []
         stderr: list[str] = []
         decoder = RunFrameDecoder()
@@ -612,7 +631,12 @@ class Process:
         )
 
     def _stream_process_logs(
-        self, process_id: str, *, cursor: str | None, encoding: ProcessLogEncoding = "text"
+        self,
+        process_id: str,
+        *,
+        cursor: str | None,
+        encoding: ProcessLogEncoding = "text",
+        read_timeout_s: float | None = None,
     ) -> Iterator[ProcessStreamEvent]:
         _, url, headers, *_ = self._api_client._read_process_logs_serialize(
             id=process_id,
@@ -628,8 +652,13 @@ class Process:
         stream_headers = dict(headers)
         stream_headers["Accept"] = "text/event-stream"
 
+        # ``read_timeout_s`` bounds every blocking socket read: the daemon emits no
+        # heartbeat on an idle stream, and a blocking read cannot be interrupted from
+        # Python, so a transport read timeout is the only way a caller deadline can be
+        # enforced while nothing arrives. ``None`` (the default) follows the stream for
+        # as long as the process lives.
         parser = ServerSentEventParser()
-        with self._http_client.stream("GET", url, headers=stream_headers, timeout=None) as response:
+        with self._http_client.stream("GET", url, headers=stream_headers, timeout=read_timeout_s) as response:
             if response.status_code >= 400:
                 body = response.read().decode("utf-8", errors="replace")
                 raise process_error_from_response(
@@ -734,8 +763,8 @@ class Process:
         def kill_handler() -> None:
             self._signal_process(process_id, signal="SIGTERM", escalate_after_ms=None, escalate_to="SIGKILL")
 
-        def result_resolver() -> PtyResult:
-            result = self._wait_for_process(process_id)
+        def result_resolver(*, timeout_ms: int | None = None) -> PtyResult:
+            result = self._wait_for_process(process_id, timeout_ms=timeout_ms)
             return pty_result_from_process_result(
                 exit_code=result.exit_code,
                 reason=result.reason,

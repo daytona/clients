@@ -908,7 +908,7 @@ Returns [OutputChannels](<#OutputChannels>) for receiving streamed output, or an
 func (c *CodeInterpreterService) WithContext(ctx context.Context, fn func(InterpreterContext) error, opts ...func(*options.InterpreterContext)) (err error)
 ```
 
-WithContext runs fn with a fresh interpreter context and always deletes it afterwards. Use it for scoped state; use CreateContext and DeleteContext when the context must outlive a single callback.
+WithContext runs fn with a fresh interpreter context and always deletes it afterwards. Use it for scoped state; use CreateContext and DeleteContext when the context must outlive a single callback. Deletion is attempted even when ctx is already canceled, bounded by its own 30s timeout.
 
 <a name="ComputerUseService"></a>
 ## type ComputerUseService
@@ -3265,6 +3265,8 @@ func (h *ProcessHandle) Output(ctx context.Context) (*ProcessOutput, error)
 
 Output replays retained logs and returns collected stdout, stderr, and terminal metadata. Pair it with [ProcessHandle.Wait](<#ProcessHandle.Wait>); use [ProcessService.Run](<#ProcessService.Run>) when a single call should wait and collect output automatically.
 
+Retention is byte\-capped by the daemon, so this returns the retained suffix of the output: once the cap is reached the oldest frames are evicted and replay begins at the oldest surviving frame. Page with [ProcessHandle.Logs](<#ProcessHandle.Logs>) to observe each page's TruncatedHead and FirstAvailableCursor, or follow [ProcessHandle.StreamLogs](<#ProcessHandle.StreamLogs>) from process start to read frames before eviction.
+
 <a name="ProcessHandle.Resize"></a>
 ### func \(\*ProcessHandle\) Resize
 
@@ -3272,7 +3274,7 @@ Output replays retained logs and returns collected stdout, stderr, and terminal 
 func (h *ProcessHandle) Resize(ctx context.Context, cols, rows int) error
 ```
 
-Resize changes the terminal dimensions of a PTY process. It is not supported for exec processes; use it with a process started with kind "pty".
+Resize changes the terminal dimensions of a PTY process. It is not supported for exec processes; use it with a process started with kind "pty". Dimensions must be positive and no larger than [math.MaxInt32](<https://pkg.go.dev/math/#MaxInt32>).
 
 <a name="ProcessHandle.Stdin"></a>
 ### func \(\*ProcessHandle\) Stdin
@@ -3308,7 +3310,7 @@ StreamLogs replays retained logs from cursor, then follows live output until EOF
 func (h *ProcessHandle) Wait(ctx context.Context, timeoutMs ...int) (*toolbox.ProcessResult, error)
 ```
 
-Wait blocks until the process terminates and returns its terminal result. It does not collect logs; call [ProcessHandle.Output](<#ProcessHandle.Output>) afterwards for stdout and stderr.
+Wait blocks until the process terminates and returns its terminal result. It does not collect logs; call [ProcessHandle.Output](<#ProcessHandle.Output>) afterwards for stdout and stderr. timeoutMs must be between 0 and [math.MaxInt32](<https://pkg.go.dev/math/#MaxInt32>).
 
 <a name="ProcessOutput"></a>
 ## type ProcessOutput

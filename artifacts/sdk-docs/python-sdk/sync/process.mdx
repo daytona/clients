@@ -222,6 +222,10 @@ with optional ``on_stdout``/``on_stderr`` streaming callbacks) and returns
 exit metadata. Logs are retained only briefly after exit (``on_exit_ttl``),
 so read what you need from the result.
 
+The returned ``stdout``/``stderr`` are limited to what daemon log retention still
+holds: a process that outruns the retention budget keeps only the retained suffix,
+so use the callbacks (or ``handle.stream_logs``) when every byte matters.
+
 **Example**:
 
 ```python

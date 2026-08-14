@@ -134,7 +134,9 @@ class AsyncProcessHandle:
         """Collect the process's retained stdout/stderr plus exit metadata.
 
         Works on running processes (returns output so far) and after
-        reconnecting to a finished one.
+        reconnecting to a finished one. Only retained logs are returned: output evicted
+        from the daemon's retention buffer is gone, so the collected text can start
+        mid-stream for a process that wrote more than retention holds.
         """
         record = await self.get()
         stdout, stderr = await self._process_client._collect_run_output(self)

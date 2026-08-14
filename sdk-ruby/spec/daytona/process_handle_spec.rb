@@ -29,6 +29,66 @@ RSpec.describe Daytona::ProcessHandle do
 
       expect(decoder.flush).to eq(['', '�'])
     end
+
+    it 'replaces malformed bytes immediately instead of withholding later frames' do
+      decoder = described_class.new
+      frames = [+"first\xFF", +"second\n", +"\xF0\x9F", +"\x98\x80 ok\n", +"bad\xC3", +"\x28 end\n"]
+
+      decoded = frames.map do |raw|
+        decoder.decode(channel: 'stdout', data: Base64.strict_encode64(raw), encoding: 'base64')
+      end
+
+      expect(decoded).to eq(
+        [
+          [:stdout, "first\u{FFFD}"], [:stdout, "second\n"], [:stdout, ''],
+          [:stdout, "\u{1F600} ok\n"], [:stdout, 'bad'], [:stdout, "\u{FFFD}( end\n"]
+        ]
+      )
+      expect(decoder.flush).to eq(['', ''])
+    end
+
+    it 'holds a trailing byte that can still complete a codepoint until flush' do
+      decoder = described_class.new
+
+      expect(decoder.decode(channel: 'stderr', data: Base64.strict_encode64(+"ok\xF0"), encoding: 'base64'))
+        .to eq([:stderr, 'ok'])
+      expect(decoder.flush).to eq(['', "\u{FFFD}"])
+    end
+  end
+
+  describe '#stream_logs' do
+    it 'raises ConnectionError when the log stream times out' do
+      allow(api_client).to receive(:build_request_url).with('/processes/proc-1/logs')
+                                                      .and_return('https://proxy.example.com/toolbox/sandbox-123/processes/proc-1/logs')
+      allow(Net::HTTP).to receive(:start).and_raise(Net::ReadTimeout)
+
+      expect { handle.stream_logs { |_event| nil } }
+        .to raise_error(Daytona::Sdk::ConnectionError, /Failed to stream process logs/)
+    end
+  end
+
+  describe '#attach_terminal' do
+    before do
+      allow(toolbox_api).to receive(:get_process).with('proc-1').and_return(double('Process', kind: 'pty'))
+      allow(api_client).to receive(:build_request_url).with('/processes/proc-1/attach')
+                                                      .and_return('https://proxy.example.com/toolbox/sandbox-123/processes/proc-1/attach')
+    end
+
+    [Errno::ECONNREFUSED, Timeout::Error, IOError].each do |error_class|
+      it "raises ConnectionError when the terminal socket fails with #{error_class}" do
+        allow(WebSocket::Client::Simple).to receive(:connect).and_raise(error_class)
+
+        expect { handle.attach_terminal }
+          .to raise_error(Daytona::Sdk::ConnectionError, /Failed to attach process terminal/)
+      end
+    end
+
+    it 'still raises a plain Sdk::Error for non-PTY processes' do
+      allow(toolbox_api).to receive(:get_process).with('proc-1').and_return(double('Process', kind: 'exec'))
+
+      expect { handle.attach_terminal }
+        .to raise_error(Daytona::Sdk::Error, /only supported for kind=pty/)
+    end
   end
 
   describe '#output' do

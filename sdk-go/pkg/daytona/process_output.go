@@ -7,10 +7,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/options"
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 )
@@ -71,10 +73,21 @@ func (d *processOutputDecoders) Flush() (string, string) {
 	return d.stdout.Flush(), d.stderr.Flush()
 }
 
+// collectOutput replays every retained log page for the process.
+//
+// The daemon retains logs under a byte cap, so what it replays is a retained
+// suffix rather than the full history: once the cap is reached the oldest
+// frames are evicted and the page reports TruncatedHead with the surviving
+// range's FirstAvailableCursor. Collected output therefore starts at the
+// oldest retained frame by design. Callers that must detect or recover from
+// eviction should page with [ProcessHandle.Logs] and inspect TruncatedHead and
+// FirstAvailableCursor, or follow [ProcessHandle.StreamLogs] from the start of
+// the process so no frame is evicted before it is read.
 func (h *ProcessHandle) collectOutput(ctx context.Context) (string, string, error) {
 	var stdout, stderr strings.Builder
 	decoders := processOutputDecoders{}
 	cursor := "start"
+	drained := false
 	for pageNumber := 0; pageNumber < maxProcessLogPages; pageNumber++ {
 		page, err := h.Logs(ctx, cursor, 1000, "base64")
 		if err != nil {
@@ -89,9 +102,15 @@ func (h *ProcessHandle) collectOutput(ctx context.Context) (string, string, erro
 			stderr.WriteString(errOut)
 		}
 		if page.GetEof() || len(page.Frames) == 0 {
+			drained = true
 			break
 		}
 		cursor = page.GetNextCursor()
+	}
+	if !drained {
+		return "", "", sdkerrors.NewDaytonaError(
+			fmt.Sprintf("process log replay exceeded %d pages before reaching the end of the log; use ProcessHandle.StreamLogs or page with ProcessHandle.Logs for logs this large", maxProcessLogPages),
+			http.StatusRequestEntityTooLarge, nil)
 	}
 	stdoutTail, stderrTail := decoders.Flush()
 	stdout.WriteString(stdoutTail)

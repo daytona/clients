@@ -122,6 +122,8 @@ export type ProcessRunResult = ProcessResult & {
   readonly handle: ProcessHandle
   readonly stdout: string
   readonly stderr: string
+  /** True when `waitTimeoutMs` elapsed before the process exited on its own. */
+  readonly timedOut: boolean
 }
 
 export type PtySocket = WebSocket

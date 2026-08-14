@@ -12,6 +12,9 @@ import java.util.function.Consumer;
  *
  * <p>Use these instead of {@link ProcessStartOptions} when the SDK should wait and collect output.
  * Use {@code start} options for a background process you supervise through a handle.
+ *
+ * <p>A {@code null} wait timeout means no client-side deadline, while {@code 0} is a deadline that
+ * has already elapsed and reports a timed-out result immediately. Negative values are rejected.
  */
 public class ProcessRunOptions extends ProcessStartOptions {
     private Integer waitTimeoutMs;

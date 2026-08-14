@@ -23,7 +23,10 @@ import java.util.Base64;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.daytona.sdk.exception.DaytonaException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
@@ -107,6 +110,44 @@ class ProcessSurfaceTest {
             assertThat(server.takeRequest().getPath())
                     .isEqualTo("/toolbox/sandbox-1/processes/process-1/logs?follow=true&cursor=start&encoding=base64");
         }
+    }
+
+    @Test
+    void runWithZeroWaitTimeoutAndCallbackTimesOutImmediately() {
+        when(processApi.createProcess(org.mockito.ArgumentMatchers.any())).thenReturn(runningRecord("process-1"));
+        when(processApi.waitForProcess("process-1", 1)).thenReturn(new ProcessResult()
+                .reason(ProcessTerminalReason.ReasonTimedOut));
+        List<String> chunks = new ArrayList<String>();
+
+        ProcessRunResult result = process.run(new ProcessRunOptions()
+                .setWaitTimeoutMs(0)
+                .setOnStdout(chunks::add)
+                .setArgv(java.util.Collections.singletonList("sleep")));
+
+        assertThat(result.isTimedOut()).isTrue();
+        assertThat(chunks).isEmpty();
+        assertThat(result.getStdout()).isEmpty();
+    }
+
+    @Test
+    void collectLogsThrowsWhenPageCapIsExhausted() {
+        ProcessHandle handle = new ProcessHandle("process-1", process);
+        java.util.concurrent.atomic.AtomicInteger pages = new java.util.concurrent.atomic.AtomicInteger();
+        when(processApi.readProcessLogs(eq("process-1"), org.mockito.ArgumentMatchers.anyString(),
+                eq(1000), eq("base64"), isNull()))
+                .thenAnswer(invocation -> {
+                    String next = "cursor-" + pages.incrementAndGet();
+                    return new ProcessLogPage()
+                            .frames(java.util.Collections.singletonList(
+                                    frame(pages.get(), next, new byte[] { 'x' })))
+                            .nextCursor(next)
+                            .eof(false);
+                });
+
+        assertThatThrownBy(() -> process.collectLogs(handle, null, null))
+                .isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("exceeded 10000 pages");
+        assertThat(pages.get()).isEqualTo(10_000);
     }
 
     private static io.daytona.toolbox.client.model.Process runningRecord(String id) {

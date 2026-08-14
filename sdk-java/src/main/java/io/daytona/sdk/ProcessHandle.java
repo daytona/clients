@@ -111,6 +111,13 @@ public final class ProcessHandle {
      *
      * <p>Pair this with {@link #waitFor(Integer)} for a background process, or use
      * {@link Process#run(ProcessRunOptions)} when waiting and collection should be one operation.
+     *
+     * <p>Retention is byte-capped by the daemon, so this returns the retained suffix of the output:
+     * once the cap is reached the oldest frames are evicted and replay begins at the oldest
+     * surviving frame. Page with {@link #logs(String, Integer, String)} to observe each page's
+     * {@code truncatedHead} and {@code firstAvailableCursor}, or follow
+     * {@link #streamLogs(String, ProcessLogListener)} from process start to read frames before
+     * eviction.
      * @return retained output so far plus current exit metadata
      */
     public ProcessOutput output() {

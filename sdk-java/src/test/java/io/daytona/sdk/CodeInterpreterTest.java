@@ -245,6 +245,37 @@ class CodeInterpreterTest {
         verify(interpreterApi).deleteInterpreterContext("ctx-1");
     }
 
+    @Test
+    void withContextKeepsCallbackFailureAndSuppressesCleanupFailure() {
+        io.daytona.toolbox.client.model.InterpreterContext context =
+                new io.daytona.toolbox.client.model.InterpreterContext().id("ctx-1");
+        when(interpreterApi.createInterpreterContext(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("cleanup failed"))
+                .when(interpreterApi).deleteInterpreterContext("ctx-1");
+
+        assertThatThrownBy(() -> codeInterpreter.withContext(value -> {
+            throw new IllegalStateException("boom");
+        })).isInstanceOf(IllegalStateException.class)
+                .hasMessage("boom")
+                .satisfies(thrown -> {
+                    assertThat(thrown.getSuppressed()).hasSize(1);
+                    assertThat(thrown.getSuppressed()[0]).hasMessage("cleanup failed");
+                });
+    }
+
+    @Test
+    void withContextThrowsCleanupFailureWhenCallbackSucceeds() {
+        io.daytona.toolbox.client.model.InterpreterContext context =
+                new io.daytona.toolbox.client.model.InterpreterContext().id("ctx-1");
+        when(interpreterApi.createInterpreterContext(any())).thenReturn(context);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("cleanup failed"))
+                .when(interpreterApi).deleteInterpreterContext("ctx-1");
+
+        assertThatThrownBy(() -> codeInterpreter.withContext(value -> "ok"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("cleanup failed");
+    }
+
     private static Stream<Arguments> mappedToolboxExceptions() {
         return Stream.of(
                 Arguments.of(400, DaytonaBadRequestException.class),

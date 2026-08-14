@@ -125,6 +125,10 @@ Use this instead of manually pairing `#createContext()` and
 `#deleteContext(String)` when the context is scoped to one operation. Use explicit
 creation when state must survive beyond the callback.
 
+If the callback fails, its exception propagates and any deletion failure is attached to
+it via `Throwable#addSuppressed(Throwable)`; a deletion failure is only thrown on its
+own when the callback succeeded.
+
 **Parameters**:
 
 - `callback` _Function\<InterpreterContext, T\>_ - operation to perform with the temporary context

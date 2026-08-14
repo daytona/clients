@@ -185,6 +185,81 @@ RSpec.describe Daytona::Process do
         expect(request.keep_logs).to eq('on_exit_ttl')
       end
     end
+
+    it 'accepts every documented start option under its cross-SDK name' do
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+
+      started = process.start(
+        shell_command: 'npm run dev', shell: 'bash', login: true, name: 'dev-server',
+        session_id: 'session-1', cwd: 'app', env: { 'PORT' => '3000' }, user: 'daytona',
+        stdin: 'pipe', timeout_ms: 5000, kind: 'exec',
+        terminal: Daytona::PtySize.new(rows: 30, cols: 120), term: 'xterm-256color',
+        keep_logs: 'until_cleanup'
+      )
+
+      expect(started.id).to eq('proc-1')
+      expect(toolbox_api).to have_received(:create_process) do |request|
+        expect(request.shell_command).to eq('npm run dev')
+        expect(request.shell).to eq('bash')
+        expect(request.login).to be(true)
+        expect(request.name).to eq('dev-server')
+        expect(request.session_id).to eq('session-1')
+        expect(request.cwd).to eq('app')
+        expect(request.env).to eq({ 'PORT' => '3000' })
+        expect(request.user).to eq('daytona')
+        expect(request.stdin).to eq('pipe')
+        expect(request.timeout_ms).to eq(5000)
+        expect(request.kind).to eq('exec')
+        expect(request.keep_logs).to eq('until_cleanup')
+        expect([request.terminal.cols, request.terminal.rows, request.terminal.term])
+          .to eq([120, 30, 'xterm-256color'])
+      end
+    end
+
+    it 'starts argv processes without a shell command' do
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+
+      process.start(argv: %w[echo hi])
+
+      expect(toolbox_api).to have_received(:create_process) do |request|
+        expect(request.argv).to eq(%w[echo hi])
+        expect(request.shell_command).to be_nil
+      end
+    end
+
+    it 'reports timed_out when a bounded wait returns the timed_out reason' do
+      wait_result = double('Result', exit_code: nil, signal: nil, reason: 'timed_out')
+      page = double(
+        'Page', eof: true, next_cursor: 'done',
+                frames: [double(channel: 'stdout', data: Base64.strict_encode64('partial'), encoding: 'base64')]
+      )
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+      allow(toolbox_api).to receive(:wait_for_process).with('proc-1', timeout_ms: 50).and_return(wait_result)
+      allow(toolbox_api).to receive(:read_process_logs).with(
+        'proc-1', cursor: 'start', limit: 1000, encoding: 'base64'
+      ).and_return(page)
+
+      result = process.run(shell_command: 'sleep 30', wait_timeout_ms: 50)
+
+      expect(result.timed_out).to be(true)
+      expect(result.reason).to eq('timed_out')
+      expect(result.stdout).to eq('partial')
+    end
+
+    it 'does not report timed_out for a process killed for exceeding its own timeout' do
+      wait_result = double('Result', exit_code: nil, signal: 'SIGKILL', reason: 'timed_out')
+      page = double('Page', eof: true, next_cursor: 'done', frames: [])
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+      allow(toolbox_api).to receive(:wait_for_process).with('proc-1', timeout_ms: 50).and_return(wait_result)
+      allow(toolbox_api).to receive(:read_process_logs).with(
+        'proc-1', cursor: 'start', limit: 1000, encoding: 'base64'
+      ).and_return(page)
+
+      result = process.run(shell_command: 'sleep 30', timeout_ms: 10, wait_timeout_ms: 50)
+
+      expect(result.timed_out).to be(false)
+      expect(result.signal).to eq('SIGKILL')
+    end
   end
 
   describe '#code_run' do

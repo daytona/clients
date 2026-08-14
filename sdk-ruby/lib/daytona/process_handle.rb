@@ -6,10 +6,16 @@
 require 'cgi'
 require 'json'
 require 'net/http'
+require 'timeout'
 require 'uri'
 
 module Daytona
   class ProcessHandle # rubocop:disable Metrics/ClassLength
+    # Raised by the hand-rolled log stream and terminal socket rather than the
+    # generated client, so they are mapped to {Sdk::ConnectionError} by hand.
+    TRANSPORT_ERROR_CLASSES = [IOError, SystemCallError, Timeout::Error].freeze
+    private_constant :TRANSPORT_ERROR_CLASSES
+
     # @return [String] Process ID used by {Process#get} and {Process#connect}
     attr_reader :id
 
@@ -66,7 +72,7 @@ module Daytona
       stream_sse(cursor:, encoding:, &)
     rescue *Sdk::API_ERROR_CLASSES => e
       raise Sdk.wrap_error(e, 'Failed to stream process logs')
-    rescue JSON::ParserError, IOError, SystemCallError => e
+    rescue JSON::ParserError, *TRANSPORT_ERROR_CLASSES => e
       raise Sdk::ConnectionError, "Failed to stream process logs: #{e.message}"
     end
 
@@ -173,6 +179,7 @@ module Daytona
     #
     # @return [Daytona::PtyHandle] Connected interactive PTY handle
     # @raise [Daytona::Sdk::Error] If the process is not a PTY or attachment fails
+    # @raise [Daytona::Sdk::ConnectionError] If the terminal socket cannot be connected
     def attach_terminal # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       record = get
       raise Sdk::Error, 'Terminal attachment is only supported for kind=pty processes' unless record.kind == 'pty'
@@ -186,6 +193,8 @@ module Daytona
       ).tap(&:wait_for_connection)
     rescue *Sdk::API_ERROR_CLASSES => e
       raise Sdk.wrap_error(e, 'Failed to attach process terminal')
+    rescue *TRANSPORT_ERROR_CLASSES => e
+      raise Sdk::ConnectionError, "Failed to attach process terminal: #{e.message}"
     end
 
     # Replay and decode all currently retained output.

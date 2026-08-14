@@ -5,6 +5,8 @@ package daytona
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"net/http"
 	"strings"
 
@@ -49,8 +51,10 @@ func (p *ProcessService) Start(ctx context.Context, opts ...func(*options.Proces
 func (p *ProcessService) Run(ctx context.Context, opts ...func(*options.ProcessRun)) (*ProcessRunResult, error) {
 	return withInstrumentation(ctx, p.otel, "Process", "Run", func(ctx context.Context) (*ProcessRunResult, error) {
 		runOpts := options.Apply(opts...)
-		if runOpts.WaitTimeoutMs != nil && *runOpts.WaitTimeoutMs < 0 {
-			return nil, sdkerrors.NewDaytonaError("waitTimeoutMs must be non-negative", http.StatusBadRequest, nil)
+		if runOpts.WaitTimeoutMs != nil {
+			if err := validateTimeoutMs("waitTimeoutMs", *runOpts.WaitTimeoutMs); err != nil {
+				return nil, err
+			}
 		}
 		if runOpts.KeepLogs == nil {
 			keepLogs := string(toolbox.PROCESSKEEPLOGS_KeepLogsOnExitTTL)
@@ -151,6 +155,23 @@ func (p *ProcessService) start(ctx context.Context, startOpts *options.ProcessSt
 	return newProcessHandle(process.Id, p), nil
 }
 
+// fitsInt32 reports whether value survives conversion to the int32 fields the
+// daemon API uses. Out-of-range values would silently wrap to a negative or
+// unrelated number instead of reaching the daemon as written.
+func fitsInt32(value int) bool {
+	return value >= math.MinInt32 && value <= math.MaxInt32
+}
+
+func validateTimeoutMs(name string, value int) error {
+	if value < 0 {
+		return sdkerrors.NewDaytonaError(fmt.Sprintf("%s must be non-negative", name), http.StatusBadRequest, nil)
+	}
+	if !fitsInt32(value) {
+		return sdkerrors.NewDaytonaError(fmt.Sprintf("%s must not exceed %d", name, math.MaxInt32), http.StatusBadRequest, nil)
+	}
+	return nil
+}
+
 func buildCreateProcessRequest(opts *options.ProcessStart) (*toolbox.CreateProcessRequest, error) {
 	hasArgv := len(opts.Argv) > 0
 	hasCommand := opts.ShellCommand != nil && strings.TrimSpace(*opts.ShellCommand) != ""
@@ -158,8 +179,10 @@ func buildCreateProcessRequest(opts *options.ProcessStart) (*toolbox.CreateProce
 	if hasArgv == hasCommand && (!isPTY || hasArgv || hasCommand) {
 		return nil, sdkerrors.NewDaytonaError("provide exactly one of argv or shellCommand", http.StatusBadRequest, nil)
 	}
-	if opts.TimeoutMs != nil && *opts.TimeoutMs < 0 {
-		return nil, sdkerrors.NewDaytonaError("timeoutMs must be non-negative", http.StatusBadRequest, nil)
+	if opts.TimeoutMs != nil {
+		if err := validateTimeoutMs("timeoutMs", *opts.TimeoutMs); err != nil {
+			return nil, err
+		}
 	}
 	if opts.Name != nil && strings.TrimSpace(*opts.Name) == "" {
 		return nil, sdkerrors.NewDaytonaError("name must not be blank", http.StatusBadRequest, nil)

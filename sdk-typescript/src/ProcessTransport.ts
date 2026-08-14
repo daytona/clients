@@ -17,6 +17,7 @@ import {
   buildCreateProcessRequest,
   createFetchDaytonaError,
   createFetchResponseError,
+  encodeStdinPayload,
   extractSseSegments,
   normalizeHeaders,
   normalizeIdentifier,
@@ -126,9 +127,7 @@ export class ProcessTransport {
 
   public async sendStdin(id: string, data: string | Uint8Array): Promise<void> {
     const processId = normalizeIdentifier(id, 'processId')
-    await this.apiClient.sendProcessStdin(processId, {
-      data: typeof data === 'string' ? data : new TextDecoder('utf-8').decode(data),
-    })
+    await this.apiClient.sendProcessStdin(processId, { data: encodeStdinPayload(data) })
   }
 
   public async sendStdinEof(id: string): Promise<void> {

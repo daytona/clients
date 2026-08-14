@@ -65,6 +65,9 @@ export class ProcessHandle {
 
   /**
    * Writes data to the process's stdin (requires `stdin: 'pipe'` at start, or a PTY).
+   * The payload travels as text, so `Uint8Array` input must be valid UTF-8 - invalid
+   * bytes are rejected rather than silently replaced. For byte-exact input use a
+   * `kind: 'pty'` process and write to its {@link attachTerminal} socket.
    */
   @WithInstrumentation()
   public async stdin(data: string | Uint8Array): Promise<void> {
@@ -80,7 +83,9 @@ export class ProcessHandle {
   }
 
   /**
-   * Sends a signal to the process (default SIGKILL; pass `signal` to override).
+   * Sends a signal to the process (default SIGTERM; pass `signal` to override).
+   * Pass `escalateAfterMs` to follow up with `escalateTo` (SIGKILL by default) when
+   * the process is still alive after that grace period.
    */
   @WithInstrumentation()
   public async kill(options?: ProcessKillOptions): Promise<void> {
@@ -127,6 +132,12 @@ export class ProcessHandle {
    * Collects the process's retained stdout/stderr from the log ledger, plus
    * exit metadata when the process has finished. Works on running processes
    * (returns output so far) and after reconnecting to a finished one.
+   *
+   * Output is limited to what the daemon still retains: once the retention cap
+   * evicts the earliest frames only the retained suffix comes back, and the
+   * underlying page reports `truncatedHead`. Resume from the record's
+   * `firstAvailableCursor` (or a stream `warning` event) with {@link logs} to
+   * page the remainder manually.
    *
    * @example
    * const handle = await sandbox.process.get(processId);

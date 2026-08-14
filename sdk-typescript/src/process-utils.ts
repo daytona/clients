@@ -18,7 +18,10 @@ import { RUNTIME, Runtime } from './utils/Runtime'
 
 export function buildCreateProcessRequest(options: ProcessStartOptions): CreateProcessRequest {
   const request: CreateProcessRequest = {}
-  if (options.argv !== undefined) request.argv = [...options.argv]
+  // An empty argv and a blank shellCommand both mean "no command" to validation,
+  // so they must not reach the wire either - sending both fields would make the
+  // daemon reject an otherwise valid request as ambiguous.
+  if (options.argv !== undefined && options.argv.length > 0) request.argv = [...options.argv]
   if (options.cwd !== undefined) request.cwd = options.cwd
   if (options.env !== undefined) request.env = { ...options.env }
   if (options.keepLogs !== undefined) request.keepLogs = options.keepLogs
@@ -27,7 +30,7 @@ export function buildCreateProcessRequest(options: ProcessStartOptions): CreateP
   if (options.name !== undefined) request.name = options.name
   if (options.sessionId !== undefined) request.sessionId = options.sessionId
   if (options.shell !== undefined) request.shell = options.shell
-  if (options.shellCommand !== undefined) request.shellCommand = options.shellCommand
+  if (normalizeOptionalString(options.shellCommand) !== undefined) request.shellCommand = options.shellCommand
   if (options.stdin !== undefined) request.stdin = options.stdin
   if (options.terminal !== undefined) request.terminal = { ...options.terminal }
   if (options.timeoutMs !== undefined) request.timeoutMs = options.timeoutMs
@@ -122,18 +125,42 @@ export function validateProcessStartOptions(options: ProcessStartOptions): void 
   if (options.name !== undefined && options.name.trim() === '') {
     throw new DaytonaInvalidArgumentError('name must not be blank')
   }
+  if (options.terminal?.cols !== undefined) {
+    validateTerminalDimension(options.terminal.cols, 'terminal.cols')
+  }
+  if (options.terminal?.rows !== undefined) {
+    validateTerminalDimension(options.terminal.rows, 'terminal.rows')
+  }
   validateWaitTimeout(options.timeoutMs)
 }
 
 export function validateKillOptions(options?: ProcessKillOptions): void {
-  if (options?.escalateAfterMs !== undefined && options.escalateAfterMs < 0) {
-    throw new DaytonaInvalidArgumentError('escalateAfterMs must be a non-negative number')
+  if (options?.escalateAfterMs !== undefined && !isNonNegativeFinite(options.escalateAfterMs)) {
+    throw new DaytonaInvalidArgumentError('escalateAfterMs must be a non-negative finite number')
   }
 }
 
 export function validateWaitTimeout(timeoutMs: number | undefined): void {
-  if (timeoutMs !== undefined && timeoutMs < 0) {
-    throw new DaytonaInvalidArgumentError('timeoutMs must be a non-negative number')
+  if (timeoutMs !== undefined && !isNonNegativeFinite(timeoutMs)) {
+    throw new DaytonaInvalidArgumentError('timeoutMs must be a non-negative finite number')
+  }
+}
+
+export function encodeStdinPayload(data: string | Uint8Array): string {
+  if (typeof data === 'string') {
+    return data
+  }
+
+  try {
+    // The daemon's stdin endpoint carries the payload in a JSON string field, so
+    // bytes that are not valid UTF-8 cannot survive the round trip. Decoding in
+    // fatal mode turns silent U+FFFD corruption into an explicit rejection.
+    return new TextDecoder('utf-8', { fatal: true }).decode(data)
+  } catch {
+    throw new DaytonaInvalidArgumentError(
+      'stdin data must be valid UTF-8 - the process stdin endpoint transports text and would corrupt these bytes. ' +
+        'For byte-exact input use a `kind: "pty"` process and write to its attachTerminal() socket.',
+    )
   }
 }
 
@@ -183,6 +210,10 @@ export function buildStreamingHeaders(baseHeaders: Record<string, string>, accep
 
 export function requiresPreviewToken(): boolean {
   return RUNTIME === Runtime.BROWSER || RUNTIME === Runtime.DENO || RUNTIME === Runtime.SERVERLESS
+}
+
+function isNonNegativeFinite(value: number): boolean {
+  return Number.isFinite(value) && value >= 0
 }
 
 function parseErrorPayload(text: string): Record<string, unknown> | undefined {

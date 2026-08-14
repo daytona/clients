@@ -254,6 +254,10 @@ public class CodeInterpreter {
      * <p>Use this instead of manually pairing {@link #createContext()} and
      * {@link #deleteContext(String)} when the context is scoped to one operation. Use explicit
      * creation when state must survive beyond the callback.
+     *
+     * <p>If the callback fails, its exception propagates and any deletion failure is attached to
+     * it via {@link Throwable#addSuppressed(Throwable)}; a deletion failure is only thrown on its
+     * own when the callback succeeded.
      * @param callback operation to perform with the temporary context
      * @param <T> callback result type
      * @return callback result
@@ -263,10 +267,21 @@ public class CodeInterpreter {
             throw new IllegalArgumentException("callback is required");
         }
         InterpreterContext context = createContext();
+        Throwable primary = null;
         try {
             return callback.apply(context);
+        } catch (RuntimeException | Error e) {
+            primary = e;
+            throw e;
         } finally {
-            deleteContext(context.getId());
+            try {
+                deleteContext(context.getId());
+            } catch (RuntimeException | Error cleanupFailure) {
+                if (primary == null) {
+                    throw cleanupFailure;
+                }
+                primary.addSuppressed(cleanupFailure);
+            }
         }
     }
 

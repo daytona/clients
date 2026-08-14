@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -105,10 +106,14 @@ func (h *ProcessHandle) Kill(ctx context.Context, signal ...string) error {
 }
 
 // Resize changes the terminal dimensions of a PTY process. It is not supported
-// for exec processes; use it with a process started with kind "pty".
+// for exec processes; use it with a process started with kind "pty". Dimensions
+// must be positive and no larger than [math.MaxInt32].
 func (h *ProcessHandle) Resize(ctx context.Context, cols, rows int) error {
 	if cols <= 0 || rows <= 0 {
 		return sdkerrors.NewDaytonaError("terminal dimensions must be positive", http.StatusBadRequest, nil)
+	}
+	if !fitsInt32(cols) || !fitsInt32(rows) {
+		return sdkerrors.NewDaytonaError(fmt.Sprintf("terminal dimensions must not exceed %d", math.MaxInt32), http.StatusBadRequest, nil)
 	}
 	request := toolbox.NewResizeProcessRequest(int32(cols), int32(rows))
 	_, httpResp, err := h.service.toolboxClient.ProcessAPI.ResizeProcess(ctx, h.processID).Request(*request).Execute()
@@ -116,12 +121,13 @@ func (h *ProcessHandle) Resize(ctx context.Context, cols, rows int) error {
 }
 
 // Wait blocks until the process terminates and returns its terminal result. It
-// does not collect logs; call [ProcessHandle.Output] afterwards for stdout and stderr.
+// does not collect logs; call [ProcessHandle.Output] afterwards for stdout and
+// stderr. timeoutMs must be between 0 and [math.MaxInt32].
 func (h *ProcessHandle) Wait(ctx context.Context, timeoutMs ...int) (*toolbox.ProcessResult, error) {
 	request := h.service.toolboxClient.ProcessAPI.WaitForProcess(ctx, h.processID)
 	if len(timeoutMs) > 0 {
-		if timeoutMs[0] < 0 {
-			return nil, sdkerrors.NewDaytonaError("timeoutMs must be non-negative", http.StatusBadRequest, nil)
+		if err := validateTimeoutMs("timeoutMs", timeoutMs[0]); err != nil {
+			return nil, err
 		}
 		request = request.TimeoutMs(int32(timeoutMs[0]))
 	}
@@ -135,6 +141,12 @@ func (h *ProcessHandle) Wait(ctx context.Context, timeoutMs ...int) (*toolbox.Pr
 // Output replays retained logs and returns collected stdout, stderr, and terminal
 // metadata. Pair it with [ProcessHandle.Wait]; use [ProcessService.Run] when a
 // single call should wait and collect output automatically.
+//
+// Retention is byte-capped by the daemon, so this returns the retained suffix of
+// the output: once the cap is reached the oldest frames are evicted and replay
+// begins at the oldest surviving frame. Page with [ProcessHandle.Logs] to observe
+// each page's TruncatedHead and FirstAvailableCursor, or follow
+// [ProcessHandle.StreamLogs] from process start to read frames before eviction.
 func (h *ProcessHandle) Output(ctx context.Context) (*ProcessOutput, error) {
 	record, err := h.Get(ctx)
 	if err != nil {

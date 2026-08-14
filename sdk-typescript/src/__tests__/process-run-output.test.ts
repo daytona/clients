@@ -1,8 +1,10 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { collectOutputFromLogs } from '../process-run-output'
+import { collectOutputFromLogs, streamOutputWithCallbacks } from '../process-run-output'
+import { DaytonaError } from '../errors/DaytonaError'
 import type { ProcessHandle } from '../ProcessHandle'
+import type { ProcessLogEvent } from '../types/Process'
 
 function b64(bytes: number[]): string {
   return Buffer.from(bytes).toString('base64')
@@ -43,6 +45,71 @@ describe('run output UTF-8 reassembly', () => {
 
     const collected = await collectOutputFromLogs(handle)
     expect(collected.stdout).toBe('ok\uFFFD')
+  })
+})
+
+describe('run output collection limits', () => {
+  it('throws instead of returning silently partial output when the page budget is exhausted', async () => {
+    let pages = 0
+    const handle = {
+      id: 'prc_paged',
+      logs: async () => {
+        pages++
+        return {
+          frames: [
+            {
+              seq: pages,
+              cursor: `c${pages}`,
+              channel: 'stdout',
+              timestamp: '',
+              data: Buffer.from('x').toString('base64'),
+              encoding: 'base64',
+            },
+          ],
+          eof: false,
+          nextCursor: `c${pages}`,
+          truncatedHead: false,
+        }
+      },
+    } as unknown as ProcessHandle
+
+    await expect(collectOutputFromLogs(handle)).rejects.toBeInstanceOf(DaytonaError)
+    expect(pages).toBe(10_000)
+  })
+
+  it('cancels the deadline timer after every streaming race', async () => {
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout')
+    const events: ProcessLogEvent[] = [
+      {
+        type: 'log',
+        cursor: 'c1',
+        frame: { seq: 1, cursor: 'c1', channel: 'stdout', timestamp: '', data: 'hi', encoding: 'text' },
+      },
+      { type: 'eof', cursor: 'c1' },
+    ]
+    const handle = {
+      id: 'prc_stream',
+      streamLogs: async function* () {
+        for (const event of events) {
+          yield event
+        }
+      },
+    } as unknown as ProcessHandle
+
+    const chunks: string[] = []
+    const collected = await streamOutputWithCallbacks(
+      handle,
+      (data) => {
+        chunks.push(data)
+      },
+      undefined,
+      60_000,
+    )
+
+    expect(chunks).toEqual(['hi'])
+    expect(collected.timedOut).toBe(false)
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(events.length)
+    clearTimeoutSpy.mockRestore()
   })
 })
 

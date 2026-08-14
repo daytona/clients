@@ -291,6 +291,15 @@ export class Process {
    * only briefly after exit (`on_exit_ttl`), so read what you need from the result. The
    * returned object still carries `handle` for follow-up actions.
    *
+   * The collected output is limited to what the daemon still retains: if a very chatty
+   * process overruns the retention cap, the earliest output is evicted and only the
+   * retained suffix is returned (the log page reports `truncatedHead`). To recover the
+   * remainder deliberately, resume from the record's `firstAvailableCursor` - or the
+   * `warning` event on a live stream - with {@link ProcessHandle.logs}. Streaming with
+   * `onStdout`/`onStderr` avoids the cap entirely by consuming output as it is produced.
+   * `keepLogs: 'none'` therefore requires those callbacks, since nothing is retained to
+   * collect afterwards.
+   *
    * @param {ProcessRunOptions} options - Same as {@link start} plus `onStdout`, `onStderr`
    * and `waitTimeoutMs` (on timeout the partial result has `timedOut: true`).
    * @returns {Promise<ProcessRunResult>} Exit code/reason plus collected stdout and stderr

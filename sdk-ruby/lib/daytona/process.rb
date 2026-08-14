@@ -45,11 +45,18 @@ module Daytona
     # retained according to `keep_logs`; use `until_cleanup` when they must remain
     # available until {ProcessHandle#cleanup} is called.
     #
-    # @param options [Hash] Process creation options accepted by the toolbox API,
-    #   including `command`, `shell_command`, `cwd`, `env`, `terminal`, `stdin_mode`,
-    #   and `keep_logs`
+    # @param options [Hash] Process creation options accepted by the process service:
+    #   `argv`, `shell_command`, `shell`, `login`, `name`, `session_id`, `cwd`, `env`,
+    #   `user`, `stdin`, `timeout_ms`, `kind`, `terminal`, `term`, and `keep_logs`.
+    #   Supply exactly one of `argv` or `shell_command`, and `term` only with `terminal`
     # @return [Daytona::ProcessHandle] Handle used to supervise the process
     # @raise [Daytona::Sdk::Error] If the process cannot be started
+    #
+    # @example
+    #   handle = sandbox.process.start(
+    #     shell_command: 'npm run dev', name: 'dev-server', cwd: 'app',
+    #     env: { 'PORT' => '3000' }, stdin: 'pipe', keep_logs: 'until_cleanup'
+    #   )
     def start(**options)
       request = build_process_request(options)
       record = toolbox_api.create_process(request)
@@ -754,8 +761,16 @@ module Daytona
       wait_timeout_ms.nil? ? nil : 1
     end
 
+    # A wait that hits its own timeout reports `timed_out` with neither an exit code
+    # nor a signal, because the process may still be running. A process killed for
+    # exceeding its own `timeout_ms` reports the same reason but carries the kill
+    # signal, so it reads as a genuine termination rather than a timed-out wait.
     def wait_result_timed_out?(result, wait_timeout_ms)
-      !wait_timeout_ms.nil? && result.exit_code.nil? && result.signal.nil? && result.reason.nil?
+      return false if wait_timeout_ms.nil?
+      return false unless result.exit_code.nil? && result.signal.nil?
+
+      reason = result.reason
+      reason.nil? || reason.to_s == WAIT_TIMEOUT_REASON
     end
 
     def build_run_result(handle, result, stdout:, stderr:, timed_out:)
@@ -764,6 +779,9 @@ module Daytona
         exit_code: result.exit_code, signal: result.signal, reason: result.reason
       )
     end
+
+    WAIT_TIMEOUT_REASON = 'timed_out'
+    private_constant :WAIT_TIMEOUT_REASON
 
     WS_PORT = 2280
     private_constant :WS_PORT

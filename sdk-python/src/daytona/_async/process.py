@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import re
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
 from typing import TypeVar, cast
 from urllib.parse import urlencode
 
@@ -380,6 +381,10 @@ class AsyncProcess:
         exit metadata. Logs are retained only briefly after exit (``on_exit_ttl``),
         so read what you need from the result.
 
+        The returned ``stdout``/``stderr`` are limited to what daemon log retention still
+        holds: a process that outruns the retention budget keeps only the retained suffix,
+        so use the callbacks (or ``handle.stream_logs``) when every byte matters.
+
         Example:
             ```python
             result = sandbox.process.run(shell_command="ls -la")
@@ -432,26 +437,40 @@ class AsyncProcess:
         stderr: list[str] = []
         decoder = RunFrameDecoder()
         deadline = time.monotonic() + wait_timeout_ms / 1000 if wait_timeout_ms else None
-        # The deadline is checked between events: a blocking SSE read cannot be
-        # interrupted mid-frame, so enforcement is best-effort, like a plain
-        # wait(timeout_ms) whose process produces no output.
         timed_out = False
-        async for event in handle.stream_logs(cursor="start", encoding="base64"):
-            if event.type == "log":
-                side, data = decoder.decode(event.frame.channel, event.frame.data or "", event.frame.encoding)
-                if side == "stdout" and data:
-                    stdout.append(data)
-                    if on_stdout is not None:
-                        on_stdout(data)
-                elif side == "stderr" and data:
-                    stderr.append(data)
-                    if on_stderr is not None:
-                        on_stderr(data)
-            elif event.type == "eof":
-                break
-            if deadline is not None and time.monotonic() > deadline:
-                timed_out = True
-                break
+        # The daemon sends no heartbeat on an idle stream, so a bare ``async for`` would
+        # park forever and never reach a deadline check. Every pull is bounded by the
+        # remaining budget instead, which also covers the chatty case.
+        events = self._stream_process_logs(handle.id, cursor="start", encoding="base64")
+        try:
+            while True:
+                if deadline is None:
+                    event = await events.__anext__()
+                else:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        timed_out = True
+                        break
+                    event = await asyncio.wait_for(events.__anext__(), remaining)
+
+                if event.type == "log":
+                    side, data = decoder.decode(event.frame.channel, event.frame.data or "", event.frame.encoding)
+                    if side == "stdout" and data:
+                        stdout.append(data)
+                        if on_stdout is not None:
+                            on_stdout(data)
+                    elif side == "stderr" and data:
+                        stderr.append(data)
+                        if on_stderr is not None:
+                            on_stderr(data)
+                elif event.type == "eof":
+                    break
+        except StopAsyncIteration:
+            pass
+        except asyncio.TimeoutError:
+            timed_out = True
+        finally:
+            await events.aclose()
         stdout_tail, stderr_tail = decoder.flush()
         if stdout_tail:
             stdout.append(stdout_tail)
@@ -464,6 +483,14 @@ class AsyncProcess:
         return "".join(stdout), "".join(stderr), timed_out
 
     async def _collect_run_output(self, handle: AsyncProcessHandle) -> tuple[str, str]:
+        """Page through the retained log frames of ``handle`` and split them per channel.
+
+        The result is bounded by daemon log retention, not by everything the process ever
+        wrote: once the ring buffer evicts a process's oldest frames, replaying from
+        ``"start"`` returns the retained suffix and the page reports ``truncated_head``.
+        Callers that must not miss output should stream live (``stream_logs`` surfaces a
+        warning event carrying ``first_available_cursor``) instead of collecting after exit.
+        """
         stdout: list[str] = []
         stderr: list[str] = []
         decoder = RunFrameDecoder()
@@ -622,7 +649,7 @@ class AsyncProcess:
 
     async def _stream_process_logs(
         self, process_id: str, *, cursor: str | None, encoding: ProcessLogEncoding = "text"
-    ) -> AsyncIterator[ProcessStreamEvent]:
+    ) -> AsyncGenerator[ProcessStreamEvent, None]:
         _, url, headers, *_ = self._api_client._read_process_logs_serialize(
             id=process_id,
             cursor=cursor,

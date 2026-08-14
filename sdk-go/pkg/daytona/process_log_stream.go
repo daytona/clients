@@ -149,9 +149,14 @@ func parseProcessLogEvent(eventName, data string) (LogEvent, error) {
 			return LogEvent{}, fmt.Errorf("decode process state event: %w", err)
 		}
 		return LogEvent{Type: "state", Cursor: marker.Cursor, Process: &process}, nil
+	// The daemon has a single warning emitter and it always populates cursor,
+	// message, and firstAvailableCursor, so warnings need no field validation.
 	case eventName == "warning" || marker.Message != "":
 		return LogEvent{Type: "warning", Cursor: marker.Cursor, Message: marker.Message, FirstAvailableCursor: marker.FirstAvailableCursor}, nil
-	case eventName == "eof" || marker.Cursor != "":
+	// Only an explicitly named "eof" event ends the stream. Every daemon event
+	// carries a cursor, so treating any cursor-bearing payload as EOF would
+	// silently truncate the stream on an event name this SDK does not yet know.
+	case eventName == "eof":
 		return LogEvent{Type: "eof", Cursor: marker.Cursor}, nil
 	default:
 		return LogEvent{}, fmt.Errorf("unknown process log event %q", eventName)

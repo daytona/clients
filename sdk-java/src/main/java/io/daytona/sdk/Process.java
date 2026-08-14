@@ -76,6 +76,7 @@ public class Process {
     // Capability token advertised on PTY WebSocket connects so the daemon sends the
     // "exited" control message; clients that don't send it only get the close frame.
     private static final String PTY_EXIT_CONTROL_SUBPROTOCOL = "X-Daytona-Pty-Exit-Control";
+    private static final int MAX_LOG_REPLAY_PAGES = 10_000;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ProcessApi processApi;
@@ -227,17 +228,40 @@ public class Process {
         ExceptionMapper.runToolbox(() -> processApi.cleanupProcess(id));
     }
 
+    /**
+     * Replays every retained log page for a process.
+     *
+     * <p>The daemon retains logs under a byte cap, so this collects the retained suffix of the
+     * output rather than the full history: once the cap is reached the oldest frames are evicted
+     * and each page reports {@code truncatedHead} together with the surviving range's
+     * {@code firstAvailableCursor}. Callers that must detect or recover from eviction should page
+     * with {@link ProcessHandle#logs(String, Integer, String)} and inspect those fields, or follow
+     * {@link ProcessHandle#streamLogs(String, ProcessLogListener)} from the start of the process so
+     * no frame is evicted before it is read.
+     */
     ProcessOutputCollector.Collected collectLogs(ProcessHandle handle, Consumer<String> onStdout,
                                                  Consumer<String> onStderr) {
         ProcessOutputCollector collector = new ProcessOutputCollector(onStdout, onStderr);
         String cursor = "start";
-        for (int pageNumber = 0; pageNumber < 10_000; pageNumber++) {
+        boolean drained = false;
+        for (int pageNumber = 0; pageNumber < MAX_LOG_REPLAY_PAGES; pageNumber++) {
             ProcessLogPage page = handle.logs(cursor, 1000, "base64");
             List<ProcessLogFrame> frames = page == null ? null : page.getFrames();
             if (frames != null) frames.forEach(collector::accept);
-            if (page == null || Boolean.TRUE.equals(page.getEof()) || frames == null || frames.isEmpty()) break;
-            if (page.getNextCursor() == null || page.getNextCursor().equals(cursor)) break;
+            if (page == null || Boolean.TRUE.equals(page.getEof()) || frames == null || frames.isEmpty()) {
+                drained = true;
+                break;
+            }
+            if (page.getNextCursor() == null || page.getNextCursor().equals(cursor)) {
+                drained = true;
+                break;
+            }
             cursor = page.getNextCursor();
+        }
+        if (!drained) {
+            throw new DaytonaException("Process log replay exceeded " + MAX_LOG_REPLAY_PAGES
+                    + " pages before reaching the end of the log; stream the logs or page them"
+                    + " explicitly for logs this large");
         }
         return collector.finish();
     }
@@ -253,8 +277,11 @@ public class Process {
         Request request = new Request.Builder().url(url.build())
                 .header("Authorization", "Bearer " + sandbox.getApiKey())
                 .header("Accept", "text/event-stream").build();
+        // A zero deadline has already elapsed, and OkHttp reads a zero timeout as "no timeout",
+        // so it is honored here instead of being handed to the call.
+        if (timeoutMs != null && timeoutMs <= 0) return true;
         Call call = sandbox.getToolboxApiClient().getHttpClient().newCall(request);
-        if (timeoutMs != null && timeoutMs > 0) call.timeout().timeout(timeoutMs, TimeUnit.MILLISECONDS);
+        call.timeout().timeout(timeoutMs == null ? 0 : timeoutMs, TimeUnit.MILLISECONDS);
 
         try (Response response = call.execute()) {
             if (!response.isSuccessful()) {

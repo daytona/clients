@@ -27,6 +27,13 @@ export class ProcessClient {
   public async run(options: ProcessRunOptions = {}): Promise<ProcessRunResult> {
     validateWaitTimeout(options.waitTimeoutMs)
     const { waitTimeoutMs, onStdout, onStderr, ...startOptions } = options
+    if (startOptions.keepLogs === 'none' && !onStdout && !onStderr) {
+      throw new DaytonaInvalidArgumentError(
+        "keepLogs: 'none' discards output as it is produced, so run() cannot return stdout/stderr. " +
+          'Consume the output live with onStdout/onStderr, or keep it with a retaining mode ' +
+          "('on_exit_ttl' or 'until_cleanup').",
+      )
+    }
     const handle = await this.start({
       ...startOptions,
       keepLogs: startOptions.keepLogs ?? 'on_exit_ttl',
@@ -44,6 +51,7 @@ export class ProcessClient {
         handle,
         stdout: output.stdout,
         stderr: output.stderr,
+        timedOut: output.timedOut || result.reason === 'timed_out',
       }
     }
 
@@ -55,6 +63,7 @@ export class ProcessClient {
       handle,
       stdout: output.stdout,
       stderr: output.stderr,
+      timedOut: output.timedOut || result.reason === 'timed_out',
     }
   }
 

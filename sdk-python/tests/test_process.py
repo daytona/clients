@@ -3,11 +3,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
-from dataclasses import dataclass
+import time
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 
 from daytona.common.errors import DaytonaProcessCursorExpiredError
@@ -40,6 +44,62 @@ class _FakeSyncStreamContext:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         return None
+
+
+@dataclass
+class _SilentSyncResponse:
+    """Streams ``lines`` and then behaves like an idle SSE stream whose transport read
+    timeout fired - which is all httpx surfaces when the daemon sends nothing."""
+
+    lines: list[str] = field(default_factory=list)
+    status_code: int = 200
+    headers: dict[str, str] | None = None
+
+    def iter_lines(self) -> Iterator[str]:
+        yield from self.lines
+        raise httpx.ReadTimeout("timed out while reading the stream")
+
+    def read(self) -> bytes:
+        return b""
+
+
+class _HangingAsyncContent:
+    """Yields ``lines`` and then never completes, like a live stream with no new output."""
+
+    def __init__(self, lines: list[str]):
+        self._lines = [line.encode("utf-8") for line in lines]
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self) -> bytes:
+        if self._index < len(self._lines):
+            value = self._lines[self._index]
+            self._index += 1
+            return value
+        await asyncio.sleep(30)
+        raise StopAsyncIteration
+
+
+@dataclass
+class _HangingAsyncResponse:
+    status: int = 200
+    lines: list[str] = field(default_factory=list)
+    headers: dict[str, str] | None = None
+    closed: bool = False
+
+    def __post_init__(self) -> None:
+        self.content = _HangingAsyncContent(self.lines)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        self.closed = True
+
+    async def text(self) -> str:
+        return ""
 
 
 class _FakeAsyncContent:
@@ -414,6 +474,67 @@ class TestSyncProcessSurface:
         assert events[3].cursor == "cursor-6"
         http_client.stream.assert_called_once()
 
+    def _arm_log_stream(self, api, http_client, response):
+        api.create_process.return_value = SimpleNamespace(id="prc-1")
+        api.wait_for_process.return_value = SimpleNamespace(exit_code=None, reason="timed_out", signal=None)
+        api._read_process_logs_serialize.return_value = (
+            "GET",
+            "http://toolbox/processes/prc-1/logs?follow=true",
+            {"Authorization": "Bearer token"},
+            None,
+            None,
+        )
+        http_client.stream.return_value = _FakeSyncStreamContext(response)
+
+    def test_run_with_callbacks_stops_streaming_when_wait_timeout_elapses(self):
+        proc, api, http_client = self._make_process()
+        self._arm_log_stream(
+            api,
+            http_client,
+            _SilentSyncResponse(
+                lines=[
+                    "event: log",
+                    'data: {"channel":"stdout","cursor":"cursor-1","data":"line-1\\n","encoding":"text","seq":1,"timestamp":"2026-07-29T00:00:00Z"}',
+                    "",
+                ]
+            ),
+        )
+        collected: list[str] = []
+
+        result = proc.run(shell_command="sleep 600", wait_timeout_ms=50, on_stdout=collected.append)
+
+        assert http_client.stream.call_args.kwargs["timeout"] == 0.05
+        assert api.wait_for_process.call_args.kwargs["timeout_ms"] == 1
+        assert collected == ["line-1\n"]
+        assert result.stdout == "line-1\n"
+        assert result.reason == "timed_out"
+
+    def test_run_with_callbacks_follows_stream_unbounded_without_wait_timeout(self):
+        proc, api, http_client = self._make_process()
+        self._arm_log_stream(
+            api,
+            http_client,
+            _FakeSyncResponse(
+                status_code=200,
+                lines=[
+                    "event: log",
+                    'data: {"channel":"stderr","cursor":"cursor-1","data":"oops\\n","encoding":"text","seq":1,"timestamp":"2026-07-29T00:00:00Z"}',
+                    "",
+                    "event: eof",
+                    'data: {"cursor":"cursor-2"}',
+                    "",
+                ],
+            ),
+        )
+        collected: list[str] = []
+
+        result = proc.run(shell_command="echo oops", on_stderr=collected.append)
+
+        assert http_client.stream.call_args.kwargs["timeout"] is None
+        assert api.wait_for_process.call_args.kwargs["timeout_ms"] is None
+        assert collected == ["oops\n"]
+        assert result.stderr == "oops\n"
+
     def test_handle_control_methods_delegate_to_process_endpoints(self):
         proc, api, _ = self._make_process()
         api.send_process_stdin.return_value = None
@@ -527,6 +648,76 @@ class TestAsyncProcessSurface:
         assert [event.type for event in events] == ["log", "warning", "state", "eof"]
         assert events[0].frame.data == "line-1\n"
         assert events[2].process.state == "terminal"
+
+    @pytest.mark.asyncio
+    async def test_run_with_callbacks_stops_streaming_when_wait_timeout_elapses(self):
+        proc, api = self._make_process()
+        api.create_process.return_value = SimpleNamespace(id="prc-1")
+        api.wait_for_process.return_value = SimpleNamespace(exit_code=None, reason="timed_out", signal=None)
+        api._read_process_logs_serialize = MagicMock(
+            return_value=(
+                "GET",
+                "http://toolbox/processes/prc-1/logs?follow=true",
+                {"Authorization": "Bearer token"},
+                None,
+                None,
+            )
+        )
+        response = _HangingAsyncResponse(
+            lines=[
+                "event: log\n",
+                'data: {"channel":"stdout","cursor":"cursor-1","data":"line-1\\n","encoding":"text","seq":1,"timestamp":"2026-07-29T00:00:00Z"}\n',
+                "\n",
+            ]
+        )
+        api.api_client.http_session.get.return_value = response
+        collected: list[str] = []
+
+        started = time.monotonic()
+        result = await asyncio.wait_for(
+            proc.run(shell_command="sleep 600", wait_timeout_ms=50, on_stdout=collected.append),
+            timeout=5,
+        )
+
+        assert time.monotonic() - started < 5
+        assert api.wait_for_process.call_args.kwargs["timeout_ms"] == 1
+        assert collected == ["line-1\n"]
+        assert result.stdout == "line-1\n"
+        assert result.reason == "timed_out"
+        assert response.closed is True
+
+    @pytest.mark.asyncio
+    async def test_run_with_callbacks_follows_stream_unbounded_without_wait_timeout(self):
+        proc, api = self._make_process()
+        api.create_process.return_value = SimpleNamespace(id="prc-1")
+        api.wait_for_process.return_value = SimpleNamespace(exit_code=0, reason="exited", signal=None)
+        api._read_process_logs_serialize = MagicMock(
+            return_value=(
+                "GET",
+                "http://toolbox/processes/prc-1/logs?follow=true",
+                {"Authorization": "Bearer token"},
+                None,
+                None,
+            )
+        )
+        api.api_client.http_session.get.return_value = _FakeAsyncResponse(
+            status=200,
+            lines=[
+                "event: log\n",
+                'data: {"channel":"stderr","cursor":"cursor-1","data":"oops\\n","encoding":"text","seq":1,"timestamp":"2026-07-29T00:00:00Z"}\n',
+                "\n",
+                "event: eof\n",
+                'data: {"cursor":"cursor-2"}\n',
+                "\n",
+            ],
+        )
+        collected: list[str] = []
+
+        result = await proc.run(shell_command="echo oops", on_stderr=collected.append)
+
+        assert api.wait_for_process.call_args.kwargs["timeout_ms"] is None
+        assert collected == ["oops\n"]
+        assert result.stderr == "oops\n"
 
     @pytest.mark.asyncio
     async def test_handle_control_methods_delegate_to_process_endpoints(self):

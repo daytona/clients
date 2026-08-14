@@ -6,7 +6,25 @@
 require 'base64'
 
 module Daytona
+  # Incremental UTF-8 decoder for process log frames.
+  #
+  # The process service ships raw byte chunks (base64) that can split a multibyte
+  # UTF-8 sequence across frames, so each output channel decodes as a continuous
+  # stream or split codepoints corrupt into U+FFFD. Undecodable bytes become
+  # U+FFFD immediately; only a trailing sequence that is still completable is held
+  # back for the next frame. {#flush} drains any dangling bytes at EOF.
   class ProcessRunFrameDecoder
+    REPLACEMENT_CHARACTER = "\u{FFFD}"
+    private_constant :REPLACEMENT_CHARACTER
+
+    UTF8_CONTINUATION_BYTES = (0x80..0xBF)
+    private_constant :UTF8_CONTINUATION_BYTES
+
+    # Longest trailing byte count that can still be an incomplete sequence: a
+    # 4-byte sequence missing only its last byte.
+    MAX_PENDING_BYTES = 3
+    private_constant :MAX_PENDING_BYTES
+
     def initialize
       @buffers = { stdout: ''.b, stderr: ''.b }
     end
@@ -27,9 +45,7 @@ module Daytona
       %i[stdout stderr].map do |channel|
         bytes = @buffers[channel]
         @buffers[channel] = ''.b
-        bytes.force_encoding(Encoding::UTF_8).encode(
-          Encoding::UTF_8, invalid: :replace, undef: :replace, replace: '�'
-        )
+        decode_with_replacement(bytes)
       end
     end
 
@@ -37,15 +53,38 @@ module Daytona
 
     def extract_valid_prefix(channel)
       bytes = @buffers[channel]
-      0.upto([3, bytes.bytesize].min) do |tail_size|
-        prefix_size = bytes.bytesize - tail_size
-        prefix = bytes.byteslice(0, prefix_size).dup.force_encoding(Encoding::UTF_8)
-        next unless prefix.valid_encoding?
+      pending_size = pending_suffix_size(bytes)
+      prefix_size = bytes.bytesize - pending_size
+      @buffers[channel] = pending_size.zero? ? ''.b : bytes.byteslice(prefix_size, pending_size)
+      return '' if prefix_size.zero?
 
-        @buffers[channel] = tail_size.zero? ? ''.b : bytes.byteslice(prefix_size, tail_size)
-        return prefix
+      decode_with_replacement(bytes.byteslice(0, prefix_size))
+    end
+
+    # Trailing byte count that starts a multibyte sequence still missing bytes.
+    # Anything else - ASCII, a complete sequence, or a byte that can never lead
+    # one - is decodable now, so nothing is withheld from the caller.
+    def pending_suffix_size(bytes)
+      size = bytes.bytesize
+      1.upto([MAX_PENDING_BYTES, size].min) do |tail_size|
+        byte = bytes.getbyte(size - tail_size)
+        sequence_size = utf8_sequence_size(byte)
+        return sequence_size > tail_size ? tail_size : 0 if sequence_size
+        return 0 unless UTF8_CONTINUATION_BYTES.cover?(byte)
       end
-      ''
+      0
+    end
+
+    def utf8_sequence_size(byte)
+      return 2 if (0xC2..0xDF).cover?(byte)
+      return 3 if (0xE0..0xEF).cover?(byte)
+      return 4 if (0xF0..0xF4).cover?(byte)
+
+      nil
+    end
+
+    def decode_with_replacement(bytes)
+      bytes.dup.force_encoding(Encoding::UTF_8).scrub(REPLACEMENT_CHARACTER)
     end
   end
 
