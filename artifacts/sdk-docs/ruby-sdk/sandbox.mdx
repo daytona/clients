@@ -185,6 +185,29 @@ def gpu()
 
 - `Float` - The GPU quota for the sandbox
 
+#### spot()
+
+```ruby
+def spot()
+
+```
+
+**Returns**:
+
+- `Boolean` - Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated
+to free capacity for on-demand GPU sandboxes.
+
+#### spot_evicted_at()
+
+```ruby
+def spot_evicted_at()
+
+```
+
+**Returns**:
+
+- `String, nil` - When the sandbox was evicted by spot preemption
+
 #### memory()
 
 ```ruby

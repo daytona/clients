@@ -903,6 +903,7 @@ module DaytonaApiClient
     end
 
     # Get sandbox details
+    # Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
@@ -914,6 +915,7 @@ module DaytonaApiClient
     end
 
     # Get sandbox details
+    # Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID

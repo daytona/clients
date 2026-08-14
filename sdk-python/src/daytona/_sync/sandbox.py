@@ -1416,7 +1416,7 @@ class Sandbox(SandboxDto):
         self.target: str = sandbox_dto.target
         self.cpu: float | int = sandbox_dto.cpu
         self.gpu: float | int = sandbox_dto.gpu
-        self.spot: bool = sandbox_dto.spot or False
+        self.spot: bool | None = sandbox_dto.spot or False
         self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
         self.memory: float | int = sandbox_dto.memory
         self.disk: float | int = sandbox_dto.disk

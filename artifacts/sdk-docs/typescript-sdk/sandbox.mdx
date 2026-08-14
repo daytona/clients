@@ -52,6 +52,9 @@ Represents a Daytona Sandbox.
 - `public` _boolean_ - Whether the Sandbox is publicly accessible
 - `recoverable?` _boolean_ - Whether the Sandbox error is recoverable.
 - `snapshot?` _string_ - Daytona snapshot used to create the Sandbox
+- `spot?` _boolean_ - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated to free
+    capacity for on-demand GPU Sandboxes
+- `spotEvictedAt?` _string_ - When the Sandbox was evicted by spot preemption
 - `state?` _SandboxState_ - Current state of the Sandbox (e.g., "started", "stopped")
 - `target` _string_ - Target location of the runner where the Sandbox runs
 - `toolboxProxyUrl` _string_

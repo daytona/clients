@@ -834,6 +834,28 @@ public int getGpu()
 
 - `int` - allocated GPU units.
 
+#### isSpot()
+```java
+public boolean isSpot()
+```
+
+Returns whether this is a spot GPU Sandbox.
+
+Spot Sandboxes may be instantly terminated to free capacity for on-demand GPU Sandboxes.
+
+**Returns**:
+
+- `boolean` - `true` when the Sandbox is preemptible.
+
+#### getSpotEvictedAt()
+```java
+public String getSpotEvictedAt()
+```
+
+**Returns**:
+
+- `String` - when the Sandbox was evicted by spot preemption, or `null` when it was not.
+
 #### getMemory()
 ```java
 public int getMemory()

@@ -464,6 +464,9 @@ Base parameters for creating a new Sandbox.
   combine with domain_allow_list for unbypassable network-layer enforcement.
 - `ephemeral` _bool | None_ - Whether the Sandbox should be ephemeral.
   If True, auto_delete_interval will be set to 0.
+- `spot` _bool | None_ - GPU-only. When True, the Sandbox may be instantly terminated without notice
+  to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox
+  requests no GPUs.
 - `linked_sandbox` _str | None_ - ID or name of an existing Sandbox to link the new Sandbox to. The new
   Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
   established between them. Linked Sandboxes must be

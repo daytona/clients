@@ -32,6 +32,9 @@ Represents a Daytona Sandbox.
 - `target` _str_ - Target location of the runner where the Sandbox runs.
 - `cpu` _int_ - Number of CPUs allocated to the Sandbox.
 - `gpu` _int_ - Number of GPUs allocated to the Sandbox.
+- `spot` _bool_ - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
+  to free capacity for on-demand GPU Sandboxes.
+- `spot_evicted_at` _str | None_ - When the Sandbox was evicted by spot preemption.
 - `memory` _int_ - Amount of memory allocated to the Sandbox in GiB.
 - `disk` _int_ - Amount of disk space allocated to the Sandbox in GiB.
 - `state` _SandboxState | None_ - Current state of the Sandbox (e.g., "started", "stopped").

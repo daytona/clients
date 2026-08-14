@@ -410,6 +410,7 @@ Base parameters for creating a new Sandbox.
 - `outboundProxyUrl?` _string_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
 - `public?` _boolean_ - Is the Sandbox port preview public
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
+- `spot?` _boolean_ - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
 - `ttlMinutes?` _number_ - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
 - `user?` _string_ - Optional os user to use for the Sandbox
 - `volumes?` _VolumeMount\[\]_ - Optional array of volumes to mount to the Sandbox
@@ -439,6 +440,7 @@ Parameters for creating a new Sandbox.
 - `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
+- `spot?` _boolean_
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
@@ -465,6 +467,7 @@ Parameters for creating a new Sandbox from a snapshot.
 - `public?` _boolean_
 - `secrets?` _Record\<string, string\>_
 - `snapshot?` _string_ - Name of the snapshot to use for the Sandbox.
+- `spot?` _boolean_
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_

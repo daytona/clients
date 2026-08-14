@@ -592,6 +592,10 @@ type SandboxBaseParams struct {
     // combine with DomainAllowList for network-layer enforcement.
     OutboundProxyUrl *string
     Ephemeral        bool
+    // Spot marks the sandbox as a spot GPU sandbox. A spot sandbox may be instantly
+    // terminated without notice to free GPU capacity for an on-demand (non-spot) GPU
+    // sandbox. Rejected when the sandbox requests no GPUs.
+    Spot bool
     // LinkedSandbox is the ID or name of an existing sandbox to link the new sandbox to.
     // The new sandbox will be scheduled on the same runner as the linked sandbox so a local
     // network can be established between them.

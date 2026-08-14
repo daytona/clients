@@ -4342,6 +4342,8 @@ type Sandbox struct {
     Target         string                 // Target region/environment where the sandbox runs
     Cpu            float32                // Number of CPUs allocated to the sandbox
     Gpu            float32                // Number of GPUs allocated to the sandbox
+    Spot           bool                   // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
+    SpotEvictedAt  *string                // When the sandbox was evicted by spot preemption
     Memory         float32                // Amount of memory allocated to the sandbox in GiB
     Disk           float32                // Amount of disk space allocated to the sandbox in GiB
     State          apiclient.SandboxState // Current sandbox state

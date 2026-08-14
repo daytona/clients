@@ -2026,7 +2026,7 @@ public class SandboxApi {
 
     /**
      * Get sandbox details
-     * 
+     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param verbose Include verbose output (optional)
@@ -2046,7 +2046,7 @@ public class SandboxApi {
 
     /**
      * Get sandbox details
-     * 
+     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param verbose Include verbose output (optional)
@@ -2067,7 +2067,7 @@ public class SandboxApi {
 
     /**
      * Get sandbox details (asynchronously)
-     * 
+     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param verbose Include verbose output (optional)
