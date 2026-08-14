@@ -26,11 +26,21 @@ module DaytonaToolboxApiClient
     CodeGitRemoteRejected = "GIT_REMOTE_REJECTED".freeze
     CodeFileNotFound = "FILE_NOT_FOUND".freeze
     CodeFileAccessDenied = "FILE_ACCESS_DENIED".freeze
+    CodeInvalidFilePath = "INVALID_FILE_PATH".freeze
+    CodeFileReadFailed = "FILE_READ_FAILED".freeze
     CodeLspServerNotInitialized = "LSP_SERVER_NOT_INITIALIZED".freeze
     CodeProcessExecutionTimeout = "PROCESS_EXECUTION_TIMEOUT".freeze
     CodeProcessNotFound = "PROCESS_NOT_FOUND".freeze
     CodeSessionEnded = "SESSION_ENDED".freeze
     CodeCommandAlreadyCompleted = "COMMAND_ALREADY_COMPLETED".freeze
+    CodeNameConflict = "NAME_CONFLICT".freeze
+    CodeCursorExpired = "CURSOR_EXPIRED".freeze
+    CodeInvalidCursor = "INVALID_CURSOR".freeze
+    CodeProtectedProcess = "PROTECTED_PROCESS".freeze
+    CodeStdinClosed = "STDIN_CLOSED".freeze
+    CodeStdinUnavailable = "STDIN_UNAVAILABLE".freeze
+    CodeProcessTerminal = "PROCESS_TERMINAL".freeze
+    CodeUnsupportedOperation = "UNSUPPORTED_OPERATION".freeze
     CodeA11yUnavailable = "A11Y_UNAVAILABLE".freeze
     CodeRecordingStillActive = "RECORDING_STILL_ACTIVE".freeze
     CodeRecordingFfmpegNotFound = "RECORDING_FFMPEG_NOT_FOUND".freeze
@@ -47,7 +57,7 @@ module DaytonaToolboxApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeGitTransportFailed, CodeGitRemoteRejected, CodeFileNotFound, CodeFileAccessDenied, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeGitTransportFailed, CodeGitRemoteRejected, CodeFileNotFound, CodeFileAccessDenied, CodeInvalidFilePath, CodeFileReadFailed, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeNameConflict, CodeCursorExpired, CodeInvalidCursor, CodeProtectedProcess, CodeStdinClosed, CodeStdinUnavailable, CodeProcessTerminal, CodeUnsupportedOperation, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

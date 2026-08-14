@@ -148,6 +148,135 @@ if chart.type == ChartType.LINE and isinstance(chart, LineChart):
         print(f"Points: {element.points}")
 ```
 
+#### AsyncProcess.start
+
+```python
+@intercept_errors(message_prefix="Failed to start process: ")
+@with_instrumentation()
+async def start(
+        *,
+        argv: list[str] | None = None,
+        shell_command: str | None = None,
+        shell: str | None = None,
+        login: bool = False,
+        name: str | None = None,
+        session_id: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        user: str | None = None,
+        stdin: ProcessStdinModeName | None = None,
+        timeout_ms: int | None = None,
+        kind: ProcessKindName | None = None,
+        terminal: PtySize | None = None,
+        term: str | None = None,
+        keep_logs: ProcessKeepLogsName | None = None) -> AsyncProcessHandle
+```
+
+Start a process in the background and return immediately with a handle.
+
+Use ``start`` for long-running or interactive work you want to supervise
+yourself: stream logs, write stdin, resize a PTY, kill, or reconnect later
+(reconnect from any client later via ``connect`` with the process id). The
+process and its logs are retained after exit until ``handle.cleanup()``.
+For one-shot commands where you just want the output, prefer ``run``.
+
+**Example**:
+
+```python
+handle = sandbox.process.start(shell_command="npm run dev", name="dev-server")
+for event in handle.stream_logs():
+    ...
+```
+
+#### AsyncProcess.run
+
+```python
+@intercept_errors(message_prefix="Failed to run process: ")
+@with_instrumentation()
+async def run(
+        *,
+        argv: list[str] | None = None,
+        shell_command: str | None = None,
+        shell: str | None = None,
+        login: bool = False,
+        name: str | None = None,
+        session_id: str | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        user: str | None = None,
+        stdin: ProcessStdinModeName | None = None,
+        timeout_ms: int | None = None,
+        wait_timeout_ms: int | None = None,
+        kind: ProcessKindName | None = None,
+        terminal: PtySize | None = None,
+        term: str | None = None,
+        keep_logs: ProcessKeepLogsName | None = None,
+        on_stdout: Callable[[str], None] | None = None,
+        on_stderr: Callable[[str], None] | None = None) -> ProcessRunOutput
+```
+
+Run a process to completion and return its collected output - the
+"just give me the result" counterpart to ``start``.
+
+Waits for exit (or ``wait_timeout_ms``), gathers stdout/stderr (UTF-8 safe,
+with optional ``on_stdout``/``on_stderr`` streaming callbacks) and returns
+exit metadata. Logs are retained only briefly after exit (``on_exit_ttl``),
+so read what you need from the result.
+
+**Example**:
+
+```python
+result = sandbox.process.run(shell_command="ls -la")
+print(result.exit_code, result.stdout)
+```
+
+#### AsyncProcess.connect
+
+```python
+@intercept_errors(message_prefix="Failed to connect to process: ")
+@with_instrumentation()
+async def connect(id: str) -> AsyncProcessHandle
+```
+
+Attach to an existing process by id. Alias of :meth:`get` for
+reattaching with a stored process id.
+
+#### AsyncProcess.get
+
+```python
+@intercept_errors(message_prefix="Failed to get process: ")
+@with_instrumentation()
+async def get(id: str) -> AsyncProcessHandle
+```
+
+Return a handle for an existing process by id, running or finished.
+
+The handle can replay retained logs from the start, resume streaming from
+a cursor, or wait for exit.
+
+#### AsyncProcess.list
+
+```python
+@intercept_errors(message_prefix="Failed to list processes: ")
+@with_instrumentation()
+async def list(*,
+               state: ProcessStateFilter | None = None,
+               kind: ProcessKindName | None = None,
+               session_id: str | None = None,
+               name: str | None = None,
+               pid: int | None = None) -> list[AsyncProcessHandle]
+```
+
+List processes in the Sandbox, newest first - including processes started
+by other clients (the daemon is the source of truth). Filter by state,
+kind, name or session_id.
+
+**Example**:
+
+```python
+running = sandbox.process.list(state="running")
+```
+
 #### AsyncProcess.create\_session
 
 ```python
@@ -810,6 +939,43 @@ print(f"Terminal resized to {updated_info.cols}x{updated_info.rows}")
 # You can also use the AsyncPtyHandle's resize method
 await pty_handle.resize(new_size)
 ```
+
+## RunFrameDecoder
+
+```python
+class RunFrameDecoder()
+```
+
+Streaming decoder for run-output frames.
+
+The daemon ships raw byte chunks (base64) that can split a multibyte UTF-8
+sequence across frames, so each output side must decode incrementally or
+split codepoints corrupt into U+FFFD. ``flush()`` drains any genuinely
+dangling trailing bytes at eof.
+
+#### decode\_run\_frame
+
+```python
+def decode_run_frame(channel: object, data: str,
+                     encoding: str | None) -> tuple[str | None, str]
+```
+
+Routes a log frame to the stdout/stderr side of a run result.
+
+A pty merges the two streams by construction, so pty frames count as stdout.
+System frames carry daemon provenance and are not process output.
+
+## ProcessRunOutput
+
+```python
+@dataclass(frozen=True, slots=True)
+class ProcessRunOutput()
+```
+
+Aggregated output of a completed :meth:`process.run` call.
+
+``stdout``/``stderr`` carry the process output as text, alongside the exit
+metadata.
 
 ## CodeRunParams
 

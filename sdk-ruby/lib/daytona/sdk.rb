@@ -49,6 +49,7 @@ require_relative 'volume'
 require_relative 'volume_service'
 require_relative 'warm_pool'
 require_relative 'warm_pool_service'
+require_relative 'process_handle'
 require_relative 'process'
 
 module Daytona

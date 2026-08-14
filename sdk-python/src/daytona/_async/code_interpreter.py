@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import cast
 
 import aiohttp
@@ -199,6 +201,29 @@ class AsyncCodeInterpreter:
         finally:
             if not ws.closed:
                 _ = await ws.close()
+
+    @asynccontextmanager
+    async def context(
+        self,
+        cwd: str | None = None,
+        request_timeout: float | None = None,
+    ) -> AsyncIterator[InterpreterContext]:
+        """Create an interpreter context scoped to an ``async with`` block.
+
+        The context is deleted on exit, even when the block raises.
+
+        Example:
+            ```python
+            async with sandbox.code_interpreter.context() as ctx:
+                await sandbox.code_interpreter.run_code("x = 41", context=ctx)
+                result = await sandbox.code_interpreter.run_code("print(x + 1)", context=ctx)
+            ```
+        """
+        ctx = await self.create_context(cwd=cwd, request_timeout=request_timeout)
+        try:
+            yield ctx
+        finally:
+            await self.delete_context(ctx, request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to create interpreter context: ")
     async def create_context(

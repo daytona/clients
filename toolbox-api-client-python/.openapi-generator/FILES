@@ -36,6 +36,7 @@ daytona_toolbox_api_client/models/computer_use_start_response.py
 daytona_toolbox_api_client/models/computer_use_status_response.py
 daytona_toolbox_api_client/models/computer_use_stop_response.py
 daytona_toolbox_api_client/models/create_context_request.py
+daytona_toolbox_api_client/models/create_process_request.py
 daytona_toolbox_api_client/models/create_session_request.py
 daytona_toolbox_api_client/models/daemon_error_code.py
 daytona_toolbox_api_client/models/display_info.py
@@ -47,6 +48,7 @@ daytona_toolbox_api_client/models/file_info.py
 daytona_toolbox_api_client/models/file_status.py
 daytona_toolbox_api_client/models/files_download_request.py
 daytona_toolbox_api_client/models/find_accessibility_nodes_request.py
+daytona_toolbox_api_client/models/fs_file_result.py
 daytona_toolbox_api_client/models/git_add_remote_request.py
 daytona_toolbox_api_client/models/git_add_request.py
 daytona_toolbox_api_client/models/git_authenticate_request.py
@@ -73,6 +75,7 @@ daytona_toolbox_api_client/models/is_port_in_use_response.py
 daytona_toolbox_api_client/models/keyboard_hotkey_request.py
 daytona_toolbox_api_client/models/keyboard_press_request.py
 daytona_toolbox_api_client/models/keyboard_type_request.py
+daytona_toolbox_api_client/models/kill_process_request.py
 daytona_toolbox_api_client/models/list_branch_response.py
 daytona_toolbox_api_client/models/list_contexts_response.py
 daytona_toolbox_api_client/models/list_recordings_response.py
@@ -94,11 +97,24 @@ daytona_toolbox_api_client/models/mouse_position_response.py
 daytona_toolbox_api_client/models/mouse_scroll_request.py
 daytona_toolbox_api_client/models/port_list.py
 daytona_toolbox_api_client/models/position.py
+daytona_toolbox_api_client/models/process.py
 daytona_toolbox_api_client/models/process_errors_response.py
+daytona_toolbox_api_client/models/process_keep_logs.py
+daytona_toolbox_api_client/models/process_kind.py
+daytona_toolbox_api_client/models/process_log_channel.py
+daytona_toolbox_api_client/models/process_log_frame.py
+daytona_toolbox_api_client/models/process_log_page.py
 daytona_toolbox_api_client/models/process_logs_response.py
 daytona_toolbox_api_client/models/process_restart_response.py
+daytona_toolbox_api_client/models/process_result.py
+daytona_toolbox_api_client/models/process_shell_selector.py
+daytona_toolbox_api_client/models/process_state.py
 daytona_toolbox_api_client/models/process_status.py
 daytona_toolbox_api_client/models/process_status_response.py
+daytona_toolbox_api_client/models/process_stdin_mode.py
+daytona_toolbox_api_client/models/process_stdin_request.py
+daytona_toolbox_api_client/models/process_terminal_reason.py
+daytona_toolbox_api_client/models/process_terminal_size.py
 daytona_toolbox_api_client/models/pty_create_request.py
 daytona_toolbox_api_client/models/pty_create_response.py
 daytona_toolbox_api_client/models/pty_list_response.py
@@ -107,6 +123,7 @@ daytona_toolbox_api_client/models/pty_session_info.py
 daytona_toolbox_api_client/models/recording.py
 daytona_toolbox_api_client/models/replace_request.py
 daytona_toolbox_api_client/models/replace_result.py
+daytona_toolbox_api_client/models/resize_process_request.py
 daytona_toolbox_api_client/models/screenshot_response.py
 daytona_toolbox_api_client/models/scroll_response.py
 daytona_toolbox_api_client/models/search_files_response.py
@@ -120,6 +137,7 @@ daytona_toolbox_api_client/models/status.py
 daytona_toolbox_api_client/models/stop_recording_request.py
 daytona_toolbox_api_client/models/system_metrics.py
 daytona_toolbox_api_client/models/update_env_request.py
+daytona_toolbox_api_client/models/upload_files_response.py
 daytona_toolbox_api_client/models/uploaded_file.py
 daytona_toolbox_api_client/models/user_home_dir_response.py
 daytona_toolbox_api_client/models/window_info.py

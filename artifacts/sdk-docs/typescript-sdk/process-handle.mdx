@@ -1,0 +1,214 @@
+---
+title: "ProcessHandle"
+hideTitleOnPage: true
+---
+
+
+## ProcessHandle
+
+### Constructors
+
+**Properties**:
+
+- `id` _string_
+
+
+
+#### Constructor
+
+```ts
+new ProcessHandle(id: string, operations: ProcessHandleOperations): ProcessHandle;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `operations` _ProcessHandleOperations_
+
+
+**Returns**:
+
+- `ProcessHandle`
+
+### Methods
+
+#### attachTerminal()
+
+```ts
+attachTerminal(): Promise<WebSocket>;
+```
+
+Opens the interactive bidirectional terminal socket of a `kind: 'pty'` process
+(raw terminal bytes in both directions).
+
+**Returns**:
+
+- `Promise<WebSocket>`
+
+#### cleanup()
+
+```ts
+cleanup(): Promise<void>;
+```
+
+Deletes the finished process's record and retained logs, freeing their
+disk footprint in the sandbox. Fails on a running process (kill it first).
+
+**Returns**:
+
+- `Promise<void>`
+
+#### get()
+
+```ts
+get(): Promise<Process>;
+```
+
+Fetches the current process record (state, pid, exit metadata, retention info).
+
+**Returns**:
+
+- `Promise<Process>`
+
+#### kill()
+
+```ts
+kill(options?: ProcessKillOptions): Promise<void>;
+```
+
+Sends a signal to the process (default SIGKILL; pass `signal` to override).
+
+**Parameters**:
+
+- `options?` _ProcessKillOptions_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### logs()
+
+```ts
+logs(options?: ProcessLogOptions): Promise<ProcessLogPage>;
+```
+
+Reads a page of retained log frames. Omit `cursor` (or pass `'start'`) to replay from
+the beginning; pass `nextCursor` from the previous page to continue. If old frames were
+evicted under retention caps the page reports `truncatedHead` and a stale cursor
+surfaces a CURSOR_EXPIRED error carrying the first available cursor.
+
+**Parameters**:
+
+- `options?` _ProcessLogOptions_
+
+
+**Returns**:
+
+- `Promise<ProcessLogPage>`
+
+#### output()
+
+```ts
+output(): Promise<ProcessOutput>;
+```
+
+Collects the process's retained stdout/stderr from the log ledger, plus
+exit metadata when the process has finished. Works on running processes
+(returns output so far) and after reconnecting to a finished one.
+
+**Returns**:
+
+- `Promise<ProcessOutput>`
+
+**Example:**
+
+```ts
+const handle = await sandbox.process.get(processId);
+const { stdout, exitCode } = await handle.output();
+```
+
+#### resize()
+
+```ts
+resize(cols: number, rows: number): Promise<void>;
+```
+
+Resizes the pseudo-terminal of a `kind: 'pty'` process.
+
+**Parameters**:
+
+- `cols` _number_
+- `rows` _number_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### stdin()
+
+```ts
+stdin(data: string | Uint8Array<ArrayBufferLike>): Promise<void>;
+```
+
+Writes data to the process's stdin (requires `stdin: 'pipe'` at start, or a PTY).
+
+**Parameters**:
+
+- `data` _string \| Uint8Array\<ArrayBufferLike\>_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### stdinEof()
+
+```ts
+stdinEof(): Promise<void>;
+```
+
+Closes the process's stdin, signalling end-of-input to programs that read until EOF.
+
+**Returns**:
+
+- `Promise<void>`
+
+#### streamLogs()
+
+```ts
+streamLogs(options?: ProcessStreamLogOptions): AsyncIterable<ProcessLogEvent>;
+```
+
+Streams log events live (frames, state changes, eof) as an async iterable, optionally
+resuming from a cursor - missed output is replayed first, then live frames follow.
+Iteration ends when the process exits and the stream reports eof.
+
+**Parameters**:
+
+- `options?` _ProcessStreamLogOptions_
+
+
+##### Returns
+
+`AsyncIterable`\<`ProcessLogEvent`\>
+
+#### wait()
+
+```ts
+wait(options?: ProcessWaitOptions): Promise<ProcessResult>;
+```
+
+Blocks until the process exits (or `timeoutMs` elapses, reason `timed_out`) and
+returns the exit result. Does not collect output - pair with output or use
+`process.run` when you want both.
+
+**Parameters**:
+
+- `options?` _ProcessWaitOptions_
+
+
+**Returns**:
+
+- `Promise<ProcessResult>`

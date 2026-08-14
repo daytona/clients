@@ -114,6 +114,25 @@ Deletes an interpreter context.
 
 - `DaytonaException` - if deletion fails
 
+#### withContext()
+```java
+public <T> T withContext(Function<InterpreterContext, T> callback)
+```
+
+Creates a temporary interpreter context and always deletes it after the callback returns.
+
+Use this instead of manually pairing `#createContext()` and
+`#deleteContext(String)` when the context is scoped to one operation. Use explicit
+creation when state must survive beyond the callback.
+
+**Parameters**:
+
+- `callback` _Function\<InterpreterContext, T\>_ - operation to perform with the temporary context
+
+**Returns**:
+
+- `\<T\> T` - callback result
+
 ## RunCodeOptions
 
 Options for `CodeInterpreter#runCode(String, RunCodeOptions)`.

@@ -253,7 +253,6 @@ public class ComputerUseApi {
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -325,7 +324,6 @@ public class ComputerUseApi {
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -346,7 +344,6 @@ public class ComputerUseApi {
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -369,7 +366,6 @@ public class ComputerUseApi {
         <tr><td> 204 </td><td> No Content </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 404 </td><td> Not Found </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
@@ -3421,7 +3417,6 @@ public class ComputerUseApi {
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
-        <tr><td> 503 </td><td> Service Unavailable </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call startRecordingCall(@javax.annotation.Nullable StartRecordingRequest request, final ApiCallback _callback) throws ApiException {
@@ -3488,7 +3483,6 @@ public class ComputerUseApi {
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
-        <tr><td> 503 </td><td> Service Unavailable </td><td>  -  </td></tr>
      </table>
      */
     public Recording startRecording(@javax.annotation.Nullable StartRecordingRequest request) throws ApiException {
@@ -3509,7 +3503,6 @@ public class ComputerUseApi {
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
-        <tr><td> 503 </td><td> Service Unavailable </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Recording> startRecordingWithHttpInfo(@javax.annotation.Nullable StartRecordingRequest request) throws ApiException {
@@ -3532,7 +3525,6 @@ public class ComputerUseApi {
         <tr><td> 201 </td><td> Created </td><td>  -  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
         <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
-        <tr><td> 503 </td><td> Service Unavailable </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call startRecordingAsync(@javax.annotation.Nullable StartRecordingRequest request, final ApiCallback<Recording> _callback) throws ApiException {

@@ -35,6 +35,7 @@ import io.daytona.toolbox.client.model.Match;
 import io.daytona.toolbox.client.model.ReplaceRequest;
 import io.daytona.toolbox.client.model.ReplaceResult;
 import io.daytona.toolbox.client.model.SearchFilesResponse;
+import io.daytona.toolbox.client.model.UploadFilesResponse;
 import io.daytona.toolbox.client.model.UploadedFile;
 
 import java.lang.reflect.Type;
@@ -1892,6 +1893,7 @@ public class FileSystemApi {
     /**
      * Upload multiple files
      * Upload multiple files with their destination paths
+     * @return UploadFilesResponse
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
@@ -1901,14 +1903,15 @@ public class FileSystemApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
-    public void uploadFiles() throws ApiException {
-        uploadFilesWithHttpInfo();
+    public UploadFilesResponse uploadFiles() throws ApiException {
+        ApiResponse<UploadFilesResponse> localVarResp = uploadFilesWithHttpInfo();
+        return localVarResp.getData();
     }
 
     /**
      * Upload multiple files
      * Upload multiple files with their destination paths
-     * @return ApiResponse&lt;Void&gt;
+     * @return ApiResponse&lt;UploadFilesResponse&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
@@ -1918,9 +1921,10 @@ public class FileSystemApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Void> uploadFilesWithHttpInfo() throws ApiException {
+    public ApiResponse<UploadFilesResponse> uploadFilesWithHttpInfo() throws ApiException {
         okhttp3.Call localVarCall = uploadFilesValidateBeforeCall(null);
-        return localVarApiClient.execute(localVarCall);
+        Type localVarReturnType = new TypeToken<UploadFilesResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
 
     /**
@@ -1937,10 +1941,11 @@ public class FileSystemApi {
         <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call uploadFilesAsync(final ApiCallback<Void> _callback) throws ApiException {
+    public okhttp3.Call uploadFilesAsync(final ApiCallback<UploadFilesResponse> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = uploadFilesValidateBeforeCall(_callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
+        Type localVarReturnType = new TypeToken<UploadFilesResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
 }

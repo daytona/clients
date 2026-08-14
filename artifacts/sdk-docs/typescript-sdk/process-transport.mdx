@@ -1,0 +1,222 @@
+---
+title: "ProcessTransport"
+hideTitleOnPage: true
+---
+
+
+## ProcessTransport
+
+### Constructors
+
+#### Constructor
+
+```ts
+new ProcessTransport(
+   clientConfig: Configuration, 
+   apiClient: ProcessApi, 
+   getPreviewToken: () => Promise<string>): ProcessTransport;
+```
+
+**Parameters**:
+
+- `clientConfig` _Configuration_
+- `apiClient` _ProcessApi_
+- `getPreviewToken` _\(\) =\> Promise\<string\>_
+
+
+**Returns**:
+
+- `ProcessTransport`
+
+### Methods
+
+#### attachProcessTerminal()
+
+```ts
+attachProcessTerminal(id: string): Promise<WebSocket>;
+```
+
+**Parameters**:
+
+- `id` _string_
+
+
+**Returns**:
+
+- `Promise<WebSocket>`
+
+#### cleanupProcess()
+
+```ts
+cleanupProcess(id: string): Promise<void>;
+```
+
+**Parameters**:
+
+- `id` _string_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### createProcess()
+
+```ts
+createProcess(options: ProcessStartOptions): Promise<Process>;
+```
+
+**Parameters**:
+
+- `options` _ProcessStartOptions_
+
+
+**Returns**:
+
+- `Promise<Process>`
+
+#### getLogs()
+
+```ts
+getLogs(id: string, options?: ProcessLogOptions): Promise<ProcessLogPage>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `options?` _ProcessLogOptions_
+
+
+**Returns**:
+
+- `Promise<ProcessLogPage>`
+
+#### getProcess()
+
+```ts
+getProcess(id: string): Promise<Process>;
+```
+
+**Parameters**:
+
+- `id` _string_
+
+
+**Returns**:
+
+- `Promise<Process>`
+
+#### killProcess()
+
+```ts
+killProcess(id: string, options?: ProcessKillOptions): Promise<void>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `options?` _ProcessKillOptions_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### listProcesses()
+
+```ts
+listProcesses(filter?: ProcessListFilter): Promise<Process[]>;
+```
+
+**Parameters**:
+
+- `filter?` _ProcessListFilter_
+
+
+**Returns**:
+
+- `Promise<Process[]>`
+
+#### resizeProcess()
+
+```ts
+resizeProcess(
+   id: string, 
+   cols: number, 
+rows: number): Promise<void>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `cols` _number_
+- `rows` _number_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### sendStdin()
+
+```ts
+sendStdin(id: string, data: string | Uint8Array<ArrayBufferLike>): Promise<void>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `data` _string \| Uint8Array\<ArrayBufferLike\>_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### sendStdinEof()
+
+```ts
+sendStdinEof(id: string): Promise<void>;
+```
+
+**Parameters**:
+
+- `id` _string_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+#### streamProcessLogs()
+
+```ts
+streamProcessLogs(id: string, options?: ProcessStreamLogOptions): AsyncGenerator<ProcessLogEvent>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `options?` _ProcessStreamLogOptions_
+
+
+##### Returns
+
+`AsyncGenerator`\<`ProcessLogEvent`\>
+
+#### waitForProcess()
+
+```ts
+waitForProcess(id: string, options?: ProcessWaitOptions): Promise<ProcessResult>;
+```
+
+**Parameters**:
+
+- `id` _string_
+- `options?` _ProcessWaitOptions_
+
+
+**Returns**:
+
+- `Promise<ProcessResult>`
+

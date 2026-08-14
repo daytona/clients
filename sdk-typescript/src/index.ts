@@ -74,6 +74,13 @@ export {
   DaytonaInvalidFilePathError,
   DaytonaFileReadFailedError,
   DaytonaLspServerNotInitializedError,
+  DaytonaNameConflictError,
+  DaytonaCursorExpiredError,
+  DaytonaProtectedProcessError,
+  DaytonaStdinClosedError,
+  DaytonaStdinUnavailableError,
+  DaytonaProcessTerminalError,
+  DaytonaUnsupportedOperationError,
   DaytonaProcessExecutionTimeoutError,
   DaytonaProcessNotFoundError,
   DaytonaSessionEndedError,
@@ -135,5 +142,7 @@ export type {
 } from './ComputerUse'
 
 export * from './Process'
+export { ProcessHandle } from './ProcessHandle'
 export * from './PtyHandle'
 export * from './types/Pty'
+export * from './types/Process'

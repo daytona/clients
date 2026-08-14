@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import httpx
 import httpx_ws
@@ -171,6 +173,29 @@ class CodeInterpreter:
                         _ = on_error(error)
 
         return result
+
+    @contextmanager
+    def context(
+        self,
+        cwd: str | None = None,
+        request_timeout: float | None = None,
+    ) -> Iterator[InterpreterContext]:
+        """Create an interpreter context scoped to a ``with`` block.
+
+        The context is deleted on exit, even when the block raises.
+
+        Example:
+            ```python
+            with sandbox.code_interpreter.context() as ctx:
+                sandbox.code_interpreter.run_code("x = 41", context=ctx)
+                result = sandbox.code_interpreter.run_code("print(x + 1)", context=ctx)
+            ```
+        """
+        ctx = self.create_context(cwd=cwd, request_timeout=request_timeout)
+        try:
+            yield ctx
+        finally:
+            self.delete_context(ctx, request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to create interpreter context: ")
     def create_context(

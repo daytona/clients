@@ -205,6 +205,7 @@ export class Sandbox {
 
     this.fs = new FileSystem(this.clientConfig, new FileSystemApi(this.clientConfig, '', this.axiosInstance))
     this.git = new Git(new GitApi(this.clientConfig, '', this.axiosInstance))
+    this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     const language = sandboxDto.labels?.[CODE_TOOLBOX_LANGUAGE_LABEL]
     this.process = new Process(
       this.clientConfig,
@@ -219,7 +220,6 @@ export class Sandbox {
       getPreviewToken,
     )
     this.computerUse = new ComputerUse(new ComputerUseApi(this.clientConfig, '', this.axiosInstance))
-    this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
     this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
 

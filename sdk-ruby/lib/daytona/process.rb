@@ -4,7 +4,7 @@
 # frozen_string_literal: true
 
 require 'base64'
-require 'json'
+require 'timeout'
 require 'uri'
 
 module Daytona
@@ -36,6 +36,83 @@ module Daytona
       @get_preview_link = get_preview_link
       @language = language
       @otel_state = otel_state
+    end
+
+    # Start a background process and return a handle for supervising it.
+    #
+    # The handle can stream or replay logs, send stdin, wait, kill, and clean up
+    # the process. Reconnect later with {#connect} and the process ID. Logs are
+    # retained according to `keep_logs`; use `until_cleanup` when they must remain
+    # available until {ProcessHandle#cleanup} is called.
+    #
+    # @param options [Hash] Process creation options accepted by the toolbox API,
+    #   including `command`, `shell_command`, `cwd`, `env`, `terminal`, `stdin_mode`,
+    #   and `keep_logs`
+    # @return [Daytona::ProcessHandle] Handle used to supervise the process
+    # @raise [Daytona::Sdk::Error] If the process cannot be started
+    def start(**options)
+      request = build_process_request(options)
+      record = toolbox_api.create_process(request)
+      build_handle(record.id)
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to start process')
+    end
+
+    # Run a process once and collect its output.
+    #
+    # Unlike {#start}, this method waits and returns collected stdout, stderr, and
+    # terminal metadata. When `keep_logs` is omitted, logs use the service's short
+    # post-exit TTL and should not be treated as durable. Supply callbacks to receive
+    # decoded output while the process runs.
+    #
+    # @param wait_timeout_ms [Integer, nil] Maximum time to wait, in milliseconds
+    # @param on_stdout [Proc, nil] Callback invoked with decoded stdout chunks
+    # @param on_stderr [Proc, nil] Callback invoked with decoded stderr chunks
+    # @param options [Hash] Process creation options accepted by {#start}
+    # @return [Daytona::ProcessRunResult] Collected output and the supervising handle
+    # @raise [Daytona::Sdk::Error] If the process cannot be started, followed, or read
+    def run(wait_timeout_ms: nil, on_stdout: nil, on_stderr: nil, **options)
+      options[:keep_logs] = 'on_exit_ttl' if options[:keep_logs].nil?
+      handle = start(**options)
+
+      if on_stdout || on_stderr
+        run_with_callbacks(handle, wait_timeout_ms:, on_stdout:, on_stderr:)
+      else
+        result = handle.wait(timeout_ms: wait_timeout_ms)
+        stdout, stderr = handle.collect_output
+        build_run_result(handle, result, stdout:, stderr:, timed_out: wait_result_timed_out?(result, wait_timeout_ms))
+      end
+    end
+
+    # Get a handle for an existing process by ID.
+    #
+    # @param id [String] Process ID
+    # @return [Daytona::ProcessHandle] Reconnected process handle
+    # @raise [Daytona::Sdk::Error] If the process does not exist or cannot be retrieved
+    def get(id)
+      toolbox_api.get_process(id)
+      build_handle(id)
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to get process')
+    end
+
+    # Reconnect to an existing process by ID. Alias of {#get}.
+    #
+    # @see #get
+    alias connect get
+
+    # List processes, optionally filtered by process metadata.
+    #
+    # @param state [String, nil] Process state filter
+    # @param kind [String, nil] Process kind filter, such as `exec` or `pty`
+    # @param name [String, nil] Process name filter
+    # @param session_id [String, nil] Owning session ID filter
+    # @return [Array<DaytonaToolboxApiClient::Process>] Matching processes
+    # @raise [Daytona::Sdk::Error] If processes cannot be listed
+    def list(state: nil, kind: nil, name: nil, session_id: nil)
+      toolbox_api.list_processes(**{ state:, kind:, name:, session_id: }.compact)
+    rescue *Sdk::API_ERROR_CLASSES => e
+      raise Sdk.wrap_error(e, 'Failed to list processes')
     end
 
     # Execute a shell command in the Sandbox
@@ -588,7 +665,8 @@ module Daytona
       raise Sdk.wrap_error(e, 'Failed to get PTY session info')
     end
 
-    instrument :exec, :code_run, :create_session, :get_session, :get_session_command,
+    instrument :start, :run, :get, :connect, :list, :exec, :code_run, :create_session, :get_session,
+               :get_session_command,
                :execute_session_command, :get_session_command_logs, :get_session_command_logs_async,
                :send_session_command_input, :list_sessions, :delete_session,
                :create_pty_session, :connect_pty_session, :resize_pty_session,
@@ -599,6 +677,93 @@ module Daytona
 
     # @return [Daytona::OtelState, nil]
     attr_reader :otel_state
+
+    def build_handle(process_id)
+      ProcessHandle.new(process_id:, toolbox_api:)
+    end
+
+    def build_process_request(options)
+      attributes = options.compact
+      terminal = attributes.delete(:terminal)
+      term = attributes.delete(:term)
+      attributes.delete(:login) unless attributes[:login]
+      attributes[:terminal] = process_terminal(terminal, term) if terminal
+      DaytonaToolboxApiClient::CreateProcessRequest.new(attributes)
+    end
+
+    def process_terminal(terminal, term)
+      return terminal if terminal.is_a?(DaytonaToolboxApiClient::ProcessTerminalSize) && term.nil?
+
+      values = if terminal.respond_to?(:to_h)
+                 terminal.to_h
+               else
+                 { cols: terminal.cols, rows: terminal.rows }
+               end
+      values = values.transform_keys(&:to_sym)
+      values[:term] = term if term
+      DaytonaToolboxApiClient::ProcessTerminalSize.new(values)
+    end
+
+    def run_with_callbacks(handle, wait_timeout_ms:, on_stdout:, on_stderr:) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+      decoder = ProcessRunFrameDecoder.new
+      chunks = { stdout: [], stderr: [] }
+      timed_out = false
+
+      begin
+        timeout_seconds = wait_timeout_ms && (wait_timeout_ms / 1000.0)
+        Timeout.timeout(timeout_seconds) do
+          handle.stream_logs(cursor: 'start', encoding: 'base64') do |event|
+            frame = stream_event_frame(event)
+            next unless frame
+
+            channel, text = decoder.decode(channel: frame.channel, data: frame.data, encoding: frame.encoding)
+            next if text.empty?
+
+            chunks[channel] << text
+            (channel == :stderr ? on_stderr : on_stdout)&.call(text)
+          end
+        end
+      rescue Timeout::Error
+        timed_out = true
+      end
+
+      stdout_tail, stderr_tail = decoder.flush
+      append_callback_tail(chunks, :stdout, stdout_tail, on_stdout)
+      append_callback_tail(chunks, :stderr, stderr_tail, on_stderr)
+      result = handle.wait(timeout_ms: timed_out ? 1 : remaining_wait_timeout(wait_timeout_ms))
+      build_run_result(handle, result, stdout: chunks[:stdout].join, stderr: chunks[:stderr].join, timed_out:)
+    end
+
+    def stream_event_frame(event)
+      return event[:frame] if event.is_a?(Hash) && event[:frame]
+      if event.is_a?(Hash) && event['frame']
+        return DaytonaToolboxApiClient::ProcessLogFrame.build_from_hash(event['frame'])
+      end
+
+      nil
+    end
+
+    def append_callback_tail(chunks, channel, text, callback)
+      return if text.empty?
+
+      chunks[channel] << text
+      callback&.call(text)
+    end
+
+    def remaining_wait_timeout(wait_timeout_ms)
+      wait_timeout_ms.nil? ? nil : 1
+    end
+
+    def wait_result_timed_out?(result, wait_timeout_ms)
+      !wait_timeout_ms.nil? && result.exit_code.nil? && result.signal.nil? && result.reason.nil?
+    end
+
+    def build_run_result(handle, result, stdout:, stderr:, timed_out:)
+      ProcessRunResult.new(
+        id: handle.id, handle:, stdout:, stderr:, timed_out:,
+        exit_code: result.exit_code, signal: result.signal, reason: result.reason
+      )
+    end
 
     WS_PORT = 2280
     private_constant :WS_PORT

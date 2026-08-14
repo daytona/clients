@@ -3,7 +3,108 @@
 
 # frozen_string_literal: true
 
+require 'base64'
+
 module Daytona
+  class ProcessRunFrameDecoder
+    def initialize
+      @buffers = { stdout: ''.b, stderr: ''.b }
+    end
+
+    def decode(channel:, data:, encoding:)
+      output_channel = case channel
+                       when 'stderr' then :stderr
+                       when 'stdout', 'pty' then :stdout
+                       end
+      return [nil, ''] unless output_channel
+      return [output_channel, data.to_s] unless encoding == 'base64'
+
+      @buffers[output_channel] << Base64.strict_decode64(data.to_s)
+      [output_channel, extract_valid_prefix(output_channel)]
+    end
+
+    def flush
+      %i[stdout stderr].map do |channel|
+        bytes = @buffers[channel]
+        @buffers[channel] = ''.b
+        bytes.force_encoding(Encoding::UTF_8).encode(
+          Encoding::UTF_8, invalid: :replace, undef: :replace, replace: '�'
+        )
+      end
+    end
+
+    private
+
+    def extract_valid_prefix(channel)
+      bytes = @buffers[channel]
+      0.upto([3, bytes.bytesize].min) do |tail_size|
+        prefix_size = bytes.bytesize - tail_size
+        prefix = bytes.byteslice(0, prefix_size).dup.force_encoding(Encoding::UTF_8)
+        next unless prefix.valid_encoding?
+
+        @buffers[channel] = tail_size.zero? ? ''.b : bytes.byteslice(prefix_size, tail_size)
+        return prefix
+      end
+      ''
+    end
+  end
+
+  class ProcessOutput
+    # @return [String] Collected standard output
+    attr_reader :stdout
+
+    # @return [String] Collected standard error
+    attr_reader :stderr
+
+    # @return [Integer, nil] Terminal exit code, if available
+    attr_reader :exit_code
+
+    # @return [String, nil] Terminal signal, if available
+    attr_reader :signal
+
+    # @return [String, nil] Terminal reason reported by the process service
+    attr_reader :reason
+
+    # Initialize collected process output.
+    #
+    # @param stdout [String] Collected standard output
+    # @param stderr [String] Collected standard error
+    # @param exit_code [Integer, nil] Terminal exit code
+    # @param signal [String, nil] Terminal signal
+    # @param reason [String, nil] Terminal reason
+    def initialize(stdout:, stderr:, exit_code: nil, signal: nil, reason: nil)
+      @stdout = stdout
+      @stderr = stderr
+      @exit_code = exit_code
+      @signal = signal
+      @reason = reason
+    end
+  end
+
+  class ProcessRunResult < ProcessOutput
+    # @return [String] Process ID
+    attr_reader :id
+
+    # @return [Daytona::ProcessHandle] Handle for later supervision or cleanup
+    attr_reader :handle
+
+    # @return [Boolean] Whether the wait ended because its timeout elapsed
+    attr_reader :timed_out
+
+    # Initialize a one-shot process result.
+    #
+    # @param id [String] Process ID
+    # @param handle [Daytona::ProcessHandle] Supervising process handle
+    # @param timed_out [Boolean] Whether the wait timed out
+    # @param output [Hash] Arguments accepted by {ProcessOutput#initialize}
+    def initialize(id:, handle:, timed_out: false, **output)
+      super(**output)
+      @id = id
+      @handle = handle
+      @timed_out = timed_out
+    end
+  end
+
   class ExecuteResponse
     # @return [Integer] The exit code from the command execution
     attr_reader :exit_code

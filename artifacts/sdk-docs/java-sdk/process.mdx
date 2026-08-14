@@ -12,6 +12,111 @@ sessions.
 
 ### Methods
 
+#### start()
+```java
+public ProcessHandle start(ProcessStartOptions options)
+```
+
+Starts a managed process in the background and returns the handle you supervise.
+
+Use this instead of `#run(ProcessRunOptions)` when you need to stream logs, write
+stdin, send signals, or reconnect later with `#connect(String)`. Logs default to
+retention until `ProcessHandle#cleanup()`.
+
+**Parameters**:
+
+- `options` _ProcessStartOptions_ - process creation options
+
+**Returns**:
+
+- `ProcessHandle` - reconnectable process handle
+
+#### run()
+```java
+public ProcessRunResult run(ProcessRunOptions options)
+```
+
+Runs a one-shot process, waits for it, and returns collected stdout and stderr.
+
+Use this instead of `#start(ProcessStartOptions)` when the caller only needs the
+completed output. Its logs default to short-TTL retention after exit; use `start` when
+the process must remain reconnectable or explicitly supervised.
+
+**Parameters**:
+
+- `options` _ProcessRunOptions_ - run options
+
+**Returns**:
+
+- `ProcessRunResult` - collected process result, including partial output on wait timeout
+
+#### get()
+```java
+public ProcessHandle get(String id)
+```
+
+Gets a validated handle for an existing process ID.
+
+Use this for ordinary lookup; `#connect(String)` is an equivalent alias with
+identical behavior.
+
+**Parameters**:
+
+- `id` _String_ - process identifier
+
+**Returns**:
+
+- `ProcessHandle` - validated process handle
+
+#### connect()
+```java
+public ProcessHandle connect(String id)
+```
+
+Reconnects to an existing process by ID.
+
+This is an alias of `#get(String)`. Use either method when a
+previous `#start(ProcessStartOptions)` handle is no longer in memory.
+
+**Parameters**:
+
+- `id` _String_ - process identifier
+
+**Returns**:
+
+- `ProcessHandle` - validated process handle
+
+#### list()
+```java
+public List<io.daytona.toolbox.client.model.Process> list(ProcessListFilter filter)
+```
+
+Lists process records matching optional server-side filters.
+
+Use this overload instead of `#list()` when narrowing by state, kind, session, name,
+or PID.
+
+**Parameters**:
+
+- `filter` _ProcessListFilter_ - optional process filters
+
+**Returns**:
+
+- `List\<io.daytona.toolbox.client.model.Process\>` - matching process records
+
+#### list()
+```java
+public List<io.daytona.toolbox.client.model.Process> list()
+```
+
+Lists all process records.
+
+Use `#list(ProcessListFilter)` when only a subset is needed.
+
+**Returns**:
+
+- `List\<io.daytona.toolbox.client.model.Process\>` - all process records
+
 #### executeCommand()
 ```java
 public ExecuteResponse executeCommand(String command)
@@ -30,6 +135,24 @@ Executes a shell command with default options.
 **Throws**:
 
 - `DaytonaException` - if execution fails
+
+#### exec()
+```java
+public ExecuteResponse exec(String command)
+```
+
+Alias for `#executeCommand(String)`.
+
+Use this concise spelling for legacy one-shot command execution; use
+`#start(ProcessStartOptions)` for a supervised process handle.
+
+**Parameters**:
+
+- `command` _String_ - command to execute
+
+**Returns**:
+
+- `ExecuteResponse` - execution result
 
 #### executeCommand()
 ```java
@@ -52,6 +175,27 @@ Executes a shell command.
 **Throws**:
 
 - `DaytonaException` - if execution fails
+
+#### exec()
+```java
+public ExecuteResponse exec(String command, String cwd, Map<String, String> env, Integer timeout)
+```
+
+Alias for `#executeCommand(String, String, Map, Integer)`.
+
+Use this concise spelling when the legacy collected command result is
+sufficient; use `#run(ProcessRunOptions)` for the managed-process result model.
+
+**Parameters**:
+
+- `command` _String_ - command to execute
+- `cwd` _String_ - working directory
+- `env` _Map\<String, String\>_ - environment variables
+- `timeout` _Integer_ - timeout in seconds
+
+**Returns**:
+
+- `ExecuteResponse` - execution result
 
 #### codeRun()
 ```java

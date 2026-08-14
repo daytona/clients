@@ -138,6 +138,55 @@ RSpec.describe Daytona::Process do
     end
   end
 
+  describe 'modern process surface' do
+    let(:process_record) { double('ProcessRecord', id: 'proc-1') }
+
+    it 'starts, validates, reconnects, and lists processes through the generated client' do
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+      allow(toolbox_api).to receive(:get_process).with('proc-1').and_return(process_record)
+      allow(toolbox_api).to receive(:list_processes).and_return([process_record])
+
+      started = process.start(shell_command: 'sleep 1', keep_logs: 'until_cleanup')
+
+      expect(started).to be_a(Daytona::ProcessHandle)
+      expect(started.id).to eq('proc-1')
+      expect(process.connect('proc-1').id).to eq('proc-1')
+      expect(process.list(state: 'running', kind: 'exec', name: 'worker', session_id: 'session-1'))
+        .to eq([process_record])
+      expect(toolbox_api).to have_received(:create_process) do |request|
+        expect(request.shell_command).to eq('sleep 1')
+        expect(request.keep_logs).to eq('until_cleanup')
+      end
+      expect(toolbox_api).to have_received(:list_processes).with(
+        state: 'running', kind: 'exec', name: 'worker', session_id: 'session-1'
+      )
+    end
+
+    it 'runs, waits, paginates logs, and defaults retention to on_exit_ttl' do
+      wait_result = double('Result', exit_code: 0, signal: nil, reason: 'exited')
+      page = double(
+        'Page',
+        eof: true,
+        next_cursor: 'done',
+        frames: [double(channel: 'stdout', data: Base64.strict_encode64("ok\n"), encoding: 'base64')]
+      )
+      allow(toolbox_api).to receive(:create_process).and_return(process_record)
+      allow(toolbox_api).to receive(:wait_for_process).with('proc-1', timeout_ms: 250).and_return(wait_result)
+      allow(toolbox_api).to receive(:read_process_logs).with(
+        'proc-1', cursor: 'start', limit: 1000, encoding: 'base64'
+      ).and_return(page)
+
+      result = process.run(shell_command: 'echo ok', wait_timeout_ms: 250)
+
+      expect(result.stdout).to eq("ok\n")
+      expect(result.timed_out).to be(false)
+      expect(result.handle.id).to eq('proc-1')
+      expect(toolbox_api).to have_received(:create_process) do |request|
+        expect(request.keep_logs).to eq('on_exit_ttl')
+      end
+    end
+  end
+
   describe '#code_run' do
     let(:chart_element) { double('ChartElement', label: 'series', points: [[1, 2]]) }
     let(:chart_dto) do

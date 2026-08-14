@@ -16,6 +16,9 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   roots: ['<rootDir>/src'],
+  // The golden suite talks to a live sandbox and has its own `test:golden`
+  // target; keep the default unit-test run hermetic.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/src/__tests__/golden/'],
   moduleNameMapper: {
     '^@daytona/api-client$': '<rootDir>/../api-client/src/index.ts',
     '^@daytona/toolbox-api-client$': '<rootDir>/../toolbox-api-client/src/index.ts',

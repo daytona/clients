@@ -154,6 +154,12 @@ var (
 )
 ```
 
+<a name="ErrCursorExpired"></a>ErrCursorExpired identifies a retained\-log cursor evicted from the process ledger. Callers replaying logs should resume from the first available cursor reported by the daemon instead of retrying the expired cursor.
+
+```go
+var ErrCursorExpired = &DaytonaError{Source: SourceDaemon, Code: "CURSOR_EXPIRED"}
+```
+
 <a name="ConvertAPIError"></a>
 ## func ConvertAPIError
 

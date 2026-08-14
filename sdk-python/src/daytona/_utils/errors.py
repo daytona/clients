@@ -96,6 +96,13 @@ def is_validation_error(exc: BaseException) -> bool:
     return False
 
 
+def _copy_extra_error_attributes(source: DaytonaError, target: DaytonaError) -> None:
+    for attribute_name, attribute_value in source.__dict__.items():
+        if attribute_name in {"message", "status_code", "code", "source", "headers"}:
+            continue
+        setattr(target, attribute_name, attribute_value)
+
+
 def _parse_openapi_exception(
     exception: OpenApiDaytonaException,
 ) -> tuple[str, str | None, str | None]:
@@ -141,13 +148,15 @@ def intercept_errors(
     def decorator(func: F) -> F:
         def process_n_raise_exception(e: Exception) -> NoReturn:
             if isinstance(e, DaytonaError):
-                raise e.__class__(
+                copied_error = e.__class__(
                     _prefix_message(message_prefix, str(e)),
                     status_code=e.status_code,
                     headers=e.headers,
                     code=e.code,
                     source=e.source,
-                ) from e
+                )
+                _copy_extra_error_attributes(e, copied_error)
+                raise copied_error from e
 
             if isinstance(e, OPENAPI_EXCEPTIONS):
                 msg, code, source = _parse_openapi_exception(e)

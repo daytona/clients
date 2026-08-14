@@ -103,6 +103,28 @@ result = await sandbox.code_interpreter.run_code(
 )
 ```
 
+#### AsyncCodeInterpreter.context
+
+```python
+@asynccontextmanager
+async def context(
+        cwd: str | None = None,
+        request_timeout: float | None = None
+) -> AsyncIterator[InterpreterContext]
+```
+
+Create an interpreter context scoped to an ``async with`` block.
+
+The context is deleted on exit, even when the block raises.
+
+**Example**:
+
+```python
+async with sandbox.code_interpreter.context() as ctx:
+    await sandbox.code_interpreter.run_code("x = 41", context=ctx)
+    result = await sandbox.code_interpreter.run_code("print(x + 1)", context=ctx)
+```
+
 #### AsyncCodeInterpreter.create\_context
 
 ```python

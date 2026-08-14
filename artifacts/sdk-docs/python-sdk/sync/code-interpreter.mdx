@@ -104,6 +104,27 @@ result = sandbox.code_interpreter.run_code(
 )
 ```
 
+#### CodeInterpreter.context
+
+```python
+@contextmanager
+def context(
+        cwd: str | None = None,
+        request_timeout: float | None = None) -> Iterator[InterpreterContext]
+```
+
+Create an interpreter context scoped to a ``with`` block.
+
+The context is deleted on exit, even when the block raises.
+
+**Example**:
+
+```python
+with sandbox.code_interpreter.context() as ctx:
+    sandbox.code_interpreter.run_code("x = 41", context=ctx)
+    result = sandbox.code_interpreter.run_code("print(x + 1)", context=ctx)
+```
+
 #### CodeInterpreter.create\_context
 
 ```python

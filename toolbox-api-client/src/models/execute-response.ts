@@ -16,6 +16,7 @@
 
 export interface ExecuteResponse {
     'exitCode'?: number;
+    'processId'?: string;
     'result': string;
 }
 

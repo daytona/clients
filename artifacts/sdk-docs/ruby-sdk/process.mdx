@@ -76,6 +76,130 @@ def language()
 
 - `String` - The language for code execution (e.g. 'python', 'typescript', 'javascript')
 
+#### start()
+
+```ruby
+def start(**options)
+
+```
+
+Start a background process and return a handle for supervising it.
+
+The handle can stream or replay logs, send stdin, wait, kill, and clean up
+the process. Reconnect later with {#connect} and the process ID. Logs are
+retained according to `keep_logs`; use `until_cleanup` when they must remain
+available until {ProcessHandle#cleanup} is called.
+
+**Parameters**:
+
+- `options` _Hash_ - Process creation options accepted by the toolbox API,
+including `command`, `shell_command`, `cwd`, `env`, `terminal`, `stdin_mode`,
+and `keep_logs`
+
+**Returns**:
+
+- `Daytona:ProcessHandle` - Handle used to supervise the process
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - If the process cannot be started
+
+#### run()
+
+```ruby
+def run(wait_timeout_ms: nil, on_stdout: nil, on_stderr: nil, **options)
+
+```
+
+Run a process once and collect its output.
+
+Unlike {#start}, this method waits and returns collected stdout, stderr, and
+terminal metadata. When `keep_logs` is omitted, logs use the service's short
+post-exit TTL and should not be treated as durable. Supply callbacks to receive
+decoded output while the process runs.
+
+**Parameters**:
+
+- `wait_timeout_ms` _Integer, nil_ - Maximum time to wait, in milliseconds
+- `on_stdout` _Proc, nil_ - Callback invoked with decoded stdout chunks
+- `on_stderr` _Proc, nil_ - Callback invoked with decoded stderr chunks
+- `options` _Hash_ - Process creation options accepted by {#start}
+
+**Returns**:
+
+- `Daytona:ProcessRunResult` - Collected output and the supervising handle
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - If the process cannot be started, followed, or read
+
+#### get()
+
+```ruby
+def get(id)
+
+```
+
+Get a handle for an existing process by ID.
+
+**Parameters**:
+
+- `id` _String_ - Process ID
+
+**Returns**:
+
+- `Daytona:ProcessHandle` - Reconnected process handle
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - If the process does not exist or cannot be retrieved
+
+#### connect()
+
+```ruby
+def connect()
+
+```
+
+Get a handle for an existing process by ID.
+Reconnect to an existing process by ID. Alias of {#get}.
+
+**Parameters**:
+
+- `id` _String_ - Process ID
+
+**Returns**:
+
+- `Daytona:ProcessHandle` - Reconnected process handle
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - If the process does not exist or cannot be retrieved
+
+#### list()
+
+```ruby
+def list(state: nil, kind: nil, name: nil, session_id: nil)
+
+```
+
+List processes, optionally filtered by process metadata.
+
+**Parameters**:
+
+- `state` _String, nil_ - Process state filter
+- `kind` _String, nil_ - Process kind filter, such as `exec` or `pty`
+- `name` _String, nil_ - Process name filter
+- `session_id` _String, nil_ - Owning session ID filter
+
+**Returns**:
+
+- `Array\<DaytonaToolboxApiClient:Process\>` - Matching processes
+
+**Raises**:
+
+- `Daytona:Sdk:Error` - If processes cannot be listed
+
 #### exec()
 
 ```ruby

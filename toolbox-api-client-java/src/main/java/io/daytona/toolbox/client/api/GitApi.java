@@ -2259,6 +2259,11 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call pushChangesCall(@javax.annotation.Nonnull GitPushRequest request, final ApiCallback _callback) throws ApiException {
@@ -2287,6 +2292,7 @@ public class GitApi {
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
         final String[] localVarAccepts = {
+            "application/json"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -2326,6 +2332,11 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public void pushChanges(@javax.annotation.Nonnull GitPushRequest request) throws ApiException {
@@ -2343,6 +2354,11 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> pushChangesWithHttpInfo(@javax.annotation.Nonnull GitPushRequest request) throws ApiException {
@@ -2362,6 +2378,11 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call pushChangesAsync(@javax.annotation.Nonnull GitPushRequest request, final ApiCallback<Void> _callback) throws ApiException {
@@ -2503,11 +2524,6 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
-        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
-        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
-        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
-        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call restoreFilesCall(@javax.annotation.Nonnull GitRestoreRequest request, final ApiCallback _callback) throws ApiException {
@@ -2536,7 +2552,6 @@ public class GitApi {
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
         final String[] localVarAccepts = {
-            "application/json"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -2576,11 +2591,6 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
-        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
-        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
-        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
-        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public void restoreFiles(@javax.annotation.Nonnull GitRestoreRequest request) throws ApiException {
@@ -2598,11 +2608,6 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
-        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
-        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
-        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
-        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Void> restoreFilesWithHttpInfo(@javax.annotation.Nonnull GitRestoreRequest request) throws ApiException {
@@ -2622,11 +2627,6 @@ public class GitApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
-        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
-        <tr><td> 401 </td><td> Unauthorized </td><td>  -  </td></tr>
-        <tr><td> 403 </td><td> Forbidden </td><td>  -  </td></tr>
-        <tr><td> 409 </td><td> Conflict </td><td>  -  </td></tr>
-        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call restoreFilesAsync(@javax.annotation.Nonnull GitRestoreRequest request, final ApiCallback<Void> _callback) throws ApiException {

@@ -232,6 +232,19 @@ class CodeInterpreterTest {
                 .hasMessage("mapped");
     }
 
+    @Test
+    void withContextDeletesContextAfterCallbackFailure() {
+        io.daytona.toolbox.client.model.InterpreterContext context =
+                new io.daytona.toolbox.client.model.InterpreterContext().id("ctx-1");
+        when(interpreterApi.createInterpreterContext(any())).thenReturn(context);
+
+        assertThatThrownBy(() -> codeInterpreter.withContext(value -> {
+            throw new IllegalStateException("boom");
+        })).isInstanceOf(IllegalStateException.class).hasMessage("boom");
+
+        verify(interpreterApi).deleteInterpreterContext("ctx-1");
+    }
+
     private static Stream<Arguments> mappedToolboxExceptions() {
         return Stream.of(
                 Arguments.of(400, DaytonaBadRequestException.class),

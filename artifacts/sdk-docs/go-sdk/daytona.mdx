@@ -101,6 +101,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(c \*CodeInterpreterService\) DeleteContext\(ctx context.Context, contextID string\) error](<#CodeInterpreterService.DeleteContext>)
   - [func \(c \*CodeInterpreterService\) ListContexts\(ctx context.Context\) \(\[\]map\[string\]any, error\)](<#CodeInterpreterService.ListContexts>)
   - [func \(c \*CodeInterpreterService\) RunCode\(ctx context.Context, code string, opts ...func\(\*options.RunCode\)\) \(\*OutputChannels, error\)](<#CodeInterpreterService.RunCode>)
+  - [func \(c \*CodeInterpreterService\) WithContext\(ctx context.Context, fn func\(InterpreterContext\) error, opts ...func\(\*options.InterpreterContext\)\) \(err error\)](<#CodeInterpreterService.WithContext>)
 - [type ComputerUseService](<#ComputerUseService>)
   - [func NewComputerUseService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*ComputerUseService](<#NewComputerUseService>)
   - [func \(c \*ComputerUseService\) Accessibility\(\) \*AccessibilityService](<#ComputerUseService.Accessibility>)
@@ -178,6 +179,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(g \*GitService\) Restore\(ctx context.Context, path string, files \[\]string, opts ...func\(\*options.GitRestore\)\) error](<#GitService.Restore>)
   - [func \(g \*GitService\) SetConfig\(ctx context.Context, key, value string, opts ...func\(\*options.GitConfig\)\) error](<#GitService.SetConfig>)
   - [func \(g \*GitService\) Status\(ctx context.Context, path string\) \(\*types.GitStatus, error\)](<#GitService.Status>)
+- [type InterpreterContext](<#InterpreterContext>)
 - [type KeyboardService](<#KeyboardService>)
   - [func NewKeyboardService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*KeyboardService](<#NewKeyboardService>)
   - [func \(k \*KeyboardService\) Hotkey\(ctx context.Context, keys string\) error](<#KeyboardService.Hotkey>)
@@ -185,6 +187,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(k \*KeyboardService\) Type\(ctx context.Context, text string, delay \*int\) error](<#KeyboardService.Type>)
 - [type ListSandboxesQuery](<#ListSandboxesQuery>)
 - [type ListSnapshotsQuery](<#ListSnapshotsQuery>)
+- [type LogEvent](<#LogEvent>)
 - [type LspServerService](<#LspServerService>)
   - [func NewLspServerService\(toolboxClient \*toolbox.APIClient, languageID types.LspLanguageID, projectPath string, otel \*otelState\) \*LspServerService](<#NewLspServerService>)
   - [func \(l \*LspServerService\) Completions\(ctx context.Context, path string, position types.Position\) \(any, error\)](<#LspServerService.Completions>)
@@ -202,16 +205,34 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(m \*MouseService\) Move\(ctx context.Context, x, y int\) \(map\[string\]any, error\)](<#MouseService.Move>)
   - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int\) \(bool, error\)](<#MouseService.Scroll>)
 - [type OutputChannels](<#OutputChannels>)
+- [type ProcessHandle](<#ProcessHandle>)
+  - [func \(h \*ProcessHandle\) AttachTerminal\(ctx context.Context\) \(\*websocket.Conn, error\)](<#ProcessHandle.AttachTerminal>)
+  - [func \(h \*ProcessHandle\) Cleanup\(ctx context.Context\) error](<#ProcessHandle.Cleanup>)
+  - [func \(h \*ProcessHandle\) Get\(ctx context.Context\) \(\*toolbox.Process, error\)](<#ProcessHandle.Get>)
+  - [func \(h \*ProcessHandle\) ID\(\) string](<#ProcessHandle.ID>)
+  - [func \(h \*ProcessHandle\) Kill\(ctx context.Context, signal ...string\) error](<#ProcessHandle.Kill>)
+  - [func \(h \*ProcessHandle\) Logs\(ctx context.Context, cursor string, limit int, encoding string\) \(\*toolbox.ProcessLogPage, error\)](<#ProcessHandle.Logs>)
+  - [func \(h \*ProcessHandle\) Output\(ctx context.Context\) \(\*ProcessOutput, error\)](<#ProcessHandle.Output>)
+  - [func \(h \*ProcessHandle\) Resize\(ctx context.Context, cols, rows int\) error](<#ProcessHandle.Resize>)
+  - [func \(h \*ProcessHandle\) Stdin\(ctx context.Context, data string\) error](<#ProcessHandle.Stdin>)
+  - [func \(h \*ProcessHandle\) StdinEOF\(ctx context.Context\) error](<#ProcessHandle.StdinEOF>)
+  - [func \(h \*ProcessHandle\) StreamLogs\(ctx context.Context, cursor string\) \(\<\-chan LogEvent, error\)](<#ProcessHandle.StreamLogs>)
+  - [func \(h \*ProcessHandle\) Wait\(ctx context.Context, timeoutMs ...int\) \(\*toolbox.ProcessResult, error\)](<#ProcessHandle.Wait>)
+- [type ProcessOutput](<#ProcessOutput>)
+- [type ProcessRunResult](<#ProcessRunResult>)
 - [type ProcessService](<#ProcessService>)
   - [func NewProcessService\(toolboxClient \*toolbox.APIClient, otel \*otelState, language types.CodeLanguage\) \*ProcessService](<#NewProcessService>)
   - [func \(p \*ProcessService\) CodeRun\(ctx context.Context, code string, opts ...func\(\*options.CodeRun\)\) \(\*types.ExecuteResponse, error\)](<#ProcessService.CodeRun>)
+  - [func \(p \*ProcessService\) Connect\(ctx context.Context, id string\) \(\*ProcessHandle, error\)](<#ProcessService.Connect>)
   - [func \(p \*ProcessService\) ConnectPty\(ctx context.Context, sessionID string\) \(\*PtyHandle, error\)](<#ProcessService.ConnectPty>)
   - [func \(p \*ProcessService\) CreatePty\(ctx context.Context, id string, opts ...func\(\*options.CreatePty\)\) \(\*PtyHandle, error\)](<#ProcessService.CreatePty>)
   - [func \(p \*ProcessService\) CreatePtySession\(ctx context.Context, id string, opts ...func\(\*options.PtySession\)\) \(\*types.PtySessionInfo, error\)](<#ProcessService.CreatePtySession>)
   - [func \(p \*ProcessService\) CreateSession\(ctx context.Context, sessionID string\) error](<#ProcessService.CreateSession>)
   - [func \(p \*ProcessService\) DeleteSession\(ctx context.Context, sessionID string\) error](<#ProcessService.DeleteSession>)
+  - [func \(p \*ProcessService\) Exec\(ctx context.Context, command string, opts ...func\(\*options.ExecuteCommand\)\) \(\*types.ExecuteResponse, error\)](<#ProcessService.Exec>)
   - [func \(p \*ProcessService\) ExecuteCommand\(ctx context.Context, command string, opts ...func\(\*options.ExecuteCommand\)\) \(\*types.ExecuteResponse, error\)](<#ProcessService.ExecuteCommand>)
   - [func \(p \*ProcessService\) ExecuteSessionCommand\(ctx context.Context, sessionID, command string, runAsync bool, suppressInputEcho bool\) \(map\[string\]any, error\)](<#ProcessService.ExecuteSessionCommand>)
+  - [func \(p \*ProcessService\) Get\(ctx context.Context, id string\) \(\*ProcessHandle, error\)](<#ProcessService.Get>)
   - [func \(p \*ProcessService\) GetEntrypointLogs\(ctx context.Context\) \(\*toolbox.SessionCommandLogsResponse, error\)](<#ProcessService.GetEntrypointLogs>)
   - [func \(p \*ProcessService\) GetEntrypointLogsStream\(ctx context.Context, stdout, stderr chan\<\- string\) error](<#ProcessService.GetEntrypointLogsStream>)
   - [func \(p \*ProcessService\) GetEntrypointSession\(ctx context.Context\) \(\*toolbox.Session, error\)](<#ProcessService.GetEntrypointSession>)
@@ -221,9 +242,12 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(p \*ProcessService\) GetSessionCommandLogs\(ctx context.Context, sessionID, commandID string\) \(\*toolbox.SessionCommandLogsResponse, error\)](<#ProcessService.GetSessionCommandLogs>)
   - [func \(p \*ProcessService\) GetSessionCommandLogsStream\(ctx context.Context, sessionID, commandID string, stdout, stderr chan\<\- string\) error](<#ProcessService.GetSessionCommandLogsStream>)
   - [func \(p \*ProcessService\) KillPtySession\(ctx context.Context, sessionID string\) error](<#ProcessService.KillPtySession>)
+  - [func \(p \*ProcessService\) List\(ctx context.Context, opts ...func\(\*options.ProcessList\)\) \(\[\]toolbox.Process, error\)](<#ProcessService.List>)
   - [func \(p \*ProcessService\) ListPtySessions\(ctx context.Context\) \(\[\]\*types.PtySessionInfo, error\)](<#ProcessService.ListPtySessions>)
   - [func \(p \*ProcessService\) ListSessions\(ctx context.Context\) \(\[\]map\[string\]any, error\)](<#ProcessService.ListSessions>)
   - [func \(p \*ProcessService\) ResizePtySession\(ctx context.Context, sessionID string, ptySize types.PtySize\) \(\*types.PtySessionInfo, error\)](<#ProcessService.ResizePtySession>)
+  - [func \(p \*ProcessService\) Run\(ctx context.Context, opts ...func\(\*options.ProcessRun\)\) \(\*ProcessRunResult, error\)](<#ProcessService.Run>)
+  - [func \(p \*ProcessService\) Start\(ctx context.Context, opts ...func\(\*options.ProcessStart\)\) \(\*ProcessHandle, error\)](<#ProcessService.Start>)
 - [type PtyHandle](<#PtyHandle>)
   - [func \(h \*PtyHandle\) DataChan\(\) \<\-chan \[\]byte](<#PtyHandle.DataChan>)
   - [func \(h \*PtyHandle\) Disconnect\(\) error](<#PtyHandle.Disconnect>)
@@ -876,6 +900,15 @@ channels, err := sandbox.CodeInterpreter.RunCode(ctx, "import os; print(os.envir
 ```
 
 Returns [OutputChannels](<#OutputChannels>) for receiving streamed output, or an error if connection fails.
+
+<a name="CodeInterpreterService.WithContext"></a>
+### func \(\*CodeInterpreterService\) WithContext
+
+```go
+func (c *CodeInterpreterService) WithContext(ctx context.Context, fn func(InterpreterContext) error, opts ...func(*options.InterpreterContext)) (err error)
+```
+
+WithContext runs fn with a fresh interpreter context and always deletes it afterwards. Use it for scoped state; use CreateContext and DeleteContext when the context must outlive a single callback.
 
 <a name="ComputerUseService"></a>
 ## type ComputerUseService
@@ -2565,6 +2598,15 @@ for _, file := range status.FileStatus {
 
 Returns an error if the status operation fails or the path is not a Git repository.
 
+<a name="InterpreterContext"></a>
+## type InterpreterContext
+
+InterpreterContext identifies an isolated interpreter context. Use it inside [CodeInterpreterService.WithContext](<#CodeInterpreterService.WithContext>); create contexts manually only when their lifetime must span multiple callbacks.
+
+```go
+type InterpreterContext = toolbox.InterpreterContext
+```
+
 <a name="KeyboardService"></a>
 ## type KeyboardService
 
@@ -2740,6 +2782,23 @@ type ListSnapshotsQuery struct {
     Limit *int
     // Filter by the ID of the sandbox the snapshot was created from
     SourceSandboxID *string
+}
+```
+
+<a name="LogEvent"></a>
+## type LogEvent
+
+LogEvent is one replay or live event from [ProcessHandle.StreamLogs](<#ProcessHandle.StreamLogs>). Type is "log", "state", "warning", "eof", or "error"; Cursor can resume a later stream.
+
+```go
+type LogEvent struct {
+    Type                 string                   // Event type.
+    Cursor               string                   // Resume cursor after this event.
+    Frame                *toolbox.ProcessLogFrame // Log payload for "log" events.
+    Process              *toolbox.Process         // Process payload for "state" events.
+    Message              string                   // Message for "warning" events.
+    FirstAvailableCursor string                   // Recovery cursor for CURSOR_EXPIRED warnings.
+    Err                  error                    // Decode or connection error for "error" events.
 }
 ```
 
@@ -3132,6 +3191,158 @@ type OutputChannels struct {
 }
 ```
 
+<a name="ProcessHandle"></a>
+## type ProcessHandle
+
+ProcessHandle supervises one background process started with [ProcessService.Start](<#ProcessService.Start>) or reconnected by ID with [ProcessService.Get](<#ProcessService.Get>) or [ProcessService.Connect](<#ProcessService.Connect>).
+
+```go
+type ProcessHandle struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="ProcessHandle.AttachTerminal"></a>
+### func \(\*ProcessHandle\) AttachTerminal
+
+```go
+func (h *ProcessHandle) AttachTerminal(ctx context.Context) (*websocket.Conn, error)
+```
+
+AttachTerminal opens an interactive WebSocket for a PTY process. It is PTY\-only; use [ProcessHandle.StreamLogs](<#ProcessHandle.StreamLogs>) to observe output from non\-interactive processes.
+
+<a name="ProcessHandle.Cleanup"></a>
+### func \(\*ProcessHandle\) Cleanup
+
+```go
+func (h *ProcessHandle) Cleanup(ctx context.Context) error
+```
+
+Cleanup removes retained process metadata and logs. Processes started with [ProcessService.Start](<#ProcessService.Start>) retain logs until Cleanup; do not use the handle afterwards.
+
+<a name="ProcessHandle.Get"></a>
+### func \(\*ProcessHandle\) Get
+
+```go
+func (h *ProcessHandle) Get(ctx context.Context) (*toolbox.Process, error)
+```
+
+Get fetches the process's current record. Use it to inspect state without waiting; use [ProcessHandle.Wait](<#ProcessHandle.Wait>) when the caller needs the terminal result.
+
+<a name="ProcessHandle.ID"></a>
+### func \(\*ProcessHandle\) ID
+
+```go
+func (h *ProcessHandle) ID() string
+```
+
+ID returns the process ID used to reconnect with [ProcessService.Connect](<#ProcessService.Connect>).
+
+<a name="ProcessHandle.Kill"></a>
+### func \(\*ProcessHandle\) Kill
+
+```go
+func (h *ProcessHandle) Kill(ctx context.Context, signal ...string) error
+```
+
+Kill signals a running process, defaulting to SIGKILL. Use [ProcessHandle.StdinEOF](<#ProcessHandle.StdinEOF>) to request normal completion from stdin\-driven commands.
+
+<a name="ProcessHandle.Logs"></a>
+### func \(\*ProcessHandle\) Logs
+
+```go
+func (h *ProcessHandle) Logs(ctx context.Context, cursor string, limit int, encoding string) (*toolbox.ProcessLogPage, error)
+```
+
+Logs replays one page of retained logs beginning at cursor. Pass the returned page cursor to the next call; on CURSOR\_EXPIRED, restart from the error's first available cursor. Use [ProcessHandle.StreamLogs](<#ProcessHandle.StreamLogs>) for replay followed by live logs.
+
+<a name="ProcessHandle.Output"></a>
+### func \(\*ProcessHandle\) Output
+
+```go
+func (h *ProcessHandle) Output(ctx context.Context) (*ProcessOutput, error)
+```
+
+Output replays retained logs and returns collected stdout, stderr, and terminal metadata. Pair it with [ProcessHandle.Wait](<#ProcessHandle.Wait>); use [ProcessService.Run](<#ProcessService.Run>) when a single call should wait and collect output automatically.
+
+<a name="ProcessHandle.Resize"></a>
+### func \(\*ProcessHandle\) Resize
+
+```go
+func (h *ProcessHandle) Resize(ctx context.Context, cols, rows int) error
+```
+
+Resize changes the terminal dimensions of a PTY process. It is not supported for exec processes; use it with a process started with kind "pty".
+
+<a name="ProcessHandle.Stdin"></a>
+### func \(\*ProcessHandle\) Stdin
+
+```go
+func (h *ProcessHandle) Stdin(ctx context.Context, data string) error
+```
+
+Stdin writes data to a process configured with piped or PTY stdin. Use [ProcessHandle.StdinEOF](<#ProcessHandle.StdinEOF>) when no more input will be sent.
+
+<a name="ProcessHandle.StdinEOF"></a>
+### func \(\*ProcessHandle\) StdinEOF
+
+```go
+func (h *ProcessHandle) StdinEOF(ctx context.Context) error
+```
+
+StdinEOF closes a process's piped stdin without killing it. Use [ProcessHandle.Kill](<#ProcessHandle.Kill>) when the process must be terminated instead.
+
+<a name="ProcessHandle.StreamLogs"></a>
+### func \(\*ProcessHandle\) StreamLogs
+
+```go
+func (h *ProcessHandle) StreamLogs(ctx context.Context, cursor string) (<-chan LogEvent, error)
+```
+
+StreamLogs replays retained logs from cursor, then follows live output until EOF or context cancellation. On CURSOR\_EXPIRED, reconnect from the reported first available cursor. Use [ProcessHandle.Logs](<#ProcessHandle.Logs>) for bounded page\-by\-page replay.
+
+<a name="ProcessHandle.Wait"></a>
+### func \(\*ProcessHandle\) Wait
+
+```go
+func (h *ProcessHandle) Wait(ctx context.Context, timeoutMs ...int) (*toolbox.ProcessResult, error)
+```
+
+Wait blocks until the process terminates and returns its terminal result. It does not collect logs; call [ProcessHandle.Output](<#ProcessHandle.Output>) afterwards for stdout and stderr.
+
+<a name="ProcessOutput"></a>
+## type ProcessOutput
+
+ProcessOutput is the collected stdout, stderr, and terminal result of a process. Use [ProcessHandle.Output](<#ProcessHandle.Output>) after [ProcessHandle.Wait](<#ProcessHandle.Wait>) when supervising a process started with [ProcessService.Start](<#ProcessService.Start>); [ProcessService.Run](<#ProcessService.Run>) returns these values directly.
+
+```go
+type ProcessOutput struct {
+    Stdout   string                         // Collected standard output.
+    Stderr   string                         // Collected standard error.
+    ExitCode *int32                         // Exit code, when the process exited normally.
+    Signal   *string                        // Signal that terminated the process, when applicable.
+    Reason   *toolbox.ProcessTerminalReason // Terminal reason reported by the daemon.
+}
+```
+
+<a name="ProcessRunResult"></a>
+## type ProcessRunResult
+
+ProcessRunResult is the completed result of [ProcessService.Run](<#ProcessService.Run>). Unlike a background [ProcessHandle](<#ProcessHandle>), it already includes collected output and status.
+
+```go
+type ProcessRunResult struct {
+    ID       string                        // Process ID.
+    Handle   *ProcessHandle                // Handle for final inspection before short-TTL logs expire.
+    Stdout   string                        // Collected standard output.
+    Stderr   string                        // Collected standard error.
+    ExitCode *int32                        // Exit code, when the process exited normally.
+    Signal   *string                       // Signal that terminated the process, when applicable.
+    Reason   toolbox.ProcessTerminalReason // Terminal reason reported by the daemon.
+    TimedOut bool                          // Whether execution reached its wait timeout.
+}
+```
+
 <a name="ProcessService"></a>
 ## type ProcessService
 
@@ -3213,6 +3424,15 @@ result, err := sandbox.Process.CodeRun(ctx, code, types.CodeLanguagePython,
 ```
 
 Returns \[types.ExecuteResponse\] containing the output, exit code, and any artifacts \(such as charts\), or an error.
+
+<a name="ProcessService.Connect"></a>
+### func \(\*ProcessService\) Connect
+
+```go
+func (p *ProcessService) Connect(ctx context.Context, id string) (*ProcessHandle, error)
+```
+
+Connect is an alias of Get. Use it with a process ID from Start when reconnecting from another client instance.
 
 <a name="ProcessService.ConnectPty"></a>
 ### func \(\*ProcessService\) ConnectPty
@@ -3385,6 +3605,15 @@ err := sandbox.Process.DeleteSession(ctx, "my-session")
 
 Returns an error if the session doesn't exist or deletion fails.
 
+<a name="ProcessService.Exec"></a>
+### func \(\*ProcessService\) Exec
+
+```go
+func (p *ProcessService) Exec(ctx context.Context, command string, opts ...func(*options.ExecuteCommand)) (*types.ExecuteResponse, error)
+```
+
+Exec is the short\-name equivalent of [ProcessService.ExecuteCommand](<#ProcessService.ExecuteCommand>). Use it for the legacy synchronous shell\-command API; use Run for the unified process API.
+
 <a name="ProcessService.ExecuteCommand"></a>
 ### func \(\*ProcessService\) ExecuteCommand
 
@@ -3461,6 +3690,15 @@ cmdID := result["id"].(string)
 ```
 
 Returns command result including id, exitCode \(if completed\), stdout, and stderr.
+
+<a name="ProcessService.Get"></a>
+### func \(\*ProcessService\) Get
+
+```go
+func (p *ProcessService) Get(ctx context.Context, id string) (*ProcessHandle, error)
+```
+
+Get validates that a process exists and returns a handle for its ID. Use it to reconnect to a process instead of serializing handles; Connect is its parity alias.
 
 <a name="ProcessService.GetEntrypointLogs"></a>
 ### func \(\*ProcessService\) GetEntrypointLogs
@@ -3751,6 +3989,15 @@ err := sandbox.Process.KillPtySession(ctx, "my-terminal")
 
 Returns an error if the session doesn't exist or termination fails.
 
+<a name="ProcessService.List"></a>
+### func \(\*ProcessService\) List
+
+```go
+func (p *ProcessService) List(ctx context.Context, opts ...func(*options.ProcessList)) ([]toolbox.Process, error)
+```
+
+List returns supervised processes matching optional filters. Use Get or Connect when the process ID is already known.
+
 <a name="ProcessService.ListPtySessions"></a>
 ### func \(\*ProcessService\) ListPtySessions
 
@@ -3825,6 +4072,24 @@ fmt.Printf("New size: %dx%d\n", info.Cols, info.Rows)
 ```
 
 Returns updated \[types.PtySessionInfo\], or an error.
+
+<a name="ProcessService.Run"></a>
+### func \(\*ProcessService\) Run
+
+```go
+func (p *ProcessService) Run(ctx context.Context, opts ...func(*options.ProcessRun)) (*ProcessRunResult, error)
+```
+
+Run launches a one\-shot process, waits for completion, and returns collected output. Its logs default to the short on\_exit\_ttl policy; use Start when the caller must supervise, reconnect, or explicitly clean up retained logs.
+
+<a name="ProcessService.Start"></a>
+### func \(\*ProcessService\) Start
+
+```go
+func (p *ProcessService) Start(ctx context.Context, opts ...func(*options.ProcessStart)) (*ProcessHandle, error)
+```
+
+Start launches a background process and returns immediately with a handle. Use the handle to stream logs, write stdin, kill, Wait then Output, and Cleanup; reconnect later with [ProcessService.Connect](<#ProcessService.Connect>) and the handle's ID. Logs remain retained until Cleanup. Use Run for one\-shot execution.
 
 <a name="PtyHandle"></a>
 ## type PtyHandle

@@ -186,6 +186,19 @@ RSpec.describe Daytona::CodeInterpreter do
     end
   end
 
+  describe '#context' do
+    it 'yields a context and always deletes it' do
+      ctx = double('InterpreterContext', id: 'ctx-1')
+      allow(interpreter).to receive(:create_context).with(cwd: '/workspace').and_return(ctx)
+      allow(interpreter).to receive(:delete_context).with(ctx)
+
+      expect do
+        interpreter.context(cwd: '/workspace') { |created| raise 'boom' if created.equal?(ctx) }
+      end.to raise_error('boom')
+      expect(interpreter).to have_received(:delete_context).with(ctx)
+    end
+  end
+
   describe 'private helpers' do
     let(:result) { Daytona::ExecutionResult.new }
 

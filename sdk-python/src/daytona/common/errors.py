@@ -298,6 +298,34 @@ class DaytonaProcessNotFoundError(DaytonaNotFoundError):
     """The requested process is not running."""
 
 
+class DaytonaNameConflictError(DaytonaConflictError):
+    pass
+
+
+class DaytonaProcessCursorExpiredError(DaytonaConflictError):
+    pass
+
+
+class DaytonaProtectedProcessError(DaytonaForbiddenError):
+    pass
+
+
+class DaytonaStdinClosedError(DaytonaConflictError):
+    pass
+
+
+class DaytonaStdinUnavailableError(DaytonaConflictError):
+    pass
+
+
+class DaytonaProcessTerminalError(DaytonaConflictError):
+    pass
+
+
+class DaytonaUnsupportedOperationError(DaytonaBadRequestError):
+    pass
+
+
 class DaytonaSessionEndedError(DaytonaGoneError):
     """The shell session has ended."""
 
@@ -363,6 +391,13 @@ CODE_TO_ERROR: dict[tuple[str, str], type[DaytonaError]] = {
     # Daemon: process / session
     (SOURCE_DAEMON, "PROCESS_EXECUTION_TIMEOUT"): DaytonaProcessExecutionTimeoutError,
     (SOURCE_DAEMON, "PROCESS_NOT_FOUND"): DaytonaProcessNotFoundError,
+    (SOURCE_DAEMON, "NAME_CONFLICT"): DaytonaNameConflictError,
+    (SOURCE_DAEMON, "CURSOR_EXPIRED"): DaytonaProcessCursorExpiredError,
+    (SOURCE_DAEMON, "PROTECTED_PROCESS"): DaytonaProtectedProcessError,
+    (SOURCE_DAEMON, "STDIN_CLOSED"): DaytonaStdinClosedError,
+    (SOURCE_DAEMON, "STDIN_UNAVAILABLE"): DaytonaStdinUnavailableError,
+    (SOURCE_DAEMON, "PROCESS_TERMINAL"): DaytonaProcessTerminalError,
+    (SOURCE_DAEMON, "UNSUPPORTED_OPERATION"): DaytonaUnsupportedOperationError,
     (SOURCE_DAEMON, "SESSION_ENDED"): DaytonaSessionEndedError,
     (SOURCE_DAEMON, "COMMAND_ALREADY_COMPLETED"): DaytonaCommandAlreadyCompletedError,
     # Daemon: computer-use
