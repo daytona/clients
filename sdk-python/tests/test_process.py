@@ -594,7 +594,7 @@ class TestRunFrameDecoder:
         side1, data1 = decoder.decode("stdout", base64.b64encode(b"\xf0\x9f").decode(), "base64")
         side2, data2 = decoder.decode("stdout", base64.b64encode(b"\x98\x80 ok\n").decode(), "base64")
         assert (side1, data1) == ("stdout", "")
-        assert (side2, data2) == ("stdout", "\U0001F600 ok\n")
+        assert (side2, data2) == ("stdout", "\U0001f600 ok\n")
         assert decoder.flush() == ("", "")
 
     def test_flush_replaces_dangling_trailing_bytes(self):
@@ -613,7 +613,7 @@ class TestRunFrameDecoder:
         _, err = decoder.decode("stderr", base64.b64encode(b"\xe2\x9c\x85").decode(), "base64")
         assert err == "\u2705"
         _, out = decoder.decode("stdout", base64.b64encode(b"\x98\x80").decode(), "base64")
-        assert out == "\U0001F600"
+        assert out == "\U0001f600"
 
 
 class TestHandleOutputAndConnect:

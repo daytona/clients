@@ -108,7 +108,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, signal ...string) error {
 // for exec processes; use it with a process started with kind "pty".
 func (h *ProcessHandle) Resize(ctx context.Context, cols, rows int) error {
 	if cols <= 0 || rows <= 0 {
-		return sdkerrors.NewDaytonaValidationError("terminal dimensions must be positive", nil)
+		return sdkerrors.NewDaytonaError("terminal dimensions must be positive", http.StatusBadRequest, nil)
 	}
 	request := toolbox.NewResizeProcessRequest(int32(cols), int32(rows))
 	_, httpResp, err := h.service.toolboxClient.ProcessAPI.ResizeProcess(ctx, h.processID).Request(*request).Execute()
@@ -121,7 +121,7 @@ func (h *ProcessHandle) Wait(ctx context.Context, timeoutMs ...int) (*toolbox.Pr
 	request := h.service.toolboxClient.ProcessAPI.WaitForProcess(ctx, h.processID)
 	if len(timeoutMs) > 0 {
 		if timeoutMs[0] < 0 {
-			return nil, sdkerrors.NewDaytonaValidationError("timeoutMs must be non-negative", nil)
+			return nil, sdkerrors.NewDaytonaError("timeoutMs must be non-negative", http.StatusBadRequest, nil)
 		}
 		request = request.TimeoutMs(int32(timeoutMs[0]))
 	}
@@ -162,7 +162,7 @@ func (h *ProcessHandle) AttachTerminal(ctx context.Context) (*websocket.Conn, er
 		return nil, err
 	}
 	if record.Kind != toolbox.PROCESSKIND_KindPty {
-		return nil, sdkerrors.NewDaytonaValidationError("attach is only supported for kind=pty processes", nil)
+		return nil, sdkerrors.NewDaytonaError("attach is only supported for kind=pty processes", http.StatusBadRequest, nil)
 	}
 	baseURL := h.service.toolboxClient.GetConfig().Servers[0].URL
 	endpoint := fmt.Sprintf("%s/processes/%s/attach", common.ConvertToWebSocketURL(strings.TrimRight(baseURL, "/")), url.PathEscape(h.processID))

@@ -1,3 +1,6 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { collectOutputFromLogs } from '../process-run-output'
 import type { ProcessHandle } from '../ProcessHandle'
 

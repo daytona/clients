@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
@@ -49,7 +50,7 @@ func (p *ProcessService) Run(ctx context.Context, opts ...func(*options.ProcessR
 	return withInstrumentation(ctx, p.otel, "Process", "Run", func(ctx context.Context) (*ProcessRunResult, error) {
 		runOpts := options.Apply(opts...)
 		if runOpts.WaitTimeoutMs != nil && *runOpts.WaitTimeoutMs < 0 {
-			return nil, sdkerrors.NewDaytonaValidationError("waitTimeoutMs must be non-negative", nil)
+			return nil, sdkerrors.NewDaytonaError("waitTimeoutMs must be non-negative", http.StatusBadRequest, nil)
 		}
 		if runOpts.KeepLogs == nil {
 			keepLogs := string(toolbox.PROCESSKEEPLOGS_KeepLogsOnExitTTL)
@@ -99,7 +100,7 @@ func (p *ProcessService) Run(ctx context.Context, opts ...func(*options.ProcessR
 func (p *ProcessService) Get(ctx context.Context, id string) (*ProcessHandle, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return nil, sdkerrors.NewDaytonaValidationError("processId must not be blank", nil)
+		return nil, sdkerrors.NewDaytonaError("processId must not be blank", http.StatusBadRequest, nil)
 	}
 	_, httpResp, err := p.toolboxClient.ProcessAPI.GetProcess(ctx, id).Execute()
 	if err != nil {
@@ -154,17 +155,17 @@ func buildCreateProcessRequest(opts *options.ProcessStart) (*toolbox.CreateProce
 	hasArgv := len(opts.Argv) > 0
 	hasCommand := opts.ShellCommand != nil && strings.TrimSpace(*opts.ShellCommand) != ""
 	isPTY := opts.Kind != nil && *opts.Kind == "pty"
-	if hasArgv == hasCommand && !(isPTY && !hasArgv && !hasCommand) {
-		return nil, sdkerrors.NewDaytonaValidationError("provide exactly one of argv or shellCommand", nil)
+	if hasArgv == hasCommand && (!isPTY || hasArgv || hasCommand) {
+		return nil, sdkerrors.NewDaytonaError("provide exactly one of argv or shellCommand", http.StatusBadRequest, nil)
 	}
 	if opts.TimeoutMs != nil && *opts.TimeoutMs < 0 {
-		return nil, sdkerrors.NewDaytonaValidationError("timeoutMs must be non-negative", nil)
+		return nil, sdkerrors.NewDaytonaError("timeoutMs must be non-negative", http.StatusBadRequest, nil)
 	}
 	if opts.Name != nil && strings.TrimSpace(*opts.Name) == "" {
-		return nil, sdkerrors.NewDaytonaValidationError("name must not be blank", nil)
+		return nil, sdkerrors.NewDaytonaError("name must not be blank", http.StatusBadRequest, nil)
 	}
 	if opts.Terminal != nil && (opts.Terminal.GetCols() <= 0 || opts.Terminal.GetRows() <= 0) {
-		return nil, sdkerrors.NewDaytonaValidationError("terminal dimensions must be positive", nil)
+		return nil, sdkerrors.NewDaytonaError("terminal dimensions must be positive", http.StatusBadRequest, nil)
 	}
 	request := toolbox.NewCreateProcessRequest()
 	if hasArgv {
