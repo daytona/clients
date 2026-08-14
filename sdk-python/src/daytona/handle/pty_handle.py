@@ -17,6 +17,7 @@ from daytona_toolbox_api_client import PtySessionInfo
 
 from ..common.errors import DaytonaConnectionError, DaytonaError, DaytonaTimeoutError
 from ..common.pty import PtyResult, PtySize
+from ..internal.process import PROCESS_TIMED_OUT_REASON
 
 
 class _PtyResultResolver(Protocol):
@@ -86,6 +87,7 @@ class PtyHandle:
         self._handle_kill: Callable[[], None] | None = handle_kill
         self._result_resolver: _PtyResultResolver | None = result_resolver
         self._result_resolved: bool = False
+        self._timed_out_probe: bool = False
 
         self._connected: bool = True  # WebSocket is already connected
         self._connection_established: bool = connection_established
@@ -286,7 +288,8 @@ class PtyHandle:
         Returns:
             PtyResult: Result containing exit code and error (if any). When ``timeout``
             elapses while the process is still running, the result carries
-            ``error="timed_out"`` instead of blocking for the real exit.
+            ``error="timed_out"`` instead of blocking for the real exit. That timeout is
+            provisional - calling ``wait`` again later still yields the real exit data.
         """
         start_time = time.monotonic()
         deadline = start_time + timeout if timeout else None
@@ -323,7 +326,6 @@ class PtyHandle:
     def _resolve_result_if_needed(self, timeout_ms: int | None = None) -> None:
         if self._result_resolved or self._result_resolver is None:
             return
-        self._result_resolved = True
         try:
             result = self._result_resolver(timeout_ms=timeout_ms)
         except Exception as e:
@@ -331,10 +333,27 @@ class PtyHandle:
                 self._error = str(e)
             return
 
+        # A bounded probe answers "timed_out" without exit data when the process is still
+        # running, so that answer is provisional: latching it would make every later wait()
+        # skip the resolver and keep serving a timeout the process has long outlived. A
+        # process the daemon killed on its own timeout looks identical here, which only
+        # costs the next wait() one more roundtrip - it is answered from a terminal record.
+        if timeout_ms is not None and result.exit_code is None and result.error == PROCESS_TIMED_OUT_REASON:
+            if self._exit_code is None and self._error is None:
+                self._error = result.error
+                self._timed_out_probe = True
+            return
+
+        self._result_resolved = True
         if result.exit_code is not None:
             self._exit_code = result.exit_code
         if result.error is not None:
             self._error = result.error
+            self._timed_out_probe = False
+        elif self._timed_out_probe:
+            # The real exit carries no error, so drop the placeholder an earlier probe left.
+            self._error = None
+            self._timed_out_probe = False
 
     def disconnect(self) -> None:
         """Disconnect from the PTY session"""

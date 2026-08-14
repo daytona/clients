@@ -17,7 +17,9 @@ import (
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 )
 
-const maxProcessLogPages = 10_000
+// maxProcessLogPages is a var so the exhaustion test can lower it instead of
+// paying 10k real round trips.
+var maxProcessLogPages = 10_000
 
 type utf8StreamDecoder struct {
 	tail []byte

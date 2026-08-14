@@ -71,8 +71,15 @@ export function toBuffer(data: Uint8Array): Buffer {
  * Decodes a base64 string to raw bytes in any supported runtime: Buffer when it
  * is available (Node.js, bundler polyfills) and the WHATWG `atob` otherwise
  * (browsers, Deno, edge runtimes), so streaming log frames decode everywhere.
+ *
+ * Missing and empty input decode to zero bytes: a payload field carrying no
+ * bytes is routinely omitted on the wire rather than sent as an empty string.
  */
-export function base64ToUint8Array(data: string): Uint8Array {
+export function base64ToUint8Array(data: string | undefined): Uint8Array {
+  if (!data) {
+    return new Uint8Array(0)
+  }
+
   const bufferCtor = findBufferCtor()
   if (bufferCtor !== undefined) {
     const decoded = bufferCtor.from(data, 'base64')

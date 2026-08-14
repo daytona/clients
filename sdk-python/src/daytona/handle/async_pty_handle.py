@@ -253,6 +253,10 @@ class AsyncPtyHandle:
 
         except Exception as e:
             self._error = f"Unexpected error: {e}"
+            # Ordering matters: flipping the flag only after the resolver would leave
+            # is_connected() True - and send_input() writing into a session nobody reads
+            # any more - for the whole duration of that daemon roundtrip.
+            self._connected = False
             # The socket died without a close frame, so the exit metadata it would have
             # carried has to come from the resolver instead - skipping it would make
             # wait() report a running process as finished with no exit code. Cancellation

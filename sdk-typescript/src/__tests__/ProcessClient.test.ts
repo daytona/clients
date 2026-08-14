@@ -26,6 +26,8 @@ function makeSseResponse(
   trailing?: { readonly chunks: readonly string[]; readonly afterMs: number },
 ): Response {
   const encoder = new TextEncoder()
+  let trailingTimer: ReturnType<typeof setTimeout> | undefined
+  let cancelled = false
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       for (const chunk of chunks) {
@@ -35,12 +37,25 @@ function makeSseResponse(
         controller.close()
         return
       }
-      setTimeout(() => {
+      // A run() deadline cancels this stream before the trailing chunks are due.
+      // Enqueueing into a cancelled stream throws from the timer callback,
+      // outside any test's await, so the failure lands on an unrelated test.
+      trailingTimer = setTimeout(() => {
+        if (cancelled) {
+          return
+        }
         for (const chunk of trailing.chunks) {
           controller.enqueue(encoder.encode(chunk))
         }
         controller.close()
       }, trailing.afterMs)
+    },
+    cancel() {
+      cancelled = true
+      if (trailingTimer !== undefined) {
+        clearTimeout(trailingTimer)
+        trailingTimer = undefined
+      }
     },
   })
 
@@ -215,6 +230,53 @@ describe('Process surface', () => {
     await expect(process.run({ shellCommand: 'sleep 5', waitTimeoutMs: 10 })).resolves.toMatchObject({
       timedOut: true,
     })
+  })
+
+  it('separates a timed-out wait from a process killed by its own start timeout', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2e2')))
+    apiClient.readProcessLogs.mockResolvedValue(
+      createApiResponse({ frames: [], nextCursor: 'c0', truncatedHead: false, eof: true }),
+    )
+
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out', signal: 'SIGKILL' }))
+    await expect(process.run({ shellCommand: 'sleep 60', timeoutMs: 50 })).resolves.toMatchObject({
+      timedOut: false,
+      signal: 'SIGKILL',
+    })
+
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out', exitCode: 137 }))
+    await expect(process.run({ shellCommand: 'sleep 60', timeoutMs: 50 })).resolves.toMatchObject({
+      timedOut: false,
+      exitCode: 137,
+    })
+
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out' }))
+    await expect(process.run({ shellCommand: 'sleep 60', waitTimeoutMs: 10 })).resolves.toMatchObject({
+      timedOut: true,
+    })
+  })
+
+  it('keeps timedOut false for a streamed run killed by its own start timeout', async () => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createProcess.mockResolvedValue(createApiResponse(makeProcessRecord('prc-2f2')))
+    apiClient.waitForProcess.mockResolvedValue(createApiResponse({ reason: 'timed_out', signal: 'SIGKILL' }))
+    fetchMock.mockResolvedValue(
+      makeSseResponse([
+        'event: log\ndata: {"channel":"stdout","cursor":"c_1","seq":1,"timestamp":"t","data":"tick","encoding":"text"}\n\n',
+        'event: eof\ndata: {"cursor":"c_2"}\n\n',
+      ]),
+    )
+
+    const result = await process.run({
+      shellCommand: 'sleep 60',
+      timeoutMs: 50,
+      onStdout: () => undefined,
+    })
+
+    expect(result.timedOut).toBe(false)
+    expect(result.signal).toBe('SIGKILL')
+    expect(apiClient.waitForProcess).toHaveBeenCalledWith('prc-2f2', undefined)
   })
 
   it('reports timedOut when the streaming deadline closes the run early', async () => {

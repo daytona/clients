@@ -3,13 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Configuration, Process as ProcessRecord, ProcessApi } from '@daytona/toolbox-api-client'
+import type { Configuration, Process as ProcessRecord, ProcessApi, ProcessResult } from '@daytona/toolbox-api-client'
 import { ProcessHandle } from './ProcessHandle'
 import { ProcessTransport } from './ProcessTransport'
 import { collectOutputFromLogs, streamOutputWithCallbacks } from './process-run-output'
 import { DaytonaInvalidArgumentError } from './errors/DaytonaError'
 import { normalizeIdentifier, validateProcessStartOptions, validateWaitTimeout } from './process-utils'
 import type { ProcessListFilter, ProcessRunOptions, ProcessRunResult, ProcessStartOptions } from './types/Process'
+
+// The daemon reuses the 'timed_out' reason for two outcomes. A wait that hit its
+// own deadline reports no exit status at all, because the process may still be
+// running. A process killed for exceeding its own `timeoutMs` reports the same
+// reason but carries the kill signal, so it is a real termination rather than
+// the caller's wait timing out.
+function isWaitTimeout(result: ProcessResult): boolean {
+  return result.reason === 'timed_out' && result.exitCode == null && result.signal == null
+}
 
 export class ProcessClient {
   private readonly transport: ProcessTransport
@@ -51,7 +60,7 @@ export class ProcessClient {
         handle,
         stdout: output.stdout,
         stderr: output.stderr,
-        timedOut: output.timedOut || result.reason === 'timed_out',
+        timedOut: output.timedOut || isWaitTimeout(result),
       }
     }
 
@@ -63,7 +72,7 @@ export class ProcessClient {
       handle,
       stdout: output.stdout,
       stderr: output.stderr,
-      timedOut: output.timedOut || result.reason === 'timed_out',
+      timedOut: output.timedOut || isWaitTimeout(result),
     }
   }
 

@@ -34,7 +34,7 @@ function decodeFrameData(frame: ProcessLogFrame, decoder: TextDecoder): string {
   if (frame.encoding === 'base64') {
     return decoder.decode(base64ToUint8Array(frame.data), { stream: true })
   }
-  return frame.data
+  return frame.data ?? ''
 }
 
 async function flushDecoders(
@@ -105,6 +105,13 @@ export async function collectOutputFromLogs(handle: ProcessHandle): Promise<Coll
       await dispatchFrame(frame, decoders, collected)
     }
     if (logs.eof || logs.frames.length === 0) {
+      await flushDecoders(decoders, collected)
+      return collected
+    }
+    // A page that does not advance the cursor is drained even without eof:
+    // re-requesting the same position would spend the entire page budget on
+    // duplicate reads and then throw away everything already collected.
+    if (!logs.nextCursor || logs.nextCursor === cursor) {
       await flushDecoders(decoders, collected)
       return collected
     }

@@ -240,7 +240,10 @@ func TestProcessHandleWait_rejects_out_of_int32_range_timeout(t *testing.T) {
 }
 
 func TestProcessHandleCollectOutput_errors_when_page_cap_is_exhausted(t *testing.T) {
-	// Given
+	// Given a lowered page cap so exhaustion needs 25 round trips, not 10k
+	originalCap := maxProcessLogPages
+	maxProcessLogPages = 25
+	t.Cleanup(func() { maxProcessLogPages = originalCap })
 	pages := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pages++

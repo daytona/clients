@@ -13,6 +13,9 @@ from ..common.pty import PtyResult
 
 PROCESS_NOT_FOUND_CODE = "PROCESS_NOT_FOUND"
 CURSOR_EXPIRED_CODE = "CURSOR_EXPIRED"
+# Terminal reason the daemon reports both for a process it killed on its own timeout and
+# for a bounded wait whose budget expired while the process kept running.
+PROCESS_TIMED_OUT_REASON = "timed_out"
 
 
 class ProcessTerminalPayload(TypedDict, total=False):

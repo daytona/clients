@@ -122,7 +122,13 @@ export type ProcessRunResult = ProcessResult & {
   readonly handle: ProcessHandle
   readonly stdout: string
   readonly stderr: string
-  /** True when `waitTimeoutMs` elapsed before the process exited on its own. */
+  /**
+   * True when the wait for the process hit `waitTimeoutMs` and gave up, leaving
+   * the process possibly still running (`reason` is `timed_out` with no
+   * `exitCode` and no `signal`). A process the daemon killed for exceeding its
+   * own start `timeoutMs` is a completed termination, so it reports `false` and
+   * carries the kill `signal` instead.
+   */
   readonly timedOut: boolean
 }
 

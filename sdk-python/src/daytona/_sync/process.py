@@ -372,8 +372,10 @@ class Process:
         so read what you need from the result.
 
         The returned ``stdout``/``stderr`` are limited to what daemon log retention still
-        holds: a process that outruns the retention budget keeps only the retained suffix,
-        so use the callbacks (or ``handle.stream_logs``) when every byte matters.
+        holds: a process that outruns the retention budget keeps only the retained suffix.
+        When every byte matters, pass ``on_stdout``/``on_stderr`` here - they receive output
+        as it streams - or use ``start`` instead and call ``stream_logs`` on the returned
+        handle before retention evicts anything.
 
         Example:
             ```python
@@ -433,6 +435,9 @@ class Process:
         # chatty stream as soon as the next event lands, while the transport read timeout
         # stops a silent one (no events, no daemon heartbeat). A single idle read is
         # therefore bounded by the full budget rather than by the exact remaining slice.
+        # Narrowing that to the remaining slice is not reachable from here: httpcore samples
+        # the read timeout once per response body, and closing the response from a watchdog
+        # thread neither wakes the blocked recv nor leaves the socket safe to keep reading.
         try:
             for event in self._stream_process_logs(
                 handle.id, cursor="start", encoding="base64", read_timeout_s=budget_s

@@ -54,6 +54,26 @@ RSpec.describe Daytona::ProcessHandle do
         .to eq([:stderr, 'ok'])
       expect(decoder.flush).to eq(['', "\u{FFFD}"])
     end
+
+    it 'replaces impossible UTF-8 prefixes immediately instead of buffering them' do
+      # Python codecs incremental parity: E0 80 / F0 80 80 / F4 90 can never
+      # complete and are replaced at once; ED A0 is retained until more input.
+      decoder = described_class.new
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"a\xE0\x80"), encoding: 'base64'))
+        .to eq([:stdout, "a\u{FFFD}\u{FFFD}"])
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"b\n"), encoding: 'base64'))
+        .to eq([:stdout, "b\n"])
+
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"x\xF0\x80\x80"), encoding: 'base64'))
+        .to eq([:stdout, "x\u{FFFD}\u{FFFD}\u{FFFD}"])
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"y\xF4\x90"), encoding: 'base64'))
+        .to eq([:stdout, "y\u{FFFD}\u{FFFD}"])
+
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"q\xED\xA0"), encoding: 'base64'))
+        .to eq([:stdout, 'q'])
+      expect(decoder.decode(channel: 'stdout', data: Base64.strict_encode64(+"\n"), encoding: 'base64'))
+        .to eq([:stdout, "\u{FFFD}\u{FFFD}\n"])
+    end
   end
 
   describe '#stream_logs' do

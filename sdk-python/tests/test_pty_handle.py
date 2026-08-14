@@ -168,6 +168,35 @@ class TestPtyHandle:
         assert result.error == "timed_out"
         assert result.exit_code is None
 
+    def test_timed_out_probe_stays_retryable_until_the_real_exit_arrives(self):
+        from daytona.handle.pty_handle import PtyHandle
+
+        ws = MagicMock()
+        ws.receive.side_effect = queue.Empty()
+        resolver = MagicMock(
+            side_effect=[
+                PtyResult(exit_code=None, error="timed_out"),
+                PtyResult(exit_code=42, error=None),
+            ]
+        )
+        handle = PtyHandle(ws, "session-1", result_resolver=resolver)
+
+        timed_out_result = handle.wait(timeout=0.05)
+
+        assert timed_out_result.error == "timed_out"
+        assert timed_out_result.exit_code is None
+
+        final_result = handle.wait()
+
+        assert [call.kwargs for call in resolver.call_args_list] == [{"timeout_ms": 1}, {"timeout_ms": None}]
+        assert final_result.exit_code == 42
+        assert final_result.error is None
+        assert handle.exit_code == 42
+        assert handle.error is None
+
+        assert handle.wait() == PtyResult(exit_code=42, error=None)
+        assert resolver.call_count == 2
+
     def test_wait_without_timeout_resolves_result_unbounded(self):
         from daytona.handle.pty_handle import PtyHandle
 
@@ -327,7 +356,13 @@ class TestAsyncPtyHandle:
         ws.closed = False
         ws.close_code = None
         ws.receive.side_effect = RuntimeError("socket exploded")
-        resolver = AsyncMock(return_value=PtyResult(exit_code=9, error=None))
+        connected_during_resolve: list[bool] = []
+
+        async def resolve() -> PtyResult:
+            connected_during_resolve.append(handle.is_connected())
+            return PtyResult(exit_code=9, error=None)
+
+        resolver = AsyncMock(side_effect=resolve)
         handle = AsyncPtyHandle(ws, session_id="session-1", result_resolver=resolver)
 
         result = await handle.wait()
@@ -335,6 +370,7 @@ class TestAsyncPtyHandle:
         resolver.assert_awaited_once()
         assert result.exit_code == 9
         assert result.error == "Unexpected error: socket exploded"
+        assert connected_during_resolve == [False]
         assert handle.is_connected() is False
         await handle.disconnect()
 

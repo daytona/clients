@@ -69,10 +69,36 @@ module Daytona
       1.upto([MAX_PENDING_BYTES, size].min) do |tail_size|
         byte = bytes.getbyte(size - tail_size)
         sequence_size = utf8_sequence_size(byte)
-        return sequence_size > tail_size ? tail_size : 0 if sequence_size
+        if sequence_size
+          return 0 unless sequence_size > tail_size
+
+          return completable_suffix?(bytes, size - tail_size, tail_size) ? tail_size : 0
+        end
         return 0 unless UTF8_CONTINUATION_BYTES.cover?(byte)
       end
       0
+    end
+
+    # A retained suffix must still be completable into a valid character:
+    # overlong and out-of-range prefixes (E0 80, F0 8x, F4 9x) can never
+    # decode, so they are replaced immediately instead of being buffered
+    # until EOF. ED (surrogate range) is deliberately NOT boundary-checked -
+    # Python's incremental codec retains ED A0 until the next chunk, and this
+    # decoder pins byte-identical parity with it.
+    def completable_suffix?(bytes, lead_index, tail_size)
+      (1...tail_size).all? do |offset|
+        range = offset == 1 ? first_continuation_range(bytes.getbyte(lead_index)) : UTF8_CONTINUATION_BYTES
+        range.cover?(bytes.getbyte(lead_index + offset))
+      end
+    end
+
+    def first_continuation_range(lead)
+      case lead
+      when 0xE0 then (0xA0..0xBF)
+      when 0xF0 then (0x90..0xBF)
+      when 0xF4 then (0x80..0x8F)
+      else UTF8_CONTINUATION_BYTES
+      end
     end
 
     def utf8_sequence_size(byte)

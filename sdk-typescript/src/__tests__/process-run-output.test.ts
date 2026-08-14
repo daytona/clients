@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { collectOutputFromLogs, streamOutputWithCallbacks } from '../process-run-output'
+import { base64ToUint8Array } from '../utils/Binary'
 import { DaytonaError } from '../errors/DaytonaError'
 import type { ProcessHandle } from '../ProcessHandle'
 import type { ProcessLogEvent } from '../types/Process'
@@ -46,6 +47,27 @@ describe('run output UTF-8 reassembly', () => {
     const collected = await collectOutputFromLogs(handle)
     expect(collected.stdout).toBe('ok\uFFFD')
   })
+
+  it('decodes frames that omit their optional data field as empty output', async () => {
+    const frames = [
+      { seq: 1, cursor: 'c1', channel: 'stdout', timestamp: '', encoding: 'base64' },
+      { seq: 2, cursor: 'c2', channel: 'stderr', timestamp: '', data: '', encoding: 'base64' },
+      { seq: 3, cursor: 'c3', channel: 'stdout', timestamp: '', encoding: 'text' },
+      { seq: 4, cursor: 'c4', channel: 'stdout', timestamp: '', data: b64([0x6f, 0x6b]), encoding: 'base64' },
+    ]
+    const handle = {
+      logs: async () => ({ frames, eof: true, nextCursor: 'c4', truncatedHead: false }),
+    } as unknown as ProcessHandle
+
+    const collected = await collectOutputFromLogs(handle)
+    expect(collected.stdout).toBe('ok')
+    expect(collected.stderr).toBe('')
+  })
+
+  it('decodes absent base64 payloads to zero bytes', () => {
+    expect(base64ToUint8Array(undefined)).toEqual(new Uint8Array(0))
+    expect(base64ToUint8Array('')).toEqual(new Uint8Array(0))
+  })
 })
 
 describe('run output collection limits', () => {
@@ -75,6 +97,65 @@ describe('run output collection limits', () => {
 
     await expect(collectOutputFromLogs(handle)).rejects.toBeInstanceOf(DaytonaError)
     expect(pages).toBe(10_000)
+  })
+
+  it('returns the collected output when the cursor stops advancing before eof', async () => {
+    let pages = 0
+    const handle = {
+      id: 'prc_stalled',
+      logs: async () => {
+        pages++
+        return {
+          frames: [
+            {
+              seq: pages,
+              cursor: 'c_stall',
+              channel: 'stdout',
+              timestamp: '',
+              data: Buffer.from(`page${pages}\n`).toString('base64'),
+              encoding: 'base64',
+            },
+          ],
+          eof: false,
+          nextCursor: 'c_stall',
+          truncatedHead: false,
+        }
+      },
+    } as unknown as ProcessHandle
+
+    await expect(collectOutputFromLogs(handle)).resolves.toEqual({
+      stdout: 'page1\npage2\n',
+      stderr: '',
+      timedOut: false,
+    })
+    expect(pages).toBe(2)
+  })
+
+  it('treats a page that reports no next cursor as drained', async () => {
+    let pages = 0
+    const handle = {
+      id: 'prc_no_cursor',
+      logs: async () => {
+        pages++
+        return {
+          frames: [
+            {
+              seq: pages,
+              cursor: `c${pages}`,
+              channel: 'stderr',
+              timestamp: '',
+              data: Buffer.from('warn\n').toString('base64'),
+              encoding: 'base64',
+            },
+          ],
+          eof: false,
+          truncatedHead: false,
+        }
+      },
+    } as unknown as ProcessHandle
+
+    await expect(collectOutputFromLogs(handle)).resolves.toMatchObject({ stdout: '', stderr: 'warn\n' })
+    expect(pages).toBe(1)
   })
 
   it('cancels the deadline timer after every streaming race', async () => {

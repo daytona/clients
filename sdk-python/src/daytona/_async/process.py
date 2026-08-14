@@ -382,8 +382,10 @@ class AsyncProcess:
         so read what you need from the result.
 
         The returned ``stdout``/``stderr`` are limited to what daemon log retention still
-        holds: a process that outruns the retention budget keeps only the retained suffix,
-        so use the callbacks (or ``handle.stream_logs``) when every byte matters.
+        holds: a process that outruns the retention budget keeps only the retained suffix.
+        When every byte matters, pass ``on_stdout``/``on_stderr`` here - they receive output
+        as it streams - or use ``start`` instead and call ``stream_logs`` on the returned
+        handle before retention evicts anything.
 
         Example:
             ```python
