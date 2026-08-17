@@ -11147,7 +11147,7 @@
             ]
           },
           "ssoOidc": {
-            "description": "OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.",
+            "description": "OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the secondary (org-SSO) issuer is configured; the dashboard uses it as its authority when entered via an organization SSO link.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/SsoOidcConfig"
@@ -12704,6 +12704,12 @@
             "description": "Snapshot Manager URL for the region",
             "example": "http://snapshot-manager.example.com",
             "nullable": true
+          },
+          "otelEndpoint": {
+            "type": "string",
+            "description": "OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.",
+            "example": "https://otel-collector.example.com:4318",
+            "nullable": true
           }
         },
         "required": [
@@ -12738,6 +12744,12 @@
             "type": "string",
             "description": "Snapshot Manager URL for the region",
             "example": "https://snapshot-manager.example.com",
+            "nullable": true
+          },
+          "otelEndpoint": {
+            "type": "string",
+            "description": "OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.",
+            "example": "https://otel-collector.example.com:4318",
             "nullable": true
           }
         },
@@ -12813,6 +12825,12 @@
             "type": "string",
             "description": "Snapshot Manager URL for the region",
             "example": "https://snapshot-manager.example.com",
+            "nullable": true
+          },
+          "otelEndpoint": {
+            "type": "string",
+            "description": "OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.",
+            "example": "https://otel-collector.example.com:4318",
             "nullable": true
           }
         }
@@ -13191,6 +13209,10 @@
           "emailVerified": {
             "type": "boolean",
             "description": "Whether the user email address has been verified"
+          },
+          "pylonEmailHash": {
+            "type": "string",
+            "description": "HMAC of the user email for Pylon support-widget identity verification"
           },
           "publicKeys": {
             "description": "User public keys",
@@ -13690,6 +13712,11 @@
             "description": "Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.",
             "example": "http://user:pass@proxy.example.com:3128"
           },
+          "otelEndpointOverride": {
+            "type": "string",
+            "description": "OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and is not available in the Daytona analytics API or dashboard. Only returned on single-sandbox reads — never on list responses.",
+            "example": "https://otel-collector.example.com:4318"
+          },
           "target": {
             "type": "string",
             "description": "The target environment for the sandbox",
@@ -14008,6 +14035,11 @@
             "type": "string",
             "description": "Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.",
             "example": "http://user:pass@proxy.example.com:3128"
+          },
+          "otelEndpointOverride": {
+            "type": "string",
+            "description": "OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.",
+            "example": "https://otel-collector.example.com:4318"
           },
           "target": {
             "type": "string",

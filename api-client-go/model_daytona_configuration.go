@@ -29,7 +29,7 @@ type DaytonaConfiguration struct {
 	Posthog *PosthogConfig `json:"posthog,omitempty"`
 	// OIDC configuration
 	Oidc OidcConfig `json:"oidc"`
-	// OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+	// OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the secondary (org-SSO) issuer is configured; the dashboard uses it as its authority when entered via an organization SSO link.
 	SsoOidc *SsoOidcConfig `json:"ssoOidc,omitempty"`
 	// Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.
 	ForcedFeatureFlags []string `json:"forcedFeatureFlags,omitempty"`

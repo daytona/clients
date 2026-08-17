@@ -74,6 +74,11 @@ public class User {
   @javax.annotation.Nonnull
   private Boolean emailVerified;
 
+  public static final String SERIALIZED_NAME_PYLON_EMAIL_HASH = "pylonEmailHash";
+  @SerializedName(SERIALIZED_NAME_PYLON_EMAIL_HASH)
+  @javax.annotation.Nullable
+  private String pylonEmailHash;
+
   public static final String SERIALIZED_NAME_PUBLIC_KEYS = "publicKeys";
   @SerializedName(SERIALIZED_NAME_PUBLIC_KEYS)
   @javax.annotation.Nonnull
@@ -160,6 +165,25 @@ public class User {
 
   public void setEmailVerified(@javax.annotation.Nonnull Boolean emailVerified) {
     this.emailVerified = emailVerified;
+  }
+
+
+  public User pylonEmailHash(@javax.annotation.Nullable String pylonEmailHash) {
+    this.pylonEmailHash = pylonEmailHash;
+    return this;
+  }
+
+  /**
+   * HMAC of the user email for Pylon support-widget identity verification
+   * @return pylonEmailHash
+   */
+  @javax.annotation.Nullable
+  public String getPylonEmailHash() {
+    return pylonEmailHash;
+  }
+
+  public void setPylonEmailHash(@javax.annotation.Nullable String pylonEmailHash) {
+    this.pylonEmailHash = pylonEmailHash;
   }
 
 
@@ -267,6 +291,7 @@ public class User {
         Objects.equals(this.name, user.name) &&
         Objects.equals(this.email, user.email) &&
         Objects.equals(this.emailVerified, user.emailVerified) &&
+        Objects.equals(this.pylonEmailHash, user.pylonEmailHash) &&
         Objects.equals(this.publicKeys, user.publicKeys) &&
         Objects.equals(this.createdAt, user.createdAt)&&
         Objects.equals(this.additionalProperties, user.additionalProperties);
@@ -274,7 +299,7 @@ public class User {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, email, emailVerified, publicKeys, createdAt, additionalProperties);
+    return Objects.hash(id, name, email, emailVerified, pylonEmailHash, publicKeys, createdAt, additionalProperties);
   }
 
   @Override
@@ -285,6 +310,7 @@ public class User {
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("    emailVerified: ").append(toIndentedString(emailVerified)).append("\n");
+    sb.append("    pylonEmailHash: ").append(toIndentedString(pylonEmailHash)).append("\n");
     sb.append("    publicKeys: ").append(toIndentedString(publicKeys)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
@@ -306,7 +332,7 @@ public class User {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "publicKeys", "createdAt"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "pylonEmailHash", "publicKeys", "createdAt"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "publicKeys", "createdAt"));
@@ -340,6 +366,9 @@ public class User {
       }
       if (!jsonObj.get("email").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `email` to be a primitive type in the JSON string but got `%s`", jsonObj.get("email").toString()));
+      }
+      if ((jsonObj.get("pylonEmailHash") != null && !jsonObj.get("pylonEmailHash").isJsonNull()) && !jsonObj.get("pylonEmailHash").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `pylonEmailHash` to be a primitive type in the JSON string but got `%s`", jsonObj.get("pylonEmailHash").toString()));
       }
       if (jsonObj.get("publicKeys") != null) {
         if (!jsonObj.get("publicKeys").isJsonArray()) {

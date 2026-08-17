@@ -407,6 +407,7 @@ Base parameters for creating a new Sandbox.
 - `name?` _string_
 - `networkAllowList?` _string_ - Comma-separated list of allowed CIDR network addresses for the Sandbox
 - `networkBlockAll?` _boolean_ - Whether to block all network access for the Sandbox
+- `otelEndpointOverride?` _string_ - OTel collector endpoint override for the Sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and will not be available in the Daytona analytics API or dashboard.
 - `outboundProxyUrl?` _string_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
 - `public?` _boolean_ - Is the Sandbox port preview public
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
@@ -435,6 +436,7 @@ Parameters for creating a new Sandbox.
 - `name?` _string_
 - `networkAllowList?` _string_
 - `networkBlockAll?` _boolean_
+- `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
@@ -463,6 +465,7 @@ Parameters for creating a new Sandbox from a snapshot.
 - `name?` _string_
 - `networkAllowList?` _string_
 - `networkBlockAll?` _boolean_
+- `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `secrets?` _Record\<string, string\>_

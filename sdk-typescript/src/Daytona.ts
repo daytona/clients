@@ -188,6 +188,7 @@ export interface Resources {
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
  * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
+ * @property {string} [otelEndpointOverride] - OTel collector endpoint override for the Sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and will not be available in the Daytona analytics API or dashboard.
  * @property {boolean} [ephemeral] - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
  * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
@@ -210,6 +211,7 @@ export type CreateSandboxBaseParams = {
   networkAllowList?: string
   domainAllowList?: string
   outboundProxyUrl?: string
+  otelEndpointOverride?: string
   ephemeral?: boolean
   spot?: boolean
   linkedSandbox?: string
@@ -702,6 +704,7 @@ export class Daytona implements AsyncDisposable {
           networkAllowList: params.networkAllowList,
           domainAllowList: params.domainAllowList,
           outboundProxyUrl: params.outboundProxyUrl,
+          otelEndpointOverride: params.otelEndpointOverride,
           linkedSandbox: params.linkedSandbox,
           secrets: params.secrets
             ? Object.entries(params.secrets).map(([envVar, secretName]) => ({ [envVar]: secretName }))

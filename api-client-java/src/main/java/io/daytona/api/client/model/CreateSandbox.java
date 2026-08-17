@@ -107,6 +107,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private String outboundProxyUrl;
 
+  public static final String SERIALIZED_NAME_OTEL_ENDPOINT_OVERRIDE = "otelEndpointOverride";
+  @SerializedName(SERIALIZED_NAME_OTEL_ENDPOINT_OVERRIDE)
+  @javax.annotation.Nullable
+  private String otelEndpointOverride;
+
   public static final String SERIALIZED_NAME_TARGET = "target";
   @SerializedName(SERIALIZED_NAME_TARGET)
   @javax.annotation.Nullable
@@ -393,6 +398,25 @@ public class CreateSandbox {
 
   public void setOutboundProxyUrl(@javax.annotation.Nullable String outboundProxyUrl) {
     this.outboundProxyUrl = outboundProxyUrl;
+  }
+
+
+  public CreateSandbox otelEndpointOverride(@javax.annotation.Nullable String otelEndpointOverride) {
+    this.otelEndpointOverride = otelEndpointOverride;
+    return this;
+  }
+
+  /**
+   * OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
+   * @return otelEndpointOverride
+   */
+  @javax.annotation.Nullable
+  public String getOtelEndpointOverride() {
+    return otelEndpointOverride;
+  }
+
+  public void setOtelEndpointOverride(@javax.annotation.Nullable String otelEndpointOverride) {
+    this.otelEndpointOverride = otelEndpointOverride;
   }
 
 
@@ -788,6 +812,7 @@ public class CreateSandbox {
         Objects.equals(this.networkAllowList, createSandbox.networkAllowList) &&
         Objects.equals(this.domainAllowList, createSandbox.domainAllowList) &&
         Objects.equals(this.outboundProxyUrl, createSandbox.outboundProxyUrl) &&
+        Objects.equals(this.otelEndpointOverride, createSandbox.otelEndpointOverride) &&
         Objects.equals(this.target, createSandbox.target) &&
         Objects.equals(this.cpu, createSandbox.cpu) &&
         Objects.equals(this.gpu, createSandbox.gpu) &&
@@ -809,7 +834,7 @@ public class CreateSandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -826,6 +851,7 @@ public class CreateSandbox {
     sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
+    sb.append("    otelEndpointOverride: ").append(toIndentedString(otelEndpointOverride)).append("\n");
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
@@ -861,7 +887,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -897,6 +923,9 @@ public class CreateSandbox {
       }
       if ((jsonObj.get("outboundProxyUrl") != null && !jsonObj.get("outboundProxyUrl").isJsonNull()) && !jsonObj.get("outboundProxyUrl").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `outboundProxyUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("outboundProxyUrl").toString()));
+      }
+      if ((jsonObj.get("otelEndpointOverride") != null && !jsonObj.get("otelEndpointOverride").isJsonNull()) && !jsonObj.get("otelEndpointOverride").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `otelEndpointOverride` to be a primitive type in the JSON string but got `%s`", jsonObj.get("otelEndpointOverride").toString()));
       }
       if ((jsonObj.get("target") != null && !jsonObj.get("target").isJsonNull()) && !jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));

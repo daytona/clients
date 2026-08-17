@@ -71,6 +71,11 @@ public class CreateRegion {
   @javax.annotation.Nullable
   private String snapshotManagerUrl;
 
+  public static final String SERIALIZED_NAME_OTEL_ENDPOINT = "otelEndpoint";
+  @SerializedName(SERIALIZED_NAME_OTEL_ENDPOINT)
+  @javax.annotation.Nullable
+  private String otelEndpoint;
+
   public CreateRegion() {
   }
 
@@ -149,6 +154,25 @@ public class CreateRegion {
     this.snapshotManagerUrl = snapshotManagerUrl;
   }
 
+
+  public CreateRegion otelEndpoint(@javax.annotation.Nullable String otelEndpoint) {
+    this.otelEndpoint = otelEndpoint;
+    return this;
+  }
+
+  /**
+   * OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.
+   * @return otelEndpoint
+   */
+  @javax.annotation.Nullable
+  public String getOtelEndpoint() {
+    return otelEndpoint;
+  }
+
+  public void setOtelEndpoint(@javax.annotation.Nullable String otelEndpoint) {
+    this.otelEndpoint = otelEndpoint;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -207,7 +231,8 @@ public class CreateRegion {
     return Objects.equals(this.name, createRegion.name) &&
         Objects.equals(this.proxyUrl, createRegion.proxyUrl) &&
         Objects.equals(this.sshGatewayUrl, createRegion.sshGatewayUrl) &&
-        Objects.equals(this.snapshotManagerUrl, createRegion.snapshotManagerUrl)&&
+        Objects.equals(this.snapshotManagerUrl, createRegion.snapshotManagerUrl) &&
+        Objects.equals(this.otelEndpoint, createRegion.otelEndpoint)&&
         Objects.equals(this.additionalProperties, createRegion.additionalProperties);
   }
 
@@ -217,7 +242,7 @@ public class CreateRegion {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, proxyUrl, sshGatewayUrl, snapshotManagerUrl, additionalProperties);
+    return Objects.hash(name, proxyUrl, sshGatewayUrl, snapshotManagerUrl, otelEndpoint, additionalProperties);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -235,6 +260,7 @@ public class CreateRegion {
     sb.append("    proxyUrl: ").append(toIndentedString(proxyUrl)).append("\n");
     sb.append("    sshGatewayUrl: ").append(toIndentedString(sshGatewayUrl)).append("\n");
     sb.append("    snapshotManagerUrl: ").append(toIndentedString(snapshotManagerUrl)).append("\n");
+    sb.append("    otelEndpoint: ").append(toIndentedString(otelEndpoint)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -254,7 +280,7 @@ public class CreateRegion {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl", "otelEndpoint"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("name"));
@@ -291,6 +317,9 @@ public class CreateRegion {
       }
       if ((jsonObj.get("snapshotManagerUrl") != null && !jsonObj.get("snapshotManagerUrl").isJsonNull()) && !jsonObj.get("snapshotManagerUrl").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `snapshotManagerUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("snapshotManagerUrl").toString()));
+      }
+      if ((jsonObj.get("otelEndpoint") != null && !jsonObj.get("otelEndpoint").isJsonNull()) && !jsonObj.get("otelEndpoint").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `otelEndpoint` to be a primitive type in the JSON string but got `%s`", jsonObj.get("otelEndpoint").toString()));
       }
   }
 

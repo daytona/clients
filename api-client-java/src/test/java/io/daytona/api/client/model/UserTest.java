@@ -74,6 +74,14 @@ public class UserTest {
     }
 
     /**
+     * Test the property 'pylonEmailHash'
+     */
+    @Test
+    public void pylonEmailHashTest() {
+        // TODO: test pylonEmailHash
+    }
+
+    /**
      * Test the property 'publicKeys'
      */
     @Test

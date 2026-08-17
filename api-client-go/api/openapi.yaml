@@ -7604,8 +7604,8 @@ components:
           allOf:
           - $ref: "#/components/schemas/SsoOidcConfig"
           description: OIDC configuration for org-SSO logins (Daytona Auth issuer).
-            Present only when the dual-issuer setup is configured; the dashboard uses
-            it as its authority when entered via an organization SSO link.
+            Present only when the secondary (org-SSO) issuer is configured; the dashboard
+            uses it as its authority when entered via an organization SSO link.
         forcedFeatureFlags:
           description: "Feature flags forced on for this deployment regardless of\
             \ PostHog targeting. Lets environments without PostHog (previews, local\
@@ -9085,6 +9085,7 @@ components:
     Region:
       example:
         organizationId: 123e4567-e89b-12d3-a456-426614174000
+        otelEndpoint: https://otel-collector.example.com:4318
         createdAt: 2023-01-01T00:00:00.000Z
         snapshotManagerUrl: http://snapshot-manager.example.com
         regionType: shared
@@ -9135,6 +9136,14 @@ components:
           example: http://snapshot-manager.example.com
           nullable: true
           type: string
+        otelEndpoint:
+          description: "OTel collector endpoint for sandboxes created in this region.\
+            \ When set, sandbox OTel data is sent to this endpoint instead of the\
+            \ Daytona-hosted collector and will not be available in the Daytona analytics\
+            \ API or dashboard."
+          example: https://otel-collector.example.com:4318
+          nullable: true
+          type: string
       required:
       - createdAt
       - id
@@ -9144,6 +9153,7 @@ components:
       type: object
     CreateRegion:
       example:
+        otelEndpoint: https://otel-collector.example.com:4318
         snapshotManagerUrl: https://snapshot-manager.example.com
         proxyUrl: https://proxy.example.com
         name: us-east-1
@@ -9166,6 +9176,14 @@ components:
         snapshotManagerUrl:
           description: Snapshot Manager URL for the region
           example: https://snapshot-manager.example.com
+          nullable: true
+          type: string
+        otelEndpoint:
+          description: "OTel collector endpoint for sandboxes created in this region.\
+            \ When set, sandbox OTel data is sent to this endpoint instead of the\
+            \ Daytona-hosted collector and will not be available in the Daytona analytics\
+            \ API or dashboard."
+          example: https://otel-collector.example.com:4318
           nullable: true
           type: string
       required:
@@ -9218,6 +9236,7 @@ components:
       type: object
     UpdateRegion:
       example:
+        otelEndpoint: https://otel-collector.example.com:4318
         snapshotManagerUrl: https://snapshot-manager.example.com
         proxyUrl: https://proxy.example.com
         sshGatewayUrl: ssh://ssh-gateway.example.com
@@ -9235,6 +9254,14 @@ components:
         snapshotManagerUrl:
           description: Snapshot Manager URL for the region
           example: https://snapshot-manager.example.com
+          nullable: true
+          type: string
+        otelEndpoint:
+          description: "OTel collector endpoint for sandboxes created in this region.\
+            \ When set, sandbox OTel data is sent to this endpoint instead of the\
+            \ Daytona-hosted collector and will not be available in the Daytona analytics\
+            \ API or dashboard."
+          example: https://otel-collector.example.com:4318
           nullable: true
           type: string
       type: object
@@ -9587,6 +9614,7 @@ components:
           key: key
         - name: name
           key: key
+        pylonEmailHash: pylonEmailHash
         name: name
         id: id
         email: email
@@ -9603,6 +9631,9 @@ components:
         emailVerified:
           description: Whether the user email address has been verified
           type: boolean
+        pylonEmailHash:
+          description: HMAC of the user email for Pylon support-widget identity verification
+          type: string
         publicKeys:
           description: User public keys
           items:
@@ -10080,6 +10111,7 @@ components:
         warmPoolId: warmPoolId
         autoStopInterval: 30
         organizationId: organization123
+        otelEndpointOverride: https://otel-collector.example.com:4318
         autoPauseInterval: 60
         createdAt: 2024-10-01T12:00:00Z
         networkBlockAll: false
@@ -10180,6 +10212,13 @@ components:
             network-layer enforcement applies only when the sandbox also has a domainAllowList.
             Only returned on single-sandbox reads — never on list responses.
           example: http://user:pass@proxy.example.com:3128
+          type: string
+        otelEndpointOverride:
+          description: "OTel collector endpoint override for this sandbox. When set,\
+            \ sandbox OTel data is sent to this endpoint instead of the default collector\
+            \ and is not available in the Daytona analytics API or dashboard. Only\
+            \ returned on single-sandbox reads — never on list responses."
+          example: https://otel-collector.example.com:4318
           type: string
         target:
           description: The target environment for the sandbox
@@ -10361,6 +10400,7 @@ components:
           warmPoolId: warmPoolId
           autoStopInterval: 30
           organizationId: organization123
+          otelEndpointOverride: https://otel-collector.example.com:4318
           autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           networkBlockAll: false
@@ -10411,6 +10451,7 @@ components:
           warmPoolId: warmPoolId
           autoStopInterval: 30
           organizationId: organization123
+          otelEndpointOverride: https://otel-collector.example.com:4318
           autoPauseInterval: 60
           createdAt: 2024-10-01T12:00:00Z
           networkBlockAll: false
@@ -10497,6 +10538,7 @@ components:
         memory: 1
         buildInfo: ""
         autoStopInterval: 30
+        otelEndpointOverride: https://otel-collector.example.com:4318
         autoPauseInterval: 60
         networkBlockAll: false
         autoDeleteInterval: 30
@@ -10586,6 +10628,13 @@ components:
             \ redirected through the proxy chain at the network layer, which cannot\
             \ be bypassed from inside the sandbox."
           example: http://user:pass@proxy.example.com:3128
+          type: string
+        otelEndpointOverride:
+          description: "OTel collector endpoint override for this sandbox. When set,\
+            \ sandbox OTel data is sent to this endpoint instead of the default collector\
+            \ (the Daytona-hosted collector or the region-configured endpoint) and\
+            \ will not be available in the Daytona analytics API or dashboard."
+          example: https://otel-collector.example.com:4318
           type: string
         target:
           description: The target (region) where the sandbox will be created

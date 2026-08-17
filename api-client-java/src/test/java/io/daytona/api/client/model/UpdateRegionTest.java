@@ -62,4 +62,12 @@ public class UpdateRegionTest {
         // TODO: test snapshotManagerUrl
     }
 
+    /**
+     * Test the property 'otelEndpoint'
+     */
+    @Test
+    public void otelEndpointTest() {
+        // TODO: test otelEndpoint
+    }
+
 }

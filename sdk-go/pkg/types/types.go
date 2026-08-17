@@ -119,7 +119,11 @@ type SandboxBaseParams struct {
 	// routed through. Applied via the HTTP(S)_PROXY environment variables;
 	// combine with DomainAllowList for network-layer enforcement.
 	OutboundProxyUrl *string
-	Ephemeral        bool
+	// OtelEndpointOverride is the OTel collector endpoint override for the sandbox.
+	// When set, sandbox OTel data is sent to this endpoint instead of the default
+	// collector and will not be available in the Daytona analytics API or dashboard.
+	OtelEndpointOverride *string
+	Ephemeral            bool
 	// Spot marks the sandbox as a spot GPU sandbox. A spot sandbox may be instantly
 	// terminated without notice to free GPU capacity for an on-demand (non-spot) GPU
 	// sandbox. Rejected when the sandbox requests no GPUs.

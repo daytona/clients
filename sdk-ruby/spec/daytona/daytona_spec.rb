@@ -230,6 +230,20 @@ RSpec.describe Daytona::Daytona do
       end
     end
 
+    it 'passes otel_endpoint_override through to create_sandbox' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(
+        snapshot: 'snap-1',
+        otel_endpoint_override: 'https://otel-collector.example.com:4318'
+      )
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.otel_endpoint_override).to eq('https://otel-collector.example.com:4318')
+      end
+    end
+
     it 'leaves secrets nil when none are provided' do
       params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1')
       allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)

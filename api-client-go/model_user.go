@@ -30,6 +30,8 @@ type User struct {
 	Email string `json:"email"`
 	// Whether the user email address has been verified
 	EmailVerified bool `json:"emailVerified"`
+	// HMAC of the user email for Pylon support-widget identity verification
+	PylonEmailHash *string `json:"pylonEmailHash,omitempty"`
 	// User public keys
 	PublicKeys []UserPublicKey `json:"publicKeys"`
 	// Creation timestamp
@@ -158,6 +160,38 @@ func (o *User) SetEmailVerified(v bool) {
 	o.EmailVerified = v
 }
 
+// GetPylonEmailHash returns the PylonEmailHash field value if set, zero value otherwise.
+func (o *User) GetPylonEmailHash() string {
+	if o == nil || IsNil(o.PylonEmailHash) {
+		var ret string
+		return ret
+	}
+	return *o.PylonEmailHash
+}
+
+// GetPylonEmailHashOk returns a tuple with the PylonEmailHash field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *User) GetPylonEmailHashOk() (*string, bool) {
+	if o == nil || IsNil(o.PylonEmailHash) {
+		return nil, false
+	}
+	return o.PylonEmailHash, true
+}
+
+// HasPylonEmailHash returns a boolean if a field has been set.
+func (o *User) HasPylonEmailHash() bool {
+	if o != nil && !IsNil(o.PylonEmailHash) {
+		return true
+	}
+
+	return false
+}
+
+// SetPylonEmailHash gets a reference to the given string and assigns it to the PylonEmailHash field.
+func (o *User) SetPylonEmailHash(v string) {
+	o.PylonEmailHash = &v
+}
+
 // GetPublicKeys returns the PublicKeys field value
 func (o *User) GetPublicKeys() []UserPublicKey {
 	if o == nil {
@@ -220,6 +254,9 @@ func (o User) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	toSerialize["email"] = o.Email
 	toSerialize["emailVerified"] = o.EmailVerified
+	if !IsNil(o.PylonEmailHash) {
+		toSerialize["pylonEmailHash"] = o.PylonEmailHash
+	}
 	toSerialize["publicKeys"] = o.PublicKeys
 	toSerialize["createdAt"] = o.CreatedAt
 
@@ -274,6 +311,7 @@ func (o *User) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "email")
 		delete(additionalProperties, "emailVerified")
+		delete(additionalProperties, "pylonEmailHash")
 		delete(additionalProperties, "publicKeys")
 		delete(additionalProperties, "createdAt")
 		o.AdditionalProperties = additionalProperties

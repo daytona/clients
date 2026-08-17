@@ -40,6 +40,8 @@ type CreateSandbox struct {
 	DomainAllowList *string `json:"domainAllowList,omitempty"`
 	// Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
 	OutboundProxyUrl *string `json:"outboundProxyUrl,omitempty"`
+	// OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
+	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
 	// The target (region) where the sandbox will be created
 	Target *string `json:"target,omitempty"`
 	// CPU cores allocated to the sandbox
@@ -416,6 +418,38 @@ func (o *CreateSandbox) HasOutboundProxyUrl() bool {
 // SetOutboundProxyUrl gets a reference to the given string and assigns it to the OutboundProxyUrl field.
 func (o *CreateSandbox) SetOutboundProxyUrl(v string) {
 	o.OutboundProxyUrl = &v
+}
+
+// GetOtelEndpointOverride returns the OtelEndpointOverride field value if set, zero value otherwise.
+func (o *CreateSandbox) GetOtelEndpointOverride() string {
+	if o == nil || IsNil(o.OtelEndpointOverride) {
+		var ret string
+		return ret
+	}
+	return *o.OtelEndpointOverride
+}
+
+// GetOtelEndpointOverrideOk returns a tuple with the OtelEndpointOverride field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetOtelEndpointOverrideOk() (*string, bool) {
+	if o == nil || IsNil(o.OtelEndpointOverride) {
+		return nil, false
+	}
+	return o.OtelEndpointOverride, true
+}
+
+// HasOtelEndpointOverride returns a boolean if a field has been set.
+func (o *CreateSandbox) HasOtelEndpointOverride() bool {
+	if o != nil && !IsNil(o.OtelEndpointOverride) {
+		return true
+	}
+
+	return false
+}
+
+// SetOtelEndpointOverride gets a reference to the given string and assigns it to the OtelEndpointOverride field.
+func (o *CreateSandbox) SetOtelEndpointOverride(v string) {
+	o.OtelEndpointOverride = &v
 }
 
 // GetTarget returns the Target field value if set, zero value otherwise.
@@ -970,6 +1004,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.OutboundProxyUrl) {
 		toSerialize["outboundProxyUrl"] = o.OutboundProxyUrl
 	}
+	if !IsNil(o.OtelEndpointOverride) {
+		toSerialize["otelEndpointOverride"] = o.OtelEndpointOverride
+	}
 	if !IsNil(o.Target) {
 		toSerialize["target"] = o.Target
 	}
@@ -1050,6 +1087,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "networkAllowList")
 		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "outboundProxyUrl")
+		delete(additionalProperties, "otelEndpointOverride")
 		delete(additionalProperties, "target")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")

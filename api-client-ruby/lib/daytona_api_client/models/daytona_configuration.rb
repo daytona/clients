@@ -27,7 +27,7 @@ module DaytonaApiClient
     # OIDC configuration
     attr_accessor :oidc
 
-    # OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+    # OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the secondary (org-SSO) issuer is configured; the dashboard uses it as its authority when entered via an organization SSO link.
     attr_accessor :sso_oidc
 
     # Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.

@@ -39,7 +39,7 @@ class DaytonaConfiguration(BaseModel):
     build_sha: Optional[StrictStr] = Field(default=None, description="Commit sha of the source the app was built from", serialization_alias="buildSha")
     posthog: Optional[PosthogConfig] = Field(default=None, description="PostHog configuration")
     oidc: OidcConfig = Field(description="OIDC configuration")
-    sso_oidc: Optional[SsoOidcConfig] = Field(default=None, description="OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.", serialization_alias="ssoOidc")
+    sso_oidc: Optional[SsoOidcConfig] = Field(default=None, description="OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the secondary (org-SSO) issuer is configured; the dashboard uses it as its authority when entered via an organization SSO link.", serialization_alias="ssoOidc")
     forced_feature_flags: Optional[List[StrictStr]] = Field(default=None, description="Feature flags forced on for this deployment regardless of PostHog targeting. Lets environments without PostHog (previews, local dev) enable flag-gated dashboard features.", serialization_alias="forcedFeatureFlags")
     linked_accounts_enabled: StrictBool = Field(description="Whether linked accounts are enabled", serialization_alias="linkedAccountsEnabled")
     announcements: Dict[str, Announcement] = Field(description="System announcements")

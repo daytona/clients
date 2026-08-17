@@ -43,6 +43,7 @@ class CreateSandbox(BaseModel):
     network_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed CIDR network addresses for the sandbox", serialization_alias="networkAllowList")
     domain_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed domains for the sandbox", serialization_alias="domainAllowList")
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.", serialization_alias="outboundProxyUrl")
+    otel_endpoint_override: Optional[StrictStr] = Field(default=None, description="OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.", serialization_alias="otelEndpointOverride")
     target: Optional[StrictStr] = Field(default=None, description="The target (region) where the sandbox will be created")
     cpu: Optional[StrictInt] = Field(default=None, description="CPU cores allocated to the sandbox")
     gpu: Optional[StrictInt] = Field(default=None, description="GPU units allocated to the sandbox")
@@ -60,7 +61,7 @@ class CreateSandbox(BaseModel):
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.", serialization_alias="linkedSandbox")
     secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -139,6 +140,7 @@ class CreateSandbox(BaseModel):
             "network_allow_list": obj.get("networkAllowList"),
             "domain_allow_list": obj.get("domainAllowList"),
             "outbound_proxy_url": obj.get("outboundProxyUrl"),
+            "otel_endpoint_override": obj.get("otelEndpointOverride"),
             "target": obj.get("target"),
             "cpu": obj.get("cpu"),
             "gpu": obj.get("gpu"),

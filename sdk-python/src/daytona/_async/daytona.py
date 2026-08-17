@@ -641,6 +641,7 @@ class AsyncDaytona:
             network_allow_list=params.network_allow_list,
             domain_allow_list=params.domain_allow_list,
             outbound_proxy_url=params.outbound_proxy_url,
+            otel_endpoint_override=params.otel_endpoint_override,
             linked_sandbox=params.linked_sandbox,
             spot=params.spot,
         )

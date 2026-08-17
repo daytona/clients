@@ -20,7 +20,7 @@ import json
 
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from daytona_api_client_async.models.user_public_key import UserPublicKey
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -36,10 +36,11 @@ class User(BaseModel):
     name: StrictStr = Field(description="User name")
     email: StrictStr = Field(description="User email")
     email_verified: StrictBool = Field(description="Whether the user email address has been verified", serialization_alias="emailVerified")
+    pylon_email_hash: Optional[StrictStr] = Field(default=None, description="HMAC of the user email for Pylon support-widget identity verification", serialization_alias="pylonEmailHash")
     public_keys: List[UserPublicKey] = Field(description="User public keys", serialization_alias="publicKeys")
     created_at: datetime = Field(description="Creation timestamp", serialization_alias="createdAt")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "email", "emailVerified", "publicKeys", "createdAt"]
+    __properties: ClassVar[List[str]] = ["id", "name", "email", "emailVerified", "pylonEmailHash", "publicKeys", "createdAt"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -109,6 +110,7 @@ class User(BaseModel):
             "name": obj.get("name"),
             "email": obj.get("email"),
             "email_verified": obj.get("emailVerified"),
+            "pylon_email_hash": obj.get("pylonEmailHash"),
             "public_keys": [UserPublicKey.from_dict(_item) for _item in obj["publicKeys"]] if obj.get("publicKeys") is not None else None,
             "created_at": obj.get("createdAt")
         })

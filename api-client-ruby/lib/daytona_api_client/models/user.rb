@@ -27,6 +27,9 @@ module DaytonaApiClient
     # Whether the user email address has been verified
     attr_accessor :email_verified
 
+    # HMAC of the user email for Pylon support-widget identity verification
+    attr_accessor :pylon_email_hash
+
     # User public keys
     attr_accessor :public_keys
 
@@ -40,6 +43,7 @@ module DaytonaApiClient
         :'name' => :'name',
         :'email' => :'email',
         :'email_verified' => :'emailVerified',
+        :'pylon_email_hash' => :'pylonEmailHash',
         :'public_keys' => :'publicKeys',
         :'created_at' => :'createdAt'
       }
@@ -62,6 +66,7 @@ module DaytonaApiClient
         :'name' => :'String',
         :'email' => :'String',
         :'email_verified' => :'Boolean',
+        :'pylon_email_hash' => :'String',
         :'public_keys' => :'Array<UserPublicKey>',
         :'created_at' => :'Time'
       }
@@ -111,6 +116,10 @@ module DaytonaApiClient
         self.email_verified = attributes[:'email_verified']
       else
         self.email_verified = nil
+      end
+
+      if attributes.key?(:'pylon_email_hash')
+        self.pylon_email_hash = attributes[:'pylon_email_hash']
       end
 
       if attributes.key?(:'public_keys')
@@ -242,6 +251,7 @@ module DaytonaApiClient
           name == o.name &&
           email == o.email &&
           email_verified == o.email_verified &&
+          pylon_email_hash == o.pylon_email_hash &&
           public_keys == o.public_keys &&
           created_at == o.created_at
     end
@@ -255,7 +265,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, email, email_verified, public_keys, created_at].hash
+      [id, name, email, email_verified, pylon_email_hash, public_keys, created_at].hash
     end
 
     # Builds the object from hash

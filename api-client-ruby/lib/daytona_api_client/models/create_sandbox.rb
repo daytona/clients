@@ -45,6 +45,9 @@ module DaytonaApiClient
     # Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.
     attr_accessor :outbound_proxy_url
 
+    # OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
+    attr_accessor :otel_endpoint_override
+
     # The target (region) where the sandbox will be created
     attr_accessor :target
 
@@ -106,6 +109,7 @@ module DaytonaApiClient
         :'network_allow_list' => :'networkAllowList',
         :'domain_allow_list' => :'domainAllowList',
         :'outbound_proxy_url' => :'outboundProxyUrl',
+        :'otel_endpoint_override' => :'otelEndpointOverride',
         :'target' => :'target',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
@@ -148,6 +152,7 @@ module DaytonaApiClient
         :'network_allow_list' => :'String',
         :'domain_allow_list' => :'String',
         :'outbound_proxy_url' => :'String',
+        :'otel_endpoint_override' => :'String',
         :'target' => :'String',
         :'cpu' => :'Integer',
         :'gpu' => :'Integer',
@@ -231,6 +236,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'outbound_proxy_url')
         self.outbound_proxy_url = attributes[:'outbound_proxy_url']
+      end
+
+      if attributes.key?(:'otel_endpoint_override')
+        self.otel_endpoint_override = attributes[:'otel_endpoint_override']
       end
 
       if attributes.key?(:'target')
@@ -336,6 +345,7 @@ module DaytonaApiClient
           network_allow_list == o.network_allow_list &&
           domain_allow_list == o.domain_allow_list &&
           outbound_proxy_url == o.outbound_proxy_url &&
+          otel_endpoint_override == o.otel_endpoint_override &&
           target == o.target &&
           cpu == o.cpu &&
           gpu == o.gpu &&
@@ -363,7 +373,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

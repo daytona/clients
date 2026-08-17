@@ -144,6 +144,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'otelEndpointOverride'
+     */
+    @Test
+    public void otelEndpointOverrideTest() {
+        // TODO: test otelEndpointOverride
+    }
+
+    /**
      * Test the property 'target'
      */
     @Test

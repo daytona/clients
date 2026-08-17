@@ -59,6 +59,9 @@ module Daytona
     # @return [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through
     attr_accessor :outbound_proxy_url
 
+    # @return [String, nil] OTel collector endpoint override for the Sandbox
+    attr_accessor :otel_endpoint_override
+
     # @return [Integer, nil] Time to live in minutes (0 to disable)
     attr_accessor :ttl_minutes
 
@@ -97,6 +100,9 @@ module Daytona
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
     #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
     #   network-layer enforcement.
+    # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
+    #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
+    #   available in the Daytona analytics API or dashboard.
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     # @param spot [Boolean, nil] GPU-only. Whether the Sandbox may be instantly terminated to free GPU
@@ -120,6 +126,7 @@ module Daytona
       network_allow_list: nil,
       domain_allow_list: nil,
       outbound_proxy_url: nil,
+      otel_endpoint_override: nil,
       ephemeral: nil,
       spot: nil,
       linked_sandbox: nil
@@ -141,6 +148,7 @@ module Daytona
       @network_allow_list = network_allow_list
       @domain_allow_list = domain_allow_list
       @outbound_proxy_url = outbound_proxy_url
+      @otel_endpoint_override = otel_endpoint_override
       @ephemeral = ephemeral
       @spot = spot
       @linked_sandbox = linked_sandbox
@@ -171,6 +179,7 @@ module Daytona
         network_allow_list:,
         domain_allow_list:,
         outbound_proxy_url:,
+        otel_endpoint_override:,
         ephemeral:,
         spot:,
         linked_sandbox:
@@ -229,6 +238,9 @@ module Daytona
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
     #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
     #   network-layer enforcement.
+    # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
+    #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
+    #   available in the Daytona analytics API or dashboard.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(image:, resources: nil, **args)
       @image = image
@@ -275,6 +287,9 @@ module Daytona
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
     #   Applied via the HTTP(S)_PROXY environment variables; combine with domain_allow_list for
     #   network-layer enforcement.
+    # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
+    #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
+    #   available in the Daytona analytics API or dashboard.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(snapshot: nil, **args)
       @snapshot = snapshot

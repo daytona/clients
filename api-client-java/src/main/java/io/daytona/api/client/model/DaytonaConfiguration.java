@@ -255,7 +255,7 @@ public class DaytonaConfiguration {
   }
 
   /**
-   * OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the dual-issuer setup is configured; the dashboard uses it as its authority when entered via an organization SSO link.
+   * OIDC configuration for org-SSO logins (Daytona Auth issuer). Present only when the secondary (org-SSO) issuer is configured; the dashboard uses it as its authority when entered via an organization SSO link.
    * @return ssoOidc
    */
   @javax.annotation.Nullable

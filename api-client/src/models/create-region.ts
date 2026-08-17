@@ -31,5 +31,9 @@ export interface CreateRegion {
      * Snapshot Manager URL for the region
      */
     'snapshotManagerUrl'?: string | null;
+    /**
+     * OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.
+     */
+    'otelEndpoint'?: string | null;
 }
 

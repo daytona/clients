@@ -35,6 +35,10 @@ export interface User {
      */
     'emailVerified': boolean;
     /**
+     * HMAC of the user email for Pylon support-widget identity verification
+     */
+    'pylonEmailHash'?: string;
+    /**
      * User public keys
      */
     'publicKeys': Array<UserPublicKey>;

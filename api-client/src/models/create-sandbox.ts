@@ -65,6 +65,10 @@ export interface CreateSandbox {
      */
     'outboundProxyUrl'?: string;
     /**
+     * OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
+     */
+    'otelEndpointOverride'?: string;
+    /**
      * The target (region) where the sandbox will be created
      */
     'target'?: string;

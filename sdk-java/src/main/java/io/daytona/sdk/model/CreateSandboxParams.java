@@ -32,6 +32,7 @@ public class CreateSandboxParams {
     private Boolean networkBlockAll;
     private String domainAllowList;
     private String outboundProxyUrl;
+    private String otelEndpointOverride;
     private String linkedSandbox;
     private Boolean spot;
 
@@ -275,6 +276,26 @@ public class CreateSandboxParams {
      * @param outboundProxyUrl outbound proxy URL
      */
     public void setOutboundProxyUrl(String outboundProxyUrl) { this.outboundProxyUrl = outboundProxyUrl; }
+
+    /**
+     * Returns the OTel collector endpoint override for the Sandbox.
+     *
+     * <p>When set, sandbox OTel data is sent to this endpoint instead of the default collector and
+     * will not be available in the Daytona analytics API or dashboard.
+     *
+     * @return OTel collector endpoint override, or {@code null}
+     */
+    public String getOtelEndpointOverride() { return otelEndpointOverride; }
+
+    /**
+     * Sets the OTel collector endpoint override for the Sandbox.
+     *
+     * <p>When set, sandbox OTel data is sent to this endpoint instead of the default collector and
+     * will not be available in the Daytona analytics API or dashboard.
+     *
+     * @param otelEndpointOverride OTel collector endpoint override
+     */
+    public void setOtelEndpointOverride(String otelEndpointOverride) { this.otelEndpointOverride = otelEndpointOverride; }
 
     /**
      * Returns the ID or name of an existing Sandbox to link the new Sandbox to.

@@ -34,8 +34,9 @@ class CreateRegion(BaseModel):
     proxy_url: Optional[StrictStr] = Field(default=None, description="Proxy URL for the region", serialization_alias="proxyUrl")
     ssh_gateway_url: Optional[StrictStr] = Field(default=None, description="SSH Gateway URL for the region", serialization_alias="sshGatewayUrl")
     snapshot_manager_url: Optional[StrictStr] = Field(default=None, description="Snapshot Manager URL for the region", serialization_alias="snapshotManagerUrl")
+    otel_endpoint: Optional[StrictStr] = Field(default=None, description="OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.", serialization_alias="otelEndpoint")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl"]
+    __properties: ClassVar[List[str]] = ["name", "proxyUrl", "sshGatewayUrl", "snapshotManagerUrl", "otelEndpoint"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -97,6 +98,11 @@ class CreateRegion(BaseModel):
         if self.snapshot_manager_url is None and "snapshot_manager_url" in self.model_fields_set:
             _dict['snapshotManagerUrl'] = None
 
+        # set to None if otel_endpoint (nullable) is None
+        # and model_fields_set contains the field
+        if self.otel_endpoint is None and "otel_endpoint" in self.model_fields_set:
+            _dict['otelEndpoint'] = None
+
         return _dict
 
     @classmethod
@@ -112,7 +118,8 @@ class CreateRegion(BaseModel):
             "name": obj.get("name"),
             "proxy_url": obj.get("proxyUrl"),
             "ssh_gateway_url": obj.get("sshGatewayUrl"),
-            "snapshot_manager_url": obj.get("snapshotManagerUrl")
+            "snapshot_manager_url": obj.get("snapshotManagerUrl"),
+            "otel_endpoint": obj.get("otelEndpoint")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
