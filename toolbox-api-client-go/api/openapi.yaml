@@ -4808,6 +4808,7 @@ components:
       - LSP_SERVER_NOT_INITIALIZED
       - PROCESS_EXECUTION_TIMEOUT
       - PROCESS_NOT_FOUND
+      - PROCESS_START_FAILED
       - SESSION_ENDED
       - COMMAND_ALREADY_COMPLETED
       - NAME_CONFLICT
@@ -4849,6 +4850,7 @@ components:
       - CodeLspServerNotInitialized
       - CodeProcessExecutionTimeout
       - CodeProcessNotFound
+      - CodeProcessStartFailed
       - CodeSessionEnded
       - CodeCommandAlreadyCompleted
       - CodeNameConflict

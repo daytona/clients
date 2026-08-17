@@ -31,6 +31,7 @@ module DaytonaToolboxApiClient
     CodeLspServerNotInitialized = "LSP_SERVER_NOT_INITIALIZED".freeze
     CodeProcessExecutionTimeout = "PROCESS_EXECUTION_TIMEOUT".freeze
     CodeProcessNotFound = "PROCESS_NOT_FOUND".freeze
+    CodeProcessStartFailed = "PROCESS_START_FAILED".freeze
     CodeSessionEnded = "SESSION_ENDED".freeze
     CodeCommandAlreadyCompleted = "COMMAND_ALREADY_COMPLETED".freeze
     CodeNameConflict = "NAME_CONFLICT".freeze
@@ -57,7 +58,7 @@ module DaytonaToolboxApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeGitTransportFailed, CodeGitRemoteRejected, CodeFileNotFound, CodeFileAccessDenied, CodeInvalidFilePath, CodeFileReadFailed, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeNameConflict, CodeCursorExpired, CodeInvalidCursor, CodeProtectedProcess, CodeStdinClosed, CodeStdinUnavailable, CodeProcessTerminal, CodeUnsupportedOperation, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [CodeGitAuthFailed, CodeGitRepoNotFound, CodeGitBranchNotFound, CodeGitBranchExists, CodeGitPushRejected, CodeGitDirtyWorktree, CodeGitMergeConflict, CodeGitTransportFailed, CodeGitRemoteRejected, CodeFileNotFound, CodeFileAccessDenied, CodeInvalidFilePath, CodeFileReadFailed, CodeLspServerNotInitialized, CodeProcessExecutionTimeout, CodeProcessNotFound, CodeProcessStartFailed, CodeSessionEnded, CodeCommandAlreadyCompleted, CodeNameConflict, CodeCursorExpired, CodeInvalidCursor, CodeProtectedProcess, CodeStdinClosed, CodeStdinUnavailable, CodeProcessTerminal, CodeUnsupportedOperation, CodeA11yUnavailable, CodeRecordingStillActive, CodeRecordingFfmpegNotFound, CodeBadRequest, CodeInvalidRequestBody, CodeUnauthorized, CodeForbidden, CodeNotFound, CodeConflict, CodeRequestTimeout, CodeGone, CodeUnprocessableEntity, CodeInternalServerError, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

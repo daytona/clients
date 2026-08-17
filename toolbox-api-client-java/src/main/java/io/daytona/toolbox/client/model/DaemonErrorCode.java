@@ -61,6 +61,8 @@ public enum DaemonErrorCode {
   
   CodeProcessNotFound("PROCESS_NOT_FOUND"),
   
+  CodeProcessStartFailed("PROCESS_START_FAILED"),
+  
   CodeSessionEnded("SESSION_ENDED"),
   
   CodeCommandAlreadyCompleted("COMMAND_ALREADY_COMPLETED"),

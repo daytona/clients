@@ -42,6 +42,7 @@ class DaemonErrorCode(str, Enum):
     CodeLspServerNotInitialized = 'LSP_SERVER_NOT_INITIALIZED'
     CodeProcessExecutionTimeout = 'PROCESS_EXECUTION_TIMEOUT'
     CodeProcessNotFound = 'PROCESS_NOT_FOUND'
+    CodeProcessStartFailed = 'PROCESS_START_FAILED'
     CodeSessionEnded = 'SESSION_ENDED'
     CodeCommandAlreadyCompleted = 'COMMAND_ALREADY_COMPLETED'
     CodeNameConflict = 'NAME_CONFLICT'

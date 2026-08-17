@@ -35,6 +35,7 @@ const (
 	DAEMONERRORCODE_CodeLspServerNotInitialized DaemonErrorCode = "LSP_SERVER_NOT_INITIALIZED"
 	DAEMONERRORCODE_CodeProcessExecutionTimeout DaemonErrorCode = "PROCESS_EXECUTION_TIMEOUT"
 	DAEMONERRORCODE_CodeProcessNotFound DaemonErrorCode = "PROCESS_NOT_FOUND"
+	DAEMONERRORCODE_CodeProcessStartFailed DaemonErrorCode = "PROCESS_START_FAILED"
 	DAEMONERRORCODE_CodeSessionEnded DaemonErrorCode = "SESSION_ENDED"
 	DAEMONERRORCODE_CodeCommandAlreadyCompleted DaemonErrorCode = "COMMAND_ALREADY_COMPLETED"
 	DAEMONERRORCODE_CodeNameConflict DaemonErrorCode = "NAME_CONFLICT"
@@ -79,6 +80,7 @@ var AllowedDaemonErrorCodeEnumValues = []DaemonErrorCode{
 	"LSP_SERVER_NOT_INITIALIZED",
 	"PROCESS_EXECUTION_TIMEOUT",
 	"PROCESS_NOT_FOUND",
+	"PROCESS_START_FAILED",
 	"SESSION_ENDED",
 	"COMMAND_ALREADY_COMPLETED",
 	"NAME_CONFLICT",
