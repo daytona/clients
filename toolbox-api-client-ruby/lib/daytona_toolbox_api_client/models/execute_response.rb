@@ -17,13 +17,22 @@ module DaytonaToolboxApiClient
   class ExecuteResponse < ApiModelBase
     attr_accessor :exit_code
 
+    # Combined stdout and stderr in arrival order (interleaved)
     attr_accessor :result
+
+    # Standard error only; omitted by daemons that predate split streams
+    attr_accessor :stderr
+
+    # Standard output only; omitted by daemons that predate split streams
+    attr_accessor :stdout
 
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'exit_code' => :'exitCode',
-        :'result' => :'result'
+        :'result' => :'result',
+        :'stderr' => :'stderr',
+        :'stdout' => :'stdout'
       }
     end
 
@@ -41,7 +50,9 @@ module DaytonaToolboxApiClient
     def self.openapi_types
       {
         :'exit_code' => :'Integer',
-        :'result' => :'String'
+        :'result' => :'String',
+        :'stderr' => :'String',
+        :'stdout' => :'String'
       }
     end
 
@@ -75,6 +86,14 @@ module DaytonaToolboxApiClient
         self.result = attributes[:'result']
       else
         self.result = nil
+      end
+
+      if attributes.key?(:'stderr')
+        self.stderr = attributes[:'stderr']
+      end
+
+      if attributes.key?(:'stdout')
+        self.stdout = attributes[:'stdout']
       end
     end
 
@@ -114,7 +133,9 @@ module DaytonaToolboxApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           exit_code == o.exit_code &&
-          result == o.result
+          result == o.result &&
+          stderr == o.stderr &&
+          stdout == o.stdout
     end
 
     # @see the `==` method
@@ -126,7 +147,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [exit_code, result].hash
+      [exit_code, result, stderr, stdout].hash
     end
 
     # Builds the object from hash

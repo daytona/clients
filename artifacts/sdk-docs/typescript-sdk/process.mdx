@@ -322,7 +322,9 @@ Executes a shell command in the Sandbox.
 
 - `Promise<ExecuteResponse>` - Command execution results containing:
     - exitCode: The command's exit status
-    - result: Standard output from the command
+    - result: Combined stdout and stderr from the command (interleaved)
+    - stdout: Standard output only; undefined when the sandbox daemon predates split streams
+    - stderr: Standard error only; undefined when the sandbox daemon predates split streams
     - artifacts: ExecutionArtifacts object containing `stdout` (same as result) and `charts` (matplotlib charts metadata)
 
 **Examples:**
@@ -331,6 +333,13 @@ Executes a shell command in the Sandbox.
 // Simple command
 const response = await process.executeCommand('echo "Hello"');
 console.log(response.artifacts.stdout);  // Prints: Hello
+```
+
+```ts
+// Split streams
+const response = await process.executeCommand('echo out; echo err >&2');
+console.log(response.stdout);  // Prints: out
+console.log(response.stderr);  // Prints: err
 ```
 
 ```ts
