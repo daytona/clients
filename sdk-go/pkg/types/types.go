@@ -40,7 +40,6 @@ type SandboxClass = apiclient.SandboxClass
 const (
 	SandboxClassLinuxVM   SandboxClass = apiclient.SANDBOXCLASS_LINUX_VM
 	SandboxClassContainer SandboxClass = apiclient.SANDBOXCLASS_CONTAINER
-	SandboxClassAndroid   SandboxClass = apiclient.SANDBOXCLASS_ANDROID
 )
 
 // ExperimentalConfig holds experimental feature flags for the Daytona client.
