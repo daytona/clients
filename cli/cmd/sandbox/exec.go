@@ -48,7 +48,7 @@ var ExecCmd = &cobra.Command{
 
 		toolboxClient := toolbox.NewClient(apiClient)
 
-		command := strings.Join(commandArgs, " ")
+		command := buildCommand(commandArgs)
 
 		executeRequest := toolbox.ExecuteRequest{
 			Command: command,
@@ -83,6 +83,32 @@ var ExecCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+// buildCommand converts the argv captured after "--" into the single command
+// string the toolbox execute API accepts.
+//
+// A lone argument is passed through verbatim so existing shell-snippet usage
+// (e.g. `daytona exec s -- "ls | grep foo"`) keeps working. Multiple arguments
+// are shell-quoted individually before joining, so the sandbox shell
+// reproduces the caller's argument boundaries exactly instead of re-splitting
+// on spaces inside them.
+func buildCommand(commandArgs []string) string {
+	if len(commandArgs) == 1 {
+		return commandArgs[0]
+	}
+
+	quoted := make([]string, len(commandArgs))
+	for i, arg := range commandArgs {
+		quoted[i] = shellQuote(arg)
+	}
+	return strings.Join(quoted, " ")
+}
+
+// shellQuote wraps s in single quotes, escaping any single quotes it contains,
+// so the sandbox shell treats it as a single literal argument.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
 var (
