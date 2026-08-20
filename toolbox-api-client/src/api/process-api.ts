@@ -28,6 +28,8 @@ import type { CodeRunResponse } from '../models';
 // @ts-ignore
 import type { Command } from '../models';
 // @ts-ignore
+import type { CreateProcessRequest } from '../models';
+// @ts-ignore
 import type { CreateSessionRequest } from '../models';
 // @ts-ignore
 import type { ErrorResponse } from '../models';
@@ -35,6 +37,16 @@ import type { ErrorResponse } from '../models';
 import type { ExecuteRequest } from '../models';
 // @ts-ignore
 import type { ExecuteResponse } from '../models';
+// @ts-ignore
+import type { KillProcessRequest } from '../models';
+// @ts-ignore
+import type { Process } from '../models';
+// @ts-ignore
+import type { ProcessLogPage } from '../models';
+// @ts-ignore
+import type { ProcessResult } from '../models';
+// @ts-ignore
+import type { ProcessStdinRequest } from '../models';
 // @ts-ignore
 import type { PtyCreateRequest } from '../models';
 // @ts-ignore
@@ -45,6 +57,8 @@ import type { PtyListResponse } from '../models';
 import type { PtyResizeRequest } from '../models';
 // @ts-ignore
 import type { PtySessionInfo } from '../models';
+// @ts-ignore
+import type { ResizeProcessRequest } from '../models';
 // @ts-ignore
 import type { Session } from '../models';
 // @ts-ignore
@@ -60,6 +74,74 @@ import type { SessionSendInputRequest } from '../models';
  */
 export const ProcessApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+         * @summary Attach to a PTY process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        attachProcess: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('attachProcess', 'id', id)
+            const localVarPath = `/processes/{id}/attach`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Purge a terminal process record and its retained logs
+         * @summary Clean up a process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        cleanupProcess: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('cleanupProcess', 'id', id)
+            const localVarPath = `/processes/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * Execute Python, JavaScript, or TypeScript code and return output, exit code, and artifacts
          * @summary Execute code
@@ -123,6 +205,41 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Create a unified process record and start supervising it
+         * @summary Create and start a process
+         * @param {CreateProcessRequest} request Process creation request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createProcess: async (request: CreateProcessRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('createProcess', 'request', request)
+            const localVarPath = `/processes`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -368,6 +485,40 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Get a unified process record by its process id
+         * @summary Get process details
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProcess: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('getProcess', 'id', id)
+            const localVarPath = `/processes/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Get detailed information about a specific pseudo-terminal session
          * @summary Get PTY session information
          * @param {string} sessionId PTY session ID
@@ -517,6 +668,61 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * List unified process records with optional state, kind, session, name, and pid filters
+         * @summary List processes
+         * @param {ListProcessesStateEnum} [state] Process state filter
+         * @param {ListProcessesKindEnum} [kind] Process kind filter
+         * @param {string} [sessionId] Session ID filter
+         * @param {string} [name] Process name filter
+         * @param {number} [pid] Process PID metadata filter
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listProcesses: async (state?: ListProcessesStateEnum, kind?: ListProcessesKindEnum, sessionId?: string, name?: string, pid?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/processes`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (state !== undefined) {
+                localVarQueryParameter['state'] = state;
+            }
+
+            if (kind !== undefined) {
+                localVarQueryParameter['kind'] = kind;
+            }
+
+            if (sessionId !== undefined) {
+                localVarQueryParameter['sessionId'] = sessionId;
+            }
+
+            if (name !== undefined) {
+                localVarQueryParameter['name'] = name;
+            }
+
+            if (pid !== undefined) {
+                localVarQueryParameter['pid'] = pid;
+            }
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Get a list of all active pseudo-terminal sessions
          * @summary List all PTY sessions
          * @param {*} [options] Override http request option.
@@ -570,6 +776,99 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Return a page of log frames or stream log frames over Server-Sent Events when follow=true
+         * @summary Get process logs
+         * @param {string} id Process ID
+         * @param {string} [cursor] Resume cursor
+         * @param {number} [limit] Maximum number of frames to return
+         * @param {ReadProcessLogsEncodingEnum} [encoding] Frame encoding
+         * @param {boolean} [follow] Stream log frames over Server-Sent Events
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        readProcessLogs: async (id: string, cursor?: string, limit?: number, encoding?: ReadProcessLogsEncodingEnum, follow?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('readProcessLogs', 'id', id)
+            const localVarPath = `/processes/{id}/logs`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (cursor !== undefined) {
+                localVarQueryParameter['cursor'] = cursor;
+            }
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+            if (encoding !== undefined) {
+                localVarQueryParameter['encoding'] = encoding;
+            }
+
+            if (follow !== undefined) {
+                localVarQueryParameter['follow'] = follow;
+            }
+
+            localVarHeaderParameter['Accept'] = 'application/json,text/event-stream';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Resize the terminal geometry of a running kind=pty process
+         * @summary Resize a PTY process
+         * @param {string} id Process ID
+         * @param {ResizeProcessRequest} request Resize request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resizeProcess: async (id: string, request: ResizeProcessRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('resizeProcess', 'id', id)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('resizeProcess', 'request', request)
+            const localVarPath = `/processes/{id}/resize`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -659,6 +958,45 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Write input to a running process and optionally close stdin
+         * @summary Send stdin to a process
+         * @param {string} id Process ID
+         * @param {ProcessStdinRequest} request Stdin request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendProcessStdin: async (id: string, request: ProcessStdinRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('sendProcessStdin', 'id', id)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('sendProcessStdin', 'request', request)
+            const localVarPath = `/processes/{id}/stdin`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Execute a command within an existing shell session
          * @summary Execute command in session
          * @param {string} sessionId Session ID
@@ -697,6 +1035,84 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Send a signal to a running process and optionally escalate after a grace period
+         * @summary Signal a process
+         * @param {string} id Process ID
+         * @param {KillProcessRequest} request Signal request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        signalProcess: async (id: string, request: KillProcessRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('signalProcess', 'id', id)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('signalProcess', 'request', request)
+            const localVarPath = `/processes/{id}/signals`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Wait for a process to reach terminal state or for the wait timeout to elapse
+         * @summary Wait for a process
+         * @param {string} id Process ID
+         * @param {number} [timeoutMs] Maximum wait time in milliseconds
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        waitForProcess: async (id: string, timeoutMs?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('waitForProcess', 'id', id)
+            const localVarPath = `/processes/{id}/wait`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timeoutMs !== undefined) {
+                localVarQueryParameter['timeoutMs'] = timeoutMs;
+            }
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -706,6 +1122,32 @@ export const ProcessApiAxiosParamCreator = function (configuration?: Configurati
 export const ProcessApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = ProcessApiAxiosParamCreator(configuration)
     return {
+        /**
+         * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+         * @summary Attach to a PTY process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async attachProcess(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.attachProcess(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.attachProcess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Purge a terminal process record and its retained logs
+         * @summary Clean up a process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async cleanupProcess(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.cleanupProcess(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.cleanupProcess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * Execute Python, JavaScript, or TypeScript code and return output, exit code, and artifacts
          * @summary Execute code
@@ -730,6 +1172,19 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.connectPtySession(sessionId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProcessApi.connectPtySession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Create a unified process record and start supervising it
+         * @summary Create and start a process
+         * @param {CreateProcessRequest} request Process creation request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createProcess(request: CreateProcessRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Process>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createProcess(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.createProcess']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -823,6 +1278,19 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Get a unified process record by its process id
+         * @summary Get process details
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getProcess(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Process>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getProcess(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.getProcess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Get detailed information about a specific pseudo-terminal session
          * @summary Get PTY session information
          * @param {string} sessionId PTY session ID
@@ -878,6 +1346,23 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * List unified process records with optional state, kind, session, name, and pid filters
+         * @summary List processes
+         * @param {ListProcessesStateEnum} [state] Process state filter
+         * @param {ListProcessesKindEnum} [kind] Process kind filter
+         * @param {string} [sessionId] Session ID filter
+         * @param {string} [name] Process name filter
+         * @param {number} [pid] Process PID metadata filter
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listProcesses(state?: ListProcessesStateEnum, kind?: ListProcessesKindEnum, sessionId?: string, name?: string, pid?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Process>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listProcesses(state, kind, sessionId, name, pid, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.listProcesses']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Get a list of all active pseudo-terminal sessions
          * @summary List all PTY sessions
          * @param {*} [options] Override http request option.
@@ -899,6 +1384,37 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listSessions(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProcessApi.listSessions']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Return a page of log frames or stream log frames over Server-Sent Events when follow=true
+         * @summary Get process logs
+         * @param {string} id Process ID
+         * @param {string} [cursor] Resume cursor
+         * @param {number} [limit] Maximum number of frames to return
+         * @param {ReadProcessLogsEncodingEnum} [encoding] Frame encoding
+         * @param {boolean} [follow] Stream log frames over Server-Sent Events
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async readProcessLogs(id: string, cursor?: string, limit?: number, encoding?: ReadProcessLogsEncodingEnum, follow?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProcessLogPage>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.readProcessLogs(id, cursor, limit, encoding, follow, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.readProcessLogs']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Resize the terminal geometry of a running kind=pty process
+         * @summary Resize a PTY process
+         * @param {string} id Process ID
+         * @param {ResizeProcessRequest} request Resize request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resizeProcess(id: string, request: ResizeProcessRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Process>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resizeProcess(id, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.resizeProcess']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -931,6 +1447,20 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Write input to a running process and optionally close stdin
+         * @summary Send stdin to a process
+         * @param {string} id Process ID
+         * @param {ProcessStdinRequest} request Stdin request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async sendProcessStdin(id: string, request: ProcessStdinRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.sendProcessStdin(id, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.sendProcessStdin']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Execute a command within an existing shell session
          * @summary Execute command in session
          * @param {string} sessionId Session ID
@@ -944,6 +1474,34 @@ export const ProcessApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ProcessApi.sessionExecuteCommand']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Send a signal to a running process and optionally escalate after a grace period
+         * @summary Signal a process
+         * @param {string} id Process ID
+         * @param {KillProcessRequest} request Signal request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async signalProcess(id: string, request: KillProcessRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.signalProcess(id, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.signalProcess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Wait for a process to reach terminal state or for the wait timeout to elapse
+         * @summary Wait for a process
+         * @param {string} id Process ID
+         * @param {number} [timeoutMs] Maximum wait time in milliseconds
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async waitForProcess(id: string, timeoutMs?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProcessResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.waitForProcess(id, timeoutMs, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProcessApi.waitForProcess']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -953,6 +1511,26 @@ export const ProcessApiFp = function(configuration?: Configuration) {
 export const ProcessApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = ProcessApiFp(configuration)
     return {
+        /**
+         * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+         * @summary Attach to a PTY process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        attachProcess(id: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.attachProcess(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Purge a terminal process record and its retained logs
+         * @summary Clean up a process
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        cleanupProcess(id: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.cleanupProcess(id, options).then((request) => request(axios, basePath));
+        },
         /**
          * Execute Python, JavaScript, or TypeScript code and return output, exit code, and artifacts
          * @summary Execute code
@@ -972,6 +1550,16 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
          */
         connectPtySession(sessionId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.connectPtySession(sessionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Create a unified process record and start supervising it
+         * @summary Create and start a process
+         * @param {CreateProcessRequest} request Process creation request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createProcess(request: CreateProcessRequest, options?: RawAxiosRequestConfig): AxiosPromise<Process> {
+            return localVarFp.createProcess(request, options).then((request) => request(axios, basePath));
         },
         /**
          * Create a new pseudo-terminal session with specified configuration
@@ -1043,6 +1631,16 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.getEntrypointSession(options).then((request) => request(axios, basePath));
         },
         /**
+         * Get a unified process record by its process id
+         * @summary Get process details
+         * @param {string} id Process ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProcess(id: string, options?: RawAxiosRequestConfig): AxiosPromise<Process> {
+            return localVarFp.getProcess(id, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Get detailed information about a specific pseudo-terminal session
          * @summary Get PTY session information
          * @param {string} sessionId PTY session ID
@@ -1086,6 +1684,20 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.getSessionCommandLogs(sessionId, commandId, follow, options).then((request) => request(axios, basePath));
         },
         /**
+         * List unified process records with optional state, kind, session, name, and pid filters
+         * @summary List processes
+         * @param {ListProcessesStateEnum} [state] Process state filter
+         * @param {ListProcessesKindEnum} [kind] Process kind filter
+         * @param {string} [sessionId] Session ID filter
+         * @param {string} [name] Process name filter
+         * @param {number} [pid] Process PID metadata filter
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listProcesses(state?: ListProcessesStateEnum, kind?: ListProcessesKindEnum, sessionId?: string, name?: string, pid?: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<Process>> {
+            return localVarFp.listProcesses(state, kind, sessionId, name, pid, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Get a list of all active pseudo-terminal sessions
          * @summary List all PTY sessions
          * @param {*} [options] Override http request option.
@@ -1102,6 +1714,31 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
          */
         listSessions(options?: RawAxiosRequestConfig): AxiosPromise<Array<Session>> {
             return localVarFp.listSessions(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Return a page of log frames or stream log frames over Server-Sent Events when follow=true
+         * @summary Get process logs
+         * @param {string} id Process ID
+         * @param {string} [cursor] Resume cursor
+         * @param {number} [limit] Maximum number of frames to return
+         * @param {ReadProcessLogsEncodingEnum} [encoding] Frame encoding
+         * @param {boolean} [follow] Stream log frames over Server-Sent Events
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        readProcessLogs(id: string, cursor?: string, limit?: number, encoding?: ReadProcessLogsEncodingEnum, follow?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<ProcessLogPage> {
+            return localVarFp.readProcessLogs(id, cursor, limit, encoding, follow, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Resize the terminal geometry of a running kind=pty process
+         * @summary Resize a PTY process
+         * @param {string} id Process ID
+         * @param {ResizeProcessRequest} request Resize request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resizeProcess(id: string, request: ResizeProcessRequest, options?: RawAxiosRequestConfig): AxiosPromise<Process> {
+            return localVarFp.resizeProcess(id, request, options).then((request) => request(axios, basePath));
         },
         /**
          * Resize the terminal dimensions of a pseudo-terminal session
@@ -1127,6 +1764,17 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.sendInput(sessionId, commandId, request, options).then((request) => request(axios, basePath));
         },
         /**
+         * Write input to a running process and optionally close stdin
+         * @summary Send stdin to a process
+         * @param {string} id Process ID
+         * @param {ProcessStdinRequest} request Stdin request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendProcessStdin(id: string, request: ProcessStdinRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.sendProcessStdin(id, request, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Execute a command within an existing shell session
          * @summary Execute command in session
          * @param {string} sessionId Session ID
@@ -1137,6 +1785,28 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
         sessionExecuteCommand(sessionId: string, request: SessionExecuteRequest, options?: RawAxiosRequestConfig): AxiosPromise<SessionExecuteResponse> {
             return localVarFp.sessionExecuteCommand(sessionId, request, options).then((request) => request(axios, basePath));
         },
+        /**
+         * Send a signal to a running process and optionally escalate after a grace period
+         * @summary Signal a process
+         * @param {string} id Process ID
+         * @param {KillProcessRequest} request Signal request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        signalProcess(id: string, request: KillProcessRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.signalProcess(id, request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Wait for a process to reach terminal state or for the wait timeout to elapse
+         * @summary Wait for a process
+         * @param {string} id Process ID
+         * @param {number} [timeoutMs] Maximum wait time in milliseconds
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        waitForProcess(id: string, timeoutMs?: number, options?: RawAxiosRequestConfig): AxiosPromise<ProcessResult> {
+            return localVarFp.waitForProcess(id, timeoutMs, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -1144,6 +1814,28 @@ export const ProcessApiFactory = function (configuration?: Configuration, basePa
  * ProcessApi - object-oriented interface
  */
 export class ProcessApi extends BaseAPI {
+    /**
+     * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+     * @summary Attach to a PTY process
+     * @param {string} id Process ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public attachProcess(id: string, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).attachProcess(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Purge a terminal process record and its retained logs
+     * @summary Clean up a process
+     * @param {string} id Process ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public cleanupProcess(id: string, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).cleanupProcess(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * Execute Python, JavaScript, or TypeScript code and return output, exit code, and artifacts
      * @summary Execute code
@@ -1164,6 +1856,17 @@ export class ProcessApi extends BaseAPI {
      */
     public connectPtySession(sessionId: string, options?: RawAxiosRequestConfig) {
         return ProcessApiFp(this.configuration).connectPtySession(sessionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Create a unified process record and start supervising it
+     * @summary Create and start a process
+     * @param {CreateProcessRequest} request Process creation request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createProcess(request: CreateProcessRequest, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).createProcess(request, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1243,6 +1946,17 @@ export class ProcessApi extends BaseAPI {
     }
 
     /**
+     * Get a unified process record by its process id
+     * @summary Get process details
+     * @param {string} id Process ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getProcess(id: string, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).getProcess(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Get detailed information about a specific pseudo-terminal session
      * @summary Get PTY session information
      * @param {string} sessionId PTY session ID
@@ -1290,6 +2004,21 @@ export class ProcessApi extends BaseAPI {
     }
 
     /**
+     * List unified process records with optional state, kind, session, name, and pid filters
+     * @summary List processes
+     * @param {ListProcessesStateEnum} [state] Process state filter
+     * @param {ListProcessesKindEnum} [kind] Process kind filter
+     * @param {string} [sessionId] Session ID filter
+     * @param {string} [name] Process name filter
+     * @param {number} [pid] Process PID metadata filter
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listProcesses(state?: ListProcessesStateEnum, kind?: ListProcessesKindEnum, sessionId?: string, name?: string, pid?: number, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).listProcesses(state, kind, sessionId, name, pid, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Get a list of all active pseudo-terminal sessions
      * @summary List all PTY sessions
      * @param {*} [options] Override http request option.
@@ -1307,6 +2036,33 @@ export class ProcessApi extends BaseAPI {
      */
     public listSessions(options?: RawAxiosRequestConfig) {
         return ProcessApiFp(this.configuration).listSessions(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Return a page of log frames or stream log frames over Server-Sent Events when follow=true
+     * @summary Get process logs
+     * @param {string} id Process ID
+     * @param {string} [cursor] Resume cursor
+     * @param {number} [limit] Maximum number of frames to return
+     * @param {ReadProcessLogsEncodingEnum} [encoding] Frame encoding
+     * @param {boolean} [follow] Stream log frames over Server-Sent Events
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public readProcessLogs(id: string, cursor?: string, limit?: number, encoding?: ReadProcessLogsEncodingEnum, follow?: boolean, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).readProcessLogs(id, cursor, limit, encoding, follow, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Resize the terminal geometry of a running kind=pty process
+     * @summary Resize a PTY process
+     * @param {string} id Process ID
+     * @param {ResizeProcessRequest} request Resize request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public resizeProcess(id: string, request: ResizeProcessRequest, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).resizeProcess(id, request, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1335,6 +2091,18 @@ export class ProcessApi extends BaseAPI {
     }
 
     /**
+     * Write input to a running process and optionally close stdin
+     * @summary Send stdin to a process
+     * @param {string} id Process ID
+     * @param {ProcessStdinRequest} request Stdin request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public sendProcessStdin(id: string, request: ProcessStdinRequest, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).sendProcessStdin(id, request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Execute a command within an existing shell session
      * @summary Execute command in session
      * @param {string} sessionId Session ID
@@ -1345,5 +2113,55 @@ export class ProcessApi extends BaseAPI {
     public sessionExecuteCommand(sessionId: string, request: SessionExecuteRequest, options?: RawAxiosRequestConfig) {
         return ProcessApiFp(this.configuration).sessionExecuteCommand(sessionId, request, options).then((request) => request(this.axios, this.basePath));
     }
+
+    /**
+     * Send a signal to a running process and optionally escalate after a grace period
+     * @summary Signal a process
+     * @param {string} id Process ID
+     * @param {KillProcessRequest} request Signal request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public signalProcess(id: string, request: KillProcessRequest, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).signalProcess(id, request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Wait for a process to reach terminal state or for the wait timeout to elapse
+     * @summary Wait for a process
+     * @param {string} id Process ID
+     * @param {number} [timeoutMs] Maximum wait time in milliseconds
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public waitForProcess(id: string, timeoutMs?: number, options?: RawAxiosRequestConfig) {
+        return ProcessApiFp(this.configuration).waitForProcess(id, timeoutMs, options).then((request) => request(this.axios, this.basePath));
+    }
 }
 
+export const ListProcessesStateEnum = {
+    RUNNING: 'running',
+    TERMINAL: 'terminal',
+    ALL: 'all',
+    RUNNING2: 'running',
+    TERMINAL2: 'terminal',
+    ALL2: 'all',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+export type ListProcessesStateEnum = typeof ListProcessesStateEnum[keyof typeof ListProcessesStateEnum];
+export const ListProcessesKindEnum = {
+    EXEC: 'exec',
+    PTY: 'pty',
+    CODE: 'code',
+    EXEC2: 'exec',
+    PTY2: 'pty',
+    CODE2: 'code',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+export type ListProcessesKindEnum = typeof ListProcessesKindEnum[keyof typeof ListProcessesKindEnum];
+export const ReadProcessLogsEncodingEnum = {
+    TEXT: 'text',
+    BASE64: 'base64',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+export type ReadProcessLogsEncodingEnum = typeof ReadProcessLogsEncodingEnum[keyof typeof ReadProcessLogsEncodingEnum];

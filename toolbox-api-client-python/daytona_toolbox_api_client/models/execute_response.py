@@ -30,9 +30,10 @@ class ExecuteResponse(BaseModel):
     ExecuteResponse
     """ # noqa: E501
     exit_code: Optional[StrictInt] = Field(default=None, serialization_alias="exitCode")
+    process_id: Optional[StrictStr] = Field(default=None, serialization_alias="processId")
     result: StrictStr
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["exitCode", "result"]
+    __properties: ClassVar[List[str]] = ["exitCode", "processId", "result"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,6 +93,7 @@ class ExecuteResponse(BaseModel):
 
         _obj = cls.model_validate({
             "exit_code": obj.get("exitCode"),
+            "process_id": obj.get("processId"),
             "result": obj.get("result")
         })
         # store additional fields in additional_properties

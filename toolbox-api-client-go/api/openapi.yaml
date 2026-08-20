@@ -700,12 +700,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Service Unavailable
       summary: Start a new recording
       tags:
       - computer-use
@@ -777,12 +771,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
-        "409":
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Conflict
         "500":
           content:
             '*/*':
@@ -1146,6 +1134,18 @@ paths:
                   type: string
                 type: object
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Update process environment
       tags:
       - server
@@ -1292,13 +1292,16 @@ paths:
       operationId: UploadFiles
       responses:
         "200":
-          content: {}
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UploadFilesResponse"
           description: OK
         "400":
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/UploadFilesResponse"
           description: Bad Request
       summary: Upload multiple files
       tags:
@@ -2132,6 +2135,36 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Push changes to remote
       tags:
       - git
@@ -2209,36 +2242,6 @@ paths:
         "200":
           content: {}
           description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Bad Request
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Forbidden
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Conflict
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Internal Server Error
       summary: Restore files
       tags:
       - git
@@ -3373,6 +3376,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Conflict
+        "410":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Gone
         "500":
           content:
             application/json:
@@ -3383,6 +3392,526 @@ paths:
       tags:
       - process
       x-codegen-request-body-name: request
+  /processes:
+    get:
+      description: "List unified process records with optional state, kind, session,\
+        \ name, and pid filters"
+      operationId: ListProcesses
+      parameters:
+      - description: Process state filter
+        in: query
+        name: state
+        schema:
+          enum:
+          - running
+          - terminal
+          - all
+          - running
+          - terminal
+          - all
+          type: string
+      - description: Process kind filter
+        in: query
+        name: kind
+        schema:
+          enum:
+          - exec
+          - pty
+          - code
+          - exec
+          - pty
+          - code
+          type: string
+      - description: Session ID filter
+        in: query
+        name: sessionId
+        schema:
+          type: string
+      - description: Process name filter
+        in: query
+        name: name
+        schema:
+          type: string
+      - description: Process PID metadata filter
+        in: query
+        name: pid
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Process"
+                type: array
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: List processes
+      tags:
+      - process
+    post:
+      description: Create a unified process record and start supervising it
+      operationId: CreateProcess
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProcessRequest"
+        description: Process creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Process"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Create and start a process
+      tags:
+      - process
+      x-codegen-request-body-name: request
+  /processes/{id}:
+    delete:
+      description: Purge a terminal process record and its retained logs
+      operationId: CleanupProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          content: {}
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Clean up a process
+      tags:
+      - process
+    get:
+      description: Get a unified process record by its process id
+      operationId: GetProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Process"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Get process details
+      tags:
+      - process
+  /processes/{id}/attach:
+    get:
+      description: "Upgrade to WebSocket, forward client input to stdin, and stream\
+        \ PTY ledger frames to the socket"
+      operationId: AttachProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "101":
+          content: {}
+          description: Switching Protocols - WebSocket connection established
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Attach to a PTY process
+      tags:
+      - process
+  /processes/{id}/logs:
+    get:
+      description: Return a page of log frames or stream log frames over Server-Sent
+        Events when follow=true
+      operationId: ReadProcessLogs
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Resume cursor
+        in: query
+        name: cursor
+        schema:
+          type: string
+      - description: Maximum number of frames to return
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Frame encoding
+        in: query
+        name: encoding
+        schema:
+          enum:
+          - text
+          - base64
+          type: string
+      - description: Stream log frames over Server-Sent Events
+        in: query
+        name: follow
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessLogPage"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ProcessLogPage"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Get process logs
+      tags:
+      - process
+  /processes/{id}/resize:
+    post:
+      description: Resize the terminal geometry of a running kind=pty process
+      operationId: ResizeProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResizeProcessRequest"
+        description: Resize request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Process"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Resize a PTY process
+      tags:
+      - process
+      x-codegen-request-body-name: request
+  /processes/{id}/signals:
+    post:
+      description: Send a signal to a running process and optionally escalate after
+        a grace period
+      operationId: SignalProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KillProcessRequest"
+        description: Signal request
+        required: true
+      responses:
+        "204":
+          content: {}
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Signal a process
+      tags:
+      - process
+      x-codegen-request-body-name: request
+  /processes/{id}/stdin:
+    post:
+      description: Write input to a running process and optionally close stdin
+      operationId: SendProcessStdin
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProcessStdinRequest"
+        description: Stdin request
+        required: true
+      responses:
+        "204":
+          content: {}
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Send stdin to a process
+      tags:
+      - process
+      x-codegen-request-body-name: request
+  /processes/{id}/wait:
+    get:
+      description: Wait for a process to reach terminal state or for the wait timeout
+        to elapse
+      operationId: WaitForProcess
+      parameters:
+      - description: Process ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Maximum wait time in milliseconds
+        in: query
+        name: timeoutMs
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessResult"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Wait for a process
+      tags:
+      - process
   /system/metrics:
     get:
       description: |-
@@ -4195,6 +4724,63 @@ components:
         language:
           type: string
       type: object
+    CreateProcessRequest:
+      example:
+        stdin: none
+        kind: exec
+        sessionId: sessionId
+        terminal:
+          term: xterm-256color
+          rows: 24
+          cols: 80
+        env:
+          key: env
+        login: true
+        argv:
+        - argv
+        - argv
+        keepLogs: until_cleanup
+        shellCommand: echo hello
+        cwd: cwd
+        shell: auto
+        timeoutMs: 0
+        name: name
+        user: user
+      properties:
+        argv:
+          items:
+            type: string
+          type: array
+        cwd:
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          type: object
+        keepLogs:
+          $ref: "#/components/schemas/ProcessKeepLogs"
+        kind:
+          $ref: "#/components/schemas/ProcessKind"
+        login:
+          type: boolean
+        name:
+          type: string
+        sessionId:
+          type: string
+        shell:
+          $ref: "#/components/schemas/ProcessShellSelector"
+        shellCommand:
+          example: echo hello
+          type: string
+        stdin:
+          $ref: "#/components/schemas/ProcessStdinMode"
+        terminal:
+          $ref: "#/components/schemas/ProcessTerminalSize"
+        timeoutMs:
+          type: integer
+        user:
+          type: string
+      type: object
     CreateSessionRequest:
       example:
         sessionId: sessionId
@@ -4204,6 +4790,90 @@ components:
       required:
       - sessionId
       type: object
+    DaemonErrorCode:
+      enum:
+      - GIT_AUTH_FAILED
+      - GIT_REPO_NOT_FOUND
+      - GIT_BRANCH_NOT_FOUND
+      - GIT_BRANCH_EXISTS
+      - GIT_PUSH_REJECTED
+      - GIT_DIRTY_WORKTREE
+      - GIT_MERGE_CONFLICT
+      - GIT_TRANSPORT_FAILED
+      - GIT_REMOTE_REJECTED
+      - FILE_NOT_FOUND
+      - FILE_ACCESS_DENIED
+      - INVALID_FILE_PATH
+      - FILE_READ_FAILED
+      - LSP_SERVER_NOT_INITIALIZED
+      - PROCESS_EXECUTION_TIMEOUT
+      - PROCESS_NOT_FOUND
+      - PROCESS_START_FAILED
+      - SESSION_ENDED
+      - COMMAND_ALREADY_COMPLETED
+      - NAME_CONFLICT
+      - CURSOR_EXPIRED
+      - INVALID_CURSOR
+      - PROTECTED_PROCESS
+      - STDIN_CLOSED
+      - STDIN_UNAVAILABLE
+      - PROCESS_TERMINAL
+      - UNSUPPORTED_OPERATION
+      - A11Y_UNAVAILABLE
+      - RECORDING_STILL_ACTIVE
+      - RECORDING_FFMPEG_NOT_FOUND
+      - BAD_REQUEST
+      - INVALID_REQUEST_BODY
+      - UNAUTHORIZED
+      - FORBIDDEN
+      - NOT_FOUND
+      - CONFLICT
+      - REQUEST_TIMEOUT
+      - GONE
+      - UNPROCESSABLE_ENTITY
+      - INTERNAL_SERVER_ERROR
+      type: string
+      x-enum-varnames:
+      - CodeGitAuthFailed
+      - CodeGitRepoNotFound
+      - CodeGitBranchNotFound
+      - CodeGitBranchExists
+      - CodeGitPushRejected
+      - CodeGitDirtyWorktree
+      - CodeGitMergeConflict
+      - CodeGitTransportFailed
+      - CodeGitRemoteRejected
+      - CodeFileNotFound
+      - CodeFileAccessDenied
+      - CodeInvalidFilePath
+      - CodeFileReadFailed
+      - CodeLspServerNotInitialized
+      - CodeProcessExecutionTimeout
+      - CodeProcessNotFound
+      - CodeProcessStartFailed
+      - CodeSessionEnded
+      - CodeCommandAlreadyCompleted
+      - CodeNameConflict
+      - CodeCursorExpired
+      - CodeInvalidCursor
+      - CodeProtectedProcess
+      - CodeStdinClosed
+      - CodeStdinUnavailable
+      - CodeProcessTerminal
+      - CodeUnsupportedOperation
+      - CodeA11yUnavailable
+      - CodeRecordingStillActive
+      - CodeRecordingFfmpegNotFound
+      - CodeBadRequest
+      - CodeInvalidRequestBody
+      - CodeUnauthorized
+      - CodeForbidden
+      - CodeNotFound
+      - CodeConflict
+      - CodeRequestTimeout
+      - CodeGone
+      - CodeUnprocessableEntity
+      - CodeInternalServerError
     DisplayInfo:
       example:
         width: 1
@@ -4249,6 +4919,46 @@ components:
       type: object
     Empty:
       type: object
+    ErrorResponse:
+      description: Error response
+      example:
+        path: /api/resource
+        code: GIT_REPO_NOT_FOUND
+        method: GET
+        source: DAYTONA_DAEMON
+        message: Bad request
+        statusCode: 400
+        timestamp: 2023-01-01T12:00:00Z
+      properties:
+        code:
+          allOf:
+          - $ref: "#/components/schemas/DaemonErrorCode"
+          example: GIT_REPO_NOT_FOUND
+          type: object
+        message:
+          example: Bad request
+          type: string
+        method:
+          example: GET
+          type: string
+        path:
+          example: /api/resource
+          type: string
+        source:
+          example: DAYTONA_DAEMON
+          type: string
+        statusCode:
+          example: 400
+          type: integer
+        timestamp:
+          example: 2023-01-01T12:00:00Z
+          type: string
+      required:
+      - message
+      - path
+      - statusCode
+      - timestamp
+      type: object
     ExecuteRequest:
       example:
         cwd: cwd
@@ -4276,10 +4986,14 @@ components:
     ExecuteResponse:
       example:
         result: result
+        processId: prc_01hz6...
         exitCode: 0
       properties:
         exitCode:
           type: integer
+        processId:
+          example: prc_01hz6...
+          type: string
         result:
           type: string
       required:
@@ -4901,6 +5615,26 @@ components:
         text:
           type: string
       type: object
+    KillProcessRequest:
+      example:
+        escalateAfterMs: 2000
+        escalateTo: SIGKILL
+        signal: SIGTERM
+      properties:
+        escalateAfterMs:
+          description: |-
+            EscalateAfterMs escalates to EscalateTo if the process is still alive after
+            the grace period. This is what makes kill() honest for TERM-trapping
+            processes: the trap runs and is captured, and the process still dies.
+          example: 2000
+          type: integer
+        escalateTo:
+          example: SIGKILL
+          type: string
+        signal:
+          example: SIGTERM
+          type: string
+      type: object
     ListBranchResponse:
       example:
         current: current
@@ -5246,6 +5980,129 @@ components:
         "y":
           type: integer
       type: object
+    Process:
+      example:
+        reason: exited
+        stdin: none
+        startedAt: startedAt
+        pid: 1234
+        login: false
+        argv:
+        - argv
+        - argv
+        keepLogs: until_cleanup
+        firstAvailableCursor: firstAvailableCursor
+        shellCommand: echo hi
+        createdAt: createdAt
+        exitedAt: exitedAt
+        lastCursor: lastCursor
+        exitCode: 0
+        truncatedHead: false
+        id: prc_01HZ6...
+        state: running
+        signal: SIGTERM
+        kind: exec
+        sessionId: sessionId
+        terminal:
+          term: xterm-256color
+          rows: 24
+          cols: 80
+        env:
+          key: env
+        cwd: /home/daytona
+        resolvedShell: /bin/sh
+        system: false
+        shell: "{}"
+        timeoutMs: 30000
+        name: build
+        user: user
+      properties:
+        argv:
+          items:
+            type: string
+          type: array
+        createdAt:
+          type: string
+        cwd:
+          example: /home/daytona
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          type: object
+        exitCode:
+          example: 0
+          type: integer
+        exitedAt:
+          type: string
+        firstAvailableCursor:
+          type: string
+        id:
+          example: prc_01HZ6...
+          type: string
+        keepLogs:
+          $ref: "#/components/schemas/ProcessKeepLogs"
+        kind:
+          $ref: "#/components/schemas/ProcessKind"
+        lastCursor:
+          type: string
+        login:
+          example: false
+          type: boolean
+        name:
+          example: build
+          type: string
+        pid:
+          description: Pid of the supervised process. Metadata only.
+          example: 1234
+          type: integer
+        reason:
+          $ref: "#/components/schemas/ProcessTerminalReason"
+        resolvedShell:
+          example: /bin/sh
+          type: string
+        sessionId:
+          type: string
+        shell:
+          allOf:
+          - $ref: "#/components/schemas/ProcessShellSelector"
+          description: |-
+            Shell is the requested selector; ResolvedShell is the absolute path the
+            daemon actually executed. Exposing the resolved path is what makes shell
+            selection auditable instead of guesswork.
+          type: object
+        shellCommand:
+          example: echo hi
+          type: string
+        signal:
+          example: SIGTERM
+          type: string
+        startedAt:
+          type: string
+        state:
+          $ref: "#/components/schemas/ProcessState"
+        stdin:
+          $ref: "#/components/schemas/ProcessStdinMode"
+        system:
+          example: false
+          type: boolean
+        terminal:
+          $ref: "#/components/schemas/ProcessTerminalSize"
+        timeoutMs:
+          example: 30000
+          type: integer
+        truncatedHead:
+          description: "Ledger state, refreshed on read."
+          example: false
+          type: boolean
+        user:
+          type: string
+      required:
+      - createdAt
+      - id
+      - kind
+      - state
+      type: object
     ProcessErrorsResponse:
       example:
         processName: processName
@@ -5255,6 +6112,114 @@ components:
           type: string
         processName:
           type: string
+      type: object
+    ProcessKeepLogs:
+      enum:
+      - until_cleanup
+      - on_exit_ttl
+      - none
+      type: string
+      x-enum-varnames:
+      - KeepLogsUntilCleanup
+      - KeepLogsOnExitTTL
+      - KeepLogsNone
+    ProcessKind:
+      enum:
+      - exec
+      - pty
+      - code
+      type: string
+      x-enum-varnames:
+      - KindExec
+      - KindPty
+      - KindCode
+    ProcessLogChannel:
+      enum:
+      - stdout
+      - stderr
+      - pty
+      - system
+      type: string
+      x-enum-varnames:
+      - ChannelStdout
+      - ChannelStderr
+      - ChannelPty
+      - ChannelSystem
+    ProcessLogFrame:
+      example:
+        cursor: cursor
+        data: data
+        channel: stdout
+        encoding: text
+        seq: 12
+        timestamp: timestamp
+      properties:
+        channel:
+          $ref: "#/components/schemas/ProcessLogChannel"
+        cursor:
+          type: string
+        data:
+          description: "Data is UTF-8 text when encoding=text, base64 when encoding=base64."
+          type: string
+        encoding:
+          example: text
+          type: string
+        seq:
+          example: 12
+          type: integer
+        timestamp:
+          type: string
+      required:
+      - channel
+      - cursor
+      - seq
+      - timestamp
+      type: object
+    ProcessLogPage:
+      example:
+        firstAvailableCursor: firstAvailableCursor
+        nextCursor: nextCursor
+        frames:
+        - cursor: cursor
+          data: data
+          channel: stdout
+          encoding: text
+          seq: 12
+          timestamp: timestamp
+        - cursor: cursor
+          data: data
+          channel: stdout
+          encoding: text
+          seq: 12
+          timestamp: timestamp
+        truncatedHead: false
+        eof: false
+      properties:
+        eof:
+          description: |-
+            EOF is true when the process is terminal and every retained frame has been
+            returned.
+          example: false
+          type: boolean
+        firstAvailableCursor:
+          type: string
+        frames:
+          items:
+            $ref: "#/components/schemas/ProcessLogFrame"
+          type: array
+        nextCursor:
+          description: |-
+            NextCursor resumes strictly after the last returned frame. It is set even
+            when Frames is empty so pollers can keep a stable position.
+          type: string
+        truncatedHead:
+          description: |-
+            TruncatedHead reports that the oldest frames of this process were evicted
+            under a byte cap. Never silently skip: this is the honest signal.
+          example: false
+          type: boolean
+      required:
+      - frames
       type: object
     ProcessLogsResponse:
       example:
@@ -5276,6 +6241,42 @@ components:
         processName:
           type: string
       type: object
+    ProcessResult:
+      example:
+        reason: exited
+        exitCode: 0
+        signal: signal
+      properties:
+        exitCode:
+          example: 0
+          type: integer
+        reason:
+          $ref: "#/components/schemas/ProcessTerminalReason"
+        signal:
+          type: string
+      required:
+      - reason
+      type: object
+    ProcessShellSelector:
+      enum:
+      - auto
+      - sh
+      - bash
+      - zsh
+      type: string
+      x-enum-varnames:
+      - ShellAuto
+      - ShellSh
+      - ShellBash
+      - ShellZsh
+    ProcessState:
+      enum:
+      - running
+      - terminal
+      type: string
+      x-enum-varnames:
+      - StateRunning
+      - StateTerminal
     ProcessStatus:
       example:
         autoRestart: true
@@ -5301,6 +6302,54 @@ components:
           type: string
         running:
           type: boolean
+      type: object
+    ProcessStdinMode:
+      enum:
+      - none
+      - pipe
+      type: string
+      x-enum-varnames:
+      - StdinNone
+      - StdinPipe
+    ProcessStdinRequest:
+      example:
+        data: data
+        eof: true
+      properties:
+        data:
+          type: string
+        eof:
+          type: boolean
+      type: object
+    ProcessTerminalReason:
+      enum:
+      - exited
+      - signaled
+      - timed_out
+      - sandbox_stopped
+      - failed
+      type: string
+      x-enum-varnames:
+      - ReasonExited
+      - ReasonSignaled
+      - ReasonTimedOut
+      - ReasonSandboxStopped
+      - ReasonFailed
+    ProcessTerminalSize:
+      example:
+        term: xterm-256color
+        rows: 24
+        cols: 80
+      properties:
+        cols:
+          example: 80
+          type: integer
+        rows:
+          example: 24
+          type: integer
+        term:
+          example: xterm-256color
+          type: string
       type: object
     PtyCreateRequest:
       example:
@@ -5491,6 +6540,21 @@ components:
           type: string
         success:
           type: boolean
+      type: object
+    ResizeProcessRequest:
+      example:
+        rows: 24
+        cols: 80
+      properties:
+        cols:
+          example: 80
+          type: integer
+        rows:
+          example: 24
+          type: integer
+      required:
+      - cols
+      - rows
       type: object
     ScreenshotResponse:
       example:
@@ -5719,6 +6783,26 @@ components:
             secret placeholder vars without the caller knowing the daemon's env.
           type: string
       type: object
+    UploadFilesResponse:
+      example:
+        files:
+        - path: path
+          bytes: 0
+        - path: path
+          bytes: 0
+        errors:
+        - errors
+        - errors
+      properties:
+        errors:
+          items:
+            type: string
+          type: array
+        files:
+          items:
+            $ref: "#/components/schemas/fs.fileResult"
+          type: array
+      type: object
     UploadedFile:
       example:
         path: path
@@ -5846,111 +6930,19 @@ components:
             type: string
           type: array
       type: object
+    fs.fileResult:
+      example:
+        path: path
+        bytes: 0
+      properties:
+        bytes:
+          type: integer
+        path:
+          type: string
+      type: object
     gin.H:
       additionalProperties:
         type: object
-      type: object
-    DaemonErrorCode:
-      enum:
-      - GIT_AUTH_FAILED
-      - GIT_REPO_NOT_FOUND
-      - GIT_BRANCH_NOT_FOUND
-      - GIT_BRANCH_EXISTS
-      - GIT_PUSH_REJECTED
-      - GIT_DIRTY_WORKTREE
-      - GIT_MERGE_CONFLICT
-      - GIT_TRANSPORT_FAILED
-      - GIT_REMOTE_REJECTED
-      - FILE_NOT_FOUND
-      - FILE_ACCESS_DENIED
-      - LSP_SERVER_NOT_INITIALIZED
-      - PROCESS_EXECUTION_TIMEOUT
-      - PROCESS_NOT_FOUND
-      - SESSION_ENDED
-      - COMMAND_ALREADY_COMPLETED
-      - A11Y_UNAVAILABLE
-      - RECORDING_STILL_ACTIVE
-      - RECORDING_FFMPEG_NOT_FOUND
-      - BAD_REQUEST
-      - INVALID_REQUEST_BODY
-      - UNAUTHORIZED
-      - FORBIDDEN
-      - NOT_FOUND
-      - CONFLICT
-      - REQUEST_TIMEOUT
-      - GONE
-      - UNPROCESSABLE_ENTITY
-      - INTERNAL_SERVER_ERROR
-      type: string
-      x-enum-varnames:
-      - CodeGitAuthFailed
-      - CodeGitRepoNotFound
-      - CodeGitBranchNotFound
-      - CodeGitBranchExists
-      - CodeGitPushRejected
-      - CodeGitDirtyWorktree
-      - CodeGitMergeConflict
-      - CodeGitTransportFailed
-      - CodeGitRemoteRejected
-      - CodeFileNotFound
-      - CodeFileAccessDenied
-      - CodeLspServerNotInitialized
-      - CodeProcessExecutionTimeout
-      - CodeProcessNotFound
-      - CodeSessionEnded
-      - CodeCommandAlreadyCompleted
-      - CodeA11yUnavailable
-      - CodeRecordingStillActive
-      - CodeRecordingFfmpegNotFound
-      - CodeBadRequest
-      - CodeInvalidRequestBody
-      - CodeUnauthorized
-      - CodeForbidden
-      - CodeNotFound
-      - CodeConflict
-      - CodeRequestTimeout
-      - CodeGone
-      - CodeUnprocessableEntity
-      - CodeInternalServerError
-    ErrorResponse:
-      description: Error response
-      example:
-        path: /api/resource
-        code: GIT_REPO_NOT_FOUND
-        method: GET
-        source: DAYTONA_DAEMON
-        message: Bad request
-        statusCode: 400
-        timestamp: 2023-01-01T12:00:00Z
-      properties:
-        code:
-          allOf:
-          - $ref: "#/components/schemas/DaemonErrorCode"
-          example: GIT_REPO_NOT_FOUND
-          type: object
-        message:
-          example: Bad request
-          type: string
-        method:
-          example: GET
-          type: string
-        path:
-          example: /api/resource
-          type: string
-        source:
-          example: DAYTONA_DAEMON
-          type: string
-        statusCode:
-          example: 400
-          type: integer
-        timestamp:
-          example: 2023-01-01T12:00:00Z
-          type: string
-      required:
-      - message
-      - path
-      - statusCode
-      - timestamp
       type: object
     UploadFile_request:
       properties:

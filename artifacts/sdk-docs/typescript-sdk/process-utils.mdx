@@ -1,0 +1,300 @@
+---
+title: "ProcessUtils"
+hideTitleOnPage: true
+---
+
+
+## buildCreateProcessRequest()
+
+```ts
+function buildCreateProcessRequest(options: ProcessStartOptions): CreateProcessRequest;
+```
+
+**Parameters**:
+
+- `options` _ProcessStartOptions_
+
+
+**Returns**:
+
+- `CreateProcessRequest`
+
+***
+
+
+## buildStreamingHeaders()
+
+```ts
+function buildStreamingHeaders(baseHeaders: Record<string, string>, accept: string): Record<string, string>;
+```
+
+**Parameters**:
+
+- `baseHeaders` _Record\<string, string\>_
+- `accept` _string_
+
+
+### Returns
+
+`Record`\<`string`, `string`\>
+
+***
+
+
+## createFetchDaytonaError()
+
+```ts
+function createFetchDaytonaError(error: unknown): DaytonaError;
+```
+
+**Parameters**:
+
+- `error` _unknown_
+
+
+**Returns**:
+
+- `DaytonaError`
+
+***
+
+
+## createFetchResponseError()
+
+```ts
+function createFetchResponseError(response: Response): Promise<DaytonaError>;
+```
+
+**Parameters**:
+
+- `response` _Response_
+
+
+**Returns**:
+
+- `Promise<DaytonaError>`
+
+***
+
+
+## encodeStdinPayload()
+
+```ts
+function encodeStdinPayload(data: string | Uint8Array<ArrayBufferLike>): string;
+```
+
+**Parameters**:
+
+- `data` _string \| Uint8Array\<ArrayBufferLike\>_
+
+
+**Returns**:
+
+- `string`
+
+***
+
+
+## extractSseSegments()
+
+```ts
+function extractSseSegments(input: string): {
+  events: {
+     data: string;
+     event: string;
+  }[];
+  remainder: string;
+};
+```
+
+**Parameters**:
+
+- `input` _string_
+
+
+### Returns
+
+```ts
+{
+  events: {
+     data: string;
+     event: string;
+  }[];
+  remainder: string;
+}
+```
+
+#### events
+
+```ts
+events: {
+  data: string;
+  event: string;
+}[];
+```
+
+#### remainder
+
+```ts
+remainder: string;
+```
+
+***
+
+
+## normalizeHeaders()
+
+```ts
+function normalizeHeaders(headers: unknown): Record<string, string>;
+```
+
+**Parameters**:
+
+- `headers` _unknown_
+
+
+### Returns
+
+`Record`\<`string`, `string`\>
+
+***
+
+
+## normalizeIdentifier()
+
+```ts
+function normalizeIdentifier(value: string, fieldName: string): string;
+```
+
+**Parameters**:
+
+- `value` _string_
+- `fieldName` _string_
+
+
+**Returns**:
+
+- `string`
+
+***
+
+
+## normalizeOptionalString()
+
+```ts
+function normalizeOptionalString(value: string): string;
+```
+
+**Parameters**:
+
+- `value` _string_
+
+
+**Returns**:
+
+- `string`
+
+***
+
+
+## normalizeSignal()
+
+```ts
+function normalizeSignal(value: string): string;
+```
+
+**Parameters**:
+
+- `value` _string_
+
+
+**Returns**:
+
+- `string`
+
+***
+
+
+## requiresPreviewToken()
+
+```ts
+function requiresPreviewToken(): boolean;
+```
+
+**Returns**:
+
+- `boolean`
+
+***
+
+
+## validateKillOptions()
+
+```ts
+function validateKillOptions(options?: ProcessKillOptions): void;
+```
+
+**Parameters**:
+
+- `options?` _ProcessKillOptions_
+
+
+**Returns**:
+
+- `void`
+
+***
+
+
+## validateProcessStartOptions()
+
+```ts
+function validateProcessStartOptions(options: ProcessStartOptions): void;
+```
+
+**Parameters**:
+
+- `options` _ProcessStartOptions_
+
+
+**Returns**:
+
+- `void`
+
+***
+
+
+## validateTerminalDimension()
+
+```ts
+function validateTerminalDimension(value: number, fieldName: string): void;
+```
+
+**Parameters**:
+
+- `value` _number_
+- `fieldName` _string_
+
+
+**Returns**:
+
+- `void`
+
+***
+
+
+## validateWaitTimeout()
+
+```ts
+function validateWaitTimeout(timeoutMs: number): void;
+```
+
+**Parameters**:
+
+- `timeoutMs` _number_
+
+
+**Returns**:
+
+- `void`
+

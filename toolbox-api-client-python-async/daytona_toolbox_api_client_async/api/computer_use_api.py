@@ -404,7 +404,6 @@ class ComputerUseApi:
             '204': None,
             '400': "ErrorResponse",
             '404': "ErrorResponse",
-            '409': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
@@ -475,7 +474,6 @@ class ComputerUseApi:
             '204': None,
             '400': "ErrorResponse",
             '404': "ErrorResponse",
-            '409': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
@@ -546,7 +544,6 @@ class ComputerUseApi:
             '204': None,
             '400': "ErrorResponse",
             '404': "ErrorResponse",
-            '409': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
@@ -6827,7 +6824,6 @@ class ComputerUseApi:
             '201': "Recording",
             '400': "ErrorResponse",
             '500': "ErrorResponse",
-            '503': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -6897,7 +6893,6 @@ class ComputerUseApi:
             '201': "Recording",
             '400': "ErrorResponse",
             '500': "ErrorResponse",
-            '503': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -6967,7 +6962,6 @@ class ComputerUseApi:
             '201': "Recording",
             '400': "ErrorResponse",
             '500': "ErrorResponse",
-            '503': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,

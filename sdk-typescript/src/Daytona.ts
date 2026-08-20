@@ -27,6 +27,7 @@ import {
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { Image } from './Image'
+import type { ProcessHandle } from './ProcessHandle'
 import { Sandbox } from './Sandbox'
 import type { ListSandboxesQuery } from './Sandbox'
 import { SecretService } from './Secret'

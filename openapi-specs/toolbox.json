@@ -821,12 +821,6 @@
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
           }
         }
       }
@@ -947,12 +941,6 @@
           },
           "404": {
             "description": "Not Found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -1334,6 +1322,18 @@
                 "type": "string"
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -1496,12 +1496,15 @@
         "operationId": "UploadFiles",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/UploadFilesResponse"
+            }
           },
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/ErrorResponse"
+              "$ref": "#/definitions/UploadFilesResponse"
             }
           }
         }
@@ -2484,6 +2487,36 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -2586,36 +2619,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
           }
         }
       }
@@ -3565,7 +3568,7 @@
     },
     "/process/session/entrypoint/logs": {
       "get": {
-        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK >= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get entrypoint logs",
@@ -3786,7 +3789,7 @@
     },
     "/process/session/{sessionId}/command/{commandId}/logs": {
       "get": {
-        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK >= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get session command logs",
@@ -3900,6 +3903,563 @@
           },
           "409": {
             "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "410": {
+            "description": "Gone",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes": {
+      "get": {
+        "description": "List unified process records with optional state, kind, session, name, and pid filters",
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "List processes",
+        "operationId": "ListProcesses",
+        "parameters": [
+          {
+            "enum": ["running", "terminal", "all", "running", "terminal", "all"],
+            "type": "string",
+            "description": "Process state filter",
+            "name": "state",
+            "in": "query"
+          },
+          {
+            "enum": ["exec", "pty", "code", "exec", "pty", "code"],
+            "type": "string",
+            "description": "Process kind filter",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Session ID filter",
+            "name": "sessionId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Process name filter",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Process PID metadata filter",
+            "name": "pid",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Process"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Create a unified process record and start supervising it",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Create and start a process",
+        "operationId": "CreateProcess",
+        "parameters": [
+          {
+            "description": "Process creation request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateProcessRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/Process"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}": {
+      "get": {
+        "description": "Get a unified process record by its process id",
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Get process details",
+        "operationId": "GetProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/Process"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Purge a terminal process record and its retained logs",
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Clean up a process",
+        "operationId": "CleanupProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/attach": {
+      "get": {
+        "description": "Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket",
+        "tags": ["process"],
+        "summary": "Attach to a PTY process",
+        "operationId": "AttachProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols - WebSocket connection established"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/logs": {
+      "get": {
+        "description": "Return a page of log frames or stream log frames over Server-Sent Events when follow=true",
+        "produces": ["application/json", "text/event-stream"],
+        "tags": ["process"],
+        "summary": "Get process logs",
+        "operationId": "ReadProcessLogs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Resume cursor",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Maximum number of frames to return",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "enum": ["text", "base64"],
+            "type": "string",
+            "description": "Frame encoding",
+            "name": "encoding",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Stream log frames over Server-Sent Events",
+            "name": "follow",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ProcessLogPage"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/resize": {
+      "post": {
+        "description": "Resize the terminal geometry of a running kind=pty process",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Resize a PTY process",
+        "operationId": "ResizeProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Resize request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ResizeProcessRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/Process"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/signals": {
+      "post": {
+        "description": "Send a signal to a running process and optionally escalate after a grace period",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Signal a process",
+        "operationId": "SignalProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Signal request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/KillProcessRequest"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/stdin": {
+      "post": {
+        "description": "Write input to a running process and optionally close stdin",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Send stdin to a process",
+        "operationId": "SendProcessStdin",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Stdin request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ProcessStdinRequest"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/processes/{id}/wait": {
+      "get": {
+        "description": "Wait for a process to reach terminal state or for the wait timeout to elapse",
+        "produces": ["application/json"],
+        "tags": ["process"],
+        "summary": "Wait for a process",
+        "operationId": "WaitForProcess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Process ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "Maximum wait time in milliseconds",
+            "name": "timeoutMs",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ProcessResult"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -4349,6 +4909,60 @@
         }
       }
     },
+    "CreateProcessRequest": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "keepLogs": {
+          "$ref": "#/definitions/ProcessKeepLogs"
+        },
+        "kind": {
+          "$ref": "#/definitions/ProcessKind"
+        },
+        "login": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "shell": {
+          "$ref": "#/definitions/ProcessShellSelector"
+        },
+        "shellCommand": {
+          "type": "string",
+          "example": "echo hello"
+        },
+        "stdin": {
+          "$ref": "#/definitions/ProcessStdinMode"
+        },
+        "terminal": {
+          "$ref": "#/definitions/ProcessTerminalSize"
+        },
+        "timeoutMs": {
+          "type": "integer"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
     "CreateSessionRequest": {
       "type": "object",
       "required": ["sessionId"],
@@ -4357,6 +4971,93 @@
           "type": "string"
         }
       }
+    },
+    "DaemonErrorCode": {
+      "type": "string",
+      "enum": [
+        "GIT_AUTH_FAILED",
+        "GIT_REPO_NOT_FOUND",
+        "GIT_BRANCH_NOT_FOUND",
+        "GIT_BRANCH_EXISTS",
+        "GIT_PUSH_REJECTED",
+        "GIT_DIRTY_WORKTREE",
+        "GIT_MERGE_CONFLICT",
+        "GIT_TRANSPORT_FAILED",
+        "GIT_REMOTE_REJECTED",
+        "FILE_NOT_FOUND",
+        "FILE_ACCESS_DENIED",
+        "INVALID_FILE_PATH",
+        "FILE_READ_FAILED",
+        "LSP_SERVER_NOT_INITIALIZED",
+        "PROCESS_EXECUTION_TIMEOUT",
+        "PROCESS_NOT_FOUND",
+        "PROCESS_START_FAILED",
+        "SESSION_ENDED",
+        "COMMAND_ALREADY_COMPLETED",
+        "NAME_CONFLICT",
+        "CURSOR_EXPIRED",
+        "INVALID_CURSOR",
+        "PROTECTED_PROCESS",
+        "STDIN_CLOSED",
+        "STDIN_UNAVAILABLE",
+        "PROCESS_TERMINAL",
+        "UNSUPPORTED_OPERATION",
+        "A11Y_UNAVAILABLE",
+        "RECORDING_STILL_ACTIVE",
+        "RECORDING_FFMPEG_NOT_FOUND",
+        "BAD_REQUEST",
+        "INVALID_REQUEST_BODY",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "CONFLICT",
+        "REQUEST_TIMEOUT",
+        "GONE",
+        "UNPROCESSABLE_ENTITY",
+        "INTERNAL_SERVER_ERROR"
+      ],
+      "x-enum-varnames": [
+        "CodeGitAuthFailed",
+        "CodeGitRepoNotFound",
+        "CodeGitBranchNotFound",
+        "CodeGitBranchExists",
+        "CodeGitPushRejected",
+        "CodeGitDirtyWorktree",
+        "CodeGitMergeConflict",
+        "CodeGitTransportFailed",
+        "CodeGitRemoteRejected",
+        "CodeFileNotFound",
+        "CodeFileAccessDenied",
+        "CodeInvalidFilePath",
+        "CodeFileReadFailed",
+        "CodeLspServerNotInitialized",
+        "CodeProcessExecutionTimeout",
+        "CodeProcessNotFound",
+        "CodeProcessStartFailed",
+        "CodeSessionEnded",
+        "CodeCommandAlreadyCompleted",
+        "CodeNameConflict",
+        "CodeCursorExpired",
+        "CodeInvalidCursor",
+        "CodeProtectedProcess",
+        "CodeStdinClosed",
+        "CodeStdinUnavailable",
+        "CodeProcessTerminal",
+        "CodeUnsupportedOperation",
+        "CodeA11yUnavailable",
+        "CodeRecordingStillActive",
+        "CodeRecordingFfmpegNotFound",
+        "CodeBadRequest",
+        "CodeInvalidRequestBody",
+        "CodeUnauthorized",
+        "CodeForbidden",
+        "CodeNotFound",
+        "CodeConflict",
+        "CodeRequestTimeout",
+        "CodeGone",
+        "CodeUnprocessableEntity",
+        "CodeInternalServerError"
+      ]
     },
     "DisplayInfo": {
       "type": "object",
@@ -4395,6 +5096,45 @@
     "Empty": {
       "type": "object"
     },
+    "ErrorResponse": {
+      "description": "Error response",
+      "type": "object",
+      "required": ["message", "path", "statusCode", "timestamp"],
+      "properties": {
+        "code": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DaemonErrorCode"
+            }
+          ],
+          "example": "GIT_REPO_NOT_FOUND"
+        },
+        "message": {
+          "type": "string",
+          "example": "Bad request"
+        },
+        "method": {
+          "type": "string",
+          "example": "GET"
+        },
+        "path": {
+          "type": "string",
+          "example": "/api/resource"
+        },
+        "source": {
+          "type": "string",
+          "example": "DAYTONA_DAEMON"
+        },
+        "statusCode": {
+          "type": "integer",
+          "example": 400
+        },
+        "timestamp": {
+          "type": "string",
+          "example": "2023-01-01T12:00:00Z"
+        }
+      }
+    },
     "ExecuteRequest": {
       "type": "object",
       "required": ["command"],
@@ -4425,6 +5165,10 @@
       "properties": {
         "exitCode": {
           "type": "integer"
+        },
+        "processId": {
+          "type": "string",
+          "example": "prc_01hz6..."
         },
         "result": {
           "type": "string"
@@ -4992,6 +5736,24 @@
         }
       }
     },
+    "KillProcessRequest": {
+      "type": "object",
+      "properties": {
+        "escalateAfterMs": {
+          "description": "EscalateAfterMs escalates to EscalateTo if the process is still alive after\nthe grace period. This is what makes kill() honest for TERM-trapping\nprocesses: the trap runs and is captured, and the process still dies.",
+          "type": "integer",
+          "example": 2000
+        },
+        "escalateTo": {
+          "type": "string",
+          "example": "SIGKILL"
+        },
+        "signal": {
+          "type": "string",
+          "example": "SIGTERM"
+        }
+      }
+    },
     "ListBranchResponse": {
       "type": "object",
       "required": ["branches"],
@@ -5282,6 +6044,121 @@
         }
       }
     },
+    "Process": {
+      "type": "object",
+      "required": ["createdAt", "id", "kind", "state"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string",
+          "example": "/home/daytona"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "exitCode": {
+          "type": "integer",
+          "example": 0
+        },
+        "exitedAt": {
+          "type": "string"
+        },
+        "firstAvailableCursor": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "example": "prc_01HZ6..."
+        },
+        "keepLogs": {
+          "$ref": "#/definitions/ProcessKeepLogs"
+        },
+        "kind": {
+          "$ref": "#/definitions/ProcessKind"
+        },
+        "lastCursor": {
+          "type": "string"
+        },
+        "login": {
+          "type": "boolean",
+          "example": false
+        },
+        "name": {
+          "type": "string",
+          "example": "build"
+        },
+        "pid": {
+          "description": "Pid of the supervised process. Metadata only.",
+          "type": "integer",
+          "example": 1234
+        },
+        "reason": {
+          "$ref": "#/definitions/ProcessTerminalReason"
+        },
+        "resolvedShell": {
+          "type": "string",
+          "example": "/bin/sh"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "shell": {
+          "description": "Shell is the requested selector; ResolvedShell is the absolute path the\ndaemon actually executed. Exposing the resolved path is what makes shell\nselection auditable instead of guesswork.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProcessShellSelector"
+            }
+          ]
+        },
+        "shellCommand": {
+          "type": "string",
+          "example": "echo hi"
+        },
+        "signal": {
+          "type": "string",
+          "example": "SIGTERM"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/ProcessState"
+        },
+        "stdin": {
+          "$ref": "#/definitions/ProcessStdinMode"
+        },
+        "system": {
+          "type": "boolean",
+          "example": false
+        },
+        "terminal": {
+          "$ref": "#/definitions/ProcessTerminalSize"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "example": 30000
+        },
+        "truncatedHead": {
+          "description": "Ledger state, refreshed on read.",
+          "type": "boolean",
+          "example": false
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
     "ProcessErrorsResponse": {
       "type": "object",
       "properties": {
@@ -5290,6 +6167,77 @@
         },
         "processName": {
           "type": "string"
+        }
+      }
+    },
+    "ProcessKeepLogs": {
+      "type": "string",
+      "enum": ["until_cleanup", "on_exit_ttl", "none"],
+      "x-enum-varnames": ["KeepLogsUntilCleanup", "KeepLogsOnExitTTL", "KeepLogsNone"]
+    },
+    "ProcessKind": {
+      "type": "string",
+      "enum": ["exec", "pty", "code"],
+      "x-enum-varnames": ["KindExec", "KindPty", "KindCode"]
+    },
+    "ProcessLogChannel": {
+      "type": "string",
+      "enum": ["stdout", "stderr", "pty", "system"],
+      "x-enum-varnames": ["ChannelStdout", "ChannelStderr", "ChannelPty", "ChannelSystem"]
+    },
+    "ProcessLogFrame": {
+      "type": "object",
+      "required": ["channel", "cursor", "seq", "timestamp"],
+      "properties": {
+        "channel": {
+          "$ref": "#/definitions/ProcessLogChannel"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "data": {
+          "description": "Data is UTF-8 text when encoding=text, base64 when encoding=base64.",
+          "type": "string"
+        },
+        "encoding": {
+          "type": "string",
+          "example": "text"
+        },
+        "seq": {
+          "type": "integer",
+          "example": 12
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      }
+    },
+    "ProcessLogPage": {
+      "type": "object",
+      "required": ["frames"],
+      "properties": {
+        "eof": {
+          "description": "EOF is true when the process is terminal and every retained frame has been\nreturned.",
+          "type": "boolean",
+          "example": false
+        },
+        "firstAvailableCursor": {
+          "type": "string"
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProcessLogFrame"
+          }
+        },
+        "nextCursor": {
+          "description": "NextCursor resumes strictly after the last returned frame. It is set even\nwhen Frames is empty so pollers can keep a stable position.",
+          "type": "string"
+        },
+        "truncatedHead": {
+          "description": "TruncatedHead reports that the oldest frames of this process were evicted\nunder a byte cap. Never silently skip: this is the honest signal.",
+          "type": "boolean",
+          "example": false
         }
       }
     },
@@ -5314,6 +6262,32 @@
           "type": "string"
         }
       }
+    },
+    "ProcessResult": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "exitCode": {
+          "type": "integer",
+          "example": 0
+        },
+        "reason": {
+          "$ref": "#/definitions/ProcessTerminalReason"
+        },
+        "signal": {
+          "type": "string"
+        }
+      }
+    },
+    "ProcessShellSelector": {
+      "type": "string",
+      "enum": ["auto", "sh", "bash", "zsh"],
+      "x-enum-varnames": ["ShellAuto", "ShellSh", "ShellBash", "ShellZsh"]
+    },
+    "ProcessState": {
+      "type": "string",
+      "enum": ["running", "terminal"],
+      "x-enum-varnames": ["StateRunning", "StateTerminal"]
     },
     "ProcessStatus": {
       "type": "object",
@@ -5340,6 +6314,44 @@
         },
         "running": {
           "type": "boolean"
+        }
+      }
+    },
+    "ProcessStdinMode": {
+      "type": "string",
+      "enum": ["none", "pipe"],
+      "x-enum-varnames": ["StdinNone", "StdinPipe"]
+    },
+    "ProcessStdinRequest": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "eof": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ProcessTerminalReason": {
+      "type": "string",
+      "enum": ["exited", "signaled", "timed_out", "sandbox_stopped", "failed"],
+      "x-enum-varnames": ["ReasonExited", "ReasonSignaled", "ReasonTimedOut", "ReasonSandboxStopped", "ReasonFailed"]
+    },
+    "ProcessTerminalSize": {
+      "type": "object",
+      "properties": {
+        "cols": {
+          "type": "integer",
+          "example": 80
+        },
+        "rows": {
+          "type": "integer",
+          "example": 24
+        },
+        "term": {
+          "type": "string",
+          "example": "xterm-256color"
         }
       }
     },
@@ -5500,6 +6512,20 @@
         },
         "success": {
           "type": "boolean"
+        }
+      }
+    },
+    "ResizeProcessRequest": {
+      "type": "object",
+      "required": ["cols", "rows"],
+      "properties": {
+        "cols": {
+          "type": "integer",
+          "example": 80
+        },
+        "rows": {
+          "type": "integer",
+          "example": 24
         }
       }
     },
@@ -5712,6 +6738,23 @@
         }
       }
     },
+    "UploadFilesResponse": {
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/fs.fileResult"
+          }
+        }
+      }
+    },
     "UploadedFile": {
       "type": "object",
       "required": ["name", "path", "type"],
@@ -5820,113 +6863,20 @@
         }
       }
     },
+    "fs.fileResult": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
     "gin.H": {
       "type": "object",
       "additionalProperties": {}
-    },
-    "DaemonErrorCode": {
-      "type": "string",
-      "enum": [
-        "GIT_AUTH_FAILED",
-        "GIT_REPO_NOT_FOUND",
-        "GIT_BRANCH_NOT_FOUND",
-        "GIT_BRANCH_EXISTS",
-        "GIT_PUSH_REJECTED",
-        "GIT_DIRTY_WORKTREE",
-        "GIT_MERGE_CONFLICT",
-        "GIT_TRANSPORT_FAILED",
-        "GIT_REMOTE_REJECTED",
-        "FILE_NOT_FOUND",
-        "FILE_ACCESS_DENIED",
-        "LSP_SERVER_NOT_INITIALIZED",
-        "PROCESS_EXECUTION_TIMEOUT",
-        "PROCESS_NOT_FOUND",
-        "SESSION_ENDED",
-        "COMMAND_ALREADY_COMPLETED",
-        "A11Y_UNAVAILABLE",
-        "RECORDING_STILL_ACTIVE",
-        "RECORDING_FFMPEG_NOT_FOUND",
-        "BAD_REQUEST",
-        "INVALID_REQUEST_BODY",
-        "UNAUTHORIZED",
-        "FORBIDDEN",
-        "NOT_FOUND",
-        "CONFLICT",
-        "REQUEST_TIMEOUT",
-        "GONE",
-        "UNPROCESSABLE_ENTITY",
-        "INTERNAL_SERVER_ERROR"
-      ],
-      "x-enum-varnames": [
-        "CodeGitAuthFailed",
-        "CodeGitRepoNotFound",
-        "CodeGitBranchNotFound",
-        "CodeGitBranchExists",
-        "CodeGitPushRejected",
-        "CodeGitDirtyWorktree",
-        "CodeGitMergeConflict",
-        "CodeGitTransportFailed",
-        "CodeGitRemoteRejected",
-        "CodeFileNotFound",
-        "CodeFileAccessDenied",
-        "CodeLspServerNotInitialized",
-        "CodeProcessExecutionTimeout",
-        "CodeProcessNotFound",
-        "CodeSessionEnded",
-        "CodeCommandAlreadyCompleted",
-        "CodeA11yUnavailable",
-        "CodeRecordingStillActive",
-        "CodeRecordingFfmpegNotFound",
-        "CodeBadRequest",
-        "CodeInvalidRequestBody",
-        "CodeUnauthorized",
-        "CodeForbidden",
-        "CodeNotFound",
-        "CodeConflict",
-        "CodeRequestTimeout",
-        "CodeGone",
-        "CodeUnprocessableEntity",
-        "CodeInternalServerError"
-      ]
-    },
-    "ErrorResponse": {
-      "description": "Error response",
-      "type": "object",
-      "required": ["message", "path", "statusCode", "timestamp"],
-      "properties": {
-        "code": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/DaemonErrorCode"
-            }
-          ],
-          "example": "GIT_REPO_NOT_FOUND"
-        },
-        "message": {
-          "type": "string",
-          "example": "Bad request"
-        },
-        "method": {
-          "type": "string",
-          "example": "GET"
-        },
-        "path": {
-          "type": "string",
-          "example": "/api/resource"
-        },
-        "source": {
-          "type": "string",
-          "example": "DAYTONA_DAEMON"
-        },
-        "statusCode": {
-          "type": "integer",
-          "example": 400
-        },
-        "timestamp": {
-          "type": "string",
-          "example": "2023-01-01T12:00:00Z"
-        }
-      }
     }
   },
   "securityDefinitions": {

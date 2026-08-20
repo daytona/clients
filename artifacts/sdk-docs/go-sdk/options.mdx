@@ -69,6 +69,7 @@ opts := options.Apply(
 - [func WithIndexURL\(url string\) func\(\*PipInstall\)](<#WithIndexURL>)
 - [func WithInitialBranch\(initialBranch string\) func\(\*GitInit\)](<#WithInitialBranch>)
 - [func WithInsecureSkipTLS\(insecureSkipTLS bool\) func\(\*GitClone\)](<#WithInsecureSkipTLS>)
+- [func WithInterpreterContextCwd\(cwd string\) func\(\*InterpreterContext\)](<#WithInterpreterContextCwd>)
 - [func WithInterpreterTimeout\(timeout time.Duration\) func\(\*RunCode\)](<#WithInterpreterTimeout>)
 - [func WithLogChannel\(logChannel chan string\) func\(\*CreateSandbox\)](<#WithLogChannel>)
 - [func WithMode\(mode string\) func\(\*CreateFolder\)](<#WithMode>)
@@ -76,6 +77,27 @@ opts := options.Apply(
 - [func WithPassword\(password string\) func\(\*GitClone\)](<#WithPassword>)
 - [func WithPermissionMode\(mode string\) func\(\*SetFilePermissions\)](<#WithPermissionMode>)
 - [func WithPre\(\) func\(\*PipInstall\)](<#WithPre>)
+- [func WithProcessArgv\(argv ...string\) func\(\*ProcessStart\)](<#WithProcessArgv>)
+- [func WithProcessCwd\(cwd string\) func\(\*ProcessStart\)](<#WithProcessCwd>)
+- [func WithProcessEnv\(env map\[string\]string\) func\(\*ProcessStart\)](<#WithProcessEnv>)
+- [func WithProcessKeepLogs\(keepLogs string\) func\(\*ProcessStart\)](<#WithProcessKeepLogs>)
+- [func WithProcessKind\(kind string\) func\(\*ProcessStart\)](<#WithProcessKind>)
+- [func WithProcessListKind\(kind string\) func\(\*ProcessList\)](<#WithProcessListKind>)
+- [func WithProcessListName\(name string\) func\(\*ProcessList\)](<#WithProcessListName>)
+- [func WithProcessListSessionID\(sessionID string\) func\(\*ProcessList\)](<#WithProcessListSessionID>)
+- [func WithProcessListState\(state string\) func\(\*ProcessList\)](<#WithProcessListState>)
+- [func WithProcessLogin\(login bool\) func\(\*ProcessStart\)](<#WithProcessLogin>)
+- [func WithProcessName\(name string\) func\(\*ProcessStart\)](<#WithProcessName>)
+- [func WithProcessSessionID\(sessionID string\) func\(\*ProcessStart\)](<#WithProcessSessionID>)
+- [func WithProcessShell\(shell string\) func\(\*ProcessStart\)](<#WithProcessShell>)
+- [func WithProcessShellCommand\(command string\) func\(\*ProcessStart\)](<#WithProcessShellCommand>)
+- [func WithProcessStderr\(callback func\(string\)\) func\(\*ProcessRun\)](<#WithProcessStderr>)
+- [func WithProcessStdin\(stdin string\) func\(\*ProcessStart\)](<#WithProcessStdin>)
+- [func WithProcessStdout\(callback func\(string\)\) func\(\*ProcessRun\)](<#WithProcessStdout>)
+- [func WithProcessTerminal\(cols, rows int, term string\) func\(\*ProcessStart\)](<#WithProcessTerminal>)
+- [func WithProcessTimeout\(timeoutMs int\) func\(\*ProcessStart\)](<#WithProcessTimeout>)
+- [func WithProcessUser\(user string\) func\(\*ProcessStart\)](<#WithProcessUser>)
+- [func WithProcessWaitTimeout\(timeoutMs int\) func\(\*ProcessRun\)](<#WithProcessWaitTimeout>)
 - [func WithPtyEnv\(env map\[string\]string\) func\(\*PtySession\)](<#WithPtyEnv>)
 - [func WithPtySize\(size types.PtySize\) func\(\*PtySession\)](<#WithPtySize>)
 - [func WithPullBranch\(branch string\) func\(\*GitPull\)](<#WithPullBranch>)
@@ -114,8 +136,12 @@ opts := options.Apply(
 - [type GitRemoteAdd](<#GitRemoteAdd>)
 - [type GitReset](<#GitReset>)
 - [type GitRestore](<#GitRestore>)
+- [type InterpreterContext](<#InterpreterContext>)
 - [type ListFiles](<#ListFiles>)
 - [type PipInstall](<#PipInstall>)
+- [type ProcessList](<#ProcessList>)
+- [type ProcessRun](<#ProcessRun>)
+- [type ProcessStart](<#ProcessStart>)
 - [type PtySession](<#PtySession>)
 - [type RunCode](<#RunCode>)
 - [type SetFilePermissions](<#SetFilePermissions>)
@@ -578,6 +604,15 @@ err := sandbox.Git.Clone(ctx, url, path,
 )
 ```
 
+<a name="WithInterpreterContextCwd"></a>
+## func WithInterpreterContextCwd
+
+```go
+func WithInterpreterContextCwd(cwd string) func(*InterpreterContext)
+```
+
+WithInterpreterContextCwd sets the initial directory for a scoped interpreter context. Use execution\-level cwd options when only one code run needs it.
+
 <a name="WithInterpreterTimeout"></a>
 ## func WithInterpreterTimeout
 
@@ -716,6 +751,195 @@ image := daytona.Base("python:3.11").PipInstall(
     options.WithPre(),
 )
 ```
+
+<a name="WithProcessArgv"></a>
+## func WithProcessArgv
+
+```go
+func WithProcessArgv(argv ...string) func(*ProcessStart)
+```
+
+WithProcessArgv executes a program directly with arguments. Use WithProcessShellCommand when shell parsing or expansion is required.
+
+<a name="WithProcessCwd"></a>
+## func WithProcessCwd
+
+```go
+func WithProcessCwd(cwd string) func(*ProcessStart)
+```
+
+WithProcessCwd sets the process working directory instead of the sandbox default.
+
+<a name="WithProcessEnv"></a>
+## func WithProcessEnv
+
+```go
+func WithProcessEnv(env map[string]string) func(*ProcessStart)
+```
+
+WithProcessEnv sets process environment variables in addition to daemon defaults.
+
+<a name="WithProcessKeepLogs"></a>
+## func WithProcessKeepLogs
+
+```go
+func WithProcessKeepLogs(keepLogs string) func(*ProcessStart)
+```
+
+WithProcessKeepLogs overrides log retention. Start retains logs until Cleanup by default, while Run defaults to the short on\_exit\_ttl policy.
+
+<a name="WithProcessKind"></a>
+## func WithProcessKind
+
+```go
+func WithProcessKind(kind string) func(*ProcessStart)
+```
+
+WithProcessKind selects exec or pty behavior. Choose pty only when terminal resize or attachment is needed.
+
+<a name="WithProcessListKind"></a>
+## func WithProcessListKind
+
+```go
+func WithProcessListKind(kind string) func(*ProcessList)
+```
+
+WithProcessListKind filters List by exec or pty process kind.
+
+<a name="WithProcessListName"></a>
+## func WithProcessListName
+
+```go
+func WithProcessListName(name string) func(*ProcessList)
+```
+
+WithProcessListName filters List by the name assigned with WithProcessName.
+
+<a name="WithProcessListSessionID"></a>
+## func WithProcessListSessionID
+
+```go
+func WithProcessListSessionID(sessionID string) func(*ProcessList)
+```
+
+WithProcessListSessionID filters List by the process session grouping ID.
+
+<a name="WithProcessListState"></a>
+## func WithProcessListState
+
+```go
+func WithProcessListState(state string) func(*ProcessList)
+```
+
+WithProcessListState filters List by process state, including "all" when supported.
+
+<a name="WithProcessLogin"></a>
+## func WithProcessLogin
+
+```go
+func WithProcessLogin(login bool) func(*ProcessStart)
+```
+
+WithProcessLogin controls login\-shell behavior for shell commands. Leave it unset when the process should inherit normal non\-login shell behavior.
+
+<a name="WithProcessName"></a>
+## func WithProcessName
+
+```go
+func WithProcessName(name string) func(*ProcessStart)
+```
+
+WithProcessName assigns a name that can later be matched by WithProcessListName.
+
+<a name="WithProcessSessionID"></a>
+## func WithProcessSessionID
+
+```go
+func WithProcessSessionID(sessionID string) func(*ProcessStart)
+```
+
+WithProcessSessionID groups a process under a session ID for filtered listing.
+
+<a name="WithProcessShell"></a>
+## func WithProcessShell
+
+```go
+func WithProcessShell(shell string) func(*ProcessStart)
+```
+
+WithProcessShell selects the shell used by WithProcessShellCommand. It has no effect on direct argv execution.
+
+<a name="WithProcessShellCommand"></a>
+## func WithProcessShellCommand
+
+```go
+func WithProcessShellCommand(command string) func(*ProcessStart)
+```
+
+WithProcessShellCommand executes command through a shell. Use WithProcessArgv for direct execution without shell parsing.
+
+<a name="WithProcessStderr"></a>
+## func WithProcessStderr
+
+```go
+func WithProcessStderr(callback func(string)) func(*ProcessRun)
+```
+
+WithProcessStderr streams decoded stderr chunks during Run while Run still returns the complete collected stderr. Use Start and StreamLogs for manual supervision.
+
+<a name="WithProcessStdin"></a>
+## func WithProcessStdin
+
+```go
+func WithProcessStdin(stdin string) func(*ProcessStart)
+```
+
+WithProcessStdin selects stdin behavior. Use a piped mode when calling ProcessHandle.Stdin; use PTY kind for interactive terminal attachment.
+
+<a name="WithProcessStdout"></a>
+## func WithProcessStdout
+
+```go
+func WithProcessStdout(callback func(string)) func(*ProcessRun)
+```
+
+WithProcessStdout streams decoded stdout chunks during Run while Run still returns the complete collected stdout. Use Start and StreamLogs for manual supervision.
+
+<a name="WithProcessTerminal"></a>
+## func WithProcessTerminal
+
+```go
+func WithProcessTerminal(cols, rows int, term string) func(*ProcessStart)
+```
+
+WithProcessTerminal configures PTY dimensions and terminal type. It is for kind "pty" processes; exec processes do not have a terminal to resize.
+
+<a name="WithProcessTimeout"></a>
+## func WithProcessTimeout
+
+```go
+func WithProcessTimeout(timeoutMs int) func(*ProcessStart)
+```
+
+WithProcessTimeout sets the process execution timeout. This differs from WithProcessWaitTimeout, which only bounds how long Run waits.
+
+<a name="WithProcessUser"></a>
+## func WithProcessUser
+
+```go
+func WithProcessUser(user string) func(*ProcessStart)
+```
+
+WithProcessUser runs the process as a specific sandbox OS user.
+
+<a name="WithProcessWaitTimeout"></a>
+## func WithProcessWaitTimeout
+
+```go
+func WithProcessWaitTimeout(timeoutMs int) func(*ProcessRun)
+```
+
+WithProcessWaitTimeout bounds how long Run waits without changing the process's own execution timeout. Use WithProcessTimeout to terminate long execution.
 
 <a name="WithPtyEnv"></a>
 ## func WithPtyEnv
@@ -1204,6 +1428,17 @@ type GitRestore struct {
 }
 ```
 
+<a name="InterpreterContext"></a>
+## type InterpreterContext
+
+InterpreterContext holds options for the scoped context created by \[daytona.CodeInterpreterService.WithContext\].
+
+```go
+type InterpreterContext struct {
+    Cwd *string // Initial working directory for the scoped context.
+}
+```
+
 <a name="ListFiles"></a>
 ## type ListFiles
 
@@ -1227,6 +1462,56 @@ type PipInstall struct {
     ExtraIndexURLs []string // Extra index URLs for package lookup
     Pre            bool     // Allow pre-release and development versions
     ExtraOptions   string   // Additional pip command-line options
+}
+```
+
+<a name="ProcessList"></a>
+## type ProcessList
+
+ProcessList configures process discovery. Use Get or Connect instead when the process ID is already known.
+
+```go
+type ProcessList struct {
+    State     *string // Process state filter.
+    Kind      *string // Process kind filter.
+    Name      *string // Exact process name filter.
+    SessionID *string // Session grouping filter.
+}
+```
+
+<a name="ProcessRun"></a>
+## type ProcessRun
+
+ProcessRun is the Run\-specific name for ProcessStart options. Use its wait and callback options with Run; Start returns a handle for manual supervision.
+
+```go
+type ProcessRun = ProcessStart
+```
+
+<a name="ProcessStart"></a>
+## type ProcessStart
+
+ProcessStart configures a process launched by Start or Run. Start uses the lifecycle fields; Run additionally uses wait and output callback fields.
+
+```go
+type ProcessStart struct {
+    Argv          []string                     // Direct executable and arguments; alternative to ShellCommand.
+    ShellCommand  *string                      // Command interpreted by a shell; alternative to Argv.
+    Shell         *string                      // Shell selector used for ShellCommand.
+    Login         *bool                        // Whether to start the selected shell as a login shell.
+    Name          *string                      // Optional process name used by List filters.
+    SessionID     *string                      // Optional grouping identifier used by List filters.
+    Cwd           *string                      // Initial working directory.
+    Env           map[string]string            // Environment variables.
+    User          *string                      // OS user that runs the process.
+    Stdin         *string                      // Stdin mode, such as pipe or null.
+    TimeoutMs     *int                         // Process execution timeout in milliseconds.
+    Kind          *string                      // Process kind, typically exec or pty.
+    Terminal      *toolbox.ProcessTerminalSize // PTY dimensions; ignored for exec processes.
+    KeepLogs      *string                      // Log retention policy; Start retains until cleanup by default.
+    WaitTimeoutMs *int                         // Run-only wait timeout in milliseconds.
+    OnStdout      func(string)                 // Run-only callback for decoded stdout chunks.
+    OnStderr      func(string)                 // Run-only callback for decoded stderr chunks.
 }
 ```
 

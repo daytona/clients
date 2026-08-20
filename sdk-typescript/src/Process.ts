@@ -7,17 +7,21 @@ import type { RawAxiosRequestConfig } from 'axios'
 import { Configuration, ProcessApi } from '@daytona/toolbox-api-client'
 import type {
   Command,
+  Process as ProcessRecord,
   Session,
   SessionExecuteRequest,
   SessionExecuteResponse as ApiSessionExecuteResponse,
   CodeRunRequest,
   PtySessionInfo,
 } from '@daytona/toolbox-api-client'
+import type { ProcessHandle } from './ProcessHandle'
 import type { ExecuteResponse } from './types/ExecuteResponse'
+import { ProcessClient } from './ProcessClient'
 import { parseChart } from './types/Charts'
 import { stdDemuxStream } from './utils/Stream'
 import { PtyHandle } from './PtyHandle'
 import type { PtyCreateOptions, PtyConnectOptions } from './types/Pty'
+import type { ProcessListFilter, ProcessRunOptions, ProcessRunResult, ProcessStartOptions } from './types/Process'
 import { createSandboxWebSocket } from './utils/WebSocket'
 import { toBuffer } from './utils/Binary'
 import { WithInstrumentation } from './utils/otel.decorator'
@@ -66,13 +70,17 @@ export interface SessionCommandLogsResponse {
  * @class
  */
 export class Process {
+  private readonly processClient: ProcessClient
+
   constructor(
     private readonly clientConfig: Configuration,
     private readonly apiClient: ProcessApi,
     private readonly getPreviewToken: () => Promise<string>,
     private readonly language?: string,
     private readonly requestTimeoutMs?: number,
-  ) {}
+  ) {
+    this.processClient = new ProcessClient(clientConfig, apiClient, getPreviewToken)
+  }
 
   // With an explicit execution timeout the HTTP wait must not be capped by a
   // configured bounded DaytonaConfig.requestTimeoutMs: the request is bounded by
@@ -227,6 +235,120 @@ export class Process {
         charts,
       },
     }
+  }
+
+  /**
+   * Executes a shell command in the Sandbox. Alias of {@link executeCommand}.
+   *
+   * @param {string} command - Shell command to execute
+   * @param {string} [cwd] - Working directory for command execution. If not specified, uses the sandbox working directory.
+   * @param {Record<string, string>} [env] - Environment variables to set for the command
+   * @param {number} [timeout] - Maximum time in seconds to wait for the command to complete.
+   * @returns {Promise<ExecuteResponse>} Command execution results
+   *
+   * @example
+   * const response = await process.exec('echo "Hello"');
+   * console.log(response.result);  // Prints: Hello
+   */
+  @WithInstrumentation()
+  public async exec(
+    command: string,
+    cwd?: string,
+    env?: Record<string, string>,
+    timeout?: number,
+  ): Promise<ExecuteResponse> {
+    return await this.executeCommand(command, cwd, env, timeout)
+  }
+
+  /**
+   * Starts a process in the background and returns immediately with a {@link ProcessHandle}.
+   *
+   * Use `start` for long-running or interactive work you want to supervise yourself:
+   * stream logs, write stdin, resize a PTY, kill, or reconnect from any client later via
+   * {@link connect} with the process id. The process and its logs are retained after
+   * exit until {@link ProcessHandle.cleanup} is called. For one-shot commands where you
+   * just want the output, prefer {@link run}.
+   *
+   * @param {ProcessStartOptions} options - Command (`shellCommand` or `argv`), cwd, env,
+   * name, kind (`exec` | `pty` | `code`), terminal size, stdin mode and log retention.
+   * @returns {Promise<ProcessHandle>} Handle to the running process
+   *
+   * @example
+   * const handle = await sandbox.process.start({ shellCommand: 'npm run dev', name: 'dev-server' });
+   * for await (const event of handle.streamLogs()) { ... }
+   */
+  @WithInstrumentation()
+  public async start(options: ProcessStartOptions = {}): Promise<ProcessHandle> {
+    return await this.processClient.start(options)
+  }
+
+  /**
+   * Runs a process to completion and returns its collected output - the "just give me
+   * the result" counterpart to {@link start}.
+   *
+   * Waits for exit (or `waitTimeoutMs`), gathers stdout/stderr (UTF-8 safe, with optional
+   * `onStdout`/`onStderr` streaming callbacks) and returns exit metadata. Logs are retained
+   * only briefly after exit (`on_exit_ttl`), so read what you need from the result. The
+   * returned object still carries `handle` for follow-up actions.
+   *
+   * The collected output is limited to what the daemon still retains: if a very chatty
+   * process overruns the retention cap, the earliest output is evicted and only the
+   * retained suffix is returned (the log page reports `truncatedHead`). To recover the
+   * remainder deliberately, resume from the record's `firstAvailableCursor` - or the
+   * `warning` event on a live stream - with {@link ProcessHandle.logs}. Streaming with
+   * `onStdout`/`onStderr` avoids the cap entirely by consuming output as it is produced.
+   * `keepLogs: 'none'` therefore requires those callbacks, since nothing is retained to
+   * collect afterwards.
+   *
+   * @param {ProcessRunOptions} options - Same as {@link start} plus `onStdout`, `onStderr`
+   * and `waitTimeoutMs` (on timeout the partial result has `timedOut: true`).
+   * @returns {Promise<ProcessRunResult>} Exit code/reason plus collected stdout and stderr
+   *
+   * @example
+   * const result = await sandbox.process.run({ shellCommand: 'ls -la' });
+   * console.log(result.exitCode, result.stdout);
+   */
+  @WithInstrumentation()
+  public async run(options: ProcessRunOptions = {}): Promise<ProcessRunResult> {
+    return await this.processClient.run(options)
+  }
+
+  /**
+   * Attaches to an existing process by id and returns its handle. Alias of
+   * {@link get} for reattaching with a stored process id.
+   */
+  @WithInstrumentation()
+  public async connect(id: string): Promise<ProcessHandle> {
+    return await this.get(id)
+  }
+
+  /**
+   * Returns a {@link ProcessHandle} for an existing process by id, whether running or
+   * finished. The handle can replay retained logs from the start, resume streaming from
+   * a cursor, or wait for exit.
+   *
+   * @param {string} id - Process id (from {@link start}, {@link list} or another client)
+   * @returns {Promise<ProcessHandle>} Handle to the process
+   */
+  @WithInstrumentation()
+  public async get(id: string): Promise<ProcessHandle> {
+    return await this.processClient.get(id)
+  }
+
+  /**
+   * Lists process records in the Sandbox, newest first - including processes started by
+   * other clients (the daemon is the source of truth). Filter by state, kind, name or
+   * sessionId.
+   *
+   * @param {ProcessListFilter} [filter] - Optional state/kind/name/sessionId filter
+   * @returns {Promise<ProcessRecord[]>} Matching process records
+   *
+   * @example
+   * const running = await sandbox.process.list({ state: 'running' });
+   */
+  @WithInstrumentation()
+  public async list(filter?: ProcessListFilter): Promise<ProcessRecord[]> {
+    return await this.processClient.list(filter)
   }
 
   /**

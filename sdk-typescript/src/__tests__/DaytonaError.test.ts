@@ -22,6 +22,8 @@ import {
   DaytonaGitTransportFailedError,
   DaytonaGoneError,
   DaytonaInternalServerError,
+  DaytonaCursorExpiredError,
+  DaytonaNameConflictError,
   DaytonaInvalidArgumentError,
   DaytonaInvalidFilePathError,
   DaytonaNotFoundError,
@@ -210,6 +212,12 @@ describe('Domain code classification with status-class inheritance', () => {
     expect(err.code).toBe('GIT_REMOTE_REJECTED')
   })
 
+  it('daemon NAME_CONFLICT inherits from DaytonaConflictError', () => {
+    const err = createDaytonaError('duplicate name', 409, undefined, 'NAME_CONFLICT', 'DAYTONA_DAEMON')
+    expect(err).toBeInstanceOf(DaytonaNameConflictError)
+    expect(err).toBeInstanceOf(DaytonaConflictError)
+  })
+
   it('falls back to status class when (source, code) is unknown', () => {
     const err = createDaytonaError('mystery 404', 404, undefined, 'UNKNOWN_CODE', 'DAYTONA_DAEMON')
     expect(err).toBeInstanceOf(DaytonaNotFoundError)
@@ -334,6 +342,21 @@ describe('Axios error mapping', () => {
 
     expect(daytonaError).toBeInstanceOf(DaytonaFileNotFoundError)
     expect(daytonaError.code).toBe('FILE_NOT_FOUND')
+  })
+
+  it('maps CURSOR_EXPIRED responses to the typed conflict error', () => {
+    const error = new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, {} as never, {
+      config: { headers: new AxiosHeaders() } as never,
+      data: { statusCode: 409, message: 'cursor expired', code: 'CURSOR_EXPIRED', source: 'DAYTONA_DAEMON' },
+      headers: new AxiosHeaders(),
+      status: 409,
+      statusText: 'Conflict',
+    })
+
+    const daytonaError = createAxiosDaytonaError(error)
+
+    expect(daytonaError).toBeInstanceOf(DaytonaCursorExpiredError)
+    expect(daytonaError.code).toBe('CURSOR_EXPIRED')
   })
 
   it('falls back to the legacy error field for the message', () => {

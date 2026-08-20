@@ -27,6 +27,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
+import io.daytona.toolbox.client.model.ErrorResponse;
 import io.daytona.toolbox.client.model.InitializeRequest;
 import io.daytona.toolbox.client.model.UpdateEnvRequest;
 
@@ -210,6 +211,8 @@ public class ServerApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call updateEnvCall(@javax.annotation.Nonnull UpdateEnvRequest request, final ApiCallback _callback) throws ApiException {
@@ -278,6 +281,8 @@ public class ServerApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public Map<String, String> updateEnv(@javax.annotation.Nonnull UpdateEnvRequest request) throws ApiException {
@@ -296,6 +301,8 @@ public class ServerApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Map<String, String>> updateEnvWithHttpInfo(@javax.annotation.Nonnull UpdateEnvRequest request) throws ApiException {
@@ -316,6 +323,8 @@ public class ServerApi {
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
         <tr><td> 200 </td><td> OK </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  -  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call updateEnvAsync(@javax.annotation.Nonnull UpdateEnvRequest request, final ApiCallback<Map<String, String>> _callback) throws ApiException {

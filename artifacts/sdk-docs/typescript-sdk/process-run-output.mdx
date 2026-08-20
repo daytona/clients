@@ -1,0 +1,85 @@
+---
+title: "ProcessRunOutput"
+hideTitleOnPage: true
+---
+
+
+## collectOutputFromLogs()
+
+```ts
+function collectOutputFromLogs(handle: ProcessHandle): Promise<CollectedRunOutput>;
+```
+
+Collects a finished (or timed-out) process's retained output by paging the
+ledger. Used by run() when no streaming callbacks were requested.
+
+The result is bounded by what the daemon still retains: output is capped by
+the sandbox's log retention, so on eviction only the retained suffix comes
+back and the page reports `truncatedHead`. To recover deliberately, read the
+record's `firstAvailableCursor` (or the `warning` event on a live stream) and
+page ProcessHandle.logs from there yourself.
+
+**Parameters**:
+
+- `handle` _ProcessHandle_
+
+
+**Returns**:
+
+- `Promise<CollectedRunOutput>`
+
+**Throws**:
+
+If the ledger exceeds the page budget, rather than
+returning silently partial output.
+
+***
+
+
+## streamOutputWithCallbacks()
+
+```ts
+function streamOutputWithCallbacks(
+   handle: ProcessHandle, 
+   onStdout: (data: string) => void | Promise<void>, 
+   onStderr: (data: string) => void | Promise<void>, 
+deadlineMs?: number): Promise<CollectedRunOutput>;
+```
+
+Streams a process's output live, invoking onStdout/onStderr per frame while
+accumulating, until eof or the deadline elapses. Deadline expiry closes the
+stream and reports timedOut so run() can surface the same timed_out result a
+plain wait() would.
+
+**Parameters**:
+
+- `handle` _ProcessHandle_
+- `onStdout` _\(data: string\) =\> void \| Promise\<void\>_
+- `onStderr` _\(data: string\) =\> void \| Promise\<void\>_
+- `deadlineMs?` _number_
+
+
+**Returns**:
+
+- `Promise<CollectedRunOutput>`
+
+***
+
+
+## CollectedRunOutput
+
+**Properties**:
+
+- `stderr` _string_
+- `stdout` _string_
+- `timedOut` _boolean_
+
+
+
+```ts
+type CollectedRunOutput = {
+  stderr: string;
+  stdout: string;
+  timedOut: boolean;
+};
+```

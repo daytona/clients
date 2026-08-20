@@ -58,3 +58,17 @@ func WithInterpreterTimeout(timeout time.Duration) func(*RunCode) {
 		opts.Timeout = &timeout
 	}
 }
+
+// InterpreterContext holds options for the scoped context created by
+// [daytona.CodeInterpreterService.WithContext].
+type InterpreterContext struct {
+	Cwd *string // Initial working directory for the scoped context.
+}
+
+// WithInterpreterContextCwd sets the initial directory for a scoped interpreter
+// context. Use execution-level cwd options when only one code run needs it.
+func WithInterpreterContextCwd(cwd string) func(*InterpreterContext) {
+	return func(opts *InterpreterContext) {
+		opts.Cwd = &cwd
+	}
+}

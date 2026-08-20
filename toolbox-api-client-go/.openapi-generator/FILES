@@ -34,6 +34,7 @@ model_computer_use_start_response.go
 model_computer_use_status_response.go
 model_computer_use_stop_response.go
 model_create_context_request.go
+model_create_process_request.go
 model_create_session_request.go
 model_daemon_error_code.go
 model_display_info.go
@@ -45,6 +46,7 @@ model_file_info.go
 model_file_status.go
 model_files_download_request.go
 model_find_accessibility_nodes_request.go
+model_fs_file_result.go
 model_git_add_remote_request.go
 model_git_add_request.go
 model_git_authenticate_request.go
@@ -71,6 +73,7 @@ model_is_port_in_use_response.go
 model_keyboard_hotkey_request.go
 model_keyboard_press_request.go
 model_keyboard_type_request.go
+model_kill_process_request.go
 model_list_branch_response.go
 model_list_contexts_response.go
 model_list_recordings_response.go
@@ -92,11 +95,24 @@ model_mouse_position_response.go
 model_mouse_scroll_request.go
 model_port_list.go
 model_position.go
+model_process.go
 model_process_errors_response.go
+model_process_keep_logs.go
+model_process_kind.go
+model_process_log_channel.go
+model_process_log_frame.go
+model_process_log_page.go
 model_process_logs_response.go
 model_process_restart_response.go
+model_process_result.go
+model_process_shell_selector.go
+model_process_state.go
 model_process_status.go
 model_process_status_response.go
+model_process_stdin_mode.go
+model_process_stdin_request.go
+model_process_terminal_reason.go
+model_process_terminal_size.go
 model_pty_create_request.go
 model_pty_create_response.go
 model_pty_list_response.go
@@ -105,6 +121,7 @@ model_pty_session_info.go
 model_recording.go
 model_replace_request.go
 model_replace_result.go
+model_resize_process_request.go
 model_screenshot_response.go
 model_scroll_response.go
 model_search_files_response.go
@@ -118,6 +135,7 @@ model_status.go
 model_stop_recording_request.go
 model_system_metrics.go
 model_update_env_request.go
+model_upload_files_response.go
 model_uploaded_file.go
 model_user_home_dir_response.go
 model_window_info.go

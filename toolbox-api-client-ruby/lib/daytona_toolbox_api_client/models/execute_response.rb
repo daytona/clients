@@ -17,12 +17,15 @@ module DaytonaToolboxApiClient
   class ExecuteResponse < ApiModelBase
     attr_accessor :exit_code
 
+    attr_accessor :process_id
+
     attr_accessor :result
 
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'exit_code' => :'exitCode',
+        :'process_id' => :'processId',
         :'result' => :'result'
       }
     end
@@ -41,6 +44,7 @@ module DaytonaToolboxApiClient
     def self.openapi_types
       {
         :'exit_code' => :'Integer',
+        :'process_id' => :'String',
         :'result' => :'String'
       }
     end
@@ -69,6 +73,10 @@ module DaytonaToolboxApiClient
 
       if attributes.key?(:'exit_code')
         self.exit_code = attributes[:'exit_code']
+      end
+
+      if attributes.key?(:'process_id')
+        self.process_id = attributes[:'process_id']
       end
 
       if attributes.key?(:'result')
@@ -114,6 +122,7 @@ module DaytonaToolboxApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           exit_code == o.exit_code &&
+          process_id == o.process_id &&
           result == o.result
     end
 
@@ -126,7 +135,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [exit_code, result].hash
+      [exit_code, process_id, result].hash
     end
 
     # Builds the object from hash

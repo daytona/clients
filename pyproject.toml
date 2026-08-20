@@ -110,4 +110,7 @@ ignore-paths = [
 ]
 
 [tool.pytest.ini_options]
-markers = ["e2e: end-to-end tests requiring a live Daytona API"]
+markers = [
+  "e2e: end-to-end tests requiring a live Daytona API",
+  "golden: live golden contract tests for current SDK behavior"
+]

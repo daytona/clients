@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 /**
  * Stateful code interpretation interface for a Sandbox.
@@ -245,6 +246,43 @@ public class CodeInterpreter {
      */
     public void deleteContext(String contextId) {
         ExceptionMapper.runToolbox(() -> interpreterApi.deleteInterpreterContext(contextId));
+    }
+
+    /**
+     * Creates a temporary interpreter context and always deletes it after the callback returns.
+     *
+     * <p>Use this instead of manually pairing {@link #createContext()} and
+     * {@link #deleteContext(String)} when the context is scoped to one operation. Use explicit
+     * creation when state must survive beyond the callback.
+     *
+     * <p>If the callback fails, its exception propagates and any deletion failure is attached to
+     * it via {@link Throwable#addSuppressed(Throwable)}; a deletion failure is only thrown on its
+     * own when the callback succeeded.
+     * @param callback operation to perform with the temporary context
+     * @param <T> callback result type
+     * @return callback result
+     */
+    public <T> T withContext(Function<InterpreterContext, T> callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("callback is required");
+        }
+        InterpreterContext context = createContext();
+        Throwable primary = null;
+        try {
+            return callback.apply(context);
+        } catch (RuntimeException | Error e) {
+            primary = e;
+            throw e;
+        } finally {
+            try {
+                deleteContext(context.getId());
+            } catch (RuntimeException | Error cleanupFailure) {
+                if (primary == null) {
+                    throw cleanupFailure;
+                }
+                primary.addSuppressed(cleanupFailure);
+            }
+        }
     }
 
     private String buildInterpreterWebSocketUrl(String toolboxBaseUrl) {

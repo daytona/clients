@@ -7,18 +7,25 @@ import { DaytonaError } from '../errors/DaytonaError'
 import { dynamicRequire } from './Import'
 
 let _BufferCtor: typeof Buffer | null = null
+
+// Priority: (1) globalThis.Buffer — Node.js native or polyfills that assign
+// to globalThis; (2) bare Buffer — esbuild/Vite inject it as a module-scoped
+// variable without touching globalThis. Returns undefined in runtimes that have
+// neither (browsers without a polyfill), so callers can pick a web fallback.
+function findBufferCtor(): typeof Buffer | undefined {
+  const globalBuffer = (globalThis as { Buffer?: typeof Buffer }).Buffer
+  if (typeof globalBuffer !== 'undefined') {
+    return globalBuffer
+  }
+  if (typeof Buffer !== 'undefined') {
+    return Buffer
+  }
+  return undefined
+}
+
 function getBufferCtor(): typeof Buffer {
   if (!_BufferCtor) {
-    // Priority: (1) globalThis.Buffer — Node.js native or polyfills that assign
-    // to globalThis; (2) bare Buffer — esbuild/Vite inject it as a module-scoped
-    // variable without touching globalThis; (3) dynamicRequire as last resort.
-    if (typeof (globalThis as any).Buffer !== 'undefined') {
-      _BufferCtor = (globalThis as any).Buffer as typeof Buffer
-    } else if (typeof Buffer !== 'undefined') {
-      _BufferCtor = Buffer
-    } else {
-      _BufferCtor = (dynamicRequire('buffer', '"Buffer" is not supported: ') as any).Buffer
-    }
+    _BufferCtor = findBufferCtor() ?? (dynamicRequire('buffer', '"Buffer" is not supported: ') as any).Buffer
   }
   return _BufferCtor
 }
@@ -58,6 +65,38 @@ export function concatUint8Arrays(parts: Uint8Array[]): Uint8Array {
  */
 export function toBuffer(data: Uint8Array): Buffer {
   return getBufferCtor().from(data)
+}
+
+/**
+ * Decodes a base64 string to raw bytes in any supported runtime: Buffer when it
+ * is available (Node.js, bundler polyfills) and the WHATWG `atob` otherwise
+ * (browsers, Deno, edge runtimes), so streaming log frames decode everywhere.
+ *
+ * Missing and empty input decode to zero bytes: a payload field carrying no
+ * bytes is routinely omitted on the wire rather than sent as an empty string.
+ */
+export function base64ToUint8Array(data: string | undefined): Uint8Array {
+  if (!data) {
+    return new Uint8Array(0)
+  }
+
+  const bufferCtor = findBufferCtor()
+  if (bufferCtor !== undefined) {
+    const decoded = bufferCtor.from(data, 'base64')
+    return new Uint8Array(decoded.buffer, decoded.byteOffset, decoded.byteLength)
+  }
+
+  const decodeBase64 = (globalThis as { atob?: (encoded: string) => string }).atob
+  if (typeof decodeBase64 === 'function') {
+    const binary = decodeBase64(data)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index++) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes
+  }
+
+  throw new DaytonaError('Base64 decoding is not supported in this runtime: neither Buffer nor atob is available.')
 }
 
 /**
