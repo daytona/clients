@@ -7,8 +7,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.36
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2
 	github.com/daytona/clients/analytics-api-client-go v0.0.0-20260722121532-3d2223c79fe5
-	github.com/daytona/clients/api-client-go v0.205.1
-	github.com/daytona/clients/toolbox-api-client-go v0.205.1
+	github.com/daytona/clients/api-client-go v0.207.0
+	github.com/daytona/clients/toolbox-api-client-go v0.207.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/stretchr/testify v1.12.0
