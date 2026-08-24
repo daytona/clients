@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.BuildInfo;
+import io.daytona.api.client.model.GpuType;
+import io.daytona.api.client.model.SandboxClass;
+import io.daytona.api.client.model.SandboxDesiredState;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
 import io.daytona.analytics.api.client.model.ModelsMetricPoint;
@@ -155,6 +158,11 @@ public class Sandbox {
     private String lastActivityAt;
     private String autoDestroyAt;
     private String toolboxProxyUrl;
+    private SandboxClass sandboxClass;
+    private String warmPoolId;
+    private GpuType gpuType;
+    private SandboxDesiredState desiredState;
+    private String daemonVersion;
     private String signingKey = null;
     private long signingKeyFetchedAt = 0;
 
@@ -168,6 +176,7 @@ public class Sandbox {
     private List<SandboxVolume> volumes;
     private BuildInfo buildInfo;
     private String backupCreatedAt;
+    private String otelEndpointOverride;
 
     /** Process execution interface for this Sandbox. */
     public final Process process;
@@ -861,7 +870,9 @@ public class Sandbox {
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
                 d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
-                d.getToolboxProxyUrl()
+                d.getToolboxProxyUrl(),
+                d.getSandboxClass() == null ? null : SandboxClass.fromValue(d.getSandboxClass().getValue()),
+                d.getWarmPoolId(), d.getGpuType(), d.getDesiredState(), d.getDaemonVersion()
         );
 
         // Fields only present on the full Sandbox DTO.
@@ -870,6 +881,7 @@ public class Sandbox {
         this.networkAllowList = d.getNetworkAllowList();
         this.domainAllowList = d.getDomainAllowList();
         this.outboundProxyUrl = d.getOutboundProxyUrl();
+        this.otelEndpointOverride = d.getOtelEndpointOverride();
         this.volumes = d.getVolumes() == null ? null : Collections.unmodifiableList(d.getVolumes());
         this.buildInfo = d.getBuildInfo();
         this.backupCreatedAt = d.getBackupCreatedAt();
@@ -895,7 +907,8 @@ public class Sandbox {
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
                 d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
-                d.getToolboxProxyUrl()
+                d.getToolboxProxyUrl(),
+                d.getSandboxClass(), d.getWarmPoolId(), d.getGpuType(), d.getDesiredState(), d.getDaemonVersion()
         );
 
         applyState(d.getState() == null ? "" : d.getState().getValue());
@@ -911,7 +924,9 @@ public class Sandbox {
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
             String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt,
-            String toolboxProxyUrl) {
+            String toolboxProxyUrl,
+            SandboxClass sandboxClass, String warmPoolId, GpuType gpuType,
+            SandboxDesiredState desiredState, String daemonVersion) {
         this.id = asString(id);
         this.name = asString(name);
         this.organizationId = asString(organizationId);
@@ -942,6 +957,11 @@ public class Sandbox {
         }
         this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;
+        this.sandboxClass = sandboxClass;
+        this.warmPoolId = warmPoolId;
+        this.gpuType = gpuType;
+        this.desiredState = desiredState;
+        this.daemonVersion = daemonVersion;
     }
 
     private void applyState(String newState) {
@@ -1445,6 +1465,16 @@ public class Sandbox {
     public String getAutoDestroyAt() { return autoDestroyAt; }
     /** @return toolbox proxy URL. */
     public String getToolboxProxyUrl() { return toolboxProxyUrl; }
+    /** @return sandbox class (e.g. linux-vm, container), or {@code null} when not set. */
+    public SandboxClass getSandboxClass() { return sandboxClass; }
+    /** @return warm-pool ID the Sandbox belongs to, or {@code null} when not in a warm pool. */
+    public String getWarmPoolId() { return warmPoolId; }
+    /** @return GPU type (e.g. H100), or {@code null} when the Sandbox has no GPU. */
+    public GpuType getGpuType() { return gpuType; }
+    /** @return desired lifecycle state requested by the user, or {@code null} when not set. */
+    public SandboxDesiredState getDesiredState() { return desiredState; }
+    /** @return version of the Daytona daemon running in the Sandbox, or {@code null} when unknown. */
+    public String getDaemonVersion() { return daemonVersion; }
 
     /**
      * Returns Sandbox environment variables.
@@ -1512,6 +1542,14 @@ public class Sandbox {
      * @return backup timestamp, or {@code null}
      */
     public String getBackupCreatedAt() { return backupCreatedAt; }
+    /**
+     * Returns the OpenTelemetry collector endpoint override for this Sandbox.
+     *
+     * <p>Not returned by {@link Daytona#list}; call {@link #refreshData()} on each item to populate.
+     *
+     * @return OTel endpoint URL, or {@code null}
+     */
+    public String getOtelEndpointOverride() { return otelEndpointOverride; }
 
     /** @return process operations facade. */
     public Process getProcess() { return process; }

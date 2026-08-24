@@ -12,6 +12,9 @@ import type { ModelsMetricPoint } from '@daytona/analytics-api-client'
 import type {
   Sandbox as SandboxDto,
   SandboxListItem as SandboxListItemDto,
+  SandboxClass,
+  SandboxDesiredState,
+  GpuType,
   PortPreviewUrl,
   SandboxVolume,
   BuildInfo,
@@ -90,9 +93,11 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {boolean} [spot] - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated to free
  * capacity for on-demand GPU Sandboxes
  * @property {string} [spotEvictedAt] - When the Sandbox was evicted by spot preemption
+ * @property {GpuType} [gpuType] - The GPU type assigned to the Sandbox
  * @property {number} memory - Amount of memory allocated to the Sandbox in GiB
  * @property {number} disk - Amount of disk space allocated to the Sandbox in GiB
  * @property {SandboxState} state - Current state of the Sandbox (e.g., "started", "stopped")
+ * @property {SandboxDesiredState} [desiredState] - The state the system is driving the Sandbox toward
  * @property {string} [errorReason] - Error message if Sandbox is in error state
  * @property {boolean} [recoverable] - Whether the Sandbox error is recoverable.
  * @property {SandboxBackupStateEnum} [backupState] - Current state of Sandbox backup
@@ -120,6 +125,12 @@ function withEvents<This, Args extends unknown[], Return>(
  * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [linkedSandboxId] - ID of the Sandbox this Sandbox is linked to. When set, the Sandbox is co-located on the same runner as the linked Sandbox.
  * (not returned by list results; call `refreshData()` on each item to populate)
+ * @property {SandboxClass} [sandboxClass] - The class of the Sandbox (e.g., "linux-vm", "container")
+ * @property {string} [warmPoolId] - ID of the warm pool this Sandbox waits in; set only while it is an unclaimed member
+ * @property {string} [daemonVersion] - The version of the daemon running in the Sandbox
+ * @property {string} [otelEndpointOverride] - OTel collector endpoint override for the Sandbox. When set, sandbox OTel
+ * data is sent to this endpoint instead of the default collector and is not available in the Daytona analytics API or
+ * dashboard. (not returned by list results; call `refreshData()` on each item to populate)
  *
  * @class
  */
@@ -143,9 +154,11 @@ export class Sandbox {
   public gpu!: number
   public spot?: boolean
   public spotEvictedAt?: string
+  public gpuType?: GpuType
   public memory!: number
   public disk!: number
   public state?: SandboxState
+  public desiredState?: SandboxDesiredState
   public errorReason?: string
   public recoverable?: boolean
   public backupState?: SandboxBackupStateEnum
@@ -164,7 +177,11 @@ export class Sandbox {
   public networkAllowList?: string
   public domainAllowList?: string
   public outboundProxyUrl?: string
+  public otelEndpointOverride?: string
   public linkedSandboxId?: string
+  public sandboxClass?: SandboxClass
+  public warmPoolId?: string
+  public daemonVersion?: string
   public toolboxProxyUrl: string
 
   private infoApi: InfoApi
@@ -1456,8 +1473,13 @@ export class Sandbox {
     this.gpu = sandboxDto.gpu
     this.spot = sandboxDto.spot ?? false
     this.spotEvictedAt = sandboxDto.spotEvictedAt
+    this.gpuType = sandboxDto.gpuType
     this.memory = sandboxDto.memory
     this.disk = sandboxDto.disk
+    this.desiredState = sandboxDto.desiredState
+    this.sandboxClass = sandboxDto.sandboxClass
+    this.warmPoolId = sandboxDto.warmPoolId
+    this.daemonVersion = sandboxDto.daemonVersion
     this.errorReason = sandboxDto.errorReason
     this.recoverable = sandboxDto.recoverable
     this.backupState = sandboxDto.backupState
@@ -1476,6 +1498,7 @@ export class Sandbox {
       this.networkAllowList = sandboxDto.networkAllowList
       this.domainAllowList = sandboxDto.domainAllowList
       this.outboundProxyUrl = sandboxDto.outboundProxyUrl
+      this.otelEndpointOverride = sandboxDto.otelEndpointOverride
       this.linkedSandboxId = sandboxDto.linkedSandboxId
       this.volumes = sandboxDto.volumes
       this.buildInfo = sandboxDto.buildInfo

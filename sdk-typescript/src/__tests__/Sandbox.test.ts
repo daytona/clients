@@ -126,6 +126,23 @@ describe('Sandbox', () => {
     expect(sandbox.autoStopInterval).toBe(10)
   })
 
+  it('maps sandboxClass, warmPoolId, gpuType, desiredState, daemonVersion and otelEndpointOverride from dto', () => {
+    const { sandbox } = makeSandbox({
+      sandboxClass: 'linux-vm',
+      warmPoolId: 'wp-1',
+      gpuType: 'H100',
+      desiredState: 'started',
+      daemonVersion: '1.2.3',
+      otelEndpointOverride: 'http://otel.example:4318',
+    } as Partial<SandboxDto>)
+    expect(sandbox.sandboxClass).toBe('linux-vm')
+    expect(sandbox.warmPoolId).toBe('wp-1')
+    expect(sandbox.gpuType).toBe('H100')
+    expect(sandbox.desiredState).toBe('started')
+    expect(sandbox.daemonVersion).toBe('1.2.3')
+    expect(sandbox.otelEndpointOverride).toBe('http://otel.example:4318')
+  })
+
   it('delegates start/stop/delete to sandbox api', async () => {
     const { sandbox, sandboxApi } = makeSandbox({ state: 'stopped' })
 

@@ -93,6 +93,11 @@ def build_sandbox_dto(overrides = {}) # rubocop:disable Metrics/MethodLength
     network_block_all: false,
     network_allow_list: nil,
     domain_allow_list: nil,
+    outbound_proxy_url: nil,
+    otel_endpoint_override: 'https://otel.example.com/',
+    sandbox_class: 'linux-vm',
+    warm_pool_id: nil,
+    gpu_type: 'H100',
     toolbox_proxy_url: 'https://proxy.example.com/'
   }.merge(overrides)
 

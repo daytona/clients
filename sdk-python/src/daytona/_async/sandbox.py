@@ -21,12 +21,15 @@ from daytona_api_client_async import (
     ConfigApi,
     CreateSandboxSnapshot,
     ForkSandbox,
+    GpuType,
     PortPreviewUrl,
     ResizeSandbox,
 )
 from daytona_api_client_async import Sandbox as SandboxDto
 from daytona_api_client_async import (
     SandboxApi,
+    SandboxClass,
+    SandboxDesiredState,
     SandboxLabels,
     SandboxListItem,
     SandboxState,
@@ -133,9 +136,11 @@ class AsyncSandbox(SandboxDto):
         spot (bool): Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
             to free capacity for on-demand GPU Sandboxes.
         spot_evicted_at (str | None): When the Sandbox was evicted by spot preemption.
+        gpu_type (GpuType | None): The GPU type assigned to the Sandbox.
         memory (int): Amount of memory allocated to the Sandbox in GiB.
         disk (int): Amount of disk space allocated to the Sandbox in GiB.
         state (SandboxState | None): Current state of the Sandbox (e.g., "started", "stopped").
+        desired_state (SandboxDesiredState | None): The desired state of the Sandbox.
         error_reason (str | None): Error message if Sandbox is in error state.
         recoverable (bool | None): Whether the Sandbox error is recoverable.
         backup_state (str | None): Current state of Sandbox backup.
@@ -166,6 +171,14 @@ class AsyncSandbox(SandboxDto):
             Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on
             its own); combine with domain_allow_list for unbypassable network-layer enforcement. (not returned by
             list results; call `refresh_data()` on each item to populate).
+        sandbox_class (str | None): The class of the Sandbox.
+        warm_pool_id (str | None): ID of the warm pool this Sandbox waits in; set only while it is
+            an unclaimed member.
+        daemon_version (str | None): The version of the daemon running in the Sandbox.
+        otel_endpoint_override (str | None): OTel collector endpoint override for this Sandbox.
+            When set, Sandbox OTel data is sent to this endpoint instead of the default collector
+            and is not available in the Daytona analytics API or dashboard (not returned by list
+            results; call `refresh_data()` on each item to populate).
         toolbox_proxy_url (str): The toolbox proxy URL for the Sandbox.
     """
 
@@ -1442,8 +1455,10 @@ class AsyncSandbox(SandboxDto):
         self.gpu: float | int = sandbox_dto.gpu
         self.spot: bool | None = sandbox_dto.spot or False
         self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
+        self.gpu_type: GpuType | None = sandbox_dto.gpu_type
         self.memory: float | int = sandbox_dto.memory
         self.disk: float | int = sandbox_dto.disk
+        self.desired_state: SandboxDesiredState | None = sandbox_dto.desired_state
         self.error_reason: str | None = sandbox_dto.error_reason
         self.recoverable: bool | None = sandbox_dto.recoverable
         self.backup_state: str | None = sandbox_dto.backup_state
@@ -1459,6 +1474,13 @@ class AsyncSandbox(SandboxDto):
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
+        self.sandbox_class: str | None = (
+            sandbox_dto.sandbox_class.value
+            if isinstance(sandbox_dto.sandbox_class, SandboxClass)
+            else sandbox_dto.sandbox_class
+        )
+        self.warm_pool_id: str | None = sandbox_dto.warm_pool_id
+        self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
 
         # Fields only present in the full SandboxDto (not returned by list results
@@ -1473,6 +1495,7 @@ class AsyncSandbox(SandboxDto):
             self.volumes: list[SandboxVolume] | None = sandbox_dto.volumes
             self.build_info: BuildInfo | None = sandbox_dto.build_info
             self.backup_created_at: str | None = sandbox_dto.backup_created_at
+            self.otel_endpoint_override: str | None = sandbox_dto.otel_endpoint_override
 
         self._apply_state(sandbox_dto.state)
 

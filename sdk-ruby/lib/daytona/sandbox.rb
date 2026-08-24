@@ -92,6 +92,10 @@ module Daytona
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :outbound_proxy_url
 
+    # @return [String, nil] OpenTelemetry endpoint override for the sandbox.
+    #   Not returned by list results; call #refresh on each item to populate.
+    attr_reader :otel_endpoint_override
+
     # @return [String] The target environment for the sandbox
     attr_reader :target
 
@@ -107,6 +111,9 @@ module Daytona
 
     # @return [String, nil] When the sandbox was evicted by spot preemption
     attr_reader :spot_evicted_at
+
+    # @return [String, nil] The GPU type assigned to the sandbox
+    attr_reader :gpu_type
 
     # @return [Float] The memory quota for the sandbox
     attr_reader :memory
@@ -163,6 +170,12 @@ module Daytona
 
     # @return [String] The last activity timestamp of the sandbox
     attr_reader :last_activity_at
+
+    # @return [String, nil] The class of the sandbox (e.g. "linux-vm", "container")
+    attr_reader :sandbox_class
+
+    # @return [String, nil] ID of the warm pool this sandbox waits in; set only while it is an unclaimed member
+    attr_reader :warm_pool_id
 
     # @return [String] The version of the daemon running in the sandbox
     attr_reader :daemon_version
@@ -1094,6 +1107,7 @@ module Daytona
       @gpu = sandbox_dto.gpu
       @spot = sandbox_dto.spot || false
       @spot_evicted_at = sandbox_dto.spot_evicted_at
+      @gpu_type = sandbox_dto.gpu_type
       @memory = sandbox_dto.memory
       @disk = sandbox_dto.disk
       @desired_state = sandbox_dto.desired_state
@@ -1107,6 +1121,8 @@ module Daytona
       @created_at = sandbox_dto.created_at
       @updated_at = sandbox_dto.updated_at
       @last_activity_at = sandbox_dto.last_activity_at
+      @sandbox_class = sandbox_dto.sandbox_class
+      @warm_pool_id = sandbox_dto.warm_pool_id
       @daemon_version = sandbox_dto.daemon_version
 
       new_proxy_url = sandbox_dto.toolbox_proxy_url
@@ -1123,6 +1139,7 @@ module Daytona
         @network_allow_list = sandbox_dto.network_allow_list
         @domain_allow_list = sandbox_dto.domain_allow_list
         @outbound_proxy_url = sandbox_dto.outbound_proxy_url
+        @otel_endpoint_override = sandbox_dto.otel_endpoint_override
         @volumes = sandbox_dto.volumes
         @build_info = sandbox_dto.build_info
         @backup_created_at = sandbox_dto.backup_created_at

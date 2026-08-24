@@ -38,6 +38,12 @@ class TestSandboxInit:
         assert sandbox.disk == 30
         assert sandbox.user == "daytona"
         assert sandbox.public is False
+        assert sandbox.sandbox_class == "small"
+        assert sandbox.warm_pool_id == "wp-123"
+        assert sandbox.daemon_version == "0.52.0"
+        assert sandbox.gpu_type is None
+        assert sandbox.desired_state is None
+        assert sandbox.otel_endpoint_override == "https://otel.example.com"
 
     def test_sandbox_has_subsystems(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)

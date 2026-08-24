@@ -3,6 +3,9 @@
 
 package io.daytona.sdk;
 
+import io.daytona.api.client.model.GpuType;
+import io.daytona.api.client.model.SandboxClass;
+import io.daytona.api.client.model.SandboxDesiredState;
 import io.daytona.api.client.model.SandboxState;
 import okhttp3.OkHttpClient;
 import org.mockito.Mockito;
@@ -33,6 +36,12 @@ final class TestSupport {
         sandbox.setDisk(BigDecimal.valueOf(3));
         sandbox.setState(state);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
+        sandbox.setSandboxClass(io.daytona.api.client.model.Sandbox.SandboxClassEnum.LINUX_VM);
+        sandbox.setWarmPoolId("wp-1");
+        sandbox.setGpuType(GpuType.H100);
+        sandbox.setDesiredState(SandboxDesiredState.STARTED);
+        sandbox.setDaemonVersion("1.2.3");
+        sandbox.setOtelEndpointOverride("http://otel.example:4318");
         return sandbox;
     }
 
@@ -57,6 +66,11 @@ final class TestSupport {
         sandbox.setDisk(BigDecimal.valueOf(3));
         sandbox.setState(state);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
+        sandbox.setSandboxClass(SandboxClass.LINUX_VM);
+        sandbox.setWarmPoolId("wp-1");
+        sandbox.setGpuType(GpuType.H100);
+        sandbox.setDesiredState(SandboxDesiredState.STARTED);
+        sandbox.setDaemonVersion("1.2.3");
         return sandbox;
     }
 

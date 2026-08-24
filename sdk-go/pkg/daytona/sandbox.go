@@ -64,24 +64,29 @@ type Sandbox struct {
 	subscriptionManager *common.EventSubscriptionManager
 	subID               string
 
-	ID             string                 // Unique sandbox identifier
-	Name           string                 // Human-readable sandbox name
-	OrganizationId string                 // Organization ID of the sandbox
-	Snapshot       *string                // Daytona snapshot used to create the sandbox
-	User           string                 // OS user running in the sandbox
-	Labels         map[string]string      // Custom labels attached to the sandbox
-	Public         bool                   // Whether the sandbox is publicly accessible
-	Target         string                 // Target region/environment where the sandbox runs
-	Cpu            float32                // Number of CPUs allocated to the sandbox
-	Gpu            float32                // Number of GPUs allocated to the sandbox
-	Spot           bool                   // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
-	SpotEvictedAt  *string                // When the sandbox was evicted by spot preemption
-	Memory         float32                // Amount of memory allocated to the sandbox in GiB
-	Disk           float32                // Amount of disk space allocated to the sandbox in GiB
-	State          apiclient.SandboxState // Current sandbox state
-	ErrorReason    *string                // Error message if the sandbox is in an error state
-	Recoverable    *bool                  // Whether the sandbox error is recoverable
-	BackupState    *string                // Current state of the sandbox backup
+	ID             string                         // Unique sandbox identifier
+	Name           string                         // Human-readable sandbox name
+	OrganizationId string                         // Organization ID of the sandbox
+	Snapshot       *string                        // Daytona snapshot used to create the sandbox
+	User           string                         // OS user running in the sandbox
+	Labels         map[string]string              // Custom labels attached to the sandbox
+	Public         bool                           // Whether the sandbox is publicly accessible
+	Target         string                         // Target region/environment where the sandbox runs
+	Cpu            float32                        // Number of CPUs allocated to the sandbox
+	Gpu            float32                        // Number of GPUs allocated to the sandbox
+	Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
+	SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
+	Memory         float32                        // Amount of memory allocated to the sandbox in GiB
+	Disk           float32                        // Amount of disk space allocated to the sandbox in GiB
+	State          apiclient.SandboxState         // Current sandbox state
+	ErrorReason    *string                        // Error message if the sandbox is in an error state
+	Recoverable    *bool                          // Whether the sandbox error is recoverable
+	BackupState    *string                        // Current state of the sandbox backup
+	SandboxClass   *types.SandboxClass            // Sandbox class (e.g. linux-vm, container)
+	WarmPoolId     *string                        // Warm pool ID the sandbox belongs to, if any
+	GpuType        *types.GpuType                 // GPU model allocated to the sandbox, if any
+	DesiredState   *apiclient.SandboxDesiredState // Desired state requested for the sandbox
+	DaemonVersion  *string                        // Version of the daemon running in the sandbox
 
 	// AutoStopInterval is the time in minutes of inactivity before auto-stopping.
 	// 0 means disabled.
@@ -140,6 +145,10 @@ type Sandbox struct {
 	// combine with DomainAllowList for network-layer enforcement.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
 	OutboundProxyUrl *string
+
+	// OtelEndpointOverride is the OpenTelemetry collector endpoint override for the sandbox.
+	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+	OtelEndpointOverride *string
 
 	FileSystem      *FileSystemService      // File system operations
 	Git             *GitService             // Git operations
@@ -206,6 +215,10 @@ type sandboxDTO interface {
 	GetLastActivityAtOk() (*string, bool)
 	GetAutoDestroyAtOk() (*string, bool)
 	GetSpotEvictedAtOk() (*string, bool)
+	GetWarmPoolIdOk() (*string, bool)
+	GetDaemonVersionOk() (*string, bool)
+	GetGpuTypeOk() (*apiclient.GpuType, bool)
+	GetDesiredStateOk() (*apiclient.SandboxDesiredState, bool)
 }
 
 // ListSandboxesQuery contains query parameters for filtering and sorting when listing sandboxes.
@@ -435,9 +448,22 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 	autoDestroyAt, _ := dto.GetAutoDestroyAtOk()
 	s.AutoDestroyAt = autoDestroyAt
+	if v, ok := dto.GetWarmPoolIdOk(); ok {
+		s.WarmPoolId = v
+	}
+	if v, ok := dto.GetGpuTypeOk(); ok {
+		s.GpuType = v
+	}
+	if v, ok := dto.GetDesiredStateOk(); ok {
+		s.DesiredState = v
+	}
+	if v, ok := dto.GetDaemonVersionOk(); ok {
+		s.DaemonVersion = v
+	}
 
 	// Fields only present on the full apiclient.Sandbox DTO (not returned by
-	// the list endpoint).
+	// the list endpoint).  SandboxClass is set here because its wire type
+	// differs between the two DTOs (*string vs *SandboxClass).
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
@@ -447,6 +473,17 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 		s.Volumes = full.Volumes
 		s.BuildInfo = full.BuildInfo
 		s.BackupCreatedAt = full.BackupCreatedAt
+		if v, ok := full.GetOtelEndpointOverrideOk(); ok {
+			s.OtelEndpointOverride = v
+		}
+		if full.SandboxClass != nil {
+			c := apiclient.SandboxClass(*full.SandboxClass)
+			s.SandboxClass = &c
+		}
+	} else if listItem, ok := dto.(*apiclient.SandboxListItem); ok {
+		if v, ok := listItem.GetSandboxClassOk(); ok {
+			s.SandboxClass = v
+		}
 	}
 }
 

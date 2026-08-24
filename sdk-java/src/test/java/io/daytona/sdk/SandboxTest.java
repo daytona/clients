@@ -7,6 +7,9 @@ import io.daytona.api.client.ApiClient;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
+import io.daytona.api.client.model.GpuType;
+import io.daytona.api.client.model.SandboxClass;
+import io.daytona.api.client.model.SandboxDesiredState;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
@@ -277,6 +280,32 @@ class SandboxTest {
         Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());
 
         assertThat(loaded.getAutoDestroyAt()).isEqualTo("2026-09-15T12:00:00Z");
+    }
+
+    @Test
+    void newFieldsArePopulatedFromFullDTO() {
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(),
+                TestSupport.mainSandbox("sb-new", SandboxState.STARTED), () -> null, mockSubscriptionManager());
+
+        assertThat(loaded.getSandboxClass()).isEqualTo(SandboxClass.LINUX_VM);
+        assertThat(loaded.getWarmPoolId()).isEqualTo("wp-1");
+        assertThat(loaded.getGpuType()).isEqualTo(GpuType.H100);
+        assertThat(loaded.getDesiredState()).isEqualTo(SandboxDesiredState.STARTED);
+        assertThat(loaded.getDaemonVersion()).isEqualTo("1.2.3");
+        assertThat(loaded.getOtelEndpointOverride()).isEqualTo("http://otel.example:4318");
+    }
+
+    @Test
+    void sharedFieldsArePopulatedFromSandboxListItem() {
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(),
+                TestSupport.mainSandboxListItem("sb-li", SandboxState.STARTED), () -> null, mockSubscriptionManager());
+
+        assertThat(loaded.getSandboxClass()).isEqualTo(SandboxClass.LINUX_VM);
+        assertThat(loaded.getWarmPoolId()).isEqualTo("wp-1");
+        assertThat(loaded.getGpuType()).isEqualTo(GpuType.H100);
+        assertThat(loaded.getDesiredState()).isEqualTo(SandboxDesiredState.STARTED);
+        assertThat(loaded.getDaemonVersion()).isEqualTo("1.2.3");
+        assertThat(loaded.getOtelEndpointOverride()).isNull();
     }
 
     @Test

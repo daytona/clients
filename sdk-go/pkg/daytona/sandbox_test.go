@@ -95,6 +95,19 @@ func TestNewSandboxConstruction(t *testing.T) {
 			assert.NotNil(t, sandbox.Process)
 			assert.NotNil(t, sandbox.CodeInterpreter)
 			assert.NotNil(t, sandbox.ComputerUse)
+
+			require.NotNil(t, sandbox.SandboxClass)
+			assert.Equal(t, apiclient.SANDBOXCLASS_LINUX_VM, *sandbox.SandboxClass)
+			require.NotNil(t, sandbox.WarmPoolId)
+			assert.Equal(t, "wp-abc", *sandbox.WarmPoolId)
+			require.NotNil(t, sandbox.GpuType)
+			assert.Equal(t, apiclient.GPUTYPE_H100, *sandbox.GpuType)
+			require.NotNil(t, sandbox.DesiredState)
+			assert.Equal(t, apiclient.SANDBOXDESIREDSTATE_STARTED, *sandbox.DesiredState)
+			require.NotNil(t, sandbox.DaemonVersion)
+			assert.Equal(t, "0.42.0", *sandbox.DaemonVersion)
+			require.NotNil(t, sandbox.OtelEndpointOverride)
+			assert.Equal(t, "http://otel.test:4318", *sandbox.OtelEndpointOverride)
 		})
 	}
 	os.Clearenv()
@@ -351,15 +364,27 @@ func TestSandboxArchiveAPIError(t *testing.T) {
 func newSandboxForTest(client *Client, id string, sandboxName string, state apiclient.SandboxState, target string, autoArchiveInterval int, autoDeleteInterval int, networkBlockAll bool, networkAllowList *string) *Sandbox {
 	archive := float32(autoArchiveInterval)
 	del := float32(autoDeleteInterval)
+	sandboxClass := "linux-vm"
+	warmPoolId := "wp-abc"
+	gpuType := apiclient.GPUTYPE_H100
+	desiredState := apiclient.SANDBOXDESIREDSTATE_STARTED
+	daemonVersion := "0.42.0"
+	otelOverride := "http://otel.test:4318"
 	dto := &apiclient.Sandbox{
-		Id:                  id,
-		Name:                sandboxName,
-		Target:              target,
-		State:               &state,
-		NetworkBlockAll:     networkBlockAll,
-		NetworkAllowList:    networkAllowList,
-		AutoArchiveInterval: &archive,
-		AutoDeleteInterval:  &del,
+		Id:                   id,
+		Name:                 sandboxName,
+		Target:               target,
+		State:                &state,
+		NetworkBlockAll:      networkBlockAll,
+		NetworkAllowList:     networkAllowList,
+		AutoArchiveInterval:  &archive,
+		AutoDeleteInterval:   &del,
+		SandboxClass:         &sandboxClass,
+		WarmPoolId:           &warmPoolId,
+		GpuType:              &gpuType,
+		DesiredState:         &desiredState,
+		DaemonVersion:        &daemonVersion,
+		OtelEndpointOverride: &otelOverride,
 	}
 	return NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 }
@@ -433,6 +458,18 @@ func TestSandboxRefreshDataSuccess(t *testing.T) {
 	assert.True(t, *sandbox.NetworkBlockAll)
 	require.NotNil(t, sandbox.NetworkAllowList)
 	assert.Equal(t, "10.0.0.0/8", *sandbox.NetworkAllowList)
+	require.NotNil(t, sandbox.SandboxClass)
+	assert.Equal(t, apiclient.SANDBOXCLASS_LINUX_VM, *sandbox.SandboxClass)
+	require.NotNil(t, sandbox.WarmPoolId)
+	assert.Equal(t, "wp-abc", *sandbox.WarmPoolId)
+	require.NotNil(t, sandbox.GpuType)
+	assert.Equal(t, apiclient.GPUTYPE_H100, *sandbox.GpuType)
+	require.NotNil(t, sandbox.DesiredState)
+	assert.Equal(t, apiclient.SANDBOXDESIREDSTATE_STARTED, *sandbox.DesiredState)
+	require.NotNil(t, sandbox.DaemonVersion)
+	assert.Equal(t, "0.42.0", *sandbox.DaemonVersion)
+	require.NotNil(t, sandbox.OtelEndpointOverride)
+	assert.Equal(t, "http://otel.test:4318", *sandbox.OtelEndpointOverride)
 }
 
 func TestSandboxInfoMethods(t *testing.T) {
