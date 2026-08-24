@@ -74,7 +74,7 @@ def make_sandbox_dto(
         network_allow_list=cast(str | None, kwargs.get("network_allow_list", None)),
         domain_allow_list=cast(str | None, kwargs.get("domain_allow_list", None)),
         auto_destroy_at=cast(str | None, kwargs.get("auto_destroy_at", None)),
-        sandbox_class=cast(str | None, kwargs.get("sandbox_class", "small")),
+        sandbox_class=cast(str | None, kwargs.get("sandbox_class", "container")),
         warm_pool_id=cast(str | None, kwargs.get("warm_pool_id", "wp-123")),
         daemon_version=cast(str | None, kwargs.get("daemon_version", "0.52.0")),
         gpu_type=cast(str | None, kwargs.get("gpu_type", None)),

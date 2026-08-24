@@ -472,6 +472,30 @@ func TestSandboxRefreshDataSuccess(t *testing.T) {
 	assert.Equal(t, "http://otel.test:4318", *sandbox.OtelEndpointOverride)
 }
 
+func TestSandboxRefreshDataClearsAbsentOptionalFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload := testSandboxPayload("sb-1", "refreshed", apiclient.SANDBOXSTATE_STARTED)
+		for _, key := range []string{"sandboxClass", "warmPoolId", "gpuType", "desiredState", "daemonVersion", "otelEndpointOverride"} {
+			delete(payload, key)
+		}
+		writeJSONResponse(t, w, http.StatusOK, payload)
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb-1", "before", apiclient.SANDBOXSTATE_CREATING, "us-east-1", 1, 2, false, nil)
+	require.NotNil(t, sandbox.WarmPoolId)
+	require.NotNil(t, sandbox.SandboxClass)
+
+	require.NoError(t, sandbox.RefreshData(context.Background()))
+	assert.Nil(t, sandbox.SandboxClass)
+	assert.Nil(t, sandbox.WarmPoolId)
+	assert.Nil(t, sandbox.GpuType)
+	assert.Nil(t, sandbox.DesiredState)
+	assert.Nil(t, sandbox.DaemonVersion)
+	assert.Nil(t, sandbox.OtelEndpointOverride)
+}
+
 func TestSandboxInfoMethods(t *testing.T) {
 	t.Run("successfully gets user home and work dir", func(t *testing.T) {
 		var calls int

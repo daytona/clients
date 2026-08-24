@@ -67,6 +67,8 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.sandbox_class).to eq('linux-vm')
       expect(sandbox.warm_pool_id).to be_nil
       expect(sandbox.gpu_type).to eq('H100')
+      expect(sandbox.desired_state).to eq('started')
+      expect(sandbox.daemon_version).to eq('1.0.0')
       expect(sandbox.otel_endpoint_override).to eq('https://otel.example.com/')
     end
 

@@ -448,18 +448,16 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 	autoDestroyAt, _ := dto.GetAutoDestroyAtOk()
 	s.AutoDestroyAt = autoDestroyAt
-	if v, ok := dto.GetWarmPoolIdOk(); ok {
-		s.WarmPoolId = v
-	}
-	if v, ok := dto.GetGpuTypeOk(); ok {
-		s.GpuType = v
-	}
-	if v, ok := dto.GetDesiredStateOk(); ok {
-		s.DesiredState = v
-	}
-	if v, ok := dto.GetDaemonVersionOk(); ok {
-		s.DaemonVersion = v
-	}
+	// Assigned unconditionally so values are cleared when the field disappears
+	// from the DTO on refresh (e.g. WarmPoolId once the sandbox is claimed).
+	warmPoolId, _ := dto.GetWarmPoolIdOk()
+	s.WarmPoolId = warmPoolId
+	gpuType, _ := dto.GetGpuTypeOk()
+	s.GpuType = gpuType
+	desiredState, _ := dto.GetDesiredStateOk()
+	s.DesiredState = desiredState
+	daemonVersion, _ := dto.GetDaemonVersionOk()
+	s.DaemonVersion = daemonVersion
 
 	// Fields only present on the full apiclient.Sandbox DTO (not returned by
 	// the list endpoint).  SandboxClass is set here because its wire type
@@ -473,17 +471,15 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 		s.Volumes = full.Volumes
 		s.BuildInfo = full.BuildInfo
 		s.BackupCreatedAt = full.BackupCreatedAt
-		if v, ok := full.GetOtelEndpointOverrideOk(); ok {
-			s.OtelEndpointOverride = v
-		}
+		s.OtelEndpointOverride = full.OtelEndpointOverride
 		if full.SandboxClass != nil {
 			c := apiclient.SandboxClass(*full.SandboxClass)
 			s.SandboxClass = &c
+		} else {
+			s.SandboxClass = nil
 		}
 	} else if listItem, ok := dto.(*apiclient.SandboxListItem); ok {
-		if v, ok := listItem.GetSandboxClassOk(); ok {
-			s.SandboxClass = v
-		}
+		s.SandboxClass = listItem.SandboxClass
 	}
 }
 

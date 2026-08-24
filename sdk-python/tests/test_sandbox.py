@@ -38,7 +38,7 @@ class TestSandboxInit:
         assert sandbox.disk == 30
         assert sandbox.user == "daytona"
         assert sandbox.public is False
-        assert sandbox.sandbox_class == "small"
+        assert sandbox.sandbox_class == "container"
         assert sandbox.warm_pool_id == "wp-123"
         assert sandbox.daemon_version == "0.52.0"
         assert sandbox.gpu_type is None
