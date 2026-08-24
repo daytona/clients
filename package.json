@@ -22,8 +22,8 @@
     "sdk-docs:archive": "tar -czf sdk-docs-${VERSION:-dev}.tar.gz -C artifacts sdk-docs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1106.0",
-    "@aws-sdk/lib-storage": "^3.1106.0",
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/lib-storage": "^3.1111.0",
     "@iarna/toml": "^2.2.5",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
@@ -57,7 +57,7 @@
     "@nx/workspace": "23.1.1",
     "@openapitools/openapi-generator-cli": "^2.40.1",
     "@swc-node/register": "~1.12.1",
-    "@swc/core": "~1.15.47",
+    "@swc/core": "~1.16.0",
     "@swc/helpers": "~0.5.23",
     "@types/busboy": "^1.0.0",
     "@types/jest": "30.0.0",
@@ -87,7 +87,7 @@
     "typedoc-plugin-markdown": "~4.12.0",
     "typedoc-plugin-merge-modules": "~7.0.0",
     "typescript": "5.8.3",
-    "typescript-eslint": "^8.66.0",
+    "typescript-eslint": "^8.67.0",
     "verdaccio": "6.9.2"
   },
   "packageManager": "yarn@4.13.0",
