@@ -1013,6 +1013,10 @@ export class Daytona implements AsyncDisposable {
   public static createAxiosInstance(requestTimeoutMs?: number): AxiosInstance {
     const axiosInstance = axios.create({
       timeout: requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      // Cloudflare Workers' runtime rejects the `cache: 'default'` that axios'
+      // fetch adapter would otherwise apply, so set a mode workerd accepts.
+      // Ignored by the Node http adapter. API responses are not cacheable anyway.
+      fetchOptions: { cache: 'no-store' },
     })
 
     // Request interceptor: Inject trace context into headers
