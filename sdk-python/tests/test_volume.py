@@ -113,6 +113,21 @@ class TestSyncVolumeService:
         assert exc_info.value.status_code == 429
         assert exc_info.value.headers["Retry-After"] == "10"
 
+    def test_get_with_create_failure_is_prefixed_once(self):
+        from daytona_api_client.exceptions import ApiException, NotFoundException
+
+        service, api = self._make_service()
+        api.get_volume_by_name.side_effect = NotFoundException(status=404, reason="Not found")
+        api.create_volume.side_effect = ApiException(
+            status=429, reason="Too Many Requests", http_resp=_make_rate_limited_response()
+        )
+
+        with pytest.raises(DaytonaRateLimitError) as exc_info:
+            service.get("new-vol", create=True)
+
+        assert str(exc_info.value).startswith("Failed to create volume: ")
+        assert "Failed to get volume" not in str(exc_info.value)
+
     def test_create(self):
         service, api = self._make_service()
         api.create_volume.return_value = _make_volume_dto(name="new-vol")
@@ -208,3 +223,19 @@ class TestAsyncVolumeService:
 
         assert exc_info.value.status_code == 429
         assert exc_info.value.headers["Retry-After"] == "10"
+
+    @pytest.mark.asyncio
+    async def test_get_with_create_failure_is_prefixed_once(self):
+        from daytona_api_client_async.exceptions import ApiException, NotFoundException
+
+        service, api = self._make_service()
+        api.get_volume_by_name.side_effect = NotFoundException(status=404, reason="Not found")
+        api.create_volume.side_effect = ApiException(
+            status=429, reason="Too Many Requests", http_resp=_make_rate_limited_response()
+        )
+
+        with pytest.raises(DaytonaRateLimitError) as exc_info:
+            await service.get("new-vol", create=True)
+
+        assert str(exc_info.value).startswith("Failed to create volume: ")
+        assert "Failed to get volume" not in str(exc_info.value)
