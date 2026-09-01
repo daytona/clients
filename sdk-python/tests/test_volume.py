@@ -7,8 +7,23 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from daytona.common.errors import DaytonaNotFoundError, DaytonaRateLimitError
 from daytona.common.volume import Volume
 from daytona_api_client import VolumeDto
+
+
+def _make_rate_limited_response():
+    """Minimal stand-in for the urllib3/aiohttp response an ApiException wraps."""
+    response = MagicMock()
+    response.status = 429
+    response.reason = "Too Many Requests"
+    response.data = b'{"statusCode":429,"message":"ThrottlerException: Too Many Requests"}'
+    response.headers = {
+        "Retry-After": "10",
+        "X-RateLimit-Limit-failed-auth": "20",
+        "X-RateLimit-Remaining-failed-auth": "0",
+    }
+    return response
 
 
 def _make_volume_dto(name="test-vol", vol_id="vol-123"):
@@ -72,8 +87,31 @@ class TestSyncVolumeService:
 
         service, api = self._make_service()
         api.get_volume_by_name.side_effect = NotFoundException(status=404, reason="Not found")
-        with pytest.raises(NotFoundException):
+        with pytest.raises(DaytonaNotFoundError):
             service.get("nonexistent")
+
+    @pytest.mark.parametrize(
+        ("method", "api_method", "call"),
+        [
+            ("list", "list_volumes", lambda service: service.list()),
+            ("get", "get_volume_by_name", lambda service: service.get("test-vol")),
+            ("create", "create_volume", lambda service: service.create("test-vol")),
+            ("delete", "delete_volume", lambda service: service.delete(_make_volume())),
+        ],
+    )
+    def test_rate_limit_raises_typed_error(self, method, api_method, call):
+        from daytona_api_client.exceptions import ApiException
+
+        service, api = self._make_service()
+        getattr(api, api_method).side_effect = ApiException(
+            status=429, reason="Too Many Requests", http_resp=_make_rate_limited_response()
+        )
+
+        with pytest.raises(DaytonaRateLimitError) as exc_info:
+            call(service)
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.headers["Retry-After"] == "10"
 
     def test_create(self):
         service, api = self._make_service()
@@ -137,3 +175,36 @@ class TestAsyncVolumeService:
 
         assert isinstance(result, Volume)
         api.create_volume.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_not_found_raises(self):
+        from daytona_api_client_async.exceptions import NotFoundException
+
+        service, api = self._make_service()
+        api.get_volume_by_name.side_effect = NotFoundException(status=404, reason="Not found")
+        with pytest.raises(DaytonaNotFoundError):
+            await service.get("nonexistent")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("method", "api_method", "call"),
+        [
+            ("list", "list_volumes", lambda service: service.list()),
+            ("get", "get_volume_by_name", lambda service: service.get("test-vol")),
+            ("create", "create_volume", lambda service: service.create("test-vol")),
+            ("delete", "delete_volume", lambda service: service.delete(_make_volume())),
+        ],
+    )
+    async def test_rate_limit_raises_typed_error(self, method, api_method, call):
+        from daytona_api_client_async.exceptions import ApiException
+
+        service, api = self._make_service()
+        getattr(api, api_method).side_effect = ApiException(
+            status=429, reason="Too Many Requests", http_resp=_make_rate_limited_response()
+        )
+
+        with pytest.raises(DaytonaRateLimitError) as exc_info:
+            await call(service)
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.headers["Retry-After"] == "10"
