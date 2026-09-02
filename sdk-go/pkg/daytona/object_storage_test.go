@@ -19,11 +19,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -438,35 +437,13 @@ func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, 
 	}))
 	defer server.Close()
 
-	client := s3.New(s3.Options{
-		Region:       "us-east-1",
-		Credentials:  credentials.NewStaticCredentialsProvider("AKID", "SECRET", ""),
-		BaseEndpoint: aws.String(server.URL),
-		UsePathStyle: true,
-		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(requestTimeout),
-		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
-			o.MaxAttempts = uploadMaxAttempts
-			o.MaxBackoff = 20 * time.Millisecond
-		}),
-		APIOptions: []func(*middleware.Stack) error{
-			func(stack *middleware.Stack) error {
-				return stack.Initialize.Add(
-					middleware.InitializeMiddlewareFunc(
-						"TestUploadRetryBudget",
-						func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
-							middleware.InitializeOutput, middleware.Metadata, error,
-						) {
-							ctx, cancel := context.WithTimeout(ctx, budget)
-							defer cancel()
-
-							return next.HandleInitialize(ctx, in)
-						},
-					),
-					middleware.Before,
-				)
-			},
-		},
-	})
+	client := newUploadClient(objectStorageConfig{
+		EndpointURL:     server.URL,
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	}, requestTimeout, budget, 20*time.Millisecond)
 
 	started := time.Now()
 	_, _ = client.HeadObject(context.Background(), &s3.HeadObjectInput{
@@ -478,6 +455,25 @@ func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, 
 	defer mu.Unlock()
 
 	return attempts, time.Since(started)
+}
+
+// The behavioural budget tests run on a compressed timescale, so this pins the fact
+// that the client NewObjectStorage hands out actually registers the budget middleware.
+func TestNewObjectStorageRegistersRetryBudget(t *testing.T) {
+	objStorage := NewObjectStorage(objectStorageConfig{
+		EndpointURL:     "https://s3.us-east-1.amazonaws.com",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+
+	stack := middleware.NewStack("test", smithyhttp.NewStackRequest)
+	for _, apiOption := range objStorage.client.Options().APIOptions {
+		require.NoError(t, apiOption(stack))
+	}
+
+	assert.Contains(t, stack.Initialize.List(), retryBudgetMiddlewareID)
 }
 
 // A stalled endpoint must be cut off by the budget rather than by the attempt count,

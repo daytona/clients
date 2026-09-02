@@ -44,25 +44,57 @@ const (
 	uploadMaxBackoff     = 15 * time.Second
 )
 
-// withRetryBudget bounds each S3 operation, retries included, at uploadRetryTimeout.
-// Initialize runs once per operation rather than once per attempt, so the deadline
-// covers the whole retry sequence. This client only uploads and reads metadata; a
-// streaming download would need the cancel deferred past the caller's read instead.
-func withRetryBudget(stack *middleware.Stack) error {
-	return stack.Initialize.Add(
-		middleware.InitializeMiddlewareFunc(
-			"DaytonaUploadRetryBudget",
-			func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
-				middleware.InitializeOutput, middleware.Metadata, error,
-			) {
-				ctx, cancel := context.WithTimeout(ctx, uploadRetryTimeout)
-				defer cancel()
+const retryBudgetMiddlewareID = "DaytonaUploadRetryBudget"
 
-				return next.HandleInitialize(ctx, in)
-			},
-		),
-		middleware.Before,
+// withRetryBudget bounds each S3 operation, retries included, at budget. Initialize
+// runs once per operation rather than once per attempt, so the deadline covers the
+// whole retry sequence. This client only uploads and reads metadata; a streaming
+// download would need the cancel deferred past the caller's read instead.
+func withRetryBudget(budget time.Duration) func(*middleware.Stack) error {
+	return func(stack *middleware.Stack) error {
+		return stack.Initialize.Add(
+			middleware.InitializeMiddlewareFunc(
+				retryBudgetMiddlewareID,
+				func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+					middleware.InitializeOutput, middleware.Metadata, error,
+				) {
+					ctx, cancel := context.WithTimeout(ctx, budget)
+					defer cancel()
+
+					return next.HandleInitialize(ctx, in)
+				},
+			),
+			middleware.Before,
+		)
+	}
+}
+
+// newUploadClient builds the S3 client used for context uploads. The durations are
+// parameters so tests can drive the real configuration on a compressed timescale.
+func newUploadClient(config objectStorageConfig, requestTimeout, retryBudget, maxBackoff time.Duration) *s3.Client {
+	var sessionToken *string
+	if config.SessionToken != nil && *config.SessionToken != "" {
+		sessionToken = config.SessionToken
+	}
+
+	creds := credentials.NewStaticCredentialsProvider(
+		config.AccessKeyID,
+		config.SecretAccessKey,
+		aws.ToString(sessionToken),
 	)
+
+	return s3.New(s3.Options{
+		Region:       config.Region,
+		Credentials:  creds,
+		BaseEndpoint: aws.String(config.EndpointURL),
+		UsePathStyle: true,
+		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(requestTimeout),
+		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+			o.MaxAttempts = uploadMaxAttempts
+			o.MaxBackoff = maxBackoff
+		}),
+		APIOptions: []func(*middleware.Stack) error{withRetryBudget(retryBudget)},
+	})
 }
 
 // objectStorageConfig holds configuration for S3-compatible object storage.
@@ -91,34 +123,8 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 		bucketName = "daytona-volume-builds"
 	}
 
-	// Create credentials
-	var sessionToken *string
-	if config.SessionToken != nil && *config.SessionToken != "" {
-		sessionToken = config.SessionToken
-	}
-
-	creds := credentials.NewStaticCredentialsProvider(
-		config.AccessKeyID,
-		config.SecretAccessKey,
-		aws.ToString(sessionToken),
-	)
-
-	// Create S3 client
-	client := s3.New(s3.Options{
-		Region:       config.Region,
-		Credentials:  creds,
-		BaseEndpoint: aws.String(config.EndpointURL),
-		UsePathStyle: true,
-		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(uploadRequestTimeout),
-		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
-			o.MaxAttempts = uploadMaxAttempts
-			o.MaxBackoff = uploadMaxBackoff
-		}),
-		APIOptions: []func(*middleware.Stack) error{withRetryBudget},
-	})
-
 	return &objectStorage{
-		client:     client,
+		client:     newUploadClient(config, uploadRequestTimeout, uploadRetryTimeout, uploadMaxBackoff),
 		bucketName: bucketName,
 	}
 }
