@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import queue
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,7 +13,7 @@ from httpx_ws import WebSocketDisconnect
 from wsproto.events import BytesMessage, CloseConnection, TextMessage
 
 from daytona.common.errors import DaytonaConnectionError, DaytonaError, DaytonaTimeoutError
-from daytona.common.pty import PtySize
+from daytona.common.pty import PtyResult, PtySize
 
 
 def _text(data: str) -> TextMessage:
@@ -149,6 +152,64 @@ class TestPtyHandle:
         assert result.exit_code == 0
         assert result.error is None
 
+    def test_wait_stops_on_timeout_and_bounds_result_resolution(self):
+        from daytona.handle.pty_handle import PtyHandle
+
+        ws = MagicMock()
+        ws.receive.side_effect = queue.Empty()
+        resolver = MagicMock(return_value=PtyResult(exit_code=None, error="timed_out"))
+        handle = PtyHandle(ws, "session-1", result_resolver=resolver)
+
+        started = time.monotonic()
+        result = handle.wait(timeout=0.05)
+
+        assert time.monotonic() - started < 2
+        assert resolver.call_args.kwargs == {"timeout_ms": 1}
+        assert result.error == "timed_out"
+        assert result.exit_code is None
+
+    def test_timed_out_probe_stays_retryable_until_the_real_exit_arrives(self):
+        from daytona.handle.pty_handle import PtyHandle
+
+        ws = MagicMock()
+        ws.receive.side_effect = queue.Empty()
+        resolver = MagicMock(
+            side_effect=[
+                PtyResult(exit_code=None, error="timed_out"),
+                PtyResult(exit_code=42, error=None),
+            ]
+        )
+        handle = PtyHandle(ws, "session-1", result_resolver=resolver)
+
+        timed_out_result = handle.wait(timeout=0.05)
+
+        assert timed_out_result.error == "timed_out"
+        assert timed_out_result.exit_code is None
+
+        final_result = handle.wait()
+
+        assert [call.kwargs for call in resolver.call_args_list] == [{"timeout_ms": 1}, {"timeout_ms": None}]
+        assert final_result.exit_code == 42
+        assert final_result.error is None
+        assert handle.exit_code == 42
+        assert handle.error is None
+
+        assert handle.wait() == PtyResult(exit_code=42, error=None)
+        assert resolver.call_count == 2
+
+    def test_wait_without_timeout_resolves_result_unbounded(self):
+        from daytona.handle.pty_handle import PtyHandle
+
+        ws = MagicMock()
+        ws.receive.side_effect = [_text("hello"), CloseConnection(code=1000, reason=None)]
+        resolver = MagicMock(return_value=PtyResult(exit_code=7, error=None))
+        handle = PtyHandle(ws, "session-1", result_resolver=resolver)
+
+        result = handle.wait()
+
+        assert resolver.call_args.kwargs == {"timeout_ms": None}
+        assert result.exit_code == 7
+
     def test_iterator_terminates_on_websocket_disconnect(self):
         handle, ws = self._make_handle()
         ws.receive.side_effect = [
@@ -267,6 +328,71 @@ class TestAsyncPtyHandle:
         assert result.exit_code == 3
         assert result.error == "bad"
         await handle.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_established_connection_allows_immediate_send_input(self, monkeypatch):
+        from daytona.handle.async_pty_handle import AsyncPtyHandle
+
+        async def noop(self):
+            return None
+
+        monkeypatch.setattr(AsyncPtyHandle, "_handle_websocket", noop)
+        ws = AsyncMock()
+        ws.closed = False
+        ws.close_code = None
+        handle = AsyncPtyHandle(ws, session_id="session-1", connection_established=True)
+
+        assert handle.is_connected() is True
+        await handle.send_input("ls\n")
+
+        ws.send_bytes.assert_awaited_once_with(b"ls\n")
+        await handle.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_unexpected_websocket_error_still_resolves_result(self):
+        from daytona.handle.async_pty_handle import AsyncPtyHandle
+
+        ws = AsyncMock()
+        ws.closed = False
+        ws.close_code = None
+        ws.receive.side_effect = RuntimeError("socket exploded")
+        connected_during_resolve: list[bool] = []
+
+        async def resolve() -> PtyResult:
+            connected_during_resolve.append(handle.is_connected())
+            return PtyResult(exit_code=9, error=None)
+
+        resolver = AsyncMock(side_effect=resolve)
+        handle = AsyncPtyHandle(ws, session_id="session-1", result_resolver=resolver)
+
+        result = await handle.wait()
+
+        resolver.assert_awaited_once()
+        assert result.exit_code == 9
+        assert result.error == "Unexpected error: socket exploded"
+        assert connected_during_resolve == [False]
+        assert handle.is_connected() is False
+        await handle.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_disconnect_cancels_reader_without_resolving_result(self):
+        from daytona.handle.async_pty_handle import AsyncPtyHandle
+
+        async def hang():
+            await asyncio.sleep(30)
+
+        ws = AsyncMock()
+        ws.closed = False
+        ws.close_code = None
+        ws.receive.side_effect = hang
+        resolver = AsyncMock(return_value=PtyResult(exit_code=0, error=None))
+        handle = AsyncPtyHandle(ws, session_id="session-1", result_resolver=resolver)
+        await asyncio.sleep(0)
+
+        await asyncio.wait_for(handle.disconnect(), timeout=5)
+
+        resolver.assert_not_awaited()
+        assert handle._wait.cancelled()
 
     @pytest.mark.asyncio
     async def test_resize_and_kill_require_handlers(self, monkeypatch):

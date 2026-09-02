@@ -236,6 +236,28 @@ module Daytona
       raise Sdk.wrap_error(e, 'Failed to create interpreter context')
     end
 
+    # Create a temporary interpreter context for the duration of a block.
+    #
+    # The context is always deleted when the block exits, including when the block
+    # raises. On normal completion, this method returns the block's value. Without a
+    # block, it returns an Enumerator. The default interpreter context is unaffected.
+    #
+    # @param cwd [String, nil] Working directory for the temporary context
+    # @yield [DaytonaToolboxApiClient::InterpreterContext] Newly created context
+    # @yieldreturn [Object] Value returned by the caller's block
+    # @return [Enumerator, Object] Enumerator without a block, otherwise the block value
+    # @raise [Daytona::Sdk::Error] If the context cannot be created or deleted
+    def context(cwd: nil)
+      return enum_for(__method__, cwd:) unless block_given?
+
+      created = create_context(cwd:)
+      begin
+        yield created
+      ensure
+        delete_context(created)
+      end
+    end
+
     # List all user-created interpreter contexts.
     #
     # The default context is not included in this list. Only contexts created
@@ -276,7 +298,7 @@ module Daytona
       raise Sdk.wrap_error(e, 'Failed to delete interpreter context')
     end
 
-    instrument :run_code, :create_context, :list_contexts, :delete_context,
+    instrument :run_code, :create_context, :context, :list_contexts, :delete_context,
                component: 'CodeInterpreter'
 
     private

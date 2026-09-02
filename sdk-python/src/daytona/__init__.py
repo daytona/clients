@@ -74,16 +74,23 @@ if TYPE_CHECKING:
         DaytonaInternalServerError,
         DaytonaInvalidFilePathError,
         DaytonaLspServerNotInitializedError,
+        DaytonaNameConflictError,
         DaytonaNotFoundError,
+        DaytonaProcessCursorExpiredError,
         DaytonaProcessExecutionTimeoutError,
         DaytonaProcessNotFoundError,
+        DaytonaProcessTerminalError,
+        DaytonaProtectedProcessError,
         DaytonaRateLimitError,
         DaytonaRecordingFfmpegNotFoundError,
         DaytonaRecordingStillActiveError,
         DaytonaServiceUnavailableError,
         DaytonaSessionEndedError,
+        DaytonaStdinClosedError,
+        DaytonaStdinUnavailableError,
         DaytonaTimeoutError,
         DaytonaUnprocessableEntityError,
+        DaytonaUnsupportedOperationError,
         DaytonaValidationError,
     )
     from .common.filesystem import (
@@ -97,7 +104,14 @@ if TYPE_CHECKING:
     )
     from .common.image import Image
     from .common.lsp_server import LspCompletionPosition, LspLanguageId
-    from .common.process import CodeRunParams, ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
+    from .common.process import (
+        CodeRunParams,
+        ExecuteResponse,
+        ExecutionArtifacts,
+        OutputHandler,
+        ProcessRunOutput,
+        SessionExecuteRequest,
+    )
     from .common.pty import PtySize
     from .common.sandbox import ListSandboxesQuery, Resources, SandboxMetrics
     from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
@@ -160,6 +174,7 @@ __all__ = [
     "CreateSandboxFromImageParams",
     "CreateSandboxFromSnapshotParams",
     "CreateSnapshotParams",
+    "ProcessRunOutput",
     "PtySize",
     "LspCompletionPosition",
     "ExecutionArtifacts",
@@ -196,13 +211,20 @@ __all__ = [
     "DaytonaInvalidFilePathError",
     "DaytonaFileReadFailedError",
     "DaytonaLspServerNotInitializedError",
+    "DaytonaNameConflictError",
+    "DaytonaProcessCursorExpiredError",
     "DaytonaProcessExecutionTimeoutError",
     "DaytonaProcessNotFoundError",
+    "DaytonaProcessTerminalError",
+    "DaytonaProtectedProcessError",
     "DaytonaSessionEndedError",
+    "DaytonaStdinClosedError",
+    "DaytonaStdinUnavailableError",
     "DaytonaCommandAlreadyCompletedError",
     "DaytonaA11yUnavailableError",
     "DaytonaRecordingStillActiveError",
     "DaytonaRecordingFfmpegNotFoundError",
+    "DaytonaUnsupportedOperationError",
 ]
 
 # Mapping of symbol name -> (absolute module path, attribute name) for external packages
@@ -285,13 +307,20 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "DaytonaInvalidFilePathError": "common.errors",
     "DaytonaFileReadFailedError": "common.errors",
     "DaytonaLspServerNotInitializedError": "common.errors",
+    "DaytonaNameConflictError": "common.errors",
+    "DaytonaProcessCursorExpiredError": "common.errors",
     "DaytonaProcessExecutionTimeoutError": "common.errors",
     "DaytonaProcessNotFoundError": "common.errors",
+    "DaytonaProcessTerminalError": "common.errors",
+    "DaytonaProtectedProcessError": "common.errors",
     "DaytonaSessionEndedError": "common.errors",
+    "DaytonaStdinClosedError": "common.errors",
+    "DaytonaStdinUnavailableError": "common.errors",
     "DaytonaCommandAlreadyCompletedError": "common.errors",
     "DaytonaA11yUnavailableError": "common.errors",
     "DaytonaRecordingStillActiveError": "common.errors",
     "DaytonaRecordingFfmpegNotFoundError": "common.errors",
+    "DaytonaUnsupportedOperationError": "common.errors",
     # common.filesystem
     "FileDownloadErrorDetails": "common.filesystem",
     "DownloadProgress": "common.filesystem",
@@ -312,6 +341,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "OutputHandler": "common.process",
     "SessionExecuteRequest": "common.process",
     # common.pty
+    "ProcessRunOutput": "common.process",
     "PtySize": "common.pty",
     # common.sandbox
     "ListSandboxesQuery": "common.sandbox",

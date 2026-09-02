@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import base64
+import codecs
 import re
 import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar
+from typing import ClassVar, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -23,6 +25,77 @@ STDERR_PREFIX: bytes = b"\x02\x02\x02"
 MAX_PREFIX_LEN: int = max(len(STDOUT_PREFIX), len(STDERR_PREFIX))
 
 _VALID_ENV_KEY_REGEX = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+ProcessLogEncoding = Literal["text", "base64"]
+
+
+class RunFrameDecoder:
+    """Streaming decoder for run-output frames.
+
+    The daemon ships raw byte chunks (base64) that can split a multibyte UTF-8
+    sequence across frames, so each output side must decode incrementally or
+    split codepoints corrupt into U+FFFD. ``flush()`` drains any genuinely
+    dangling trailing bytes at eof.
+    """
+
+    def __init__(self) -> None:
+        self._decoders: dict[str, codecs.IncrementalDecoder] = {
+            "stdout": codecs.getincrementaldecoder("utf-8")(errors="replace"),
+            "stderr": codecs.getincrementaldecoder("utf-8")(errors="replace"),
+        }
+
+    def decode(self, channel: object, data: str, encoding: str | None) -> tuple[str | None, str]:
+        name = str(getattr(channel, "value", channel))
+        side = "stdout" if name in ("stdout", "pty") else "stderr" if name == "stderr" else None
+        if side is None:
+            return None, ""
+        if encoding == "base64":
+            return side, self._decoders[side].decode(base64.b64decode(data))
+        return side, data
+
+    def flush(self) -> tuple[str, str]:
+        return self._decoders["stdout"].decode(b"", final=True), self._decoders["stderr"].decode(b"", final=True)
+
+
+def decode_run_frame(channel: object, data: str, encoding: str | None) -> tuple[str | None, str]:
+    """Routes a log frame to the stdout/stderr side of a run result.
+
+    A pty merges the two streams by construction, so pty frames count as stdout.
+    System frames carry daemon provenance and are not process output.
+    """
+    # Generated clients type channel as a str-Enum whose str() is the member
+    # name, so normalise via .value before comparing.
+    name = str(getattr(channel, "value", channel))
+    if encoding == "base64":
+        data = base64.b64decode(data).decode("utf-8", errors="replace")
+    if name in ("stdout", "pty"):
+        return "stdout", data
+    if name == "stderr":
+        return "stderr", data
+    return None, data
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessRunOutput:
+    """Aggregated output of a completed :meth:`process.run` call.
+
+    ``stdout``/``stderr`` carry the process output as text, alongside the exit
+    metadata.
+    """
+
+    id: str
+    exit_code: int | None
+    signal: str | None
+    reason: str
+    stdout: str
+    stderr: str
+
+
+ProcessStateFilter = Literal["running", "terminal", "all"]
+ProcessKindName = Literal["exec", "pty", "code"]
+ProcessStdinModeName = Literal["none", "pipe"]
+ProcessKeepLogsName = Literal["until_cleanup", "on_exit_ttl", "none"]
 
 
 @dataclass

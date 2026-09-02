@@ -1,0 +1,92 @@
+---
+title: "ProcessClient"
+hideTitleOnPage: true
+---
+
+
+## ProcessClient
+
+### Constructors
+
+#### Constructor
+
+```ts
+new ProcessClient(
+   clientConfig: Configuration, 
+   apiClient: ProcessApi, 
+   getPreviewToken: () => Promise<string>): ProcessClient;
+```
+
+**Parameters**:
+
+- `clientConfig` _Configuration_
+- `apiClient` _ProcessApi_
+- `getPreviewToken` _\(\) =\> Promise\<string\>_
+
+
+**Returns**:
+
+- `ProcessClient`
+
+### Methods
+
+#### get()
+
+```ts
+get(id: string): Promise<ProcessHandle>;
+```
+
+**Parameters**:
+
+- `id` _string_
+
+
+**Returns**:
+
+- `Promise<ProcessHandle>`
+
+#### list()
+
+```ts
+list(filter?: ProcessListFilter): Promise<Process[]>;
+```
+
+**Parameters**:
+
+- `filter?` _ProcessListFilter_
+
+
+**Returns**:
+
+- `Promise<Process[]>`
+
+#### run()
+
+```ts
+run(options?: ProcessRunOptions): Promise<ProcessRunResult>;
+```
+
+**Parameters**:
+
+- `options?` _ProcessRunOptions = {}_
+
+
+**Returns**:
+
+- `Promise<ProcessRunResult>`
+
+#### start()
+
+```ts
+start(options?: ProcessStartOptions): Promise<ProcessHandle>;
+```
+
+**Parameters**:
+
+- `options?` _ProcessStartOptions = {}_
+
+
+**Returns**:
+
+- `Promise<ProcessHandle>`
+

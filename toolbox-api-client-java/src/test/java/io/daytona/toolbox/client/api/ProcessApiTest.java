@@ -17,15 +17,22 @@ import io.daytona.toolbox.client.ApiException;
 import io.daytona.toolbox.client.model.CodeRunRequest;
 import io.daytona.toolbox.client.model.CodeRunResponse;
 import io.daytona.toolbox.client.model.Command;
+import io.daytona.toolbox.client.model.CreateProcessRequest;
 import io.daytona.toolbox.client.model.CreateSessionRequest;
 import io.daytona.toolbox.client.model.ErrorResponse;
 import io.daytona.toolbox.client.model.ExecuteRequest;
 import io.daytona.toolbox.client.model.ExecuteResponse;
+import io.daytona.toolbox.client.model.KillProcessRequest;
+import io.daytona.toolbox.client.model.Process;
+import io.daytona.toolbox.client.model.ProcessLogPage;
+import io.daytona.toolbox.client.model.ProcessResult;
+import io.daytona.toolbox.client.model.ProcessStdinRequest;
 import io.daytona.toolbox.client.model.PtyCreateRequest;
 import io.daytona.toolbox.client.model.PtyCreateResponse;
 import io.daytona.toolbox.client.model.PtyListResponse;
 import io.daytona.toolbox.client.model.PtyResizeRequest;
 import io.daytona.toolbox.client.model.PtySessionInfo;
+import io.daytona.toolbox.client.model.ResizeProcessRequest;
 import io.daytona.toolbox.client.model.Session;
 import io.daytona.toolbox.client.model.SessionCommandLogsResponse;
 import io.daytona.toolbox.client.model.SessionExecuteRequest;
@@ -46,6 +53,34 @@ import java.util.Map;
 public class ProcessApiTest {
 
     private final ProcessApi api = new ProcessApi();
+
+    /**
+     * Attach to a PTY process
+     *
+     * Upgrade to WebSocket, forward client input to stdin, and stream PTY ledger frames to the socket
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void attachProcessTest() throws ApiException {
+        String id = null;
+        api.attachProcess(id);
+        // TODO: test validations
+    }
+
+    /**
+     * Clean up a process
+     *
+     * Purge a terminal process record and its retained logs
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void cleanupProcessTest() throws ApiException {
+        String id = null;
+        api.cleanupProcess(id);
+        // TODO: test validations
+    }
 
     /**
      * Execute code
@@ -72,6 +107,20 @@ public class ProcessApiTest {
     public void connectPtySessionTest() throws ApiException {
         String sessionId = null;
         api.connectPtySession(sessionId);
+        // TODO: test validations
+    }
+
+    /**
+     * Create and start a process
+     *
+     * Create a unified process record and start supervising it
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void createProcessTest() throws ApiException {
+        CreateProcessRequest request = null;
+        Process response = api.createProcess(request);
         // TODO: test validations
     }
 
@@ -173,6 +222,20 @@ public class ProcessApiTest {
     }
 
     /**
+     * Get process details
+     *
+     * Get a unified process record by its process id
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getProcessTest() throws ApiException {
+        String id = null;
+        Process response = api.getProcess(id);
+        // TODO: test validations
+    }
+
+    /**
      * Get PTY session information
      *
      * Get detailed information about a specific pseudo-terminal session
@@ -232,6 +295,24 @@ public class ProcessApiTest {
     }
 
     /**
+     * List processes
+     *
+     * List unified process records with optional state, kind, session, name, and pid filters
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listProcessesTest() throws ApiException {
+        String state = null;
+        String kind = null;
+        String sessionId = null;
+        String name = null;
+        Integer pid = null;
+        List<Process> response = api.listProcesses(state, kind, sessionId, name, pid);
+        // TODO: test validations
+    }
+
+    /**
      * List all PTY sessions
      *
      * Get a list of all active pseudo-terminal sessions
@@ -254,6 +335,39 @@ public class ProcessApiTest {
     @Test
     public void listSessionsTest() throws ApiException {
         List<Session> response = api.listSessions();
+        // TODO: test validations
+    }
+
+    /**
+     * Get process logs
+     *
+     * Return a page of log frames or stream log frames over Server-Sent Events when follow&#x3D;true
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void readProcessLogsTest() throws ApiException {
+        String id = null;
+        String cursor = null;
+        Integer limit = null;
+        String encoding = null;
+        Boolean follow = null;
+        ProcessLogPage response = api.readProcessLogs(id, cursor, limit, encoding, follow);
+        // TODO: test validations
+    }
+
+    /**
+     * Resize a PTY process
+     *
+     * Resize the terminal geometry of a running kind&#x3D;pty process
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void resizeProcessTest() throws ApiException {
+        String id = null;
+        ResizeProcessRequest request = null;
+        Process response = api.resizeProcess(id, request);
         // TODO: test validations
     }
 
@@ -289,6 +403,21 @@ public class ProcessApiTest {
     }
 
     /**
+     * Send stdin to a process
+     *
+     * Write input to a running process and optionally close stdin
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void sendProcessStdinTest() throws ApiException {
+        String id = null;
+        ProcessStdinRequest request = null;
+        api.sendProcessStdin(id, request);
+        // TODO: test validations
+    }
+
+    /**
      * Execute command in session
      *
      * Execute a command within an existing shell session
@@ -300,6 +429,36 @@ public class ProcessApiTest {
         String sessionId = null;
         SessionExecuteRequest request = null;
         SessionExecuteResponse response = api.sessionExecuteCommand(sessionId, request);
+        // TODO: test validations
+    }
+
+    /**
+     * Signal a process
+     *
+     * Send a signal to a running process and optionally escalate after a grace period
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void signalProcessTest() throws ApiException {
+        String id = null;
+        KillProcessRequest request = null;
+        api.signalProcess(id, request);
+        // TODO: test validations
+    }
+
+    /**
+     * Wait for a process
+     *
+     * Wait for a process to reach terminal state or for the wait timeout to elapse
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void waitForProcessTest() throws ApiException {
+        String id = null;
+        Integer timeoutMs = null;
+        ProcessResult response = api.waitForProcess(id, timeoutMs);
         // TODO: test validations
     }
 

@@ -202,6 +202,13 @@ export class DaytonaLspServerNotInitializedError extends DaytonaBadRequestError 
 export class DaytonaProcessExecutionTimeoutError extends DaytonaTimeoutError {}
 /** The sandbox process does not exist (code `PROCESS_NOT_FOUND`). */
 export class DaytonaProcessNotFoundError extends DaytonaNotFoundError {}
+export class DaytonaNameConflictError extends DaytonaConflictError {}
+export class DaytonaCursorExpiredError extends DaytonaConflictError {}
+export class DaytonaProtectedProcessError extends DaytonaForbiddenError {}
+export class DaytonaStdinClosedError extends DaytonaConflictError {}
+export class DaytonaStdinUnavailableError extends DaytonaConflictError {}
+export class DaytonaProcessTerminalError extends DaytonaConflictError {}
+export class DaytonaUnsupportedOperationError extends DaytonaBadRequestError {}
 /** The session has already ended (code `SESSION_ENDED`). */
 export class DaytonaSessionEndedError extends DaytonaGoneError {}
 /** The session command already finished (code `COMMAND_ALREADY_COMPLETED`). */
@@ -243,6 +250,13 @@ const CODE_TO_ERROR_CLASS: Record<string, typeof DaytonaError> = {
   'DAYTONA_DAEMON|LSP_SERVER_NOT_INITIALIZED': DaytonaLspServerNotInitializedError,
   'DAYTONA_DAEMON|PROCESS_EXECUTION_TIMEOUT': DaytonaProcessExecutionTimeoutError,
   'DAYTONA_DAEMON|PROCESS_NOT_FOUND': DaytonaProcessNotFoundError,
+  'DAYTONA_DAEMON|NAME_CONFLICT': DaytonaNameConflictError,
+  'DAYTONA_DAEMON|CURSOR_EXPIRED': DaytonaCursorExpiredError,
+  'DAYTONA_DAEMON|PROTECTED_PROCESS': DaytonaProtectedProcessError,
+  'DAYTONA_DAEMON|STDIN_CLOSED': DaytonaStdinClosedError,
+  'DAYTONA_DAEMON|STDIN_UNAVAILABLE': DaytonaStdinUnavailableError,
+  'DAYTONA_DAEMON|PROCESS_TERMINAL': DaytonaProcessTerminalError,
+  'DAYTONA_DAEMON|UNSUPPORTED_OPERATION': DaytonaUnsupportedOperationError,
   'DAYTONA_DAEMON|SESSION_ENDED': DaytonaSessionEndedError,
   'DAYTONA_DAEMON|COMMAND_ALREADY_COMPLETED': DaytonaCommandAlreadyCompletedError,
   'DAYTONA_DAEMON|A11Y_UNAVAILABLE': DaytonaA11yUnavailableError,
@@ -366,6 +380,10 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
 
   if (!error.response && (error.request || error.code)) {
     return new DaytonaConnectionError(message, statusCode, headers, code, source)
+  }
+
+  if (code === 'CURSOR_EXPIRED' && source === SOURCE_DAEMON) {
+    return new DaytonaCursorExpiredError(message, statusCode, headers, code, source)
   }
 
   return createDaytonaError(message, statusCode, headers, code, source)

@@ -100,6 +100,18 @@ class ProcessTest {
     }
 
     @Test
+    void execAliasesDelegateToExecuteCommand() {
+        when(processApi.executeCommand(any())).thenReturn(
+                new io.daytona.toolbox.client.model.ExecuteResponse().exitCode(0).result("ok"));
+
+        assertThat(process.exec("pwd").getResult()).isEqualTo("ok");
+        assertThat(process.exec("pwd", "/workspace", Collections.singletonMap("A", "1"), 5).getResult())
+                .isEqualTo("ok");
+
+        verify(processApi, org.mockito.Mockito.times(2)).executeCommand(any());
+    }
+
+    @Test
     void codeRunUsesSandboxLanguageAndArtifacts() {
         CodeRunArtifacts artifacts = new CodeRunArtifacts();
         CodeRunResponse response = new CodeRunResponse();

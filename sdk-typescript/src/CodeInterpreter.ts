@@ -237,6 +237,25 @@ export class CodeInterpreter {
    * await sandbox.codeInterpreter.deleteContext(ctx.id!)
    * ```
    */
+  /**
+   * Runs `fn` with a fresh interpreter context, deleting the context afterwards
+   * even if `fn` throws.
+   *
+   * @example
+   * const result = await sandbox.codeInterpreter.withContext(async (ctx) => {
+   *   await sandbox.codeInterpreter.runCode('x = 41', { context: ctx })
+   *   return await sandbox.codeInterpreter.runCode('print(x + 1)', { context: ctx })
+   * })
+   */
+  public async withContext<T>(fn: (context: InterpreterContext) => Promise<T>, cwd?: string): Promise<T> {
+    const context = await this.createContext(cwd)
+    try {
+      return await fn(context)
+    } finally {
+      await this.deleteContext(context)
+    }
+  }
+
   public async createContext(cwd?: string): Promise<InterpreterContext> {
     return (await this.apiClient.createInterpreterContext({ cwd })).data
   }

@@ -333,6 +333,7 @@ The request was malformed or invalid (HTTP 400).
 - `DaytonaValidationError`
 - `DaytonaInvalidFilePathError`
 - `DaytonaLspServerNotInitializedError`
+- `DaytonaUnsupportedOperationError`
 
 ### Accessors
 
@@ -486,6 +487,11 @@ The request conflicts with the current state of the resource (HTTP 409).
 - `DaytonaGitPushRejectedError`
 - `DaytonaGitDirtyWorktreeError`
 - `DaytonaGitMergeConflictError`
+- `DaytonaNameConflictError`
+- `DaytonaCursorExpiredError`
+- `DaytonaStdinClosedError`
+- `DaytonaStdinUnavailableError`
+- `DaytonaProcessTerminalError`
 - `DaytonaRecordingStillActiveError`
 
 ### Accessors
@@ -689,6 +695,79 @@ new DaytonaConnectionTimeoutError(
 ##### Inherited from
 
 `DaytonaConnectionError`.`constructor`
+## DaytonaCursorExpiredError
+
+The request conflicts with the current state of the resource (HTTP 409).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaConflictError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaConflictError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaConflictError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaConflictError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaCursorExpiredError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaCursorExpiredError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaCursorExpiredError`
+
+##### Inherited from
+
+`DaytonaConflictError`.`constructor`
 ## DaytonaError
 
 Base error for Daytona SDK. `statusCode` and `code` are populated only
@@ -1021,6 +1100,7 @@ The authenticated caller lacks permission for the operation (HTTP 403).
 
 - `DaytonaAuthorizationError`
 - `DaytonaFileAccessDeniedError`
+- `DaytonaProtectedProcessError`
 
 ### Accessors
 
@@ -2122,6 +2202,79 @@ new DaytonaLspServerNotInitializedError(
 ##### Inherited from
 
 `DaytonaBadRequestError`.`constructor`
+## DaytonaNameConflictError
+
+The request conflicts with the current state of the resource (HTTP 409).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaConflictError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaConflictError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaConflictError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaConflictError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaNameConflictError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaNameConflictError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaNameConflictError`
+
+##### Inherited from
+
+`DaytonaConflictError`.`constructor`
 ## DaytonaNotFoundError
 
 The requested resource does not exist (HTTP 404).
@@ -2369,6 +2522,152 @@ new DaytonaProcessNotFoundError(
 ##### Inherited from
 
 `DaytonaNotFoundError`.`constructor`
+## DaytonaProcessTerminalError
+
+The request conflicts with the current state of the resource (HTTP 409).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaConflictError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaConflictError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaConflictError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaConflictError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaProcessTerminalError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaProcessTerminalError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaProcessTerminalError`
+
+##### Inherited from
+
+`DaytonaConflictError`.`constructor`
+## DaytonaProtectedProcessError
+
+The authenticated caller lacks permission for the operation (HTTP 403).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaForbiddenError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaForbiddenError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaForbiddenError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaForbiddenError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaForbiddenError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaForbiddenError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaProtectedProcessError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaProtectedProcessError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaProtectedProcessError`
+
+##### Inherited from
+
+`DaytonaForbiddenError`.`constructor`
 ## DaytonaRateLimitError
 
 The caller exceeded a rate limit (HTTP 429).
@@ -2739,6 +3038,152 @@ new DaytonaSessionEndedError(
 ##### Inherited from
 
 `DaytonaGoneError`.`constructor`
+## DaytonaStdinClosedError
+
+The request conflicts with the current state of the resource (HTTP 409).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaConflictError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaConflictError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaConflictError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaConflictError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaStdinClosedError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaStdinClosedError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaStdinClosedError`
+
+##### Inherited from
+
+`DaytonaConflictError`.`constructor`
+## DaytonaStdinUnavailableError
+
+The request conflicts with the current state of the resource (HTTP 409).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaConflictError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaConflictError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaConflictError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaConflictError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaConflictError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaConflictError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaStdinUnavailableError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaStdinUnavailableError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaStdinUnavailableError`
+
+##### Inherited from
+
+`DaytonaConflictError`.`constructor`
 ## DaytonaTimeoutError
 
 The operation timed out (HTTP 408, or 504 when a gateway timed out).
@@ -2917,6 +3362,79 @@ new DaytonaUnprocessableEntityError(
 ##### Inherited from
 
 `DaytonaError`.`constructor`
+## DaytonaUnsupportedOperationError
+
+The request was malformed or invalid (HTTP 400).
+
+**Properties**:
+
+- `code?` _string_
+    - _Inherited from_: `DaytonaBadRequestError.code`
+- `headers?` _AxiosHeaders_
+    - _Inherited from_: `DaytonaBadRequestError.headers`
+- `source?` _string_
+    - _Inherited from_: `DaytonaBadRequestError.source`
+- `statusCode?` _number_
+    - _Inherited from_: `DaytonaBadRequestError.statusCode`
+
+
+
+
+**Extends:**
+
+- `DaytonaBadRequestError`
+
+### Accessors
+
+#### errorCode
+
+_Inherited from_: `DaytonaBadRequestError.errorCode`
+
+##### Get Signature
+
+```ts
+get errorCode(): string;
+```
+
+###### Deprecated
+
+Use DaytonaError.code instead. Kept so existing
+`err.errorCode` reads keep returning the machine-readable code.
+
+**Returns**:
+
+- `string` - the machine-readable error code, or `undefined` when the
+    response did not carry one (same as DaytonaError.code)
+
+### Constructors
+
+#### Constructor
+
+```ts
+new DaytonaUnsupportedOperationError(
+   message: string, 
+   statusCode?: number, 
+   headers?: AxiosHeaders, 
+   code?: string, 
+   source?: string): DaytonaUnsupportedOperationError;
+```
+
+**Parameters**:
+
+- `message` _string_
+- `statusCode?` _number_
+- `headers?` _AxiosHeaders_
+- `code?` _string_
+- `source?` _string_
+
+
+**Returns**:
+
+- `DaytonaUnsupportedOperationError`
+
+##### Inherited from
+
+`DaytonaBadRequestError`.`constructor`
 ## ~~DaytonaValidationError~~
 
 Legacy umbrella for validation failures. Kept so existing

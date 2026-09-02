@@ -15,11 +15,17 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["default", { "dependentTasksOutputFiles": "**/*", "transitive": true }],
+      "inputs": [
+        "default",
+        {
+          "dependentTasksOutputFiles": "**/*",
+          "transitive": true
+        }
+      ],
       "outputs": [],
       "options": {
         "cwd": "{projectRoot}",
-        "command": "npx jest --config jest.config.js --testPathIgnorePatterns='e2e' --passWithNoTests"
+        "command": "npx jest --config jest.config.js --testPathIgnorePatterns='(e2e|src/__tests__/golden/)' --passWithNoTests"
       },
       "dependsOn": [
         {
@@ -41,6 +47,19 @@
         }
       ]
     },
+    "test:golden": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "bash -lc 'test -n \"$DAYTONA_API_KEY\" || { echo \"DAYTONA_API_KEY environment variable is required for golden contract tests\"; exit 1; }; npx jest --config jest.config.js --runInBand --testPathIgnorePatterns=/node_modules/ --testPathPatterns=src/__tests__/golden/.*\\.test\\.ts --testTimeout=240000 --passWithNoTests'"
+      },
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["api-client", "toolbox-api-client", "analytics-api-client"]
+        }
+      ]
+    },
     "test:runtime": {
       "executor": "nx:run-commands",
       "options": {
@@ -51,7 +70,14 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "inputs": ["default", "{projectRoot}/package.json", { "dependentTasksOutputFiles": "**/*", "transitive": true }],
+      "inputs": [
+        "default",
+        "{projectRoot}/package.json",
+        {
+          "dependentTasksOutputFiles": "**/*",
+          "transitive": true
+        }
+      ],
       "outputs": ["{workspaceRoot}/dist/sdk-typescript"],
       "options": {
         "cwd": "{projectRoot}",
@@ -109,7 +135,15 @@
         "command": "if [ -n \"$NPM_PKG_VERSION\" ] || [ -n \"$DEFAULT_PACKAGE_VERSION\" ]; then VER=${NPM_PKG_VERSION:-$DEFAULT_PACKAGE_VERSION}; npm version \"$VER\" --allow-same-version --no-git-tag-version && echo \"Changed version to $VER\"; else echo \"Using version from package.json\"; fi"
       },
       "cache": true,
-      "inputs": ["{projectRoot}/package.json", { "env": "NPM_PKG_VERSION" }, { "env": "DEFAULT_PACKAGE_VERSION" }],
+      "inputs": [
+        "{projectRoot}/package.json",
+        {
+          "env": "NPM_PKG_VERSION"
+        },
+        {
+          "env": "DEFAULT_PACKAGE_VERSION"
+        }
+      ],
       "outputs": ["{projectRoot}/package.json"]
     },
     "publish": {

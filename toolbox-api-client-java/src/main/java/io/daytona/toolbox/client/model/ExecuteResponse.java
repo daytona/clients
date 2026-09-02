@@ -55,6 +55,11 @@ public class ExecuteResponse {
   @javax.annotation.Nullable
   private Integer exitCode;
 
+  public static final String SERIALIZED_NAME_PROCESS_ID = "processId";
+  @SerializedName(SERIALIZED_NAME_PROCESS_ID)
+  @javax.annotation.Nullable
+  private String processId;
+
   public static final String SERIALIZED_NAME_RESULT = "result";
   @SerializedName(SERIALIZED_NAME_RESULT)
   @javax.annotation.Nonnull
@@ -79,6 +84,25 @@ public class ExecuteResponse {
 
   public void setExitCode(@javax.annotation.Nullable Integer exitCode) {
     this.exitCode = exitCode;
+  }
+
+
+  public ExecuteResponse processId(@javax.annotation.Nullable String processId) {
+    this.processId = processId;
+    return this;
+  }
+
+  /**
+   * Get processId
+   * @return processId
+   */
+  @javax.annotation.Nullable
+  public String getProcessId() {
+    return processId;
+  }
+
+  public void setProcessId(@javax.annotation.Nullable String processId) {
+    this.processId = processId;
   }
 
 
@@ -156,13 +180,14 @@ public class ExecuteResponse {
     }
     ExecuteResponse executeResponse = (ExecuteResponse) o;
     return Objects.equals(this.exitCode, executeResponse.exitCode) &&
+        Objects.equals(this.processId, executeResponse.processId) &&
         Objects.equals(this.result, executeResponse.result)&&
         Objects.equals(this.additionalProperties, executeResponse.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(exitCode, result, additionalProperties);
+    return Objects.hash(exitCode, processId, result, additionalProperties);
   }
 
   @Override
@@ -170,6 +195,7 @@ public class ExecuteResponse {
     StringBuilder sb = new StringBuilder();
     sb.append("class ExecuteResponse {\n");
     sb.append("    exitCode: ").append(toIndentedString(exitCode)).append("\n");
+    sb.append("    processId: ").append(toIndentedString(processId)).append("\n");
     sb.append("    result: ").append(toIndentedString(result)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -190,7 +216,7 @@ public class ExecuteResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("exitCode", "result"));
+    openapiFields = new HashSet<String>(Arrays.asList("exitCode", "processId", "result"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("result"));
@@ -216,6 +242,9 @@ public class ExecuteResponse {
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
+      if ((jsonObj.get("processId") != null && !jsonObj.get("processId").isJsonNull()) && !jsonObj.get("processId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `processId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("processId").toString()));
+      }
       if (!jsonObj.get("result").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `result` to be a primitive type in the JSON string but got `%s`", jsonObj.get("result").toString()));
       }
