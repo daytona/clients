@@ -7,6 +7,7 @@ import hashlib
 import os
 import tarfile
 import threading
+from datetime import timedelta
 
 from obstore.store import S3Store
 
@@ -47,6 +48,8 @@ class ObjectStorage:
                 access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,
+                client_options={"timeout": timedelta(minutes=2)},
+                retry_config={"retry_timeout": timedelta(minutes=4)},
             )
 
     @with_instrumentation()
@@ -185,5 +188,5 @@ class ObjectStorage:
             finally:
                 read_file.close()
 
-        _ = self.store.put(s3_key, reader_iter())
+        _ = self.store.put(s3_key, reader_iter(), max_concurrency=4)
         thread.join()

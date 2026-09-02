@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,12 +25,15 @@ def _make_async_storage():
 
 
 class TestAsyncObjectStorage:
-    def test_constructor_passes_region_to_store(self):
+    def test_constructor_configures_store(self):
         from daytona._async.object_storage import AsyncObjectStorage
 
         with patch("daytona._async.object_storage.S3Store") as mock_store_cls:
             AsyncObjectStorage("https://s3.us-west-2.amazonaws.com", "key", "secret", "token", region="ap-south-1")
-            assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+
+        assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+        assert mock_store_cls.call_args.kwargs["client_options"] == {"timeout": timedelta(minutes=2)}
+        assert mock_store_cls.call_args.kwargs["retry_config"] == {"retry_timeout": timedelta(minutes=4)}
 
     @pytest.mark.asyncio
     async def test_upload_missing_path_raises(self):
@@ -121,7 +125,7 @@ class TestAsyncObjectStorage:
 
         captured: dict[str, bytes] = {}
 
-        async def consume_stream(key: str, chunks):
+        async def consume_stream(key: str, chunks, **_kwargs):
             data = bytearray()
             async for chunk in chunks:
                 data.extend(chunk)
@@ -133,3 +137,4 @@ class TestAsyncObjectStorage:
 
         assert "org/hash/context.tar" in captured
         assert len(captured["org/hash/context.tar"]) > 0
+        assert store.put_async.call_args.kwargs == {"max_concurrency": 4}

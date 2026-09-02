@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -22,12 +23,15 @@ def _make_storage():
 
 
 class TestObjectStorage:
-    def test_constructor_passes_region_to_store(self):
+    def test_constructor_configures_store(self):
         from daytona._sync.object_storage import ObjectStorage
 
         with patch("daytona._sync.object_storage.S3Store") as mock_store_cls:
             ObjectStorage("https://s3.us-west-2.amazonaws.com", "key", "secret", "token", region="ap-south-1")
-            assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+
+        assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
+        assert mock_store_cls.call_args.kwargs["client_options"] == {"timeout": timedelta(minutes=2)}
+        assert mock_store_cls.call_args.kwargs["retry_config"] == {"retry_timeout": timedelta(minutes=4)}
 
     def test_constructor_requires_region(self):
         from daytona._sync.object_storage import ObjectStorage
@@ -121,7 +125,7 @@ class TestObjectStorage:
 
         captured: dict[str, bytes] = {}
 
-        def consume_stream(key: str, chunks):
+        def consume_stream(key: str, chunks, **_kwargs):
             captured[key] = b"".join(chunks)
 
         store.put.side_effect = consume_stream
@@ -130,3 +134,4 @@ class TestObjectStorage:
 
         assert "org/hash/context.tar" in captured
         assert len(captured["org/hash/context.tar"]) > 0
+        assert store.put.call_args.kwargs == {"max_concurrency": 4}

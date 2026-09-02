@@ -7,6 +7,7 @@ import hashlib
 import os
 import tarfile
 import threading
+from datetime import timedelta
 
 import aiofiles
 import aiofiles.os
@@ -49,6 +50,8 @@ class AsyncObjectStorage:
                 access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,
+                client_options={"timeout": timedelta(minutes=2)},
+                retry_config={"retry_timeout": timedelta(minutes=4)},
             )
 
     @with_instrumentation()
@@ -188,7 +191,7 @@ class AsyncObjectStorage:
             finally:
                 read_file.close()
 
-        _ = await self.store.put_async(s3_key, reader_iter())
+        _ = await self.store.put_async(s3_key, reader_iter(), max_concurrency=4)
         await asyncio.to_thread(thread.join)
 
     async def _async_os_walk(self, path: str) -> list[tuple[str, list[str], list[str]]]:
