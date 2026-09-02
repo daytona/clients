@@ -71,7 +71,7 @@ RSpec.describe Daytona::ObjectStorage do
         file_path = File.join(dir, 'test.txt')
         File.write(file_path, 'content')
         allow(s3_client).to receive(:head_object).and_return(double('HeadResponse'))
-        allow(Aws::S3::TransferManager).to receive(:new).and_return(transfer_manager)
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
         allow(transfer_manager).to receive(:upload_file)
 
         result = storage.upload(file_path, 'org-1')
@@ -86,7 +86,7 @@ RSpec.describe Daytona::ObjectStorage do
         file_path = File.join(dir, 'test.txt')
         File.write(file_path, 'content')
         allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
-        allow(Aws::S3::TransferManager).to receive(:new).and_return(transfer_manager)
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
         allow(transfer_manager).to receive(:upload_file)
         allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(true)
 
@@ -111,7 +111,7 @@ RSpec.describe Daytona::ObjectStorage do
         file_path = File.join(dir, 'test.txt')
         File.write(file_path, 'content')
         allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
-        allow(Aws::S3::TransferManager).to receive(:new).and_return(transfer_manager)
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
         allow(transfer_manager).to receive(:upload_file)
         allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(false)
 

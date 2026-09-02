@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
 )
 
@@ -28,13 +29,51 @@ import (
 // part but the last one under that limit with EntityTooSmall. A part is buffered
 // before its request is sent, so uploadRequestTimeout only covers that part's
 // transfer, which at 5 MiB / 2 min tolerates ~44 KB/s per part.
+//
+// uploadRetryTimeout, not uploadMaxAttempts, is what bounds a stalled connection:
+// a stall burns a full uploadRequestTimeout per attempt, so the budget allows two
+// of them. Failures that come back quickly, such as 503 SlowDown, cost almost no
+// budget and keep the full attempt allowance.
 const (
 	uploadPartSize       = 5 * 1024 * 1024
 	uploadConcurrency    = 4
 	uploadRequestTimeout = 2 * time.Minute
-	uploadMaxAttempts    = 3
+	uploadRetryTimeout   = 4 * time.Minute
+	uploadMaxAttempts    = 10
 	uploadMaxBackoff     = 15 * time.Second
 )
+
+type retryBudgetStartKey struct{}
+
+// budgetRetryer refuses further attempts once budget has elapsed since the request
+// started, giving the AWS retryer the wall-clock ceiling that obstore's retry_timeout
+// gives the Python SDK.
+type budgetRetryer struct {
+	aws.RetryerV2
+	budget time.Duration
+}
+
+func (r budgetRetryer) GetAttemptToken(ctx context.Context) (func(error) error, error) {
+	if start, ok := ctx.Value(retryBudgetStartKey{}).(time.Time); ok && time.Since(start) >= r.budget {
+		return nil, fmt.Errorf("upload retry budget of %s exhausted", r.budget)
+	}
+
+	return r.RetryerV2.GetAttemptToken(ctx)
+}
+
+func withRetryBudgetClock(stack *middleware.Stack) error {
+	return stack.Initialize.Add(
+		middleware.InitializeMiddlewareFunc(
+			"DaytonaRetryBudgetClock",
+			func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+				middleware.InitializeOutput, middleware.Metadata, error,
+			) {
+				return next.HandleInitialize(context.WithValue(ctx, retryBudgetStartKey{}, time.Now()), in)
+			},
+		),
+		middleware.Before,
+	)
+}
 
 // objectStorageConfig holds configuration for S3-compatible object storage.
 type objectStorageConfig struct {
@@ -81,10 +120,14 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 		BaseEndpoint: aws.String(config.EndpointURL),
 		UsePathStyle: true,
 		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(uploadRequestTimeout),
-		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
-			o.MaxAttempts = uploadMaxAttempts
-			o.MaxBackoff = uploadMaxBackoff
-		}),
+		Retryer: budgetRetryer{
+			RetryerV2: retry.NewStandard(func(o *retry.StandardOptions) {
+				o.MaxAttempts = uploadMaxAttempts
+				o.MaxBackoff = uploadMaxBackoff
+			}),
+			budget: uploadRetryTimeout,
+		},
+		APIOptions: []func(*middleware.Stack) error{withRetryBudgetClock},
 	})
 
 	return &objectStorage{
