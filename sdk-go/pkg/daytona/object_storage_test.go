@@ -4,14 +4,150 @@
 package daytona
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
 
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// fakeS3 is a minimal S3 endpoint that records how an object was written, so the
+// tests can tell a streamed multipart upload apart from a single buffered PutObject.
+type fakeS3 struct {
+	mu          sync.Mutex
+	parts       map[int][]byte
+	singlePut   []byte
+	contentType string
+}
+
+func newFakeS3(t *testing.T) (*fakeS3, *httptest.Server) {
+	t.Helper()
+
+	fake := &fakeS3{parts: map[int][]byte{}}
+	server := httptest.NewServer(http.HandlerFunc(fake.handle))
+	t.Cleanup(server.Close)
+
+	return fake, server
+}
+
+func (f *fakeS3) handle(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	query := r.URL.Query()
+
+	f.mu.Lock()
+	if ct := r.Header.Get("Content-Type"); ct != "" && ct != "application/octet-stream" {
+		f.contentType = ct
+	}
+	f.mu.Unlock()
+
+	switch {
+	case r.Method == http.MethodPost && query.Has("uploads"):
+		writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+	case r.Method == http.MethodPut && query.Has("partNumber"):
+		partNumber, _ := strconv.Atoi(query.Get("partNumber"))
+		f.mu.Lock()
+		f.parts[partNumber] = body
+		f.mu.Unlock()
+		w.Header().Set("ETag", `"etag-`+query.Get("partNumber")+`"`)
+		w.WriteHeader(http.StatusOK)
+	case r.Method == http.MethodPost && query.Has("uploadId"):
+		writeXML(w, `<CompleteMultipartUploadResult><Location>l</Location><Bucket>b</Bucket><Key>k</Key><ETag>&quot;final&quot;</ETag></CompleteMultipartUploadResult>`)
+	case r.Method == http.MethodPut:
+		f.mu.Lock()
+		f.singlePut = body
+		f.mu.Unlock()
+		w.Header().Set("ETag", `"etag-single"`)
+		w.WriteHeader(http.StatusOK)
+	default:
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (f *fakeS3) uploadedObject() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.singlePut != nil {
+		return f.singlePut
+	}
+
+	numbers := make([]int, 0, len(f.parts))
+	for number := range f.parts {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+
+	var joined []byte
+	for _, number := range numbers {
+		joined = append(joined, f.parts[number]...)
+	}
+
+	return joined
+}
+
+func (f *fakeS3) partSizes() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	numbers := make([]int, 0, len(f.parts))
+	for number := range f.parts {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+
+	sizes := make([]int, 0, len(numbers))
+	for _, number := range numbers {
+		sizes = append(sizes, len(f.parts[number]))
+	}
+
+	return sizes
+}
+
+func writeXML(w http.ResponseWriter, payload string) {
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(payload))
+}
+
+func tarEntries(t *testing.T, archive []byte) map[string]int64 {
+	t.Helper()
+
+	entries := map[string]int64{}
+	reader := tar.NewReader(bytes.NewReader(archive))
+
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+		entries[header.Name] = header.Size
+	}
+
+	return entries
+}
+
+func storageForServer(server *httptest.Server) *objectStorage {
+	return NewObjectStorage(objectStorageConfig{
+		EndpointURL:     server.URL,
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+}
 
 func TestNewObjectStorage(t *testing.T) {
 	tests := []struct {
@@ -262,6 +398,63 @@ func TestObjectStorageHashIncludesArchiveBasePath(t *testing.T) {
 	hashB, err := objStorage.computeHashForPath(tmpFile, "b.txt")
 	require.NoError(t, err)
 	assert.NotEqual(t, hashA, hashB)
+}
+
+func TestNewObjectStorageConfiguresUploadTimeoutAndRetries(t *testing.T) {
+	objStorage := NewObjectStorage(objectStorageConfig{
+		EndpointURL:     "https://s3.us-east-1.amazonaws.com",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+
+	client, ok := objStorage.client.Options().HTTPClient.(*awshttp.BuildableClient)
+	require.True(t, ok)
+	assert.Equal(t, 2*time.Minute, client.GetTimeout())
+
+	require.NotNil(t, objStorage.client.Options().Retryer)
+	assert.Equal(t, 3, objStorage.client.Options().Retryer.MaxAttempts())
+}
+
+func TestUploadAsTarStreamsLargeContextAsMultipart(t *testing.T) {
+	fake, server := newFakeS3(t)
+
+	tmpDir := t.TempDir()
+	// Two files of 6 MiB each force at least three 5 MiB parts.
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageForServer(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+	require.NoError(t, err)
+
+	sizes := fake.partSizes()
+	require.GreaterOrEqual(t, len(sizes), 2, "large context must be uploaded as multiple parts")
+
+	for _, size := range sizes[:len(sizes)-1] {
+		assert.Equal(t, uploadPartSize, size, "every part but the last must match the configured part size")
+	}
+
+	entries := tarEntries(t, fake.uploadedObject())
+	assert.Equal(t, int64(6*1024*1024), entries[filepath.Join("context", "big1.bin")])
+	assert.Equal(t, int64(6*1024*1024), entries[filepath.Join("context", "big2.bin")])
+}
+
+func TestUploadAsTarUsesSingleRequestForSmallContext(t *testing.T) {
+	fake, server := newFakeS3(t)
+
+	tmpFile := filepath.Join(t.TempDir(), "small.txt")
+	require.NoError(t, os.WriteFile(tmpFile, []byte("small content"), 0o644))
+
+	err := storageForServer(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpFile, "small.txt")
+	require.NoError(t, err)
+
+	assert.Empty(t, fake.partSizes(), "a context below the part size must not open a multipart upload")
+
+	entries := tarEntries(t, fake.uploadedObject())
+	assert.Equal(t, int64(len("small content")), entries["small.txt"])
+	assert.Equal(t, "application/x-tar", fake.contentType)
 }
 
 func TestObjectStorageUploadAsTarInvalidPath(t *testing.T) {

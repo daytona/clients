@@ -4,8 +4,9 @@ go 1.25.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.45.1
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.1
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.2
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.110.0
 	github.com/daytona/clients/analytics-api-client-go v0.0.0-20260722121532-3d2223c79fe5
 	github.com/daytona/clients/api-client-go v0.210.0
 	github.com/daytona/clients/toolbox-api-client-go v0.210.0

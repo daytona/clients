@@ -17,6 +17,20 @@ from .._utils.docs_ignore import docs_ignore
 from .._utils.environment import isolated_env
 from .._utils.otel_decorator import with_instrumentation
 
+# These four values are coupled; changing one in isolation regresses uploads.
+# UPLOAD_CHUNK_SIZE is the S3 part size, and S3 rejects any part but the last below
+# 5 MiB with EntityTooSmall, so it cannot go lower. A part is buffered before its
+# request is sent, so UPLOAD_REQUEST_TIMEOUT covers only that part's transfer:
+# 5 MiB / 2 min tolerates ~44 KB/s per part, ~175 KB/s across the four in flight.
+# Stalled connections get roughly UPLOAD_RETRY_TIMEOUT / UPLOAD_REQUEST_TIMEOUT
+# attempts (fast failures such as 5xx or throttling still get all 10 default
+# retries), and UPLOAD_RETRY_TIMEOUT must stay under 5 min because retries reuse
+# the API's temporary credentials without renewing them.
+UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024
+UPLOAD_MAX_CONCURRENCY = 4
+UPLOAD_REQUEST_TIMEOUT = timedelta(minutes=2)
+UPLOAD_RETRY_TIMEOUT = timedelta(minutes=4)
+
 
 class AsyncObjectStorage:
     """AsyncObjectStorage class for interacting with object storage services.
@@ -50,8 +64,8 @@ class AsyncObjectStorage:
                 access_key_id=aws_access_key_id,
                 secret_access_key=aws_secret_access_key,
                 session_token=aws_session_token,
-                client_options={"timeout": timedelta(minutes=2)},
-                retry_config={"retry_timeout": timedelta(minutes=4)},
+                client_options={"timeout": UPLOAD_REQUEST_TIMEOUT},
+                retry_config={"retry_timeout": UPLOAD_RETRY_TIMEOUT},
             )
 
     @with_instrumentation()
@@ -191,7 +205,12 @@ class AsyncObjectStorage:
             finally:
                 read_file.close()
 
-        _ = await self.store.put_async(s3_key, reader_iter(), max_concurrency=4)
+        _ = await self.store.put_async(
+            s3_key,
+            reader_iter(),
+            chunk_size=UPLOAD_CHUNK_SIZE,
+            max_concurrency=UPLOAD_MAX_CONCURRENCY,
+        )
         await asyncio.to_thread(thread.join)
 
     async def _async_os_walk(self, path: str) -> list[tuple[str, list[str], list[str]]]:

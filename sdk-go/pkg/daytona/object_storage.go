@@ -5,7 +5,6 @@ package daytona
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -13,11 +12,28 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
+)
+
+// Upload tuning, kept in step with the Python and TypeScript SDKs.
+// uploadPartSize is the S3 part size and cannot go below 5 MiB: S3 rejects any
+// part but the last one under that limit with EntityTooSmall. A part is buffered
+// before its request is sent, so uploadRequestTimeout only covers that part's
+// transfer, which at 5 MiB / 2 min tolerates ~44 KB/s per part.
+const (
+	uploadPartSize       = 5 * 1024 * 1024
+	uploadConcurrency    = 4
+	uploadRequestTimeout = 2 * time.Minute
+	uploadMaxAttempts    = 3
+	uploadMaxBackoff     = 15 * time.Second
 )
 
 // objectStorageConfig holds configuration for S3-compatible object storage.
@@ -64,6 +80,11 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 		Credentials:  creds,
 		BaseEndpoint: aws.String(config.EndpointURL),
 		UsePathStyle: true,
+		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(uploadRequestTimeout),
+		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+			o.MaxAttempts = uploadMaxAttempts
+			o.MaxBackoff = uploadMaxBackoff
+		}),
 	})
 
 	return &objectStorage{
@@ -206,12 +227,11 @@ func (objStorage *objectStorage) folderExistsInS3(ctx context.Context, prefix st
 	return len(result.Contents) > 0, nil
 }
 
-// uploadAsTar creates a tar archive and uploads it to S3
+// uploadAsTar creates a tar archive and uploads it to S3.
+//
+// The archive is streamed straight into a multipart upload, so only a bounded
+// number of parts is ever held in memory regardless of how large the context is.
 func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourcePath, archiveBasePath string) error {
-	// Create tar archive in memory
-	var buf bytes.Buffer
-	tarWriter := tar.NewWriter(&buf)
-
 	absPath, err := filepath.Abs(sourcePath)
 	if err != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
@@ -221,6 +241,46 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 	if err != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
 	}
+
+	reader, writer := io.Pipe()
+	tarErrCh := make(chan error, 1)
+	go func() {
+		tarErr := writeTarArchive(writer, absPath, fileInfo, archiveBasePath)
+		tarErrCh <- tarErr
+		_ = writer.CloseWithError(tarErr)
+	}()
+
+	uploader := transfermanager.New(objStorage.client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = uploadPartSize
+		o.MultipartUploadThreshold = uploadPartSize
+		o.Concurrency = uploadConcurrency
+	})
+
+	_, uploadErr := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+		Bucket:      aws.String(objStorage.bucketName),
+		Key:         aws.String(s3Key),
+		Body:        reader,
+		ContentType: aws.String("application/x-tar"),
+	})
+
+	// Unblock the archiver if the upload gave up before draining the pipe.
+	_ = reader.CloseWithError(uploadErr)
+
+	if tarErr := <-tarErrCh; tarErr != nil {
+		return tarErr
+	}
+	if uploadErr != nil {
+		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", uploadErr), 0, nil)
+	}
+
+	return nil
+}
+
+// writeTarArchive writes sourcePath into w as a tar stream.
+func writeTarArchive(w io.Writer, absPath string, fileInfo os.FileInfo, archiveBasePath string) error {
+	tarWriter := tar.NewWriter(w)
+
+	var err error
 
 	if fileInfo.IsDir() {
 		// Add directory contents to tar
@@ -296,17 +356,6 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 
 	if err := tarWriter.Close(); err != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to close tar writer: %v", err), 0, nil)
-	}
-
-	// Upload to S3
-	_, err = objStorage.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(objStorage.bucketName),
-		Key:         aws.String(s3Key),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String("application/x-tar"),
-	})
-	if err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", err), 0, nil)
 	}
 
 	return nil
