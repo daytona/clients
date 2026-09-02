@@ -39,6 +39,8 @@ public enum GpuType {
   
   RTX_5090("RTX-5090"),
   
+  MI355X("MI355X"),
+  
   UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
 
   private String value;
