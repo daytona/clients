@@ -422,9 +422,9 @@ func TestNewObjectStorageConfiguresUploadTimeoutAndRetries(t *testing.T) {
 	assert.Equal(t, uploadMaxAttempts, objStorage.client.Options().Retryer.MaxAttempts())
 }
 
-// countRetryAttempts drives one request through a scaled-down copy of the shipped
-// retry configuration and reports how many attempts actually reached the server.
-func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, budget time.Duration) int {
+// countRetryAttempts drives one request through the shipped retry configuration with
+// a scaled-down budget, reporting attempts that reached the server and total duration.
+func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, budget time.Duration) (int, time.Duration) {
 	t.Helper()
 
 	var mu sync.Mutex
@@ -444,16 +444,31 @@ func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, 
 		BaseEndpoint: aws.String(server.URL),
 		UsePathStyle: true,
 		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(requestTimeout),
-		Retryer: budgetRetryer{
-			RetryerV2: retry.NewStandard(func(o *retry.StandardOptions) {
-				o.MaxAttempts = uploadMaxAttempts
-				o.MaxBackoff = 20 * time.Millisecond
-			}),
-			budget: budget,
+		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+			o.MaxAttempts = uploadMaxAttempts
+			o.MaxBackoff = 20 * time.Millisecond
+		}),
+		APIOptions: []func(*middleware.Stack) error{
+			func(stack *middleware.Stack) error {
+				return stack.Initialize.Add(
+					middleware.InitializeMiddlewareFunc(
+						"TestUploadRetryBudget",
+						func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+							middleware.InitializeOutput, middleware.Metadata, error,
+						) {
+							ctx, cancel := context.WithTimeout(ctx, budget)
+							defer cancel()
+
+							return next.HandleInitialize(ctx, in)
+						},
+					),
+					middleware.Before,
+				)
+			},
 		},
-		APIOptions: []func(*middleware.Stack) error{withRetryBudgetClock},
 	})
 
+	started := time.Now()
 	_, _ = client.HeadObject(context.Background(), &s3.HeadObjectInput{
 		Bucket: aws.String("test"),
 		Key:    aws.String("probe"),
@@ -462,35 +477,42 @@ func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, 
 	mu.Lock()
 	defer mu.Unlock()
 
-	return attempts
+	return attempts, time.Since(started)
 }
 
+// A stalled endpoint must be cut off by the budget rather than by the attempt count,
+// and the budget must cancel the attempt that is still in flight when it expires.
 func TestRetryBudgetBoundsStalledConnections(t *testing.T) {
-	// Hold the request open until the client's timeout closes the connection.
-	stalled := countRetryAttempts(t, func(_ http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
-	}, 200*time.Millisecond, 400*time.Millisecond)
+	const requestTimeout = 100 * time.Millisecond
+	const budget = time.Second
 
-	assert.Equal(t, 2, stalled, "a stall burns a full request timeout per attempt, so the budget must allow two")
+	attempts, elapsed := countRetryAttempts(t, func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}, requestTimeout, budget)
+
+	assert.Greater(t, attempts, 1, "the stall should have been retried")
+	assert.Less(t, attempts, uploadMaxAttempts, "the budget, not the attempt count, must stop a stall")
+	assert.Less(t, elapsed, budget+requestTimeout,
+		"an attempt admitted near the deadline must be cancelled, not allowed a further request timeout")
 }
 
+// Throttling responses return immediately, so they cost almost no budget and should
+// exhaust the attempt allowance instead.
 func TestRetryBudgetKeepsAttemptsForFastFailures(t *testing.T) {
-	fast := countRetryAttempts(t, func(w http.ResponseWriter, _ *http.Request) {
+	attempts, _ := countRetryAttempts(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`<Error><Code>SlowDown</Code></Error>`))
-	}, 200*time.Millisecond, 400*time.Millisecond)
+	}, 100*time.Millisecond, 5*time.Second)
 
-	assert.Equal(t, uploadMaxAttempts, fast, "throttling responses cost almost no budget and must keep the full allowance")
+	assert.Equal(t, uploadMaxAttempts, attempts)
 }
 
-// The upload credentials are short-lived, so the worst case a stalled connection can
-// reach must stay under five minutes. Two attempts fit inside the budget, and each can
-// be preceded by a backoff capped at uploadMaxBackoff.
+// The upload credentials are short-lived. Because the budget is a deadline on the
+// whole request, uploadRetryTimeout is the worst case a single request can reach.
 func TestRetryBudgetStaysWithinCredentialLifetime(t *testing.T) {
-	worstCase := 2*uploadRequestTimeout + 2*uploadMaxBackoff
-
-	assert.Less(t, worstCase, 5*time.Minute)
 	assert.Less(t, uploadRetryTimeout, 5*time.Minute)
+	assert.Greater(t, uploadRetryTimeout, uploadRequestTimeout,
+		"the budget must leave room for more than one attempt")
 }
 
 func TestUploadAsTarStreamsLargeContextAsMultipart(t *testing.T) {

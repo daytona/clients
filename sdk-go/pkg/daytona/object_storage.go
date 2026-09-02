@@ -30,10 +30,11 @@ import (
 // before its request is sent, so uploadRequestTimeout only covers that part's
 // transfer, which at 5 MiB / 2 min tolerates ~44 KB/s per part.
 //
-// uploadRetryTimeout, not uploadMaxAttempts, is what bounds a stalled connection:
-// a stall burns a full uploadRequestTimeout per attempt, so the budget allows two
-// of them. Failures that come back quickly, such as 503 SlowDown, cost almost no
-// budget and keep the full attempt allowance.
+// uploadRetryTimeout, not uploadMaxAttempts, is what bounds a stalled connection.
+// It is a deadline on the whole request including its retries, so an attempt that
+// is still in flight when the budget runs out is cancelled rather than allowed to
+// run a further uploadRequestTimeout past it. Failures that come back quickly, such
+// as 503 SlowDown, cost almost no budget and keep the full attempt allowance.
 const (
 	uploadPartSize       = 5 * 1024 * 1024
 	uploadConcurrency    = 4
@@ -43,32 +44,21 @@ const (
 	uploadMaxBackoff     = 15 * time.Second
 )
 
-type retryBudgetStartKey struct{}
-
-// budgetRetryer refuses further attempts once budget has elapsed since the request
-// started, giving the AWS retryer the wall-clock ceiling that obstore's retry_timeout
-// gives the Python SDK.
-type budgetRetryer struct {
-	aws.RetryerV2
-	budget time.Duration
-}
-
-func (r budgetRetryer) GetAttemptToken(ctx context.Context) (func(error) error, error) {
-	if start, ok := ctx.Value(retryBudgetStartKey{}).(time.Time); ok && time.Since(start) >= r.budget {
-		return nil, fmt.Errorf("upload retry budget of %s exhausted", r.budget)
-	}
-
-	return r.RetryerV2.GetAttemptToken(ctx)
-}
-
-func withRetryBudgetClock(stack *middleware.Stack) error {
+// withRetryBudget bounds each S3 operation, retries included, at uploadRetryTimeout.
+// Initialize runs once per operation rather than once per attempt, so the deadline
+// covers the whole retry sequence. This client only uploads and reads metadata; a
+// streaming download would need the cancel deferred past the caller's read instead.
+func withRetryBudget(stack *middleware.Stack) error {
 	return stack.Initialize.Add(
 		middleware.InitializeMiddlewareFunc(
-			"DaytonaRetryBudgetClock",
+			"DaytonaUploadRetryBudget",
 			func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
 				middleware.InitializeOutput, middleware.Metadata, error,
 			) {
-				return next.HandleInitialize(context.WithValue(ctx, retryBudgetStartKey{}, time.Now()), in)
+				ctx, cancel := context.WithTimeout(ctx, uploadRetryTimeout)
+				defer cancel()
+
+				return next.HandleInitialize(ctx, in)
 			},
 		),
 		middleware.Before,
@@ -120,14 +110,11 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 		BaseEndpoint: aws.String(config.EndpointURL),
 		UsePathStyle: true,
 		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(uploadRequestTimeout),
-		Retryer: budgetRetryer{
-			RetryerV2: retry.NewStandard(func(o *retry.StandardOptions) {
-				o.MaxAttempts = uploadMaxAttempts
-				o.MaxBackoff = uploadMaxBackoff
-			}),
-			budget: uploadRetryTimeout,
-		},
-		APIOptions: []func(*middleware.Stack) error{withRetryBudgetClock},
+		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+			o.MaxAttempts = uploadMaxAttempts
+			o.MaxBackoff = uploadMaxBackoff
+		}),
+		APIOptions: []func(*middleware.Stack) error{withRetryBudget},
 	})
 
 	return &objectStorage{
