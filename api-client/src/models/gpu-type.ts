@@ -21,6 +21,7 @@ export const GpuType = {
     RTX_PRO_6000: 'RTX-PRO-6000',
     RTX_4090: 'RTX-4090',
     RTX_5090: 'RTX-5090',
+    MI355X: 'MI355X',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 

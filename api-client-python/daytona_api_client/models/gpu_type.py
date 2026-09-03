@@ -32,6 +32,7 @@ class GpuType(str, Enum):
     RTX_PRO_6000 = 'RTX-PRO-6000'
     RTX_4090 = 'RTX-4090'
     RTX_5090 = 'RTX-5090'
+    MI355X = 'MI355X'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 
     @classmethod

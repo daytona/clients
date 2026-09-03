@@ -25,6 +25,7 @@ const (
 	GPUTYPE_RTX_PRO_6000 GpuType = "RTX-PRO-6000"
 	GPUTYPE_RTX_4090 GpuType = "RTX-4090"
 	GPUTYPE_RTX_5090 GpuType = "RTX-5090"
+	GPUTYPE_MI355X GpuType = "MI355X"
 	GPUTYPE_UNKNOWN_DEFAULT_OPEN_API GpuType = "11184809"
 )
 
@@ -35,6 +36,7 @@ var AllowedGpuTypeEnumValues = []GpuType{
 	"RTX-PRO-6000",
 	"RTX-4090",
 	"RTX-5090",
+	"MI355X",
 	"11184809",
 }
 
