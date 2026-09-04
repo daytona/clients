@@ -9,11 +9,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -25,13 +28,18 @@ const CONTEXT_TAR_FILE_NAME = "context.tar"
 // inside the context directory.
 const contextTarPrefix = ".daytona-context-"
 
-// isContextArchiveFile matches by prefix so that a scratch archive left behind
-// by an interrupted run is not swept into a later context.
-func isContextArchiveFile(name string) bool {
-	if name == CONTEXT_TAR_FILE_NAME {
+// isContextArchiveFile takes a path relative to the context directory. Scratch
+// archives are matched by prefix so that one left behind by an interrupted run
+// is not swept into a later context, but only at the context root where they
+// are created, so user files deeper in the tree are never hidden.
+func isContextArchiveFile(relPath string) bool {
+	if filepath.Base(relPath) == CONTEXT_TAR_FILE_NAME {
 		return true
 	}
-	return strings.HasPrefix(name, contextTarPrefix) && strings.HasSuffix(name, ".tar")
+	if filepath.Dir(relPath) != "." {
+		return false
+	}
+	return strings.HasPrefix(relPath, contextTarPrefix) && strings.HasSuffix(relPath, ".tar")
 }
 
 type Client struct {
@@ -196,12 +204,28 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		dockerignoreExists = true
 	}
 
+	// Captured before the scratch archive exists. Creating and removing it
+	// updates the context directory's mtime, which would otherwise land in the
+	// archive and change the context hash on every run.
+	rootInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read context directory %s: %w", dirPath, err)
+	}
+
 	tarFile, err := os.CreateTemp(dirPath, contextTarPrefix+"*.tar")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tar file in context directory %s: %w", dirPath, err)
 	}
 	tarPath := tarFile.Name()
-	defer os.Remove(tarPath)
+	defer func() {
+		if err := os.Remove(tarPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			fmt.Printf("Warning: failed to remove temporary context archive %s: %v\n", tarPath, err)
+			return
+		}
+		if err := os.Chtimes(dirPath, time.Time{}, rootInfo.ModTime()); err != nil {
+			fmt.Printf("Warning: failed to restore timestamp of %s: %v\n", dirPath, err)
+		}
+	}()
 	defer tarFile.Close()
 
 	tw := tar.NewWriter(tarFile)
@@ -216,12 +240,20 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			return err
 		}
 
-		if isContextArchiveFile(fi.Name()) {
+		relPath, err := filepath.Rel(dirPath, file)
+		if err != nil {
+			return err
+		}
+
+		if isContextArchiveFile(relPath) {
 			return nil
 		}
 
+		if file == dirPath {
+			fi = rootInfo
+		}
+
 		if shouldExcludeFile(file, dirPath) {
-			relPath, _ := filepath.Rel(dirPath, file)
 			if fi.IsDir() {
 				fmt.Printf("Excluding directory: %s\n", relPath)
 				return filepath.SkipDir
@@ -231,11 +263,6 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		}
 
 		header, err := tar.FileInfoHeader(fi, fi.Name())
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(dirPath, file)
 		if err != nil {
 			return err
 		}

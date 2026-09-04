@@ -9,11 +9,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -206,12 +208,53 @@ func assertNoContextArchives(t *testing.T, dir string) {
 	}
 }
 
-// waitForNextSecond aligns to a second boundary. Archive headers record mtimes
-// with one-second granularity and creating the scratch archive updates the
-// context directory's mtime, so a priming run and a cached run only hash
-// identically when both fall within the same second.
-func waitForNextSecond() {
-	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
+func TestProcessDirectoryProducesStableHashAcrossRuns(t *testing.T) {
+	client, _ := newFakeStorage(t)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "Dockerfile", "FROM alpine\n")
+	t.Chdir(t.TempDir())
+
+	first, err := client.ProcessDirectory(context.Background(), dir, testOrgID, map[string]bool{})
+	if err != nil {
+		t.Fatalf("first ProcessDirectory returned an error: %v", err)
+	}
+
+	// A run must not change the context directory in a way that alters the next
+	// run's hash, otherwise an unchanged context is re-uploaded every time.
+	time.Sleep(1100 * time.Millisecond)
+
+	second, err := client.ProcessDirectory(context.Background(), dir, testOrgID, map[string]bool{})
+	if err != nil {
+		t.Fatalf("second ProcessDirectory returned an error: %v", err)
+	}
+
+	if first[0] != second[0] {
+		t.Errorf("hash of an unchanged context changed between runs: %s then %s", first[0], second[0])
+	}
+}
+
+func TestProcessDirectoryIncludesNestedFilesNamedLikeScratchArchives(t *testing.T) {
+	client, storage := newFakeStorage(t)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "Dockerfile", "FROM alpine\n")
+	nested := filepath.Join(dir, "fixtures")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("failed to create nested directory: %v", err)
+	}
+	writeFile(t, nested, contextTarPrefix+"sample.tar", "user fixture")
+	t.Chdir(t.TempDir())
+
+	if _, err := client.ProcessDirectory(context.Background(), dir, testOrgID, map[string]bool{}); err != nil {
+		t.Fatalf("ProcessDirectory returned an error: %v", err)
+	}
+
+	entries := tarEntries(t, storage.uploadedArchive(t))
+	nestedEntry := filepath.Join("fixtures", contextTarPrefix+"sample.tar")
+	if got, found := entries[nestedEntry]; !found || got != "user fixture" {
+		t.Errorf("nested file %s should be included in the context, entries = %v", nestedEntry, slices.Sorted(maps.Keys(entries)))
+	}
 }
 
 func TestProcessDirectoryPreservesExistingContextTar(t *testing.T) {
@@ -296,32 +339,23 @@ func TestProcessDirectoryCleansUpOnCacheHit(t *testing.T) {
 	workingDir := t.TempDir()
 	t.Chdir(workingDir)
 
-	const attempts = 5
-	for attempt := 1; ; attempt++ {
-		waitForNextSecond()
+	primed, err := client.ProcessDirectory(context.Background(), dir, testOrgID, map[string]bool{})
+	if err != nil {
+		t.Fatalf("priming ProcessDirectory returned an error: %v", err)
+	}
 
-		primed, err := client.ProcessDirectory(context.Background(), dir, testOrgID, map[string]bool{})
-		if err != nil {
-			t.Fatalf("priming ProcessDirectory returned an error: %v", err)
-		}
+	uploadsBefore := storage.puts()
+	existingObjects := map[string]bool{testOrgID + "/" + primed[0]: true}
 
-		uploadsBefore := storage.puts()
-		existingObjects := map[string]bool{testOrgID + "/" + primed[0]: true}
-
-		cached, err := client.ProcessDirectory(context.Background(), dir, testOrgID, existingObjects)
-		if err != nil {
-			t.Fatalf("cached ProcessDirectory returned an error: %v", err)
-		}
-
-		if cached[0] == primed[0] {
-			if uploads := storage.puts() - uploadsBefore; uploads != 0 {
-				t.Errorf("expected no uploads on a cache hit, got %d", uploads)
-			}
-			break
-		}
-		if attempt == attempts {
-			t.Fatalf("context hash changed between consecutive runs %d times, cannot exercise the cache hit", attempts)
-		}
+	cached, err := client.ProcessDirectory(context.Background(), dir, testOrgID, existingObjects)
+	if err != nil {
+		t.Fatalf("cached ProcessDirectory returned an error: %v", err)
+	}
+	if cached[0] != primed[0] {
+		t.Fatalf("context hash changed between runs: %s then %s", primed[0], cached[0])
+	}
+	if uploads := storage.puts() - uploadsBefore; uploads != 0 {
+		t.Errorf("expected no uploads on a cache hit, got %d", uploads)
 	}
 
 	assertNoContextArchives(t, dir)
