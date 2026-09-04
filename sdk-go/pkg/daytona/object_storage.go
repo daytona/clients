@@ -5,20 +5,109 @@ package daytona
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/daytona/clients/sdk-go/pkg/errors"
 )
+
+// Upload tuning, kept in step with the Python and TypeScript SDKs.
+// uploadPartSize is the S3 part size and cannot go below 5 MiB: S3 rejects any
+// part but the last one under that limit with EntityTooSmall. A part is buffered
+// before its request is sent, so uploadRequestTimeout only covers that part's
+// transfer, which at 5 MiB / 2 min tolerates ~44 KB/s per part.
+//
+// uploadRetryTimeout, not uploadMaxAttempts, is what bounds a stalled connection.
+// It is a deadline on the whole request including its retries, so an attempt that
+// is still in flight when the budget runs out is cancelled rather than allowed to
+// run a further uploadRequestTimeout past it. Failures that come back quickly, such
+// as 503 SlowDown, cost almost no budget and keep the full attempt allowance.
+//
+// uploadAbortTimeout gives the abort of a failed multipart upload a context of its
+// own. The transfer manager reuses the caller's context for that abort when this is
+// zero, so a cancelled or timed-out upload would never reach AbortMultipartUpload and
+// would leave paid-for parts behind in the bucket.
+const (
+	uploadPartSize       = 5 * 1024 * 1024
+	uploadConcurrency    = 4
+	uploadRequestTimeout = 2 * time.Minute
+	uploadRetryTimeout   = 4 * time.Minute
+	uploadAbortTimeout   = 30 * time.Second
+	uploadMaxAttempts    = 10
+	uploadMaxBackoff     = 15 * time.Second
+)
+
+// errUploadFinished closes the read side of the pipe once the upload is over. The tar
+// goroutine may still be blocked writing, and this makes the resulting write failure
+// distinguishable from a genuine archiving error.
+var errUploadFinished = stderrors.New("upload finished")
+
+const retryBudgetMiddlewareID = "DaytonaUploadRetryBudget"
+
+// withRetryBudget bounds each S3 operation, retries included, at budget. Initialize
+// runs once per operation rather than once per attempt, so the deadline covers the
+// whole retry sequence. This client only uploads and reads metadata; a streaming
+// download would need the cancel deferred past the caller's read instead.
+func withRetryBudget(budget time.Duration) func(*middleware.Stack) error {
+	return func(stack *middleware.Stack) error {
+		return stack.Initialize.Add(
+			middleware.InitializeMiddlewareFunc(
+				retryBudgetMiddlewareID,
+				func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+					middleware.InitializeOutput, middleware.Metadata, error,
+				) {
+					ctx, cancel := context.WithTimeout(ctx, budget)
+					defer cancel()
+
+					return next.HandleInitialize(ctx, in)
+				},
+			),
+			middleware.Before,
+		)
+	}
+}
+
+// newUploadClient builds the S3 client used for context uploads. The durations are
+// parameters so tests can drive the real configuration on a compressed timescale.
+func newUploadClient(config objectStorageConfig, requestTimeout, retryBudget, maxBackoff time.Duration) *s3.Client {
+	var sessionToken *string
+	if config.SessionToken != nil && *config.SessionToken != "" {
+		sessionToken = config.SessionToken
+	}
+
+	creds := credentials.NewStaticCredentialsProvider(
+		config.AccessKeyID,
+		config.SecretAccessKey,
+		aws.ToString(sessionToken),
+	)
+
+	return s3.New(s3.Options{
+		Region:       config.Region,
+		Credentials:  creds,
+		BaseEndpoint: aws.String(config.EndpointURL),
+		UsePathStyle: true,
+		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(requestTimeout),
+		Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+			o.MaxAttempts = uploadMaxAttempts
+			o.MaxBackoff = maxBackoff
+		}),
+		APIOptions: []func(*middleware.Stack) error{withRetryBudget(retryBudget)},
+	})
+}
 
 // objectStorageConfig holds configuration for S3-compatible object storage.
 type objectStorageConfig struct {
@@ -46,28 +135,8 @@ func NewObjectStorage(config objectStorageConfig) *objectStorage {
 		bucketName = "daytona-volume-builds"
 	}
 
-	// Create credentials
-	var sessionToken *string
-	if config.SessionToken != nil && *config.SessionToken != "" {
-		sessionToken = config.SessionToken
-	}
-
-	creds := credentials.NewStaticCredentialsProvider(
-		config.AccessKeyID,
-		config.SecretAccessKey,
-		aws.ToString(sessionToken),
-	)
-
-	// Create S3 client
-	client := s3.New(s3.Options{
-		Region:       config.Region,
-		Credentials:  creds,
-		BaseEndpoint: aws.String(config.EndpointURL),
-		UsePathStyle: true,
-	})
-
 	return &objectStorage{
-		client:     client,
+		client:     newUploadClient(config, uploadRequestTimeout, uploadRetryTimeout, uploadMaxBackoff),
 		bucketName: bucketName,
 	}
 }
@@ -206,12 +275,11 @@ func (objStorage *objectStorage) folderExistsInS3(ctx context.Context, prefix st
 	return len(result.Contents) > 0, nil
 }
 
-// uploadAsTar creates a tar archive and uploads it to S3
+// uploadAsTar creates a tar archive and uploads it to S3.
+//
+// The archive is streamed straight into a multipart upload, so only a bounded
+// number of parts is ever held in memory regardless of how large the context is.
 func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourcePath, archiveBasePath string) error {
-	// Create tar archive in memory
-	var buf bytes.Buffer
-	tarWriter := tar.NewWriter(&buf)
-
 	absPath, err := filepath.Abs(sourcePath)
 	if err != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
@@ -221,6 +289,50 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 	if err != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
 	}
+
+	reader, writer := io.Pipe()
+	tarErrCh := make(chan error, 1)
+	go func() {
+		tarErr := writeTarArchive(writer, absPath, fileInfo, archiveBasePath)
+		tarErrCh <- tarErr
+		_ = writer.CloseWithError(tarErr)
+	}()
+
+	uploader := transfermanager.New(objStorage.client, func(o *transfermanager.Options) {
+		o.PartSizeBytes = uploadPartSize
+		o.MultipartUploadThreshold = uploadPartSize
+		o.Concurrency = uploadConcurrency
+		o.FailTimeout = uploadAbortTimeout
+	})
+
+	_, uploadErr := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+		Bucket:      aws.String(objStorage.bucketName),
+		Key:         aws.String(s3Key),
+		Body:        reader,
+		ContentType: aws.String("application/x-tar"),
+	})
+
+	// Unblock the archiver if the upload gave up before draining the pipe.
+	_ = reader.CloseWithError(errUploadFinished)
+	tarErr := <-tarErrCh
+
+	// A tar error that is just the pipe reporting this closure back to the writer says
+	// nothing about why the upload stopped, so the upload error stays the reported one.
+	if tarErr != nil && !stderrors.Is(tarErr, errUploadFinished) {
+		return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar archive: %v", tarErr), 0, nil)
+	}
+	if uploadErr != nil {
+		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", uploadErr), 0, nil)
+	}
+
+	return nil
+}
+
+// writeTarArchive writes sourcePath into w as a tar stream.
+func writeTarArchive(w io.Writer, absPath string, fileInfo os.FileInfo, archiveBasePath string) error {
+	tarWriter := tar.NewWriter(w)
+
+	var err error
 
 	if fileInfo.IsDir() {
 		// Add directory contents to tar
@@ -269,44 +381,33 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 			return nil
 		})
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar archive: %v", err), 0, nil)
+			return err
 		}
 	} else {
 		// Add single file to tar
 		f, err := os.Open(absPath)
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to open file: %v", err), 0, nil)
+			return fmt.Errorf("failed to open file: %w", err)
 		}
 		defer f.Close()
 
 		header, err := tar.FileInfoHeader(fileInfo, "")
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar header: %v", err), 0, nil)
+			return fmt.Errorf("failed to create tar header: %w", err)
 		}
 		header.Name = archiveBasePath
 
 		if err := tarWriter.WriteHeader(header); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write tar header: %v", err), 0, nil)
+			return fmt.Errorf("failed to write tar header: %w", err)
 		}
 
 		if _, err := io.Copy(tarWriter, f); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write file to tar: %v", err), 0, nil)
+			return fmt.Errorf("failed to write file to tar: %w", err)
 		}
 	}
 
 	if err := tarWriter.Close(); err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to close tar writer: %v", err), 0, nil)
-	}
-
-	// Upload to S3
-	_, err = objStorage.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(objStorage.bucketName),
-		Key:         aws.String(s3Key),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String("application/x-tar"),
-	})
-	if err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", err), 0, nil)
+		return fmt.Errorf("failed to close tar writer: %w", err)
 	}
 
 	return nil

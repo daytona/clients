@@ -30,8 +30,18 @@ class TestObjectStorage:
             ObjectStorage("https://s3.us-west-2.amazonaws.com", "key", "secret", "token", region="ap-south-1")
 
         assert mock_store_cls.call_args.kwargs["region"] == "ap-south-1"
-        assert mock_store_cls.call_args.kwargs["client_options"] == {"timeout": timedelta(minutes=2)}
-        assert mock_store_cls.call_args.kwargs["retry_config"] == {"retry_timeout": timedelta(minutes=4)}
+        assert mock_store_cls.call_args.kwargs["client_options"]["timeout"] == timedelta(minutes=2)
+        assert mock_store_cls.call_args.kwargs["retry_config"]["retry_timeout"] == timedelta(minutes=4)
+
+    def test_retry_budget_stays_within_credential_lifetime(self):
+        from daytona._sync import object_storage
+
+        assert object_storage.UPLOAD_RETRY_TIMEOUT < timedelta(minutes=5)
+
+    def test_chunk_size_respects_s3_minimum_part_size(self):
+        from daytona._sync import object_storage
+
+        assert object_storage.UPLOAD_CHUNK_SIZE >= 5 * 1024 * 1024
 
     def test_constructor_requires_region(self):
         from daytona._sync.object_storage import ObjectStorage
@@ -134,4 +144,5 @@ class TestObjectStorage:
 
         assert "org/hash/context.tar" in captured
         assert len(captured["org/hash/context.tar"]) > 0
-        assert store.put.call_args.kwargs == {"max_concurrency": 4}
+        assert store.put.call_args.kwargs["max_concurrency"] == 4
+        assert store.put.call_args.kwargs["chunk_size"] == 5 * 1024 * 1024

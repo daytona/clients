@@ -4,14 +4,169 @@
 package daytona
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// fakeS3 is a minimal S3 endpoint that records how an object was written, so the
+// tests can tell a streamed multipart upload apart from a single buffered PutObject.
+type fakeS3 struct {
+	mu          sync.Mutex
+	parts       map[int][]byte
+	singlePut   []byte
+	contentType string
+}
+
+func newFakeS3(t *testing.T) (*fakeS3, *httptest.Server) {
+	t.Helper()
+
+	fake := &fakeS3{parts: map[int][]byte{}}
+	server := httptest.NewServer(http.HandlerFunc(fake.handle))
+	t.Cleanup(server.Close)
+
+	return fake, server
+}
+
+func (f *fakeS3) handle(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	query := r.URL.Query()
+
+	f.mu.Lock()
+	if ct := r.Header.Get("Content-Type"); ct != "" && ct != "application/octet-stream" {
+		f.contentType = ct
+	}
+	f.mu.Unlock()
+
+	switch {
+	case r.Method == http.MethodPost && query.Has("uploads"):
+		writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+	case r.Method == http.MethodPut && query.Has("partNumber"):
+		partNumber, _ := strconv.Atoi(query.Get("partNumber"))
+		f.mu.Lock()
+		f.parts[partNumber] = body
+		f.mu.Unlock()
+		w.Header().Set("ETag", `"etag-`+query.Get("partNumber")+`"`)
+		w.WriteHeader(http.StatusOK)
+	case r.Method == http.MethodPost && query.Has("uploadId"):
+		writeXML(w, `<CompleteMultipartUploadResult><Location>l</Location><Bucket>b</Bucket><Key>k</Key><ETag>&quot;final&quot;</ETag></CompleteMultipartUploadResult>`)
+	case r.Method == http.MethodPut:
+		f.mu.Lock()
+		f.singlePut = body
+		f.mu.Unlock()
+		w.Header().Set("ETag", `"etag-single"`)
+		w.WriteHeader(http.StatusOK)
+	default:
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (f *fakeS3) uploadedObject() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.singlePut != nil {
+		return f.singlePut
+	}
+
+	numbers := make([]int, 0, len(f.parts))
+	for number := range f.parts {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+
+	var joined []byte
+	for _, number := range numbers {
+		joined = append(joined, f.parts[number]...)
+	}
+
+	return joined
+}
+
+func (f *fakeS3) partSizes() []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	numbers := make([]int, 0, len(f.parts))
+	for number := range f.parts {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+
+	sizes := make([]int, 0, len(numbers))
+	for _, number := range numbers {
+		sizes = append(sizes, len(f.parts[number]))
+	}
+
+	return sizes
+}
+
+func writeXML(w http.ResponseWriter, payload string) {
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(payload))
+}
+
+func tarEntries(t *testing.T, archive []byte) map[string]int64 {
+	t.Helper()
+
+	entries := map[string]int64{}
+	reader := tar.NewReader(bytes.NewReader(archive))
+
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+		entries[header.Name] = header.Size
+	}
+
+	return entries
+}
+
+func storageForServer(server *httptest.Server) *objectStorage {
+	return NewObjectStorage(objectStorageConfig{
+		EndpointURL:     server.URL,
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+}
+
+// storageWithFastRetries builds the real upload client on a compressed timescale, so
+// failure-path tests do not sit through the production backoff schedule.
+func storageWithFastRetries(server *httptest.Server) *objectStorage {
+	return &objectStorage{
+		client: newUploadClient(objectStorageConfig{
+			EndpointURL:     server.URL,
+			AccessKeyID:     "AKID",
+			SecretAccessKey: "SECRET",
+			BucketName:      "test",
+			Region:          "us-east-1",
+		}, 2*time.Second, 5*time.Second, 10*time.Millisecond),
+		bucketName: "test",
+	}
+}
 
 func TestNewObjectStorage(t *testing.T) {
 	tests := []struct {
@@ -262,6 +417,240 @@ func TestObjectStorageHashIncludesArchiveBasePath(t *testing.T) {
 	hashB, err := objStorage.computeHashForPath(tmpFile, "b.txt")
 	require.NoError(t, err)
 	assert.NotEqual(t, hashA, hashB)
+}
+
+func TestNewObjectStorageConfiguresUploadTimeoutAndRetries(t *testing.T) {
+	objStorage := NewObjectStorage(objectStorageConfig{
+		EndpointURL:     "https://s3.us-east-1.amazonaws.com",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+
+	client, ok := objStorage.client.Options().HTTPClient.(*awshttp.BuildableClient)
+	require.True(t, ok)
+	assert.Equal(t, 2*time.Minute, client.GetTimeout())
+
+	require.NotNil(t, objStorage.client.Options().Retryer)
+	assert.Equal(t, uploadMaxAttempts, objStorage.client.Options().Retryer.MaxAttempts())
+}
+
+// countRetryAttempts drives one request through the shipped retry configuration with
+// a scaled-down budget, reporting attempts that reached the server and total duration.
+func countRetryAttempts(t *testing.T, handler http.HandlerFunc, requestTimeout, budget time.Duration) (int, time.Duration) {
+	t.Helper()
+
+	var mu sync.Mutex
+	attempts := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		attempts++
+		mu.Unlock()
+		handler(w, r)
+	}))
+	defer server.Close()
+
+	client := newUploadClient(objectStorageConfig{
+		EndpointURL:     server.URL,
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	}, requestTimeout, budget, 20*time.Millisecond)
+
+	started := time.Now()
+	_, _ = client.HeadObject(context.Background(), &s3.HeadObjectInput{
+		Bucket: aws.String("test"),
+		Key:    aws.String("probe"),
+	})
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	return attempts, time.Since(started)
+}
+
+// The behavioural budget tests run on a compressed timescale, so this pins the fact
+// that the client NewObjectStorage hands out actually registers the budget middleware.
+func TestNewObjectStorageRegistersRetryBudget(t *testing.T) {
+	objStorage := NewObjectStorage(objectStorageConfig{
+		EndpointURL:     "https://s3.us-east-1.amazonaws.com",
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		BucketName:      "test",
+		Region:          "us-east-1",
+	})
+
+	stack := middleware.NewStack("test", smithyhttp.NewStackRequest)
+	for _, apiOption := range objStorage.client.Options().APIOptions {
+		require.NoError(t, apiOption(stack))
+	}
+
+	assert.Contains(t, stack.Initialize.List(), retryBudgetMiddlewareID)
+}
+
+// A stalled endpoint must be cut off by the budget rather than by the attempt count,
+// and the budget must cancel the attempt that is still in flight when it expires.
+func TestRetryBudgetBoundsStalledConnections(t *testing.T) {
+	const requestTimeout = 100 * time.Millisecond
+	const budget = time.Second
+
+	attempts, elapsed := countRetryAttempts(t, func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}, requestTimeout, budget)
+
+	assert.Greater(t, attempts, 1, "the stall should have been retried")
+	assert.Less(t, attempts, uploadMaxAttempts, "the budget, not the attempt count, must stop a stall")
+	assert.Less(t, elapsed, budget+requestTimeout,
+		"an attempt admitted near the deadline must be cancelled, not allowed a further request timeout")
+}
+
+// Throttling responses return immediately, so they cost almost no budget and should
+// exhaust the attempt allowance instead.
+func TestRetryBudgetKeepsAttemptsForFastFailures(t *testing.T) {
+	attempts, _ := countRetryAttempts(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`<Error><Code>SlowDown</Code></Error>`))
+	}, 100*time.Millisecond, 5*time.Second)
+
+	assert.Equal(t, uploadMaxAttempts, attempts)
+}
+
+// The upload credentials are short-lived. Because the budget is a deadline on the
+// whole request, uploadRetryTimeout is the worst case a single request can reach.
+func TestRetryBudgetStaysWithinCredentialLifetime(t *testing.T) {
+	assert.Less(t, uploadRetryTimeout, 5*time.Minute)
+	assert.Greater(t, uploadRetryTimeout, uploadRequestTimeout,
+		"the budget must leave room for more than one attempt")
+}
+
+func TestUploadAsTarStreamsLargeContextAsMultipart(t *testing.T) {
+	fake, server := newFakeS3(t)
+
+	tmpDir := t.TempDir()
+	// Two files of 6 MiB each force at least three 5 MiB parts.
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageForServer(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+	require.NoError(t, err)
+
+	sizes := fake.partSizes()
+	require.GreaterOrEqual(t, len(sizes), 2, "large context must be uploaded as multiple parts")
+
+	for _, size := range sizes[:len(sizes)-1] {
+		assert.Equal(t, uploadPartSize, size, "every part but the last must match the configured part size")
+	}
+
+	entries := tarEntries(t, fake.uploadedObject())
+	assert.Equal(t, int64(6*1024*1024), entries[filepath.Join("context", "big1.bin")])
+	assert.Equal(t, int64(6*1024*1024), entries[filepath.Join("context", "big2.bin")])
+}
+
+func TestUploadAsTarUsesSingleRequestForSmallContext(t *testing.T) {
+	fake, server := newFakeS3(t)
+
+	tmpFile := filepath.Join(t.TempDir(), "small.txt")
+	require.NoError(t, os.WriteFile(tmpFile, []byte("small content"), 0o644))
+
+	err := storageForServer(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpFile, "small.txt")
+	require.NoError(t, err)
+
+	assert.Empty(t, fake.partSizes(), "a context below the part size must not open a multipart upload")
+
+	entries := tarEntries(t, fake.uploadedObject())
+	assert.Equal(t, int64(len("small content")), entries["small.txt"])
+	assert.Equal(t, "application/x-tar", fake.contentType)
+}
+
+// When S3 fails mid-stream the pipe reports that failure back to the tar goroutine.
+// The caller must still be told the upload failed, not that the archive is broken.
+func TestUploadAsTarReportsUploadFailureNotTarFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Query().Has("uploads") {
+			writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>denied</Message></Error>`))
+	}))
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to upload to S3")
+	assert.NotContains(t, err.Error(), "Failed to create tar archive")
+}
+
+// A genuine archiving failure must still be reported as one.
+func TestUploadAsTarReportsGenuineTarFailure(t *testing.T) {
+	_, server := newFakeS3(t)
+
+	tmpDir := t.TempDir()
+	unreadable := filepath.Join(tmpDir, "unreadable.bin")
+	require.NoError(t, os.WriteFile(unreadable, bytes.Repeat([]byte("x"), 1024), 0o000))
+	if os.Geteuid() == 0 {
+		t.Skip("running as root defeats the unreadable-file permission")
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to create tar archive")
+}
+
+// A cancelled upload must still abort the multipart upload, or the parts already sent
+// are billed until a lifecycle rule reaps them. The transfer manager reuses the
+// caller's context for that abort unless FailTimeout gives it one of its own.
+func TestUploadAsTarAbortsMultipartUploadWhenCancelled(t *testing.T) {
+	var mu sync.Mutex
+	aborted := false
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		switch {
+		case r.Method == http.MethodPost && query.Has("uploads"):
+			writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+		case r.Method == http.MethodDelete && query.Has("uploadId"):
+			mu.Lock()
+			aborted = true
+			mu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPut && query.Has("partNumber"):
+			// Cancel while the transfer is in flight, then answer normally.
+			_, _ = io.Copy(io.Discard, r.Body)
+			cancel()
+			w.Header().Set("ETag", `"etag"`)
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(ctx, "org/hash/context.tar", tmpDir, "context")
+	require.Error(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.True(t, aborted, "AbortMultipartUpload must still be sent after the context is cancelled")
 }
 
 func TestObjectStorageUploadAsTarInvalidPath(t *testing.T) {

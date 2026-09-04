@@ -14,7 +14,7 @@ PATH
   remote: sdk-ruby
   specs:
     daytona (0.0.0.pre.dev)
-      aws-sdk-s3 (~> 1.0)
+      aws-sdk-s3 (>= 1.197.0, < 2)
       daytona_analytics_api_client (= 0.0.0.pre.dev)
       daytona_api_client (= 0.0.0.pre.dev)
       daytona_toolbox_api_client (= 0.0.0.pre.dev)
