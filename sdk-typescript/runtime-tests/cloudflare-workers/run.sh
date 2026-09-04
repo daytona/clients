@@ -14,7 +14,7 @@ DAYTONA_API_KEY=$DAYTONA_API_KEY
 DAYTONA_API_URL=$DAYTONA_API_URL
 EOF
 
-npx wrangler dev --local --port "$PORT" >/tmp/wrangler-runtime.log 2>&1 &
+npx wrangler dev --local --port "$PORT" >/tmp/cloudflare-workers-runtime.log 2>&1 &
 PID=$!
 trap "kill -9 $PID 2>/dev/null || true; pkill -9 -f 'wrangler dev' 2>/dev/null || true; pkill -9 -f workerd 2>/dev/null || true; rm -f .dev.vars" EXIT
 

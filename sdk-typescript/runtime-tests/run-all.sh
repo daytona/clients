@@ -117,11 +117,13 @@ for runtime in "${RUNTIMES[@]}"; do
   start=$SECONDS
   # Strip any ambient NODE_ENV (e.g. the Nix dev shell sets development) so each
   # framework's production build/prerender runs with the React production build.
-  if (cd "$WORK_DIR" && timeout -k 15 "$RUNTIME_TIMEOUT_SECONDS" env -u NODE_ENV bash run.sh); then
+  status=0
+  (cd "$WORK_DIR" && timeout -k 15 "$RUNTIME_TIMEOUT_SECONDS" env -u NODE_ENV bash run.sh) || status=$?
+  if [ "$status" -eq 0 ]; then
     duration=$((SECONDS - start))
     PASS+=("$runtime (${duration}s)")
     echo "✓ $runtime PASS (${duration}s)"
-  elif [ $? -eq 124 ]; then
+  elif [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
     FAIL+=("$runtime (timed out after ${RUNTIME_TIMEOUT_SECONDS}s)")
     echo "✗ $runtime TIMEOUT (${RUNTIME_TIMEOUT_SECONDS}s)"
     for log in /tmp/"$runtime"-*.log; do
