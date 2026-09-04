@@ -5,7 +5,7 @@ import { AxiosError, AxiosHeaders } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { Readable } from 'stream'
 
-import { withConnectionRetry } from '../utils/RetryAdapter'
+import { retryBackoffSleep, withConnectionRetry } from '../utils/RetryAdapter'
 
 type ErrnoProps = { code: string; syscall?: string }
 
@@ -182,6 +182,16 @@ describe('withConnectionRetry', () => {
 
       expect(base).toHaveBeenCalledTimes(1)
       expect(abortingSleep).toHaveBeenCalledWith(expect.any(Number), controller.signal)
+    })
+
+    it('the default backoff returns immediately for an already-aborted signal', async () => {
+      const controller = new AbortController()
+      controller.abort()
+      const started = Date.now()
+
+      await retryBackoffSleep(10_000, controller.signal)
+
+      expect(Date.now() - started).toBeLessThan(100)
     })
 
     it('the default backoff wakes up as soon as the signal aborts', async () => {

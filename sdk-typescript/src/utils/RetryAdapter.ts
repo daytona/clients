@@ -104,7 +104,8 @@ function backoffMs(attempt: number): number {
   return BACKOFF_BASE_MS * attempt + Math.random() * BACKOFF_JITTER_MS
 }
 
-function defaultSleep(ms: number, signal?: GenericAbortSignal): Promise<void> {
+export function retryBackoffSleep(ms: number, signal?: GenericAbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve()
   return new Promise<void>((resolve) => {
     const onAbort = () => {
       clearTimeout(timer)
@@ -124,7 +125,7 @@ function defaultSleep(ms: number, signal?: GenericAbortSignal): Promise<void> {
  */
 export function withConnectionRetry(base: AxiosAdapter, options: ConnectionRetryOptions = {}): AxiosAdapter {
   const maxRetries = options.maxRetries ?? MAX_RETRIES
-  const sleep = options.sleep ?? defaultSleep
+  const sleep = options.sleep ?? retryBackoffSleep
 
   return async (config) => {
     for (let attempt = 1; ; attempt++) {

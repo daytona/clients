@@ -34,6 +34,11 @@ fi
 export npm_config_audit=false
 export npm_config_fund=false
 export npm_config_update_notifier=false
+# `next build` fetches full registry packuments (no timeout) to patch the
+# throwaway lockfile's missing platform-specific @next/swc-* entries, and posts
+# telemetry. Neither matters here; both are network calls we don't want to wait on.
+export NEXT_IGNORE_INCORRECT_LOCKFILE=1
+export NEXT_TELEMETRY_DISABLED=1
 
 DIST_LIBS="$(cd "$DIST/../" && pwd)"
 API_CLIENT_DIST="$DIST_LIBS/api-client"
