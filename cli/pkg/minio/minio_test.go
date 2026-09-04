@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -186,6 +187,24 @@ func tarEntries(t *testing.T, archive []byte) map[string]string {
 	}
 }
 
+func tarHeader(t *testing.T, archive []byte, name string) *tar.Header {
+	t.Helper()
+
+	reader := tar.NewReader(bytes.NewReader(archive))
+	for {
+		header, err := reader.Next()
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Fatalf("archive has no entry %q", name)
+		}
+		if err != nil {
+			t.Fatalf("failed to read archive: %v", err)
+		}
+		if header.Name == name {
+			return header
+		}
+	}
+}
+
 func writeFile(t *testing.T, dir, name, content string) {
 	t.Helper()
 
@@ -231,6 +250,40 @@ func TestProcessDirectoryProducesStableHashAcrossRuns(t *testing.T) {
 
 	if first[0] != second[0] {
 		t.Errorf("hash of an unchanged context changed between runs: %s then %s", first[0], second[0])
+	}
+}
+
+func TestProcessDirectoryKeepsRootEntryTypeForSymlinkedContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks requires elevated privileges on Windows")
+	}
+
+	client, storage := newFakeStorage(t)
+
+	root := t.TempDir()
+	realDir := filepath.Join(root, "real")
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
+		t.Fatalf("failed to create context directory: %v", err)
+	}
+	writeFile(t, realDir, "Dockerfile", "FROM alpine\n")
+
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(realDir, link); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+	t.Chdir(t.TempDir())
+
+	if _, err := client.ProcessDirectory(context.Background(), link, testOrgID, map[string]bool{}); err != nil {
+		t.Fatalf("ProcessDirectory returned an error: %v", err)
+	}
+
+	// The walk reports the root as a symlink, so the archive must record it as
+	// one. Recording the target's directory metadata instead would replace the
+	// entry with an empty directory. Resolving symlinked context roots so their
+	// contents are archived is a separate, pre-existing gap.
+	header := tarHeader(t, storage.uploadedArchive(t), ".")
+	if header.Typeflag != tar.TypeSymlink {
+		t.Errorf("root entry typeflag = %q, want %q", header.Typeflag, tar.TypeSymlink)
 	}
 }
 

@@ -206,11 +206,14 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 
 	// Captured before the scratch archive exists. Creating and removing it
 	// updates the context directory's mtime, which would otherwise land in the
-	// archive and change the context hash on every run.
-	rootInfo, err := os.Stat(dirPath)
+	// archive and change the context hash on every run. Lstat matches what the
+	// walk below reports for the root entry; a symlinked root is left alone
+	// because its own mtime is not affected by writing into its target.
+	rootInfo, err := os.Lstat(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read context directory %s: %w", dirPath, err)
 	}
+	pinRootModTime := rootInfo.IsDir()
 
 	tarFile, err := os.CreateTemp(dirPath, contextTarPrefix+"*.tar")
 	if err != nil {
@@ -220,6 +223,9 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 	defer func() {
 		if err := os.Remove(tarPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			fmt.Printf("Warning: failed to remove temporary context archive %s: %v\n", tarPath, err)
+			return
+		}
+		if !pinRootModTime {
 			return
 		}
 		if err := os.Chtimes(dirPath, time.Time{}, rootInfo.ModTime()); err != nil {
@@ -249,10 +255,6 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			return nil
 		}
 
-		if file == dirPath {
-			fi = rootInfo
-		}
-
 		if shouldExcludeFile(file, dirPath) {
 			if fi.IsDir() {
 				fmt.Printf("Excluding directory: %s\n", relPath)
@@ -267,6 +269,9 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			return err
 		}
 		header.Name = relPath
+		if file == dirPath && pinRootModTime {
+			header.ModTime = rootInfo.ModTime()
+		}
 
 		if err := tw.WriteHeader(header); err != nil {
 			return err

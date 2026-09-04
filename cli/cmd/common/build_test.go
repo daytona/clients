@@ -135,17 +135,57 @@ func TestParseDockerfileDoesNotReachOutsideContext(t *testing.T) {
 		},
 	}
 
+	// The outside files exist and are named by every Dockerfile below, so an
+	// empty result means resolution genuinely never reached them.
+	for _, path := range []string{
+		filepath.Join(siblingDir, "outside.txt"),
+		filepath.Join(siblingDir, "outside.conf"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("fixture %s should exist: %v", path, err)
+		}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sources, err := parseDockerfileForSources(tt.dockerfile, contextDir)
 			if err != nil {
 				t.Fatalf("parseDockerfileForSources returned an error: %v", err)
 			}
-			for _, source := range sources {
-				rel, relErr := filepath.Rel(contextDir, source)
-				if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-					t.Errorf("source %s resolves outside the build context %s", source, contextDir)
-				}
+			if len(sources) != 0 {
+				t.Fatalf("expected the source to resolve to nothing inside the context, got %v", sources)
+			}
+		})
+	}
+}
+
+func TestParseDockerfileClampsOutsideSourcesIntoContext(t *testing.T) {
+	contextDir, _ := newBuildContext(t)
+
+	// Same base name inside the context as in the sibling directory, so the
+	// resolved path proves which one was selected.
+	if err := os.WriteFile(filepath.Join(contextDir, "outside.txt"), []byte("in context"), 0o644); err != nil {
+		t.Fatalf("failed to write fixture: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		dockerfile string
+	}{
+		{name: "parent relative", dockerfile: "FROM alpine\nCOPY ../outside.txt /app/outside.txt\n"},
+		{name: "repeated parent relative", dockerfile: "FROM alpine\nADD ../../../outside.txt /app/outside.txt\n"},
+		{name: "absolute", dockerfile: "FROM alpine\nCOPY /outside.txt /app/outside.txt\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sources, err := parseDockerfileForSources(tt.dockerfile, contextDir)
+			if err != nil {
+				t.Fatalf("parseDockerfileForSources returned an error: %v", err)
+			}
+			want := []string{filepath.Join(contextDir, "outside.txt")}
+			if !slices.Equal(sources, want) {
+				t.Errorf("sources = %v, want %v", sources, want)
 			}
 		})
 	}
