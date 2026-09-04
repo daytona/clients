@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,14 +36,25 @@ import (
 // is still in flight when the budget runs out is cancelled rather than allowed to
 // run a further uploadRequestTimeout past it. Failures that come back quickly, such
 // as 503 SlowDown, cost almost no budget and keep the full attempt allowance.
+//
+// uploadAbortTimeout gives the abort of a failed multipart upload a context of its
+// own. The transfer manager reuses the caller's context for that abort when this is
+// zero, so a cancelled or timed-out upload would never reach AbortMultipartUpload and
+// would leave paid-for parts behind in the bucket.
 const (
 	uploadPartSize       = 5 * 1024 * 1024
 	uploadConcurrency    = 4
 	uploadRequestTimeout = 2 * time.Minute
 	uploadRetryTimeout   = 4 * time.Minute
+	uploadAbortTimeout   = 30 * time.Second
 	uploadMaxAttempts    = 10
 	uploadMaxBackoff     = 15 * time.Second
 )
+
+// errUploadFinished closes the read side of the pipe once the upload is over. The tar
+// goroutine may still be blocked writing, and this makes the resulting write failure
+// distinguishable from a genuine archiving error.
+var errUploadFinished = stderrors.New("upload finished")
 
 const retryBudgetMiddlewareID = "DaytonaUploadRetryBudget"
 
@@ -290,6 +302,7 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 		o.PartSizeBytes = uploadPartSize
 		o.MultipartUploadThreshold = uploadPartSize
 		o.Concurrency = uploadConcurrency
+		o.FailTimeout = uploadAbortTimeout
 	})
 
 	_, uploadErr := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
@@ -300,10 +313,13 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 	})
 
 	// Unblock the archiver if the upload gave up before draining the pipe.
-	_ = reader.CloseWithError(uploadErr)
+	_ = reader.CloseWithError(errUploadFinished)
+	tarErr := <-tarErrCh
 
-	if tarErr := <-tarErrCh; tarErr != nil {
-		return tarErr
+	// A tar error that is just the pipe reporting this closure back to the writer says
+	// nothing about why the upload stopped, so the upload error stays the reported one.
+	if tarErr != nil && !stderrors.Is(tarErr, errUploadFinished) {
+		return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar archive: %v", tarErr), 0, nil)
 	}
 	if uploadErr != nil {
 		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", uploadErr), 0, nil)
@@ -365,33 +381,33 @@ func writeTarArchive(w io.Writer, absPath string, fileInfo os.FileInfo, archiveB
 			return nil
 		})
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar archive: %v", err), 0, nil)
+			return err
 		}
 	} else {
 		// Add single file to tar
 		f, err := os.Open(absPath)
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to open file: %v", err), 0, nil)
+			return fmt.Errorf("failed to open file: %w", err)
 		}
 		defer f.Close()
 
 		header, err := tar.FileInfoHeader(fileInfo, "")
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar header: %v", err), 0, nil)
+			return fmt.Errorf("failed to create tar header: %w", err)
 		}
 		header.Name = archiveBasePath
 
 		if err := tarWriter.WriteHeader(header); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write tar header: %v", err), 0, nil)
+			return fmt.Errorf("failed to write tar header: %w", err)
 		}
 
 		if _, err := io.Copy(tarWriter, f); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write file to tar: %v", err), 0, nil)
+			return fmt.Errorf("failed to write file to tar: %w", err)
 		}
 	}
 
 	if err := tarWriter.Close(); err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to close tar writer: %v", err), 0, nil)
+		return fmt.Errorf("failed to close tar writer: %w", err)
 	}
 
 	return nil

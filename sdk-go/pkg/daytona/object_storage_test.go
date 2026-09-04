@@ -153,6 +153,21 @@ func storageForServer(server *httptest.Server) *objectStorage {
 	})
 }
 
+// storageWithFastRetries builds the real upload client on a compressed timescale, so
+// failure-path tests do not sit through the production backoff schedule.
+func storageWithFastRetries(server *httptest.Server) *objectStorage {
+	return &objectStorage{
+		client: newUploadClient(objectStorageConfig{
+			EndpointURL:     server.URL,
+			AccessKeyID:     "AKID",
+			SecretAccessKey: "SECRET",
+			BucketName:      "test",
+			Region:          "us-east-1",
+		}, 2*time.Second, 5*time.Second, 10*time.Millisecond),
+		bucketName: "test",
+	}
+}
+
 func TestNewObjectStorage(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -549,6 +564,93 @@ func TestUploadAsTarUsesSingleRequestForSmallContext(t *testing.T) {
 	entries := tarEntries(t, fake.uploadedObject())
 	assert.Equal(t, int64(len("small content")), entries["small.txt"])
 	assert.Equal(t, "application/x-tar", fake.contentType)
+}
+
+// When S3 fails mid-stream the pipe reports that failure back to the tar goroutine.
+// The caller must still be told the upload failed, not that the archive is broken.
+func TestUploadAsTarReportsUploadFailureNotTarFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Query().Has("uploads") {
+			writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>denied</Message></Error>`))
+	}))
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to upload to S3")
+	assert.NotContains(t, err.Error(), "Failed to create tar archive")
+}
+
+// A genuine archiving failure must still be reported as one.
+func TestUploadAsTarReportsGenuineTarFailure(t *testing.T) {
+	_, server := newFakeS3(t)
+
+	tmpDir := t.TempDir()
+	unreadable := filepath.Join(tmpDir, "unreadable.bin")
+	require.NoError(t, os.WriteFile(unreadable, bytes.Repeat([]byte("x"), 1024), 0o000))
+	if os.Geteuid() == 0 {
+		t.Skip("running as root defeats the unreadable-file permission")
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(context.Background(), "org/hash/context.tar", tmpDir, "context")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to create tar archive")
+}
+
+// A cancelled upload must still abort the multipart upload, or the parts already sent
+// are billed until a lifecycle rule reaps them. The transfer manager reuses the
+// caller's context for that abort unless FailTimeout gives it one of its own.
+func TestUploadAsTarAbortsMultipartUploadWhenCancelled(t *testing.T) {
+	var mu sync.Mutex
+	aborted := false
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		switch {
+		case r.Method == http.MethodPost && query.Has("uploads"):
+			writeXML(w, `<InitiateMultipartUploadResult><Bucket>b</Bucket><Key>k</Key><UploadId>UP1</UploadId></InitiateMultipartUploadResult>`)
+		case r.Method == http.MethodDelete && query.Has("uploadId"):
+			mu.Lock()
+			aborted = true
+			mu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPut && query.Has("partNumber"):
+			// Cancel while the transfer is in flight, then answer normally.
+			_, _ = io.Copy(io.Discard, r.Body)
+			cancel()
+			w.Header().Set("ETag", `"etag"`)
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	for _, name := range []string{"big1.bin", "big2.bin"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), bytes.Repeat([]byte("x"), 6*1024*1024), 0o644))
+	}
+
+	err := storageWithFastRetries(server).uploadAsTar(ctx, "org/hash/context.tar", tmpDir, "context")
+	require.Error(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.True(t, aborted, "AbortMultipartUpload must still be sent after the context is cancelled")
 }
 
 func TestObjectStorageUploadAsTarInvalidPath(t *testing.T) {

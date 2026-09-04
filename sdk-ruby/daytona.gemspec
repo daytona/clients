@@ -39,7 +39,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'opentelemetry-metrics-sdk', '~> 0.2'
   spec.add_dependency 'opentelemetry-sdk', '~> 1.4'
 
-  spec.add_dependency 'aws-sdk-s3', '~> 1.0'
+  # Aws::S3::TransferManager, used for multipart context uploads, arrived in 1.197.0.
+  spec.add_dependency 'aws-sdk-s3', '>= 1.197.0', '< 2'
   spec.add_dependency 'daytona_analytics_api_client', Daytona::Sdk::VERSION
   spec.add_dependency 'daytona_api_client', Daytona::Sdk::VERSION
   spec.add_dependency 'daytona_toolbox_api_client', Daytona::Sdk::VERSION
