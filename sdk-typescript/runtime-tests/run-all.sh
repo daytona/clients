@@ -27,6 +27,14 @@ if [ -z "${DAYTONA_API_KEY:-}" ] || [ -z "${DAYTONA_API_URL:-}" ]; then
   exit 1
 fi
 
+# Each runtime does a cold `npm install` into a throwaway directory. Skip the
+# registry side-calls that add nothing there (audit, funding, npm self-update
+# check): they hit separate registry endpoints whose degradation has stalled
+# installs for many minutes and pushed the whole job past its timeout.
+export npm_config_audit=false
+export npm_config_fund=false
+export npm_config_update_notifier=false
+
 DIST_LIBS="$(cd "$DIST/../" && pwd)"
 API_CLIENT_DIST="$DIST_LIBS/api-client"
 TOOLBOX_DIST="$DIST_LIBS/toolbox-api-client"

@@ -1,7 +1,8 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { AxiosError, AxiosHeaders, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import { AxiosError, AxiosHeaders } from 'axios'
+import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { Readable } from 'stream'
 
 import { withConnectionRetry } from '../utils/RetryAdapter'
@@ -163,6 +164,40 @@ describe('withConnectionRetry', () => {
         code: 'ECONNRESET',
       })
 
+      expect(base).toHaveBeenCalledTimes(1)
+    })
+
+    it('a request aborted during the backoff is cancelled instead of re-attempted', async () => {
+      const controller = new AbortController()
+      const abortingSleep = jest.fn(async (_ms: number, signal?: { aborted: boolean }) => {
+        controller.abort()
+        expect(signal?.aborted).toBe(true)
+      })
+      const base = failingAdapter(1, (c) => transportError(c, ...SOCKET_HANG_UP))
+      const adapter = withConnectionRetry(base, { sleep: abortingSleep })
+
+      await expect(adapter(requestConfig({ method: 'get', signal: controller.signal }))).rejects.toMatchObject({
+        code: 'ERR_CANCELED',
+      })
+
+      expect(base).toHaveBeenCalledTimes(1)
+      expect(abortingSleep).toHaveBeenCalledWith(expect.any(Number), controller.signal)
+    })
+
+    it('the default backoff wakes up as soon as the signal aborts', async () => {
+      const controller = new AbortController()
+      const base = failingAdapter(1, (c) => {
+        setTimeout(() => controller.abort(), 5)
+        return transportError(c, ...SOCKET_HANG_UP)
+      })
+      const adapter = withConnectionRetry(base)
+      const started = Date.now()
+
+      await expect(adapter(requestConfig({ method: 'get', signal: controller.signal }))).rejects.toMatchObject({
+        code: 'ERR_CANCELED',
+      })
+
+      expect(Date.now() - started).toBeLessThan(200)
       expect(base).toHaveBeenCalledTimes(1)
     })
 

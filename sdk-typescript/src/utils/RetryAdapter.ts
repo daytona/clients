@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { trace } from '@opentelemetry/api'
-import { AxiosAdapter, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { AxiosError, CanceledError } from 'axios'
+import type { AxiosAdapter, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 
 /**
  * Transport-level retry for transient connection failures, mirroring the
@@ -45,7 +46,7 @@ type RetryVerdict = 'any-method' | 'idempotent-only' | 'never'
 
 interface ConnectionRetryOptions {
   readonly maxRetries?: number
-  readonly sleep?: (ms: number) => Promise<void>
+  readonly sleep?: (ms: number, signal?: GenericAbortSignal) => Promise<void>
 }
 
 function syscallOf(error: AxiosError): string | undefined {
@@ -64,7 +65,13 @@ function classify(error: AxiosError): RetryVerdict {
     return syscallOf(error) === 'connect' ? 'any-method' : 'never'
   }
   // Node reports "socket hang up" only when the peer closed before a single
-  // response byte arrived — the request was never processed.
+  // response byte arrived — for a well-behaved HTTP server that means the
+  // request was never processed (stale keep-alive socket, or a proxy/LB that
+  // dropped the connection during a rollout). The residual risk is a peer that
+  // processes a non-idempotent request and then dies before writing any
+  // response; the Python SDK (RemoteDisconnectedRetry) and the toolbox proxy's
+  // own upstream retry accept the same trade-off, so semantics stay consistent
+  // across clients.
   if (error.code === 'ECONNRESET' && error.message === 'socket hang up') return 'any-method'
   if (CONNECT_PHASE_CODES.has(error.code) || syscallOf(error) === 'connect') return 'any-method'
   if (MID_FLIGHT_CODES.has(error.code)) return 'idempotent-only'
@@ -97,7 +104,19 @@ function backoffMs(attempt: number): number {
   return BACKOFF_BASE_MS * attempt + Math.random() * BACKOFF_JITTER_MS
 }
 
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+function defaultSleep(ms: number, signal?: GenericAbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener?.('abort', onAbort, { once: true })
+  })
+}
 
 /**
  * Wraps an axios adapter with connection-level retries. See module docs for
@@ -119,7 +138,8 @@ export function withConnectionRetry(base: AxiosAdapter, options: ConnectionRetry
           'error.code': retryable.code ?? '',
           'error.message': retryable.message,
         })
-        await sleep(backoffMs(attempt))
+        await sleep(backoffMs(attempt), config.signal)
+        if (config.signal?.aborted) throw new CanceledError(undefined, config)
       }
     }
   }
