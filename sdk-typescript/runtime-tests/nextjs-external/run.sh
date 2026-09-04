@@ -42,6 +42,7 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+trap 'exit 143' TERM
 
 SANDBOX_ID=$(node --input-type=module -e "
 import { Daytona } from '@daytona/sdk';
@@ -52,7 +53,8 @@ process.stdout.write(s.id);
 ")
 echo "Sandbox created: $SANDBOX_ID"
 
-NODE_ENV=production npm run build >/tmp/nextjs-external-build.log 2>&1
+ls node_modules/@next >/tmp/nextjs-external-build.log 2>&1 || true
+NODE_ENV=production npm run build >>/tmp/nextjs-external-build.log 2>&1
 
 PORT=${RUNTIME_TEST_PORT:-3804}
 NODE_ENV=production npx next start -p "$PORT" >/tmp/nextjs-external-runtime.log 2>&1 &

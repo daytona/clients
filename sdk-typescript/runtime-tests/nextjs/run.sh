@@ -20,8 +20,10 @@ cleanup() {
   pkill -9 -f 'next start' 2>/dev/null || true
 }
 trap cleanup EXIT
+trap 'exit 143' TERM
 
-npm run build >/tmp/nextjs-build.log 2>&1
+ls node_modules/@next >/tmp/nextjs-build.log 2>&1 || true
+npm run build >>/tmp/nextjs-build.log 2>&1
 
 PORT=${RUNTIME_TEST_PORT:-3801}
 npx next start -p "$PORT" >/tmp/nextjs-runtime.log 2>&1 &

@@ -124,6 +124,11 @@ for runtime in "${RUNTIMES[@]}"; do
   elif [ $? -eq 124 ]; then
     FAIL+=("$runtime (timed out after ${RUNTIME_TIMEOUT_SECONDS}s)")
     echo "✗ $runtime TIMEOUT (${RUNTIME_TIMEOUT_SECONDS}s)"
+    for log in /tmp/"$runtime"-*.log; do
+      [ -f "$log" ] || continue
+      echo "--- $(basename "$log") (tail) ---"
+      tail -n 60 "$log"
+    done
   else
     duration=$((SECONDS - start))
     FAIL+=("$runtime (${duration}s)")
