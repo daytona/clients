@@ -1,0 +1,22 @@
+cli/cmd/common/build.go
+  s_acc65a9d21b097::t_71d5cdb2671794 174,178-180
+  s_acc65a9d21b097::t_d394de4b0475dd 113-124,126-134
+cli/cmd/common/build_test.go
+  s_acc65a9d21b097::t_afb72091fd3347 9,46-109,117,133,141-142,144-148,154-169,174,177-179,182-184,187-189,196-197,199-203,208-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c5c9624a0b9119de3b48921f5cabc4dfe95e8e3b",
+  "prompts": {},
+  "sessions": {
+    "s_acc65a9d21b097": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f94884cdbffe0UxLmltN4l5BuM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
