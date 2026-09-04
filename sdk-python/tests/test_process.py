@@ -40,6 +40,26 @@ class TestSyncProcessExec:
         result = proc.exec("false")
         assert result.exit_code == 42
 
+    def test_exec_returns_split_streams(self):
+        proc, api = self._make_process()
+        api.execute_command.return_value = MagicMock(
+            result="out\nerr\n", exit_code=0, stdout="out\n", stderr="err\n", additional_properties={}
+        )
+        result = proc.exec("echo out; echo err >&2")
+        assert result.result == "out\nerr\n"
+        assert result.stdout == "out\n"
+        assert result.stderr == "err\n"
+
+    def test_exec_split_streams_none_on_old_daemon(self):
+        proc, api = self._make_process()
+        api.execute_command.return_value = MagicMock(
+            result="combined", exit_code=0, stdout=None, stderr=None, additional_properties={}
+        )
+        result = proc.exec("echo combined")
+        assert result.result == "combined"
+        assert result.stdout is None
+        assert result.stderr is None
+
     def test_code_run_uses_language_and_params(self):
         proc, api = self._make_process()
         api.code_run.return_value = MagicMock(

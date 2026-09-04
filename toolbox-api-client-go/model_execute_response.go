@@ -21,7 +21,12 @@ var _ MappedNullable = &ExecuteResponse{}
 // ExecuteResponse struct for ExecuteResponse
 type ExecuteResponse struct {
 	ExitCode *int32 `json:"exitCode,omitempty"`
+	// Combined stdout and stderr in arrival order (interleaved)
 	Result string `json:"result"`
+	// Standard error only; omitted by daemons that predate split streams
+	Stderr *string `json:"stderr,omitempty"`
+	// Standard output only; omitted by daemons that predate split streams
+	Stdout *string `json:"stdout,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -101,6 +106,70 @@ func (o *ExecuteResponse) SetResult(v string) {
 	o.Result = v
 }
 
+// GetStderr returns the Stderr field value if set, zero value otherwise.
+func (o *ExecuteResponse) GetStderr() string {
+	if o == nil || IsNil(o.Stderr) {
+		var ret string
+		return ret
+	}
+	return *o.Stderr
+}
+
+// GetStderrOk returns a tuple with the Stderr field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ExecuteResponse) GetStderrOk() (*string, bool) {
+	if o == nil || IsNil(o.Stderr) {
+		return nil, false
+	}
+	return o.Stderr, true
+}
+
+// HasStderr returns a boolean if a field has been set.
+func (o *ExecuteResponse) HasStderr() bool {
+	if o != nil && !IsNil(o.Stderr) {
+		return true
+	}
+
+	return false
+}
+
+// SetStderr gets a reference to the given string and assigns it to the Stderr field.
+func (o *ExecuteResponse) SetStderr(v string) {
+	o.Stderr = &v
+}
+
+// GetStdout returns the Stdout field value if set, zero value otherwise.
+func (o *ExecuteResponse) GetStdout() string {
+	if o == nil || IsNil(o.Stdout) {
+		var ret string
+		return ret
+	}
+	return *o.Stdout
+}
+
+// GetStdoutOk returns a tuple with the Stdout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ExecuteResponse) GetStdoutOk() (*string, bool) {
+	if o == nil || IsNil(o.Stdout) {
+		return nil, false
+	}
+	return o.Stdout, true
+}
+
+// HasStdout returns a boolean if a field has been set.
+func (o *ExecuteResponse) HasStdout() bool {
+	if o != nil && !IsNil(o.Stdout) {
+		return true
+	}
+
+	return false
+}
+
+// SetStdout gets a reference to the given string and assigns it to the Stdout field.
+func (o *ExecuteResponse) SetStdout(v string) {
+	o.Stdout = &v
+}
+
 func (o ExecuteResponse) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -115,6 +184,12 @@ func (o ExecuteResponse) ToMap() (map[string]interface{}, error) {
 		toSerialize["exitCode"] = o.ExitCode
 	}
 	toSerialize["result"] = o.Result
+	if !IsNil(o.Stderr) {
+		toSerialize["stderr"] = o.Stderr
+	}
+	if !IsNil(o.Stdout) {
+		toSerialize["stdout"] = o.Stdout
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -160,6 +235,8 @@ func (o *ExecuteResponse) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "exitCode")
 		delete(additionalProperties, "result")
+		delete(additionalProperties, "stderr")
+		delete(additionalProperties, "stdout")
 		o.AdditionalProperties = additionalProperties
 	}
 

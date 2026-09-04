@@ -98,13 +98,21 @@ export class Process {
    *                             the client-wide `requestTimeoutMs`; `0` disables the server-side limit.
    * @returns {Promise<ExecuteResponse>} Command execution results containing:
    *                                    - exitCode: The command's exit status
-   *                                    - result: Standard output from the command
+   *                                    - result: Combined stdout and stderr from the command (interleaved)
+   *                                    - stdout: Standard output only; undefined when the sandbox daemon predates split streams
+   *                                    - stderr: Standard error only; undefined when the sandbox daemon predates split streams
    *                                    - artifacts: ExecutionArtifacts object containing `stdout` (same as result) and `charts` (matplotlib charts metadata)
    *
    * @example
    * // Simple command
    * const response = await process.executeCommand('echo "Hello"');
    * console.log(response.artifacts.stdout);  // Prints: Hello
+   *
+   * @example
+   * // Split streams
+   * const response = await process.executeCommand('echo out; echo err >&2');
+   * console.log(response.stdout);  // Prints: out
+   * console.log(response.stderr);  // Prints: err
    *
    * @example
    * // Command with working directory
@@ -135,6 +143,8 @@ export class Process {
     return {
       exitCode: response.data.exitCode ?? (response.data as any).code,
       result,
+      stdout: response.data.stdout,
+      stderr: response.data.stderr,
       artifacts: {
         stdout: result,
       },

@@ -8,8 +8,14 @@ module Daytona
     # @return [Integer] The exit code from the command execution
     attr_reader :exit_code
 
-    # @return [String] The output from the command execution
+    # @return [String] Combined stdout and stderr (interleaved)
     attr_reader :result
+
+    # @return [String, nil] Split stdout; nil when the sandbox daemon predates split streams
+    attr_reader :stdout
+
+    # @return [String, nil] Split stderr; nil when the sandbox daemon predates split streams
+    attr_reader :stderr
 
     # @return [ExecutionArtifacts, nil] Artifacts from the command execution
     attr_reader :artifacts
@@ -20,12 +26,16 @@ module Daytona
     # Initialize a new ExecuteResponse
     #
     # @param exit_code [Integer] The exit code from the command execution
-    # @param result [String] The output from the command execution
+    # @param result [String] Combined stdout and stderr (interleaved)
+    # @param stdout [String, nil] Split stdout; nil when the sandbox daemon predates split streams
+    # @param stderr [String, nil] Split stderr; nil when the sandbox daemon predates split streams
     # @param artifacts [ExecutionArtifacts, nil] Artifacts from the command execution
     # @param additional_properties [Hash] Additional properties from the response
-    def initialize(exit_code:, result:, artifacts: nil, additional_properties: {})
+    def initialize(exit_code:, result:, stdout: nil, stderr: nil, artifacts: nil, additional_properties: {})
       @exit_code = exit_code
       @result = result
+      @stdout = stdout
+      @stderr = stderr
       @artifacts = artifacts
       @additional_properties = additional_properties
     end

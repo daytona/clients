@@ -92,7 +92,7 @@ RSpec.describe Daytona::Process do
   end
 
   describe '#exec' do
-    let(:exec_response) { double('ExecResponse', exit_code: 0, result: "Hello\n") }
+    let(:exec_response) { double('ExecResponse', exit_code: 0, result: "Hello\n", stdout: "Hello\n", stderr: nil) }
 
     it 'executes a command and returns ExecuteResponse' do
       allow(toolbox_api).to receive(:execute_command).and_return(exec_response)
@@ -102,7 +102,21 @@ RSpec.describe Daytona::Process do
       expect(response).to be_a(Daytona::ExecuteResponse)
       expect(response.exit_code).to eq(0)
       expect(response.result).to eq("Hello\n")
+      expect(response.stdout).to eq("Hello\n")
+      expect(response.stderr).to be_nil
       expect(response.artifacts.stdout).to eq("Hello\n")
+    end
+
+    it 'leaves split streams nil when the daemon omits them' do
+      allow(toolbox_api).to receive(:execute_command).and_return(
+        double('ExecResponse', exit_code: 0, result: "Hello\n")
+      )
+
+      response = process.exec(command: 'echo Hello')
+
+      expect(response.stdout).to be_nil
+      expect(response.stderr).to be_nil
+      expect(response.result).to eq("Hello\n")
     end
 
     it 'passes cwd, timeout, and env variables through as envs' do

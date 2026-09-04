@@ -94,7 +94,8 @@ Execute a shell command in the Sandbox
 
 **Returns**:
 
-- `ExecuteResponse` - Command execution results containing exit_code, result, and artifacts
+- `ExecuteResponse` - Command execution results containing exit_code, combined stdout and stderr (interleaved) as result,
+split stdout/stderr (nil when the sandbox daemon predates split streams), and artifacts
 
 **Examples:**
 
