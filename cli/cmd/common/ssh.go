@@ -12,6 +12,10 @@ import (
 )
 
 const (
+	// maxCommandLength bounds the whole response before it is tokenized. The
+	// longest command the API can compose is well under this: "ssh -p 65535 "
+	// plus a 32 character token plus a host of at most 253 characters.
+	maxCommandLength  = 512
 	maxHostnameLength = 253
 	maxLabelLength    = 63
 	minPortNumber     = 1
@@ -40,6 +44,10 @@ var (
 // the original string is passed through. Anything else is rejected with an
 // error naming the component at fault; the raw command is never echoed back.
 func ParseSSHCommand(sshCommand string) ([]string, error) {
+	if len(sshCommand) > maxCommandLength {
+		return nil, errors.New("SSH command is too long")
+	}
+
 	fields := strings.Fields(sshCommand)
 	if len(fields) < 2 {
 		return nil, errors.New(`unexpected SSH command format; expected "ssh [-p port] user@host"`)
@@ -120,19 +128,22 @@ func validateSSHHost(host string) error {
 		return invalid
 	}
 
-	if strings.HasPrefix(host, "[") {
-		if !strings.HasSuffix(host, "]") {
-			return invalid
-		}
-		ip := net.ParseIP(host[1 : len(host)-1])
-		if ip == nil || ip.To4() != nil {
+	// An IPv6 literal is recognised by its colons rather than by the parsed
+	// bytes: IPv4-mapped forms such as "::ffff:c000:201" parse to four bytes yet
+	// are written — and emitted by the API — as a bracketed IPv6 host.
+	if address, bracketed := strings.CutPrefix(host, "["); bracketed {
+		address, closed := strings.CutSuffix(address, "]")
+		if !closed || !strings.Contains(address, ":") || net.ParseIP(address) == nil {
 			return invalid
 		}
 		return nil
 	}
 
+	if strings.Contains(host, ":") {
+		return invalid
+	}
+
 	if ip := net.ParseIP(host); ip != nil {
-		// Unbracketed literals are only accepted in IPv4 form.
 		if ip.To4() == nil {
 			return invalid
 		}
