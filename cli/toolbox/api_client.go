@@ -68,8 +68,8 @@ func NewAPIClientWithProfileProvider(ctx context.Context, apiClient *apiclient.A
 	if err != nil {
 		return nil, fmt.Errorf("invalid toolbox URL %q: %w", toolboxURL, err)
 	}
-	if parsedToolboxURL.Scheme == "" || parsedToolboxURL.Host == "" {
-		return nil, fmt.Errorf("invalid toolbox URL %q: must include scheme and host", toolboxURL)
+	if err := requireValidParsedProxyURL(parsedToolboxURL, toolboxURL); err != nil {
+		return nil, err
 	}
 
 	cfg := toolboxclient.NewConfiguration()

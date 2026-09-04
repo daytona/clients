@@ -237,3 +237,43 @@ func TestProxyURLNotPersistedToConfig(t *testing.T) {
 		t.Fatalf("expected no proxy URL value in config.json, got:\n%s", contents)
 	}
 }
+
+func TestProxyURLRequiresHTTPS(t *testing.T) {
+	tests := []struct {
+		name     string
+		proxyURL string
+		wantErr  bool
+	}{
+		{name: "https host", proxyURL: "https://proxy.example.test/toolbox", wantErr: false},
+		{name: "http localhost", proxyURL: "http://localhost:3000", wantErr: false},
+		{name: "http loopback ipv4", proxyURL: "http://127.0.0.1:3000", wantErr: false},
+		{name: "http loopback ipv6", proxyURL: "http://[::1]:3000", wantErr: false},
+		{name: "http public host", proxyURL: "http://example.com", wantErr: true},
+		{name: "missing scheme", proxyURL: "proxy.example.test/toolbox", wantErr: true},
+		{name: "https without host", proxyURL: "https://:443", wantErr: true},
+		{name: "http without host", proxyURL: "http://:80", wantErr: true},
+		{name: "query string", proxyURL: "https://proxy.example.test/toolbox?tenant=acme", wantErr: true},
+		{name: "empty query string", proxyURL: "https://proxy.example.test/toolbox?", wantErr: true},
+		{name: "fragment", proxyURL: "https://proxy.example.test/toolbox#frag", wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sandbox := &apiclient.Sandbox{Id: "sbx123", Target: "us", ToolboxProxyUrl: test.proxyURL}
+
+			got, err := NewClient(nil).getProxyURL(context.Background(), sandbox)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for %q, got %q", test.proxyURL, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("getProxyURL(%q) error = %v", test.proxyURL, err)
+			}
+			if got != test.proxyURL {
+				t.Fatalf("expected %q, got %q", test.proxyURL, got)
+			}
+		})
+	}
+}
