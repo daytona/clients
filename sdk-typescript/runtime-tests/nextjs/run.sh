@@ -30,7 +30,7 @@ npx next start -p "$PORT" >/tmp/nextjs-runtime.log 2>&1 &
 PID=$!
 
 for i in $(seq 1 30); do
-  if curl -sf "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
+  if curl -sf -m 5 "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 

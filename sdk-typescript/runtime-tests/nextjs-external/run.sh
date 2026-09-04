@@ -56,12 +56,12 @@ echo "Sandbox created: $SANDBOX_ID"
 ls node_modules/@next >/tmp/nextjs-external-build.log 2>&1 || true
 NODE_ENV=production npm run build >>/tmp/nextjs-external-build.log 2>&1
 
-PORT=${RUNTIME_TEST_PORT:-3804}
+PORT=${RUNTIME_TEST_PORT:-3806}
 NODE_ENV=production npx next start -p "$PORT" >/tmp/nextjs-external-runtime.log 2>&1 &
 SERVER_PID=$!
 
 for i in $(seq 1 30); do
-  if curl -sf "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
+  if curl -sf -m 5 "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 
