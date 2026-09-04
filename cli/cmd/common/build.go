@@ -110,6 +110,16 @@ func getContextHashes(ctx context.Context, apiClient *apiclient.APIClient, conte
 	return contextHashes, nil
 }
 
+// ensureWithinBuildContext mirrors `docker build`, which refuses COPY/ADD
+// sources that resolve outside the build context.
+func ensureWithinBuildContext(dockerfileDir, resolvedPath, originalPath string) error {
+	rel, err := filepath.Rel(dockerfileDir, resolvedPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("forbidden path outside the build context: %s", originalPath)
+	}
+	return nil
+}
+
 func parseDockerfileForSources(dockerfileContent string, dockerfileDir string) ([]string, error) {
 	var sources []string
 	lines := strings.Split(dockerfileContent, "\n")
@@ -144,20 +154,30 @@ func parseDockerfileForSources(dockerfileContent string, dockerfileDir string) (
 				}
 
 				// Convert relative paths to absolute paths relative to Dockerfile directory
-				if !filepath.IsAbs(srcPath) {
-					srcPath = filepath.Join(dockerfileDir, srcPath)
+				resolvedPath := srcPath
+				if !filepath.IsAbs(resolvedPath) {
+					resolvedPath = filepath.Join(dockerfileDir, resolvedPath)
 				}
 
-				srcPath = filepath.Clean(srcPath)
+				resolvedPath = filepath.Clean(resolvedPath)
+
+				if err := ensureWithinBuildContext(dockerfileDir, resolvedPath, srcPath); err != nil {
+					return nil, err
+				}
 
 				// Check if path exists and add to sources
-				if _, err := os.Stat(srcPath); err == nil {
-					sources = append(sources, srcPath)
+				if _, err := os.Stat(resolvedPath); err == nil {
+					sources = append(sources, resolvedPath)
 				} else {
 					// If exact path doesn't exist, try to match glob patterns
-					matches, err := filepath.Glob(srcPath)
-					if err == nil && len(matches) > 0 {
-						sources = append(sources, matches...)
+					globMatches, err := filepath.Glob(resolvedPath)
+					if err == nil {
+						for _, match := range globMatches {
+							if err := ensureWithinBuildContext(dockerfileDir, match, srcPath); err != nil {
+								return nil, err
+							}
+							sources = append(sources, match)
+						}
 					}
 				}
 			}
