@@ -23,6 +23,13 @@ FILE_PATH="test.txt"
 SANDBOX_ID=""
 SERVER_PID=""
 cleanup() {
+  local status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "--- next build output (tail) ---"
+    tail -n 60 /tmp/nextjs-external-build.log 2>/dev/null || true
+    echo "--- next start output (tail) ---"
+    tail -n 60 /tmp/nextjs-external-runtime.log 2>/dev/null || true
+  fi
   if [ -n "$SANDBOX_ID" ]; then
     node --input-type=module -e "
       import { Daytona } from '@daytona/sdk';
@@ -45,7 +52,7 @@ process.stdout.write(s.id);
 ")
 echo "Sandbox created: $SANDBOX_ID"
 
-NODE_ENV=production npm run build >/dev/null
+NODE_ENV=production npm run build >/tmp/nextjs-external-build.log 2>&1
 
 PORT=${RUNTIME_TEST_PORT:-3804}
 NODE_ENV=production npx next start -p "$PORT" >/tmp/nextjs-external-runtime.log 2>&1 &

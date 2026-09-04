@@ -40,6 +40,10 @@ export npm_config_update_notifier=false
 export NEXT_IGNORE_INCORRECT_LOCKFILE=1
 export NEXT_TELEMETRY_DISABLED=1
 
+# A single stalled runtime must fail visibly (with its output) rather than eat
+# the whole job's time budget and surface as "cancelled" with no diagnostics.
+RUNTIME_TIMEOUT_SECONDS="${RUNTIME_TEST_TIMEOUT_SECONDS:-480}"
+
 DIST_LIBS="$(cd "$DIST/../" && pwd)"
 API_CLIENT_DIST="$DIST_LIBS/api-client"
 TOOLBOX_DIST="$DIST_LIBS/toolbox-api-client"
@@ -113,10 +117,13 @@ for runtime in "${RUNTIMES[@]}"; do
   start=$SECONDS
   # Strip any ambient NODE_ENV (e.g. the Nix dev shell sets development) so each
   # framework's production build/prerender runs with the React production build.
-  if (cd "$WORK_DIR" && env -u NODE_ENV bash run.sh); then
+  if (cd "$WORK_DIR" && timeout -k 15 "$RUNTIME_TIMEOUT_SECONDS" env -u NODE_ENV bash run.sh); then
     duration=$((SECONDS - start))
     PASS+=("$runtime (${duration}s)")
     echo "✓ $runtime PASS (${duration}s)"
+  elif [ $? -eq 124 ]; then
+    FAIL+=("$runtime (timed out after ${RUNTIME_TIMEOUT_SECONDS}s)")
+    echo "✗ $runtime TIMEOUT (${RUNTIME_TIMEOUT_SECONDS}s)"
   else
     duration=$((SECONDS - start))
     FAIL+=("$runtime (${duration}s)")
