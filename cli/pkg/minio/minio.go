@@ -21,6 +21,19 @@ import (
 
 const CONTEXT_TAR_FILE_NAME = "context.tar"
 
+// contextTarPrefix names the per-run scratch archive ProcessDirectory writes
+// inside the context directory.
+const contextTarPrefix = ".daytona-context-"
+
+// isContextArchiveFile matches by prefix so that a scratch archive left behind
+// by an interrupted run is not swept into a later context.
+func isContextArchiveFile(name string) bool {
+	if name == CONTEXT_TAR_FILE_NAME {
+		return true
+	}
+	return strings.HasPrefix(name, contextTarPrefix) && strings.HasSuffix(name, ".tar")
+}
+
 type Client struct {
 	minioClient *minio.Client
 	bucket      string
@@ -183,10 +196,12 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		dockerignoreExists = true
 	}
 
-	tarFile, err := os.Create(CONTEXT_TAR_FILE_NAME)
+	tarFile, err := os.CreateTemp(dirPath, contextTarPrefix+"*.tar")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create tar file: %w", err)
+		return nil, fmt.Errorf("failed to create tar file in context directory %s: %w", dirPath, err)
 	}
+	tarPath := tarFile.Name()
+	defer os.Remove(tarPath)
 	defer tarFile.Close()
 
 	tw := tar.NewWriter(tarFile)
@@ -201,7 +216,7 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			return err
 		}
 
-		if fi.Name() == CONTEXT_TAR_FILE_NAME {
+		if isContextArchiveFile(fi.Name()) {
 			return nil
 		}
 
@@ -297,10 +312,6 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		err = c.UploadFile(ctx, fmt.Sprintf("%s/%s", objectName, CONTEXT_TAR_FILE_NAME), tarContent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload tar: %w", err)
-		}
-
-		if err := os.Remove(CONTEXT_TAR_FILE_NAME); err != nil {
-			return nil, fmt.Errorf("failed to remove tar file: %w", err)
 		}
 	} else {
 		fmt.Printf("Directory %s with hash %s already exists in storage\n", dirPath, hash)
