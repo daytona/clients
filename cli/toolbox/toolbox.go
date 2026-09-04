@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -37,28 +39,96 @@ func NewClient(apiClient *apiclient.APIClient) *Client {
 	}
 }
 
-// Gets the toolbox proxy URL for a sandbox, caching by region in config
-func (c *Client) getProxyURL(ctx context.Context, sandboxId, region string) (string, error) {
-	// Check config cache first
-	cachedURL, err := config.GetToolboxProxyUrl(region)
-	if err == nil && cachedURL != "" {
-		return cachedURL, nil
+// getProxyURL returns the toolbox proxy URL for a sandbox.
+//
+// toolboxProxyUrl is a required field on the Sandbox schema, so callers that
+// already hold a sandbox have the value in hand and no further request is
+// needed. The dedicated endpoint is kept as a fallback for API servers that do
+// not populate the field.
+func (c *Client) getProxyURL(ctx context.Context, sandbox *apiclient.Sandbox) (string, error) {
+	if sandbox == nil {
+		return "", fmt.Errorf("sandbox is required")
 	}
 
-	// Fetch from API
-	toolboxProxyUrl, _, err := c.apiClient.SandboxAPI.GetToolboxProxyUrl(ctx, sandboxId).Execute()
+	if proxyURL := sandbox.GetToolboxProxyUrl(); proxyURL != "" {
+		if err := requireValidProxyURL(proxyURL); err != nil {
+			return "", err
+		}
+
+		return proxyURL, nil
+	}
+
+	if c == nil || c.apiClient == nil {
+		return "", fmt.Errorf("api client is required when sandbox has no toolbox proxy URL")
+	}
+
+	toolboxProxyUrl, _, err := c.apiClient.SandboxAPI.GetToolboxProxyUrl(ctx, sandbox.Id).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get toolbox proxy URL: %w", err)
 	}
+	if toolboxProxyUrl == nil || toolboxProxyUrl.Url == "" {
+		return "", fmt.Errorf("failed to get toolbox proxy URL: response did not contain a URL")
+	}
 
-	// Best-effort caching
-	_ = config.SetToolboxProxyUrl(region, toolboxProxyUrl.Url)
+	if err := requireValidProxyURL(toolboxProxyUrl.Url); err != nil {
+		return "", err
+	}
 
 	return toolboxProxyUrl.Url, nil
 }
 
+// requireValidProxyURL enforces https for toolbox proxy endpoints. Plain http
+// is permitted only for loopback hosts so local development keeps working.
+//
+// A query or fragment is rejected because callers append the sandbox path to
+// this URL, which would otherwise land after the delimiter and silently route
+// the request somewhere else.
+func requireValidProxyURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid toolbox URL %q: %w", rawURL, err)
+	}
+
+	return requireValidParsedProxyURL(parsed, rawURL)
+}
+
+func requireValidParsedProxyURL(parsed *url.URL, rawURL string) error {
+	if parsed.Scheme == "" || parsed.Hostname() == "" {
+		return fmt.Errorf("invalid toolbox URL %q: must include scheme and host", rawURL)
+	}
+
+	if parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return fmt.Errorf("invalid toolbox URL %q: must not include a query string or fragment", rawURL)
+	}
+
+	switch strings.ToLower(parsed.Scheme) {
+	case "https":
+		return nil
+	case "http":
+		if isLoopbackHost(parsed.Hostname()) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf(
+		"invalid toolbox URL %q: scheme %q is not supported for host %q; https is required, and http is accepted only for loopback hosts",
+		rawURL, parsed.Scheme, parsed.Host,
+	)
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+
+	return false
+}
+
 func (c *Client) ExecuteCommand(ctx context.Context, sandbox *apiclient.Sandbox, request ExecuteRequest) (*ExecuteResponse, error) {
-	proxyURL, err := c.getProxyURL(ctx, sandbox.Id, sandbox.Target)
+	proxyURL, err := c.getProxyURL(ctx, sandbox)
 	if err != nil {
 		return nil, err
 	}
