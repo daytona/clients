@@ -287,6 +287,46 @@ func TestProcessDirectoryKeepsRootEntryTypeForSymlinkedContext(t *testing.T) {
 	}
 }
 
+func TestProcessDirectoryRestoresSymlinkTargetTimestamp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks requires elevated privileges on Windows")
+	}
+
+	client, _ := newFakeStorage(t)
+
+	root := t.TempDir()
+	realDir := filepath.Join(root, "real")
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
+		t.Fatalf("failed to create context directory: %v", err)
+	}
+	writeFile(t, realDir, "Dockerfile", "FROM alpine\n")
+
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(realDir, link); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+	t.Chdir(t.TempDir())
+
+	before, err := os.Stat(realDir)
+	if err != nil {
+		t.Fatalf("failed to stat context directory: %v", err)
+	}
+
+	// The scratch archive is created inside the target even when the run is
+	// pointed at the link, so the target's timestamp must be put back.
+	if _, err := client.ProcessDirectory(context.Background(), link, testOrgID, map[string]bool{}); err != nil {
+		t.Fatalf("ProcessDirectory returned an error: %v", err)
+	}
+
+	after, err := os.Stat(realDir)
+	if err != nil {
+		t.Fatalf("failed to stat context directory: %v", err)
+	}
+	if !before.ModTime().Equal(after.ModTime()) {
+		t.Errorf("target directory mtime changed: %v then %v", before.ModTime(), after.ModTime())
+	}
+}
+
 func TestProcessDirectoryIncludesNestedFilesNamedLikeScratchArchives(t *testing.T) {
 	client, storage := newFakeStorage(t)
 

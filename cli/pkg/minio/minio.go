@@ -215,6 +215,14 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 	}
 	pinRootModTime := rootInfo.IsDir()
 
+	// The scratch archive is written into the resolved directory, so that is the
+	// one whose timestamp has to be restored. For a symlinked root it is not the
+	// same file as rootInfo.
+	targetInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read context directory %s: %w", dirPath, err)
+	}
+
 	tarFile, err := os.CreateTemp(dirPath, contextTarPrefix+"*.tar")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tar file in context directory %s: %w", dirPath, err)
@@ -225,10 +233,7 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			fmt.Printf("Warning: failed to remove temporary context archive %s: %v\n", tarPath, err)
 			return
 		}
-		if !pinRootModTime {
-			return
-		}
-		if err := os.Chtimes(dirPath, time.Time{}, rootInfo.ModTime()); err != nil {
+		if err := os.Chtimes(dirPath, time.Time{}, targetInfo.ModTime()); err != nil {
 			fmt.Printf("Warning: failed to restore timestamp of %s: %v\n", dirPath, err)
 		}
 	}()
