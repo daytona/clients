@@ -110,10 +110,28 @@ func getContextHashes(ctx context.Context, apiClient *apiclient.APIClient, conte
 	return contextHashes, nil
 }
 
-// ensureWithinBuildContext mirrors `docker build`, which refuses COPY/ADD
-// sources that resolve outside the build context.
+// resolveContextSource mirrors how `docker build` interprets a COPY/ADD source:
+// a leading separator and any parent-directory navigation are stripped, so the
+// source always names something inside the build context.
+func resolveContextSource(dockerfileDir, srcPath string) string {
+	contextRelative := filepath.Clean(string(filepath.Separator) + srcPath)[1:]
+	return filepath.Join(dockerfileDir, contextRelative)
+}
+
+// ensureWithinBuildContext rejects a source that leaves the build context by
+// following a symlink, which is the case `docker build` reports as a forbidden
+// path. Both paths are resolved or neither, so that a build context reached
+// through a symlinked parent is not mistaken for an escape.
 func ensureWithinBuildContext(dockerfileDir, resolvedPath, originalPath string) error {
-	rel, err := filepath.Rel(dockerfileDir, resolvedPath)
+	contextRoot, candidate := dockerfileDir, resolvedPath
+
+	realContext, contextErr := filepath.EvalSymlinks(contextRoot)
+	realCandidate, candidateErr := filepath.EvalSymlinks(candidate)
+	if contextErr == nil && candidateErr == nil {
+		contextRoot, candidate = realContext, realCandidate
+	}
+
+	rel, err := filepath.Rel(contextRoot, candidate)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return fmt.Errorf("forbidden path outside the build context: %s", originalPath)
 	}
@@ -153,20 +171,13 @@ func parseDockerfileForSources(dockerfileContent string, dockerfileDir string) (
 					continue
 				}
 
-				// Convert relative paths to absolute paths relative to Dockerfile directory
-				resolvedPath := srcPath
-				if !filepath.IsAbs(resolvedPath) {
-					resolvedPath = filepath.Join(dockerfileDir, resolvedPath)
-				}
-
-				resolvedPath = filepath.Clean(resolvedPath)
-
-				if err := ensureWithinBuildContext(dockerfileDir, resolvedPath, srcPath); err != nil {
-					return nil, err
-				}
+				resolvedPath := resolveContextSource(dockerfileDir, srcPath)
 
 				// Check if path exists and add to sources
 				if _, err := os.Stat(resolvedPath); err == nil {
+					if err := ensureWithinBuildContext(dockerfileDir, resolvedPath, srcPath); err != nil {
+						return nil, err
+					}
 					sources = append(sources, resolvedPath)
 				} else {
 					// If exact path doesn't exist, try to match glob patterns

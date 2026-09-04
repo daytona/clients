@@ -6,6 +6,7 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -42,58 +43,7 @@ func newBuildContext(t *testing.T) (contextDir string, siblingDir string) {
 	return contextDir, siblingDir
 }
 
-func TestParseDockerfileRejectsSourcesOutsideContext(t *testing.T) {
-	contextDir, siblingDir := newBuildContext(t)
-
-	tests := []struct {
-		name       string
-		dockerfile string
-		wantInErr  string
-	}{
-		{
-			name:       "absolute path",
-			dockerfile: "FROM alpine\nCOPY " + filepath.Join(siblingDir, "outside.txt") + " /app/outside.txt\n",
-			wantInErr:  filepath.Join(siblingDir, "outside.txt"),
-		},
-		{
-			name:       "relative path above the context",
-			dockerfile: "FROM alpine\nCOPY ../sibling/outside.txt /app/outside.txt\n",
-			wantInErr:  "../sibling/outside.txt",
-		},
-		{
-			name:       "glob above the context",
-			dockerfile: "FROM alpine\nCOPY ../sibling/*.conf /app/\n",
-			wantInErr:  "../sibling/*.conf",
-		},
-		{
-			name:       "ADD with a relative path above the context",
-			dockerfile: "FROM alpine\nADD ../sibling/outside.txt /app/outside.txt\n",
-			wantInErr:  "../sibling/outside.txt",
-		},
-		{
-			name:       "absolute path behind a chown flag",
-			dockerfile: "FROM alpine\nCOPY --chown=1:1 " + filepath.Join(siblingDir, "outside.txt") + " /app/outside.txt\n",
-			wantInErr:  filepath.Join(siblingDir, "outside.txt"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sources, err := parseDockerfileForSources(tt.dockerfile, contextDir)
-			if err == nil {
-				t.Fatalf("expected an error, got sources %v", sources)
-			}
-			if !strings.Contains(err.Error(), "forbidden path outside the build context") {
-				t.Errorf("error = %q, want it to mention the build context", err)
-			}
-			if !strings.Contains(err.Error(), tt.wantInErr) {
-				t.Errorf("error = %q, want it to name %q", err, tt.wantInErr)
-			}
-		})
-	}
-}
-
-func TestParseDockerfileAcceptsSourcesInsideContext(t *testing.T) {
+func TestParseDockerfileResolvesSourcesInsideContext(t *testing.T) {
 	contextDir, _ := newBuildContext(t)
 
 	tests := []struct {
@@ -121,6 +71,26 @@ func TestParseDockerfileAcceptsSourcesInsideContext(t *testing.T) {
 			dockerfile: "FROM alpine\nCOPY . /app\n",
 			want:       []string{contextDir},
 		},
+		{
+			name:       "absolute path is read relative to the context root",
+			dockerfile: "FROM alpine\nCOPY /src/file.txt /app/file.txt\n",
+			want:       []string{filepath.Join(contextDir, "src", "file.txt")},
+		},
+		{
+			name:       "absolute path behind a chown flag",
+			dockerfile: "FROM alpine\nCOPY --chown=1:1 /note.txt /app/note.txt\n",
+			want:       []string{filepath.Join(contextDir, "note.txt")},
+		},
+		{
+			name:       "parent navigation is stripped",
+			dockerfile: "FROM alpine\nCOPY ../note.txt /app/note.txt\n",
+			want:       []string{filepath.Join(contextDir, "note.txt")},
+		},
+		{
+			name:       "ADD parent navigation is stripped",
+			dockerfile: "FROM alpine\nADD ../../src/file.txt /app/file.txt\n",
+			want:       []string{filepath.Join(contextDir, "src", "file.txt")},
+		},
 	}
 
 	for _, tt := range tests {
@@ -133,5 +103,126 @@ func TestParseDockerfileAcceptsSourcesInsideContext(t *testing.T) {
 				t.Errorf("sources = %v, want %v", sources, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseDockerfileDoesNotReachOutsideContext(t *testing.T) {
+	contextDir, siblingDir := newBuildContext(t)
+
+	tests := []struct {
+		name       string
+		dockerfile string
+	}{
+		{
+			name:       "absolute host path",
+			dockerfile: "FROM alpine\nCOPY " + filepath.Join(siblingDir, "outside.txt") + " /app/outside.txt\n",
+		},
+		{
+			name:       "relative path above the context",
+			dockerfile: "FROM alpine\nCOPY ../sibling/outside.txt /app/outside.txt\n",
+		},
+		{
+			name:       "glob above the context",
+			dockerfile: "FROM alpine\nCOPY ../sibling/*.conf /app/\n",
+		},
+		{
+			name:       "ADD with a relative path above the context",
+			dockerfile: "FROM alpine\nADD ../sibling/outside.txt /app/outside.txt\n",
+		},
+		{
+			name:       "absolute host path behind a chown flag",
+			dockerfile: "FROM alpine\nCOPY --chown=1:1 " + filepath.Join(siblingDir, "outside.txt") + " /app/outside.txt\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sources, err := parseDockerfileForSources(tt.dockerfile, contextDir)
+			if err != nil {
+				t.Fatalf("parseDockerfileForSources returned an error: %v", err)
+			}
+			for _, source := range sources {
+				rel, relErr := filepath.Rel(contextDir, source)
+				if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+					t.Errorf("source %s resolves outside the build context %s", source, contextDir)
+				}
+			}
+		})
+	}
+}
+
+func TestParseDockerfileRejectsSymlinkedSourcesOutsideContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks requires elevated privileges on Windows")
+	}
+
+	contextDir, siblingDir := newBuildContext(t)
+
+	links := map[string]string{
+		filepath.Join(contextDir, "leak.txt"): filepath.Join(siblingDir, "outside.txt"),
+		filepath.Join(contextDir, "leakdir"):  siblingDir,
+	}
+	for link, target := range links {
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatalf("failed to create symlink %s: %v", link, err)
+		}
+	}
+
+	tests := []struct {
+		name       string
+		dockerfile string
+		wantInErr  string
+	}{
+		{
+			name:       "symlinked file",
+			dockerfile: "FROM alpine\nCOPY leak.txt /app/leak.txt\n",
+			wantInErr:  "leak.txt",
+		},
+		{
+			name:       "file through a symlinked directory",
+			dockerfile: "FROM alpine\nCOPY leakdir/outside.txt /app/outside.txt\n",
+			wantInErr:  "leakdir/outside.txt",
+		},
+		{
+			name:       "glob through a symlinked directory",
+			dockerfile: "FROM alpine\nCOPY leakdir/*.conf /app/\n",
+			wantInErr:  "leakdir/*.conf",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sources, err := parseDockerfileForSources(tt.dockerfile, contextDir)
+			if err == nil {
+				t.Fatalf("expected an error, got sources %v", sources)
+			}
+			if !strings.Contains(err.Error(), "forbidden path outside the build context") {
+				t.Errorf("error = %q, want it to mention the build context", err)
+			}
+			if !strings.Contains(err.Error(), tt.wantInErr) {
+				t.Errorf("error = %q, want it to name %q", err, tt.wantInErr)
+			}
+		})
+	}
+}
+
+func TestParseDockerfileAllowsSymlinksInsideContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks requires elevated privileges on Windows")
+	}
+
+	contextDir, _ := newBuildContext(t)
+
+	link := filepath.Join(contextDir, "alias.txt")
+	if err := os.Symlink(filepath.Join(contextDir, "note.txt"), link); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+
+	sources, err := parseDockerfileForSources("FROM alpine\nCOPY alias.txt /app/alias.txt\n", contextDir)
+	if err != nil {
+		t.Fatalf("parseDockerfileForSources returned an error: %v", err)
+	}
+	if !slices.Equal(sources, []string{link}) {
+		t.Errorf("sources = %v, want %v", sources, []string{link})
 	}
 }
