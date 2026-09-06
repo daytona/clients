@@ -14,6 +14,8 @@ import {
 } from '../utils/Runtime'
 
 const DEFAULT_API_URL = 'https://app.daytona.io/api'
+// Captured at module load, mirroring how Runtime.ts captures its startup directory.
+const MODULE_LOAD_CWD = process.cwd()
 
 // Exercises the real reader against real files on disk. Daytona.test.ts mocks the reader
 // for determinism, so without this the cwd-relative parsing itself would go untested.
@@ -261,10 +263,21 @@ describe('dotenv pre-loading detection', () => {
     })
 
     it('searches the startup directory as well as the current one', () => {
+      // MODULE_LOAD_CWD is captured at the top of this file, at the same point in the
+      // lifecycle as Runtime.ts captures its own, so after a chdir the two must both appear.
+      process.chdir(tmpDir)
+
       const dirs = dotenvSearchDirs()
 
-      expect(dirs).toContain(process.cwd())
-      expect(dirs.length).toBeGreaterThanOrEqual(1)
+      expect(dirs).toContain(fs.realpathSync(tmpDir))
+      expect(dirs).toContain(MODULE_LOAD_CWD)
+      expect(dirs).toHaveLength(2)
+    })
+
+    it('returns a single directory when the application has not changed directory', () => {
+      process.chdir(MODULE_LOAD_CWD)
+
+      expect(dotenvSearchDirs()).toEqual([MODULE_LOAD_CWD])
     })
 
     it('reports nothing when the --env-file target does not name the endpoint', () => {

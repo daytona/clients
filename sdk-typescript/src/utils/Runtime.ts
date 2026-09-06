@@ -210,8 +210,16 @@ export function dotenvMayBePreloaded(): boolean {
  * A runtime resolves its dotenv files when the process starts, so a relative `--env-file`
  * path - and the conventional names - belong to that directory. An application is free to
  * call `process.chdir()` afterwards, which would otherwise move the search away from the
- * file that actually supplied the environment. Imports run before application logic, so this
- * is the startup directory in practice.
+ * file that actually supplied the environment.
+ *
+ * Imports normally run before application logic, so this is the startup directory in
+ * practice. It is not guaranteed: an application that changes directory and only then
+ * imports this SDK - a dynamic import, for instance - leaves no way to recover the
+ * directory the runtime actually read from, since no runtime exposes its startup working
+ * directory. In that case a relative dotenv file goes unseen and a pre-loaded endpoint is
+ * trusted. Refusing every pre-loaded endpoint instead would reject the platform-supplied
+ * environment variables that Next.js deployments legitimately rely on, so the narrower
+ * exposure is preferred here and stated rather than assumed away.
  */
 const STARTUP_CWD = typeof process !== 'undefined' && typeof process.cwd === 'function' ? safeCwd() : undefined
 
