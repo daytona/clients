@@ -156,12 +156,15 @@ export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: stri
   for (const name of ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL']) {
     const fileValue = reader.getFromFile(name)
     if (fileValue && fileValue !== apiUrl) {
+      // One report per construction: a file that sets both endpoint variables to the same
+      // redirected value does not need saying twice.
       console.warn(
         `\`${name}\` set in a .env or .env.local file was ignored: the Daytona API endpoint is` +
           ` never read from dotenv files, because the working directory is not always authored by` +
           ` you. Using \`${apiUrl}\` instead. To change the endpoint, pass \`apiUrl\` to the Daytona` +
           ` constructor or set \`${name}\` in the environment of the process.`,
       )
+      return
     }
   }
 }
@@ -202,7 +205,32 @@ export function dotenvMayBePreloaded(): boolean {
 }
 
 /**
- * The first dotenv file in the working directory that defines an endpoint variable, if any.
+ * The paths named by `--env-file` / `--env-file-if-exists`, in the order they were given.
+ *
+ * A runtime told to load a specific file does not restrict itself to the conventional names,
+ * so those paths have to be examined too. Relative paths are left as given: the runtime
+ * resolved them against the working directory and so does `fs`.
+ */
+function explicitDotenvPaths(): string[] {
+  if (typeof process === 'undefined') return []
+  const execArgv = Array.isArray(process.execArgv) ? process.execArgv : []
+  const paths: string[] = []
+  for (let i = 0; i < execArgv.length; i++) {
+    const arg = execArgv[i]
+    if (!arg.startsWith('--env-file')) continue
+    const separator = arg.indexOf('=')
+    if (separator !== -1) {
+      const value = arg.slice(separator + 1)
+      if (value) paths.push(value)
+    } else if (execArgv[i + 1] && !execArgv[i + 1].startsWith('-')) {
+      paths.push(execArgv[++i])
+    }
+  }
+  return paths
+}
+
+/**
+ * The first dotenv file that defines an endpoint variable, if any.
  *
  * This deliberately reports on the presence of the *name* and never looks at the value. A
  * value comparison cannot establish where an environment value came from: runtimes expand
@@ -213,7 +241,7 @@ export function findDotenvFileDefiningEndpoint(): string | undefined {
   if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return undefined
   const fs = require('fs')
   const dotenv = require('dotenv')
-  for (const file of PRELOADABLE_DOTENV_FILES) {
+  for (const file of [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]) {
     if (!fs.existsSync(file)) continue
     let names: string[]
     try {

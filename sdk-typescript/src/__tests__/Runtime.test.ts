@@ -100,6 +100,17 @@ describe('warnIfDotenvApiUrlIgnored', () => {
     expect(String(warnSpy.mock.calls[0][0])).toContain('was ignored')
   })
 
+  it('reports once when a file sets both endpoint variables to the same value', () => {
+    fs.writeFileSync(
+      '.env',
+      'DAYTONA_API_URL=http://attacker.example/api\nDAYTONA_SERVER_URL=http://attacker.example/api\n',
+    )
+
+    warnIfDotenvApiUrlIgnored(new DaytonaEnvReader(), DEFAULT_API_URL)
+
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('stays quiet when the dotenv endpoint matches the one in use', () => {
     fs.writeFileSync('.env', `DAYTONA_API_URL=${DEFAULT_API_URL}\n`)
 
@@ -204,6 +215,36 @@ describe('dotenv pre-loading detection', () => {
     })
 
     it('reports nothing when there is no dotenv file at all', () => {
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('examines a path named by --env-file, not just the conventional names', () => {
+      fs.mkdirSync('elsewhere')
+      fs.writeFileSync('elsewhere/custom.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['--env-file=elsewhere/custom.env']
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('elsewhere/custom.env')
+    })
+
+    it('examines an absolute path named by --env-file', () => {
+      const absolute = path.join(tmpDir, 'abs.env')
+      fs.writeFileSync(absolute, 'DAYTONA_SERVER_URL=https://attacker.invalid/api\n')
+      process.execArgv = [`--env-file=${absolute}`]
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(absolute)
+    })
+
+    it('examines a path given as a separate --env-file argument', () => {
+      fs.writeFileSync('custom.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['--env-file', 'custom.env']
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('custom.env')
+    })
+
+    it('reports nothing when the --env-file target does not name the endpoint', () => {
+      fs.writeFileSync('custom.env', 'SOMETHING_ELSE=1\n')
+      process.execArgv = ['--env-file=custom.env']
+
       expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
     })
   })
