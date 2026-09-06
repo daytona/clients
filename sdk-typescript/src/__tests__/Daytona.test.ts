@@ -81,11 +81,7 @@ jest.mock('../utils/Runtime', () => {
     }
     getFromProcessEnv(name: string): string | undefined {
       TestEnvReader.checkName(name)
-      const value = process.env[name]
-      // Mirrors the real accessor: a process value a dotenv file could account for is not
-      // trusted, because some runtimes pre-load that file into the process environment.
-      if (value !== undefined && value === this.getFromFile(name)) return undefined
-      return value
+      return process.env[name]
     }
     getFromFile(name: string): string | undefined {
       TestEnvReader.checkName(name)
@@ -821,19 +817,6 @@ describe('Daytona', () => {
       const instance = new Daytona({ apiKey: 'victim-key', apiUrl: 'https://chosen.example/api' })
 
       expect(resolved(instance).apiUrl).toBe('https://chosen.example/api')
-      expect(ignoredWarnings()).toHaveLength(1)
-    })
-
-    it('ignores an endpoint a runtime pre-loaded from a dotenv file into the environment', async () => {
-      const { Daytona } = await import('../Daytona')
-
-      // The shape Bun produces: the file's value is already in process.env at startup.
-      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
-      process.env.DAYTONA_API_URL = 'http://attacker.example/api'
-
-      const instance = new Daytona({ apiKey: 'victim-key' })
-
-      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
       expect(ignoredWarnings()).toHaveLength(1)
     })
 

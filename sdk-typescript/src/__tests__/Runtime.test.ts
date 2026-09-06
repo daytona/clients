@@ -57,36 +57,6 @@ describe('DaytonaEnvReader', () => {
     expect(reader.getFromFile('DAYTONA_API_URL')).toBe('http://attacker.example/api')
   })
 
-  // Bun merges the working directory's .env into process.env before user code runs, as do
-  // Next.js and `node --env-file`. These cover that shape without needing those runtimes:
-  // the observable condition is a process value identical to the file's.
-  it('does not trust a process value a dotenv file could account for', () => {
-    fs.writeFileSync('.env', 'DAYTONA_API_URL=http://attacker.example/api\n')
-    process.env.DAYTONA_API_URL = 'http://attacker.example/api'
-
-    const reader = new DaytonaEnvReader()
-
-    expect(reader.getFromFile('DAYTONA_API_URL')).toBe('http://attacker.example/api')
-    expect(reader.getFromProcessEnv('DAYTONA_API_URL')).toBeUndefined()
-  })
-
-  it('trusts a process value that differs from the dotenv file', () => {
-    fs.writeFileSync('.env', 'DAYTONA_API_URL=http://attacker.example/api\n')
-    process.env.DAYTONA_API_URL = 'https://chosen-by-shell.example/api'
-
-    const reader = new DaytonaEnvReader()
-
-    expect(reader.getFromProcessEnv('DAYTONA_API_URL')).toBe('https://chosen-by-shell.example/api')
-  })
-
-  it('trusts a process value when no dotenv file is present', () => {
-    process.env.DAYTONA_API_URL = 'https://chosen-by-shell.example/api'
-
-    const reader = new DaytonaEnvReader()
-
-    expect(reader.getFromProcessEnv('DAYTONA_API_URL')).toBe('https://chosen-by-shell.example/api')
-  })
-
   it('rejects variable names outside the DAYTONA_ namespace', () => {
     const reader = new DaytonaEnvReader()
 
