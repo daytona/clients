@@ -205,6 +205,25 @@ export function dotenvMayBePreloaded(): boolean {
 }
 
 /**
+ * The working directory as it was when this module first loaded.
+ *
+ * A runtime resolves its dotenv files when the process starts, so a relative `--env-file`
+ * path - and the conventional names - belong to that directory. An application is free to
+ * call `process.chdir()` afterwards, which would otherwise move the search away from the
+ * file that actually supplied the environment. Imports run before application logic, so this
+ * is the startup directory in practice.
+ */
+const STARTUP_CWD = typeof process !== 'undefined' && typeof process.cwd === 'function' ? safeCwd() : undefined
+
+function safeCwd(): string | undefined {
+  try {
+    return process.cwd()
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * The paths named by `--env-file` / `--env-file-if-exists`, in the order they were given.
  *
  * A runtime told to load a specific file does not restrict itself to the conventional names,
@@ -230,6 +249,18 @@ function explicitDotenvPaths(): string[] {
 }
 
 /**
+ * The directories a pre-loading runtime could have read a dotenv file from: the current one,
+ * and the startup one when the application has since changed directory.
+ */
+export function dotenvSearchDirs(): string[] {
+  const dirs: string[] = []
+  const current = safeCwd()
+  if (current) dirs.push(current)
+  if (STARTUP_CWD && STARTUP_CWD !== current) dirs.push(STARTUP_CWD)
+  return dirs
+}
+
+/**
  * The first dotenv file that defines an endpoint variable, if any.
  *
  * This deliberately reports on the presence of the *name* and never looks at the value. A
@@ -237,11 +268,17 @@ function explicitDotenvPaths(): string[] {
  * `$VAR` references while a parser returns the raw text, so equal-looking values prove
  * nothing and unequal ones rule nothing out.
  */
-export function findDotenvFileDefiningEndpoint(): string | undefined {
+export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSearchDirs()): string | undefined {
   if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return undefined
   const fs = require('fs')
+  const nodePath = require('path')
   const dotenv = require('dotenv')
-  for (const file of [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]) {
+  const names = [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]
+  const candidates: string[] = []
+  for (const name of names) {
+    for (const dir of searchDirs) candidates.push(nodePath.resolve(dir, name))
+  }
+  for (const file of [...new Set(candidates)]) {
     if (!fs.existsSync(file)) continue
     let names: string[]
     try {

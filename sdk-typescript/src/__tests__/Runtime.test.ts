@@ -8,6 +8,7 @@ import * as path from 'path'
 import {
   DaytonaEnvReader,
   dotenvMayBePreloaded,
+  dotenvSearchDirs,
   findDotenvFileDefiningEndpoint,
   warnIfDotenvApiUrlIgnored,
 } from '../utils/Runtime'
@@ -182,19 +183,19 @@ describe('dotenv pre-loading detection', () => {
     it('reports a file that sets the endpoint', () => {
       fs.writeFileSync('.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('.env')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
     })
 
     it('reports a file the SDK does not otherwise read, such as .env.production', () => {
       fs.writeFileSync('.env.production', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('.env.production')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.production'))
     })
 
     it('reports the deprecated DAYTONA_SERVER_URL too', () => {
       fs.writeFileSync('.env.local', 'DAYTONA_SERVER_URL=https://attacker.invalid/api\n')
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('.env.local')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.local'))
     })
 
     it('is not defeated by a value assembled from another variable', () => {
@@ -205,7 +206,7 @@ describe('dotenv pre-loading detection', () => {
         'DAYTONA_REVIEW_HOST=attacker.invalid\nDAYTONA_API_URL=https://$DAYTONA_REVIEW_HOST/api\n',
       )
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('.env')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
     })
 
     it('reports nothing when no dotenv file names the endpoint', () => {
@@ -223,7 +224,7 @@ describe('dotenv pre-loading detection', () => {
       fs.writeFileSync('elsewhere/custom.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
       process.execArgv = ['--env-file=elsewhere/custom.env']
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('elsewhere/custom.env')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'elsewhere/custom.env'))
     })
 
     it('examines an absolute path named by --env-file', () => {
@@ -238,7 +239,32 @@ describe('dotenv pre-loading detection', () => {
       fs.writeFileSync('custom.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
       process.execArgv = ['--env-file', 'custom.env']
 
-      expect(findDotenvFileDefiningEndpoint()).toBe('custom.env')
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'custom.env'))
+    })
+
+    it('still finds the file after the application changes directory', () => {
+      // A runtime resolves its dotenv files at startup, so process.chdir() afterwards must
+      // not move the search away from the file that supplied the environment. The startup
+      // directory is captured when the module loads, which under jest is the package root,
+      // so the directory under test is passed in explicitly.
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      const elsewhere = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-elsewhere-'))
+      try {
+        process.chdir(elsewhere)
+
+        expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+        expect(findDotenvFileDefiningEndpoint([tmpDir])).toBe(path.join(tmpDir, '.env'))
+      } finally {
+        process.chdir(tmpDir)
+        fs.rmSync(elsewhere, { recursive: true, force: true })
+      }
+    })
+
+    it('searches the startup directory as well as the current one', () => {
+      const dirs = dotenvSearchDirs()
+
+      expect(dirs).toContain(process.cwd())
+      expect(dirs.length).toBeGreaterThanOrEqual(1)
     })
 
     it('reports nothing when the --env-file target does not name the endpoint', () => {
