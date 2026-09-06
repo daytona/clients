@@ -82,16 +82,28 @@ export class DaytonaEnvReader {
   }
 
   /**
-   * Reads `name` from the process environment only, never from .env / .env.local.
+   * Reads `name` from the process environment, ignoring any value a dotenv file in the
+   * working directory could account for.
    *
-   * The dotenv files are read from the current working directory, which is not
-   * necessarily authored by whoever runs the process. Anything that determines the host a
-   * credential is sent to must be resolved through this method, so that a file in the
-   * working directory cannot redirect the SDK.
+   * The dotenv files are read from the current working directory, which is not necessarily
+   * authored by whoever runs the process. Anything that determines the host a credential is
+   * sent to must be resolved through this method, so that a file in the working directory
+   * cannot redirect the SDK.
+   *
+   * Reading `process.env` is not sufficient on its own: some runtimes merge the working
+   * directory's .env into the process environment before any user code runs - Bun does it
+   * unconditionally, and Next.js and `node --env-file` do it too - so on those runtimes the
+   * process environment alone cannot be attributed to the caller. When the process value is
+   * byte-identical to the file's, the file cannot be ruled out as its source and the value
+   * is not trusted here. A deliberate shell export still wins, because those runtimes do not
+   * overwrite a variable that is already set: an exported value either differs from the file
+   * or there is no file to begin with.
    */
   getFromProcessEnv(name: string): string | undefined {
     DaytonaEnvReader.checkName(name)
-    return getEnvVar(name)
+    const value = getEnvVar(name)
+    if (value !== undefined && value === this.getFromFile(name)) return undefined
+    return value
   }
 
   /** Reads `name` from .env.local / .env only, ignoring the process environment. */
@@ -108,7 +120,9 @@ export class DaytonaEnvReader {
   }
 
   private static parseFileVars(path: string): Record<string, string> {
-    if (RUNTIME !== Runtime.NODE || typeof require === 'undefined') return {}
+    // Bun is detected before Node above, so a Node-only guard would leave the reader blind on
+    // the one runtime that pre-loads .env into the process environment. Bun provides require('fs').
+    if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return {}
     const fs = require('fs')
     if (!fs.existsSync(path)) return {}
     const dotenv = require('dotenv')
@@ -127,20 +141,20 @@ export function isServerlessRuntime(): boolean {
   return Boolean(
     // Cloudflare Workers (V8 isolate API)
     typeof globalObj.WebSocketPair === 'function' ||
-      // Cloudflare Pages
-      env.CF_PAGES === '1' ||
-      // AWS Lambda (incl. SAM local)
-      env.AWS_EXECUTION_ENV?.startsWith('AWS_Lambda') ||
-      env.LAMBDA_TASK_ROOT !== undefined ||
-      env.AWS_SAM_LOCAL === 'true' ||
-      // Azure Functions
-      env.FUNCTIONS_WORKER_RUNTIME !== undefined ||
-      // Google Cloud Functions / Cloud Run
-      (env.FUNCTION_TARGET !== undefined && env.FUNCTION_SIGNATURE_TYPE !== undefined) ||
-      // Vercel
-      env.VERCEL === '1' ||
-      // Netlify Functions
-      env.SITE_NAME !== undefined,
+    // Cloudflare Pages
+    env.CF_PAGES === '1' ||
+    // AWS Lambda (incl. SAM local)
+    env.AWS_EXECUTION_ENV?.startsWith('AWS_Lambda') ||
+    env.LAMBDA_TASK_ROOT !== undefined ||
+    env.AWS_SAM_LOCAL === 'true' ||
+    // Azure Functions
+    env.FUNCTIONS_WORKER_RUNTIME !== undefined ||
+    // Google Cloud Functions / Cloud Run
+    (env.FUNCTION_TARGET !== undefined && env.FUNCTION_SIGNATURE_TYPE !== undefined) ||
+    // Vercel
+    env.VERCEL === '1' ||
+    // Netlify Functions
+    env.SITE_NAME !== undefined,
   )
 }
 
