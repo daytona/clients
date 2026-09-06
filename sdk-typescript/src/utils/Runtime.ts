@@ -278,9 +278,19 @@ export function dotenvSearchDirs(): string[] {
  */
 export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSearchDirs()): string | undefined {
   if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return undefined
-  const fs = require('fs')
-  const nodePath = require('path')
-  const dotenv = require('dotenv')
+  // A bundler can leave `require` defined while these are unresolvable. Constructing a
+  // client must not fail because the check could not run, so treat that as nothing found:
+  // the endpoint then resolves as it did before this check existed.
+  let fs: typeof import('fs')
+  let nodePath: typeof import('path')
+  let dotenv: typeof import('dotenv')
+  try {
+    fs = require('fs')
+    nodePath = require('path')
+    dotenv = require('dotenv')
+  } catch {
+    return undefined
+  }
   const names = [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]
   const candidates: string[] = []
   for (const name of names) {
