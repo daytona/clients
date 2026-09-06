@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -323,3 +324,142 @@ class TestDaytonaValidateLanguageLabel:
         daytona = _make_daytona()
         with pytest.raises(DaytonaValidationError, match=f"Invalid {CODE_TOOLBOX_LANGUAGE_LABEL}"):
             daytona._validate_language_label("ruby")
+
+
+DEFAULT_API_URL = "https://app.daytona.io/api"
+_CREDENTIAL_ENV_KEYS = (
+    "DAYTONA_API_KEY",
+    "DAYTONA_API_URL",
+    "DAYTONA_SERVER_URL",
+    "DAYTONA_TARGET",
+    "DAYTONA_JWT_TOKEN",
+    "DAYTONA_ORGANIZATION_ID",
+)
+
+
+class TestCwdDotenvCannotRedirectTheEndpoint:
+    """A `.env` in the working directory must not decide where the credential is sent.
+
+    The working directory is frequently a cloned repository, so its files are authored by a
+    third party. The credential comes from the caller; the endpoint must never come from
+    a file the caller did not write.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated_cwd(self, tmp_path, monkeypatch):
+        for key in _CREDENTIAL_ENV_KEYS:
+            monkeypatch.delenv(key, raising=False)
+        monkeypatch.chdir(tmp_path)
+        return tmp_path
+
+    @staticmethod
+    def _construct(config=None):
+        """Construct a client, returning it alongside every warning it emitted.
+
+        The endpoint assertion has to be the primary signal, so construction must not
+        happen inside `pytest.warns` — a missing warning would fail the test before the
+        resolved URL is ever checked.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            daytona = _make_daytona(config)
+        return daytona, [str(w.message) for w in caught]
+
+    @staticmethod
+    def _ignored_endpoint_warnings(messages, name="DAYTONA_API_URL"):
+        return [m for m in messages if name in m and "was ignored" in m]
+
+    def test_dotenv_api_url_is_ignored(self, _isolated_cwd):
+        (_isolated_cwd / ".env").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(DaytonaConfig(api_key="victim-key"))
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert daytona._api_key == "victim-key"
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_dotenv_local_api_url_is_ignored(self, _isolated_cwd):
+        (_isolated_cwd / ".env.local").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(DaytonaConfig(api_key="victim-key"))
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_dotenv_server_url_is_ignored(self, _isolated_cwd):
+        (_isolated_cwd / ".env").write_text("DAYTONA_SERVER_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(DaytonaConfig(api_key="victim-key"))
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert self._ignored_endpoint_warnings(messages, "DAYTONA_SERVER_URL")
+
+    def test_dotenv_cannot_redirect_a_credential_taken_from_the_process_environment(self, _isolated_cwd, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_KEY", "victim-key")
+        (_isolated_cwd / ".env").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct()
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert daytona._api_key == "victim-key"
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_dotenv_cannot_redirect_even_when_it_also_supplies_the_credential(self, _isolated_cwd):
+        """A file that supplies both must still not move the endpoint.
+
+        Same-source pairing would allow this; resolving the endpoint from the process
+        environment only does not.
+        """
+        (_isolated_cwd / ".env").write_text(
+            "DAYTONA_API_KEY=attacker-key\nDAYTONA_API_URL=http://attacker.example/api\n"
+        )
+
+        daytona, messages = self._construct()
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_process_environment_api_url_still_wins(self, _isolated_cwd, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_URL", "https://chosen-by-env.example/api")
+        (_isolated_cwd / ".env").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(DaytonaConfig(api_key="victim-key"))
+
+        assert daytona._api_url == "https://chosen-by-env.example/api"
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_explicit_api_url_still_wins(self, _isolated_cwd):
+        (_isolated_cwd / ".env").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(DaytonaConfig(api_key="victim-key", api_url="https://chosen.example/api"))
+
+        assert daytona._api_url == "https://chosen.example/api"
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_fully_configured_client_is_still_told_about_a_hostile_dotenv(self, _isolated_cwd):
+        """Reported even when explicit config already made the caller immune.
+
+        The value of the report is that the working directory is hostile, which the caller
+        wants to know regardless of how this particular client was configured.
+        """
+        (_isolated_cwd / ".env").write_text("DAYTONA_API_URL=http://attacker.example/api\n")
+
+        daytona, messages = self._construct(
+            DaytonaConfig(api_key="victim-key", api_url="https://chosen.example/api", target="us")
+        )
+
+        assert daytona._api_url == "https://chosen.example/api"
+        assert self._ignored_endpoint_warnings(messages)
+
+    def test_documented_dotenv_layout_still_works_and_stays_quiet(self, _isolated_cwd):
+        """The documented `.env` sets the endpoint to its default, so nothing changes."""
+        (_isolated_cwd / ".env").write_text(
+            f"DAYTONA_API_KEY=victim-key\nDAYTONA_API_URL={DEFAULT_API_URL}\nDAYTONA_TARGET=us\n"
+        )
+
+        daytona, messages = self._construct()
+
+        assert daytona._api_url == DEFAULT_API_URL
+        assert daytona._api_key == "victim-key"
+        assert daytona._target == "us"
+        assert self._ignored_endpoint_warnings(messages) == []

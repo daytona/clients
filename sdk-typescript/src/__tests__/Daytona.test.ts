@@ -23,6 +23,10 @@ const mockSecretServiceCtor = jest.fn()
 const mockSandboxCtor = jest.fn()
 const mockProcessImageContext = jest.fn()
 const mockProcessStreamingResponse = jest.fn()
+// Stands in for DAYTONA_* vars parsed out of .env / .env.local in the working
+// directory. Empty by default, so every other test sees the process env only.
+const mockDotenvFileVars: Record<string, string> = {}
+
 const mockConfigurationCtor = jest.fn().mockImplementation((args: Record<string, unknown>) => ({
   ...args,
   baseOptions: (args.baseOptions as Record<string, unknown>) ?? { headers: {} },
@@ -70,11 +74,23 @@ jest.mock(
 jest.mock('../utils/Runtime', () => {
   const actual = jest.requireActual('../utils/Runtime')
   class TestEnvReader {
+    // Mirrors the real precedence (process env, then the dotenv files) so that a
+    // regression back to `get()` for the endpoint is observable from a test.
     get(name: string): string | undefined {
+      return this.getFromProcessEnv(name) ?? this.getFromFile(name)
+    }
+    getFromProcessEnv(name: string): string | undefined {
+      TestEnvReader.checkName(name)
+      return process.env[name]
+    }
+    getFromFile(name: string): string | undefined {
+      TestEnvReader.checkName(name)
+      return mockDotenvFileVars[name]
+    }
+    private static checkName(name: string): void {
       if (!name.startsWith('DAYTONA_')) {
         throw new Error(`DaytonaEnvReader: variable name must start with 'DAYTONA_', got '${name}'`)
       }
-      return process.env[name]
     }
   }
   return { ...actual, DaytonaEnvReader: TestEnvReader }
@@ -149,6 +165,8 @@ describe('Daytona', () => {
     delete process.env.DAYTONA_API_URL
     delete process.env.DAYTONA_SERVER_URL
     delete process.env.DAYTONA_TARGET
+
+    for (const key of Object.keys(mockDotenvFileVars)) delete mockDotenvFileVars[key]
 
     mockAxiosCreate.mockReturnValue({
       defaults: { baseURL: 'http://sandbox-proxy/' },
@@ -705,5 +723,125 @@ describe('Daytona', () => {
     expect(sandboxFromGet.start).toHaveBeenCalled()
     expect(sandboxFromGet.stop).toHaveBeenCalled()
     expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
+  })
+
+  describe('cwd dotenv endpoint trust', () => {
+    // A .env in the working directory must not decide where the credential is sent: the
+    // working directory is frequently a cloned repository, authored by a third party.
+    const DEFAULT_API_URL = 'https://app.daytona.io/api'
+    // apiUrl / apiKey are private; the suite's established pattern is to cast.
+    const resolved = (instance: unknown) => instance as { apiUrl: string; apiKey?: string }
+    let warnSpy: jest.SpyInstance
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(console, 'warn').mockImplementation((): void => undefined)
+    })
+
+    afterEach(() => {
+      warnSpy.mockRestore()
+    })
+
+    const ignoredWarnings = (name = 'DAYTONA_API_URL') =>
+      warnSpy.mock.calls.filter(([msg]) => String(msg).includes(name) && String(msg).includes('was ignored'))
+
+    it('ignores an endpoint supplied by a dotenv file', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona({ apiKey: 'victim-key' })
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+      expect(resolved(instance).apiKey).toBe('victim-key')
+      // The endpoint the HTTP client is built with is what actually receives the bearer token.
+      expect(mockConfigurationCtor).toHaveBeenCalledWith(expect.objectContaining({ basePath: DEFAULT_API_URL }))
+      expect(mockConfigurationCtor).not.toHaveBeenCalledWith(
+        expect.objectContaining({ basePath: 'http://attacker.example/api' }),
+      )
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('ignores a deprecated DAYTONA_SERVER_URL supplied by a dotenv file', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_SERVER_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona({ apiKey: 'victim-key' })
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+      expect(ignoredWarnings('DAYTONA_SERVER_URL')).toHaveLength(1)
+    })
+
+    it('ignores a dotenv endpoint paired with a credential from the process environment', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      process.env.DAYTONA_API_KEY = 'victim-key'
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona()
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+      expect(resolved(instance).apiKey).toBe('victim-key')
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('ignores a dotenv endpoint even when the same file supplies the credential', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_API_KEY = 'attacker-key'
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona()
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('still lets the process environment set the endpoint', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      process.env.DAYTONA_API_URL = 'https://chosen-by-env.example/api'
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona({ apiKey: 'victim-key' })
+
+      expect(resolved(instance).apiUrl).toBe('https://chosen-by-env.example/api')
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('still lets an explicit apiUrl set the endpoint', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona({ apiKey: 'victim-key', apiUrl: 'https://chosen.example/api' })
+
+      expect(resolved(instance).apiUrl).toBe('https://chosen.example/api')
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('still reports a hostile dotenv to a fully configured client', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_API_URL = 'http://attacker.example/api'
+
+      const instance = new Daytona({ apiKey: 'victim-key', apiUrl: 'https://chosen.example/api', target: 'us' })
+
+      expect(resolved(instance).apiUrl).toBe('https://chosen.example/api')
+      expect(ignoredWarnings()).toHaveLength(1)
+    })
+
+    it('stays quiet for the documented dotenv layout and still reads the credential from it', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockDotenvFileVars.DAYTONA_API_KEY = 'victim-key'
+      mockDotenvFileVars.DAYTONA_API_URL = DEFAULT_API_URL
+
+      const instance = new Daytona()
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+      expect(resolved(instance).apiKey).toBe('victim-key')
+      expect(ignoredWarnings()).toHaveLength(0)
+    })
   })
 })

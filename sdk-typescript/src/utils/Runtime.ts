@@ -73,16 +73,38 @@ export class DaytonaEnvReader {
   }
 
   get(name: string): string | undefined {
-    if (!name.startsWith('DAYTONA_')) {
-      throw new Error(`DaytonaEnvReader: variable name must start with 'DAYTONA_', got '${name}'`)
-    }
+    DaytonaEnvReader.checkName(name)
     // 1. Runtime env
     const runtimeVal = getEnvVar(name)
     if (runtimeVal !== undefined) return runtimeVal
-    // 2. .env.local
+    // 2. .env.local, 3. .env
+    return this.getFromFile(name)
+  }
+
+  /**
+   * Reads `name` from the process environment only, never from .env / .env.local.
+   *
+   * The dotenv files are read from the current working directory, which is not
+   * necessarily authored by whoever runs the process. Anything that determines the host a
+   * credential is sent to must be resolved through this method, so that a file in the
+   * working directory cannot redirect the SDK.
+   */
+  getFromProcessEnv(name: string): string | undefined {
+    DaytonaEnvReader.checkName(name)
+    return getEnvVar(name)
+  }
+
+  /** Reads `name` from .env.local / .env only, ignoring the process environment. */
+  getFromFile(name: string): string | undefined {
+    DaytonaEnvReader.checkName(name)
     if (name in this.envLocalVars) return this.envLocalVars[name]
-    // 3. .env
     return this.envVars[name]
+  }
+
+  private static checkName(name: string): void {
+    if (!name.startsWith('DAYTONA_')) {
+      throw new Error(`DaytonaEnvReader: variable name must start with 'DAYTONA_', got '${name}'`)
+    }
   }
 
   private static parseFileVars(path: string): Record<string, string> {
@@ -120,4 +142,24 @@ export function isServerlessRuntime(): boolean {
       // Netlify Functions
       env.SITE_NAME !== undefined,
   )
+}
+
+/**
+ * Warns when a dotenv file asked for an API endpoint that was not used.
+ *
+ * Staying silent when the file value matches the endpoint in use keeps the documented
+ * `.env` layout quiet, while a file that would have changed the destination is reported.
+ */
+export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: string): void {
+  for (const name of ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL']) {
+    const fileValue = reader.getFromFile(name)
+    if (fileValue && fileValue !== apiUrl) {
+      console.warn(
+        `\`${name}\` set in a .env or .env.local file was ignored: the Daytona API endpoint is` +
+          ` never read from dotenv files, because the working directory is not always authored by` +
+          ` you. Using \`${apiUrl}\` instead. To change the endpoint, pass \`apiUrl\` to the Daytona` +
+          ` constructor or set \`${name}\` in the environment of the process.`,
+      )
+    }
+  }
 }

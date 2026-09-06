@@ -39,7 +39,7 @@ import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 
 const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
-import { DaytonaEnvReader, RUNTIME, Runtime } from './utils/Runtime'
+import { DaytonaEnvReader, RUNTIME, Runtime, warnIfDotenvApiUrlIgnored } from './utils/Runtime'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { context, trace, propagation, SpanStatusCode } from '@opentelemetry/api'
 import type { NodeSDK } from '@opentelemetry/sdk-node'
@@ -361,10 +361,12 @@ export class Daytona implements AsyncDisposable {
         this.apiKey = this.apiKey || (this.jwtToken ? undefined : reader.get('DAYTONA_API_KEY'))
         this.jwtToken = this.jwtToken || reader.get('DAYTONA_JWT_TOKEN')
         this.organizationId = this.organizationId || reader.get('DAYTONA_ORGANIZATION_ID')
-        apiUrl = apiUrl || reader.get('DAYTONA_API_URL') || reader.get('DAYTONA_SERVER_URL')
+        // Resolved from the process environment only, never from .env / .env.local:
+        // the endpoint decides where the credential above is sent.
+        apiUrl = apiUrl || reader.getFromProcessEnv('DAYTONA_API_URL') || reader.getFromProcessEnv('DAYTONA_SERVER_URL')
         this.target = this.target || reader.get('DAYTONA_TARGET')
 
-        if (reader.get('DAYTONA_SERVER_URL') && !reader.get('DAYTONA_API_URL')) {
+        if (reader.getFromProcessEnv('DAYTONA_SERVER_URL') && !reader.getFromProcessEnv('DAYTONA_API_URL')) {
           console.warn(
             '[Deprecation Warning] Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. Use `DAYTONA_API_URL` instead.',
           )
@@ -373,6 +375,15 @@ export class Daytona implements AsyncDisposable {
     }
 
     this.apiUrl = apiUrl || 'https://app.daytona.io/api'
+
+    // A dotenv file that tried to redirect the endpoint is always reported, however the
+    // client was configured: it tells the caller the working directory is hostile, which
+    // matters even when their explicit configuration already made them immune. envReader()
+    // is memoized and called again below, so this adds no extra parse.
+    const readerForReport = envReader()
+    if (readerForReport) {
+      warnIfDotenvApiUrlIgnored(readerForReport, this.apiUrl)
+    }
 
     if (!this.apiKey && !this.jwtToken) {
       throw new DaytonaAuthenticationError(
