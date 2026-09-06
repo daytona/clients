@@ -39,7 +39,14 @@ import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 
 const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
-import { DaytonaEnvReader, RUNTIME, Runtime, warnIfDotenvApiUrlIgnored } from './utils/Runtime'
+import {
+  DaytonaEnvReader,
+  dotenvMayBePreloaded,
+  findDotenvFileDefiningEndpoint,
+  RUNTIME,
+  Runtime,
+  warnIfDotenvApiUrlIgnored,
+} from './utils/Runtime'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { context, trace, propagation, SpanStatusCode } from '@opentelemetry/api'
 import type { NodeSDK } from '@opentelemetry/sdk-node'
@@ -329,6 +336,7 @@ export class Daytona implements AsyncDisposable {
    */
   constructor(config?: DaytonaConfig) {
     let apiUrl: string | undefined
+    const endpointGivenByCaller = Boolean(config?.apiUrl || config?.serverUrl)
     if (config) {
       this.apiKey = !config?.apiKey && config?.jwtToken ? undefined : config?.apiKey
       this.jwtToken = config?.jwtToken
@@ -371,6 +379,22 @@ export class Daytona implements AsyncDisposable {
             '[Deprecation Warning] Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. Use `DAYTONA_API_URL` instead.',
           )
         }
+      }
+    }
+
+    // On a runtime that pre-loads dotenv files, an endpoint from the process environment
+    // cannot be attributed to the caller. Rather than guess - and risk sending the API key
+    // to a host nobody chose - refuse to select one and say what to do about it.
+    if (!endpointGivenByCaller && dotenvMayBePreloaded()) {
+      const dotenvFile = findDotenvFileDefiningEndpoint()
+      if (dotenvFile) {
+        throw new DaytonaInvalidArgumentError(
+          `The Daytona API endpoint is ambiguous: \`${dotenvFile}\` in the working directory sets` +
+            ` DAYTONA_API_URL or DAYTONA_SERVER_URL, and this runtime loads that file into the` +
+            ` environment before your code runs, so the endpoint cannot be attributed to you.` +
+            ` Pass \`apiUrl\` to the Daytona constructor to say which endpoint you mean, or remove the` +
+            ` variable from \`${dotenvFile}\`.`,
+        )
       }
     }
 

@@ -108,7 +108,9 @@ export class DaytonaEnvReader {
   }
 
   private static parseFileVars(path: string): Record<string, string> {
-    if (RUNTIME !== Runtime.NODE || typeof require === 'undefined') return {}
+    // Bun is detected before Node above, so a Node-only gate would leave the reader unable to
+    // read files on the one runtime that pre-loads them. Bun implements require('fs').
+    if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return {}
     const fs = require('fs')
     if (!fs.existsSync(path)) return {}
     const dotenv = require('dotenv')
@@ -127,20 +129,20 @@ export function isServerlessRuntime(): boolean {
   return Boolean(
     // Cloudflare Workers (V8 isolate API)
     typeof globalObj.WebSocketPair === 'function' ||
-      // Cloudflare Pages
-      env.CF_PAGES === '1' ||
-      // AWS Lambda (incl. SAM local)
-      env.AWS_EXECUTION_ENV?.startsWith('AWS_Lambda') ||
-      env.LAMBDA_TASK_ROOT !== undefined ||
-      env.AWS_SAM_LOCAL === 'true' ||
-      // Azure Functions
-      env.FUNCTIONS_WORKER_RUNTIME !== undefined ||
-      // Google Cloud Functions / Cloud Run
-      (env.FUNCTION_TARGET !== undefined && env.FUNCTION_SIGNATURE_TYPE !== undefined) ||
-      // Vercel
-      env.VERCEL === '1' ||
-      // Netlify Functions
-      env.SITE_NAME !== undefined,
+    // Cloudflare Pages
+    env.CF_PAGES === '1' ||
+    // AWS Lambda (incl. SAM local)
+    env.AWS_EXECUTION_ENV?.startsWith('AWS_Lambda') ||
+    env.LAMBDA_TASK_ROOT !== undefined ||
+    env.AWS_SAM_LOCAL === 'true' ||
+    // Azure Functions
+    env.FUNCTIONS_WORKER_RUNTIME !== undefined ||
+    // Google Cloud Functions / Cloud Run
+    (env.FUNCTION_TARGET !== undefined && env.FUNCTION_SIGNATURE_TYPE !== undefined) ||
+    // Vercel
+    env.VERCEL === '1' ||
+    // Netlify Functions
+    env.SITE_NAME !== undefined,
   )
 }
 
@@ -162,4 +164,64 @@ export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: stri
       )
     }
   }
+}
+
+/** The variables that decide which host the API key is sent to. */
+const ENDPOINT_VARS = ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL'] as const
+
+/**
+ * The union of the dotenv file names that Bun and Next.js load on their own. `.env` and
+ * `.env.local` are the SDK's own precedence chain; the rest are here only so that a file
+ * defining the endpoint cannot go unnoticed.
+ */
+const PRELOADABLE_DOTENV_FILES = [
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.development.local',
+  '.env.production',
+  '.env.production.local',
+  '.env.test',
+  '.env.test.local',
+] as const
+
+/**
+ * Whether the runtime may have merged a working-directory dotenv file into `process.env`
+ * before any user code ran.
+ *
+ * Bun does this unconditionally unless started with `--no-env-file`; Node does it when given
+ * `--env-file`; Next.js does it in its server runtimes. On these runtimes the process
+ * environment cannot be attributed to the caller, so it cannot be trusted to name a host.
+ */
+export function dotenvMayBePreloaded(): boolean {
+  if (typeof process === 'undefined') return false
+  const execArgv = Array.isArray(process.execArgv) ? process.execArgv : []
+  if (execArgv.some((arg) => arg.startsWith('--env-file'))) return true
+  if (RUNTIME === Runtime.BUN) return !execArgv.includes('--no-env-file')
+  return Boolean(process.env?.NEXT_RUNTIME)
+}
+
+/**
+ * The first dotenv file in the working directory that defines an endpoint variable, if any.
+ *
+ * This deliberately reports on the presence of the *name* and never looks at the value. A
+ * value comparison cannot establish where an environment value came from: runtimes expand
+ * `$VAR` references while a parser returns the raw text, so equal-looking values prove
+ * nothing and unequal ones rule nothing out.
+ */
+export function findDotenvFileDefiningEndpoint(): string | undefined {
+  if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return undefined
+  const fs = require('fs')
+  const dotenv = require('dotenv')
+  for (const file of PRELOADABLE_DOTENV_FILES) {
+    if (!fs.existsSync(file)) continue
+    let names: string[]
+    try {
+      names = Object.keys(dotenv.parse(fs.readFileSync(file)) as Record<string, string>)
+    } catch {
+      continue
+    }
+    if (names.some((name) => (ENDPOINT_VARS as readonly string[]).includes(name))) return file
+  }
+  return undefined
 }

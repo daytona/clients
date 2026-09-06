@@ -5,7 +5,12 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 
-import { DaytonaEnvReader, warnIfDotenvApiUrlIgnored } from '../utils/Runtime'
+import {
+  DaytonaEnvReader,
+  dotenvMayBePreloaded,
+  findDotenvFileDefiningEndpoint,
+  warnIfDotenvApiUrlIgnored,
+} from '../utils/Runtime'
 
 const DEFAULT_API_URL = 'https://app.daytona.io/api'
 
@@ -107,5 +112,99 @@ describe('warnIfDotenvApiUrlIgnored', () => {
     warnIfDotenvApiUrlIgnored(new DaytonaEnvReader(), DEFAULT_API_URL)
 
     expect(warnSpy).not.toHaveBeenCalled()
+  })
+})
+
+// Runtimes that load a dotenv file into process.env before user code runs make the process
+// environment unattributable. These cover the detection that decides whether to refuse.
+describe('dotenv pre-loading detection', () => {
+  let tmpDir: string
+  let originalCwd: string
+  let originalExecArgv: string[]
+  let originalNextRuntime: string | undefined
+
+  beforeEach(() => {
+    originalCwd = process.cwd()
+    originalExecArgv = process.execArgv
+    originalNextRuntime = process.env.NEXT_RUNTIME
+    delete process.env.NEXT_RUNTIME
+    tmpDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-preload-'))
+    process.chdir(tmpDir)
+  })
+
+  afterEach(() => {
+    process.execArgv = originalExecArgv
+    if (originalNextRuntime === undefined) delete process.env.NEXT_RUNTIME
+    else process.env.NEXT_RUNTIME = originalNextRuntime
+    process.chdir(originalCwd)
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  describe('dotenvMayBePreloaded', () => {
+    it('is false for a plain node process', () => {
+      process.execArgv = []
+
+      expect(dotenvMayBePreloaded()).toBe(false)
+    })
+
+    it('is true when node was given --env-file', () => {
+      process.execArgv = ['--env-file=.env']
+
+      expect(dotenvMayBePreloaded()).toBe(true)
+    })
+
+    it('is true when node was given --env-file-if-exists', () => {
+      process.execArgv = ['--env-file-if-exists=.env']
+
+      expect(dotenvMayBePreloaded()).toBe(true)
+    })
+
+    it('is true inside a Next.js server runtime', () => {
+      process.execArgv = []
+      process.env.NEXT_RUNTIME = 'nodejs'
+
+      expect(dotenvMayBePreloaded()).toBe(true)
+    })
+  })
+
+  describe('findDotenvFileDefiningEndpoint', () => {
+    it('reports a file that sets the endpoint', () => {
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('.env')
+    })
+
+    it('reports a file the SDK does not otherwise read, such as .env.production', () => {
+      fs.writeFileSync('.env.production', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('.env.production')
+    })
+
+    it('reports the deprecated DAYTONA_SERVER_URL too', () => {
+      fs.writeFileSync('.env.local', 'DAYTONA_SERVER_URL=https://attacker.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('.env.local')
+    })
+
+    it('is not defeated by a value assembled from another variable', () => {
+      // A parser returns the raw text while the runtime expands it, so only the presence of
+      // the name is meaningful here.
+      fs.writeFileSync(
+        '.env',
+        'DAYTONA_REVIEW_HOST=attacker.invalid\nDAYTONA_API_URL=https://$DAYTONA_REVIEW_HOST/api\n',
+      )
+
+      expect(findDotenvFileDefiningEndpoint()).toBe('.env')
+    })
+
+    it('reports nothing when no dotenv file names the endpoint', () => {
+      fs.writeFileSync('.env', 'DAYTONA_API_KEY=some-key\nDAYTONA_TARGET=us\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('reports nothing when there is no dotenv file at all', () => {
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
   })
 })
