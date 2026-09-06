@@ -72,10 +72,10 @@ def warn_if_dotenv_api_url_ignored(env_reader: DaytonaEnvReader, api_url: str) -
         if file_value and file_value != api_url:
             warnings.warn(
                 f"`{name}` set in a .env or .env.local file was ignored:"
-                " the Daytona API endpoint is never read from dotenv files, because the working"
-                f" directory is not always authored by you. Using `{api_url}` instead."
-                f" To change the endpoint, pass `api_url` to `DaytonaConfig` or set `{name}`"
-                " in the environment of the process.",
+                + " the Daytona API endpoint is never read from dotenv files, because the working"
+                + f" directory is not always authored by you. Using `{api_url}` instead."
+                + f" To change the endpoint, pass `api_url` to `DaytonaConfig` or set `{name}`"
+                + " in the environment of the process.",
                 UserWarning,
                 stacklevel=3,
             )
