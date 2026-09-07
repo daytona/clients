@@ -7,15 +7,20 @@ import { AxiosError, CanceledError } from 'axios'
 import type { AxiosAdapter, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
 
 /**
- * Transport-level retry for transient connection failures, mirroring the
- * Python SDK (`urllib3_retry.RemoteDisconnectedRetry` / `SharedAiohttpSession`).
+ * Transport-level retry for transient connection failures, modelled on the
+ * Python async SDK's `SharedAiohttpSession`.
  *
- * Node's http client, unlike Go's transport or urllib3, never retries a request
- * whose kept-alive socket the server already closed. That surfaces as
- * `socket hang up` (ECONNRESET) — typically after a proxy/LB rollout — even
- * though the request was never processed. This wraps the axios adapter so each
- * logical request gets a small retry budget for exactly those cases, without
- * re-running request interceptors (one span covers all attempts).
+ * Node's http client never retries a request whose kept-alive socket the server
+ * already closed; that surfaces as `socket hang up` (ECONNRESET), typically
+ * after a proxy/LB rollout. This wraps the axios adapter so each logical
+ * request gets a small retry budget, without re-running request interceptors
+ * (one span covers all attempts).
+ *
+ * Policy: a failure is replayed on any method only when it provably happened
+ * before any bytes were written (DNS / TCP connect). Anything that may have
+ * reached the server — including `socket hang up`, which only says the peer
+ * closed before writing a response — is replayed for idempotent methods only,
+ * since the server may already have executed the request.
  */
 
 const MAX_RETRIES = 2
@@ -39,7 +44,10 @@ const CONNECT_PHASE_CODES: ReadonlySet<string> = new Set([
 ])
 
 // May fire after the request was (partially) written — the server may have
-// started processing it — so only idempotent methods are retried.
+// processed it — so only idempotent methods are retried. This includes
+// "socket hang up": Node raises it both for a stale keep-alive socket that
+// never read the request and for a peer that processed it and then dropped
+// the connection, and the client cannot tell the two apart.
 const MID_FLIGHT_CODES: ReadonlySet<string> = new Set(['ECONNRESET', 'EPIPE'])
 
 type RetryVerdict = 'any-method' | 'idempotent-only' | 'never'
@@ -64,15 +72,6 @@ function classify(error: AxiosError): RetryVerdict {
   if (error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT) {
     return syscallOf(error) === 'connect' ? 'any-method' : 'never'
   }
-  // Node reports "socket hang up" only when the peer closed before a single
-  // response byte arrived — for a well-behaved HTTP server that means the
-  // request was never processed (stale keep-alive socket, or a proxy/LB that
-  // dropped the connection during a rollout). The residual risk is a peer that
-  // processes a non-idempotent request and then dies before writing any
-  // response; the Python SDK (RemoteDisconnectedRetry) and the toolbox proxy's
-  // own upstream retry accept the same trade-off, so semantics stay consistent
-  // across clients.
-  if (error.code === 'ECONNRESET' && error.message === 'socket hang up') return 'any-method'
   if (CONNECT_PHASE_CODES.has(error.code) || syscallOf(error) === 'connect') return 'any-method'
   if (MID_FLIGHT_CODES.has(error.code)) return 'idempotent-only'
   return 'never'

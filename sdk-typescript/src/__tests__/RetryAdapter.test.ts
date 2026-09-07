@@ -64,37 +64,33 @@ describe('withConnectionRetry', () => {
     expect(sleep).not.toHaveBeenCalled()
   })
 
-  describe('zero-byte disconnect ("socket hang up") is retried on any method', () => {
-    it.each(['post', 'patch', 'get', 'delete'])('retries %s and backs off with jitter', async (method) => {
-      const base = failingAdapter(1, (c) => transportError(c, ...SOCKET_HANG_UP))
-      const adapter = withConnectionRetry(base, { sleep })
-
-      const res = await adapter(requestConfig({ method }))
-
-      expect(res.status).toBe(200)
-      expect(base).toHaveBeenCalledTimes(2)
-      expect(sleep).toHaveBeenCalledTimes(1)
-      const [delay] = sleep.mock.calls[0] as unknown as [number]
-      expect(delay).toBeGreaterThanOrEqual(250)
-      expect(delay).toBeLessThan(350)
-    })
-  })
-
   describe('connect-phase failures (nothing written) are retried on any method', () => {
-    it.each([CONNECT_REFUSED, CONNECT_TIMEOUT])('retries POST after %s', async (message, props) => {
-      const base = failingAdapter(1, (c) => transportError(c, message, props))
-      const adapter = withConnectionRetry(base, { sleep })
+    it.each([CONNECT_REFUSED, CONNECT_TIMEOUT])(
+      'retries POST after %s and backs off with jitter',
+      async (message, props) => {
+        const base = failingAdapter(1, (c) => transportError(c, message, props))
+        const adapter = withConnectionRetry(base, { sleep })
 
-      const res = await adapter(requestConfig({ method: 'post' }))
+        const res = await adapter(requestConfig({ method: 'post' }))
 
-      expect(res.status).toBe(200)
-      expect(base).toHaveBeenCalledTimes(2)
-    })
+        expect(res.status).toBe(200)
+        expect(base).toHaveBeenCalledTimes(2)
+        expect(sleep).toHaveBeenCalledTimes(1)
+        const [delay] = sleep.mock.calls[0] as unknown as [number]
+        expect(delay).toBeGreaterThanOrEqual(250)
+        expect(delay).toBeLessThan(350)
+      },
+    )
   })
 
-  describe('mid-flight resets (server may have processed the request)', () => {
-    it.each(['post', 'patch'])('surfaces the error unchanged for non-idempotent %s', async (method) => {
-      const base = failingAdapter(1, (c) => transportError(c, ...READ_RESET))
+  describe('disconnects after the request may have been sent (server may have processed it)', () => {
+    it.each([
+      ['post', SOCKET_HANG_UP],
+      ['patch', SOCKET_HANG_UP],
+      ['post', READ_RESET],
+      ['patch', READ_RESET],
+    ])('surfaces the error unchanged for non-idempotent %s after %s', async (method, [message, props]) => {
+      const base = failingAdapter(1, (c) => transportError(c, message, props))
       const adapter = withConnectionRetry(base, { sleep })
 
       await expect(adapter(requestConfig({ method }))).rejects.toMatchObject({ code: 'ECONNRESET' })
@@ -103,8 +99,17 @@ describe('withConnectionRetry', () => {
       expect(sleep).not.toHaveBeenCalled()
     })
 
-    it.each(['get', 'head', 'put', 'delete'])('retries idempotent %s', async (method) => {
-      const base = failingAdapter(1, (c) => transportError(c, ...READ_RESET))
+    it.each([
+      ['get', SOCKET_HANG_UP],
+      ['head', SOCKET_HANG_UP],
+      ['put', SOCKET_HANG_UP],
+      ['delete', SOCKET_HANG_UP],
+      ['get', READ_RESET],
+      ['head', READ_RESET],
+      ['put', READ_RESET],
+      ['delete', READ_RESET],
+    ])('retries idempotent %s after %s', async (method, [message, props]) => {
+      const base = failingAdapter(1, (c) => transportError(c, message, props))
       const adapter = withConnectionRetry(base, { sleep })
 
       const res = await adapter(requestConfig({ method }))
@@ -216,10 +221,10 @@ describe('withConnectionRetry', () => {
       ['a form-data body', { getBoundary: () => 'b', pipe: () => undefined }],
       ['a web ReadableStream body', { getReader: () => undefined }],
     ])('a request with %s is not replayed', async (_label, data) => {
-      const base = failingAdapter(1, (c) => transportError(c, ...SOCKET_HANG_UP))
+      const base = failingAdapter(1, (c) => transportError(c, ...CONNECT_REFUSED))
       const adapter = withConnectionRetry(base, { sleep })
 
-      await expect(adapter(requestConfig({ method: 'post', data }))).rejects.toMatchObject({ code: 'ECONNRESET' })
+      await expect(adapter(requestConfig({ method: 'post', data }))).rejects.toMatchObject({ code: 'ECONNREFUSED' })
 
       expect(base).toHaveBeenCalledTimes(1)
     })
@@ -231,7 +236,7 @@ describe('withConnectionRetry', () => {
       ['a plain object', { a: 1 }],
       ['no body', undefined],
     ])('a request with %s is replayed', async (_label, data) => {
-      const base = failingAdapter(1, (c) => transportError(c, ...SOCKET_HANG_UP))
+      const base = failingAdapter(1, (c) => transportError(c, ...CONNECT_REFUSED))
       const adapter = withConnectionRetry(base, { sleep })
 
       await expect(adapter(requestConfig({ method: 'post', data }))).resolves.toMatchObject({ status: 200 })
