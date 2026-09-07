@@ -34,7 +34,8 @@ module Daytona
         endpoint: endpoint_url,
         access_key_id: aws_access_key_id,
         secret_access_key: aws_secret_access_key,
-        session_token: aws_session_token
+        session_token: aws_session_token,
+        **CLIENT_OPTIONS
       )
     end
 
@@ -146,17 +147,15 @@ module Daytona
       self.class.compute_archive_base_path(source_path) if archive_base_path.nil?
 
       temp_file = Tempfile.new(['context', '.tar'])
+      archive_path = temp_file.path
 
       begin
-        system('tar', '-cf', temp_file.path, '-C', File.dirname(source_path), File.basename(source_path))
-
-        File.open(temp_file.path, 'rb') do |file|
-          s3_client.put_object(
-            bucket: bucket_name,
-            key: s3_key,
-            body: file
-          )
+        unless system('tar', '-cf', archive_path, '-C', File.dirname(source_path), File.basename(source_path))
+          raise Sdk::Error, "Failed to create tar archive for #{source_path}"
         end
+
+        Aws::S3::TransferManager.new(client: s3_client)
+                                .upload_file(archive_path, bucket: bucket_name, key: s3_key, **UPLOAD_OPTIONS)
       ensure
         temp_file.close
         temp_file.unlink
@@ -164,6 +163,18 @@ module Daytona
     end
 
     DEFAULT_BUCKET_NAME = 'daytona-volume-builds'
-    private_constant :DEFAULT_BUCKET_NAME
+
+    # multipart_threshold is also the part size floor: S3 rejects any part but the
+    # last below 5 MiB, and uploading in parts means a slow or unstable connection
+    # only ever has to carry 5 MiB per request instead of the whole context.
+    UPLOAD_OPTIONS = {
+      multipart_threshold: 5 * 1024 * 1024,
+      thread_count: 4,
+      content_type: 'application/x-tar'
+    }.freeze
+
+    CLIENT_OPTIONS = { http_open_timeout: 15, http_read_timeout: 120, retry_limit: 3 }.freeze
+
+    private_constant :DEFAULT_BUCKET_NAME, :UPLOAD_OPTIONS, :CLIENT_OPTIONS
   end
 end

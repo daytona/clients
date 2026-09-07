@@ -48,6 +48,14 @@ RSpec.describe Daytona::ObjectStorage do
         )
       end.to raise_error(ArgumentError, /region/)
     end
+
+    it 'configures connection timeouts and a retry limit on the S3 client' do
+      storage
+
+      expect(Aws::S3::Client).to have_received(:new).with(
+        hash_including(http_open_timeout: 15, http_read_timeout: 120, retry_limit: 3)
+      )
+    end
   end
 
   describe '#upload' do
@@ -56,17 +64,20 @@ RSpec.describe Daytona::ObjectStorage do
         .to raise_error(Errno::ENOENT, /Path does not exist/)
     end
 
+    let(:transfer_manager) { instance_double(Aws::S3::TransferManager) }
+
     it 'skips upload if the file already exists in S3' do
       Dir.mktmpdir do |dir|
         file_path = File.join(dir, 'test.txt')
         File.write(file_path, 'content')
         allow(s3_client).to receive(:head_object).and_return(double('HeadResponse'))
-        allow(s3_client).to receive(:put_object)
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
+        allow(transfer_manager).to receive(:upload_file)
 
         result = storage.upload(file_path, 'org-1')
 
         expect(result).to be_a(String)
-        expect(s3_client).not_to have_received(:put_object)
+        expect(transfer_manager).not_to have_received(:upload_file)
       end
     end
 
@@ -75,13 +86,38 @@ RSpec.describe Daytona::ObjectStorage do
         file_path = File.join(dir, 'test.txt')
         File.write(file_path, 'content')
         allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
-        allow(s3_client).to receive(:put_object)
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
+        allow(transfer_manager).to receive(:upload_file)
         allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(true)
 
         result = storage.upload(file_path, 'org-1')
 
         expect(result).to be_a(String)
-        expect(s3_client).to have_received(:put_object)
+        expect(transfer_manager).to have_received(:upload_file).with(
+          anything,
+          hash_including(
+            bucket: 'test-bucket',
+            key: a_string_matching(%r{\Aorg-1/.+/context\.tar\z}),
+            multipart_threshold: 5 * 1024 * 1024,
+            thread_count: 4,
+            content_type: 'application/x-tar'
+          )
+        )
+      end
+    end
+
+    it 'raises instead of uploading a partial archive when tar fails' do
+      Dir.mktmpdir do |dir|
+        file_path = File.join(dir, 'test.txt')
+        File.write(file_path, 'content')
+        allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
+        allow(transfer_manager).to receive(:upload_file)
+        allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(false)
+
+        expect { storage.upload(file_path, 'org-1') }
+          .to raise_error(Daytona::Sdk::Error, /Failed to create tar archive/)
+        expect(transfer_manager).not_to have_received(:upload_file)
       end
     end
   end
