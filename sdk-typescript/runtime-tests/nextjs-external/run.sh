@@ -23,6 +23,13 @@ FILE_PATH="test.txt"
 SANDBOX_ID=""
 SERVER_PID=""
 cleanup() {
+  local status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "--- next build output (tail) ---"
+    tail -n 60 /tmp/nextjs-external-build.log 2>/dev/null || true
+    echo "--- next start output (tail) ---"
+    tail -n 60 /tmp/nextjs-external-runtime.log 2>/dev/null || true
+  fi
   if [ -n "$SANDBOX_ID" ]; then
     node --input-type=module -e "
       import { Daytona } from '@daytona/sdk';
@@ -35,6 +42,7 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+trap 'exit 143' TERM
 
 SANDBOX_ID=$(node --input-type=module -e "
 import { Daytona } from '@daytona/sdk';
@@ -45,14 +53,15 @@ process.stdout.write(s.id);
 ")
 echo "Sandbox created: $SANDBOX_ID"
 
-NODE_ENV=production npm run build >/dev/null
+ls node_modules/@next >/tmp/nextjs-external-build.log 2>&1 || true
+NODE_ENV=production npm run build >>/tmp/nextjs-external-build.log 2>&1
 
-PORT=${RUNTIME_TEST_PORT:-3804}
+PORT=${RUNTIME_TEST_PORT:-3806}
 NODE_ENV=production npx next start -p "$PORT" >/tmp/nextjs-external-runtime.log 2>&1 &
 SERVER_PID=$!
 
 for i in $(seq 1 30); do
-  if curl -sf "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
+  if curl -sf -m 5 "http://localhost:$PORT/api/sandboxes" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 

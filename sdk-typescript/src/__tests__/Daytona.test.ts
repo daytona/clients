@@ -30,10 +30,13 @@ const mockConfigurationCtor = jest.fn().mockImplementation((args: Record<string,
 
 jest.mock('axios', () => {
   class MockAxiosError extends Error {}
+  const mockAdapter = jest.fn()
   return {
     __esModule: true,
     default: {
       create: mockAxiosCreate,
+      defaults: { adapter: mockAdapter },
+      getAdapter: () => mockAdapter,
       AxiosError: MockAxiosError,
     },
     create: mockAxiosCreate,

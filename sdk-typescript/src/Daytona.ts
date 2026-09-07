@@ -36,6 +36,7 @@ import { WarmPoolService } from './WarmPool'
 import { getPackageInfo, dynamicRequire } from './utils/Import'
 import { EventDispatcher } from './utils/EventDispatcher'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
+import { withConnectionRetry } from './utils/RetryAdapter'
 
 const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
@@ -1017,6 +1018,7 @@ export class Daytona implements AsyncDisposable {
       // fetch adapter would otherwise apply, so set a mode workerd accepts.
       // Ignored by the Node http adapter. API responses are not cacheable anyway.
       fetchOptions: { cache: 'no-store' },
+      adapter: withConnectionRetry(axios.getAdapter(axios.defaults.adapter)),
     })
 
     // Request interceptor: Inject trace context into headers
