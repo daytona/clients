@@ -9,17 +9,38 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 const CONTEXT_TAR_FILE_NAME = "context.tar"
+
+// contextTarPrefix names the per-run scratch archive ProcessDirectory writes
+// inside the context directory.
+const contextTarPrefix = ".daytona-context-"
+
+// isContextArchiveFile takes a path relative to the context directory. Scratch
+// archives are matched by prefix so that one left behind by an interrupted run
+// is not swept into a later context, but only at the context root where they
+// are created, so user files deeper in the tree are never hidden.
+func isContextArchiveFile(relPath string) bool {
+	if filepath.Base(relPath) == CONTEXT_TAR_FILE_NAME {
+		return true
+	}
+	if filepath.Dir(relPath) != "." {
+		return false
+	}
+	return strings.HasPrefix(relPath, contextTarPrefix) && strings.HasSuffix(relPath, ".tar")
+}
 
 type Client struct {
 	minioClient *minio.Client
@@ -183,10 +204,39 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		dockerignoreExists = true
 	}
 
-	tarFile, err := os.Create(CONTEXT_TAR_FILE_NAME)
+	// Captured before the scratch archive exists. Creating and removing it
+	// updates the context directory's mtime, which would otherwise land in the
+	// archive and change the context hash on every run. Lstat matches what the
+	// walk below reports for the root entry; a symlinked root is left alone
+	// because its own mtime is not affected by writing into its target.
+	rootInfo, err := os.Lstat(dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create tar file: %w", err)
+		return nil, fmt.Errorf("failed to read context directory %s: %w", dirPath, err)
 	}
+	pinRootModTime := rootInfo.IsDir()
+
+	// The scratch archive is written into the resolved directory, so that is the
+	// one whose timestamp has to be restored. For a symlinked root it is not the
+	// same file as rootInfo.
+	targetInfo, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read context directory %s: %w", dirPath, err)
+	}
+
+	tarFile, err := os.CreateTemp(dirPath, contextTarPrefix+"*.tar")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tar file in context directory %s: %w", dirPath, err)
+	}
+	tarPath := tarFile.Name()
+	defer func() {
+		if err := os.Remove(tarPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			fmt.Printf("Warning: failed to remove temporary context archive %s: %v\n", tarPath, err)
+			return
+		}
+		if err := os.Chtimes(dirPath, time.Time{}, targetInfo.ModTime()); err != nil {
+			fmt.Printf("Warning: failed to restore timestamp of %s: %v\n", dirPath, err)
+		}
+	}()
 	defer tarFile.Close()
 
 	tw := tar.NewWriter(tarFile)
@@ -201,12 +251,16 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 			return err
 		}
 
-		if fi.Name() == CONTEXT_TAR_FILE_NAME {
+		relPath, err := filepath.Rel(dirPath, file)
+		if err != nil {
+			return err
+		}
+
+		if isContextArchiveFile(relPath) {
 			return nil
 		}
 
 		if shouldExcludeFile(file, dirPath) {
-			relPath, _ := filepath.Rel(dirPath, file)
 			if fi.IsDir() {
 				fmt.Printf("Excluding directory: %s\n", relPath)
 				return filepath.SkipDir
@@ -219,12 +273,10 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		if err != nil {
 			return err
 		}
-
-		relPath, err := filepath.Rel(dirPath, file)
-		if err != nil {
-			return err
-		}
 		header.Name = relPath
+		if file == dirPath && pinRootModTime {
+			header.ModTime = rootInfo.ModTime()
+		}
 
 		if err := tw.WriteHeader(header); err != nil {
 			return err
@@ -297,10 +349,6 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		err = c.UploadFile(ctx, fmt.Sprintf("%s/%s", objectName, CONTEXT_TAR_FILE_NAME), tarContent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload tar: %w", err)
-		}
-
-		if err := os.Remove(CONTEXT_TAR_FILE_NAME); err != nil {
-			return nil, fmt.Errorf("failed to remove tar file: %w", err)
 		}
 	} else {
 		fmt.Printf("Directory %s with hash %s already exists in storage\n", dirPath, hash)
