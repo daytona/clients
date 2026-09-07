@@ -58,7 +58,7 @@ func NewAPIClientWithProfileProvider(ctx context.Context, apiClient *apiclient.A
 		return nil, fmt.Errorf("api client is required when sandbox has no toolbox proxy URL")
 	}
 
-	proxyURL, err := resolveProxyURL(ctx, apiClient, sandbox)
+	proxyURL, err := NewClient(apiClient).getProxyURL(ctx, sandbox)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +108,4 @@ func NewAPIClientWithProfileProvider(ctx context.Context, apiClient *apiclient.A
 	}
 
 	return toolboxclient.NewAPIClient(cfg), nil
-}
-
-func resolveProxyURL(ctx context.Context, apiClient *apiclient.APIClient, sandbox *apiclient.Sandbox) (string, error) {
-	if proxyURL := sandbox.GetToolboxProxyUrl(); proxyURL != "" {
-		return proxyURL, nil
-	}
-
-	client := NewClient(apiClient)
-	return client.getProxyURL(ctx, sandbox.Id, sandbox.Target)
 }
