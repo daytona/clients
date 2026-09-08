@@ -78,12 +78,20 @@ const jsFilesIn = (dir) =>
     return entry.name.endsWith('.js') ? [entryPath] : []
   })
 
-// Comments are dropped before deciding whether a file *needed* the shim, so that a
-// `require(` written in prose cannot stand in for a real call and make the guards below
-// vacuous. Stripping is a heuristic, not a parser, and a `//` inside a string literal will
-// take the rest of the line with it - so it is used only for that accounting. The rewrite
-// itself still runs over the whole file, where over-inclusion is harmless.
+// String literals and comments are dropped before deciding whether a file *needed* the
+// shim, so that a `require(` written in prose or inside a message cannot stand in for a
+// real call and make the guards below vacuous. Strings go first: otherwise a `//` inside
+// one takes the rest of the line with it. This is a heuristic, not a parser, and it errs
+// toward removing too much - which fails the guards loudly rather than passing them
+// quietly. The rewrite itself still runs over the whole file, where over-inclusion is
+// harmless.
+const withoutStrings = (source) =>
+  source
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
 const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+const codeOnly = (source) => withoutComments(withoutStrings(source))
 
 const hasRequireCall = (source) => /\brequire\s*\(/.test(source)
 const shimmedFiles = []
@@ -97,7 +105,7 @@ for (const file of fs.existsSync(esmDir) ? jsFilesIn(esmDir) : []) {
     )
     .replace(/\brequire\s*\(/g, '__esmRequire(')
   fs.writeFileSync(file, esmRequireShim + rewritten)
-  if (hasRequireCall(withoutComments(original))) shimmedFiles.push(path.relative(esmDir, file))
+  if (hasRequireCall(codeOnly(original))) shimmedFiles.push(path.relative(esmDir, file))
 }
 
 // A build that shims nothing means the scan above stopped matching, which would leave
@@ -116,12 +124,13 @@ if (fs.existsSync(runtimeJsPath)) {
   if (!shimmedFiles.includes(runtimeJs)) {
     throw new Error(`post-build: ${runtimeJs} did not receive the require() shim`)
   }
-  // The specifier is passed through a helper, so the emitted call is `__esmRequire(id)`
-  // and the name only appears at the call site. Checking that the name is still there
-  // catches the load being dropped; that it resolves at runtime is covered by dotenv
-  // being in the published dependencies above.
+  // The specifier goes through a helper, so the emitted shim call is `__esmRequire(id)`
+  // and the name only appears at the call site, as `tryRequire('dotenv')`. The loaders are
+  // named here rather than matching any quoted `dotenv`, which a label or an error message
+  // would satisfy on its own. Renaming the helper has to update this deliberately: that is
+  // the point of the guard.
   const runtimeSource = withoutComments(fs.readFileSync(runtimeJsPath, 'utf8'))
-  if (!/['"]dotenv['"]/.test(runtimeSource)) {
+  if (!/\b(?:tryRequire|require|__esmRequire)\s*\(\s*['"]dotenv['"]\s*\)/.test(runtimeSource)) {
     throw new Error(`post-build: ${runtimeJs} no longer loads dotenv`)
   }
 }

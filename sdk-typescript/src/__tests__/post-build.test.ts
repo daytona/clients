@@ -131,14 +131,22 @@ describe('post-build ESM require shim', () => {
     )
   })
 
-  // The scan is textual, so prose mentioning require() must not stand in for a real call
-  // and satisfy the guards on its own.
-  it('does not count a require named only in a comment as a real call', () => {
+  // The scan is textual, so prose or a message mentioning require() must not stand in for
+  // a real call and satisfy the guards on its own.
+  it.each([
+    ['a comment', `// historically this called require('dotenv')\nexport const value = 1\n`],
+    ['a string', `export const help = "you must require('dotenv') yourself"\n`],
+  ])('does not count a require named only in %s as a real call', (_label, contents) => {
+    expect(() => runPostBuild({ 'utils/Runtime.js': contents })).toThrow()
+  })
+
+  // A quoted `dotenv` on its own is not a load: the guard has to see it being required.
+  it('fails the build when utils/Runtime.js only names dotenv in a message', () => {
     expect(() =>
       runPostBuild({
-        'utils/Runtime.js': `// historically this called require('dotenv')\nexport const value = 1\n`,
+        'utils/Runtime.js': `export const read = () => require('fs')\nexport const label = 'dotenv'\n`,
       }),
-    ).toThrow()
+    ).toThrow(/no longer loads dotenv/)
   })
 })
 
