@@ -242,4 +242,36 @@ RSpec.describe Daytona::Config do
       expect(stderr).to eq('')
     end
   end
+  # Separate from endpoint trust: pinning where the credential goes does nothing about a
+  # file whose contents run while being read.
+  describe 'dotenv files are not executed', :real_dotenv do
+    around do |example|
+      Dir.mktmpdir { |dir| Dir.chdir(dir) { example.run } }
+    end
+
+    # A client configured entirely in code needs nothing from the file, and still parses it.
+    it 'does not execute a hostile .env' do
+      File.write('.env', "DAYTONA_UNUSED=$(touch marker-ran)\n")
+
+      described_class.new(api_key: 'k', api_url: 'https://chosen.example/api', target: 'us')
+
+      expect(File.exist?('marker-ran')).to be(false)
+    end
+
+    it 'does not execute a hostile .env.local' do
+      File.write('.env.local', "DAYTONA_UNUSED=$(touch marker-ran)\n")
+
+      described_class.new(api_key: 'k', api_url: 'https://chosen.example/api', target: 'us')
+
+      expect(File.exist?('marker-ran')).to be(false)
+    end
+
+    # Guards the read mode: without it a byte-order mark swallows the first key, so a .env
+    # written on Windows would silently lose the credential.
+    it 'reads a file that starts with a byte-order mark' do
+      File.binwrite('.env', "\xEF\xBB\xBFDAYTONA_API_KEY=bom-key\n")
+
+      expect(described_class.new.api_key).to eq('bom-key')
+    end
+  end
 end

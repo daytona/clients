@@ -6,6 +6,45 @@
 require 'dotenv'
 
 module Daytona
+  # Dotenv runs `$(...)` in a value through the shell while parsing, and the working
+  # directory is frequently a cloned repository, so parsing `.env` there would execute
+  # whatever its author put in it.
+  module EnvFile
+    # Dotenv::Parser picks its substitutions up from `self.class.substitutions`, and Ruby
+    # does not inherit class-level instance variables, so declaring the list here drops
+    # command substitution while leaving Dotenv::Parser alone — a host application's own
+    # Dotenv.load keeps the behaviour its author chose. `${VAR}` is kept: it reads only
+    # keys already parsed or the process environment.
+    class Parser < Dotenv::Parser
+      @substitutions = [Dotenv::Substitutions::Variable].freeze
+    end
+
+    # Read with the mode dotenv itself uses, so the accepted format does not narrow: `bom`
+    # skips a byte-order mark an editor on Windows may have written, and pinning `utf-8`
+    # keeps the file readable under a POSIX locale, where the default external encoding
+    # would make one accented byte anywhere — a comment included — raise while it is scanned.
+    def self.parse(path)
+      verify_suppression!
+      Parser.call(File.read(path, mode: 'rb:bom|utf-8'))
+    end
+
+    # The subclass reaches into dotenv's internals rather than a public API, and dotenv has
+    # already reorganised them once inside the range the gemspec allows, so confirm the
+    # suppression actually holds in the process that relies on it rather than trusting the
+    # version pinned in CI. Checked here rather than on load: this is the operation the
+    # guard protects, so a lapse stops it, and a gem that never reads a .env still loads.
+    # A failure is not memoised, so it is raised again on the next attempt.
+    def self.verify_suppression!
+      return if @verified
+
+      probe = Parser.call('DAYTONA_PROBE=$(echo substituted)')['DAYTONA_PROBE']
+      raise "dotenv command substitution is not suppressed (got #{probe.inspect})" unless
+        probe == '$(echo substituted)'
+
+      @verified = true
+    end
+  end
+
   class Config
     API_URL = 'https://app.daytona.io/api'
 
@@ -131,9 +170,9 @@ module Daytona
     def parse_dotenv_files
       file_vars = {}
       env_file = File.join(Dir.pwd, '.env')
-      file_vars.merge!(daytona_filter(Dotenv.parse(env_file))) if File.exist?(env_file)
+      file_vars.merge!(daytona_filter(EnvFile.parse(env_file))) if File.exist?(env_file)
       env_local_file = File.join(Dir.pwd, '.env.local')
-      file_vars.merge!(daytona_filter(Dotenv.parse(env_local_file))) if File.exist?(env_local_file)
+      file_vars.merge!(daytona_filter(EnvFile.parse(env_local_file))) if File.exist?(env_local_file)
       file_vars
     end
 

@@ -28,7 +28,7 @@ RSpec.configure do |config|
   end
 
   # Auth/url resolution must be deterministic in tests, so:
-  #   1. Stub Dotenv.parse so .env / .env.local files are never consulted.
+  #   1. Stub the dotenv read so .env / .env.local files are never consulted.
   #   2. Snapshot and clear DAYTONA_* ENV vars around each example, so the
   #      developer's shell or local-service env can't leak into a unit test
   #      that asserts on the absence of credentials.
@@ -45,7 +45,7 @@ RSpec.configure do |config|
   ].freeze
 
   config.before do |example|
-    allow(Dotenv).to receive(:parse).and_return({}) unless example.metadata[:real_dotenv]
+    allow(Daytona::EnvFile).to receive(:parse).and_return({}) unless example.metadata[:real_dotenv]
   end
 
   config.around do |example|
