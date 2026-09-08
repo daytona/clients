@@ -40,7 +40,14 @@ import { withConnectionRetry } from './utils/RetryAdapter'
 
 const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
-import { DaytonaEnvReader, RUNTIME, Runtime } from './utils/Runtime'
+import {
+  DaytonaEnvReader,
+  dotenvMayBePreloaded,
+  findDotenvFileDefiningEndpoint,
+  RUNTIME,
+  Runtime,
+  warnIfDotenvApiUrlIgnored,
+} from './utils/Runtime'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { context, trace, propagation, SpanStatusCode } from '@opentelemetry/api'
 import type { NodeSDK } from '@opentelemetry/sdk-node'
@@ -330,6 +337,7 @@ export class Daytona implements AsyncDisposable {
    */
   constructor(config?: DaytonaConfig) {
     let apiUrl: string | undefined
+    const endpointGivenByCaller = Boolean(config?.apiUrl || config?.serverUrl)
     if (config) {
       this.apiKey = !config?.apiKey && config?.jwtToken ? undefined : config?.apiKey
       this.jwtToken = config?.jwtToken
@@ -362,10 +370,12 @@ export class Daytona implements AsyncDisposable {
         this.apiKey = this.apiKey || (this.jwtToken ? undefined : reader.get('DAYTONA_API_KEY'))
         this.jwtToken = this.jwtToken || reader.get('DAYTONA_JWT_TOKEN')
         this.organizationId = this.organizationId || reader.get('DAYTONA_ORGANIZATION_ID')
-        apiUrl = apiUrl || reader.get('DAYTONA_API_URL') || reader.get('DAYTONA_SERVER_URL')
+        // Resolved from the process environment only, never from .env / .env.local:
+        // the endpoint decides where the credential above is sent.
+        apiUrl = apiUrl || reader.getFromProcessEnv('DAYTONA_API_URL') || reader.getFromProcessEnv('DAYTONA_SERVER_URL')
         this.target = this.target || reader.get('DAYTONA_TARGET')
 
-        if (reader.get('DAYTONA_SERVER_URL') && !reader.get('DAYTONA_API_URL')) {
+        if (reader.getFromProcessEnv('DAYTONA_SERVER_URL') && !reader.getFromProcessEnv('DAYTONA_API_URL')) {
           console.warn(
             '[Deprecation Warning] Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. Use `DAYTONA_API_URL` instead.',
           )
@@ -373,7 +383,32 @@ export class Daytona implements AsyncDisposable {
       }
     }
 
+    // On a runtime that pre-loads dotenv files, an endpoint from the process environment
+    // cannot be attributed to the caller. Rather than guess - and risk sending the API key
+    // to a host nobody chose - refuse to select one and say what to do about it.
+    if (!endpointGivenByCaller && dotenvMayBePreloaded()) {
+      const dotenvFile = findDotenvFileDefiningEndpoint()
+      if (dotenvFile) {
+        throw new DaytonaInvalidArgumentError(
+          `The Daytona API endpoint is ambiguous: \`${dotenvFile}\` in the working directory sets` +
+            ` DAYTONA_API_URL or DAYTONA_SERVER_URL, and this runtime loads that file into the` +
+            ` environment before your code runs, so the endpoint cannot be attributed to you.` +
+            ` Pass \`apiUrl\` to the Daytona constructor to say which endpoint you mean, or remove the` +
+            ` variable from \`${dotenvFile}\`.`,
+        )
+      }
+    }
+
     this.apiUrl = apiUrl || 'https://app.daytona.io/api'
+
+    // A dotenv file that tried to redirect the endpoint is always reported, however the
+    // client was configured: it tells the caller the working directory is hostile, which
+    // matters even when their explicit configuration already made them immune. envReader()
+    // is memoized and called again below, so this adds no extra parse.
+    const readerForReport = envReader()
+    if (readerForReport) {
+      warnIfDotenvApiUrlIgnored(readerForReport, this.apiUrl)
+    }
 
     if (!this.apiKey && !this.jwtToken) {
       throw new DaytonaAuthenticationError(

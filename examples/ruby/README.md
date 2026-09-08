@@ -18,11 +18,12 @@ This directory contains example scripts demonstrating how to use the Daytona Rub
    DAYTONA_ORGANIZATION_ID=your-org-id  # required when using JWT token
 
    # Optional
-   DAYTONA_API_URL=https://app.daytona.io/api  # defaults to this if not specified
    DAYTONA_TARGET=us  # defaults to your organization's default region
    ```
 
    The SDK automatically loads only Daytona-specific variables from `.env` and `.env.local` files in the current working directory, where `.env.local` overrides `.env`. Runtime environment variables always take precedence over `.env` files.
+
+   `DAYTONA_API_URL` is the exception: the API endpoint is never read from `.env` or `.env.local`, because the working directory is not always authored by whoever runs the code. Set it with the `api_url:` argument to `Daytona::Config.new` or in the environment of the process (Option B). A value in a dotenv file is ignored, and reported on stderr if it differs from the endpoint in use.
 
    **Option B: Export manually**
 

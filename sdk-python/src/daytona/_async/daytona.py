@@ -44,7 +44,7 @@ from daytona_api_client_async import WarmPoolsApi
 from daytona_toolbox_api_client_async import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
-from .._utils.env import DaytonaEnvReader
+from .._utils.env import DaytonaEnvReader, warn_if_dotenv_api_url_ignored
 from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.stream import process_streaming_response
@@ -217,10 +217,18 @@ class AsyncDaytona:
             self._api_key = self._api_key or (env_reader.get("DAYTONA_API_KEY") if not self._jwt_token else None)
             self._jwt_token = self._jwt_token or env_reader.get("DAYTONA_JWT_TOKEN")
             self._organization_id = self._organization_id or env_reader.get("DAYTONA_ORGANIZATION_ID")
-            api_url = api_url or env_reader.get("DAYTONA_API_URL") or env_reader.get("DAYTONA_SERVER_URL")
+            # Resolved from the process environment only, never from .env / .env.local:
+            # the endpoint decides where the credential above is sent.
+            api_url = (
+                api_url
+                or env_reader.get_from_process_env("DAYTONA_API_URL")
+                or env_reader.get_from_process_env("DAYTONA_SERVER_URL")
+            )
             self._target = self._target or env_reader.get("DAYTONA_TARGET")
 
-            if env_reader.get("DAYTONA_SERVER_URL") and not env_reader.get("DAYTONA_API_URL"):
+            if env_reader.get_from_process_env("DAYTONA_SERVER_URL") and not env_reader.get_from_process_env(
+                "DAYTONA_API_URL"
+            ):
                 warnings.warn(
                     "Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. "
                     + "Use `DAYTONA_API_URL` instead.",
@@ -229,6 +237,13 @@ class AsyncDaytona:
                 )
 
         self._api_url = api_url or default_api_url
+
+        # A dotenv file that tried to redirect the endpoint is always reported, however the
+        # client was configured: it tells the caller the working directory is hostile, which
+        # matters even when their explicit configuration already made them immune. Reusing
+        # the reader here means no extra parse - one is constructed further down regardless.
+        env_reader = env_reader or DaytonaEnvReader()
+        warn_if_dotenv_api_url_ignored(env_reader, self._api_url)
 
         if not self._api_key and not self._jwt_token:
             msg = (

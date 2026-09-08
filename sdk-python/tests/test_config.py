@@ -51,3 +51,48 @@ class TestDaytonaEnvReader:
             return_value={"DAYTONA_API_KEY": "key", "OTHER": "nope", "DAYTONA_TARGET": None},
         ):
             assert DaytonaEnvReader._load(".env") == {"DAYTONA_API_KEY": "key"}
+
+
+class TestDaytonaEnvReaderTrustSeparation:
+    """The endpoint must be resolvable without consulting the working directory."""
+
+    def test_get_from_process_env_ignores_dotenv_files(self, monkeypatch):
+        monkeypatch.delenv("DAYTONA_API_URL", raising=False)
+
+        with patch.object(
+            DaytonaEnvReader,
+            "_load",
+            side_effect=[
+                {"DAYTONA_API_URL": "http://local.example/api"},
+                {"DAYTONA_API_URL": "http://env.example/api"},
+            ],
+        ):
+            reader = DaytonaEnvReader()
+
+        assert reader.get("DAYTONA_API_URL") == "http://local.example/api"
+        assert reader.get_from_process_env("DAYTONA_API_URL") is None
+
+    def test_get_from_process_env_reads_the_process_environment(self, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_URL", "https://runtime.example/api")
+
+        with patch.object(DaytonaEnvReader, "_load", side_effect=[{}, {"DAYTONA_API_URL": "http://env.example/api"}]):
+            reader = DaytonaEnvReader()
+
+        assert reader.get_from_process_env("DAYTONA_API_URL") == "https://runtime.example/api"
+
+    def test_get_from_file_ignores_the_process_environment(self, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_URL", "https://runtime.example/api")
+
+        with patch.object(DaytonaEnvReader, "_load", side_effect=[{}, {"DAYTONA_API_URL": "http://env.example/api"}]):
+            reader = DaytonaEnvReader()
+
+        assert reader.get_from_file("DAYTONA_API_URL") == "http://env.example/api"
+
+    def test_new_accessors_reject_non_daytona_variable_names(self):
+        reader = DaytonaEnvReader()
+
+        with pytest.raises(ValueError, match="must start with 'DAYTONA_'"):
+            reader.get_from_process_env("OTHER_VAR")
+
+        with pytest.raises(ValueError, match="must start with 'DAYTONA_'"):
+            reader.get_from_file("OTHER_VAR")
