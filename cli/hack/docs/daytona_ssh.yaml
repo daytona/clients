@@ -4,9 +4,9 @@ description: Establish an SSH connection to a running sandbox
 usage: daytona ssh [SANDBOX_ID] | [SANDBOX_NAME] [flags]
 options:
   - name: expires
-    default_value: '1440'
+    default_value: '60'
     usage: |
-      SSH access token expiration time in minutes (defaults to 24 hours)
+      SSH access token expiration time in minutes
 inherited_options:
   - name: help
     default_value: 'false'

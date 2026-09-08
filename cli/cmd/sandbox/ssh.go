@@ -62,5 +62,5 @@ var SSHCmd = &cobra.Command{
 var sshExpiresInMinutes int
 
 func init() {
-	SSHCmd.Flags().IntVar(&sshExpiresInMinutes, "expires", 1440, "SSH access token expiration time in minutes (defaults to 24 hours)")
+	SSHCmd.Flags().IntVar(&sshExpiresInMinutes, "expires", 60, "SSH access token expiration time in minutes")
 }
