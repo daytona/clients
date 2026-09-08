@@ -6,6 +6,24 @@
 require 'dotenv'
 
 module Daytona
+  # Dotenv runs `$(...)` in a value through the shell while parsing, and the working
+  # directory is frequently a cloned repository, so parsing `.env` there would execute
+  # whatever its author put in it. Dotenv::Parser picks its substitutions up from
+  # `self.class.substitutions`, and Ruby does not inherit class-level instance variables,
+  # so declaring the list here drops command substitution while leaving Dotenv::Parser
+  # alone — a host application's own Dotenv.load keeps the behaviour its author chose.
+  # `${VAR}` is kept: it reads only keys already parsed or the process environment.
+  class DotenvParser < Dotenv::Parser
+    @substitutions = [Dotenv::Substitutions::Variable].freeze
+
+    # This reaches into dotenv's internals rather than a public API, and dotenv has already
+    # reorganised them once inside the range the gemspec allows. Prove the suppression holds
+    # in the process that will rely on it, rather than trusting the version we pin in CI.
+    probe = call('DAYTONA_PROBE=$(echo substituted)')['DAYTONA_PROBE']
+    raise "dotenv command substitution is not suppressed (got #{probe.inspect})" unless
+      probe == '$(echo substituted)'
+  end
+
   class Config
     API_URL = 'https://app.daytona.io/api'
 
@@ -131,10 +149,18 @@ module Daytona
     def parse_dotenv_files
       file_vars = {}
       env_file = File.join(Dir.pwd, '.env')
-      file_vars.merge!(daytona_filter(Dotenv.parse(env_file))) if File.exist?(env_file)
+      file_vars.merge!(daytona_filter(parse_env_file(env_file))) if File.exist?(env_file)
       env_local_file = File.join(Dir.pwd, '.env.local')
-      file_vars.merge!(daytona_filter(Dotenv.parse(env_local_file))) if File.exist?(env_local_file)
+      file_vars.merge!(daytona_filter(parse_env_file(env_local_file))) if File.exist?(env_local_file)
       file_vars
+    end
+
+    # Read with the mode dotenv itself uses, so the accepted format does not narrow: `bom`
+    # skips a byte-order mark an editor on Windows may have written, and pinning `utf-8`
+    # keeps the file readable under a POSIX locale, where the default external encoding
+    # would make one accented byte anywhere — a comment included — raise while it is scanned.
+    def parse_env_file(path)
+      DotenvParser.call(File.read(path, mode: 'rb:bom|utf-8'))
     end
 
     # Returns a lambda that looks up DAYTONA_-prefixed env vars without writing to ENV.
