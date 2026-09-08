@@ -85,11 +85,16 @@ const jsFilesIn = (dir) =>
 // toward removing too much - which fails the guards loudly rather than passing them
 // quietly. The rewrite itself still runs over the whole file, where over-inclusion is
 // harmless.
+// Templates carrying a `${...}` are left alone: masking one whole would hide a real call
+// written inside the interpolation and fail the guards on valid output. The residue is a
+// `require(` sitting in the literal text of an interpolated template, which would be
+// counted; that is narrower than what it replaces, and the dotenv guard below does not
+// rely on this at all - it matches the loader by name.
 const withoutStrings = (source) =>
   source
     .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
     .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
+    .replace(/`(?:[^`\\$]|\\.|\$(?!\{))*`/g, '``')
 const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
 const codeOnly = (source) => withoutComments(withoutStrings(source))
 

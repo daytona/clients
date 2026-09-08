@@ -136,8 +136,18 @@ describe('post-build ESM require shim', () => {
   it.each([
     ['a comment', `// historically this called require('dotenv')\nexport const value = 1\n`],
     ['a string', `export const help = "you must require('dotenv') yourself"\n`],
+    ['a template with no interpolation', 'export const help = `you must require(dotenv) yourself`\n'],
   ])('does not count a require named only in %s as a real call', (_label, contents) => {
     expect(() => runPostBuild({ 'utils/Runtime.js': contents })).toThrow()
+  })
+
+  // Masking a whole template would hide this and fail the build on valid output.
+  it('counts a require written inside a template interpolation', () => {
+    const { read } = runPostBuild({
+      'utils/Runtime.js': "export const v = `${require('dotenv')}`\n",
+    })
+
+    expect(read('utils/Runtime.js')).toContain("__esmRequire('dotenv')")
   })
 
   // A quoted `dotenv` on its own is not a load: the guard has to see it being required.
