@@ -45,7 +45,7 @@ RSpec.configure do |config|
   ].freeze
 
   config.before do |example|
-    allow(Daytona::DotenvParser).to receive(:call).and_return({}) unless example.metadata[:real_dotenv]
+    allow(Daytona::EnvFile).to receive(:parse).and_return({}) unless example.metadata[:real_dotenv]
   end
 
   config.around do |example|
