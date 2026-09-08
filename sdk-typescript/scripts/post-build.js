@@ -78,22 +78,26 @@ const jsFilesIn = (dir) =>
     return entry.name.endsWith('.js') ? [entryPath] : []
   })
 
-// The rewrite is textual, so a `require(` inside a string or a comment is rewritten too.
-// Source files under src/utils must not contain that literal outside a real call.
-const requireCall = /\brequire\s*\(/g
+// Comments are dropped before deciding whether a file *needed* the shim, so that a
+// `require(` written in prose cannot stand in for a real call and make the guards below
+// vacuous. Stripping is a heuristic, not a parser, and a `//` inside a string literal will
+// take the rest of the line with it - so it is used only for that accounting. The rewrite
+// itself still runs over the whole file, where over-inclusion is harmless.
+const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+
+const hasRequireCall = (source) => /\brequire\s*\(/.test(source)
 const shimmedFiles = []
 for (const file of fs.existsSync(esmDir) ? jsFilesIn(esmDir) : []) {
   const original = fs.readFileSync(file, 'utf8')
-  if (!requireCall.test(original)) continue
-  requireCall.lastIndex = 0
+  if (!hasRequireCall(original)) continue
   const rewritten = original
     .replace(
       /require\s*\(\s*['"]\.\.\/\.\.\/package\.json['"]\s*\)/g,
       JSON.stringify({ name: pkg.name, version: pkg.version }),
     )
-    .replace(requireCall, '__esmRequire(')
+    .replace(/\brequire\s*\(/g, '__esmRequire(')
   fs.writeFileSync(file, esmRequireShim + rewritten)
-  shimmedFiles.push(path.relative(esmDir, file))
+  if (hasRequireCall(withoutComments(original))) shimmedFiles.push(path.relative(esmDir, file))
 }
 
 // A build that shims nothing means the scan above stopped matching, which would leave
@@ -102,12 +106,24 @@ if (shimmedFiles.length === 0) {
   throw new Error('post-build: no ESM file required the require() shim; the rewrite has stopped matching')
 }
 
-// utils/Runtime.js reads dotenv files through require, and what it finds decides which
-// host the SDK will talk to, so it must never be published unshimmed. Named explicitly so
-// that reordering the build, or moving the reads, fails here rather than in a release.
+// utils/Runtime.js reads dotenv files, and what it finds decides which host the SDK will
+// talk to, so it must reach dotenv through a working require in the published build.
+// Asserting the rewritten call - outside comments - rather than "the file was processed"
+// keeps this meaningful if the reads are ever moved or renamed.
 const runtimeJs = path.join('utils', 'Runtime.js')
-if (fs.existsSync(path.join(esmDir, runtimeJs)) && !shimmedFiles.includes(runtimeJs)) {
-  throw new Error(`post-build: ${runtimeJs} did not receive the require() shim`)
+const runtimeJsPath = path.join(esmDir, runtimeJs)
+if (fs.existsSync(runtimeJsPath)) {
+  if (!shimmedFiles.includes(runtimeJs)) {
+    throw new Error(`post-build: ${runtimeJs} did not receive the require() shim`)
+  }
+  // The specifier is passed through a helper, so the emitted call is `__esmRequire(id)`
+  // and the name only appears at the call site. Checking that the name is still there
+  // catches the load being dropped; that it resolves at runtime is covered by dotenv
+  // being in the published dependencies above.
+  const runtimeSource = withoutComments(fs.readFileSync(runtimeJsPath, 'utf8'))
+  if (!/['"]dotenv['"]/.test(runtimeSource)) {
+    throw new Error(`post-build: ${runtimeJs} no longer loads dotenv`)
+  }
 }
 
 writeJson(path.join(distDir, 'package.json'), pkg)
