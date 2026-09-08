@@ -2,7 +2,7 @@
  * Copyright Daytona Platforms Inc.
  * SPDX-License-Identifier: Apache-2.0
  *
- * post-build.js rewrites every `require(` in the ESM output of this file to
+ * post-build.js rewrites every `require(` in the ESM output of every file that has one to
  * `__esmRequire(` — avoid that literal token in string literals here.
  */
 

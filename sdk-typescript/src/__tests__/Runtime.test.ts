@@ -135,21 +135,35 @@ describe('dotenv pre-loading detection', () => {
   let tmpDir: string
   let originalCwd: string
   let originalExecArgv: string[]
+  let originalArgv: string[]
   let originalNextRuntime: string | undefined
+  let originalNodeOptions: string | undefined
+  let originalDotenvConfigPath: string | undefined
 
   beforeEach(() => {
     originalCwd = process.cwd()
     originalExecArgv = process.execArgv
+    originalArgv = process.argv
     originalNextRuntime = process.env.NEXT_RUNTIME
+    originalNodeOptions = process.env.NODE_OPTIONS
+    originalDotenvConfigPath = process.env.DOTENV_CONFIG_PATH
     delete process.env.NEXT_RUNTIME
+    delete process.env.NODE_OPTIONS
+    delete process.env.DOTENV_CONFIG_PATH
     tmpDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-preload-'))
     process.chdir(tmpDir)
   })
 
   afterEach(() => {
     process.execArgv = originalExecArgv
-    if (originalNextRuntime === undefined) delete process.env.NEXT_RUNTIME
-    else process.env.NEXT_RUNTIME = originalNextRuntime
+    process.argv = originalArgv
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+    restore('NEXT_RUNTIME', originalNextRuntime)
+    restore('NODE_OPTIONS', originalNodeOptions)
+    restore('DOTENV_CONFIG_PATH', originalDotenvConfigPath)
     process.chdir(originalCwd)
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
@@ -178,6 +192,32 @@ describe('dotenv pre-loading detection', () => {
       process.env.NEXT_RUNTIME = 'nodejs'
 
       expect(dotenvMayBePreloaded()).toBe(true)
+    })
+
+    // `node -r dotenv/config` predates --env-file and populates process.env the same way.
+    it.each([
+      ['-r as a separate argument', ['-r', 'dotenv/config']],
+      ['--require with an equals sign', ['--require=dotenv/config']],
+      ['--import, the ESM form', ['--import', 'dotenv/config']],
+      ['a dotenv variant package', ['-r', '@dotenvx/dotenvx/config']],
+    ])('is true when node preloads dotenv via %s', (_label, execArgv) => {
+      process.execArgv = execArgv
+
+      expect(dotenvMayBePreloaded()).toBe(true)
+    })
+
+    // NODE_OPTIONS never reaches execArgv, so a command-line-only check misses it.
+    it('is true when the dotenv preloader comes from NODE_OPTIONS', () => {
+      process.execArgv = []
+      process.env.NODE_OPTIONS = '--max-old-space-size=4096 -r dotenv/config'
+
+      expect(dotenvMayBePreloaded()).toBe(true)
+    })
+
+    it('is false for a preloader that has nothing to do with dotenv', () => {
+      process.execArgv = ['-r', 'ts-node/register']
+
+      expect(dotenvMayBePreloaded()).toBe(false)
     })
   })
 
@@ -242,6 +282,22 @@ describe('dotenv pre-loading detection', () => {
       process.execArgv = ['--env-file', 'custom.env']
 
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'custom.env'))
+    })
+
+    it('examines the path the dotenv preloader was pointed at via DOTENV_CONFIG_PATH', () => {
+      fs.writeFileSync('preloaded.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['-r', 'dotenv/config']
+      process.env.DOTENV_CONFIG_PATH = 'preloaded.env'
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'preloaded.env'))
+    })
+
+    it('examines the path given as a dotenv_config_path argument', () => {
+      fs.writeFileSync('preloaded.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['-r', 'dotenv/config']
+      process.argv = [...process.argv, 'dotenv_config_path=preloaded.env']
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'preloaded.env'))
     })
 
     it('still finds the file after the application changes directory', () => {
