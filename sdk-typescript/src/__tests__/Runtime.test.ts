@@ -205,6 +205,56 @@ describe('dotenv endpoint detection', () => {
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.local'))
     })
 
+    it.each([
+      ['an export prefix', 'export DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['blanks around the separator', '   DAYTONA_API_URL = https://elsewhere.invalid/api\n'],
+      ['the KEY: value form the loader also accepts', 'DAYTONA_API_URL: https://elsewhere.invalid/api\n'],
+      ['a quoted value', 'DAYTONA_API_URL="https://elsewhere.invalid/api"\n'],
+      ['a trailing comment', 'DAYTONA_API_URL=https://elsewhere.invalid/api # note\n'],
+      ['a later line', 'FOO=1\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['CRLF line endings', 'FOO=1\r\nDAYTONA_API_URL=https://elsewhere.invalid/api\r\n'],
+      ['a line after a closed multiline value', 'FOO="a\nb"\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      // An unterminated quote ends at the newline for the loader, so the next line really
+      // is an assignment.
+      ['a line after an unterminated quote', 'FOO="abc\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      [
+        'a line after a comment holding an apostrophe',
+        "# don't worry\nDAYTONA_API_URL=https://elsewhere.invalid/api\n",
+      ],
+    ])('reports an endpoint written with %s', (_label, contents) => {
+      fs.writeFileSync('.env', contents)
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it.each([
+      ['an indented comment', '   # DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['a multiline double-quoted value', 'FOO="one\nDAYTONA_API_URL=unused\nthree"\n'],
+      ['a multiline single-quoted value', "FOO='one\nDAYTONA_API_URL=unused\nthree'\n"],
+      ['a multiline backtick value', 'FOO=`one\nDAYTONA_API_URL=unused\nthree`\n'],
+      ['a key that merely ends with the name', 'MY_DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['a key that merely starts with the name', 'DAYTONA_API_URL_EXTRA=https://elsewhere.invalid/api\n'],
+      ['a bare name with no separator', 'DAYTONA_API_URL\n'],
+      // The loader requires whitespace after a colon, so this assigns nothing and there is
+      // nothing to report.
+      ['a colon with no following blank', 'DAYTONA_API_URL:https://elsewhere.invalid/api\n'],
+    ])('ignores %s', (_label, contents) => {
+      fs.writeFileSync('.env', contents)
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('scans each file independently', () => {
+      fs.writeFileSync('.env.production', 'FOO=1\nBAR=2\nDAYTONA_API_URL=https://elsewhere.invalid/api\n')
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://elsewhere.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+
+      fs.rmSync('.env')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.production'))
+    })
+
     it('is not defeated by a value assembled from another variable', () => {
       // A parser returns the raw text while the runtime expands it, so only the presence of
       // the name is meaningful here.

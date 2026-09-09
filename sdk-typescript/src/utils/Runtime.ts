@@ -198,15 +198,31 @@ export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: stri
 const ENDPOINT_VARS = ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL'] as const
 
 /**
- * Matches an assignment to an endpoint variable in a dotenv file.
+ * One assignment as the dotenv loader accepts it: an optional `export`, a key, either `=`
+ * or `:` followed by whitespace, and a value that may be quoted — and a quoted value may
+ * span newlines.
  *
- * The two variable names must stay in step with `ENDPOINT_VARS` above. A literal regex is
- * clearer — and faster — than deriving the pattern at runtime.
+ * The grammar deliberately mirrors the loader's, so this check cannot disagree with the
+ * thing that populated the environment. Matching lines in isolation would both report a
+ * key sitting inside a multiline quoted value, and miss the `KEY: value` form.
  *
- * No `g` flag: `.test()` is stateless on a non-global regex, so the same instance can be
- * reused across files without resetting `lastIndex`.
+ * Returned from a function rather than held in a module constant: evaluating a regex
+ * literal yields a fresh object, so the `g` flag's `lastIndex` cannot leak between files.
  */
-const ENDPOINT_ASSIGNMENT = /^[ \t]*(?:export[ \t]+)?(?:DAYTONA_API_URL|DAYTONA_SERVER_URL)[ \t]*=/m
+function dotenvAssignments(): RegExp {
+  return /^[ \t]*(?:export[ \t]+)?([\w.-]+)(?:[ \t]*=[ \t]*|:[ \t]+)(?:'[^']*'|"(?:\\[\s\S]|[^"\\])*"|`(?:\\[\s\S]|[^`\\])*`|[^#\r\n]*)?[ \t]*(?:#[^\r\n]*)?\r?$/gm
+}
+
+function definesEndpointVar(text: string): boolean {
+  // Editors on Windows write a byte-order mark and the loaders tolerate it, but `^` would
+  // not match an assignment sitting on the first line behind one.
+  const source = text.replace(/^\uFEFF/, '')
+  const pattern = dotenvAssignments()
+  for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
+    if ((ENDPOINT_VARS as readonly string[]).includes(match[1])) return true
+  }
+  return false
+}
 
 /**
  * The union of the dotenv file names that Bun and Next.js load on their own. `.env` and
@@ -347,13 +363,11 @@ function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
     if (!fs.existsSync(file)) continue
     let text: string
     try {
-      // Editors on Windows write a byte-order mark and the loaders tolerate it, but `^`
-      // would not match an assignment sitting on the first line behind one.
-      text = (fs.readFileSync(file, 'utf8') as string).replace(/^\uFEFF/, '')
+      text = fs.readFileSync(file, 'utf8') as string
     } catch {
       continue
     }
-    if (ENDPOINT_ASSIGNMENT.test(text)) return file
+    if (definesEndpointVar(text)) return file
   }
   return undefined
 }
