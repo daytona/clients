@@ -16,17 +16,18 @@ const generatedDeps = readJson(path.join(cjsDir, 'package.json')).dependencies ?
 
 const pkg = readJson(path.join(sourceDir, 'package.json'))
 const rootDeps = readJson(path.join(workspaceRoot, 'package.json')).dependencies
-// The generated deps only contain packages imported directly from source, so
-// they miss runtime deps that strict resolvers (Yarn PnP, pnpm) require to be
-// declared:
+// The generated deps only contain packages the scanner sees imported directly
+// from source, so they miss runtime deps that strict resolvers (Yarn PnP, pnpm)
+// require to be declared:
 //   - tslib: tsconfig.base.json sets "importHelpers": true, so emitted JS
 //     imports helpers from tslib at runtime
 //   - ws: isomorphic-ws declares ws as a peer dependency and require()s it in
 //     Node; an ancestor (this package) must provide it
-for (const name of ['tslib', 'ws']) {
+const forcedDeps = ['tslib', 'ws']
+for (const name of forcedDeps) {
   if (!rootDeps[name]) throw new Error(`${name} must be declared in the workspace root dependencies`)
 }
-pkg.dependencies = { tslib: rootDeps.tslib, ws: rootDeps.ws, ...generatedDeps }
+pkg.dependencies = { ...Object.fromEntries(forcedDeps.map((n) => [n, rootDeps[n]])), ...generatedDeps }
 for (const name of ['api-client', 'toolbox-api-client', 'analytics-api-client']) {
   const distPkg = readJson(path.join(workspaceRoot, 'dist', name, 'package.json'))
   pkg.dependencies[`@daytona/${name}`] = distPkg.version
@@ -45,27 +46,82 @@ for (const buildDir of [esmDir, cjsDir]) {
 writeJson(path.join(esmDir, 'package.json'), { type: 'module' })
 writeJson(path.join(cjsDir, 'package.json'), { type: 'commonjs' })
 
-const esmImportJs = path.join(esmDir, 'utils', 'Import.js')
-if (fs.existsSync(esmImportJs)) {
-  // Named `__esmRequire` (not `require`) to avoid shadowing the host CJS
-  // `require` when a bundler re-compiles this ESM output to CommonJS.
-  const shim =
-    `const __esmRequire = (() => {\n` +
-	    `  try { if (typeof require !== 'undefined') return require; } catch {}\n` +
-	    `  try {\n` +
-	    `    const builtinModule = globalThis.process?.getBuiltinModule?.('module');\n` +
-	    `    if (builtinModule?.createRequire) return builtinModule.createRequire(import.meta.url);\n` +
-	    `  } catch {}\n` +
-	    `  return (id) => { throw new Error(\n` +
-	    `    'cannot require("' + id + '"): no CommonJS require available. ' +\n` +
-	    `    'If re-bundling @daytona/sdk to CJS, ensure createRequire or the host require is accessible.'\n` +
-    `  ); };\n` +
-    `})();\n`
-  const original = fs.readFileSync(esmImportJs, 'utf8')
+// `require` does not exist in an ES module. A bare call is a ReferenceError, and - worse -
+// a call behind a `typeof require !== 'undefined'` test is silently skipped, turning the
+// guarded code into a no-op that no unit test running against the CommonJS build can see.
+// Every ESM file that calls `require` therefore gets a `createRequire` shim, chosen by
+// scanning the output rather than by naming files, so that a caller cannot be missed.
+//
+// Named `__esmRequire` (not `require`) to avoid shadowing the host CJS `require` when a
+// bundler re-compiles this ESM output to CommonJS.
+const esmRequireShim =
+  `const __esmRequire = (() => {\n` +
+  `  try { if (typeof require !== 'undefined') return require; } catch {}\n` +
+  `  try {\n` +
+  `    const builtinModule = globalThis.process?.getBuiltinModule?.('module');\n` +
+  `    if (builtinModule?.createRequire) return builtinModule.createRequire(import.meta.url);\n` +
+  `  } catch {}\n` +
+  `  return (id) => { throw new Error(\n` +
+  `    'cannot require("' + id + '"): no CommonJS require available. ' +\n` +
+  `    'If re-bundling @daytona/sdk to CJS, ensure createRequire or the host require is accessible.'\n` +
+  `  ); };\n` +
+  `})();\n`
+
+const jsFilesIn = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) return jsFilesIn(entryPath)
+    return entry.name.endsWith('.js') ? [entryPath] : []
+  })
+
+// String literals and comments are dropped before deciding whether a file *needed* the
+// shim, so that a `require(` written in prose or inside a message cannot stand in for a
+// real call and make the guards below vacuous. Strings go first: otherwise a `//` inside
+// one takes the rest of the line with it. This is a heuristic, not a parser, and it errs
+// toward removing too much - which fails the guards loudly rather than passing them
+// quietly. The rewrite itself still runs over the whole file, where over-inclusion is
+// harmless.
+// Templates carrying a `${...}` are left alone: masking one whole would hide a real call
+// written inside the interpolation and fail the guards on valid output. The residue is a
+// `require(` sitting in the literal text of an interpolated template, which would be
+// counted; that is narrower than what it replaces.
+const withoutStrings = (source) =>
+  source
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\$]|\\.|\$(?!\{))*`/g, '``')
+const withoutComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+const codeOnly = (source) => withoutComments(withoutStrings(source))
+
+const hasRequireCall = (source) => /\brequire\s*\(/.test(source)
+const shimmedFiles = []
+for (const file of fs.existsSync(esmDir) ? jsFilesIn(esmDir) : []) {
+  const original = fs.readFileSync(file, 'utf8')
+  if (!hasRequireCall(original)) continue
   const rewritten = original
-    .replace(/require\s*\(\s*['"]\.\.\/\.\.\/package\.json['"]\s*\)/g, JSON.stringify({ name: pkg.name, version: pkg.version }))
+    .replace(
+      /require\s*\(\s*['"]\.\.\/\.\.\/package\.json['"]\s*\)/g,
+      JSON.stringify({ name: pkg.name, version: pkg.version }),
+    )
     .replace(/\brequire\s*\(/g, '__esmRequire(')
-  fs.writeFileSync(esmImportJs, shim + rewritten)
+  fs.writeFileSync(file, esmRequireShim + rewritten)
+  if (hasRequireCall(codeOnly(original))) shimmedFiles.push(path.relative(esmDir, file))
+}
+
+// A build that shims nothing means the scan above stopped matching, which would leave
+// every guarded require a no-op. Fail the build instead.
+if (shimmedFiles.length === 0) {
+  throw new Error('post-build: no ESM file required the require() shim; the rewrite has stopped matching')
+}
+
+// utils/Runtime.js reads dotenv files through a working require in the published build,
+// so it must receive the shim.
+const runtimeJs = path.join('utils', 'Runtime.js')
+const runtimeJsPath = path.join(esmDir, runtimeJs)
+if (fs.existsSync(runtimeJsPath)) {
+  if (!shimmedFiles.includes(runtimeJs)) {
+    throw new Error(`post-build: ${runtimeJs} did not receive the require() shim`)
+  }
 }
 
 writeJson(path.join(distDir, 'package.json'), pkg)

@@ -26,9 +26,8 @@ const mockProcessStreamingResponse = jest.fn()
 // Stands in for DAYTONA_* vars parsed out of .env / .env.local in the working
 // directory. Empty by default, so every other test sees the process env only.
 const mockDotenvFileVars: Record<string, string> = {}
-// Controls the pre-loading detection the constructor consults. Off by default.
-const mockPreload: { mayBePreloaded: boolean; fileDefiningEndpoint: string | undefined } = {
-  mayBePreloaded: false,
+// Controls which dotenv file the constructor sees as defining an endpoint. Unset by default.
+const mockPreload: { fileDefiningEndpoint: string | undefined } = {
   fileDefiningEndpoint: undefined,
 }
 
@@ -104,7 +103,6 @@ jest.mock('../utils/Runtime', () => {
   return {
     ...actual,
     DaytonaEnvReader: TestEnvReader,
-    dotenvMayBePreloaded: () => mockPreload.mayBePreloaded,
     findDotenvFileDefiningEndpoint: () => mockPreload.fileDefiningEndpoint,
   }
 })
@@ -180,7 +178,6 @@ describe('Daytona', () => {
     delete process.env.DAYTONA_TARGET
 
     for (const key of Object.keys(mockDotenvFileVars)) delete mockDotenvFileVars[key]
-    mockPreload.mayBePreloaded = false
     mockPreload.fileDefiningEndpoint = undefined
 
     mockAxiosCreate.mockReturnValue({
@@ -846,34 +843,41 @@ describe('Daytona', () => {
       expect(ignoredWarnings()).toHaveLength(1)
     })
 
-    it('refuses to choose an endpoint when a pre-loading runtime could have supplied it', async () => {
+    it('throws when a dotenv file names the endpoint and the variable is in process.env', async () => {
       const { Daytona } = await import('../Daytona')
       const { DaytonaInvalidArgumentError } = await import('../errors/DaytonaError')
 
-      mockPreload.mayBePreloaded = true
       mockPreload.fileDefiningEndpoint = '.env.production'
-      process.env.DAYTONA_API_URL = 'https://attacker.invalid/api'
+      process.env.DAYTONA_API_URL = 'https://ambiguous.invalid/api'
 
       expect(() => new Daytona({ apiKey: 'victim-key' })).toThrow(DaytonaInvalidArgumentError)
       expect(() => new Daytona({ apiKey: 'victim-key' })).toThrow(/\.env\.production/)
     })
 
-    it('accepts an endpoint the caller named explicitly on a pre-loading runtime', async () => {
+    it('does not throw when apiUrl is passed explicitly', async () => {
       const { Daytona } = await import('../Daytona')
 
-      mockPreload.mayBePreloaded = true
       mockPreload.fileDefiningEndpoint = '.env'
-      process.env.DAYTONA_API_URL = 'https://attacker.invalid/api'
+      process.env.DAYTONA_API_URL = 'https://ambiguous.invalid/api'
 
       const instance = new Daytona({ apiKey: 'victim-key', apiUrl: 'https://chosen.example/api' })
 
       expect(resolved(instance).apiUrl).toBe('https://chosen.example/api')
     })
 
+    it('does not throw when the file names the variable but it is absent from process.env', async () => {
+      const { Daytona } = await import('../Daytona')
+
+      mockPreload.fileDefiningEndpoint = '.env'
+
+      const instance = new Daytona({ apiKey: 'victim-key' })
+
+      expect(resolved(instance).apiUrl).toBe(DEFAULT_API_URL)
+    })
+
     it('does not interfere when no dotenv file names the endpoint', async () => {
       const { Daytona } = await import('../Daytona')
 
-      mockPreload.mayBePreloaded = true
       mockPreload.fileDefiningEndpoint = undefined
       process.env.DAYTONA_API_URL = 'https://chosen-by-shell.example/api'
 

@@ -7,8 +7,8 @@ import * as path from 'path'
 
 import {
   DaytonaEnvReader,
-  dotenvMayBePreloaded,
   dotenvSearchDirs,
+  endpointNamedInProcessEnv,
   findDotenvFileDefiningEndpoint,
   warnIfDotenvApiUrlIgnored,
 } from '../utils/Runtime'
@@ -129,55 +129,54 @@ describe('warnIfDotenvApiUrlIgnored', () => {
   })
 })
 
-// Runtimes that load a dotenv file into process.env before user code runs make the process
-// environment unattributable. These cover the detection that decides whether to refuse.
-describe('dotenv pre-loading detection', () => {
+describe('dotenv endpoint detection', () => {
   let tmpDir: string
   let originalCwd: string
   let originalExecArgv: string[]
-  let originalNextRuntime: string | undefined
+  let originalArgv: string[]
+  let originalDotenvConfigPath: string | undefined
 
   beforeEach(() => {
     originalCwd = process.cwd()
     originalExecArgv = process.execArgv
-    originalNextRuntime = process.env.NEXT_RUNTIME
-    delete process.env.NEXT_RUNTIME
+    originalArgv = process.argv
+    originalDotenvConfigPath = process.env.DOTENV_CONFIG_PATH
+    delete process.env.DOTENV_CONFIG_PATH
+    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_SERVER_URL
     tmpDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-preload-'))
     process.chdir(tmpDir)
   })
 
   afterEach(() => {
     process.execArgv = originalExecArgv
-    if (originalNextRuntime === undefined) delete process.env.NEXT_RUNTIME
-    else process.env.NEXT_RUNTIME = originalNextRuntime
+    process.argv = originalArgv
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+    restore('DOTENV_CONFIG_PATH', originalDotenvConfigPath)
+    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_SERVER_URL
     process.chdir(originalCwd)
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  describe('dotenvMayBePreloaded', () => {
-    it('is false for a plain node process', () => {
-      process.execArgv = []
+  describe('endpointNamedInProcessEnv', () => {
+    it('is true when DAYTONA_API_URL is set', () => {
+      process.env.DAYTONA_API_URL = 'https://example.com/api'
 
-      expect(dotenvMayBePreloaded()).toBe(false)
+      expect(endpointNamedInProcessEnv()).toBe(true)
     })
 
-    it('is true when node was given --env-file', () => {
-      process.execArgv = ['--env-file=.env']
+    it('is true when DAYTONA_SERVER_URL is set', () => {
+      process.env.DAYTONA_SERVER_URL = 'https://example.com/api'
 
-      expect(dotenvMayBePreloaded()).toBe(true)
+      expect(endpointNamedInProcessEnv()).toBe(true)
     })
 
-    it('is true when node was given --env-file-if-exists', () => {
-      process.execArgv = ['--env-file-if-exists=.env']
-
-      expect(dotenvMayBePreloaded()).toBe(true)
-    })
-
-    it('is true inside a Next.js server runtime', () => {
-      process.execArgv = []
-      process.env.NEXT_RUNTIME = 'nodejs'
-
-      expect(dotenvMayBePreloaded()).toBe(true)
+    it('is false when neither variable is set', () => {
+      expect(endpointNamedInProcessEnv()).toBe(false)
     })
   })
 
@@ -194,10 +193,66 @@ describe('dotenv pre-loading detection', () => {
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.production'))
     })
 
+    it('reports a file whose first line sits behind a byte-order mark', () => {
+      fs.writeFileSync('.env', '\uFEFFDAYTONA_API_URL=https://elsewhere.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
     it('reports the deprecated DAYTONA_SERVER_URL too', () => {
       fs.writeFileSync('.env.local', 'DAYTONA_SERVER_URL=https://attacker.invalid/api\n')
 
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.local'))
+    })
+
+    it.each([
+      ['an export prefix', 'export DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['blanks around the separator', '   DAYTONA_API_URL = https://elsewhere.invalid/api\n'],
+      ['the KEY: value form the loader also accepts', 'DAYTONA_API_URL: https://elsewhere.invalid/api\n'],
+      ['a quoted value', 'DAYTONA_API_URL="https://elsewhere.invalid/api"\n'],
+      ['a trailing comment', 'DAYTONA_API_URL=https://elsewhere.invalid/api # note\n'],
+      ['a later line', 'FOO=1\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['CRLF line endings', 'FOO=1\r\nDAYTONA_API_URL=https://elsewhere.invalid/api\r\n'],
+      ['a line after a closed multiline value', 'FOO="a\nb"\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      // An unterminated quote ends at the newline for the loader, so the next line really
+      // is an assignment.
+      ['a line after an unterminated quote', 'FOO="abc\nDAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      [
+        'a line after a comment holding an apostrophe',
+        "# don't worry\nDAYTONA_API_URL=https://elsewhere.invalid/api\n",
+      ],
+    ])('reports an endpoint written with %s', (_label, contents) => {
+      fs.writeFileSync('.env', contents)
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it.each([
+      ['an indented comment', '   # DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['a multiline double-quoted value', 'FOO="one\nDAYTONA_API_URL=unused\nthree"\n'],
+      ['a multiline single-quoted value', "FOO='one\nDAYTONA_API_URL=unused\nthree'\n"],
+      ['a multiline backtick value', 'FOO=`one\nDAYTONA_API_URL=unused\nthree`\n'],
+      ['a key that merely ends with the name', 'MY_DAYTONA_API_URL=https://elsewhere.invalid/api\n'],
+      ['a key that merely starts with the name', 'DAYTONA_API_URL_EXTRA=https://elsewhere.invalid/api\n'],
+      ['a bare name with no separator', 'DAYTONA_API_URL\n'],
+      // The loader requires whitespace after a colon, so this assigns nothing and there is
+      // nothing to report.
+      ['a colon with no following blank', 'DAYTONA_API_URL:https://elsewhere.invalid/api\n'],
+    ])('ignores %s', (_label, contents) => {
+      fs.writeFileSync('.env', contents)
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('scans each file independently', () => {
+      fs.writeFileSync('.env.production', 'FOO=1\nBAR=2\nDAYTONA_API_URL=https://elsewhere.invalid/api\n')
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://elsewhere.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+
+      fs.rmSync('.env')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.production'))
     })
 
     it('is not defeated by a value assembled from another variable', () => {
@@ -244,6 +299,22 @@ describe('dotenv pre-loading detection', () => {
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'custom.env'))
     })
 
+    it('examines the path the dotenv preloader was pointed at via DOTENV_CONFIG_PATH', () => {
+      fs.writeFileSync('preloaded.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['-r', 'dotenv/config']
+      process.env.DOTENV_CONFIG_PATH = 'preloaded.env'
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'preloaded.env'))
+    })
+
+    it('examines the path given as a dotenv_config_path argument', () => {
+      fs.writeFileSync('preloaded.env', 'DAYTONA_API_URL=https://attacker.invalid/api\n')
+      process.execArgv = ['-r', 'dotenv/config']
+      process.argv = [...process.argv, 'dotenv_config_path=preloaded.env']
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, 'preloaded.env'))
+    })
+
     it('still finds the file after the application changes directory', () => {
       // A runtime resolves its dotenv files at startup, so process.chdir() afterwards must
       // not move the search away from the file that supplied the environment. The startup
@@ -285,6 +356,50 @@ describe('dotenv pre-loading detection', () => {
       process.execArgv = ['--env-file=custom.env']
 
       expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('detects a bare DAYTONA_API_URL assignment with no preload flags set', () => {
+      process.execArgv = []
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('detects the export form of an endpoint assignment', () => {
+      fs.writeFileSync('.env', 'export DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('does not detect a commented-out assignment', () => {
+      fs.writeFileSync('.env', '# DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('does not detect a file naming neither endpoint variable', () => {
+      fs.writeFileSync('.env', 'SOME_OTHER_VAR=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('detects DAYTONA_SERVER_URL', () => {
+      fs.writeFileSync('.env', 'DAYTONA_SERVER_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('succeeds when the dotenv package cannot be resolved', () => {
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://example.com/api\n')
+      let result: string | undefined
+      jest.isolateModules(() => {
+        jest.doMock('dotenv', () => {
+          throw new Error("Cannot find module 'dotenv'")
+        })
+        const { findDotenvFileDefiningEndpoint: find } = require('../utils/Runtime')
+        result = find([tmpDir])
+      })
+      expect(result).toBe(path.join(tmpDir, '.env'))
     })
   })
 })

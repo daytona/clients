@@ -63,6 +63,29 @@ export function getEnvVar(name: string): string | undefined {
   return undefined
 }
 
+/**
+ * Loads a CommonJS module, or returns undefined when one cannot be loaded.
+ *
+ * Reaching `require` through a real call is deliberate. `require` is not defined in an ES
+ * module, so post-build.js rewrites the call below onto a `createRequire` shim in the
+ * published ESM build; a `typeof require` test inlined at a call site is not a call, is
+ * not rewritten, and so reports "no require" in ESM even though one is reachable. Every
+ * caller must therefore go through a real call rather than test for the binding.
+ *
+ * A bundler can also leave `require` defined while a given specifier is unresolvable, so
+ * the failure is swallowed either way: these callers must degrade, never throw.
+ *
+ * Left untyped on purpose - a `typeof import(...)` annotation here pulls the node typings
+ * in differently and reorders unrelated unions in the generated docs.
+ */
+function tryRequire(id: string): any | undefined {
+  try {
+    return require(id)
+  } catch {
+    return undefined
+  }
+}
+
 export class DaytonaEnvReader {
   private readonly envLocalVars: Record<string, string>
   private readonly envVars: Record<string, string>
@@ -109,11 +132,13 @@ export class DaytonaEnvReader {
 
   private static parseFileVars(path: string): Record<string, string> {
     // Bun is detected before Node above, so a Node-only gate would leave the reader unable to
-    // read files on the one runtime that pre-loads them. Bun implements require('fs').
-    if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return {}
-    const fs = require('fs')
+    // read files on the one runtime that pre-loads them. Bun implements the CommonJS
+    // module loader, so the require below resolves there.
+    if (RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) return {}
+    const fs = tryRequire('fs')
+    const dotenv = tryRequire('dotenv')
+    if (!fs || !dotenv) return {}
     if (!fs.existsSync(path)) return {}
-    const dotenv = require('dotenv')
     const parsed = dotenv.parse(fs.readFileSync(path)) as Record<string, string>
     return Object.fromEntries(Object.entries(parsed).filter(([k]) => k.startsWith('DAYTONA_')))
   }
@@ -173,6 +198,33 @@ export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: stri
 const ENDPOINT_VARS = ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL'] as const
 
 /**
+ * One assignment as the dotenv loader accepts it: an optional `export`, a key, either `=`
+ * or `:` followed by whitespace, and a value that may be quoted — and a quoted value may
+ * span newlines.
+ *
+ * The grammar deliberately mirrors the loader's, so this check cannot disagree with the
+ * thing that populated the environment. Matching lines in isolation would both report a
+ * key sitting inside a multiline quoted value, and miss the `KEY: value` form.
+ *
+ * Returned from a function rather than held in a module constant: evaluating a regex
+ * literal yields a fresh object, so the `g` flag's `lastIndex` cannot leak between files.
+ */
+function dotenvAssignments(): RegExp {
+  return /^[ \t]*(?:export[ \t]+)?([\w.-]+)(?:[ \t]*=[ \t]*|:[ \t]+)(?:'[^']*'|"(?:\\[\s\S]|[^"\\])*"|`(?:\\[\s\S]|[^`\\])*`|[^#\r\n]*)?[ \t]*(?:#[^\r\n]*)?\r?$/gm
+}
+
+function definesEndpointVar(text: string): boolean {
+  // Editors on Windows write a byte-order mark and the loaders tolerate it, but `^` would
+  // not match an assignment sitting on the first line behind one.
+  const source = text.replace(/^\uFEFF/, '')
+  const pattern = dotenvAssignments()
+  for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
+    if ((ENDPOINT_VARS as readonly string[]).includes(match[1])) return true
+  }
+  return false
+}
+
+/**
  * The union of the dotenv file names that Bun and Next.js load on their own. `.env` and
  * `.env.local` are the SDK's own precedence chain; the rest are here only so that a file
  * defining the endpoint cannot go unnoticed.
@@ -189,19 +241,16 @@ const PRELOADABLE_DOTENV_FILES = [
 ] as const
 
 /**
- * Whether the runtime may have merged a working-directory dotenv file into `process.env`
- * before any user code ran.
+ * Whether either endpoint variable is present in the process environment.
  *
- * Bun does this unconditionally unless started with `--no-env-file`; Node does it when given
- * `--env-file`; Next.js does it in its server runtimes. On these runtimes the process
- * environment cannot be attributed to the caller, so it cannot be trusted to name a host.
+ * Enumerating loaders (Bun, `--env-file`, Next.js, Deno, Nuxt/Nitro, `@next/env`, …) can
+ * never be complete. The endpoint can only come from the constructor or `process.env`, so
+ * the precise condition is: a working-directory file names the variable **and** that variable
+ * is present in the process environment. This is both broader (covers every loader) and
+ * narrower (does not fire when a file exists but nothing loaded it).
  */
-export function dotenvMayBePreloaded(): boolean {
-  if (typeof process === 'undefined') return false
-  const execArgv = Array.isArray(process.execArgv) ? process.execArgv : []
-  if (execArgv.some((arg) => arg.startsWith('--env-file'))) return true
-  if (RUNTIME === Runtime.BUN) return !execArgv.includes('--no-env-file')
-  return Boolean(process.env?.NEXT_RUNTIME)
+export function endpointNamedInProcessEnv(): boolean {
+  return ENDPOINT_VARS.some((name) => getEnvVar(name) !== undefined)
 }
 
 /**
@@ -232,7 +281,7 @@ function safeCwd(): string | undefined {
 }
 
 /**
- * The paths named by `--env-file` / `--env-file-if-exists`, in the order they were given.
+ * The dotenv paths a runtime or preloader was told to read, in the order they were given.
  *
  * A runtime told to load a specific file does not restrict itself to the conventional names,
  * so those paths have to be examined too. Relative paths are left as given: the runtime
@@ -253,6 +302,17 @@ function explicitDotenvPaths(): string[] {
       paths.push(execArgv[++i])
     }
   }
+  // The dotenv preloader takes its path from DOTENV_CONFIG_PATH or from a
+  // `dotenv_config_path=` command-line argument. Its default, `.env`, is already covered by
+  // PRELOADABLE_DOTENV_FILES; a configured path is not.
+  const configPath = process.env?.DOTENV_CONFIG_PATH
+  if (configPath) paths.push(configPath)
+  const argv = Array.isArray(process.argv) ? process.argv : []
+  for (const arg of argv) {
+    if (!arg.startsWith('dotenv_config_path=')) continue
+    const value = arg.slice('dotenv_config_path='.length)
+    if (value) paths.push(value)
+  }
   return paths
 }
 
@@ -271,18 +331,18 @@ export function dotenvSearchDirs(): string[] {
 /**
  * The first dotenv file that defines an endpoint variable, if any.
  *
- * This deliberately reports on the presence of the *name* and never looks at the value. A
- * value comparison cannot establish where an environment value came from: runtimes expand
- * `$VAR` references while a parser returns the raw text, so equal-looking values prove
- * nothing and unequal ones rule nothing out.
+ * The file is scanned as raw text rather than parsed with the `dotenv` package: only the
+ * variable's *presence* matters (never its value), and reading the name directly means the
+ * check still works where the `dotenv` package is not installed — which is the case when a
+ * runtime loads the file itself. A value comparison cannot establish where an environment
+ * value came from: runtimes expand `$VAR` references while a parser returns the raw text,
+ * so equal-looking values prove nothing and unequal ones rule nothing out.
  */
 export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSearchDirs()): string | undefined {
-  if ((RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) || typeof require === 'undefined') return undefined
-  // A bundler can leave `require` defined while these are unresolvable. Constructing a
-  // client must not fail because the check could not run, so treat that as nothing found:
-  // the endpoint then resolves as it did before this check existed. The modules are left
-  // untyped, matching parseFileVars above - a `typeof import(...)` annotation here pulls the
-  // node typings in differently and reorders unrelated unions in the generated docs.
+  if (RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) return undefined
+  // Constructing a client must not fail because the check could not run, so a scan that
+  // throws is treated as nothing found: the endpoint then resolves as it did before this
+  // check existed.
   try {
     return scanForDotenvEndpoint(searchDirs)
   } catch {
@@ -291,9 +351,9 @@ export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSear
 }
 
 function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
-  const fs = require('fs')
-  const nodePath = require('path')
-  const dotenv = require('dotenv')
+  const fs = tryRequire('fs')
+  const nodePath = tryRequire('path')
+  if (!fs || !nodePath) return undefined
   const names = [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]
   const candidates: string[] = []
   for (const name of names) {
@@ -301,13 +361,13 @@ function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
   }
   for (const file of [...new Set(candidates)]) {
     if (!fs.existsSync(file)) continue
-    let names: string[]
+    let text: string
     try {
-      names = Object.keys(dotenv.parse(fs.readFileSync(file)) as Record<string, string>)
+      text = fs.readFileSync(file, 'utf8') as string
     } catch {
       continue
     }
-    if (names.some((name) => (ENDPOINT_VARS as readonly string[]).includes(name))) return file
+    if (definesEndpointVar(text)) return file
   }
   return undefined
 }
