@@ -193,6 +193,12 @@ describe('dotenv endpoint detection', () => {
       expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env.production'))
     })
 
+    it('reports a file whose first line sits behind a byte-order mark', () => {
+      fs.writeFileSync('.env', '\uFEFFDAYTONA_API_URL=https://elsewhere.invalid/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
     it('reports the deprecated DAYTONA_SERVER_URL too', () => {
       fs.writeFileSync('.env.local', 'DAYTONA_SERVER_URL=https://attacker.invalid/api\n')
 

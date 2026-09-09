@@ -347,7 +347,9 @@ function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
     if (!fs.existsSync(file)) continue
     let text: string
     try {
-      text = fs.readFileSync(file, 'utf8') as string
+      // Editors on Windows write a byte-order mark and the loaders tolerate it, but `^`
+      // would not match an assignment sitting on the first line behind one.
+      text = (fs.readFileSync(file, 'utf8') as string).replace(/^\uFEFF/, '')
     } catch {
       continue
     }
