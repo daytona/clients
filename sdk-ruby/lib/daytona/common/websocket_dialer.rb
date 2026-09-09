@@ -122,8 +122,13 @@ module Daytona
           ctx = OpenSSL::SSL::SSLContext.new
           ctx.ssl_version = options[:ssl_version] if options[:ssl_version]
 
-          cert_store = options[:cert_store] || OpenSSL::X509::Store.new
-          cert_store.set_default_paths
+          # Only seed system roots into a store we own. Adding them to a
+          # caller-supplied store would silently widen their trust policy.
+          cert_store = options[:cert_store]
+          unless cert_store
+            cert_store = OpenSSL::X509::Store.new
+            cert_store.set_default_paths
+          end
           ctx.cert_store = cert_store
 
           # Must precede SSLSocket.new, which freezes the context.

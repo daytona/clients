@@ -59,14 +59,30 @@ class RecordingTlsServer
 
   def serve
     loop do
-      sock = @server.accept
-      @seen << sock.readpartial(4096)
-      sock.write(UPGRADE)
-      @sockets << sock
-      loop { @frames << sock.readpartial(4096) }
-    rescue StandardError => e
-      @seen << "handshake-rejected: #{e.class}"
+      sock = accept_and_record
+      next if sock.nil?
+
+      # Reading frames until the peer disconnects is expected; an error here is
+      # not a handshake failure and must not be recorded as one.
+      begin
+        loop { @frames << sock.readpartial(4096) }
+      rescue StandardError
+        nil
+      end
     end
+  end
+
+  # Returns the socket once its request bytes are recorded, or nil if the
+  # handshake itself failed.
+  def accept_and_record
+    sock = @server.accept
+    @seen << sock.readpartial(4096)
+    sock.write(UPGRADE)
+    @sockets << sock
+    sock
+  rescue StandardError => e
+    @seen << "handshake-rejected: #{e.class}"
+    nil
   end
 
   # Decodes the next client frame, so a caller can prove the inherited #send
@@ -154,14 +170,24 @@ RSpec.describe Daytona::Common::WebSocketDialer do
     ca_file&.close!
   end
 
-  # Bounded so an unfixed tree fails fast rather than hanging on the reader thread.
-  def dial(port, headers)
+  # Bounded so an unfixed tree fails fast rather than hanging on the reader
+  # thread. Closes the client it opens: the dialer's reader loop survives the
+  # peer going away and would spin re-raising EOFError for the rest of the run.
+  def dial(port, headers) # rubocop:disable Metrics/MethodLength
+    client = nil
     Timeout.timeout(5) do
-      described_class.connect("wss://localhost:#{port}/process/pty/pty-1/connect", headers: headers)
+      client = described_class.connect("wss://localhost:#{port}/process/pty/pty-1/connect",
+                                       headers: headers)
     end
     nil
   rescue StandardError => e
     e
+  ensure
+    begin
+      client&.close
+    rescue StandardError
+      nil
+    end
   end
 
   describe 'peer verification' do
