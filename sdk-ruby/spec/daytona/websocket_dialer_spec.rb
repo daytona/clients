@@ -146,10 +146,9 @@ RSpec.describe Daytona::Common::WebSocketDialer do
     CertFactory.issue(subject: '/CN=localhost', key: CertFactory.keypair, san: 'DNS:localhost')
   end
 
-  # The preview token is what legitimately rides these dials after the
-  # allowlist, so it is the credential whose leakage matters on the wire.
+  # A credential-shaped header, so the assertions describe what the peer would
+  # have received rather than merely that an exception was raised.
   let(:preview_token) { 'SPEC-PREVIEW-TOKEN' }
-  let(:credential) { 'Bearer SPEC-ORG-API-KEY' }
 
   # The client must trust only the spec CA. The dialer builds a fresh
   # OpenSSL::X509::Store and calls #set_default_paths per dial, which honours
@@ -217,18 +216,6 @@ RSpec.describe Daytona::Common::WebSocketDialer do
       server&.stop
     end
 
-    it 'never writes the organization credential, even when a caller passes one' do
-      server = RecordingTlsServer.new(valid_leaf)
-
-      dial(server.port, 'Authorization' => credential, 'X-Daytona-Preview-Token' => preview_token)
-
-      wire = server.received
-      expect(wire).to include(preview_token)
-      expect(wire).not_to include('SPEC-ORG-API-KEY')
-    ensure
-      server&.stop
-    end
-
     # Positive control. Without it both refusals could pass simply because TLS
     # is broken or the CA is untrusted.
     it 'completes the upgrade against a valid peer' do
@@ -267,40 +254,6 @@ RSpec.describe Daytona::Common::WebSocketDialer do
       expect { client.close }.to change(client, :closed?).from(false).to(true)
     ensure
       server&.stop
-    end
-  end
-
-  describe '.safe_headers' do
-    let(:default_headers) do
-      {
-        'Authorization' => credential,
-        'X-Daytona-Organization-ID' => 'org-123',
-        'X-Daytona-Source' => 'sdk-ruby',
-        'X-Daytona-SDK-Version' => '0.0.0',
-        'User-Agent' => 'sdk-ruby/0.0.0'
-      }
-    end
-
-    it 'drops the organization credential' do
-      expect(described_class.safe_headers(default_headers)).not_to include('Authorization')
-    end
-
-    it 'drops the organization id' do
-      expect(described_class.safe_headers(default_headers)).not_to include('X-Daytona-Organization-ID')
-    end
-
-    it 'preserves the headers the server reads' do
-      expect(described_class.safe_headers(default_headers)).to eq(
-        'X-Daytona-Source' => 'sdk-ruby',
-        'X-Daytona-SDK-Version' => '0.0.0',
-        'User-Agent' => 'sdk-ruby/0.0.0'
-      )
-    end
-
-    # Allowlist rather than denylist: a credential added to default_headers in
-    # future must be excluded by default instead of silently riding the dial.
-    it 'excludes headers it does not recognise' do
-      expect(described_class.safe_headers('X-Future-Credential' => 'secret')).to be_empty
     end
   end
 

@@ -27,55 +27,17 @@ module Daytona
     # a peer holding any valid certificate can terminate the connection and
     # receive the request headers.
     module WebSocketDialer
-      # Headers that may travel on a WebSocket handshake.
-      #
-      # Deliberately an allowlist rather than a denylist. The toolbox API client's
-      # `default_headers` carries the organization-wide credential, which these
-      # endpoints do not need - they authenticate on `X-Daytona-Preview-Token` -
-      # and the proxy strips `Authorization` before forwarding, so it was only
-      # ever exposed on the hop this class protects.
-      #
-      # Filtering happens inside {connect} rather than at the call sites, so a
-      # dial added later cannot opt out of it, and a credential added to
-      # `default_headers` in future is excluded by default rather than silently
-      # riding the handshake.
-      #
-      # `X-Daytona-Source` and `X-Daytona-SDK-Version` are read server-side and
-      # must be preserved.
-      SAFE_HEADERS = %w[
-        Accept
-        Content-Type
-        Sec-WebSocket-Protocol
-        User-Agent
-        X-Daytona-Preview-Token
-        X-Daytona-SDK-Version
-        X-Daytona-Source
-      ].freeze
-
-      # Selects the headers that may accompany a WebSocket handshake.
-      #
-      # Applied automatically by {connect}; exposed for testing.
-      #
-      # @param headers [Hash] Headers to filter.
-      # @return [Hash] Only the entries permitted on a handshake.
-      def self.safe_headers(headers)
-        headers.slice(*SAFE_HEADERS)
-      end
-
       # Opens a verified WebSocket connection.
       #
       # Mirrors `WebSocket::Client::Simple.connect`: the block, if given, receives
       # the client before the connection is established so handlers can be
       # registered, and the client is returned.
       #
-      # `:headers` is reduced to {SAFE_HEADERS} before the handshake is built.
-      #
       # @param url [String] The `ws://` or `wss://` URL to dial.
       # @param options [Hash] Passed through to the client; `:headers`, `:ssl_version` and `:cert_store` are honoured.
       # @return [VerifyingClient] The connected client.
       # @raise [OpenSSL::SSL::SSLError] If the peer certificate fails chain or hostname verification.
       def self.connect(url, options = {})
-        options = options.merge(headers: safe_headers(options[:headers] || {}))
         client = VerifyingClient.new
         yield client if block_given?
         client.connect(url, options)
