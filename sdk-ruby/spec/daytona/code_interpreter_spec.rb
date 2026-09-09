@@ -73,7 +73,7 @@ RSpec.describe Daytona::CodeInterpreter do
       stdout = []
       stderr = []
       errors = []
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
 
       result = interpreter.run_code(
         'print("hello")',
@@ -94,7 +94,7 @@ RSpec.describe Daytona::CodeInterpreter do
       expect(socket.sent_messages.first).to include('"contextId":"ctx-1"')
       expect(socket.sent_messages.first).to include('"timeout":5')
       expect(socket.sent_messages.first).to include('"envs":{"DEBUG":"1"}')
-      expect(WebSocket::Client::Simple).to have_received(:connect).with(
+      expect(Daytona::Common::WebSocketDialer).to have_received(:connect).with(
         'wss://preview.example.com/process/interpreter/execute',
         headers: hash_including('X-Daytona-Preview-Token' => 'tok')
       )
@@ -103,7 +103,7 @@ RSpec.describe Daytona::CodeInterpreter do
     it 'raises TimeoutError when the websocket closes with the timeout code' do
       socket = InterpreterWebSocket.new([[:close,
                                           double(code: described_class::WEBSOCKET_TIMEOUT_CODE, reason: 'timeout')]])
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
 
       expect { interpreter.run_code('sleep(10)', timeout: 1) }
         .to raise_error(Daytona::Sdk::TimeoutError, /Execution timed out/)
@@ -111,7 +111,7 @@ RSpec.describe Daytona::CodeInterpreter do
 
     it 'wraps websocket errors as SDK errors' do
       socket = InterpreterWebSocket.new([[:error, StandardError.new('socket boom')]])
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
       allow(interpreter).to receive(:sleep)
       allow(Time).to receive(:now).and_return(Time.now, Time.now + 10)
 

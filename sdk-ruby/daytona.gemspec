@@ -47,5 +47,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'dotenv', '>= 2.0', '< 4'
   spec.add_dependency 'observer', '~> 0.1'
   spec.add_dependency 'toml', '~> 0.3'
-  spec.add_dependency 'websocket-client-simple', '~> 0.6'
+  spec.add_dependency 'websocket-client-simple', '~> 0.9.0'
 end

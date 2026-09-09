@@ -257,7 +257,7 @@ module Daytona
 
       completion_queue = Queue.new
 
-      WebSocket::Client::Simple.connect(
+      Common::WebSocketDialer.connect(
         url.to_s,
         headers: toolbox_api.api_client.default_headers.dup.merge(
           'X-Daytona-Preview-Token' => preview_link.token,
@@ -326,7 +326,7 @@ module Daytona
 
       completion_queue = Queue.new
 
-      WebSocket::Client::Simple.connect(
+      Common::WebSocketDialer.connect(
         url.to_s,
         headers: toolbox_api.api_client.default_headers.dup.merge(
           'X-Daytona-Preview-Token' => preview_link.token,
@@ -465,7 +465,7 @@ module Daytona
       headers['Sec-WebSocket-Protocol'] = protocols.join(', ')
 
       PtyHandle.new(
-        WebSocket::Client::Simple.connect(url.to_s, headers:),
+        Common::WebSocketDialer.connect(url.to_s, headers:),
         session_id: id,
         handle_resize: ->(pty_size_arg) { resize_pty_session(id, pty_size_arg) },
         handle_kill: -> { delete_pty_session(id) }
@@ -502,7 +502,7 @@ module Daytona
         [headers['Sec-WebSocket-Protocol'], PTY_EXIT_CONTROL_SUBPROTOCOL].compact.join(', ')
 
       handle = nil
-      WebSocket::Client::Simple.connect(url.to_s, headers:) do |client|
+      Common::WebSocketDialer.connect(url.to_s, headers:) do |client|
         handle = PtyHandle.new(
           client,
           session_id:,

@@ -293,7 +293,7 @@ RSpec.describe Daytona::Process do
   describe '#get_session_command_logs_async' do
     it 'streams stdout and stderr chunks until close' do
       socket = PassiveWebSocket.new
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
       stdout_chunks = []
       stderr_chunks = []
 
@@ -313,7 +313,7 @@ RSpec.describe Daytona::Process do
 
       expect(stdout_chunks).to eq(['hello'])
       expect(stderr_chunks).to eq(['oops'])
-      expect(WebSocket::Client::Simple).to have_received(:connect).with(
+      expect(Daytona::Common::WebSocketDialer).to have_received(:connect).with(
         'wss://preview.example.com/process/session/sess-1/command/cmd-1/logs?follow=true',
         headers: hash_including('X-Daytona-Preview-Token' => 'tok')
       )
@@ -323,7 +323,7 @@ RSpec.describe Daytona::Process do
   describe '#get_entrypoint_logs_async' do
     it 'streams entrypoint logs until close' do
       socket = PassiveWebSocket.new
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
       stdout_chunks = []
 
       thread = Thread.new do
@@ -339,7 +339,7 @@ RSpec.describe Daytona::Process do
       thread.join
 
       expect(stdout_chunks).to eq(['entrypoint'])
-      expect(WebSocket::Client::Simple).to have_received(:connect).with(
+      expect(Daytona::Common::WebSocketDialer).to have_received(:connect).with(
         'wss://preview.example.com/process/session/entrypoint/logs?follow=true',
         headers: hash_including('X-Daytona-Preview-Token' => 'tok')
       )
@@ -350,7 +350,7 @@ RSpec.describe Daytona::Process do
     it 'creates a PTY session and connects to it' do
       socket = double('PtySocket')
       handle = instance_double(Daytona::PtyHandle)
-      allow(WebSocket::Client::Simple).to receive(:connect).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_return(socket)
       allow(Daytona::PtyHandle).to receive(:new).and_return(handle)
       allow(handle).to receive(:wait_for_connection)
 
@@ -368,7 +368,7 @@ RSpec.describe Daytona::Process do
       expected_protocol =
         "X-Daytona-Pty-Exit-Control, X-Daytona-Pty-Envs~#{Base64.urlsafe_encode64({ 'TERM' => 'xterm' }.to_json,
                                                                                   padding: false)}"
-      expect(WebSocket::Client::Simple).to have_received(:connect).with(
+      expect(Daytona::Common::WebSocketDialer).to have_received(:connect).with(
         "wss://preview.example.com/process/pty/create-connect?#{expected_query}",
         headers: hash_including(
           'X-Daytona-Preview-Token' => 'tok',
@@ -389,14 +389,14 @@ RSpec.describe Daytona::Process do
     it 'connects via websocket and waits for the PTY connection' do
       socket = double('PtySocket')
       handle = instance_double(Daytona::PtyHandle)
-      allow(WebSocket::Client::Simple).to receive(:connect).and_yield(socket).and_return(socket)
+      allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket)
       allow(Daytona::PtyHandle).to receive(:new).and_return(handle)
       allow(handle).to receive(:wait_for_connection)
 
       result = process.connect_pty_session('pty-1')
 
       expect(result).to eq(handle)
-      expect(WebSocket::Client::Simple).to have_received(:connect).with(
+      expect(Daytona::Common::WebSocketDialer).to have_received(:connect).with(
         'wss://preview.example.com/process/pty/pty-1/connect',
         headers: hash_including('X-Daytona-Preview-Token' => 'tok')
       )

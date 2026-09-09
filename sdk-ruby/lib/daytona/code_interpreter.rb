@@ -108,7 +108,7 @@ module Daytona
 
       puts "[DEBUG] Connecting to WebSocket: #{ws_url}" if ENV['DEBUG']
 
-      ws = WebSocket::Client::Simple.connect(ws_url, headers:) do |client|
+      ws = Common::WebSocketDialer.connect(ws_url, headers:) do |client|
         client.on :open do
           puts '[DEBUG] WebSocket opened, sending request' if ENV['DEBUG']
           client.send(JSON.dump(request))
