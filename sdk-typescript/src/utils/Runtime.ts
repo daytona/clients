@@ -198,6 +198,17 @@ export function warnIfDotenvApiUrlIgnored(reader: DaytonaEnvReader, apiUrl: stri
 const ENDPOINT_VARS = ['DAYTONA_API_URL', 'DAYTONA_SERVER_URL'] as const
 
 /**
+ * Matches an assignment to an endpoint variable in a dotenv file.
+ *
+ * The two variable names must stay in step with `ENDPOINT_VARS` above. A literal regex is
+ * clearer — and faster — than deriving the pattern at runtime.
+ *
+ * No `g` flag: `.test()` is stateless on a non-global regex, so the same instance can be
+ * reused across files without resetting `lastIndex`.
+ */
+const ENDPOINT_ASSIGNMENT = /^[ \t]*(?:export[ \t]+)?(?:DAYTONA_API_URL|DAYTONA_SERVER_URL)[ \t]*=/m
+
+/**
  * The union of the dotenv file names that Bun and Next.js load on their own. `.env` and
  * `.env.local` are the SDK's own precedence chain; the rest are here only so that a file
  * defining the endpoint cannot go unnoticed.
@@ -344,10 +355,12 @@ export function dotenvSearchDirs(): string[] {
 /**
  * The first dotenv file that defines an endpoint variable, if any.
  *
- * This deliberately reports on the presence of the *name* and never looks at the value. A
- * value comparison cannot establish where an environment value came from: runtimes expand
- * `$VAR` references while a parser returns the raw text, so equal-looking values prove
- * nothing and unequal ones rule nothing out.
+ * The file is scanned as raw text rather than parsed with the `dotenv` package: only the
+ * variable's *presence* matters (never its value), and reading the name directly means the
+ * check still works where the `dotenv` package is not installed — which is the case when a
+ * runtime loads the file itself. A value comparison cannot establish where an environment
+ * value came from: runtimes expand `$VAR` references while a parser returns the raw text,
+ * so equal-looking values prove nothing and unequal ones rule nothing out.
  */
 export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSearchDirs()): string | undefined {
   if (RUNTIME !== Runtime.NODE && RUNTIME !== Runtime.BUN) return undefined
@@ -364,8 +377,7 @@ export function findDotenvFileDefiningEndpoint(searchDirs: string[] = dotenvSear
 function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
   const fs = tryRequire('fs')
   const nodePath = tryRequire('path')
-  const dotenv = tryRequire('dotenv')
-  if (!fs || !nodePath || !dotenv) return undefined
+  if (!fs || !nodePath) return undefined
   const names = [...explicitDotenvPaths(), ...PRELOADABLE_DOTENV_FILES]
   const candidates: string[] = []
   for (const name of names) {
@@ -373,13 +385,13 @@ function scanForDotenvEndpoint(searchDirs: string[]): string | undefined {
   }
   for (const file of [...new Set(candidates)]) {
     if (!fs.existsSync(file)) continue
-    let names: string[]
+    let text: string
     try {
-      names = Object.keys(dotenv.parse(fs.readFileSync(file)) as Record<string, string>)
+      text = fs.readFileSync(file, 'utf8') as string
     } catch {
       continue
     }
-    if (names.some((name) => (ENDPOINT_VARS as readonly string[]).includes(name))) return file
+    if (ENDPOINT_ASSIGNMENT.test(text)) return file
   }
   return undefined
 }

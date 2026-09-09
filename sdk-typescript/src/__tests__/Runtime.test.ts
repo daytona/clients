@@ -342,5 +342,49 @@ describe('dotenv pre-loading detection', () => {
 
       expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
     })
+
+    it('detects a bare DAYTONA_API_URL assignment with no preload flags set', () => {
+      process.execArgv = []
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('detects the export form of an endpoint assignment', () => {
+      fs.writeFileSync('.env', 'export DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('does not detect a commented-out assignment', () => {
+      fs.writeFileSync('.env', '# DAYTONA_API_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('does not detect a file naming neither endpoint variable', () => {
+      fs.writeFileSync('.env', 'SOME_OTHER_VAR=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBeUndefined()
+    })
+
+    it('detects DAYTONA_SERVER_URL', () => {
+      fs.writeFileSync('.env', 'DAYTONA_SERVER_URL=https://example.com/api\n')
+
+      expect(findDotenvFileDefiningEndpoint()).toBe(path.join(tmpDir, '.env'))
+    })
+
+    it('succeeds when the dotenv package cannot be resolved', () => {
+      fs.writeFileSync('.env', 'DAYTONA_API_URL=https://example.com/api\n')
+      let result: string | undefined
+      jest.isolateModules(() => {
+        jest.doMock('dotenv', () => {
+          throw new Error("Cannot find module 'dotenv'")
+        })
+        const { findDotenvFileDefiningEndpoint: find } = require('../utils/Runtime')
+        result = find([tmpDir])
+      })
+      expect(result).toBe(path.join(tmpDir, '.env'))
+    })
   })
 })
