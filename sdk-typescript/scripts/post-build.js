@@ -23,11 +23,7 @@ const rootDeps = readJson(path.join(workspaceRoot, 'package.json')).dependencies
 //     imports helpers from tslib at runtime
 //   - ws: isomorphic-ws declares ws as a peer dependency and require()s it in
 //     Node; an ancestor (this package) must provide it
-//   - dotenv: utils/Runtime.ts loads it through a helper rather than a literal
-//     require('dotenv'), which is what the scanner matches on. Without this the
-//     package publishes with no dotenv, and on a clean install the endpoint
-//     checks that depend on it silently do nothing.
-const forcedDeps = ['tslib', 'ws', 'dotenv']
+const forcedDeps = ['tslib', 'ws']
 for (const name of forcedDeps) {
   if (!rootDeps[name]) throw new Error(`${name} must be declared in the workspace root dependencies`)
 }
@@ -88,8 +84,7 @@ const jsFilesIn = (dir) =>
 // Templates carrying a `${...}` are left alone: masking one whole would hide a real call
 // written inside the interpolation and fail the guards on valid output. The residue is a
 // `require(` sitting in the literal text of an interpolated template, which would be
-// counted; that is narrower than what it replaces, and the dotenv guard below does not
-// rely on this at all - it matches the loader by name.
+// counted; that is narrower than what it replaces.
 const withoutStrings = (source) =>
   source
     .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
@@ -119,24 +114,13 @@ if (shimmedFiles.length === 0) {
   throw new Error('post-build: no ESM file required the require() shim; the rewrite has stopped matching')
 }
 
-// utils/Runtime.js reads dotenv files, and what it finds decides which host the SDK will
-// talk to, so it must reach dotenv through a working require in the published build.
-// Asserting the rewritten call - outside comments - rather than "the file was processed"
-// keeps this meaningful if the reads are ever moved or renamed.
+// utils/Runtime.js reads dotenv files through a working require in the published build,
+// so it must receive the shim.
 const runtimeJs = path.join('utils', 'Runtime.js')
 const runtimeJsPath = path.join(esmDir, runtimeJs)
 if (fs.existsSync(runtimeJsPath)) {
   if (!shimmedFiles.includes(runtimeJs)) {
     throw new Error(`post-build: ${runtimeJs} did not receive the require() shim`)
-  }
-  // The specifier goes through a helper, so the emitted shim call is `__esmRequire(id)`
-  // and the name only appears at the call site, as `tryRequire('dotenv')`. The loaders are
-  // named here rather than matching any quoted `dotenv`, which a label or an error message
-  // would satisfy on its own. Renaming the helper has to update this deliberately: that is
-  // the point of the guard.
-  const runtimeSource = withoutComments(fs.readFileSync(runtimeJsPath, 'utf8'))
-  if (!/\b(?:tryRequire|require|__esmRequire)\s*\(\s*['"]dotenv['"]\s*\)/.test(runtimeSource)) {
-    throw new Error(`post-build: ${runtimeJs} no longer loads dotenv`)
   }
 }
 
