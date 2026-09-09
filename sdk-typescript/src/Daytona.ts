@@ -42,7 +42,7 @@ const packageJson = getPackageInfo()
 import { processStreamingResponse } from './utils/Stream'
 import {
   DaytonaEnvReader,
-  dotenvMayBePreloaded,
+  endpointNamedInProcessEnv,
   findDotenvFileDefiningEndpoint,
   RUNTIME,
   Runtime,
@@ -383,18 +383,17 @@ export class Daytona implements AsyncDisposable {
       }
     }
 
-    // On a runtime that pre-loads dotenv files, an endpoint from the process environment
-    // cannot be attributed to the caller. Rather than guess - and risk sending the API key
-    // to a host nobody chose - refuse to select one and say what to do about it.
-    if (!endpointGivenByCaller && dotenvMayBePreloaded()) {
+    // When no explicit endpoint was given and the process environment names one, a
+    // working-directory dotenv file that also names it makes the source ambiguous: the
+    // variable could have come from the file or from the shell. Refuse to guess.
+    if (!endpointGivenByCaller && endpointNamedInProcessEnv()) {
       const dotenvFile = findDotenvFileDefiningEndpoint()
       if (dotenvFile) {
         throw new DaytonaInvalidArgumentError(
           `The Daytona API endpoint is ambiguous: \`${dotenvFile}\` in the working directory sets` +
-            ` DAYTONA_API_URL or DAYTONA_SERVER_URL, and this runtime loads that file into the` +
-            ` environment before your code runs, so the endpoint cannot be attributed to you.` +
-            ` Pass \`apiUrl\` to the Daytona constructor to say which endpoint you mean, or remove the` +
-            ` variable from \`${dotenvFile}\`.`,
+            ` DAYTONA_API_URL or DAYTONA_SERVER_URL, and that variable is present in the process` +
+            ` environment, so the endpoint cannot be attributed to you. Pass \`apiUrl\` to the Daytona` +
+            ` constructor to say which endpoint you mean, or remove the variable from \`${dotenvFile}\`.`,
         )
       }
     }

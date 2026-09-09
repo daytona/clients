@@ -7,8 +7,8 @@ import * as path from 'path'
 
 import {
   DaytonaEnvReader,
-  dotenvMayBePreloaded,
   dotenvSearchDirs,
+  endpointNamedInProcessEnv,
   findDotenvFileDefiningEndpoint,
   warnIfDotenvApiUrlIgnored,
 } from '../utils/Runtime'
@@ -129,27 +129,21 @@ describe('warnIfDotenvApiUrlIgnored', () => {
   })
 })
 
-// Runtimes that load a dotenv file into process.env before user code runs make the process
-// environment unattributable. These cover the detection that decides whether to refuse.
-describe('dotenv pre-loading detection', () => {
+describe('dotenv endpoint detection', () => {
   let tmpDir: string
   let originalCwd: string
   let originalExecArgv: string[]
   let originalArgv: string[]
-  let originalNextRuntime: string | undefined
-  let originalNodeOptions: string | undefined
   let originalDotenvConfigPath: string | undefined
 
   beforeEach(() => {
     originalCwd = process.cwd()
     originalExecArgv = process.execArgv
     originalArgv = process.argv
-    originalNextRuntime = process.env.NEXT_RUNTIME
-    originalNodeOptions = process.env.NODE_OPTIONS
     originalDotenvConfigPath = process.env.DOTENV_CONFIG_PATH
-    delete process.env.NEXT_RUNTIME
-    delete process.env.NODE_OPTIONS
     delete process.env.DOTENV_CONFIG_PATH
+    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_SERVER_URL
     tmpDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-preload-'))
     process.chdir(tmpDir)
   })
@@ -161,63 +155,28 @@ describe('dotenv pre-loading detection', () => {
       if (value === undefined) delete process.env[name]
       else process.env[name] = value
     }
-    restore('NEXT_RUNTIME', originalNextRuntime)
-    restore('NODE_OPTIONS', originalNodeOptions)
     restore('DOTENV_CONFIG_PATH', originalDotenvConfigPath)
+    delete process.env.DAYTONA_API_URL
+    delete process.env.DAYTONA_SERVER_URL
     process.chdir(originalCwd)
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  describe('dotenvMayBePreloaded', () => {
-    it('is false for a plain node process', () => {
-      process.execArgv = []
+  describe('endpointNamedInProcessEnv', () => {
+    it('is true when DAYTONA_API_URL is set', () => {
+      process.env.DAYTONA_API_URL = 'https://example.com/api'
 
-      expect(dotenvMayBePreloaded()).toBe(false)
+      expect(endpointNamedInProcessEnv()).toBe(true)
     })
 
-    it('is true when node was given --env-file', () => {
-      process.execArgv = ['--env-file=.env']
+    it('is true when DAYTONA_SERVER_URL is set', () => {
+      process.env.DAYTONA_SERVER_URL = 'https://example.com/api'
 
-      expect(dotenvMayBePreloaded()).toBe(true)
+      expect(endpointNamedInProcessEnv()).toBe(true)
     })
 
-    it('is true when node was given --env-file-if-exists', () => {
-      process.execArgv = ['--env-file-if-exists=.env']
-
-      expect(dotenvMayBePreloaded()).toBe(true)
-    })
-
-    it('is true inside a Next.js server runtime', () => {
-      process.execArgv = []
-      process.env.NEXT_RUNTIME = 'nodejs'
-
-      expect(dotenvMayBePreloaded()).toBe(true)
-    })
-
-    // `node -r dotenv/config` predates --env-file and populates process.env the same way.
-    it.each([
-      ['-r as a separate argument', ['-r', 'dotenv/config']],
-      ['--require with an equals sign', ['--require=dotenv/config']],
-      ['--import, the ESM form', ['--import', 'dotenv/config']],
-      ['a dotenv variant package', ['-r', '@dotenvx/dotenvx/config']],
-    ])('is true when node preloads dotenv via %s', (_label, execArgv) => {
-      process.execArgv = execArgv
-
-      expect(dotenvMayBePreloaded()).toBe(true)
-    })
-
-    // NODE_OPTIONS never reaches execArgv, so a command-line-only check misses it.
-    it('is true when the dotenv preloader comes from NODE_OPTIONS', () => {
-      process.execArgv = []
-      process.env.NODE_OPTIONS = '--max-old-space-size=4096 -r dotenv/config'
-
-      expect(dotenvMayBePreloaded()).toBe(true)
-    })
-
-    it('is false for a preloader that has nothing to do with dotenv', () => {
-      process.execArgv = ['-r', 'ts-node/register']
-
-      expect(dotenvMayBePreloaded()).toBe(false)
+    it('is false when neither variable is set', () => {
+      expect(endpointNamedInProcessEnv()).toBe(false)
     })
   })
 

@@ -225,56 +225,16 @@ const PRELOADABLE_DOTENV_FILES = [
 ] as const
 
 /**
- * Whether the runtime may have merged a working-directory dotenv file into `process.env`
- * before any user code ran.
+ * Whether either endpoint variable is present in the process environment.
  *
- * Bun does this unconditionally unless started with `--no-env-file`; Node does it when given
- * `--env-file`; Next.js does it in its server runtimes. On these runtimes the process
- * environment cannot be attributed to the caller, so it cannot be trusted to name a host.
+ * Enumerating loaders (Bun, `--env-file`, Next.js, Deno, Nuxt/Nitro, `@next/env`, …) can
+ * never be complete. The endpoint can only come from the constructor or `process.env`, so
+ * the precise condition is: a working-directory file names the variable **and** that variable
+ * is present in the process environment. This is both broader (covers every loader) and
+ * narrower (does not fire when a file exists but nothing loaded it).
  */
-export function dotenvMayBePreloaded(): boolean {
-  if (typeof process === 'undefined') return false
-  const execArgv = Array.isArray(process.execArgv) ? process.execArgv : []
-  if (execArgv.some((arg) => arg.startsWith('--env-file'))) return true
-  // `node -r dotenv/config` is the older and still more widely used way to do what
-  // --env-file does, and it merges the same working-directory file into process.env.
-  if (preloadedModules().some((specifier) => specifier.toLowerCase().includes('dotenv'))) return true
-  if (RUNTIME === Runtime.BUN) return !execArgv.includes('--no-env-file')
-  return Boolean(process.env?.NEXT_RUNTIME)
-}
-
-/** Flags whose argument names a module the runtime loads before application code. */
-const PRELOAD_FLAGS = ['-r', '--require', '--import']
-
-/**
- * The module specifiers given to Node's preload flags, from the command line and from
- * `NODE_OPTIONS`.
- *
- * `NODE_OPTIONS` never reaches `process.execArgv`, so a preloader configured through the
- * environment is invisible to a command-line-only check. `--env-file` needs no equivalent
- * treatment: Node refuses it in `NODE_OPTIONS`, so the command line is the only place it
- * can appear.
- */
-function preloadedModules(): string[] {
-  const specifiers: string[] = []
-  const collect = (args: string[]): void => {
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i]
-      const separator = arg.indexOf('=')
-      const flag = separator === -1 ? arg : arg.slice(0, separator)
-      if (!PRELOAD_FLAGS.includes(flag)) continue
-      if (separator !== -1) {
-        const value = arg.slice(separator + 1)
-        if (value) specifiers.push(value)
-      } else if (args[i + 1] && !args[i + 1].startsWith('-')) {
-        specifiers.push(args[++i])
-      }
-    }
-  }
-  collect(Array.isArray(process.execArgv) ? process.execArgv : [])
-  const nodeOptions = process.env?.NODE_OPTIONS
-  if (typeof nodeOptions === 'string') collect(nodeOptions.split(/\s+/).filter(Boolean))
-  return specifiers
+export function endpointNamedInProcessEnv(): boolean {
+  return ENDPOINT_VARS.some((name) => getEnvVar(name) !== undefined)
 }
 
 /**
