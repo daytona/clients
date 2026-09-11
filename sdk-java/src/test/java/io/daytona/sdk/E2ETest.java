@@ -759,8 +759,18 @@ class E2ETest {
             ExecuteResponse result = imageSandbox.getProcess().executeCommand("cat /home/daytona/local-file.txt");
             assertThat(result.getExitCode()).isEqualTo(0);
             assertThat(result.getResult().trim()).isEqualTo(marker);
+
+            imageSandbox.delete();
+        } catch (Throwable testFailure) {
+            // Best-effort cleanup of a sandbox the API may have created before create() threw;
+            // cleanup problems must not replace the real test outcome.
+            try {
+                deleteSandboxIfExists(sandboxName);
+            } catch (RuntimeException cleanupFailure) {
+                testFailure.addSuppressed(cleanupFailure);
+            }
+            throw testFailure;
         } finally {
-            deleteSandboxIfExists(sandboxName);
             Files.deleteIfExists(localFile);
         }
     }
