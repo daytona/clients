@@ -299,9 +299,32 @@ public class Image {
         StringJoiner joiner = new StringJoiner(",", "[", "]");
         if (values != null) {
             for (String v : values) {
-                joiner.add("\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+                joiner.add(jsonString(v));
             }
         }
         return joiner.toString();
+    }
+
+    private static String jsonString(String value) {
+        StringBuilder sb = new StringBuilder(value.length() + 2).append('"');
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.append('"').toString();
     }
 }

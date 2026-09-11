@@ -760,17 +760,19 @@ class E2ETest {
             assertThat(result.getExitCode()).isEqualTo(0);
             assertThat(result.getResult().trim()).isEqualTo(marker);
         } finally {
-            deleteSandboxQuietly(sandboxName);
+            deleteSandboxIfExists(sandboxName);
             Files.deleteIfExists(localFile);
         }
     }
 
-    private void deleteSandboxQuietly(String sandboxName) {
+    private void deleteSandboxIfExists(String sandboxName) {
+        Sandbox sandbox;
         try {
-            daytona.get(sandboxName).delete();
-        } catch (RuntimeException ignored) {
-            // The sandbox was never created or is already gone.
+            sandbox = daytona.get(sandboxName);
+        } catch (io.daytona.sdk.exception.DaytonaNotFoundException e) {
+            return;
         }
+        sandbox.delete();
     }
 
     @Test

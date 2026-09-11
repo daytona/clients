@@ -39,6 +39,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -81,6 +82,7 @@ class ObjectStorageTest {
 
     @Test
     void uploadHashIsStableAcrossRunsAndSensitiveToContentArchivePathAndMode(@TempDir Path dir) throws IOException {
+        assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"), "requires a POSIX filesystem");
         Path file = Files.write(dir.resolve("a.txt"), "hello".getBytes(StandardCharsets.UTF_8));
         when(s3.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().build());
         ObjectStorage storage = new ObjectStorage(s3, "bucket");
@@ -175,6 +177,7 @@ class ObjectStorageTest {
         Files.write(root.resolve("b.txt"), "b".getBytes(StandardCharsets.UTF_8));
         Files.write(Files.createDirectories(root.resolve("nested")).resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
         Files.createDirectories(root.resolve("empty"));
+        assumeSymlinksSupported(dir);
         Files.createSymbolicLink(root.resolve("link-to-nested"), Path.of("nested"));
         Files.createSymbolicLink(root.resolve("link-to-b"), Path.of("b.txt"));
         when(s3.headObject(any(HeadObjectRequest.class))).thenThrow(S3Exception.builder().statusCode(404).build());
@@ -308,6 +311,15 @@ class ObjectStorageTest {
             assertThat(head.getPath()).startsWith("/" + ObjectStorage.DEFAULT_BUCKET + "/org-1/");
             assertThat(head.getHeader("Authorization")).contains("/" + ObjectStorage.DEFAULT_REGION + "/s3/");
             assertThat(head.getHeader("x-amz-security-token")).isNull();
+        }
+    }
+
+    static void assumeSymlinksSupported(Path dir) {
+        try {
+            Path probe = Files.createSymbolicLink(dir.resolve("symlink-probe"), Path.of("."));
+            Files.delete(probe);
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            assumeTrue(false, "requires symlink support: " + e.getMessage());
         }
     }
 

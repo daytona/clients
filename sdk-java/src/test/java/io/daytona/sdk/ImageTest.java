@@ -199,7 +199,18 @@ class ImageTest {
     }
 
     @Test
+    void addLocalFileEscapesJsonControlCharacters(@TempDir Path dir) throws IOException {
+        Path file = Files.write(dir.resolve("plain.txt"), "x".getBytes());
+
+        Image image = Image.base("alpine").addLocalFile(file.toString(), "/opt/a\tb\n\"c\"\\d\u0001");
+
+        assertThat(image.getDockerfile())
+                .endsWith("\",\"/opt/a\\tb\\n\\\"c\\\"\\\\d\\u0001\"]\n");
+    }
+
+    @Test
     void addLocalFileResolvesSymlinkToTarget(@TempDir Path dir) throws IOException {
+        ObjectStorageTest.assumeSymlinksSupported(dir);
         Path target = Files.write(dir.resolve("target.txt"), "x".getBytes());
         Path link = Files.createSymbolicLink(dir.resolve("link.txt"), target);
 
@@ -212,6 +223,7 @@ class ImageTest {
 
     @Test
     void addLocalDirResolvesSymlinkToTargetDirectory(@TempDir Path dir) throws IOException {
+        ObjectStorageTest.assumeSymlinksSupported(dir);
         Path target = Files.createDirectories(dir.resolve("target"));
         Files.write(target.resolve("a.txt"), "x".getBytes());
         Path link = Files.createSymbolicLink(dir.resolve("link"), target);
