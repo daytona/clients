@@ -39,9 +39,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -736,6 +739,50 @@ class E2ETest {
                 imageSandbox.delete();
             }
         }
+    }
+
+    @Test
+    @Order(23)
+    void declarativeImageWithLocalFileBakesFileIntoSandbox() throws IOException {
+        String marker = unique("e2e-local-file");
+        Path localFile = Files.createTempFile("sdk-java-e2e-", ".txt");
+        Files.write(localFile, marker.getBytes(StandardCharsets.UTF_8));
+
+        String sandboxName = unique("sdk-java-e2e-local-file");
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setName(sandboxName);
+        params.setImage(Image.debianSlim("3.12").addLocalFile(localFile.toString(), "/home/daytona/local-file.txt"));
+
+        try {
+            Sandbox imageSandbox = daytona.create(params, 300, null);
+
+            ExecuteResponse result = imageSandbox.getProcess().executeCommand("cat /home/daytona/local-file.txt");
+            assertThat(result.getExitCode()).isEqualTo(0);
+            assertThat(result.getResult().trim()).isEqualTo(marker);
+
+            imageSandbox.delete();
+        } catch (Throwable testFailure) {
+            // Best-effort cleanup of a sandbox the API may have created before create() threw;
+            // cleanup problems must not replace the real test outcome.
+            try {
+                deleteSandboxIfExists(sandboxName);
+            } catch (RuntimeException cleanupFailure) {
+                testFailure.addSuppressed(cleanupFailure);
+            }
+            throw testFailure;
+        } finally {
+            Files.deleteIfExists(localFile);
+        }
+    }
+
+    private void deleteSandboxIfExists(String sandboxName) {
+        Sandbox sandbox;
+        try {
+            sandbox = daytona.get(sandboxName);
+        } catch (io.daytona.sdk.exception.DaytonaNotFoundException e) {
+            return;
+        }
+        sandbox.delete();
     }
 
     @Test
