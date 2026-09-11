@@ -341,7 +341,60 @@ describe('Image', () => {
       dest: string
     }
 
-    expect(parsed).toEqual({ sources: ['./a.txt,', './b.txt,'], dest: '/app/' })
+    expect(parsed).toEqual({ sources: ['./a.txt', './b.txt'], dest: '/app/' })
+  })
+
+  it('extractCopySources joins backslash-continued COPY instructions', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+    const sources = imageRuntime.extractCopySources(
+      ['COPY a.txt \\', '    b.txt \\', '    /app/'].join('\n'),
+      '/repo',
+    ) as Array<[string, string]>
+
+    expect(sources).toEqual([
+      ['/repo/a.txt', 'a.txt'],
+      ['/repo/b.txt', 'b.txt'],
+    ])
+  })
+
+  it('extractCopySources ignores comment lines inside a continued COPY instruction', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+    const sources = imageRuntime.extractCopySources(
+      ['COPY a.txt \\', '    # a comment inside the instruction', '    /app/'].join('\n'),
+      '/repo',
+    ) as Array<[string, string]>
+
+    expect(sources).toEqual([['/repo/a.txt', 'a.txt']])
+  })
+
+  it('extractCopySources ignores blank lines inside a continued COPY instruction', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+    const sources = imageRuntime.extractCopySources(['COPY a.txt \\', '', '    /app/'].join('\n'), '/repo') as Array<
+      [string, string]
+    >
+
+    expect(sources).toEqual([['/repo/a.txt', 'a.txt']])
   })
 
   it('extractCopySources ignores heredoc and stage copy commands', async () => {
@@ -359,5 +412,23 @@ describe('Image', () => {
     ) as Array<[string, string]>
 
     expect(sources).toEqual([['/repo/a.txt', './b.txt']])
+  })
+
+  it('parseCopyCommand keeps the sources after a boolean flag such as --link', async () => {
+    const { Image } = await import('../Image')
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    const parsed = imageRuntime.parseCopyCommand('COPY --link a.txt /app/')
+
+    expect(parsed).toEqual({ sources: ['a.txt'], dest: '/app/' })
+  })
+
+  it('parseCopyCommand handles flags before a json array copy command', async () => {
+    const { Image } = await import('../Image')
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    const parsed = imageRuntime.parseCopyCommand('COPY --chown=1000:1000 --link ["a.txt", "/app/"]')
+
+    expect(parsed).toEqual({ sources: ['a.txt'], dest: '/app/' })
   })
 })

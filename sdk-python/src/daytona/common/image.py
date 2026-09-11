@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
 import re
 import shlex
@@ -509,8 +510,7 @@ class Image(BaseModel):
             list[tuple[str, str]]: The list of the actual file path and its corresponding COPY-command source path.
         """
         sources: list[tuple[str, str]] = []
-        # Split the Dockerfile into lines
-        lines = dockerfile_content.split("\n")
+        lines = Image.__dockerfile_logical_lines(dockerfile_content)
 
         for line in lines:
             # Skip empty lines and comments
@@ -549,6 +549,36 @@ class Image(BaseModel):
         return sources
 
     @staticmethod
+    def __dockerfile_logical_lines(dockerfile_content: str) -> list[str]:
+        """Joins backslash-continued physical lines into logical Dockerfile instruction lines.
+
+        Args:
+            dockerfile_content: str: The content of the Dockerfile.
+
+        Returns:
+            list[str]: The logical instruction lines.
+        """
+        logical_lines: list[str] = []
+        current: str | None = None
+
+        for physical_line in dockerfile_content.splitlines():
+            if current is not None and (not physical_line.strip() or physical_line.lstrip().startswith("#")):
+                # Docker drops empty and comment lines that appear inside a continued instruction
+                continue
+            stripped = physical_line.rstrip()
+            continued = stripped.endswith("\\")
+            segment = stripped[:-1] if continued else physical_line
+            current = segment if current is None else current + segment
+            if not continued:
+                logical_lines.append(current)
+                current = None
+
+        if current is not None:
+            logical_lines.append(current)
+
+        return logical_lines
+
+    @staticmethod
     def __parse_copy_command(line: str) -> dict[str, list[str] | str] | None:
         """Parses a COPY command to extract sources and destination.
 
@@ -561,38 +591,38 @@ class Image(BaseModel):
         # Remove initial "COPY" and strip whitespace
         parts = line.strip()[4:].strip()
 
+        # Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
+        # the --flag=value form, so a flag never consumes the token that follows it.
+        while parts.startswith("--"):
+            flag_and_rest = parts.split(maxsplit=1)
+            parts = flag_and_rest[1] if len(flag_and_rest) > 1 else ""
+
         # Handle JSON array format: COPY ["src1", "src2", "dest"]
         if parts.startswith("["):
             try:
-                # Parse the JSON-like array format
-                elements = shlex.split(parts.replace("[", "").replace("]", ""))
-                if len(elements) < 2:
-                    return None
-
-                return {"sources": elements[:-1], "dest": elements[-1]}
-            except:
+                decoded = cast(object, json.loads(parts))
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(decoded, list):
+                return None
+            raw_elements = cast(list[object], decoded)
+            elements = [element for element in raw_elements if isinstance(element, str)]
+            if len(elements) < 2 or len(elements) != len(raw_elements):
                 return None
 
-        # Handle regular format with possible flags
-        parts = shlex.split(parts)
+            return {"sources": elements[:-1], "dest": elements[-1]}
 
-        # Extract flags like --chown, --chmod, --from
-        sources_start_idx = 0
-        for i, part in enumerate(parts):
-            if part.startswith("--"):
-                # Skip the flag and its value if it has one
-                if "=" not in part and i + 1 < len(parts) and not parts[i + 1].startswith("--"):
-                    sources_start_idx = i + 2
-                else:
-                    sources_start_idx = i + 1
-            else:
-                break
-
-        # After skipping flags, we need at least one source and one destination
-        if len(parts) - sources_start_idx < 2:
+        # Handle the whitespace-separated format
+        try:
+            elements = shlex.split(parts)
+        except ValueError:
             return None
 
-        return {"sources": parts[sources_start_idx:-1], "dest": parts[-1]}
+        # We need at least one source and one destination
+        if len(elements) < 2:
+            return None
+
+        return {"sources": elements[:-1], "dest": elements[-1]}
 
     @staticmethod
     def __flatten_str_args(args: Sequence[str | Sequence[str]]) -> list[str]:
