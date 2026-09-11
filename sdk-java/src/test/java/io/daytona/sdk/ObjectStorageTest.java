@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -73,34 +74,70 @@ class ObjectStorageTest {
     }
 
     @Test
-    void computeHashIsStableAndSensitiveToContentAndArchivePath(@TempDir Path dir) throws IOException {
-        Path file = Files.write(dir.resolve("a.txt"), "hello".getBytes(StandardCharsets.UTF_8));
-
-        String first = ObjectStorage.computeHash(file, "ctx/a.txt");
-        String again = ObjectStorage.computeHash(file, "ctx/a.txt");
-        String otherArchivePath = ObjectStorage.computeHash(file, "other/a.txt");
-        Files.write(file, "changed".getBytes(StandardCharsets.UTF_8));
-        String changedContent = ObjectStorage.computeHash(file, "ctx/a.txt");
-
-        assertThat(first).matches("[0-9a-f]{32}").isEqualTo(again);
-        assertThat(otherArchivePath).isNotEqualTo(first);
-        assertThat(changedContent).isNotEqualTo(first);
+    void computeArchiveBasePathRejectsFilesystemRoot() {
+        assertThatThrownBy(() -> ObjectStorage.computeArchiveBasePath(Path.of("/")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void computeHashOfDirectoryCoversNestedFilesAndEmptyDirectories(@TempDir Path dir) throws IOException {
-        Path root = Files.createDirectories(dir.resolve("root"));
-        Files.write(root.resolve("b.txt"), "b".getBytes(StandardCharsets.UTF_8));
-        Files.write(Files.createDirectories(root.resolve("nested")).resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
+    void uploadHashIsStableAcrossRunsAndSensitiveToContentArchivePathAndMode(@TempDir Path dir) throws IOException {
+        Path file = Files.write(dir.resolve("a.txt"), "hello".getBytes(StandardCharsets.UTF_8));
+        when(s3.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().build());
+        ObjectStorage storage = new ObjectStorage(s3, "bucket");
 
-        String base = ObjectStorage.computeHash(root, "root");
-        Files.createDirectories(root.resolve("empty"));
-        String withEmptyDir = ObjectStorage.computeHash(root, "root");
-        Files.write(root.resolve("nested/a.txt"), "a2".getBytes(StandardCharsets.UTF_8));
-        String withChangedNested = ObjectStorage.computeHash(root, "root");
+        String first = storage.upload(file, "org", "ctx/a.txt");
+        Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(0));
+        String afterTouch = storage.upload(file, "org", "ctx/a.txt");
+        String otherArchivePath = storage.upload(file, "org", "other/a.txt");
+        Files.setPosixFilePermissions(file, java.util.EnumSet.of(
+                java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                java.nio.file.attribute.PosixFilePermission.OWNER_WRITE,
+                java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE));
+        String afterChmod = storage.upload(file, "org", "ctx/a.txt");
+        Files.write(file, "changed".getBytes(StandardCharsets.UTF_8));
+        String afterContentChange = storage.upload(file, "org", "ctx/a.txt");
 
-        assertThat(withEmptyDir).isNotEqualTo(base);
-        assertThat(withChangedNested).isNotEqualTo(withEmptyDir);
+        assertThat(first).matches("[0-9a-f]{32}").isEqualTo(afterTouch);
+        assertThat(otherArchivePath).isNotEqualTo(first);
+        assertThat(afterChmod).isNotEqualTo(first);
+        assertThat(afterContentChange).isNotEqualTo(afterChmod);
+    }
+
+    @Test
+    void uploadHashDistinguishesDirectoryLayoutsWithIdenticalConcatenation(@TempDir Path dir) throws IOException {
+        Path first = Files.createDirectories(dir.resolve("first"));
+        Files.write(first.resolve("ab"), "c".getBytes(StandardCharsets.UTF_8));
+        Path second = Files.createDirectories(dir.resolve("second"));
+        Files.write(second.resolve("a"), "bc".getBytes(StandardCharsets.UTF_8));
+        when(s3.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().build());
+        ObjectStorage storage = new ObjectStorage(s3, "bucket");
+
+        assertThat(storage.upload(first, "org", "root")).isNotEqualTo(storage.upload(second, "org", "root"));
+    }
+
+    @Test
+    void uploadHashMatchesUploadedArchiveBytes(@TempDir Path dir) throws IOException {
+        Path file = Files.write(dir.resolve("a.txt"), "hello".getBytes(StandardCharsets.UTF_8));
+        when(s3.headObject(any(HeadObjectRequest.class))).thenThrow(NoSuchKeyException.builder().statusCode(404).build());
+        java.util.concurrent.atomic.AtomicReference<byte[]> uploaded = new java.util.concurrent.atomic.AtomicReference<>();
+        when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class))).thenAnswer(invocation -> {
+            uploaded.set(invocation.getArgument(1, RequestBody.class).contentStreamProvider().newStream().readAllBytes());
+            return PutObjectResponse.builder().build();
+        });
+
+        String hash = new ObjectStorage(s3, "bucket").upload(file, "org", "ctx/a.txt");
+
+        java.security.MessageDigest md5;
+        try {
+            md5 = java.security.MessageDigest.getInstance("MD5");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        StringBuilder expected = new StringBuilder();
+        for (byte b : md5.digest(uploaded.get())) {
+            expected.append(String.format("%02x", b));
+        }
+        assertThat(hash).isEqualTo(expected.toString());
     }
 
     @Test
@@ -138,6 +175,8 @@ class ObjectStorageTest {
         Files.write(root.resolve("b.txt"), "b".getBytes(StandardCharsets.UTF_8));
         Files.write(Files.createDirectories(root.resolve("nested")).resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
         Files.createDirectories(root.resolve("empty"));
+        Files.createSymbolicLink(root.resolve("link-to-nested"), Path.of("nested"));
+        Files.createSymbolicLink(root.resolve("link-to-b"), Path.of("b.txt"));
         when(s3.headObject(any(HeadObjectRequest.class))).thenThrow(S3Exception.builder().statusCode(404).build());
         captureUploadedTar();
 
@@ -145,8 +184,10 @@ class ObjectStorageTest {
 
         Map<String, String> entries = uploadedTar;
         assertThat(entries.keySet()).containsExactly(
-                "home/me/root/", "home/me/root/b.txt", "home/me/root/empty/", "home/me/root/nested/", "home/me/root/nested/a.txt");
-        assertThat(entries).containsEntry("home/me/root/b.txt", "b").containsEntry("home/me/root/nested/a.txt", "a");
+                "home/me/root/", "home/me/root/b.txt", "home/me/root/empty/", "home/me/root/link-to-b",
+                "home/me/root/link-to-nested", "home/me/root/nested/", "home/me/root/nested/a.txt");
+        assertThat(entries).containsEntry("home/me/root/b.txt", "b").containsEntry("home/me/root/nested/a.txt", "a")
+                .containsEntry("home/me/root/link-to-b", "-> b.txt").containsEntry("home/me/root/link-to-nested", "-> nested");
     }
 
     @Test
@@ -158,6 +199,18 @@ class ObjectStorageTest {
         assertThatThrownBy(() -> new ObjectStorage(s3, "bucket").upload(file, "org-1", "ctx/a.txt"))
                 .isInstanceOf(DaytonaException.class)
                 .hasMessageContaining("Failed to check object storage");
+    }
+
+    @Test
+    void uploadWrapsClientSideSdkErrors(@TempDir Path dir) throws IOException {
+        Path file = Files.write(dir.resolve("a.txt"), "hello".getBytes(StandardCharsets.UTF_8));
+        when(s3.headObject(any(HeadObjectRequest.class))).thenThrow(NoSuchKeyException.builder().statusCode(404).build());
+        when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(SdkClientException.create("connection refused"));
+
+        assertThatThrownBy(() -> new ObjectStorage(s3, "bucket").upload(file, "org-1", "ctx/a.txt"))
+                .isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("Failed to upload build context");
     }
 
     @Test
@@ -210,9 +263,10 @@ class ObjectStorageTest {
             List<String> hashes = ObjectStorage.processImageContext(objectStorageApi, image);
 
             List<Image.Context> contexts = image.getContexts();
-            String fileHash = ObjectStorage.computeHash(file, contexts.get(0).getArchivePath());
-            String dirHash = ObjectStorage.computeHash(src, contexts.get(1).getArchivePath());
-            assertThat(hashes).containsExactly(fileHash, dirHash);
+            assertThat(hashes).hasSize(2).allMatch(hash -> hash.matches("[0-9a-f]{32}"));
+            String fileHash = hashes.get(0);
+            String dirHash = hashes.get(1);
+            assertThat(fileHash).isNotEqualTo(dirHash);
 
             RecordedRequest head = server.takeRequest();
             assertThat(head.getMethod()).isEqualTo("HEAD");
@@ -262,7 +316,11 @@ class ObjectStorageTest {
         try (TarArchiveInputStream tar = new TarArchiveInputStream(stream)) {
             TarArchiveEntry entry;
             while ((entry = tar.getNextEntry()) != null) {
-                entries.put(entry.getName(), entry.isDirectory() ? "" : new String(tar.readAllBytes(), StandardCharsets.UTF_8));
+                if (entry.isSymbolicLink()) {
+                    entries.put(entry.getName(), "-> " + entry.getLinkName());
+                } else {
+                    entries.put(entry.getName(), entry.isDirectory() ? "" : new String(tar.readAllBytes(), StandardCharsets.UTF_8));
+                }
             }
         }
         return entries;

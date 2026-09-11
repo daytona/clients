@@ -19,7 +19,7 @@ import java.util.Map;
 
 public class DeclarativeImage {
     public static void main(String[] args) throws IOException {
-        Path localFile = Path.of("file_example.txt");
+        Path localFile = Files.createTempFile("file_example-", ".txt");
         Files.write(localFile, "Hello, World!".getBytes(StandardCharsets.UTF_8));
 
         try (Daytona daytona = new Daytona()) {
@@ -79,6 +79,8 @@ public class DeclarativeImage {
             } finally {
                 sandbox2.delete();
             }
+        } finally {
+            Files.deleteIfExists(localFile);
         }
     }
 }

@@ -5,6 +5,7 @@ package io.daytona.sdk;
 
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -196,7 +197,7 @@ public class Image {
      * <p>The file is uploaded to Daytona object storage as part of the build context when the image
      * is used to create a snapshot or a Sandbox, and copied to {@code remotePath} with a
      * {@code COPY} instruction. If {@code remotePath} ends with {@code /}, the local file name is
-     * appended to it.
+     * appended to it. Symlinks in {@code localPath} are resolved before the file is recorded.
      *
      * <pre>{@code
      * Image image = Image.debianSlim("3.12")
@@ -229,7 +230,8 @@ public class Image {
      *
      * <p>The directory is uploaded to Daytona object storage as part of the build context when the
      * image is used to create a snapshot or a Sandbox, and copied to {@code remotePath} with a
-     * {@code COPY} instruction.
+     * {@code COPY} instruction. Symlinks in {@code localPath} itself are resolved; symlinks inside
+     * the directory are preserved as symlinks in the build context.
      *
      * <pre>{@code
      * Image image = Image.debianSlim("3.12").addLocalDir("src", "/home/daytona/src");
@@ -239,7 +241,8 @@ public class Image {
      * @param remotePath destination path inside the image
      * @return this {@link Image} for method chaining
      * @throws DaytonaNotFoundException if {@code localPath} does not exist
-     * @throws IllegalArgumentException if {@code localPath} exists but is not a directory
+     * @throws IllegalArgumentException if {@code localPath} exists but is not a directory, or is a
+     *     filesystem root
      */
     public Image addLocalDir(String localPath, String remotePath) {
         Path expanded = expandUserHome(localPath);
@@ -253,10 +256,15 @@ public class Image {
     }
 
     private Image addContext(Path source, String remotePath) {
-        Path absolute = source.toAbsolutePath().normalize();
-        String archivePath = ObjectStorage.computeArchiveBasePath(absolute);
-        contexts.add(new Context(absolute.toString(), archivePath));
-        dockerfile.append("COPY ").append(archivePath).append(" ").append(remotePath).append("\n");
+        Path resolved;
+        try {
+            resolved = source.toRealPath();
+        } catch (IOException e) {
+            throw new DaytonaNotFoundException("Local path " + source + " could not be resolved: " + e.getMessage(), e);
+        }
+        String archivePath = ObjectStorage.computeArchiveBasePath(resolved);
+        contexts.add(new Context(resolved.toString(), archivePath));
+        dockerfile.append("COPY ").append(jsonArray(archivePath, remotePath)).append("\n");
         return this;
     }
 
@@ -291,7 +299,7 @@ public class Image {
         StringJoiner joiner = new StringJoiner(",", "[", "]");
         if (values != null) {
             for (String v : values) {
-                joiner.add("\"" + v.replace("\"", "\\\"") + "\"");
+                joiner.add("\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
             }
         }
         return joiner.toString();

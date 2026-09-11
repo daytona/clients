@@ -106,7 +106,7 @@ class ImageTest {
         Image image = Image.base("python:3.12").addLocalFile(file.toString(), "/app/requirements.txt");
 
         assertThat(image.getDockerfile())
-                .isEqualTo("FROM python:3.12\nCOPY " + archivePath + " /app/requirements.txt\n");
+                .isEqualTo("FROM python:3.12\nCOPY [\"" + archivePath + "\",\"/app/requirements.txt\"]\n");
         assertThat(image.getContexts()).containsExactly(new Image.Context(file.toAbsolutePath().normalize().toString(), archivePath));
         assertThat(archivePath).doesNotStartWith("/");
     }
@@ -117,7 +117,7 @@ class ImageTest {
 
         Image image = Image.base("alpine").addLocalFile(file.toString(), "/etc/app/");
 
-        assertThat(image.getDockerfile()).endsWith(" /etc/app/config.yaml\n");
+        assertThat(image.getDockerfile()).endsWith("\",\"/etc/app/config.yaml\"]\n");
     }
 
     @Test
@@ -156,7 +156,7 @@ class ImageTest {
 
         Image image = Image.base("python:3.12").addLocalDir(src.toString(), "/app/src");
 
-        assertThat(image.getDockerfile()).isEqualTo("FROM python:3.12\nCOPY " + archivePath + " /app/src\n");
+        assertThat(image.getDockerfile()).isEqualTo("FROM python:3.12\nCOPY [\"" + archivePath + "\",\"/app/src\"]\n");
         assertThat(image.getContexts()).containsExactly(new Image.Context(src.toAbsolutePath().normalize().toString(), archivePath));
     }
 
@@ -186,6 +186,48 @@ class ImageTest {
         } finally {
             System.setProperty("user.home", originalHome);
         }
+    }
+
+    @Test
+    void addLocalFileQuotesPathsWithWhitespace(@TempDir Path dir) throws IOException {
+        Path file = Files.write(dir.resolve("my file.txt"), "x".getBytes());
+
+        Image image = Image.base("alpine").addLocalFile(file.toString(), "/opt/my file.txt");
+
+        assertThat(image.getDockerfile())
+                .isEqualTo("FROM alpine\nCOPY [\"" + ObjectStorage.computeArchiveBasePath(file) + "\",\"/opt/my file.txt\"]\n");
+    }
+
+    @Test
+    void addLocalFileResolvesSymlinkToTarget(@TempDir Path dir) throws IOException {
+        Path target = Files.write(dir.resolve("target.txt"), "x".getBytes());
+        Path link = Files.createSymbolicLink(dir.resolve("link.txt"), target);
+
+        Image image = Image.base("alpine").addLocalFile(link.toString(), "/x");
+
+        assertThat(image.getContexts()).singleElement()
+                .extracting(Image.Context::getSourcePath)
+                .isEqualTo(target.toRealPath().toString());
+    }
+
+    @Test
+    void addLocalDirResolvesSymlinkToTargetDirectory(@TempDir Path dir) throws IOException {
+        Path target = Files.createDirectories(dir.resolve("target"));
+        Files.write(target.resolve("a.txt"), "x".getBytes());
+        Path link = Files.createSymbolicLink(dir.resolve("link"), target);
+
+        Image image = Image.base("alpine").addLocalDir(link.toString(), "/x");
+
+        assertThat(image.getContexts()).singleElement()
+                .extracting(Image.Context::getSourcePath)
+                .isEqualTo(target.toRealPath().toString());
+    }
+
+    @Test
+    void addLocalDirRejectsFilesystemRoot() {
+        assertThatThrownBy(() -> Image.base("alpine").addLocalDir("/", "/x"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("filesystem root");
     }
 
     @Test

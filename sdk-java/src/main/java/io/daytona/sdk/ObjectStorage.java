@@ -8,11 +8,13 @@ import io.daytona.api.client.model.StorageAccessDto;
 import io.daytona.sdk.exception.DaytonaException;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.commons.compress.archivers.tar.TarConstants;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
@@ -28,8 +30,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
@@ -44,9 +46,10 @@ import java.util.stream.Stream;
 /**
  * Uploads {@link Image} build contexts (local files and directories) to Daytona object storage.
  *
- * <p>Each context is packed into a tar archive and stored under
- * {@code {organizationId}/{contentHash}/context.tar}. The content hash doubles as the identifier the
- * API expects in {@code contextHashes}; contexts whose archive already exists are not re-uploaded.
+ * <p>Each context is packed into a deterministic tar archive (sorted entries, fixed timestamps,
+ * symlinks preserved) and stored under {@code {organizationId}/{contentHash}/context.tar}, where the
+ * content hash is the MD5 of the exact archive bytes. The hash doubles as the identifier the API
+ * expects in {@code contextHashes}; contexts whose archive already exists are not re-uploaded.
  *
  * <p>Used internally by {@link SnapshotService} and {@link Daytona} when an {@link Image} carries
  * contexts added via {@link Image#addLocalFile(String, String)} or
@@ -137,19 +140,27 @@ final class ObjectStorage implements AutoCloseable {
      * @param path local file or directory
      * @param organizationId organization that owns the storage prefix
      * @param archiveBasePath name of the entry (or root directory) inside the archive
-     * @return MD5 content hash identifying the uploaded context
+     * @return MD5 hash of the uploaded archive, identifying the context
      * @throws DaytonaException if the path does not exist or the upload fails
      */
     String upload(Path path, String organizationId, String archiveBasePath) {
-        if (!Files.exists(path)) {
+        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
             throw new DaytonaException("Path does not exist: " + path);
         }
-        String hash = computeHash(path, archiveBasePath);
-        String key = organizationId + "/" + hash + "/" + CONTEXT_ARCHIVE_NAME;
-        if (!objectExists(key)) {
-            uploadAsTar(key, path, archiveBasePath);
+        Path archive = null;
+        try {
+            archive = createArchive(path, archiveBasePath);
+            String hash = md5Hex(archive);
+            String key = organizationId + "/" + hash + "/" + CONTEXT_ARCHIVE_NAME;
+            if (!objectExists(key)) {
+                putArchive(key, archive);
+            }
+            return hash;
+        } catch (IOException e) {
+            throw new DaytonaException("Failed to create build context archive for " + path + ": " + e.getMessage(), e);
+        } finally {
+            deleteQuietly(archive);
         }
-        return hash;
     }
 
     /**
@@ -159,6 +170,7 @@ final class ObjectStorage implements AutoCloseable {
      *
      * @param path local path
      * @return archive base path, never empty
+     * @throws IllegalArgumentException if {@code path} is a filesystem root
      */
     static String computeArchiveBasePath(Path path) {
         Path absolute = path.toAbsolutePath().normalize();
@@ -168,42 +180,10 @@ final class ObjectStorage implements AutoCloseable {
         while (archivePath.startsWith("/")) {
             archivePath = archivePath.substring(1);
         }
-        return archivePath.isEmpty() ? absolute.getFileName().toString() : archivePath;
-    }
-
-    /**
-     * Computes the MD5 hash of a file or directory tree together with its archive base path.
-     *
-     * <p>For directories, entries are visited in lexicographic order so the hash is stable across
-     * runs and platforms. Each file contributes its archive-relative path and contents; empty
-     * directories contribute their relative path only.
-     */
-    static String computeHash(Path path, String archiveBasePath) {
-        MessageDigest md5 = newMd5();
-        md5.update(archiveBasePath.getBytes(StandardCharsets.UTF_8));
-        try {
-            if (Files.isDirectory(path)) {
-                for (Path entry : sortedTree(path)) {
-                    if (entry.equals(path)) {
-                        continue;
-                    }
-                    String relative = toArchiveRelative(path, entry);
-                    if (Files.isDirectory(entry)) {
-                        if (isEmptyDirectory(entry)) {
-                            md5.update(relative.getBytes(StandardCharsets.UTF_8));
-                        }
-                        continue;
-                    }
-                    md5.update(relative.getBytes(StandardCharsets.UTF_8));
-                    digestFile(md5, entry);
-                }
-            } else {
-                digestFile(md5, path);
-            }
-        } catch (IOException e) {
-            throw new DaytonaException("Failed to hash " + path + ": " + e.getMessage(), e);
+        if (archivePath.isEmpty()) {
+            throw new IllegalArgumentException("A filesystem root cannot be used as a build context: " + path);
         }
-        return toHex(md5.digest());
+        return archivePath;
     }
 
     private boolean objectExists(String key) {
@@ -217,40 +197,49 @@ final class ObjectStorage implements AutoCloseable {
                 return false;
             }
             throw new DaytonaException("Failed to check object storage for " + key + ": " + e.getMessage(), e);
+        } catch (SdkException e) {
+            throw new DaytonaException("Failed to check object storage for " + key + ": " + e.getMessage(), e);
         }
     }
 
-    private void uploadAsTar(String key, Path source, String archiveBasePath) {
-        Path archive = null;
+    private static Path createArchive(Path source, String archiveBasePath) throws IOException {
+        Path archive = Files.createTempFile("daytona-context-", ".tar");
+        try (OutputStream out = Files.newOutputStream(archive);
+             TarArchiveOutputStream tar = new TarArchiveOutputStream(out)) {
+            tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+            tar.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX);
+            writeTree(tar, source, archiveBasePath);
+            tar.finish();
+        } catch (IOException | RuntimeException e) {
+            deleteQuietly(archive);
+            throw e;
+        }
+        return archive;
+    }
+
+    private void putArchive(String key, Path archive) {
         try {
-            archive = Files.createTempFile("daytona-context-", ".tar");
-            try (OutputStream out = Files.newOutputStream(archive);
-                 TarArchiveOutputStream tar = new TarArchiveOutputStream(out)) {
-                tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-                tar.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX);
-                writeTree(tar, source, archiveBasePath);
-                tar.finish();
-            }
             s3.putObject(
                     PutObjectRequest.builder().bucket(bucket).key(key).contentType("application/x-tar").build(),
                     RequestBody.fromFile(archive));
-        } catch (IOException e) {
-            throw new DaytonaException("Failed to create build context archive for " + source + ": " + e.getMessage(), e);
-        } catch (S3Exception e) {
+        } catch (SdkException e) {
             throw new DaytonaException("Failed to upload build context " + key + ": " + e.getMessage(), e);
-        } finally {
-            if (archive != null) {
-                try {
-                    Files.deleteIfExists(archive);
-                } catch (IOException ignored) {
-                    // Best effort; the temp directory is cleaned up by the OS.
-                }
-            }
+        }
+    }
+
+    private static void deleteQuietly(Path file) {
+        if (file == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException ignored) {
+            // Best effort; the temp directory is cleaned up by the OS.
         }
     }
 
     private static void writeTree(TarArchiveOutputStream tar, Path source, String archiveBasePath) throws IOException {
-        if (Files.isDirectory(source)) {
+        if (Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) {
             for (Path entry : sortedTree(source)) {
                 String name = entry.equals(source)
                         ? archiveBasePath
@@ -263,15 +252,25 @@ final class ObjectStorage implements AutoCloseable {
     }
 
     private static void writeEntry(TarArchiveOutputStream tar, Path path, String name) throws IOException {
-        boolean directory = Files.isDirectory(path);
-        TarArchiveEntry entry = new TarArchiveEntry(directory ? name + "/" : name);
-        entry.setModTime(Files.getLastModifiedTime(path).toMillis());
-        entry.setMode(fileMode(path, directory));
-        if (!directory) {
+        TarArchiveEntry entry;
+        boolean regularFile = false;
+        if (Files.isSymbolicLink(path)) {
+            entry = new TarArchiveEntry(name, TarConstants.LF_SYMLINK);
+            entry.setLinkName(Files.readSymbolicLink(path).toString().replace('\\', '/'));
+            entry.setMode(TarArchiveEntry.DEFAULT_FILE_MODE);
+        } else if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            entry = new TarArchiveEntry(name + "/");
+            entry.setMode(fileMode(path, true));
+        } else {
+            entry = new TarArchiveEntry(name);
+            entry.setMode(fileMode(path, false));
             entry.setSize(Files.size(path));
+            regularFile = true;
         }
+        // Fixed timestamp keeps the archive bytes, and therefore the content hash, stable.
+        entry.setModTime(0);
         tar.putArchiveEntry(entry);
-        if (!directory) {
+        if (regularFile) {
             try (InputStream in = Files.newInputStream(path)) {
                 in.transferTo(tar);
             }
@@ -316,24 +315,20 @@ final class ObjectStorage implements AutoCloseable {
         }
     }
 
-    private static boolean isEmptyDirectory(Path directory) throws IOException {
-        try (Stream<Path> children = Files.list(directory)) {
-            return !children.findAny().isPresent();
-        }
-    }
-
     private static String toArchiveRelative(Path root, Path entry) {
         return root.relativize(entry).toString().replace('\\', '/');
     }
 
-    private static void digestFile(MessageDigest digest, Path file) throws IOException {
+    private static String md5Hex(Path file) throws IOException {
+        MessageDigest md5 = newMd5();
         try (InputStream in = Files.newInputStream(file)) {
             byte[] buffer = new byte[8192];
             int read;
             while ((read = in.read(buffer)) != -1) {
-                digest.update(buffer, 0, read);
+                md5.update(buffer, 0, read);
             }
         }
+        return toHex(md5.digest());
     }
 
     private static MessageDigest newMd5() {

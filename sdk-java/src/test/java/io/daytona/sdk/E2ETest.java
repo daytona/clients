@@ -742,28 +742,34 @@ class E2ETest {
     }
 
     @Test
-    @Order(22)
+    @Order(23)
     void declarativeImageWithLocalFileBakesFileIntoSandbox() throws IOException {
         String marker = unique("e2e-local-file");
         Path localFile = Files.createTempFile("sdk-java-e2e-", ".txt");
         Files.write(localFile, marker.getBytes(StandardCharsets.UTF_8));
 
+        String sandboxName = unique("sdk-java-e2e-local-file");
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
-        params.setName(unique("sdk-java-e2e-local-file"));
+        params.setName(sandboxName);
         params.setImage(Image.debianSlim("3.12").addLocalFile(localFile.toString(), "/home/daytona/local-file.txt"));
 
-        Sandbox imageSandbox = null;
         try {
-            imageSandbox = daytona.create(params, 300, null);
+            Sandbox imageSandbox = daytona.create(params, 300, null);
 
             ExecuteResponse result = imageSandbox.getProcess().executeCommand("cat /home/daytona/local-file.txt");
             assertThat(result.getExitCode()).isEqualTo(0);
             assertThat(result.getResult().trim()).isEqualTo(marker);
         } finally {
-            if (imageSandbox != null) {
-                imageSandbox.delete();
-            }
+            deleteSandboxQuietly(sandboxName);
             Files.deleteIfExists(localFile);
+        }
+    }
+
+    private void deleteSandboxQuietly(String sandboxName) {
+        try {
+            daytona.get(sandboxName).delete();
+        } catch (RuntimeException ignored) {
+            // The sandbox was never created or is already gone.
         }
     }
 
