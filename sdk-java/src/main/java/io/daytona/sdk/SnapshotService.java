@@ -40,11 +40,21 @@ public class SnapshotService {
     private final SnapshotsApi snapshotsApi;
     private final OkHttpClient httpClient;
     private final String apiKey;
+    private final BuildContextUploader contextUploader;
 
-    SnapshotService(SnapshotsApi snapshotsApi, OkHttpClient httpClient, String apiKey) {
+    /**
+     * Uploads the local build contexts of an {@link Image} and returns their content hashes.
+     */
+    @FunctionalInterface
+    interface BuildContextUploader {
+        List<String> upload(Image image);
+    }
+
+    SnapshotService(SnapshotsApi snapshotsApi, OkHttpClient httpClient, String apiKey, BuildContextUploader contextUploader) {
         this.snapshotsApi = snapshotsApi;
         this.httpClient = httpClient;
         this.apiKey = apiKey;
+        this.contextUploader = contextUploader;
     }
 
     /**
@@ -118,8 +128,9 @@ public class SnapshotService {
      * @throws DaytonaException if the API request fails or the build fails
      */
     public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass, Consumer<String> onLogs) {
+        List<String> contextHashes = contextUploader.upload(image);
         CreateSnapshot req = new CreateSnapshot().name(name)
-                .buildInfo(new CreateBuildInfo().dockerfileContent(image.getDockerfile()))
+                .buildInfo(new CreateBuildInfo().dockerfileContent(image.getDockerfile()).contextHashes(contextHashes))
                 .entrypoint(null);
 
         if (resources != null) {

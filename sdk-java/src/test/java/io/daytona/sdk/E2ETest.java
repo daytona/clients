@@ -39,9 +39,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -735,6 +738,32 @@ class E2ETest {
             if (imageSandbox != null) {
                 imageSandbox.delete();
             }
+        }
+    }
+
+    @Test
+    @Order(22)
+    void declarativeImageWithLocalFileBakesFileIntoSandbox() throws IOException {
+        String marker = unique("e2e-local-file");
+        Path localFile = Files.createTempFile("sdk-java-e2e-", ".txt");
+        Files.write(localFile, marker.getBytes(StandardCharsets.UTF_8));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setName(unique("sdk-java-e2e-local-file"));
+        params.setImage(Image.debianSlim("3.12").addLocalFile(localFile.toString(), "/home/daytona/local-file.txt"));
+
+        Sandbox imageSandbox = null;
+        try {
+            imageSandbox = daytona.create(params, 300, null);
+
+            ExecuteResponse result = imageSandbox.getProcess().executeCommand("cat /home/daytona/local-file.txt");
+            assertThat(result.getExitCode()).isEqualTo(0);
+            assertThat(result.getResult().trim()).isEqualTo(marker);
+        } finally {
+            if (imageSandbox != null) {
+                imageSandbox.delete();
+            }
+            Files.deleteIfExists(localFile);
         }
     }
 

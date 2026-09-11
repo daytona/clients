@@ -29,6 +29,14 @@ dependencies {
     api("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     api("com.fasterxml.jackson.core:jackson-annotations:2.17.2")
     implementation("io.socket:socket.io-client:2.1.2")
+    // Build-context uploads for Image.addLocalFile / addLocalDir. The default AWS HTTP clients
+    // (Apache, Netty) are excluded in favour of the lightweight url-connection-client.
+    implementation("software.amazon.awssdk:s3:2.54.16") {
+        exclude(group = "software.amazon.awssdk", module = "apache-client")
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
+    implementation("software.amazon.awssdk:url-connection-client:2.54.16")
+    implementation("org.apache.commons:commons-compress:1.28.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testImplementation("org.assertj:assertj-core:3.26.3")

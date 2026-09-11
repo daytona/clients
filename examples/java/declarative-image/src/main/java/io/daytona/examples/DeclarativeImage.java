@@ -10,11 +10,18 @@ import io.daytona.sdk.model.CreateSandboxFromImageParams;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.ExecuteResponse;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 public class DeclarativeImage {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        Path localFile = Path.of("file_example.txt");
+        Files.write(localFile, "Hello, World!".getBytes(StandardCharsets.UTF_8));
+
         try (Daytona daytona = new Daytona()) {
             String snapshotName = "java-example-" + System.currentTimeMillis();
             System.out.println("Creating snapshot: " + snapshotName);
@@ -26,7 +33,8 @@ public class DeclarativeImage {
                     .pipInstall("numpy", "pandas", "matplotlib", "scipy", "scikit-learn")
                     .runCommands("apt-get update && apt-get install -y git", "mkdir -p /home/daytona/workspace")
                     .workdir("/home/daytona/workspace")
-                    .env(envVars);
+                    .env(envVars)
+                    .addLocalFile(localFile.toString(), "/home/daytona/workspace/file_example.txt");
 
             System.out.println("\n=== Creating Snapshot: " + snapshotName + " ===");
             daytona.snapshot().create(snapshotName, image, System.out::println);
@@ -44,6 +52,9 @@ public class DeclarativeImage {
 
                 ExecuteResponse envResult = sandbox1.process.executeCommand("echo $MY_ENV_VAR");
                 System.out.println("MY_ENV_VAR=" + envResult.getResult().trim());
+
+                ExecuteResponse fileResult = sandbox1.process.executeCommand("cat file_example.txt");
+                System.out.println("file_example.txt: " + fileResult.getResult().trim());
             } finally {
                 sandbox1.delete();
             }

@@ -50,6 +50,7 @@ public class Daytona implements AutoCloseable {
 
     private final DaytonaConfig config;
     private final io.daytona.api.client.ApiClient apiClient;
+    private final io.daytona.api.client.api.ObjectStorageApi objectStorageApi;
     private final SandboxApi sandboxApi;
     private final SnapshotService snapshot;
     private final VolumeService volume;
@@ -91,7 +92,9 @@ public class Daytona implements AutoCloseable {
         this.config = config;
         this.apiClient = createMainApiClient(config);
         this.sandboxApi = new SandboxApi(apiClient);
-        this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey());
+        this.objectStorageApi = new io.daytona.api.client.api.ObjectStorageApi(apiClient);
+        this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey(),
+                image -> ObjectStorage.processImageContext(objectStorageApi, image));
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
         this.warmPool = new WarmPoolService(new io.daytona.api.client.api.WarmPoolsApi(apiClient));
@@ -197,7 +200,9 @@ public class Daytona implements AutoCloseable {
         if (params != null) {
             Object image = params.getImage();
             if (image instanceof Image) {
-                body.setBuildInfo(new CreateBuildInfo().dockerfileContent(((Image) image).getDockerfile()));
+                Image declarativeImage = (Image) image;
+                List<String> contextHashes = ObjectStorage.processImageContext(objectStorageApi, declarativeImage);
+                body.setBuildInfo(new CreateBuildInfo().dockerfileContent(declarativeImage.getDockerfile()).contextHashes(contextHashes));
             } else if (image instanceof String && !((String) image).isEmpty()) {
                 body.setBuildInfo(new CreateBuildInfo().dockerfileContent("FROM " + image + "\n"));
             }

@@ -3,7 +3,16 @@
 
 package io.daytona.sdk;
 
+import io.daytona.sdk.exception.DaytonaNotFoundException;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 /**
@@ -11,9 +20,67 @@ import java.util.StringJoiner;
  *
  * <p>Use factory methods such as {@link #base(String)} or {@link #debianSlim(String)} and chain
  * mutating methods to append Dockerfile instructions.
+ *
+ * <p>Local files and directories added with {@link #addLocalFile(String, String)} and
+ * {@link #addLocalDir(String, String)} are uploaded to Daytona object storage as build contexts
+ * when the image is used to create a snapshot or a Sandbox.
  */
 public class Image {
+    /**
+     * A local file or directory that is part of the image build context.
+     *
+     * <p>The source path is uploaded to object storage and made available inside the build context
+     * under {@link #getArchivePath()}, which is the path referenced by the generated {@code COPY}
+     * instruction.
+     */
+    public static final class Context {
+        private final String sourcePath;
+        private final String archivePath;
+
+        Context(String sourcePath, String archivePath) {
+            this.sourcePath = sourcePath;
+            this.archivePath = archivePath;
+        }
+
+        /**
+         * Returns the local filesystem path of the file or directory.
+         *
+         * @return absolute local path
+         */
+        public String getSourcePath() {
+            return sourcePath;
+        }
+
+        /**
+         * Returns the path of the entry within the uploaded build context archive.
+         *
+         * @return archive-relative path
+         */
+        public String getArchivePath() {
+            return archivePath;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Context)) return false;
+            Context other = (Context) o;
+            return sourcePath.equals(other.sourcePath) && archivePath.equals(other.archivePath);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(sourcePath, archivePath);
+        }
+
+        @Override
+        public String toString() {
+            return "Context{sourcePath='" + sourcePath + "', archivePath='" + archivePath + "'}";
+        }
+    }
+
     private final StringBuilder dockerfile = new StringBuilder();
+    private final List<Context> contexts = new ArrayList<>();
 
     private Image() {}
 
@@ -124,12 +191,100 @@ public class Image {
     }
 
     /**
+     * Adds a local file to the image.
+     *
+     * <p>The file is uploaded to Daytona object storage as part of the build context when the image
+     * is used to create a snapshot or a Sandbox, and copied to {@code remotePath} with a
+     * {@code COPY} instruction. If {@code remotePath} ends with {@code /}, the local file name is
+     * appended to it.
+     *
+     * <pre>{@code
+     * Image image = Image.debianSlim("3.12")
+     *     .addLocalFile("requirements.txt", "/home/daytona/requirements.txt");
+     * }</pre>
+     *
+     * @param localPath path to the local file; a leading {@code ~} is expanded to the user home
+     * @param remotePath destination path inside the image
+     * @return this {@link Image} for method chaining
+     * @throws DaytonaNotFoundException if {@code localPath} does not exist
+     * @throws IllegalArgumentException if {@code localPath} exists but is not a regular file
+     */
+    public Image addLocalFile(String localPath, String remotePath) {
+        Path expanded = expandUserHome(localPath);
+        if (!Files.exists(expanded)) {
+            throw new DaytonaNotFoundException("Local file " + localPath + " does not exist");
+        }
+        if (!Files.isRegularFile(expanded)) {
+            throw new IllegalArgumentException("Local path " + localPath + " exists but is not a file");
+        }
+        String destination = remotePath;
+        if (destination.endsWith("/")) {
+            destination = destination + expanded.getFileName();
+        }
+        return addContext(expanded, destination);
+    }
+
+    /**
+     * Adds a local directory to the image.
+     *
+     * <p>The directory is uploaded to Daytona object storage as part of the build context when the
+     * image is used to create a snapshot or a Sandbox, and copied to {@code remotePath} with a
+     * {@code COPY} instruction.
+     *
+     * <pre>{@code
+     * Image image = Image.debianSlim("3.12").addLocalDir("src", "/home/daytona/src");
+     * }</pre>
+     *
+     * @param localPath path to the local directory; a leading {@code ~} is expanded to the user home
+     * @param remotePath destination path inside the image
+     * @return this {@link Image} for method chaining
+     * @throws DaytonaNotFoundException if {@code localPath} does not exist
+     * @throws IllegalArgumentException if {@code localPath} exists but is not a directory
+     */
+    public Image addLocalDir(String localPath, String remotePath) {
+        Path expanded = expandUserHome(localPath);
+        if (!Files.exists(expanded)) {
+            throw new DaytonaNotFoundException("Local directory " + localPath + " does not exist");
+        }
+        if (!Files.isDirectory(expanded)) {
+            throw new IllegalArgumentException("Local path " + localPath + " exists but is not a directory");
+        }
+        return addContext(expanded, remotePath);
+    }
+
+    private Image addContext(Path source, String remotePath) {
+        Path absolute = source.toAbsolutePath().normalize();
+        String archivePath = ObjectStorage.computeArchiveBasePath(absolute);
+        contexts.add(new Context(absolute.toString(), archivePath));
+        dockerfile.append("COPY ").append(archivePath).append(" ").append(remotePath).append("\n");
+        return this;
+    }
+
+    private static Path expandUserHome(String path) {
+        Objects.requireNonNull(path, "localPath");
+        if (path.equals("~") || path.startsWith("~/") || path.startsWith("~\\")) {
+            return Paths.get(System.getProperty("user.home"), path.substring(1));
+        }
+        return Paths.get(path);
+    }
+
+    /**
      * Returns generated Dockerfile content.
      *
      * @return Dockerfile text assembled by this builder
      */
     public String getDockerfile() {
         return dockerfile.toString();
+    }
+
+    /**
+     * Returns the local build contexts registered with {@link #addLocalFile(String, String)} and
+     * {@link #addLocalDir(String, String)}, in insertion order.
+     *
+     * @return unmodifiable list of build contexts
+     */
+    public List<Context> getContexts() {
+        return Collections.unmodifiableList(contexts);
     }
 
     private String jsonArray(String... values) {
