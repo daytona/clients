@@ -55,10 +55,11 @@ class SnapshotServiceTest {
     private SnapshotsApi snapshotsApi;
 
     private SnapshotService snapshotService;
+    private List<String> uploadedContexts = Collections.emptyList();
 
     @BeforeEach
     void setUp() {
-        snapshotService = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key");
+        snapshotService = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts);
     }
 
     @Test
@@ -107,6 +108,31 @@ class SnapshotServiceTest {
         assertThat(captor.getValue().getCpu()).isEqualTo(2);
         assertThat(captor.getValue().getMemory()).isEqualTo(4);
         assertThat(captor.getValue().getDisk()).isEqualTo(8);
+    }
+
+    @Test
+    void createFromDeclarativeImageSendsUploadedContextHashes() {
+        uploadedContexts = Arrays.asList("hash-a", "hash-b");
+        when(snapshotsApi.createSnapshot(any(), isNull()))
+                .thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+
+        snapshotService.create("snapshot", Image.base("python:3.12"), null);
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getBuildInfo().getContextHashes()).containsExactly("hash-a", "hash-b");
+    }
+
+    @Test
+    void createFromDeclarativeImageDoesNotCallApiWhenContextUploadFails() {
+        SnapshotService failing = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> {
+            throw new DaytonaException("upload failed");
+        });
+
+        assertThatThrownBy(() -> failing.create("snapshot", Image.base("python:3.12"), null))
+                .isInstanceOf(DaytonaException.class)
+                .hasMessage("upload failed");
+        verify(snapshotsApi, never()).createSnapshot(any(), any());
     }
 
     @Test
