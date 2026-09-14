@@ -72,16 +72,34 @@ class ProcessTest {
         io.daytona.toolbox.client.model.ExecuteResponse response = new io.daytona.toolbox.client.model.ExecuteResponse();
         response.setExitCode(0);
         response.setResult("ok");
+        response.setStdout("out");
+        response.setStderr("err");
         when(processApi.executeCommand(any())).thenReturn(response);
 
         ExecuteResponse result = process.executeCommand("echo hello");
 
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getResult()).isEqualTo("ok");
+        assertThat(result.getStdout()).isEqualTo("out");
+        assertThat(result.getStderr()).isEqualTo("err");
         ArgumentCaptor<ExecuteRequest> captor = ArgumentCaptor.forClass(ExecuteRequest.class);
         verify(processApi).executeCommand(captor.capture());
         assertThat(captor.getValue().getCommand()).isEqualTo("echo hello");
         assertThat(captor.getValue().getCwd()).isNull();
+    }
+
+    @Test
+    void executeCommandKeepsSplitStreamsNullForOlderDaemons() {
+        io.daytona.toolbox.client.model.ExecuteResponse response = new io.daytona.toolbox.client.model.ExecuteResponse();
+        response.setExitCode(0);
+        response.setResult("combined");
+        when(processApi.executeCommand(any())).thenReturn(response);
+
+        ExecuteResponse result = process.executeCommand("echo hello");
+
+        assertThat(result.getResult()).isEqualTo("combined");
+        assertThat(result.getStdout()).isNull();
+        assertThat(result.getStderr()).isNull();
     }
 
     @Test

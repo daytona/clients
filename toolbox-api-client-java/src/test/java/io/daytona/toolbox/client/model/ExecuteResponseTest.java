@@ -53,4 +53,20 @@ public class ExecuteResponseTest {
         // TODO: test result
     }
 
+    /**
+     * Test the property 'stderr'
+     */
+    @Test
+    public void stderrTest() {
+        // TODO: test stderr
+    }
+
+    /**
+     * Test the property 'stdout'
+     */
+    @Test
+    public void stdoutTest() {
+        // TODO: test stdout
+    }
+
 }

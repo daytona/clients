@@ -377,8 +377,13 @@ type CodeRunParams struct {
 
 // ExecuteResponse represents a command execution response
 type ExecuteResponse struct {
-	ExitCode  int
-	Result    string
+	ExitCode int
+	// Result is the combined stdout and stderr in arrival order (interleaved)
+	Result string
+	// Stdout is the standard output only; nil when the sandbox daemon predates split streams
+	Stdout *string
+	// Stderr is the standard error only; nil when the sandbox daemon predates split streams
+	Stderr    *string
 	Artifacts *ExecutionArtifacts // nil when no artifacts available
 }
 

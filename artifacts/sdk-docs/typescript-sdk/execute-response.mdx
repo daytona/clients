@@ -12,7 +12,9 @@ Response from the command execution.
 
 - `artifacts?` _ExecutionArtifacts_ - Artifacts from the command execution
 - `exitCode` _number_ - The exit code from the command execution
-- `result` _string_ - The output from the command execution
+- `result` _string_ - Combined stdout and stderr from the command execution (interleaved)
+- `stderr?` _string_ - Standard error only; undefined when the sandbox daemon predates split streams
+- `stdout?` _string_ - Standard output only; undefined when the sandbox daemon predates split streams
 ## ExecutionArtifacts
 
 Artifacts from the command execution.
