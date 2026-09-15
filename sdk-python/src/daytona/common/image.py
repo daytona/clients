@@ -562,11 +562,13 @@ class Image(BaseModel):
         current: str | None = None
 
         for physical_line in dockerfile_content.splitlines():
-            if current is not None and (not physical_line.strip() or physical_line.lstrip().startswith("#")):
+            is_comment = physical_line.lstrip().startswith("#")
+            if current is not None and (not physical_line.strip() or is_comment):
                 # Docker drops empty and comment lines that appear inside a continued instruction
                 continue
             stripped = physical_line.rstrip()
-            continued = stripped.endswith("\\")
+            # A trailing backslash on a comment line is literal; comments never continue onto the next line
+            continued = not is_comment and stripped.endswith("\\")
             segment = stripped[:-1] if continued else physical_line
             current = segment if current is None else current + segment
             if not continued:

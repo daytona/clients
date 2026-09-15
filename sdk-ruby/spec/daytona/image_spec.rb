@@ -287,6 +287,61 @@ RSpec.describe Daytona::Image do
         expect(image.context_list.map(&:source_path)).to eq([File.join(src, 'app.rb')])
       end
     end
+
+    def archive_paths_for(dockerfile_content, files)
+      Dir.mktmpdir do |dir|
+        files.each do |name|
+          FileUtils.mkdir_p(File.dirname(File.join(dir, name)))
+          File.write(File.join(dir, name), name)
+        end
+        dockerfile = File.join(dir, 'Dockerfile')
+        File.write(dockerfile, dockerfile_content)
+
+        return described_class.from_dockerfile(dockerfile).context_list.map(&:archive_path)
+      end
+    end
+
+    it 'parses json array copy commands' do
+      content = "FROM ruby:3.4\nCOPY [\"a.txt\", \"dir with space/b.txt\", \"/app/\"]\n"
+
+      expect(archive_paths_for(content, ['a.txt', 'dir with space/b.txt'])).to eq(['a.txt', 'dir with space/b.txt'])
+    end
+
+    it 'joins backslash-continued copy commands' do
+      content = "FROM ruby:3.4\nCOPY a.txt \\\n    b.txt \\\n    /app/\n"
+
+      expect(archive_paths_for(content, ['a.txt', 'b.txt'])).to eq(['a.txt', 'b.txt'])
+    end
+
+    it 'ignores comment and blank lines inside a continued copy command' do
+      content = "FROM ruby:3.4\nCOPY a.txt \\\n    # a comment inside the instruction\n\n    /app/\n"
+
+      expect(archive_paths_for(content, ['a.txt'])).to eq(['a.txt'])
+    end
+
+    it 'does not continue a comment line that ends with a backslash' do
+      content = "FROM ruby:3.4\n# see C:\\\nCOPY a.txt /app/\n"
+
+      expect(archive_paths_for(content, ['a.txt'])).to eq(['a.txt'])
+    end
+
+    it 'skips copy commands it cannot parse' do
+      content = "FROM ruby:3.4\nCOPY \"unterminated /app/\n"
+
+      expect(archive_paths_for(content, [])).to eq([])
+    end
+
+    it 'keeps the sources after a boolean copy flag' do
+      content = "FROM ruby:3.4\nCOPY --link a.txt /app/\n"
+
+      expect(archive_paths_for(content, ['a.txt'])).to eq(['a.txt'])
+    end
+
+    it 'parses json array copy commands after flags' do
+      content = "FROM ruby:3.4\nCOPY --chown=1000:1000 --link [\"a.txt\", \"/app/\"]\n"
+
+      expect(archive_paths_for(content, ['a.txt'])).to eq(['a.txt'])
+    end
   end
 
   describe '.base' do

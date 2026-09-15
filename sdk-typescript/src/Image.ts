@@ -612,12 +612,14 @@ export class Image {
     let current: string | null = null
 
     for (const physicalLine of dockerfileContent.split(/\r?\n/)) {
-      if (current !== null && (!physicalLine.trim() || physicalLine.trimStart().startsWith('#'))) {
+      const isComment = physicalLine.trimStart().startsWith('#')
+      if (current !== null && (!physicalLine.trim() || isComment)) {
         // Docker drops empty and comment lines that appear inside a continued instruction
         continue
       }
       const stripped = physicalLine.trimEnd()
-      const continued = stripped.endsWith('\\')
+      // A trailing backslash on a comment line is literal; comments never continue onto the next line
+      const continued = !isComment && stripped.endsWith('\\')
       const segment = continued ? stripped.slice(0, -1) : physicalLine
       current = current === null ? segment : current + segment
       if (!continued) {

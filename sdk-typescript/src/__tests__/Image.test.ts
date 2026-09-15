@@ -397,6 +397,22 @@ describe('Image', () => {
     expect(sources).toEqual([['/repo/a.txt', 'a.txt']])
   })
 
+  it('extractCopySources does not continue a comment line that ends with a backslash', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+    const sources = imageRuntime.extractCopySources(['# see C:\\', 'COPY a.txt /app/'].join('\n'), '/repo') as Array<
+      [string, string]
+    >
+
+    expect(sources).toEqual([['/repo/a.txt', 'a.txt']])
+  })
+
   it('extractCopySources ignores heredoc and stage copy commands', async () => {
     const { Image } = await import('../Image')
     const fastGlob = { sync: jest.fn(() => ['/repo/a.txt']) }
