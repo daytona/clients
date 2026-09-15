@@ -612,12 +612,14 @@ export class Image {
     let current: string | null = null
 
     for (const physicalLine of dockerfileContent.split(/\r?\n/)) {
-      if (current !== null && (!physicalLine.trim() || physicalLine.trimStart().startsWith('#'))) {
+      const isComment = physicalLine.trimStart().startsWith('#')
+      if (current !== null && (!physicalLine.trim() || isComment)) {
         // Docker drops empty and comment lines that appear inside a continued instruction
         continue
       }
       const stripped = physicalLine.trimEnd()
-      const continued = stripped.endsWith('\\')
+      // A trailing backslash on a comment line is literal; comments never continue onto the next line
+      const continued = !isComment && stripped.endsWith('\\')
       const segment = continued ? stripped.slice(0, -1) : physicalLine
       current = current === null ? segment : current + segment
       if (!continued) {
@@ -693,8 +695,8 @@ export class Image {
     // Remove initial "COPY" and strip whitespace
     let parts = line.trim().substring(4).trim()
 
-    // Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
-    // the --flag=value form, so a flag never consumes the token that follows it.
+    // Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+    // and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
     while (parts.startsWith('--')) {
       parts = parts.replace(/^\S+\s*/, '')
     }

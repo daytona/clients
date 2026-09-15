@@ -239,6 +239,15 @@ class TestImageFromDockerfile:
 
         assert [c.archive_path for c in img._context_list] == ["a.txt"]
 
+    def test_from_dockerfile_does_not_continue_comment_ending_with_backslash(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\n# see C:\\\nCOPY a.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
     def test_from_dockerfile_keeps_sources_after_boolean_copy_flag(self, tmp_path):
         (tmp_path / "a.txt").write_text("a")
         dockerfile = tmp_path / "Dockerfile"

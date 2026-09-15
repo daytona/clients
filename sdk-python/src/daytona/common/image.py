@@ -562,11 +562,13 @@ class Image(BaseModel):
         current: str | None = None
 
         for physical_line in dockerfile_content.splitlines():
-            if current is not None and (not physical_line.strip() or physical_line.lstrip().startswith("#")):
+            is_comment = physical_line.lstrip().startswith("#")
+            if current is not None and (not physical_line.strip() or is_comment):
                 # Docker drops empty and comment lines that appear inside a continued instruction
                 continue
             stripped = physical_line.rstrip()
-            continued = stripped.endswith("\\")
+            # A trailing backslash on a comment line is literal; comments never continue onto the next line
+            continued = not is_comment and stripped.endswith("\\")
             segment = stripped[:-1] if continued else physical_line
             current = segment if current is None else current + segment
             if not continued:
@@ -591,8 +593,8 @@ class Image(BaseModel):
         # Remove initial "COPY" and strip whitespace
         parts = line.strip()[4:].strip()
 
-        # Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
-        # the --flag=value form, so a flag never consumes the token that follows it.
+        # Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+        # and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
         while parts.startswith("--"):
             flag_and_rest = parts.split(maxsplit=1)
             parts = flag_and_rest[1] if len(flag_and_rest) > 1 else ""

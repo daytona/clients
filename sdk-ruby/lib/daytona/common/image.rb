@@ -5,6 +5,7 @@
 
 require 'digest'
 require 'fileutils'
+require 'json'
 require 'pathname'
 require 'shellwords'
 
@@ -362,7 +363,7 @@ module Daytona
       # @return [Array<Array<String>>] The list of the actual file path and its corresponding COPY-command source path
       def extract_copy_sources(dockerfile_content, path_prefix = '') # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
         sources = []
-        lines = dockerfile_content.split("\n")
+        lines = dockerfile_logical_lines(dockerfile_content)
 
         lines.each do |line|
           # Skip empty lines and comments
@@ -404,47 +405,65 @@ module Daytona
         sources
       end
 
+      # Joins backslash-continued physical lines into logical Dockerfile instruction lines
+      #
+      # @param dockerfile_content [String] The content of the Dockerfile
+      # @return [Array<String>] The logical instruction lines
+      def dockerfile_logical_lines(dockerfile_content) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
+        logical_lines = []
+        current = nil
+
+        dockerfile_content.each_line(chomp: true) do |physical_line|
+          is_comment = physical_line.lstrip.start_with?('#')
+          # Docker drops empty and comment lines that appear inside a continued instruction
+          next if current && (physical_line.strip.empty? || is_comment)
+
+          stripped = physical_line.rstrip
+          # A trailing backslash on a comment line is literal; comments never continue onto the next line
+          continued = !is_comment && stripped.end_with?('\\')
+          segment = continued ? stripped[0..-2] : physical_line
+          current = current ? current + segment : segment
+          next if continued
+
+          logical_lines << current
+          current = nil
+        end
+
+        logical_lines << current if current
+        logical_lines
+      end
+
       # Parses a COPY command to extract sources and destination
       #
       # @param line [String] The line to parse
       # @return [Hash, nil] A hash containing the sources and destination, or nil if parsing fails
-      def parse_copy_command(line) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
+      def parse_copy_command(line)
         # Remove initial "COPY" and strip whitespace
         parts = line.strip[4..].strip
 
+        # Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+        # and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
+        parts = parts.sub(/\A\S+\s*/, '') while parts.start_with?('--')
+
         # Handle JSON array format: COPY ["src1", "src2", "dest"]
-        if parts.start_with?('[')
-          begin
-            # Parse the JSON-like array format
-            elements = Shellwords.split(parts.delete('[]'))
-            return nil if elements.length < 2
+        return parse_json_copy_command(parts) if parts.start_with?('[')
 
-            { 'sources' => elements[0..-2], 'dest' => elements[-1] }
-          rescue StandardError
-            nil
-          end
-        end
+        # Handle the whitespace-separated format
+        elements = Shellwords.split(parts)
+        return nil if elements.length < 2
 
-        # Handle regular format with possible flags
-        parts = Shellwords.split(parts)
+        { 'sources' => elements[0..-2], 'dest' => elements[-1] }
+      rescue ArgumentError
+        nil
+      end
 
-        # Extract flags like --chown, --chmod, --from
-        sources_start_idx = 0
-        parts.each_with_index do |part, i|
-          break unless part.start_with?('--')
+      def parse_json_copy_command(parts)
+        elements = JSON.parse(parts)
+        return nil unless elements.is_a?(Array) && elements.all?(String) && elements.length >= 2
 
-          # Skip the flag and its value if it has one
-          sources_start_idx = if !part.include?('=') && i + 1 < parts.length && !parts[i + 1].start_with?('--')
-                                i + 2
-                              else
-                                i + 1
-                              end
-        end
-
-        # After skipping flags, we need at least one source and one destination
-        return nil if parts.length - sources_start_idx < 2
-
-        { 'sources' => parts[sources_start_idx..-2], 'dest' => parts[-1] }
+        { 'sources' => elements[0..-2], 'dest' => elements[-1] }
+      rescue JSON::ParserError
+        nil
       end
     end
 
