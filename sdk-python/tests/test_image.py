@@ -192,6 +192,71 @@ class TestImageFromDockerfile:
         with pytest.raises(DaytonaError, match="does not exist"):
             Image.from_dockerfile("/nonexistent/Dockerfile")
 
+    def test_from_dockerfile_parses_json_array_copy(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "dir with space").mkdir()
+        (tmp_path / "dir with space" / "b.txt").write_text("b")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text('FROM python:3.12\nCOPY ["a.txt", "dir with space/b.txt", "/app/"]\n')
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt", "dir with space/b.txt"]
+
+    def test_from_dockerfile_joins_backslash_continued_copy(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "b.txt").write_text("b")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY a.txt \\\n    b.txt \\\n    /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt", "b.txt"]
+
+    def test_from_dockerfile_skips_copy_it_cannot_parse(self, tmp_path):
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text('FROM python:3.12\nCOPY "unterminated /app/\n')
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert img._context_list == []
+
+    def test_from_dockerfile_ignores_comment_lines_inside_continued_copy(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY a.txt \\\n    # a comment inside the instruction\n    /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
+    def test_from_dockerfile_ignores_blank_lines_inside_continued_copy(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY a.txt \\\n\n    /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
+    def test_from_dockerfile_keeps_sources_after_boolean_copy_flag(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY --link a.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
+    def test_from_dockerfile_parses_json_array_copy_after_flags(self, tmp_path):
+        (tmp_path / "a.txt").write_text("a")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text('FROM python:3.12\nCOPY --chown=1000:1000 --link ["a.txt", "/app/"]\n')
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
 
 class TestImageDockerfileCommands:
     def test_add_dockerfile_commands(self):

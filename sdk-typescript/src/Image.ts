@@ -602,6 +602,38 @@ export class Image {
   }
 
   /**
+   * Joins backslash-continued physical lines into logical Dockerfile instruction lines.
+   *
+   * @param {string} dockerfileContent - The content of the Dockerfile.
+   * @returns {string[]} The logical instruction lines.
+   */
+  private static dockerfileLogicalLines(dockerfileContent: string): string[] {
+    const logicalLines: string[] = []
+    let current: string | null = null
+
+    for (const physicalLine of dockerfileContent.split(/\r?\n/)) {
+      if (current !== null && (!physicalLine.trim() || physicalLine.trimStart().startsWith('#'))) {
+        // Docker drops empty and comment lines that appear inside a continued instruction
+        continue
+      }
+      const stripped = physicalLine.trimEnd()
+      const continued = stripped.endsWith('\\')
+      const segment = continued ? stripped.slice(0, -1) : physicalLine
+      current = current === null ? segment : current + segment
+      if (!continued) {
+        logicalLines.push(current)
+        current = null
+      }
+    }
+
+    if (current !== null) {
+      logicalLines.push(current)
+    }
+
+    return logicalLines
+  }
+
+  /**
    * Extracts source files from COPY commands in a Dockerfile.
    *
    * @param {string} dockerfileContent - The content of the Dockerfile.
@@ -610,7 +642,7 @@ export class Image {
    */
   private static extractCopySources(dockerfileContent: string, pathPrefix = ''): Array<[string, string]> {
     const sources: Array<[string, string]> = []
-    const lines = dockerfileContent.split('\n')
+    const lines = Image.dockerfileLogicalLines(dockerfileContent)
 
     for (const line of lines) {
       // Skip empty lines and comments
@@ -659,56 +691,48 @@ export class Image {
    */
   private static parseCopyCommand(line: string): { sources: string[]; dest: string } | null {
     // Remove initial "COPY" and strip whitespace
-    const parts = line.trim().substring(4).trim()
+    let parts = line.trim().substring(4).trim()
+
+    // Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
+    // the --flag=value form, so a flag never consumes the token that follows it.
+    while (parts.startsWith('--')) {
+      parts = parts.replace(/^\S+\s*/, '')
+    }
 
     // Handle JSON array format: COPY ["src1", "src2", "dest"]
     if (parts.startsWith('[')) {
+      let decoded: unknown
       try {
-        // Parse the JSON-like array format
-        const elements = parseShellQuote(parts.replace('[', '').replace(']', '')).filter(
-          (x): x is string => typeof x === 'string',
-        )
-
-        if (elements.length < 2) {
-          return null
-        }
-
-        return {
-          sources: elements.slice(0, -1),
-          dest: elements[elements.length - 1],
-        }
+        decoded = JSON.parse(parts)
       } catch {
         return null
       }
-    }
 
-    // Handle regular format with possible flags
-    const splitParts = parseShellQuote(parts).filter((x): x is string => typeof x === 'string')
+      if (!Array.isArray(decoded) || !decoded.every((element): element is string => typeof element === 'string')) {
+        return null
+      }
 
-    // Extract flags like --chown, --chmod, --from
-    let sourcesStartIdx = 0
-    for (let i = 0; i < splitParts.length; i++) {
-      const part = splitParts[i]
-      if (part.startsWith('--')) {
-        // Skip the flag and its value if it has one
-        if (!part.includes('=') && i + 1 < splitParts.length && !splitParts[i + 1].startsWith('--')) {
-          sourcesStartIdx = i + 2
-        } else {
-          sourcesStartIdx = i + 1
-        }
-      } else {
-        break
+      if (decoded.length < 2) {
+        return null
+      }
+
+      return {
+        sources: decoded.slice(0, -1),
+        dest: decoded[decoded.length - 1],
       }
     }
 
-    // After skipping flags, we need at least one source and one destination
-    if (splitParts.length - sourcesStartIdx < 2) {
+    // Handle the whitespace-separated format
+    const elements = parseShellQuote(parts).filter((x): x is string => typeof x === 'string')
+
+    // We need at least one source and one destination
+    if (elements.length < 2) {
       return null
     }
 
     return {
-      sources: splitParts.slice(sourcesStartIdx, -1),
-      dest: splitParts[splitParts.length - 1],
+      sources: elements.slice(0, -1),
+      dest: elements[elements.length - 1],
     }
   }
 }
