@@ -695,8 +695,8 @@ export class Image {
     // Remove initial "COPY" and strip whitespace
     let parts = line.trim().substring(4).trim()
 
-    // Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
-    // the --flag=value form, so a flag never consumes the token that follows it.
+    // Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+    // and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
     while (parts.startsWith('--')) {
       parts = parts.replace(/^\S+\s*/, '')
     }

@@ -593,8 +593,8 @@ class Image(BaseModel):
         # Remove initial "COPY" and strip whitespace
         parts = line.strip()[4:].strip()
 
-        # Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
-        # the --flag=value form, so a flag never consumes the token that follows it.
+        # Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+        # and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
         while parts.startswith("--"):
             flag_and_rest = parts.split(maxsplit=1)
             parts = flag_and_rest[1] if len(flag_and_rest) > 1 else ""

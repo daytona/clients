@@ -441,8 +441,8 @@ module Daytona
         # Remove initial "COPY" and strip whitespace
         parts = line.strip[4..].strip
 
-        # Skip leading flags such as --chown=..., --chmod=... or --link. Docker only accepts
-        # the --flag=value form, so a flag never consumes the token that follows it.
+        # Skip leading flags. Value-taking flags use the --flag=value form (--chown=..., --chmod=...)
+        # and boolean flags stand alone (--link), so a flag never consumes the token that follows it.
         parts = parts.sub(/\A\S+\s*/, '') while parts.start_with?('--')
 
         # Handle JSON array format: COPY ["src1", "src2", "dest"]
