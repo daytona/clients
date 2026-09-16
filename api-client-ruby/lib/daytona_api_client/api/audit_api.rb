@@ -79,8 +79,8 @@ module DaytonaApiClient
     # Get audit logs for organization
     # @param organization_id [String] Organization ID
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
     # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.
@@ -103,8 +103,8 @@ module DaytonaApiClient
     # Get audit logs for organization
     # @param organization_id [String] Organization ID
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [Time] :from Deprecated alias for &#x60;createdAt[gte]&#x60;. From date (ISO 8601 format).
     # @option opts [Time] :to Deprecated alias for &#x60;createdAt[lte]&#x60;. To date (ISO 8601 format).
     # @option opts [String] :next_token Token for cursor-based pagination. When provided, takes precedence over page parameter.

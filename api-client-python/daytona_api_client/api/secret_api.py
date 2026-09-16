@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 from pydantic import Field, StrictStr, field_validator
-from typing import List, Optional, Union
+from typing import List, Optional
 from typing_extensions import Annotated
 from daytona_api_client.models.create_secret import CreateSecret
 from daytona_api_client.models.list_secrets_response import ListSecretsResponse
@@ -1140,7 +1140,7 @@ class SecretApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
@@ -1165,7 +1165,7 @@ class SecretApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param sort: Field to sort by
@@ -1226,7 +1226,7 @@ class SecretApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
@@ -1251,7 +1251,7 @@ class SecretApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param sort: Field to sort by
@@ -1312,7 +1312,7 @@ class SecretApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
         order: Annotated[Optional[StrictStr], Field(description="Direction to sort by")] = None,
@@ -1337,7 +1337,7 @@ class SecretApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param sort: Field to sort by

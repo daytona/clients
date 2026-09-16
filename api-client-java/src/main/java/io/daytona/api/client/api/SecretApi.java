@@ -27,7 +27,6 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
-import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSecret;
 import io.daytona.api.client.model.ListSecretsResponse;
 import io.daytona.api.client.model.Secret;
@@ -632,7 +631,7 @@ public class SecretApi {
         <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listSecretsPaginatedCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call listSecretsPaginatedCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -702,7 +701,7 @@ public class SecretApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call listSecretsPaginatedValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call listSecretsPaginatedValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
         return listSecretsPaginatedCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, _callback);
 
     }
@@ -725,7 +724,7 @@ public class SecretApi {
         <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
      */
-    public ListSecretsResponse listSecretsPaginated(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+    public ListSecretsResponse listSecretsPaginated(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
         ApiResponse<ListSecretsResponse> localVarResp = listSecretsPaginatedWithHttpInfo(xDaytonaOrganizationID, cursor, limit, name, sort, order);
         return localVarResp.getData();
     }
@@ -748,7 +747,7 @@ public class SecretApi {
         <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<ListSecretsResponse> listSecretsPaginatedWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+    public ApiResponse<ListSecretsResponse> listSecretsPaginatedWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
         okhttp3.Call localVarCall = listSecretsPaginatedValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, null);
         Type localVarReturnType = new TypeToken<ListSecretsResponse>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
@@ -773,7 +772,7 @@ public class SecretApi {
         <tr><td> 200 </td><td> Paginated list of secrets (metadata only, values are not returned) </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listSecretsPaginatedAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<ListSecretsResponse> _callback) throws ApiException {
+    public okhttp3.Call listSecretsPaginatedAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable String cursor, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<ListSecretsResponse> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = listSecretsPaginatedValidateBeforeCall(xDaytonaOrganizationID, cursor, limit, name, sort, order, _callback);
         Type localVarReturnType = new TypeToken<ListSecretsResponse>(){}.getType();

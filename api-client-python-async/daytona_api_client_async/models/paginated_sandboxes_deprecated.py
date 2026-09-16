@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
-from typing import Any, ClassVar, Dict, List, Union
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from typing import Any, ClassVar, Dict, List
 from daytona_api_client_async.models.sandbox import Sandbox
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -32,9 +32,9 @@ class PaginatedSandboxesDeprecated(BaseModel):
     PaginatedSandboxesDeprecated
     """ # noqa: E501
     items: List[Sandbox]
-    total: Union[StrictFloat, StrictInt]
-    page: Union[StrictFloat, StrictInt]
-    total_pages: Union[StrictFloat, StrictInt] = Field(serialization_alias="totalPages")
+    total: StrictInt
+    page: StrictInt
+    total_pages: StrictInt = Field(serialization_alias="totalPages")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["items", "total", "page", "totalPages"]
 

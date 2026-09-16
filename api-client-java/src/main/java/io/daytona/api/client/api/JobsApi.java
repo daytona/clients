@@ -27,7 +27,6 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
-import java.math.BigDecimal;
 import io.daytona.api.client.model.Job;
 import io.daytona.api.client.model.JobStatus;
 import io.daytona.api.client.model.PaginatedJobs;
@@ -220,7 +219,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listJobsCall(@javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable BigDecimal offset, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call listJobsCall(@javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable Integer offset, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -281,7 +280,7 @@ public class JobsApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call listJobsValidateBeforeCall(@javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable BigDecimal offset, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call listJobsValidateBeforeCall(@javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable Integer offset, final ApiCallback _callback) throws ApiException {
         return listJobsCall(page, limit, status, offset, _callback);
 
     }
@@ -302,7 +301,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public PaginatedJobs listJobs(@javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable BigDecimal offset) throws ApiException {
+    public PaginatedJobs listJobs(@javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable Integer offset) throws ApiException {
         ApiResponse<PaginatedJobs> localVarResp = listJobsWithHttpInfo(page, limit, status, offset);
         return localVarResp.getData();
     }
@@ -323,7 +322,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<PaginatedJobs> listJobsWithHttpInfo(@javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable BigDecimal offset) throws ApiException {
+    public ApiResponse<PaginatedJobs> listJobsWithHttpInfo(@javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable Integer offset) throws ApiException {
         okhttp3.Call localVarCall = listJobsValidateBeforeCall(page, limit, status, offset, null);
         Type localVarReturnType = new TypeToken<PaginatedJobs>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
@@ -346,7 +345,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call listJobsAsync(@javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable BigDecimal offset, final ApiCallback<PaginatedJobs> _callback) throws ApiException {
+    public okhttp3.Call listJobsAsync(@javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable JobStatus status, @javax.annotation.Nullable Integer offset, final ApiCallback<PaginatedJobs> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = listJobsValidateBeforeCall(page, limit, status, offset, _callback);
         Type localVarReturnType = new TypeToken<PaginatedJobs>(){}.getType();
@@ -367,7 +366,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call pollJobsCall(@javax.annotation.Nullable BigDecimal timeout, @javax.annotation.Nullable BigDecimal limit, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call pollJobsCall(@javax.annotation.Nullable Integer timeout, @javax.annotation.Nullable Integer limit, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -420,7 +419,7 @@ public class JobsApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call pollJobsValidateBeforeCall(@javax.annotation.Nullable BigDecimal timeout, @javax.annotation.Nullable BigDecimal limit, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call pollJobsValidateBeforeCall(@javax.annotation.Nullable Integer timeout, @javax.annotation.Nullable Integer limit, final ApiCallback _callback) throws ApiException {
         return pollJobsCall(timeout, limit, _callback);
 
     }
@@ -439,7 +438,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public PollJobsResponse pollJobs(@javax.annotation.Nullable BigDecimal timeout, @javax.annotation.Nullable BigDecimal limit) throws ApiException {
+    public PollJobsResponse pollJobs(@javax.annotation.Nullable Integer timeout, @javax.annotation.Nullable Integer limit) throws ApiException {
         ApiResponse<PollJobsResponse> localVarResp = pollJobsWithHttpInfo(timeout, limit);
         return localVarResp.getData();
     }
@@ -458,7 +457,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<PollJobsResponse> pollJobsWithHttpInfo(@javax.annotation.Nullable BigDecimal timeout, @javax.annotation.Nullable BigDecimal limit) throws ApiException {
+    public ApiResponse<PollJobsResponse> pollJobsWithHttpInfo(@javax.annotation.Nullable Integer timeout, @javax.annotation.Nullable Integer limit) throws ApiException {
         okhttp3.Call localVarCall = pollJobsValidateBeforeCall(timeout, limit, null);
         Type localVarReturnType = new TypeToken<PollJobsResponse>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
@@ -479,7 +478,7 @@ public class JobsApi {
         <tr><td> 200 </td><td> List of jobs for the runner </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call pollJobsAsync(@javax.annotation.Nullable BigDecimal timeout, @javax.annotation.Nullable BigDecimal limit, final ApiCallback<PollJobsResponse> _callback) throws ApiException {
+    public okhttp3.Call pollJobsAsync(@javax.annotation.Nullable Integer timeout, @javax.annotation.Nullable Integer limit, final ApiCallback<PollJobsResponse> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = pollJobsValidateBeforeCall(timeout, limit, _callback);
         Type localVarReturnType = new TypeToken<PollJobsResponse>(){}.getType();

@@ -13,7 +13,6 @@ import io.daytona.sdk.model.PaginatedSnapshots;
 import io.daytona.sdk.model.Snapshot;
 import okhttp3.OkHttpClient;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -222,7 +221,7 @@ public class SnapshotService {
         int p = page == null ? 1 : page;
         int l = limit == null ? 10 : limit;
         io.daytona.api.client.model.PaginatedSnapshots result = ExceptionMapper.callMain(
-                () -> snapshotsApi.getAllSnapshots(null, BigDecimal.valueOf(p), BigDecimal.valueOf(l), null, sourceSandboxId, null, null)
+                () -> snapshotsApi.getAllSnapshots(null, p, l, null, sourceSandboxId, null, null)
         );
 
         PaginatedSnapshots output = new PaginatedSnapshots();

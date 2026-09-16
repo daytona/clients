@@ -323,7 +323,7 @@ public class Daytona implements AutoCloseable {
      */
     PageResult fetchSandboxPage(ListSandboxesQuery query, String cursor) {
         String labelsJson = null;
-        BigDecimal limitVal = null;
+        Integer limitVal = null;
         String id = null;
         String name = null;
         List<io.daytona.api.client.model.SandboxState> states = null;
@@ -347,7 +347,7 @@ public class Daytona implements AutoCloseable {
         io.daytona.api.client.model.SandboxListSortDirection order = null;
 
         if (query != null) {
-            if (query.getLimit() != null) limitVal = BigDecimal.valueOf(query.getLimit());
+            if (query.getLimit() != null) limitVal = query.getLimit();
             id = query.getId();
             name = query.getName();
             if (query.getLabels() != null && !query.getLabels().isEmpty()) {
@@ -381,7 +381,7 @@ public class Daytona implements AutoCloseable {
 
         final String fLabelsJson = labelsJson;
         final String fCursor = cursor;
-        final BigDecimal fLimitVal = limitVal;
+        final Integer fLimitVal = limitVal;
         final String fId = id;
         final String fName = name;
         final List<io.daytona.api.client.model.SandboxState> fStates = states;

@@ -552,7 +552,7 @@ type SecretAPIListSecretsPaginatedRequest struct {
 	ApiService SecretAPI
 	xDaytonaOrganizationID *string
 	cursor *string
-	limit *float32
+	limit *int32
 	name *string
 	sort *string
 	order *string
@@ -571,7 +571,7 @@ func (r SecretAPIListSecretsPaginatedRequest) Cursor(cursor string) SecretAPILis
 }
 
 // Number of results per page
-func (r SecretAPIListSecretsPaginatedRequest) Limit(limit float32) SecretAPIListSecretsPaginatedRequest {
+func (r SecretAPIListSecretsPaginatedRequest) Limit(limit int32) SecretAPIListSecretsPaginatedRequest {
 	r.limit = &limit
 	return r
 }
@@ -638,7 +638,7 @@ func (a *SecretAPIService) ListSecretsPaginatedExecute(r SecretAPIListSecretsPag
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}

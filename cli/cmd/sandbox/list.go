@@ -32,10 +32,10 @@ var ListCmd = &cobra.Command{
 			return err
 		}
 
-		limit := float32(100.0)
+		limit := int32(100)
 
 		if cmd.Flags().Changed("limit") {
-			limit = float32(limitFlag)
+			limit = int32(limitFlag)
 		}
 
 		request := apiClient.SandboxAPI.ListSandboxes(ctx).Limit(limit)

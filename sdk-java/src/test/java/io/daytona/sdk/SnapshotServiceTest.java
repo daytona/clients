@@ -29,7 +29,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -194,9 +193,9 @@ class SnapshotServiceTest {
                 snapshotDto("snap-1", "one", SnapshotState.ACTIVE),
                 snapshotDto("snap-2", "two", SnapshotState.ACTIVE)
         ));
-        response.setTotal(BigDecimal.valueOf(2));
-        response.setPage(BigDecimal.ONE);
-        response.setTotalPages(BigDecimal.ONE);
+        response.setTotal(2);
+        response.setPage(1);
+        response.setTotalPages(1);
         when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), isNull(), isNull(), isNull())).thenReturn(response);
 
         PaginatedSnapshots snapshots = snapshotService.list(null, null);
@@ -210,9 +209,9 @@ class SnapshotServiceTest {
     void listPassesSourceSandboxIdFilter() {
         io.daytona.api.client.model.PaginatedSnapshots response = new io.daytona.api.client.model.PaginatedSnapshots();
         response.setItems(Arrays.asList(snapshotDto("snap-1", "one", SnapshotState.ACTIVE)));
-        response.setTotal(BigDecimal.ONE);
-        response.setPage(BigDecimal.ONE);
-        response.setTotalPages(BigDecimal.ONE);
+        response.setTotal(1);
+        response.setPage(1);
+        response.setTotalPages(1);
         when(snapshotsApi.getAllSnapshots(isNull(), any(), any(), isNull(), eq("sandbox-1"), isNull(), isNull())).thenReturn(response);
 
         PaginatedSnapshots snapshots = snapshotService.list(null, null, "sandbox-1");

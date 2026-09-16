@@ -22,9 +22,9 @@ var _ MappedNullable = &PaginatedJobs{}
 // PaginatedJobs struct for PaginatedJobs
 type PaginatedJobs struct {
 	Items []Job `json:"items"`
-	Total float32 `json:"total"`
-	Page float32 `json:"page"`
-	TotalPages float32 `json:"totalPages"`
+	Total int32 `json:"total"`
+	Page int32 `json:"page"`
+	TotalPages int32 `json:"totalPages"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -34,7 +34,7 @@ type _PaginatedJobs PaginatedJobs
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewPaginatedJobs(items []Job, total float32, page float32, totalPages float32) *PaginatedJobs {
+func NewPaginatedJobs(items []Job, total int32, page int32, totalPages int32) *PaginatedJobs {
 	this := PaginatedJobs{}
 	this.Items = items
 	this.Total = total
@@ -76,9 +76,9 @@ func (o *PaginatedJobs) SetItems(v []Job) {
 }
 
 // GetTotal returns the Total field value
-func (o *PaginatedJobs) GetTotal() float32 {
+func (o *PaginatedJobs) GetTotal() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -87,7 +87,7 @@ func (o *PaginatedJobs) GetTotal() float32 {
 
 // GetTotalOk returns a tuple with the Total field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedJobs) GetTotalOk() (*float32, bool) {
+func (o *PaginatedJobs) GetTotalOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -95,14 +95,14 @@ func (o *PaginatedJobs) GetTotalOk() (*float32, bool) {
 }
 
 // SetTotal sets field value
-func (o *PaginatedJobs) SetTotal(v float32) {
+func (o *PaginatedJobs) SetTotal(v int32) {
 	o.Total = v
 }
 
 // GetPage returns the Page field value
-func (o *PaginatedJobs) GetPage() float32 {
+func (o *PaginatedJobs) GetPage() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -111,7 +111,7 @@ func (o *PaginatedJobs) GetPage() float32 {
 
 // GetPageOk returns a tuple with the Page field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedJobs) GetPageOk() (*float32, bool) {
+func (o *PaginatedJobs) GetPageOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -119,14 +119,14 @@ func (o *PaginatedJobs) GetPageOk() (*float32, bool) {
 }
 
 // SetPage sets field value
-func (o *PaginatedJobs) SetPage(v float32) {
+func (o *PaginatedJobs) SetPage(v int32) {
 	o.Page = v
 }
 
 // GetTotalPages returns the TotalPages field value
-func (o *PaginatedJobs) GetTotalPages() float32 {
+func (o *PaginatedJobs) GetTotalPages() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -135,7 +135,7 @@ func (o *PaginatedJobs) GetTotalPages() float32 {
 
 // GetTotalPagesOk returns a tuple with the TotalPages field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedJobs) GetTotalPagesOk() (*float32, bool) {
+func (o *PaginatedJobs) GetTotalPagesOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -143,7 +143,7 @@ func (o *PaginatedJobs) GetTotalPagesOk() (*float32, bool) {
 }
 
 // SetTotalPages sets field value
-func (o *PaginatedJobs) SetTotalPages(v float32) {
+func (o *PaginatedJobs) SetTotalPages(v int32) {
 	o.TotalPages = v
 }
 

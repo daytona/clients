@@ -278,7 +278,7 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @option opts [String] :cursor Pagination cursor from a previous response
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :sort Field to sort by (default to 'createdAt')
     # @option opts [String] :order Direction to sort by (default to 'desc')
@@ -292,7 +292,7 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @option opts [String] :cursor Pagination cursor from a previous response
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :sort Field to sort by (default to 'createdAt')
     # @option opts [String] :order Direction to sort by (default to 'desc')

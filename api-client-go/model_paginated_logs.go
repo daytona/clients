@@ -24,11 +24,11 @@ type PaginatedLogs struct {
 	// List of log entries
 	Items []LogEntry `json:"items"`
 	// Total number of log entries matching the query
-	Total float32 `json:"total"`
+	Total int32 `json:"total"`
 	// Current page number
-	Page float32 `json:"page"`
+	Page int32 `json:"page"`
 	// Total number of pages
-	TotalPages float32 `json:"totalPages"`
+	TotalPages int32 `json:"totalPages"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -38,7 +38,7 @@ type _PaginatedLogs PaginatedLogs
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewPaginatedLogs(items []LogEntry, total float32, page float32, totalPages float32) *PaginatedLogs {
+func NewPaginatedLogs(items []LogEntry, total int32, page int32, totalPages int32) *PaginatedLogs {
 	this := PaginatedLogs{}
 	this.Items = items
 	this.Total = total
@@ -80,9 +80,9 @@ func (o *PaginatedLogs) SetItems(v []LogEntry) {
 }
 
 // GetTotal returns the Total field value
-func (o *PaginatedLogs) GetTotal() float32 {
+func (o *PaginatedLogs) GetTotal() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -91,7 +91,7 @@ func (o *PaginatedLogs) GetTotal() float32 {
 
 // GetTotalOk returns a tuple with the Total field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedLogs) GetTotalOk() (*float32, bool) {
+func (o *PaginatedLogs) GetTotalOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -99,14 +99,14 @@ func (o *PaginatedLogs) GetTotalOk() (*float32, bool) {
 }
 
 // SetTotal sets field value
-func (o *PaginatedLogs) SetTotal(v float32) {
+func (o *PaginatedLogs) SetTotal(v int32) {
 	o.Total = v
 }
 
 // GetPage returns the Page field value
-func (o *PaginatedLogs) GetPage() float32 {
+func (o *PaginatedLogs) GetPage() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -115,7 +115,7 @@ func (o *PaginatedLogs) GetPage() float32 {
 
 // GetPageOk returns a tuple with the Page field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedLogs) GetPageOk() (*float32, bool) {
+func (o *PaginatedLogs) GetPageOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -123,14 +123,14 @@ func (o *PaginatedLogs) GetPageOk() (*float32, bool) {
 }
 
 // SetPage sets field value
-func (o *PaginatedLogs) SetPage(v float32) {
+func (o *PaginatedLogs) SetPage(v int32) {
 	o.Page = v
 }
 
 // GetTotalPages returns the TotalPages field value
-func (o *PaginatedLogs) GetTotalPages() float32 {
+func (o *PaginatedLogs) GetTotalPages() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -139,7 +139,7 @@ func (o *PaginatedLogs) GetTotalPages() float32 {
 
 // GetTotalPagesOk returns a tuple with the TotalPages field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedLogs) GetTotalPagesOk() (*float32, bool) {
+func (o *PaginatedLogs) GetTotalPagesOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -147,7 +147,7 @@ func (o *PaginatedLogs) GetTotalPagesOk() (*float32, bool) {
 }
 
 // SetTotalPages sets field value
-func (o *PaginatedLogs) SetTotalPages(v float32) {
+func (o *PaginatedLogs) SetTotalPages(v int32) {
 	o.TotalPages = v
 }
 

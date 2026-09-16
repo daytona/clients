@@ -14,7 +14,6 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
-import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSnapshot;
 import io.daytona.api.client.model.PaginatedSnapshots;
 import io.daytona.api.client.model.SnapshotDto;
@@ -82,8 +81,8 @@ public class SnapshotsApiTest {
     @Test
     public void getAllSnapshotsTest() throws ApiException {
         String xDaytonaOrganizationID = null;
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         String name = null;
         String sourceSandboxId = null;
         String sort = null;

@@ -33,15 +33,15 @@ var ListCmd = &cobra.Command{
 			return err
 		}
 
-		page := float32(1.0)
-		limit := float32(100.0)
+		page := int32(1)
+		limit := int32(100)
 
 		if cmd.Flags().Changed("page") {
-			page = float32(pageFlag)
+			page = int32(pageFlag)
 		}
 
 		if cmd.Flags().Changed("limit") {
-			limit = float32(limitFlag)
+			limit = int32(limitFlag)
 		}
 
 		req := apiClient.SnapshotsAPI.GetAllSnapshots(ctx).Page(page).Limit(limit)

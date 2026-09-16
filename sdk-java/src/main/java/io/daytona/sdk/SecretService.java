@@ -12,7 +12,6 @@ import io.daytona.sdk.model.ListSecretsResponse;
 import io.daytona.sdk.model.Secret;
 import io.daytona.sdk.model.UpdateSecretParams;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -104,7 +103,7 @@ public class SecretService {
      */
     public ListSecretsResponse list(ListSecretsQuery query) {
         String cursor = query == null ? null : query.getCursor();
-        BigDecimal limit = query == null || query.getLimit() == null ? null : BigDecimal.valueOf(query.getLimit());
+        Integer limit = query == null ? null : query.getLimit();
         String name = query == null ? null : query.getName();
         String sort = query == null ? null : query.getSort();
         String order = query == null ? null : query.getOrder();

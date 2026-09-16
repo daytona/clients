@@ -47,9 +47,9 @@ module DaytonaApiClient
     def self.openapi_types
       {
         :'items' => :'Array<SnapshotDto>',
-        :'total' => :'Float',
-        :'page' => :'Float',
-        :'total_pages' => :'Float'
+        :'total' => :'Integer',
+        :'page' => :'Integer',
+        :'total_pages' => :'Integer'
       }
     end
 

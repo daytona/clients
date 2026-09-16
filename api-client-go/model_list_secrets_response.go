@@ -24,7 +24,7 @@ type ListSecretsResponse struct {
 	// List of results for the current page
 	Items []Secret `json:"items"`
 	// Total number of secrets matching the filters
-	Total float32 `json:"total"`
+	Total int32 `json:"total"`
 	// Cursor for the next page of results
 	NextCursor NullableString `json:"nextCursor"`
 	AdditionalProperties map[string]interface{}
@@ -36,7 +36,7 @@ type _ListSecretsResponse ListSecretsResponse
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewListSecretsResponse(items []Secret, total float32, nextCursor NullableString) *ListSecretsResponse {
+func NewListSecretsResponse(items []Secret, total int32, nextCursor NullableString) *ListSecretsResponse {
 	this := ListSecretsResponse{}
 	this.Items = items
 	this.Total = total
@@ -77,9 +77,9 @@ func (o *ListSecretsResponse) SetItems(v []Secret) {
 }
 
 // GetTotal returns the Total field value
-func (o *ListSecretsResponse) GetTotal() float32 {
+func (o *ListSecretsResponse) GetTotal() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -88,7 +88,7 @@ func (o *ListSecretsResponse) GetTotal() float32 {
 
 // GetTotalOk returns a tuple with the Total field value
 // and a boolean to check if the value has been set.
-func (o *ListSecretsResponse) GetTotalOk() (*float32, bool) {
+func (o *ListSecretsResponse) GetTotalOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -96,7 +96,7 @@ func (o *ListSecretsResponse) GetTotalOk() (*float32, bool) {
 }
 
 // SetTotal sets field value
-func (o *ListSecretsResponse) SetTotal(v float32) {
+func (o *ListSecretsResponse) SetTotal(v int32) {
 	o.Total = v
 }
 

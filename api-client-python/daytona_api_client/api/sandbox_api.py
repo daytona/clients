@@ -4642,8 +4642,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         severities: Annotated[Optional[List[StrictStr]], Field(description="Filter by severity levels (DEBUG, INFO, WARN, ERROR)")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in log body")] = None,
         _request_timeout: Union[
@@ -4672,9 +4672,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param severities: Filter by severity levels (DEBUG, INFO, WARN, ERROR)
         :type severities: List[str]
         :param search: Search in log body
@@ -4737,8 +4737,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         severities: Annotated[Optional[List[StrictStr]], Field(description="Filter by severity levels (DEBUG, INFO, WARN, ERROR)")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in log body")] = None,
         _request_timeout: Union[
@@ -4767,9 +4767,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param severities: Filter by severity levels (DEBUG, INFO, WARN, ERROR)
         :type severities: List[str]
         :param search: Search in log body
@@ -4832,8 +4832,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         severities: Annotated[Optional[List[StrictStr]], Field(description="Filter by severity levels (DEBUG, INFO, WARN, ERROR)")] = None,
         search: Annotated[Optional[StrictStr], Field(description="Search in log body")] = None,
         _request_timeout: Union[
@@ -4862,9 +4862,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param severities: Filter by severity levels (DEBUG, INFO, WARN, ERROR)
         :type severities: List[str]
         :param search: Search in log body
@@ -6227,8 +6227,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -6255,9 +6255,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -6314,8 +6314,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -6342,9 +6342,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -6401,8 +6401,8 @@ class SandboxApi:
         var_from: Annotated[datetime, Field(description="Start of time range (ISO 8601)")],
         to: Annotated[datetime, Field(description="End of time range (ISO 8601)")],
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Page number (1-indexed)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of items per page")] = None,
+        page: Annotated[Optional[StrictInt], Field(description="Page number (1-indexed)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Number of items per page")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -6429,9 +6429,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number (1-indexed)
-        :type page: float
+        :type page: int
         :param limit: Number of items per page
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -7461,7 +7461,7 @@ class SandboxApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by ID prefix (case-insensitive)")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -7509,7 +7509,7 @@ class SandboxApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by ID prefix (case-insensitive)
         :type id: str
         :param name: Filter by name prefix (case-insensitive)
@@ -7636,7 +7636,7 @@ class SandboxApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by ID prefix (case-insensitive)")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -7684,7 +7684,7 @@ class SandboxApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by ID prefix (case-insensitive)
         :type id: str
         :param name: Filter by name prefix (case-insensitive)
@@ -7811,7 +7811,7 @@ class SandboxApi:
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
         cursor: Annotated[Optional[StrictStr], Field(description="Pagination cursor from a previous response")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by ID prefix (case-insensitive)")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by name prefix (case-insensitive)")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -7859,7 +7859,7 @@ class SandboxApi:
         :param cursor: Pagination cursor from a previous response
         :type cursor: str
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by ID prefix (case-insensitive)
         :type id: str
         :param name: Filter by name prefix (case-insensitive)
@@ -8239,8 +8239,8 @@ class SandboxApi:
     def list_sandboxes_paginated_deprecated(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by partial ID match")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -8277,9 +8277,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by partial ID match
         :type id: str
         :param name: Filter by partial name match
@@ -8382,8 +8382,8 @@ class SandboxApi:
     def list_sandboxes_paginated_deprecated_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by partial ID match")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -8420,9 +8420,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by partial ID match
         :type id: str
         :param name: Filter by partial name match
@@ -8525,8 +8525,8 @@ class SandboxApi:
     def list_sandboxes_paginated_deprecated_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         id: Annotated[Optional[StrictStr], Field(description="Filter by partial ID match")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         labels: Annotated[Optional[StrictStr], Field(description="JSON encoded labels to filter by")] = None,
@@ -8563,9 +8563,9 @@ class SandboxApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param id: Filter by partial ID match
         :type id: str
         :param name: Filter by partial name match

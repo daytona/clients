@@ -50,9 +50,9 @@ type Sandbox struct {
 	// The target environment for the sandbox
 	Target string `json:"target"`
 	// The CPU quota for the sandbox
-	Cpu float32 `json:"cpu"`
+	Cpu int32 `json:"cpu"`
 	// The GPU quota for the sandbox
-	Gpu float32 `json:"gpu"`
+	Gpu int32 `json:"gpu"`
 	// Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
 	Spot *bool `json:"spot,omitempty"`
 	// When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
@@ -60,9 +60,9 @@ type Sandbox struct {
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
 	// The memory quota for the sandbox
-	Memory float32 `json:"memory"`
+	Memory int32 `json:"memory"`
 	// The disk quota for the sandbox
-	Disk float32 `json:"disk"`
+	Disk int32 `json:"disk"`
 	// The state of the sandbox
 	State *SandboxState `json:"state,omitempty"`
 	// The desired state of the sandbox
@@ -118,7 +118,7 @@ type _Sandbox Sandbox
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu float32, gpu float32, memory float32, disk float32, toolboxProxyUrl string) *Sandbox {
+func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string) *Sandbox {
 	this := Sandbox{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -526,9 +526,9 @@ func (o *Sandbox) SetTarget(v string) {
 }
 
 // GetCpu returns the Cpu field value
-func (o *Sandbox) GetCpu() float32 {
+func (o *Sandbox) GetCpu() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -537,7 +537,7 @@ func (o *Sandbox) GetCpu() float32 {
 
 // GetCpuOk returns a tuple with the Cpu field value
 // and a boolean to check if the value has been set.
-func (o *Sandbox) GetCpuOk() (*float32, bool) {
+func (o *Sandbox) GetCpuOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -545,14 +545,14 @@ func (o *Sandbox) GetCpuOk() (*float32, bool) {
 }
 
 // SetCpu sets field value
-func (o *Sandbox) SetCpu(v float32) {
+func (o *Sandbox) SetCpu(v int32) {
 	o.Cpu = v
 }
 
 // GetGpu returns the Gpu field value
-func (o *Sandbox) GetGpu() float32 {
+func (o *Sandbox) GetGpu() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -561,7 +561,7 @@ func (o *Sandbox) GetGpu() float32 {
 
 // GetGpuOk returns a tuple with the Gpu field value
 // and a boolean to check if the value has been set.
-func (o *Sandbox) GetGpuOk() (*float32, bool) {
+func (o *Sandbox) GetGpuOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -569,7 +569,7 @@ func (o *Sandbox) GetGpuOk() (*float32, bool) {
 }
 
 // SetGpu sets field value
-func (o *Sandbox) SetGpu(v float32) {
+func (o *Sandbox) SetGpu(v int32) {
 	o.Gpu = v
 }
 
@@ -670,9 +670,9 @@ func (o *Sandbox) SetGpuType(v GpuType) {
 }
 
 // GetMemory returns the Memory field value
-func (o *Sandbox) GetMemory() float32 {
+func (o *Sandbox) GetMemory() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -681,7 +681,7 @@ func (o *Sandbox) GetMemory() float32 {
 
 // GetMemoryOk returns a tuple with the Memory field value
 // and a boolean to check if the value has been set.
-func (o *Sandbox) GetMemoryOk() (*float32, bool) {
+func (o *Sandbox) GetMemoryOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -689,14 +689,14 @@ func (o *Sandbox) GetMemoryOk() (*float32, bool) {
 }
 
 // SetMemory sets field value
-func (o *Sandbox) SetMemory(v float32) {
+func (o *Sandbox) SetMemory(v int32) {
 	o.Memory = v
 }
 
 // GetDisk returns the Disk field value
-func (o *Sandbox) GetDisk() float32 {
+func (o *Sandbox) GetDisk() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -705,7 +705,7 @@ func (o *Sandbox) GetDisk() float32 {
 
 // GetDiskOk returns a tuple with the Disk field value
 // and a boolean to check if the value has been set.
-func (o *Sandbox) GetDiskOk() (*float32, bool) {
+func (o *Sandbox) GetDiskOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -713,7 +713,7 @@ func (o *Sandbox) GetDiskOk() (*float32, bool) {
 }
 
 // SetDisk sets field value
-func (o *Sandbox) SetDisk(v float32) {
+func (o *Sandbox) SetDisk(v int32) {
 	o.Disk = v
 }
 

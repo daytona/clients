@@ -16,8 +16,8 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictFloat, StrictInt, StrictStr
-from typing import Optional, Union
+from pydantic import Field, StrictInt, StrictStr
+from typing import Optional
 from typing_extensions import Annotated
 from daytona_api_client.models.job import Job
 from daytona_api_client.models.job_status import JobStatus
@@ -305,10 +305,10 @@ class JobsApi:
     @validate_call
     def list_jobs(
         self,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
         status: Annotated[Optional[JobStatus], Field(description="Filter jobs by status")] = None,
-        offset: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -327,13 +327,13 @@ class JobsApi:
         Returns a paginated list of jobs for the runner, optionally filtered by status.
 
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Maximum number of jobs to return (default: 100, max: 500)
-        :type limit: float
+        :type limit: int
         :param status: Filter jobs by status
         :type status: JobStatus
         :param offset: Number of jobs to skip for pagination (default: 0)
-        :type offset: float
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -384,10 +384,10 @@ class JobsApi:
     @validate_call
     def list_jobs_with_http_info(
         self,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
         status: Annotated[Optional[JobStatus], Field(description="Filter jobs by status")] = None,
-        offset: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -406,13 +406,13 @@ class JobsApi:
         Returns a paginated list of jobs for the runner, optionally filtered by status.
 
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Maximum number of jobs to return (default: 100, max: 500)
-        :type limit: float
+        :type limit: int
         :param status: Filter jobs by status
         :type status: JobStatus
         :param offset: Number of jobs to skip for pagination (default: 0)
-        :type offset: float
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -463,10 +463,10 @@ class JobsApi:
     @validate_call
     def list_jobs_without_preload_content(
         self,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Maximum number of jobs to return (default: 100, max: 500)")] = None,
         status: Annotated[Optional[JobStatus], Field(description="Filter jobs by status")] = None,
-        offset: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of jobs to skip for pagination (default: 0)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -485,13 +485,13 @@ class JobsApi:
         Returns a paginated list of jobs for the runner, optionally filtered by status.
 
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Maximum number of jobs to return (default: 100, max: 500)
-        :type limit: float
+        :type limit: int
         :param status: Filter jobs by status
         :type status: JobStatus
         :param offset: Number of jobs to skip for pagination (default: 0)
-        :type offset: float
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -620,8 +620,8 @@ class JobsApi:
     @validate_call
     def poll_jobs(
         self,
-        timeout: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
+        timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -640,9 +640,9 @@ class JobsApi:
         Long poll endpoint for runners to fetch pending jobs. Returns immediately if jobs are available, otherwise waits up to timeout seconds.
 
         :param timeout: Timeout in seconds for long polling (default: 30, max: 60)
-        :type timeout: float
+        :type timeout: int
         :param limit: Maximum number of jobs to return (default: 10, max: 100)
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -691,8 +691,8 @@ class JobsApi:
     @validate_call
     def poll_jobs_with_http_info(
         self,
-        timeout: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
+        timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -711,9 +711,9 @@ class JobsApi:
         Long poll endpoint for runners to fetch pending jobs. Returns immediately if jobs are available, otherwise waits up to timeout seconds.
 
         :param timeout: Timeout in seconds for long polling (default: 30, max: 60)
-        :type timeout: float
+        :type timeout: int
         :param limit: Maximum number of jobs to return (default: 10, max: 100)
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -762,8 +762,8 @@ class JobsApi:
     @validate_call
     def poll_jobs_without_preload_content(
         self,
-        timeout: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
-        limit: Annotated[Optional[Union[StrictFloat, StrictInt]], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
+        timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Maximum number of jobs to return (default: 10, max: 100)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -782,9 +782,9 @@ class JobsApi:
         Long poll endpoint for runners to fetch pending jobs. Returns immediately if jobs are available, otherwise waits up to timeout seconds.
 
         :param timeout: Timeout in seconds for long polling (default: 30, max: 60)
-        :type timeout: float
+        :type timeout: int
         :param limit: Maximum number of jobs to return (default: 10, max: 100)
-        :type limit: float
+        :type limit: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of

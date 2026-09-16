@@ -819,7 +819,7 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 		}
 		if query != nil {
 			if query.Limit != nil {
-				request = request.Limit(float32(*query.Limit))
+				request = request.Limit(int32(*query.Limit))
 			}
 			if query.ID != nil {
 				request = request.Id(*query.ID)

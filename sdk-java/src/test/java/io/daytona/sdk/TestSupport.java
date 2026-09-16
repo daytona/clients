@@ -11,7 +11,6 @@ import okhttp3.OkHttpClient;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
-import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,10 +29,10 @@ final class TestSupport {
         sandbox.setPublic(false);
         sandbox.setNetworkBlockAll(false);
         sandbox.setTarget("us");
-        sandbox.setCpu(BigDecimal.ONE);
-        sandbox.setGpu(BigDecimal.ZERO);
-        sandbox.setMemory(BigDecimal.valueOf(2));
-        sandbox.setDisk(BigDecimal.valueOf(3));
+        sandbox.setCpu(1);
+        sandbox.setGpu(0);
+        sandbox.setMemory(2);
+        sandbox.setDisk(3);
         sandbox.setState(state);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
         sandbox.setSandboxClass(io.daytona.api.client.model.Sandbox.SandboxClassEnum.LINUX_VM);
@@ -60,10 +59,10 @@ final class TestSupport {
         sandbox.setLabels(new HashMap<String, String>());
         sandbox.setPublic(false);
         sandbox.setTarget("us");
-        sandbox.setCpu(BigDecimal.ONE);
-        sandbox.setGpu(BigDecimal.ZERO);
-        sandbox.setMemory(BigDecimal.valueOf(2));
-        sandbox.setDisk(BigDecimal.valueOf(3));
+        sandbox.setCpu(1);
+        sandbox.setGpu(0);
+        sandbox.setMemory(2);
+        sandbox.setDisk(3);
         sandbox.setState(state);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
         sandbox.setSandboxClass(SandboxClass.LINUX_VM);

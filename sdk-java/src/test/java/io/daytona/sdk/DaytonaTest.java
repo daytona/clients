@@ -37,7 +37,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -436,7 +435,7 @@ class DaytonaTest {
         org.mockito.Mockito.verify(sandboxApi).listSandboxes(
                 isNull(),                                  // org header
                 isNull(),                                  // cursor (first page)
-                eq(BigDecimal.valueOf(5)),                 // limit
+                eq(5),                                     // limit
                 isNull(),                                  // id
                 isNull(),                                  // name
                 eq("{\"team\":\"sdk\"}"),                  // labels JSON

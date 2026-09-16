@@ -217,8 +217,8 @@ module DaytonaApiClient
     # List all snapshots
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :source_sandbox_id Filter by the ID of the sandbox the snapshot was created from
     # @option opts [String] :sort Field to sort by (default to 'lastUsedAt')
@@ -232,8 +232,8 @@ module DaytonaApiClient
     # List all snapshots
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :source_sandbox_id Filter by the ID of the sandbox the snapshot was created from
     # @option opts [String] :sort Field to sort by (default to 'lastUsedAt')

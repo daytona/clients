@@ -14,7 +14,6 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
-import java.math.BigDecimal;
 import io.daytona.api.client.model.Job;
 import io.daytona.api.client.model.JobStatus;
 import io.daytona.api.client.model.PaginatedJobs;
@@ -57,10 +56,10 @@ public class JobsApiTest {
      */
     @Test
     public void listJobsTest() throws ApiException {
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         JobStatus status = null;
-        BigDecimal offset = null;
+        Integer offset = null;
         PaginatedJobs response = api.listJobs(page, limit, status, offset);
         // TODO: test validations
     }
@@ -74,8 +73,8 @@ public class JobsApiTest {
      */
     @Test
     public void pollJobsTest() throws ApiException {
-        BigDecimal timeout = null;
-        BigDecimal limit = null;
+        Integer timeout = null;
+        Integer limit = null;
         PollJobsResponse response = api.pollJobs(timeout, limit);
         // TODO: test validations
     }
