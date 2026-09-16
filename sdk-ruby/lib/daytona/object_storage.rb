@@ -150,7 +150,11 @@ module Daytona
       archive_path = temp_file.path
 
       begin
-        unless system('tar', '-cf', archive_path, '-C', File.dirname(source_path), File.basename(source_path))
+        # `--` ends option processing, so a name beginning with `-` is archived as the file
+        # it is rather than read as a tar option. Passing argv without a shell does not
+        # prevent that: tar parses its own operands.
+        unless system('tar', '-cf', archive_path, '-C', File.dirname(source_path), '--',
+                      File.basename(source_path))
           raise Sdk::Error, "Failed to create tar archive for #{source_path}"
         end
 
