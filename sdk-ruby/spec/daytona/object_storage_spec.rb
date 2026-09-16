@@ -126,8 +126,8 @@ RSpec.describe Daytona::ObjectStorage do
           members = nil
           allow(transfer_manager).to receive(:upload_file) do |archive_path, **_options|
             members = []
-            Gem::Package::TarReader.new(File.open(archive_path, 'rb')) do |tar|
-              tar.each { |entry| members << entry.full_name }
+            File.open(archive_path, 'rb') do |archive|
+              Gem::Package::TarReader.new(archive) { |tar| tar.each { |entry| members << entry.full_name } }
             end
           end
 
