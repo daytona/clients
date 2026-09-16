@@ -1451,13 +1451,13 @@ class AsyncSandbox(SandboxDto):
         self.labels: dict[str, str] = sandbox_dto.labels
         self.public: bool = sandbox_dto.public
         self.target: str = sandbox_dto.target
-        self.cpu: float | int = sandbox_dto.cpu
-        self.gpu: float | int = sandbox_dto.gpu
+        self.cpu: int = sandbox_dto.cpu
+        self.gpu: int = sandbox_dto.gpu
         self.spot: bool | None = sandbox_dto.spot or False
         self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
         self.gpu_type: GpuType | None = sandbox_dto.gpu_type
-        self.memory: float | int = sandbox_dto.memory
-        self.disk: float | int = sandbox_dto.disk
+        self.memory: int = sandbox_dto.memory
+        self.disk: int = sandbox_dto.disk
         self.desired_state: SandboxDesiredState | None = sandbox_dto.desired_state
         self.error_reason: str | None = sandbox_dto.error_reason
         self.recoverable: bool | None = sandbox_dto.recoverable
