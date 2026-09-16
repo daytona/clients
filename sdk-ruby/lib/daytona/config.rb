@@ -25,7 +25,10 @@ module Daytona
     # would make one accented byte anywhere — a comment included — raise while it is scanned.
     def self.parse(path)
       verify_suppression!
-      Parser.call(File.read(path, mode: 'rb:bom|utf-8'))
+      # `overwrite: true` asks the parser for what the file says. Without it a key already
+      # present in the environment comes back as the environment's value, so a caller
+      # cannot tell that the file named it at all.
+      Parser.call(File.read(path, mode: 'rb:bom|utf-8'), overwrite: true)
     end
 
     # The subclass reaches into dotenv's internals rather than a public API, and dotenv has
