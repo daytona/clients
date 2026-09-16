@@ -16,7 +16,7 @@ import (
 
 var (
 	cursorFlag string
-	limitFlag  int
+	limitFlag  int32
 )
 
 var ListCmd = &cobra.Command{
@@ -35,7 +35,7 @@ var ListCmd = &cobra.Command{
 		limit := int32(100)
 
 		if cmd.Flags().Changed("limit") {
-			limit = int32(limitFlag)
+			limit = limitFlag
 		}
 
 		request := apiClient.SandboxAPI.ListSandboxes(ctx).Limit(limit)
@@ -78,6 +78,6 @@ var ListCmd = &cobra.Command{
 
 func init() {
 	ListCmd.Flags().StringVarP(&cursorFlag, "cursor", "c", "", "Cursor for pagination")
-	ListCmd.Flags().IntVarP(&limitFlag, "limit", "l", 100, "Maximum number of items per page")
+	ListCmd.Flags().Int32VarP(&limitFlag, "limit", "l", 100, "Maximum number of items per page")
 	common.RegisterFormatFlag(ListCmd)
 }

@@ -95,7 +95,7 @@ func (s *SecretService) List(ctx context.Context, query *types.ListSecretsQuery)
 				req = req.Cursor(*query.Cursor)
 			}
 			if query.Limit != nil {
-				req = req.Limit(int32(*query.Limit))
+				req = req.Limit(int32Param(*query.Limit))
 			}
 			if query.Name != nil {
 				req = req.Name(*query.Name)
