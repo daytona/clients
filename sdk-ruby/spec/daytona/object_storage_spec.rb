@@ -3,6 +3,8 @@
 
 # frozen_string_literal: true
 
+require 'rubygems/package'
+
 RSpec.describe Daytona::ObjectStorage do
   let(:s3_client) { instance_double(Aws::S3::Client) }
 
@@ -88,7 +90,7 @@ RSpec.describe Daytona::ObjectStorage do
         allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
         allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
         allow(transfer_manager).to receive(:upload_file)
-        allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(true)
+        allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, '--', 'test.txt').and_return(true)
 
         result = storage.upload(file_path, 'org-1')
 
@@ -106,6 +108,34 @@ RSpec.describe Daytona::ObjectStorage do
       end
     end
 
+    it 'archives a source whose name begins with a dash as that file' do
+      Dir.mktmpdir do |dir|
+        outside = File.join(dir, 'outside-the-context.txt')
+        File.write(outside, 'not part of the build context')
+        context = File.join(dir, 'context')
+        FileUtils.mkdir_p(context)
+        # tar resolves a list file against the working directory, which is the context root
+        # when the documented flow is run from a checkout.
+        File.write(File.join(context, 'list.txt'), "#{outside}\n")
+        dashed = File.join(context, '-Tlist.txt')
+        File.write(dashed, '')
+
+        allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
+        allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
+        members = nil
+        allow(transfer_manager).to receive(:upload_file) do |archive_path, **_options|
+          members = []
+          Gem::Package::TarReader.new(File.open(archive_path, 'rb')) do |tar|
+            tar.each { |entry| members << entry.full_name }
+          end
+        end
+
+        Dir.chdir(context) { storage.upload(dashed, 'org-1') }
+
+        expect(members).to eq(['-Tlist.txt'])
+      end
+    end
+
     it 'raises instead of uploading a partial archive when tar fails' do
       Dir.mktmpdir do |dir|
         file_path = File.join(dir, 'test.txt')
@@ -113,7 +143,7 @@ RSpec.describe Daytona::ObjectStorage do
         allow(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
         allow(Aws::S3::TransferManager).to receive(:new).with(client: s3_client).and_return(transfer_manager)
         allow(transfer_manager).to receive(:upload_file)
-        allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, 'test.txt').and_return(false)
+        allow(storage).to receive(:system).with('tar', '-cf', anything, '-C', dir, '--', 'test.txt').and_return(false)
 
         expect { storage.upload(file_path, 'org-1') }
           .to raise_error(Daytona::Sdk::Error, /Failed to create tar archive/)
