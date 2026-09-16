@@ -19,16 +19,22 @@ module Daytona
       @substitutions = [Dotenv::Substitutions::Variable].freeze
     end
 
+    # dotenv 3 returns `ENV.fetch(key, value)` per key unless asked to overwrite, so a key
+    # already in the environment comes back as the environment's value and a caller cannot
+    # tell the file named it. dotenv 2 has no such keyword — it takes a positional
+    # `is_load` that gates `${VAR}` against ENV, and already reports what the file says —
+    # so the argument is only passed where it exists. The gemspec allows both.
+    PARSER_ACCEPTS_OVERWRITE = Dotenv::Parser.instance_method(:initialize)
+                                             .parameters.any? { |kind, name| kind == :key && name == :overwrite }
+
     # Read with the mode dotenv itself uses, so the accepted format does not narrow: `bom`
     # skips a byte-order mark an editor on Windows may have written, and pinning `utf-8`
     # keeps the file readable under a POSIX locale, where the default external encoding
     # would make one accented byte anywhere — a comment included — raise while it is scanned.
     def self.parse(path)
       verify_suppression!
-      # `overwrite: true` asks the parser for what the file says. Without it a key already
-      # present in the environment comes back as the environment's value, so a caller
-      # cannot tell that the file named it at all.
-      Parser.call(File.read(path, mode: 'rb:bom|utf-8'), overwrite: true)
+      text = File.read(path, mode: 'rb:bom|utf-8')
+      PARSER_ACCEPTS_OVERWRITE ? Parser.call(text, overwrite: true) : Parser.call(text)
     end
 
     # The subclass reaches into dotenv's internals rather than a public API, and dotenv has
