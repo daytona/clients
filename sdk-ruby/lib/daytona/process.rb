@@ -44,7 +44,8 @@ module Daytona
     # @param cwd [String, nil] Working directory for command execution. If not specified, uses the sandbox working directory
     # @param env [Hash<String, String>, nil] Environment variables to set for the command
     # @param timeout [Integer, nil] Maximum time in seconds to wait for the command to complete.
-    # @return [ExecuteResponse] Command execution results containing exit_code, result, and artifacts
+    # @return [ExecuteResponse] Command execution results containing exit_code, combined stdout and stderr (interleaved) as result,
+    #                          split stdout/stderr (nil when the sandbox daemon predates split streams), and artifacts
     #
     # @example
     #   # Simple command
@@ -66,6 +67,8 @@ module Daytona
       ExecuteResponse.new(
         exit_code: response.exit_code,
         result:,
+        stdout: response.respond_to?(:stdout) ? response.stdout : nil,
+        stderr: response.respond_to?(:stderr) ? response.stderr : nil,
         artifacts: ExecutionArtifacts.new(result, [])
       )
     rescue *Sdk::API_ERROR_CLASSES => e
