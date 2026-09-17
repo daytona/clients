@@ -50,6 +50,8 @@ func TestCreateSandboxToolNetworkAllowListSchema(t *testing.T) {
 func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 	cidr := "10.0.0.0/8"
 	domains := "example.com,*.daytona.io"
+	empty := ""
+	whitespace := "   "
 	blockAll := true
 	name := "allowlist-test"
 
@@ -76,10 +78,16 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			wantDomains: &domains,
 		},
 		{
-			name:        "both allow lists passthrough",
-			args:        CreateSandboxArgs{NetworkAllowList: &cidr, DomainAllowList: &domains},
+			name:        "cidr with empty domain list",
+			args:        CreateSandboxArgs{NetworkAllowList: &cidr, DomainAllowList: &empty},
 			wantCIDR:    &cidr,
-			wantDomains: &domains,
+			wantDomains: &empty,
+		},
+		{
+			name:        "cidr with whitespace domain list",
+			args:        CreateSandboxArgs{NetworkAllowList: &cidr, DomainAllowList: &whitespace},
+			wantCIDR:    &cidr,
+			wantDomains: &whitespace,
 		},
 		{
 			name:         "block all",
@@ -115,6 +123,39 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			}
 			if tt.wantName != nil && req.GetName() != *tt.wantName {
 				t.Errorf("name = %q, want %q", req.GetName(), *tt.wantName)
+			}
+		})
+	}
+}
+
+func TestCreateSandboxRequestRejectsBothAllowLists(t *testing.T) {
+	cidr := "10.0.0.0/8"
+	paddedCIDR := " 10.0.0.0/8 "
+	domains := "example.com"
+	paddedDomains := " example.com "
+
+	tests := []struct {
+		name string
+		args CreateSandboxArgs
+	}{
+		{
+			name: "non-empty cidr and domains",
+			args: CreateSandboxArgs{NetworkAllowList: &cidr, DomainAllowList: &domains},
+		},
+		{
+			name: "padded cidr and domains",
+			args: CreateSandboxArgs{NetworkAllowList: &paddedCIDR, DomainAllowList: &paddedDomains},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := createSandboxRequest(tt.args)
+			if err == nil {
+				t.Fatal("expected createSandboxRequest() error, got nil")
+			}
+			if !strings.Contains(err.Error(), "networkAllowList and domainAllowList are mutually exclusive") {
+				t.Fatalf("error %q does not name the conflicting fields", err)
 			}
 		})
 	}

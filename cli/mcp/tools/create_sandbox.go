@@ -225,6 +225,12 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		createSandbox.SetBuildInfo(*args.BuildInfo)
 	}
 
+	hasNetworkAllowList := args.NetworkAllowList != nil && strings.TrimSpace(*args.NetworkAllowList) != ""
+	hasDomainAllowList := args.DomainAllowList != nil && strings.TrimSpace(*args.DomainAllowList) != ""
+	if hasNetworkAllowList && hasDomainAllowList {
+		return nil, fmt.Errorf("networkAllowList and domainAllowList are mutually exclusive and cannot be set at the same time. Provide only one of them")
+	}
+
 	if args.NetworkBlockAll != nil {
 		createSandbox.SetNetworkBlockAll(*args.NetworkBlockAll)
 	}
