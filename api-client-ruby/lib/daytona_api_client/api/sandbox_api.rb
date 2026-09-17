@@ -1109,8 +1109,8 @@ module DaytonaApiClient
     # @param to [Time] End of time range (ISO 8601)
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number (1-indexed) (default to 1)
-    # @option opts [Float] :limit Number of items per page (default to 100)
+    # @option opts [Integer] :page Page number (1-indexed) (default to 1)
+    # @option opts [Integer] :limit Number of items per page (default to 100)
     # @option opts [Array<String>] :severities Filter by severity levels (DEBUG, INFO, WARN, ERROR)
     # @option opts [String] :search Search in log body
     # @return [PaginatedLogs]
@@ -1126,8 +1126,8 @@ module DaytonaApiClient
     # @param to [Time] End of time range (ISO 8601)
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number (1-indexed) (default to 1)
-    # @option opts [Float] :limit Number of items per page (default to 100)
+    # @option opts [Integer] :page Page number (1-indexed) (default to 1)
+    # @option opts [Integer] :limit Number of items per page (default to 100)
     # @option opts [Array<String>] :severities Filter by severity levels (DEBUG, INFO, WARN, ERROR)
     # @option opts [String] :search Search in log body
     # @return [Array<(PaginatedLogs, Integer, Hash)>] PaginatedLogs data, response status code and response headers
@@ -1484,8 +1484,8 @@ module DaytonaApiClient
     # @param to [Time] End of time range (ISO 8601)
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number (1-indexed) (default to 1)
-    # @option opts [Float] :limit Number of items per page (default to 100)
+    # @option opts [Integer] :page Page number (1-indexed) (default to 1)
+    # @option opts [Integer] :limit Number of items per page (default to 100)
     # @return [PaginatedTraces]
     def get_sandbox_traces(sandbox_id, from, to, opts = {})
       data, _status_code, _headers = get_sandbox_traces_with_http_info(sandbox_id, from, to, opts)
@@ -1499,8 +1499,8 @@ module DaytonaApiClient
     # @param to [Time] End of time range (ISO 8601)
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number (1-indexed) (default to 1)
-    # @option opts [Float] :limit Number of items per page (default to 100)
+    # @option opts [Integer] :page Page number (1-indexed) (default to 1)
+    # @option opts [Integer] :limit Number of items per page (default to 100)
     # @return [Array<(PaginatedTraces, Integer, Hash)>] PaginatedTraces data, response status code and response headers
     def get_sandbox_traces_with_http_info(sandbox_id, from, to, opts = {})
       if @api_client.config.debugging
@@ -1769,7 +1769,7 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @option opts [String] :cursor Pagination cursor from a previous response
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :id Filter by ID prefix (case-insensitive)
     # @option opts [String] :name Filter by name prefix (case-insensitive)
     # @option opts [String] :labels JSON encoded labels to filter by
@@ -1806,7 +1806,7 @@ module DaytonaApiClient
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @option opts [String] :cursor Pagination cursor from a previous response
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :id Filter by ID prefix (case-insensitive)
     # @option opts [String] :name Filter by name prefix (case-insensitive)
     # @option opts [String] :labels JSON encoded labels to filter by
@@ -1940,8 +1940,8 @@ module DaytonaApiClient
     # [DEPRECATED] List all sandboxes paginated
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :id Filter by partial ID match
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :labels JSON encoded labels to filter by
@@ -1968,8 +1968,8 @@ module DaytonaApiClient
     # [DEPRECATED] List all sandboxes paginated
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Number of results per page (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Number of results per page (default to 100)
     # @option opts [String] :id Filter by partial ID match
     # @option opts [String] :name Filter by partial name match
     # @option opts [String] :labels JSON encoded labels to filter by

@@ -1902,7 +1902,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Filter by ID prefix (case-insensitive)
         explode: true
@@ -2203,7 +2203,7 @@ paths:
         schema:
           default: 1
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Number of results per page
         explode: true
@@ -2214,7 +2214,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Filter by partial ID match
         explode: true
@@ -4460,7 +4460,7 @@ paths:
         schema:
           default: 1
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Number of results per page
         explode: true
@@ -4471,7 +4471,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Filter by partial name match
         explode: true
@@ -5175,7 +5175,7 @@ paths:
         schema:
           default: 1
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: "Maximum number of jobs to return (default: 100, max: 500)"
         explode: true
@@ -5186,7 +5186,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Filter jobs by status
         explode: true
@@ -5202,7 +5202,7 @@ paths:
         name: offset
         required: false
         schema:
-          type: number
+          type: integer
         style: form
       responses:
         "200":
@@ -5232,7 +5232,7 @@ paths:
         name: timeout
         required: false
         schema:
-          type: number
+          type: integer
         style: form
       - description: "Maximum number of jobs to return (default: 10, max: 100)"
         explode: true
@@ -5240,7 +5240,7 @@ paths:
         name: limit
         required: false
         schema:
-          type: number
+          type: integer
         style: form
       responses:
         "200":
@@ -5759,7 +5759,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Filter by partial name match
         explode: true
@@ -6969,7 +6969,7 @@ paths:
         schema:
           default: 1
           minimum: 1
-          type: number
+          type: integer
         style: form
       - description: Number of results per page
         explode: true
@@ -6980,7 +6980,7 @@ paths:
           default: 100
           maximum: 200
           minimum: 1
-          type: number
+          type: integer
         style: form
       - deprecated: true
         description: "Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format)."
@@ -7228,7 +7228,7 @@ paths:
         required: false
         schema:
           default: 1
-          type: number
+          type: integer
         style: form
       - description: Number of items per page
         explode: true
@@ -7237,7 +7237,7 @@ paths:
         required: false
         schema:
           default: 100
-          type: number
+          type: integer
         style: form
       - description: "Filter by severity levels (DEBUG, INFO, WARN, ERROR)"
         explode: true
@@ -7319,7 +7319,7 @@ paths:
         required: false
         schema:
           default: 1
-          type: number
+          type: integer
         style: form
       - description: Number of items per page
         explode: true
@@ -7328,7 +7328,7 @@ paths:
         required: false
         schema:
           default: 100
-          type: number
+          type: integer
         style: form
       responses:
         "200":
@@ -9841,11 +9841,11 @@ components:
         cpu:
           description: The CPU quota for the sandbox
           example: 2
-          type: number
+          type: integer
         gpu:
           description: The GPU quota for the sandbox
           example: 0
-          type: number
+          type: integer
         spot:
           default: false
           description: Whether this is a spot GPU sandbox. Spot sandboxes may be instantly
@@ -9867,11 +9867,11 @@ components:
         memory:
           description: The memory quota for the sandbox
           example: 4
-          type: number
+          type: integer
         disk:
           description: The disk quota for the sandbox
           example: 10
-          type: number
+          type: integer
         labels:
           additionalProperties:
             type: string
@@ -10229,11 +10229,11 @@ components:
         cpu:
           description: The CPU quota for the sandbox
           example: 2
-          type: number
+          type: integer
         gpu:
           description: The GPU quota for the sandbox
           example: 0
-          type: number
+          type: integer
         spot:
           default: false
           description: Whether this is a spot GPU sandbox. Spot sandboxes may be instantly
@@ -10255,11 +10255,11 @@ components:
         memory:
           description: The memory quota for the sandbox
           example: 4
-          type: number
+          type: integer
         disk:
           description: The disk quota for the sandbox
           example: 10
-          type: number
+          type: integer
         state:
           allOf:
           - $ref: "#/components/schemas/SandboxState"
@@ -10390,9 +10390,9 @@ components:
       type: object
     PaginatedSandboxes_deprecated:
       example:
-        total: 0.8008281904610115
-        totalPages: 1.4658129805029452
-        page: 6.027456183070403
+        total: 0
+        totalPages: 1
+        page: 6
         items:
         - memory: 4
           linkedSandboxId: sandbox123
@@ -10502,11 +10502,11 @@ components:
             $ref: "#/components/schemas/Sandbox"
           type: array
         total:
-          type: number
+          type: integer
         page:
-          type: number
+          type: integer
         totalPages:
-          type: number
+          type: integer
       required:
       - items
       - page
@@ -11952,9 +11952,9 @@ components:
       type: object
     PaginatedSnapshots:
       example:
-        total: 2.3021358869347655
-        totalPages: 9.301444243932576
-        page: 7.061401241503109
+        total: 2
+        totalPages: 9
+        page: 7
         items:
         - imageName: imageName
           buildInfo: ""
@@ -12016,11 +12016,11 @@ components:
             $ref: "#/components/schemas/SnapshotDto"
           type: array
         total:
-          type: number
+          type: integer
         page:
-          type: number
+          type: integer
         totalPages:
-          type: number
+          type: integer
       required:
       - items
       - page
@@ -12212,9 +12212,9 @@ components:
       type: object
     PaginatedJobs:
       example:
-        total: 0.8008281904610115
-        totalPages: 1.4658129805029452
-        page: 6.027456183070403
+        total: 0
+        totalPages: 1
+        page: 6
         items:
         - createdAt: 2024-10-01T12:00:00Z
           resourceId: sandbox123
@@ -12244,11 +12244,11 @@ components:
             $ref: "#/components/schemas/Job"
           type: array
         total:
-          type: number
+          type: integer
         page:
-          type: number
+          type: integer
         totalPages:
-          type: number
+          type: integer
       required:
       - items
       - page
@@ -12657,7 +12657,7 @@ components:
     ListSecretsResponse:
       example:
         nextCursor: nextCursor
-        total: 0.8008281904610115
+        total: 0
         items:
         - createdAt: 2024-01-31T12:00:00Z
           hosts:
@@ -12683,7 +12683,7 @@ components:
           type: array
         total:
           description: Total number of secrets matching the filters
-          type: number
+          type: integer
         nextCursor:
           description: Cursor for the next page of results
           nullable: true
@@ -13094,10 +13094,10 @@ components:
       type: object
     PaginatedAuditLogs:
       example:
-        total: 6.027456183070403
+        total: 6
         nextToken: nextToken
-        totalPages: 5.962133916683182
-        page: 1.4658129805029452
+        totalPages: 5
+        page: 1
         items:
         - actorApiKeyPrefix: actorApiKeyPrefix
           metadata:
@@ -13139,11 +13139,11 @@ components:
             $ref: "#/components/schemas/AuditLog"
           type: array
         total:
-          type: number
+          type: integer
         page:
-          type: number
+          type: integer
         totalPages:
-          type: number
+          type: integer
         nextToken:
           description: Token for next page in cursor-based pagination
           type: string
@@ -13536,9 +13536,9 @@ components:
       type: object
     PaginatedLogs:
       example:
-        total: 6.027456183070403
-        totalPages: 5.962133916683182
-        page: 1.4658129805029452
+        total: 6
+        totalPages: 5
+        page: 1
         items:
         - traceId: traceId
           spanId: spanId
@@ -13570,13 +13570,13 @@ components:
           type: array
         total:
           description: Total number of log entries matching the query
-          type: number
+          type: integer
         page:
           description: Current page number
-          type: number
+          type: integer
         totalPages:
           description: Total number of pages
-          type: number
+          type: integer
       required:
       - items
       - page
@@ -13624,9 +13624,9 @@ components:
       type: object
     PaginatedTraces:
       example:
-        total: 1.4658129805029452
-        totalPages: 5.637376656633329
-        page: 5.962133916683182
+        total: 1
+        totalPages: 5
+        page: 5
         items:
         - traceId: traceId
           spanCount: 6.027456183070403
@@ -13650,13 +13650,13 @@ components:
           type: array
         total:
           description: Total number of traces matching the query
-          type: number
+          type: integer
         page:
           description: Current page number
-          type: number
+          type: integer
         totalPages:
           description: Total number of pages
-          type: number
+          type: integer
       required:
       - items
       - page

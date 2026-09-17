@@ -31,8 +31,8 @@ var DeleteCmd = &cobra.Command{
 		// Handle case when no snapshot ID is provided and allFlag is true
 		if len(args) == 0 {
 			if allFlag {
-				page := float32(1.0)
-				limit := float32(200.0) // 200 is the maximum limit for the API
+				page := int32(1)
+				limit := int32(200) // 200 is the maximum limit for the API
 				var allSnapshots []apiclient.SnapshotDto
 
 				for {

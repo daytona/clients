@@ -21,7 +21,6 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.Job;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,17 +61,17 @@ public class PaginatedJobs {
   public static final String SERIALIZED_NAME_TOTAL = "total";
   @SerializedName(SERIALIZED_NAME_TOTAL)
   @javax.annotation.Nonnull
-  private BigDecimal total;
+  private Integer total;
 
   public static final String SERIALIZED_NAME_PAGE = "page";
   @SerializedName(SERIALIZED_NAME_PAGE)
   @javax.annotation.Nonnull
-  private BigDecimal page;
+  private Integer page;
 
   public static final String SERIALIZED_NAME_TOTAL_PAGES = "totalPages";
   @SerializedName(SERIALIZED_NAME_TOTAL_PAGES)
   @javax.annotation.Nonnull
-  private BigDecimal totalPages;
+  private Integer totalPages;
 
   public PaginatedJobs() {
   }
@@ -104,7 +103,7 @@ public class PaginatedJobs {
   }
 
 
-  public PaginatedJobs total(@javax.annotation.Nonnull BigDecimal total) {
+  public PaginatedJobs total(@javax.annotation.Nonnull Integer total) {
     this.total = total;
     return this;
   }
@@ -114,16 +113,16 @@ public class PaginatedJobs {
    * @return total
    */
   @javax.annotation.Nonnull
-  public BigDecimal getTotal() {
+  public Integer getTotal() {
     return total;
   }
 
-  public void setTotal(@javax.annotation.Nonnull BigDecimal total) {
+  public void setTotal(@javax.annotation.Nonnull Integer total) {
     this.total = total;
   }
 
 
-  public PaginatedJobs page(@javax.annotation.Nonnull BigDecimal page) {
+  public PaginatedJobs page(@javax.annotation.Nonnull Integer page) {
     this.page = page;
     return this;
   }
@@ -133,16 +132,16 @@ public class PaginatedJobs {
    * @return page
    */
   @javax.annotation.Nonnull
-  public BigDecimal getPage() {
+  public Integer getPage() {
     return page;
   }
 
-  public void setPage(@javax.annotation.Nonnull BigDecimal page) {
+  public void setPage(@javax.annotation.Nonnull Integer page) {
     this.page = page;
   }
 
 
-  public PaginatedJobs totalPages(@javax.annotation.Nonnull BigDecimal totalPages) {
+  public PaginatedJobs totalPages(@javax.annotation.Nonnull Integer totalPages) {
     this.totalPages = totalPages;
     return this;
   }
@@ -152,11 +151,11 @@ public class PaginatedJobs {
    * @return totalPages
    */
   @javax.annotation.Nonnull
-  public BigDecimal getTotalPages() {
+  public Integer getTotalPages() {
     return totalPages;
   }
 
-  public void setTotalPages(@javax.annotation.Nonnull BigDecimal totalPages) {
+  public void setTotalPages(@javax.annotation.Nonnull Integer totalPages) {
     this.totalPages = totalPages;
   }
 

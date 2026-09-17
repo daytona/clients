@@ -18,7 +18,7 @@ from typing_extensions import Annotated
 
 from datetime import datetime
 from pydantic import Field, StrictStr
-from typing import Optional, Union
+from typing import Optional
 from typing_extensions import Annotated
 from daytona_api_client.models.audit_scenarios import AuditScenarios
 from daytona_api_client.models.date_filter import DateFilter
@@ -293,8 +293,8 @@ class AuditApi:
     def get_organization_audit_logs(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
         to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
@@ -327,9 +327,9 @@ class AuditApi:
         :param organization_id: Organization ID (required)
         :type organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
         :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).
@@ -419,8 +419,8 @@ class AuditApi:
     def get_organization_audit_logs_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
         to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
@@ -453,9 +453,9 @@ class AuditApi:
         :param organization_id: Organization ID (required)
         :type organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
         :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).
@@ -545,8 +545,8 @@ class AuditApi:
     def get_organization_audit_logs_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         var_from: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).")] = None,
         to: Annotated[Optional[datetime], Field(description="Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).")] = None,
         next_token: Annotated[Optional[StrictStr], Field(description="Token for cursor-based pagination. When provided, takes precedence over page parameter.")] = None,
@@ -579,9 +579,9 @@ class AuditApi:
         :param organization_id: Organization ID (required)
         :type organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param var_from: Deprecated alias for `createdAt[gte]`. From date (ISO 8601 format).
         :type var_from: datetime
         :param to: Deprecated alias for `createdAt[lte]`. To date (ISO 8601 format).

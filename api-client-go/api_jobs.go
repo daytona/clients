@@ -185,20 +185,20 @@ func (a *JobsAPIService) GetJobExecute(r JobsAPIGetJobRequest) (*Job, *http.Resp
 type JobsAPIListJobsRequest struct {
 	ctx context.Context
 	ApiService JobsAPI
-	page *float32
-	limit *float32
+	page *int32
+	limit *int32
 	status *JobStatus
-	offset *float32
+	offset *int32
 }
 
 // Page number of the results
-func (r JobsAPIListJobsRequest) Page(page float32) JobsAPIListJobsRequest {
+func (r JobsAPIListJobsRequest) Page(page int32) JobsAPIListJobsRequest {
 	r.page = &page
 	return r
 }
 
 // Maximum number of jobs to return (default: 100, max: 500)
-func (r JobsAPIListJobsRequest) Limit(limit float32) JobsAPIListJobsRequest {
+func (r JobsAPIListJobsRequest) Limit(limit int32) JobsAPIListJobsRequest {
 	r.limit = &limit
 	return r
 }
@@ -210,7 +210,7 @@ func (r JobsAPIListJobsRequest) Status(status JobStatus) JobsAPIListJobsRequest 
 }
 
 // Number of jobs to skip for pagination (default: 0)
-func (r JobsAPIListJobsRequest) Offset(offset float32) JobsAPIListJobsRequest {
+func (r JobsAPIListJobsRequest) Offset(offset int32) JobsAPIListJobsRequest {
 	r.offset = &offset
 	return r
 }
@@ -258,14 +258,14 @@ func (a *JobsAPIService) ListJobsExecute(r JobsAPIListJobsRequest) (*PaginatedJo
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
 	} else {
-		var defaultValue float32 = 1
+		var defaultValue int32 = 1
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", defaultValue, "form", "")
 		r.page = &defaultValue
 	}
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
@@ -332,18 +332,18 @@ func (a *JobsAPIService) ListJobsExecute(r JobsAPIListJobsRequest) (*PaginatedJo
 type JobsAPIPollJobsRequest struct {
 	ctx context.Context
 	ApiService JobsAPI
-	timeout *float32
-	limit *float32
+	timeout *int32
+	limit *int32
 }
 
 // Timeout in seconds for long polling (default: 30, max: 60)
-func (r JobsAPIPollJobsRequest) Timeout(timeout float32) JobsAPIPollJobsRequest {
+func (r JobsAPIPollJobsRequest) Timeout(timeout int32) JobsAPIPollJobsRequest {
 	r.timeout = &timeout
 	return r
 }
 
 // Maximum number of jobs to return (default: 10, max: 100)
-func (r JobsAPIPollJobsRequest) Limit(limit float32) JobsAPIPollJobsRequest {
+func (r JobsAPIPollJobsRequest) Limit(limit int32) JobsAPIPollJobsRequest {
 	r.limit = &limit
 	return r
 }

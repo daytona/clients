@@ -133,12 +133,12 @@ public class Sandbox {
   public static final String SERIALIZED_NAME_CPU = "cpu";
   @SerializedName(SERIALIZED_NAME_CPU)
   @javax.annotation.Nonnull
-  private BigDecimal cpu;
+  private Integer cpu;
 
   public static final String SERIALIZED_NAME_GPU = "gpu";
   @SerializedName(SERIALIZED_NAME_GPU)
   @javax.annotation.Nonnull
-  private BigDecimal gpu;
+  private Integer gpu;
 
   public static final String SERIALIZED_NAME_SPOT = "spot";
   @SerializedName(SERIALIZED_NAME_SPOT)
@@ -158,12 +158,12 @@ public class Sandbox {
   public static final String SERIALIZED_NAME_MEMORY = "memory";
   @SerializedName(SERIALIZED_NAME_MEMORY)
   @javax.annotation.Nonnull
-  private BigDecimal memory;
+  private Integer memory;
 
   public static final String SERIALIZED_NAME_DISK = "disk";
   @SerializedName(SERIALIZED_NAME_DISK)
   @javax.annotation.Nonnull
-  private BigDecimal disk;
+  private Integer disk;
 
   public static final String SERIALIZED_NAME_STATE = "state";
   @SerializedName(SERIALIZED_NAME_STATE)
@@ -680,7 +680,7 @@ public class Sandbox {
   }
 
 
-  public Sandbox cpu(@javax.annotation.Nonnull BigDecimal cpu) {
+  public Sandbox cpu(@javax.annotation.Nonnull Integer cpu) {
     this.cpu = cpu;
     return this;
   }
@@ -690,16 +690,16 @@ public class Sandbox {
    * @return cpu
    */
   @javax.annotation.Nonnull
-  public BigDecimal getCpu() {
+  public Integer getCpu() {
     return cpu;
   }
 
-  public void setCpu(@javax.annotation.Nonnull BigDecimal cpu) {
+  public void setCpu(@javax.annotation.Nonnull Integer cpu) {
     this.cpu = cpu;
   }
 
 
-  public Sandbox gpu(@javax.annotation.Nonnull BigDecimal gpu) {
+  public Sandbox gpu(@javax.annotation.Nonnull Integer gpu) {
     this.gpu = gpu;
     return this;
   }
@@ -709,11 +709,11 @@ public class Sandbox {
    * @return gpu
    */
   @javax.annotation.Nonnull
-  public BigDecimal getGpu() {
+  public Integer getGpu() {
     return gpu;
   }
 
-  public void setGpu(@javax.annotation.Nonnull BigDecimal gpu) {
+  public void setGpu(@javax.annotation.Nonnull Integer gpu) {
     this.gpu = gpu;
   }
 
@@ -775,7 +775,7 @@ public class Sandbox {
   }
 
 
-  public Sandbox memory(@javax.annotation.Nonnull BigDecimal memory) {
+  public Sandbox memory(@javax.annotation.Nonnull Integer memory) {
     this.memory = memory;
     return this;
   }
@@ -785,16 +785,16 @@ public class Sandbox {
    * @return memory
    */
   @javax.annotation.Nonnull
-  public BigDecimal getMemory() {
+  public Integer getMemory() {
     return memory;
   }
 
-  public void setMemory(@javax.annotation.Nonnull BigDecimal memory) {
+  public void setMemory(@javax.annotation.Nonnull Integer memory) {
     this.memory = memory;
   }
 
 
-  public Sandbox disk(@javax.annotation.Nonnull BigDecimal disk) {
+  public Sandbox disk(@javax.annotation.Nonnull Integer disk) {
     this.disk = disk;
     return this;
   }
@@ -804,11 +804,11 @@ public class Sandbox {
    * @return disk
    */
   @javax.annotation.Nonnull
-  public BigDecimal getDisk() {
+  public Integer getDisk() {
     return disk;
   }
 
-  public void setDisk(@javax.annotation.Nonnull BigDecimal disk) {
+  public void setDisk(@javax.annotation.Nonnull Integer disk) {
     this.disk = disk;
   }
 

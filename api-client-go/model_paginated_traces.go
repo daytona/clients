@@ -24,11 +24,11 @@ type PaginatedTraces struct {
 	// List of trace summaries
 	Items []TraceSummary `json:"items"`
 	// Total number of traces matching the query
-	Total float32 `json:"total"`
+	Total int32 `json:"total"`
 	// Current page number
-	Page float32 `json:"page"`
+	Page int32 `json:"page"`
 	// Total number of pages
-	TotalPages float32 `json:"totalPages"`
+	TotalPages int32 `json:"totalPages"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -38,7 +38,7 @@ type _PaginatedTraces PaginatedTraces
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewPaginatedTraces(items []TraceSummary, total float32, page float32, totalPages float32) *PaginatedTraces {
+func NewPaginatedTraces(items []TraceSummary, total int32, page int32, totalPages int32) *PaginatedTraces {
 	this := PaginatedTraces{}
 	this.Items = items
 	this.Total = total
@@ -80,9 +80,9 @@ func (o *PaginatedTraces) SetItems(v []TraceSummary) {
 }
 
 // GetTotal returns the Total field value
-func (o *PaginatedTraces) GetTotal() float32 {
+func (o *PaginatedTraces) GetTotal() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -91,7 +91,7 @@ func (o *PaginatedTraces) GetTotal() float32 {
 
 // GetTotalOk returns a tuple with the Total field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedTraces) GetTotalOk() (*float32, bool) {
+func (o *PaginatedTraces) GetTotalOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -99,14 +99,14 @@ func (o *PaginatedTraces) GetTotalOk() (*float32, bool) {
 }
 
 // SetTotal sets field value
-func (o *PaginatedTraces) SetTotal(v float32) {
+func (o *PaginatedTraces) SetTotal(v int32) {
 	o.Total = v
 }
 
 // GetPage returns the Page field value
-func (o *PaginatedTraces) GetPage() float32 {
+func (o *PaginatedTraces) GetPage() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -115,7 +115,7 @@ func (o *PaginatedTraces) GetPage() float32 {
 
 // GetPageOk returns a tuple with the Page field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedTraces) GetPageOk() (*float32, bool) {
+func (o *PaginatedTraces) GetPageOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -123,14 +123,14 @@ func (o *PaginatedTraces) GetPageOk() (*float32, bool) {
 }
 
 // SetPage sets field value
-func (o *PaginatedTraces) SetPage(v float32) {
+func (o *PaginatedTraces) SetPage(v int32) {
 	o.Page = v
 }
 
 // GetTotalPages returns the TotalPages field value
-func (o *PaginatedTraces) GetTotalPages() float32 {
+func (o *PaginatedTraces) GetTotalPages() int32 {
 	if o == nil {
-		var ret float32
+		var ret int32
 		return ret
 	}
 
@@ -139,7 +139,7 @@ func (o *PaginatedTraces) GetTotalPages() float32 {
 
 // GetTotalPagesOk returns a tuple with the TotalPages field value
 // and a boolean to check if the value has been set.
-func (o *PaginatedTraces) GetTotalPagesOk() (*float32, bool) {
+func (o *PaginatedTraces) GetTotalPagesOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -147,7 +147,7 @@ func (o *PaginatedTraces) GetTotalPagesOk() (*float32, bool) {
 }
 
 // SetTotalPages sets field value
-func (o *PaginatedTraces) SetTotalPages(v float32) {
+func (o *PaginatedTraces) SetTotalPages(v int32) {
 	o.TotalPages = v
 }
 

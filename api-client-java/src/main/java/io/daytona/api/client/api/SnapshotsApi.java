@@ -27,7 +27,6 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
-import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSnapshot;
 import io.daytona.api.client.model.PaginatedSnapshots;
 import io.daytona.api.client.model.SnapshotDto;
@@ -510,7 +509,7 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getAllSnapshotsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call getAllSnapshotsCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -584,7 +583,7 @@ public class SnapshotsApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call getAllSnapshotsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call getAllSnapshotsValidateBeforeCall(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback _callback) throws ApiException {
         return getAllSnapshotsCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, _callback);
 
     }
@@ -608,7 +607,7 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public PaginatedSnapshots getAllSnapshots(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+    public PaginatedSnapshots getAllSnapshots(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
         ApiResponse<PaginatedSnapshots> localVarResp = getAllSnapshotsWithHttpInfo(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order);
         return localVarResp.getData();
     }
@@ -632,7 +631,7 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<PaginatedSnapshots> getAllSnapshotsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
+    public ApiResponse<PaginatedSnapshots> getAllSnapshotsWithHttpInfo(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order) throws ApiException {
         okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, null);
         Type localVarReturnType = new TypeToken<PaginatedSnapshots>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
@@ -658,7 +657,7 @@ public class SnapshotsApi {
         <tr><td> 200 </td><td> Paginated list of all snapshots </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getAllSnapshotsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable BigDecimal page, @javax.annotation.Nullable BigDecimal limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<PaginatedSnapshots> _callback) throws ApiException {
+    public okhttp3.Call getAllSnapshotsAsync(@javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Integer page, @javax.annotation.Nullable Integer limit, @javax.annotation.Nullable String name, @javax.annotation.Nullable String sourceSandboxId, @javax.annotation.Nullable String sort, @javax.annotation.Nullable String order, final ApiCallback<PaginatedSnapshots> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = getAllSnapshotsValidateBeforeCall(xDaytonaOrganizationID, page, limit, name, sourceSandboxId, sort, order, _callback);
         Type localVarReturnType = new TypeToken<PaginatedSnapshots>(){}.getType();

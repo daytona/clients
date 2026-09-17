@@ -24,7 +24,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -139,7 +138,7 @@ class SecretServiceTest {
         service.list(query);
 
         verify(secretApi).listSecretsPaginated(isNull(), org.mockito.ArgumentMatchers.eq("cursor-1"),
-                org.mockito.ArgumentMatchers.eq(BigDecimal.valueOf(50)), org.mockito.ArgumentMatchers.eq("anthropic"),
+                org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq("anthropic"),
                 org.mockito.ArgumentMatchers.eq("name"), org.mockito.ArgumentMatchers.eq("asc"));
     }
 
@@ -280,7 +279,7 @@ class SecretServiceTest {
             java.util.List<io.daytona.api.client.model.Secret> items, int total, String nextCursor) {
         io.daytona.api.client.model.ListSecretsResponse response = new io.daytona.api.client.model.ListSecretsResponse();
         response.setItems(items);
-        response.setTotal(BigDecimal.valueOf(total));
+        response.setTotal(total);
         response.setNextCursor(nextCursor);
         return response;
     }

@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from daytona_api_client_async.models.secret import Secret
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -32,7 +32,7 @@ class ListSecretsResponse(BaseModel):
     ListSecretsResponse
     """ # noqa: E501
     items: List[Secret] = Field(description="List of results for the current page")
-    total: Union[StrictFloat, StrictInt] = Field(description="Total number of secrets matching the filters")
+    total: StrictInt = Field(description="Total number of secrets matching the filters")
     next_cursor: Optional[StrictStr] = Field(description="Cursor for the next page of results", serialization_alias="nextCursor")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["items", "total", "nextCursor"]

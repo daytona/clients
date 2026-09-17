@@ -47,7 +47,7 @@ module DaytonaApiClient
     def self.openapi_types
       {
         :'items' => :'Array<Secret>',
-        :'total' => :'Float',
+        :'total' => :'Integer',
         :'next_cursor' => :'String'
       }
     end

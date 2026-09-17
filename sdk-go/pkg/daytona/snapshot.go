@@ -138,10 +138,10 @@ func (s *SnapshotService) ListWithQuery(ctx context.Context, query *ListSnapshot
 			query = &ListSnapshotsQuery{}
 		}
 		if query.Page != nil {
-			req = req.Page(float32(*query.Page))
+			req = req.Page(int32Param(*query.Page))
 		}
 		if query.Limit != nil {
-			req = req.Limit(float32(*query.Limit))
+			req = req.Limit(int32Param(*query.Limit))
 		}
 		if query.SourceSandboxID != nil {
 			req = req.SourceSandboxId(*query.SourceSandboxID)

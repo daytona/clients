@@ -464,8 +464,8 @@ type SnapshotsAPIGetAllSnapshotsRequest struct {
 	ctx context.Context
 	ApiService SnapshotsAPI
 	xDaytonaOrganizationID *string
-	page *float32
-	limit *float32
+	page *int32
+	limit *int32
 	name *string
 	sourceSandboxId *string
 	sort *string
@@ -479,13 +479,13 @@ func (r SnapshotsAPIGetAllSnapshotsRequest) XDaytonaOrganizationID(xDaytonaOrgan
 }
 
 // Page number of the results
-func (r SnapshotsAPIGetAllSnapshotsRequest) Page(page float32) SnapshotsAPIGetAllSnapshotsRequest {
+func (r SnapshotsAPIGetAllSnapshotsRequest) Page(page int32) SnapshotsAPIGetAllSnapshotsRequest {
 	r.page = &page
 	return r
 }
 
 // Number of results per page
-func (r SnapshotsAPIGetAllSnapshotsRequest) Limit(limit float32) SnapshotsAPIGetAllSnapshotsRequest {
+func (r SnapshotsAPIGetAllSnapshotsRequest) Limit(limit int32) SnapshotsAPIGetAllSnapshotsRequest {
 	r.limit = &limit
 	return r
 }
@@ -555,14 +555,14 @@ func (a *SnapshotsAPIService) GetAllSnapshotsExecute(r SnapshotsAPIGetAllSnapsho
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
 	} else {
-		var defaultValue float32 = 1
+		var defaultValue int32 = 1
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", defaultValue, "form", "")
 		r.page = &defaultValue
 	}
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}

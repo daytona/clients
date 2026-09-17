@@ -83,10 +83,10 @@ module DaytonaApiClient
     # List jobs for the runner
     # Returns a paginated list of jobs for the runner, optionally filtered by status.
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Maximum number of jobs to return (default: 100, max: 500) (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Maximum number of jobs to return (default: 100, max: 500) (default to 100)
     # @option opts [JobStatus] :status Filter jobs by status
-    # @option opts [Float] :offset Number of jobs to skip for pagination (default: 0)
+    # @option opts [Integer] :offset Number of jobs to skip for pagination (default: 0)
     # @return [PaginatedJobs]
     def list_jobs(opts = {})
       data, _status_code, _headers = list_jobs_with_http_info(opts)
@@ -96,10 +96,10 @@ module DaytonaApiClient
     # List jobs for the runner
     # Returns a paginated list of jobs for the runner, optionally filtered by status.
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :page Page number of the results (default to 1)
-    # @option opts [Float] :limit Maximum number of jobs to return (default: 100, max: 500) (default to 100)
+    # @option opts [Integer] :page Page number of the results (default to 1)
+    # @option opts [Integer] :limit Maximum number of jobs to return (default: 100, max: 500) (default to 100)
     # @option opts [JobStatus] :status Filter jobs by status
-    # @option opts [Float] :offset Number of jobs to skip for pagination (default: 0)
+    # @option opts [Integer] :offset Number of jobs to skip for pagination (default: 0)
     # @return [Array<(PaginatedJobs, Integer, Hash)>] PaginatedJobs data, response status code and response headers
     def list_jobs_with_http_info(opts = {})
       if @api_client.config.debugging
@@ -164,8 +164,8 @@ module DaytonaApiClient
     # Long poll for jobs
     # Long poll endpoint for runners to fetch pending jobs. Returns immediately if jobs are available, otherwise waits up to timeout seconds.
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :timeout Timeout in seconds for long polling (default: 30, max: 60)
-    # @option opts [Float] :limit Maximum number of jobs to return (default: 10, max: 100)
+    # @option opts [Integer] :timeout Timeout in seconds for long polling (default: 30, max: 60)
+    # @option opts [Integer] :limit Maximum number of jobs to return (default: 10, max: 100)
     # @return [PollJobsResponse]
     def poll_jobs(opts = {})
       data, _status_code, _headers = poll_jobs_with_http_info(opts)
@@ -175,8 +175,8 @@ module DaytonaApiClient
     # Long poll for jobs
     # Long poll endpoint for runners to fetch pending jobs. Returns immediately if jobs are available, otherwise waits up to timeout seconds.
     # @param [Hash] opts the optional parameters
-    # @option opts [Float] :timeout Timeout in seconds for long polling (default: 30, max: 60)
-    # @option opts [Float] :limit Maximum number of jobs to return (default: 10, max: 100)
+    # @option opts [Integer] :timeout Timeout in seconds for long polling (default: 30, max: 60)
+    # @option opts [Integer] :limit Maximum number of jobs to return (default: 10, max: 100)
     # @return [Array<(PollJobsResponse, Integer, Hash)>] PollJobsResponse data, response status code and response headers
     def poll_jobs_with_http_info(opts = {})
       if @api_client.config.debugging

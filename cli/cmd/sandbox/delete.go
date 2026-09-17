@@ -36,7 +36,7 @@ var DeleteCmd = &cobra.Command{
 		if len(args) == 0 {
 			if allFlag {
 				var cursor *string
-				limit := float32(200.0) // 200 is the maximum limit for the API
+				limit := int32(200) // 200 is the maximum limit for the API
 				var allSandboxes []apiclient.SandboxListItem
 
 				for {

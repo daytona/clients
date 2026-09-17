@@ -297,8 +297,8 @@ public class SandboxApiTest {
         OffsetDateTime from = null;
         OffsetDateTime to = null;
         String xDaytonaOrganizationID = null;
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         List<String> severities = null;
         String search = null;
         PaginatedLogs response = api.getSandboxLogs(sandboxId, from, to, xDaytonaOrganizationID, page, limit, severities, search);
@@ -378,8 +378,8 @@ public class SandboxApiTest {
         OffsetDateTime from = null;
         OffsetDateTime to = null;
         String xDaytonaOrganizationID = null;
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         PaginatedTraces response = api.getSandboxTraces(sandboxId, from, to, xDaytonaOrganizationID, page, limit);
         // TODO: test validations
     }
@@ -437,7 +437,7 @@ public class SandboxApiTest {
     public void listSandboxesTest() throws ApiException {
         String xDaytonaOrganizationID = null;
         String cursor = null;
-        BigDecimal limit = null;
+        Integer limit = null;
         String id = null;
         String name = null;
         String labels = null;
@@ -475,8 +475,8 @@ public class SandboxApiTest {
     @Test
     public void listSandboxesPaginatedDeprecatedTest() throws ApiException {
         String xDaytonaOrganizationID = null;
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         String id = null;
         String name = null;
         String labels = null;

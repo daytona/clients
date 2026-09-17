@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 from pydantic import Field, StrictBool, StrictStr, field_validator
-from typing import Optional, Union
+from typing import Optional
 from typing_extensions import Annotated
 from daytona_api_client.models.create_snapshot import CreateSnapshot
 from daytona_api_client.models.paginated_snapshots import PaginatedSnapshots
@@ -883,8 +883,8 @@ class SnapshotsApi:
     def get_all_snapshots(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
@@ -908,9 +908,9 @@ class SnapshotsApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from
@@ -973,8 +973,8 @@ class SnapshotsApi:
     def get_all_snapshots_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
@@ -998,9 +998,9 @@ class SnapshotsApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from
@@ -1063,8 +1063,8 @@ class SnapshotsApi:
     def get_all_snapshots_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
-        page: Annotated[Optional[Union[Annotated[float, Field(strict=True, ge=1)], Annotated[int, Field(strict=True, ge=1)]]], Field(description="Page number of the results")] = None,
-        limit: Annotated[Optional[Union[Annotated[float, Field(le=200, strict=True, ge=1)], Annotated[int, Field(le=200, strict=True, ge=1)]]], Field(description="Number of results per page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
+        limit: Annotated[Optional[Annotated[int, Field(le=200, strict=True, ge=1)]], Field(description="Number of results per page")] = None,
         name: Annotated[Optional[StrictStr], Field(description="Filter by partial name match")] = None,
         source_sandbox_id: Annotated[Optional[StrictStr], Field(description="Filter by the ID of the sandbox the snapshot was created from")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Field to sort by")] = None,
@@ -1088,9 +1088,9 @@ class SnapshotsApi:
         :param x_daytona_organization_id: Use with JWT to specify the organization ID
         :type x_daytona_organization_id: str
         :param page: Page number of the results
-        :type page: float
+        :type page: int
         :param limit: Number of results per page
-        :type limit: float
+        :type limit: int
         :param name: Filter by partial name match
         :type name: str
         :param source_sandbox_id: Filter by the ID of the sandbox the snapshot was created from

@@ -15,7 +15,6 @@ package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
 import io.daytona.api.client.model.AuditScenarios;
-import java.math.BigDecimal;
 import io.daytona.api.client.model.DateFilter;
 import io.daytona.api.client.model.IntFilter;
 import java.time.OffsetDateTime;
@@ -58,8 +57,8 @@ public class AuditApiTest {
     @Test
     public void getOrganizationAuditLogsTest() throws ApiException {
         String organizationId = null;
-        BigDecimal page = null;
-        BigDecimal limit = null;
+        Integer page = null;
+        Integer limit = null;
         OffsetDateTime from = null;
         OffsetDateTime to = null;
         String nextToken = null;

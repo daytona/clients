@@ -51,9 +51,9 @@ module DaytonaApiClient
     def self.openapi_types
       {
         :'items' => :'Array<AuditLog>',
-        :'total' => :'Float',
-        :'page' => :'Float',
-        :'total_pages' => :'Float',
+        :'total' => :'Integer',
+        :'page' => :'Integer',
+        :'total_pages' => :'Integer',
         :'next_token' => :'String'
       }
     end

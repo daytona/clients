@@ -72,12 +72,12 @@ type Sandbox struct {
 	Labels         map[string]string              // Custom labels attached to the sandbox
 	Public         bool                           // Whether the sandbox is publicly accessible
 	Target         string                         // Target region/environment where the sandbox runs
-	Cpu            float32                        // Number of CPUs allocated to the sandbox
-	Gpu            float32                        // Number of GPUs allocated to the sandbox
+	Cpu            int32                          // Number of CPUs allocated to the sandbox
+	Gpu            int32                          // Number of GPUs allocated to the sandbox
 	Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
 	SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
-	Memory         float32                        // Amount of memory allocated to the sandbox in GiB
-	Disk           float32                        // Amount of disk space allocated to the sandbox in GiB
+	Memory         int32                          // Amount of memory allocated to the sandbox in GiB
+	Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
 	State          apiclient.SandboxState         // Current sandbox state
 	ErrorReason    *string                        // Error message if the sandbox is in an error state
 	Recoverable    *bool                          // Whether the sandbox error is recoverable
@@ -182,11 +182,11 @@ type sandboxDTO interface {
 	GetLabels() map[string]string
 	GetPublic() bool
 	GetTarget() string
-	GetCpu() float32
-	GetGpu() float32
+	GetCpu() int32
+	GetGpu() int32
 	GetSpot() bool
-	GetMemory() float32
-	GetDisk() float32
+	GetMemory() int32
+	GetDisk() int32
 	GetState() apiclient.SandboxState
 	GetErrorReason() string
 	GetRecoverable() bool

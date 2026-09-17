@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from daytona_api_client_async.models.audit_log import AuditLog
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -32,9 +32,9 @@ class PaginatedAuditLogs(BaseModel):
     PaginatedAuditLogs
     """ # noqa: E501
     items: List[AuditLog]
-    total: Union[StrictFloat, StrictInt]
-    page: Union[StrictFloat, StrictInt]
-    total_pages: Union[StrictFloat, StrictInt] = Field(serialization_alias="totalPages")
+    total: StrictInt
+    page: StrictInt
+    total_pages: StrictInt = Field(serialization_alias="totalPages")
     next_token: Optional[StrictStr] = Field(default=None, description="Token for next page in cursor-based pagination", serialization_alias="nextToken")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["items", "total", "page", "totalPages", "nextToken"]

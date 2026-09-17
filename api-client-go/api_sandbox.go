@@ -2526,8 +2526,8 @@ type SandboxAPIGetSandboxLogsRequest struct {
 	from *time.Time
 	to *time.Time
 	xDaytonaOrganizationID *string
-	page *float32
-	limit *float32
+	page *int32
+	limit *int32
 	severities *[]string
 	search *string
 }
@@ -2551,13 +2551,13 @@ func (r SandboxAPIGetSandboxLogsRequest) XDaytonaOrganizationID(xDaytonaOrganiza
 }
 
 // Page number (1-indexed)
-func (r SandboxAPIGetSandboxLogsRequest) Page(page float32) SandboxAPIGetSandboxLogsRequest {
+func (r SandboxAPIGetSandboxLogsRequest) Page(page int32) SandboxAPIGetSandboxLogsRequest {
 	r.page = &page
 	return r
 }
 
 // Number of items per page
-func (r SandboxAPIGetSandboxLogsRequest) Limit(limit float32) SandboxAPIGetSandboxLogsRequest {
+func (r SandboxAPIGetSandboxLogsRequest) Limit(limit int32) SandboxAPIGetSandboxLogsRequest {
 	r.limit = &limit
 	return r
 }
@@ -2628,14 +2628,14 @@ func (a *SandboxAPIService) GetSandboxLogsExecute(r SandboxAPIGetSandboxLogsRequ
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
 	} else {
-		var defaultValue float32 = 1
+		var defaultValue int32 = 1
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", defaultValue, "form", "")
 		r.page = &defaultValue
 	}
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
@@ -3209,8 +3209,8 @@ type SandboxAPIGetSandboxTracesRequest struct {
 	from *time.Time
 	to *time.Time
 	xDaytonaOrganizationID *string
-	page *float32
-	limit *float32
+	page *int32
+	limit *int32
 }
 
 // Start of time range (ISO 8601)
@@ -3232,13 +3232,13 @@ func (r SandboxAPIGetSandboxTracesRequest) XDaytonaOrganizationID(xDaytonaOrgani
 }
 
 // Page number (1-indexed)
-func (r SandboxAPIGetSandboxTracesRequest) Page(page float32) SandboxAPIGetSandboxTracesRequest {
+func (r SandboxAPIGetSandboxTracesRequest) Page(page int32) SandboxAPIGetSandboxTracesRequest {
 	r.page = &page
 	return r
 }
 
 // Number of items per page
-func (r SandboxAPIGetSandboxTracesRequest) Limit(limit float32) SandboxAPIGetSandboxTracesRequest {
+func (r SandboxAPIGetSandboxTracesRequest) Limit(limit int32) SandboxAPIGetSandboxTracesRequest {
 	r.limit = &limit
 	return r
 }
@@ -3297,14 +3297,14 @@ func (a *SandboxAPIService) GetSandboxTracesExecute(r SandboxAPIGetSandboxTraces
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
 	} else {
-		var defaultValue float32 = 1
+		var defaultValue int32 = 1
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", defaultValue, "form", "")
 		r.page = &defaultValue
 	}
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
@@ -3733,7 +3733,7 @@ type SandboxAPIListSandboxesRequest struct {
 	ApiService SandboxAPI
 	xDaytonaOrganizationID *string
 	cursor *string
-	limit *float32
+	limit *int32
 	id *string
 	name *string
 	labels *string
@@ -3774,7 +3774,7 @@ func (r SandboxAPIListSandboxesRequest) Cursor(cursor string) SandboxAPIListSand
 }
 
 // Number of results per page
-func (r SandboxAPIListSandboxesRequest) Limit(limit float32) SandboxAPIListSandboxesRequest {
+func (r SandboxAPIListSandboxesRequest) Limit(limit int32) SandboxAPIListSandboxesRequest {
 	r.limit = &limit
 	return r
 }
@@ -3975,7 +3975,7 @@ func (a *SandboxAPIService) ListSandboxesExecute(r SandboxAPIListSandboxesReques
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}
@@ -4155,8 +4155,8 @@ type SandboxAPIListSandboxesPaginatedDeprecatedRequest struct {
 	ctx context.Context
 	ApiService SandboxAPI
 	xDaytonaOrganizationID *string
-	page *float32
-	limit *float32
+	page *int32
+	limit *int32
 	id *string
 	name *string
 	labels *string
@@ -4183,13 +4183,13 @@ func (r SandboxAPIListSandboxesPaginatedDeprecatedRequest) XDaytonaOrganizationI
 }
 
 // Page number of the results
-func (r SandboxAPIListSandboxesPaginatedDeprecatedRequest) Page(page float32) SandboxAPIListSandboxesPaginatedDeprecatedRequest {
+func (r SandboxAPIListSandboxesPaginatedDeprecatedRequest) Page(page int32) SandboxAPIListSandboxesPaginatedDeprecatedRequest {
 	r.page = &page
 	return r
 }
 
 // Number of results per page
-func (r SandboxAPIListSandboxesPaginatedDeprecatedRequest) Limit(limit float32) SandboxAPIListSandboxesPaginatedDeprecatedRequest {
+func (r SandboxAPIListSandboxesPaginatedDeprecatedRequest) Limit(limit int32) SandboxAPIListSandboxesPaginatedDeprecatedRequest {
 	r.limit = &limit
 	return r
 }
@@ -4340,14 +4340,14 @@ func (a *SandboxAPIService) ListSandboxesPaginatedDeprecatedExecute(r SandboxAPI
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "form", "")
 	} else {
-		var defaultValue float32 = 1
+		var defaultValue int32 = 1
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", defaultValue, "form", "")
 		r.page = &defaultValue
 	}
 	if r.limit != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
 	} else {
-		var defaultValue float32 = 100
+		var defaultValue int32 = 100
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
 	}

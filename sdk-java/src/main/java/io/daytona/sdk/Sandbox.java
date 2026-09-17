@@ -920,7 +920,7 @@ public class Sandbox {
     private void populateCommonFields(
             String id, String name, String organizationId, String snapshot, String user,
             Map<String, String> labels, Boolean isPublic, String target,
-            BigDecimal cpu, BigDecimal gpu, Boolean spot, String spotEvictedAt, BigDecimal memory, BigDecimal disk,
+            Integer cpu, Integer gpu, Boolean spot, String spotEvictedAt, Integer memory, Integer disk,
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
             String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt,

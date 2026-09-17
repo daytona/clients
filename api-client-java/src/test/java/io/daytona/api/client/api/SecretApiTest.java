@@ -14,7 +14,6 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
-import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSecret;
 import io.daytona.api.client.model.ListSecretsResponse;
 import io.daytona.api.client.model.Secret;
@@ -97,7 +96,7 @@ public class SecretApiTest {
     public void listSecretsPaginatedTest() throws ApiException {
         String xDaytonaOrganizationID = null;
         String cursor = null;
-        BigDecimal limit = null;
+        Integer limit = null;
         String name = null;
         String sort = null;
         String order = null;

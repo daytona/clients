@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
-from typing import Any, ClassVar, Dict, List, Union
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from typing import Any, ClassVar, Dict, List
 from daytona_api_client_async.models.log_entry import LogEntry
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -32,9 +32,9 @@ class PaginatedLogs(BaseModel):
     PaginatedLogs
     """ # noqa: E501
     items: List[LogEntry] = Field(description="List of log entries")
-    total: Union[StrictFloat, StrictInt] = Field(description="Total number of log entries matching the query")
-    page: Union[StrictFloat, StrictInt] = Field(description="Current page number")
-    total_pages: Union[StrictFloat, StrictInt] = Field(description="Total number of pages", serialization_alias="totalPages")
+    total: StrictInt = Field(description="Total number of log entries matching the query")
+    page: StrictInt = Field(description="Current page number")
+    total_pages: StrictInt = Field(description="Total number of pages", serialization_alias="totalPages")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["items", "total", "page", "totalPages"]
 

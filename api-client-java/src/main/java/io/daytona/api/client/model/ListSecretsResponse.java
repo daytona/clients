@@ -21,7 +21,6 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.Secret;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,7 +61,7 @@ public class ListSecretsResponse {
   public static final String SERIALIZED_NAME_TOTAL = "total";
   @SerializedName(SERIALIZED_NAME_TOTAL)
   @javax.annotation.Nonnull
-  private BigDecimal total;
+  private Integer total;
 
   public static final String SERIALIZED_NAME_NEXT_CURSOR = "nextCursor";
   @SerializedName(SERIALIZED_NAME_NEXT_CURSOR)
@@ -99,7 +98,7 @@ public class ListSecretsResponse {
   }
 
 
-  public ListSecretsResponse total(@javax.annotation.Nonnull BigDecimal total) {
+  public ListSecretsResponse total(@javax.annotation.Nonnull Integer total) {
     this.total = total;
     return this;
   }
@@ -109,11 +108,11 @@ public class ListSecretsResponse {
    * @return total
    */
   @javax.annotation.Nonnull
-  public BigDecimal getTotal() {
+  public Integer getTotal() {
     return total;
   }
 
-  public void setTotal(@javax.annotation.Nonnull BigDecimal total) {
+  public void setTotal(@javax.annotation.Nonnull Integer total) {
     this.total = total;
   }
 

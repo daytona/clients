@@ -62,6 +62,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -819,7 +820,7 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 		}
 		if query != nil {
 			if query.Limit != nil {
-				request = request.Limit(float32(*query.Limit))
+				request = request.Limit(int32Param(*query.Limit))
 			}
 			if query.ID != nil {
 				request = request.Id(*query.ID)
@@ -1050,4 +1051,18 @@ func (c *Client) processImageContext(ctx context.Context, image *DockerImage) ([
 	}
 
 	return contextHashes, nil
+}
+
+// int32Param converts a caller-supplied int to int32 for generated API
+// request parameters, saturating at the int32 bounds instead of silently
+// wrapping around. Out-of-range values still fail server-side validation,
+// but with the original sign and magnitude intent preserved.
+func int32Param(v int) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
 }
