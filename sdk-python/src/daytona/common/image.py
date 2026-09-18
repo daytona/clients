@@ -513,6 +513,7 @@ class Image(BaseModel):
         """
         sources: list[tuple[str, str]] = []
         lines = Image.__dockerfile_logical_lines(dockerfile_content)
+        real_root = os.path.realpath(path_prefix or os.getcwd())
 
         for line in lines:
             # Skip empty lines and comments
@@ -537,9 +538,12 @@ class Image(BaseModel):
                         matching_files = glob.glob(full_path_pattern)
 
                         if matching_files:
-                            sources.extend((matching_file, source) for matching_file in matching_files)
+                            for matching_file in matching_files:
+                                Image.__ensure_within_build_context(real_root, matching_file)
+                                sources.append((matching_file, source))
                         else:
                             # If no files match, include the pattern anyway
+                            Image.__ensure_within_build_context(real_root, full_path_pattern)
                             sources.append((full_path_pattern, source))
 
         return sources
@@ -565,6 +569,35 @@ class Image(BaseModel):
         _, source = ntpath.splitdrive(source)
         source = source.replace("\\", "/")
         return posixpath.normpath(posixpath.join("/", source)).lstrip("/") or "."
+
+    @staticmethod
+    def __ensure_within_build_context(real_root: str, candidate: str) -> None:
+        """Rejects a source that resolves outside the build context.
+
+        Normalisation alone cannot see this: a symlinked parent directory is traversed
+        transparently by the archiver, so a regular file reached through one is stored with its
+        contents even though the written path stays inside the context.
+
+        Args:
+            real_root: str: The resolved build context root.
+            candidate: str: The resolved source path to check.
+
+        Raises:
+            DaytonaValidationError: If the candidate resolves outside the build context.
+        """
+        # A path that does not exist cannot be archived. A symlink whose target is missing still
+        # leaves the context, so lexists rather than exists decides whether to check.
+        if not os.path.lexists(candidate):
+            return
+
+        resolved = os.path.realpath(candidate)
+        try:
+            relative = os.path.relpath(resolved, real_root)
+        except ValueError as error:  # different drives on Windows
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}") from error
+
+        if relative == os.pardir or relative.startswith(os.pardir + os.sep):
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}")
 
     @staticmethod
     def __dockerfile_logical_lines(dockerfile_content: str) -> list[str]:

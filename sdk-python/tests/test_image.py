@@ -291,14 +291,43 @@ class TestImageFromDockerfile:
 
         assert [c.source_path for c in img._context_list] == [str(context / "etc" / "hosts")]
 
-    def test_from_dockerfile_resolves_a_windows_drive_source_inside_the_context(self, tmp_path):
+    def test_from_dockerfile_resolves_windows_style_sources_inside_the_context(self, tmp_path):
         context = tmp_path / "repo"
         context.mkdir()
         (context / "secret.txt").write_text("in context")
         dockerfile = context / "Dockerfile"
-        dockerfile.write_text("FROM python:3.12\nCOPY C:/secret.txt /app/\n")
 
-        img = Image.from_dockerfile(dockerfile)
+        # Drive-qualified, UNC and drive-relative sources all clamp into the context. The COPY
+        # parser strips backslashes before the resolver sees them, so only containment is asserted.
+        for source in ("C:/secret.txt", "C:\\secret.txt", "\\\\server\\share\\secret.txt", "\\secret.txt"):
+            dockerfile.write_text(f"FROM python:3.12\nCOPY {source} /app/\n")
+
+            img = Image.from_dockerfile(dockerfile)
+
+            assert img._context_list
+            for context_file in img._context_list:
+                assert os.path.commonpath([str(context), context_file.source_path]) == str(context)
+
+    def test_from_dockerfile_rejects_a_source_reached_through_a_symlinked_directory(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "secret.txt").write_text("credential")
+        (context / "dirlink").symlink_to(outside)
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile)
+
+    def test_dockerfile_commands_confines_copy_sources(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "secret.txt").write_text("in context")
+        (tmp_path / "secret.txt").write_text("credential")
+
+        img = Image.base("python:3.12").dockerfile_commands(["COPY ../secret.txt /app/"], context_dir=str(context))
 
         assert [c.source_path for c in img._context_list] == [str(context / "secret.txt")]
 

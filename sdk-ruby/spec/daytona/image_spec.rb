@@ -406,6 +406,27 @@ RSpec.describe Daytona::Image do
       expect(image.context_list.map(&:source_path)).to eq([File.join(@context, 'etc', 'hosts')])
     end
 
+    it 'rejects a source reached through a symlinked directory' do
+      outside = File.join(@tmp, 'outside')
+      Dir.mkdir(outside)
+      File.write(File.join(outside, 'secret.txt'), 'credential')
+      File.symlink(outside, File.join(@context, 'dirlink'))
+
+      expect { described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n")) }
+        .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    end
+
+    it 'confines sources supplied through dockerfile_commands' do
+      File.write(File.join(@context, 'secret.txt'), 'in context')
+      File.write(File.join(@tmp, 'secret.txt'), 'credential')
+
+      image = described_class.base('python:3.12')
+                             .dockerfile_commands(['COPY ../secret.txt /app/'], context_dir: @context)
+
+      expect(image.context_list.map { |c| File.realpath(c.source_path) })
+        .to eq([File.realpath(File.join(@context, 'secret.txt'))])
+    end
+
     it 'archives the context root for a bare dot or parent operand' do
       File.write(File.join(@context, 'a.txt'), 'a')
 
