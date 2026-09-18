@@ -357,11 +357,17 @@ class TestImageFromDockerfile:
             ["COPY ../secret.txt /app/", "COPY /etc/hosts /app/", "COPY . /app/"], context_dir=str(context)
         )
 
-        assert [(c.source_path, c.archive_path) for c in img._context_list] == [
-            (str(context / "secret.txt"), "/secret.txt"),
-            (str(context / "etc" / "hosts"), "/etc/hosts"),
-            (str(context) + "/.", "/."),
+        root = str(context)
+        assert [os.path.normpath(c.source_path) for c in img._context_list] == [
+            os.path.normpath(os.path.join(root, "secret.txt")),
+            os.path.normpath(os.path.join(root, "etc", "hosts")),
+            os.path.normpath(root),
         ]
+        # Each archive path is its source relative to the context root. Asserting the relation
+        # rather than a literal keeps this independent of the platform's separator.
+        for context_file in img._context_list:
+            relative = context_file.archive_path.lstrip("/\\")
+            assert os.path.normpath(os.path.join(root, relative)) == os.path.normpath(context_file.source_path)
 
     def test_from_dockerfile_archives_the_context_root_for_dot_and_parent_operands(self, tmp_path):
         context = tmp_path / "repo"
