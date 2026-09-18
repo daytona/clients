@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import glob
 import json
+import ntpath
 import os
+import posixpath
 import re
 import shlex
 import sys
 from collections.abc import Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Literal, cast, get_args
 
 import toml
@@ -529,13 +531,7 @@ class Image(BaseModel):
                 if command_parts:
                     # Get source paths from the parsed command parts
                     for source in command_parts["sources"]:
-                        # Handle absolute and relative paths differently
-                        if PurePosixPath(source).is_absolute():
-                            # Absolute path - use as is
-                            full_path_pattern = source
-                        else:
-                            # Relative path - add prefix
-                            full_path_pattern = os.path.join(path_prefix, source)
+                        full_path_pattern = os.path.join(path_prefix, Image.__context_relative_source(source))
 
                         # Handle glob patterns
                         matching_files = glob.glob(full_path_pattern)
@@ -547,6 +543,28 @@ class Image(BaseModel):
                             sources.append((full_path_pattern, source))
 
         return sources
+
+    @staticmethod
+    def __context_relative_source(source: str) -> str:
+        """Mirrors how `docker build` interprets a COPY source.
+
+        A leading separator and any parent-directory navigation are stripped, so the source
+        always names something inside the build context.
+
+        Dockerfile paths are POSIX, so the source is normalised with POSIX semantics regardless
+        of the platform the SDK runs on. A Windows drive or UNC prefix is dropped first, and
+        backslashes are read as separators, so that such a source cannot survive the POSIX
+        normalisation only to be rejoined as an absolute path on Windows.
+
+        Args:
+            source: str: The COPY-command source path.
+
+        Returns:
+            str: The source path relative to the build context root.
+        """
+        _, source = ntpath.splitdrive(source)
+        source = source.replace("\\", "/")
+        return posixpath.normpath(posixpath.join("/", source)).lstrip("/") or "."
 
     @staticmethod
     def __dockerfile_logical_lines(dockerfile_content: str) -> list[str]:

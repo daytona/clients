@@ -381,14 +381,7 @@ module Daytona
 
           # Get source paths from the parsed command parts
           command_parts['sources'].each do |source|
-            # Handle absolute and relative paths differently
-            full_path_pattern = if Pathname.new(source).absolute?
-                                  # Absolute path - use as is
-                                  source
-                                else
-                                  # Relative path - add prefix
-                                  File.join(path_prefix, source)
-                                end
+            full_path_pattern = resolve_context_source(path_prefix, source)
 
             # Handle glob patterns
             matching_files = Dir.glob(full_path_pattern)
@@ -403,6 +396,28 @@ module Daytona
         end
 
         sources
+      end
+
+      # The build context root that a COPY source is resolved against. An empty prefix means
+      # the caller supplied no context directory, in which case `docker build .` semantics
+      # apply and the working directory is the context.
+      #
+      # @param path_prefix [String, nil] The path prefix the sources are resolved against
+      # @return [String] The build context root
+      def context_root(path_prefix)
+        path_prefix.nil? || path_prefix.empty? ? Dir.pwd : path_prefix
+      end
+
+      # Mirrors how `docker build` interprets a COPY source: a leading separator and any
+      # parent-directory navigation are stripped, so the source always names something
+      # inside the build context.
+      #
+      # @param path_prefix [String, nil] The path prefix the sources are resolved against
+      # @param source [String] The COPY-command source path
+      # @return [String] The resolved path inside the build context
+      def resolve_context_source(path_prefix, source)
+        context_relative = Pathname.new(File.join('/', source)).cleanpath.to_s.delete_prefix('/')
+        File.join(context_root(path_prefix), context_relative.empty? ? '.' : context_relative)
       end
 
       # Joins backslash-continued physical lines into logical Dockerfile instruction lines

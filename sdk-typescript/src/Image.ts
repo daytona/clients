@@ -666,8 +666,7 @@ export class Image {
         if (commandParts) {
           // Get source paths from the parsed command parts
           for (const source of commandParts.sources) {
-            // Handle absolute and relative paths differently
-            const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
+            const fullPathPattern = pathe.join(pathPrefix, Image.contextRelativeSource(source))
 
             const matchingFiles = fg.sync([fullPathPattern], { dot: true })
             if (matchingFiles.length > 0) {
@@ -683,6 +682,18 @@ export class Image {
     }
 
     return sources
+  }
+
+  /**
+   * Mirrors how `docker build` interprets a COPY source: a leading separator and any
+   * parent-directory navigation are stripped, so the source always names something inside
+   * the build context.
+   *
+   * @param {string} source - The COPY-command source path.
+   * @returns {string} The source path relative to the build context root.
+   */
+  private static contextRelativeSource(source: string): string {
+    return pathe.join('/', source).replace(/^\/+/, '') || '.'
   }
 
   /**

@@ -332,6 +332,26 @@ describe('Image', () => {
     expect(sources[0]).toEqual(['/repo/a.txt', './a.txt'])
   })
 
+  it('extractCopySources confines parent-traversal and absolute sources to the build context', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    expect(imageRuntime.extractCopySources('COPY ../secret.txt /app/', '/repo')).toEqual([
+      ['/repo/secret.txt', '../secret.txt'],
+    ])
+    expect(imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo')).toEqual([
+      ['/repo/etc/hosts', '/etc/hosts'],
+    ])
+    expect(imageRuntime.extractCopySources('COPY . /app/', '/repo')).toEqual([['/repo', '.']])
+    expect(imageRuntime.extractCopySources('COPY .. /app/', '/repo')).toEqual([['/repo', '..']])
+  })
+
   it('parseCopyCommand handles json array copy commands', async () => {
     const { Image } = await import('../Image')
     const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>

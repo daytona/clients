@@ -266,6 +266,55 @@ class TestImageFromDockerfile:
 
         assert [c.archive_path for c in img._context_list] == ["a.txt"]
 
+    def test_from_dockerfile_resolves_a_parent_traversal_source_inside_the_context(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "secret.txt").write_text("in context")
+        (tmp_path / "secret.txt").write_text("credential")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY ../secret.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [(c.source_path, c.archive_path) for c in img._context_list] == [
+            (str(context / "secret.txt"), "secret.txt")
+        ]
+
+    def test_from_dockerfile_resolves_an_absolute_source_inside_the_context(self, tmp_path):
+        context = tmp_path / "repo"
+        (context / "etc").mkdir(parents=True)
+        (context / "etc" / "hosts").write_text("in context")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY /etc/hosts /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.source_path for c in img._context_list] == [str(context / "etc" / "hosts")]
+
+    def test_from_dockerfile_resolves_a_windows_drive_source_inside_the_context(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "secret.txt").write_text("in context")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY C:/secret.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [c.source_path for c in img._context_list] == [str(context / "secret.txt")]
+
+    def test_from_dockerfile_archives_the_context_root_for_dot_and_parent_operands(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "a.txt").write_text("a")
+        dockerfile = context / "Dockerfile"
+
+        for operand in (".", ".."):
+            dockerfile.write_text(f"FROM python:3.12\nCOPY {operand} /app/\n")
+
+            img = Image.from_dockerfile(dockerfile)
+
+            assert [c.archive_path for c in img._context_list] == ["."]
+
 
 class TestImageDockerfileCommands:
     def test_add_dockerfile_commands(self):
