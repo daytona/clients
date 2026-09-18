@@ -212,14 +212,14 @@ files = [
 
 [[package]]
 name = "anyio"
-version = "4.12.0"
+version = "4.14.2"
 description = "High-level concurrency and networking framework on top of asyncio or Trio"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "anyio-4.12.0-py3-none-any.whl", hash = "sha256:dad2376a628f98eeca4881fc56cd06affd18f659b17a747d3ff0307ced94b1bb"},
-    {file = "anyio-4.12.0.tar.gz", hash = "sha256:73c693b567b0c55130c104d0b43a9baf3aa6a31fc6110116509f27bf75e21ec0"},
+    {file = "anyio-4.14.2-py3-none-any.whl", hash = "sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494"},
+    {file = "anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f"},
 ]
 
 [package.dependencies]
@@ -228,7 +228,7 @@ idna = ">=2.8"
 typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 
 [package.extras]
-trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python_version >= \"3.10\""]
+trio = ["trio (>=0.32.0)"]
 
 [[package]]
 name = "appnope"
@@ -1082,7 +1082,7 @@ develop = true
 pydantic = ">=2.13.5"
 python-dateutil = ">=2.9.0.post0"
 typing-extensions = ">=4.16.0"
-urllib3 = ">=2.7.0,<3.0.0"
+urllib3 = ">=2.8.0,<3.0.0"
 
 [package.source]
 type = "directory"
@@ -1123,7 +1123,7 @@ develop = true
 pydantic = ">=2.13.5"
 python-dateutil = ">=2.9.0.post0"
 typing-extensions = ">=4.16.0"
-urllib3 = ">=2.7.0,<3.0.0"
+urllib3 = ">=2.8.0,<3.0.0"
 
 [package.source]
 type = "directory"
@@ -1164,7 +1164,7 @@ develop = true
 pydantic = ">=2.13.5"
 python-dateutil = ">=2.9.0.post0"
 typing-extensions = ">=4.16.0"
-urllib3 = ">=2.7.0,<3.0.0"
+urllib3 = ">=2.8.0,<3.0.0"
 
 [package.source]
 type = "directory"
@@ -4783,14 +4783,14 @@ typing-extensions = ">=4.12.0"
 
 [[package]]
 name = "urllib3"
-version = "2.7.0"
+version = "2.8.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"},
-    {file = "urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"},
+    {file = "urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"},
+    {file = "urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"},
 ]
 
 [package.extras]
