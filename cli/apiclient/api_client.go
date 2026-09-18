@@ -33,8 +33,6 @@ func (t *versionCheckTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return resp, err
 }
 
-var apiClient *apiclient.APIClient
-
 const DaytonaSourceHeader = "X-Daytona-Source"
 const API_VERSION_HEADER = "X-Daytona-Api-Version"
 
@@ -115,13 +113,25 @@ func GetApiClient(profile *config.Profile, defaultHeaders map[string]string) (*a
 		activeProfile = *profile
 	}
 
-	if apiClient != nil && activeProfile.Api.Key == nil {
-		err := auth.RefreshTokenIfNeeded(context.Background())
+	// Refresh before the default headers are applied, and re-read the profile the refresh
+	// wrote, so the returned client always carries the current token and organization.
+	// RefreshTokenIfNeeded acts on the active profile, which is not necessarily the one
+	// passed in, so an explicitly supplied profile is used exactly as given.
+	if profile == nil && activeProfile.Api.Key == nil && activeProfile.Api.Token != nil {
+		err = auth.RefreshTokenIfNeeded(context.Background())
 		if err != nil {
 			return nil, err
 		}
 
-		return apiClient, nil
+		c, err = config.GetConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		activeProfile, err = c.GetActiveProfile()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var newApiClient *apiclient.APIClient
@@ -159,13 +169,5 @@ func GetApiClient(profile *config.Profile, defaultHeaders map[string]string) (*a
 		},
 	}
 
-	if apiClient != nil && activeProfile.Api.Key == nil {
-		err = auth.RefreshTokenIfNeeded(context.Background())
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	apiClient = newApiClient
-	return apiClient, nil
+	return newApiClient, nil
 }
