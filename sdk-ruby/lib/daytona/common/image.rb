@@ -266,12 +266,11 @@ module Daytona
       end
 
       # Extract copy sources from dockerfile commands (class-level helper)
+      root = self.class.send(:context_root, context_dir || '')
       self.class.send(:extract_copy_sources, dockerfile_commands.join("\n"),
                       context_dir || '').each do |context_path, original_path|
         archive_base_path = context_path
-        if context_dir && !original_path.start_with?(context_dir)
-          archive_base_path = context_path.delete_prefix(context_dir)
-        end
+        archive_base_path = context_path.delete_prefix(root) unless original_path.start_with?(root)
         @context_list << Context.new(source_path: context_path, archive_path: archive_base_path)
       end
 
@@ -364,6 +363,7 @@ module Daytona
       def extract_copy_sources(dockerfile_content, path_prefix = '') # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
         sources = []
         lines = dockerfile_logical_lines(dockerfile_content)
+        real_root = real_path(context_root(path_prefix)) || File.expand_path(context_root(path_prefix))
 
         lines.each do |line|
           # Skip empty lines and comments
@@ -381,28 +381,87 @@ module Daytona
 
           # Get source paths from the parsed command parts
           command_parts['sources'].each do |source|
-            # Handle absolute and relative paths differently
-            full_path_pattern = if Pathname.new(source).absolute?
-                                  # Absolute path - use as is
-                                  source
-                                else
-                                  # Relative path - add prefix
-                                  File.join(path_prefix, source)
-                                end
+            full_path_pattern = resolve_context_source(path_prefix, source)
 
             # Handle glob patterns
             matching_files = Dir.glob(full_path_pattern)
 
             if matching_files.any?
-              matching_files.each { |matching_file| sources << [matching_file, source] }
+              matching_files.each do |matching_file|
+                ensure_within_build_context(real_root, matching_file)
+                sources << [matching_file, source]
+              end
             else
               # If no files match, include the pattern anyway
+              ensure_within_build_context(real_root, full_path_pattern)
               sources << [full_path_pattern, source]
             end
           end
         end
 
         sources
+      end
+
+      # The build context root that a COPY source is resolved against. An empty prefix means
+      # the caller supplied no context directory, in which case `docker build .` semantics
+      # apply and the working directory is the context.
+      #
+      # @param path_prefix [String, nil] The path prefix the sources are resolved against
+      # @return [String] The build context root
+      def context_root(path_prefix)
+        path_prefix.nil? || path_prefix.empty? ? Dir.pwd : path_prefix
+      end
+
+      # Mirrors how `docker build` interprets a COPY source: a leading separator and any
+      # parent-directory navigation are stripped, so the source always names something
+      # inside the build context.
+      #
+      # @param path_prefix [String, nil] The path prefix the sources are resolved against
+      # @param source [String] The COPY-command source path
+      # @return [String] The resolved path inside the build context
+      def resolve_context_source(path_prefix, source)
+        context_relative = Pathname.new(File.join('/', source)).cleanpath.to_s.delete_prefix('/')
+        File.join(context_root(path_prefix), context_relative.empty? ? '.' : context_relative)
+      end
+
+      # Rejects a source that resolves outside the build context. Normalisation alone cannot see
+      # this: a symlinked parent directory is traversed transparently by the archiver, so a
+      # regular file reached through one is stored with its contents even though the written
+      # path stays inside the context.
+      #
+      # @param real_root [String] The resolved build context root
+      # @param candidate [String] The resolved source path to check
+      # @raise [Sdk::Error] If the candidate resolves outside the build context
+      def ensure_within_build_context(real_root, candidate)
+        resolved = real_path(candidate)
+        # A path that does not exist cannot be archived. A symlink whose target is missing still
+        # leaves the context, so it is rejected rather than tolerated.
+        return if resolved.nil? && !File.symlink?(candidate)
+
+        raise Sdk::Error, "forbidden path outside the build context: #{candidate}" if resolved.nil?
+        raise Sdk::Error, "forbidden path outside the build context: #{resolved}" unless within?(real_root, resolved)
+      end
+
+      # Whether a resolved path lies inside the resolved build context root
+      #
+      # @param real_root [String] The resolved build context root
+      # @param resolved [String] The resolved candidate path
+      # @return [Boolean]
+      def within?(real_root, resolved)
+        relative = Pathname.new(resolved).relative_path_from(Pathname.new(real_root)).to_s
+        relative != '..' && !relative.start_with?("..#{File::SEPARATOR}")
+      rescue ArgumentError
+        false
+      end
+
+      # Resolves a path to its real location, or nil when it cannot be resolved
+      #
+      # @param path [String] The path to resolve
+      # @return [String, nil] The real path, or nil
+      def real_path(path)
+        File.realpath(path)
+      rescue SystemCallError
+        nil
       end
 
       # Joins backslash-continued physical lines into logical Dockerfile instruction lines

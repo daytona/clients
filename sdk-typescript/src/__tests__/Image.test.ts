@@ -8,6 +8,9 @@ jest.mock('../utils/Import', () => ({
 }))
 
 describe('Image', () => {
+  // extractCopySources resolves candidates through fs, so every dynamicRequire mock supplies it
+  const fsStub = { realpathSync: (target: string) => target, lstatSync: () => undefined }
+
   beforeEach(() => {
     jest.clearAllMocks()
   })
@@ -113,6 +116,8 @@ describe('Image', () => {
       existsSync: jest.fn(() => true),
       readFileSync: jest.fn(() => 'FROM debian:12\nCOPY ./src /app/src\n'),
       statSync: jest.fn(() => ({ isDirectory: () => true, isFile: () => true })),
+      realpathSync: jest.fn((target: string) => target),
+      lstatSync: jest.fn(() => undefined),
     }
     const expandTilde = (value: string) => value
     const fastGlob = { sync: jest.fn(() => ['/repo/src']) }
@@ -316,6 +321,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn(() => ['/repo/a.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 
@@ -330,6 +336,80 @@ describe('Image', () => {
 
     const sources = imageRuntime.extractCopySources('COPY ./a.txt /app/a.txt', '/repo') as Array<[string, string]>
     expect(sources[0]).toEqual(['/repo/a.txt', './a.txt'])
+  })
+
+  it('extractCopySources confines parent-traversal and absolute sources to the build context', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    expect(imageRuntime.extractCopySources('COPY ../secret.txt /app/', '/repo')).toEqual([
+      ['/repo/secret.txt', '../secret.txt'],
+    ])
+    expect(imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo')).toEqual([
+      ['/repo/etc/hosts', '/etc/hosts'],
+    ])
+    expect(imageRuntime.extractCopySources('COPY . /app/', '/repo')).toEqual([['/repo', '.']])
+    expect(imageRuntime.extractCopySources('COPY .. /app/', '/repo')).toEqual([['/repo', '..']])
+  })
+
+  it('extractCopySources rejects a source reached through a symlinked directory', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn(() => ['/repo/dirlink/secret.txt']) }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') {
+        return {
+          realpathSync: (target: string) => (target === '/repo/dirlink/secret.txt' ? '/outside/secret.txt' : target),
+          lstatSync: () => undefined,
+        }
+      }
+      return {}
+    })
+
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    expect(() => imageRuntime.extractCopySources('COPY dirlink/secret.txt /app/', '/repo')).toThrow(
+      'forbidden path outside the build context: /outside/secret.txt',
+    )
+  })
+
+  it('fromDockerfile and dockerfileCommands archive the context root for a dot operand', async () => {
+    const { Image } = await import('../Image')
+    const pathe = await import('pathe')
+
+    const fsModule = {
+      existsSync: jest.fn(() => true),
+      readFileSync: jest.fn(() => 'FROM debian:12\nCOPY . /app/\n'),
+      statSync: jest.fn(() => ({ isDirectory: () => true, isFile: () => true })),
+      realpathSync: jest.fn((target: string) => target),
+      lstatSync: jest.fn(() => undefined),
+    }
+    const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
+
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fs') return fsModule
+      if (moduleName === 'expand-tilde') return (value: string) => value
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const fromDockerfile = Image.fromDockerfile('/repo/Dockerfile')
+    const viaCommands = Image.base('debian:12').dockerfileCommands(['COPY . /app/'], '/repo')
+
+    for (const image of [fromDockerfile, viaCommands]) {
+      expect(image.contextList).toHaveLength(1)
+      expect(image.contextList[0].sourcePath).toBe('/repo')
+      // An empty archive path normalises to '.', which is the form ObjectStorage.uploadAsTar
+      // handles explicitly when the source is the context root itself.
+      expect(pathe.normalize(image.contextList[0].archivePath)).toBe('.')
+    }
   })
 
   it('parseCopyCommand handles json array copy commands', async () => {
@@ -349,6 +429,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 
@@ -369,6 +450,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 
@@ -386,6 +468,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 
@@ -402,6 +485,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 
@@ -418,6 +502,7 @@ describe('Image', () => {
     const fastGlob = { sync: jest.fn(() => ['/repo/a.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsStub
       return {}
     })
 

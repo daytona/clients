@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import glob
 import json
+import ntpath
 import os
+import posixpath
 import re
 import shlex
 import sys
 from collections.abc import Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Literal, cast, get_args
 
 import toml
@@ -511,6 +513,7 @@ class Image(BaseModel):
         """
         sources: list[tuple[str, str]] = []
         lines = Image.__dockerfile_logical_lines(dockerfile_content)
+        real_root = os.path.realpath(path_prefix or os.getcwd())
 
         for line in lines:
             # Skip empty lines and comments
@@ -529,24 +532,72 @@ class Image(BaseModel):
                 if command_parts:
                     # Get source paths from the parsed command parts
                     for source in command_parts["sources"]:
-                        # Handle absolute and relative paths differently
-                        if PurePosixPath(source).is_absolute():
-                            # Absolute path - use as is
-                            full_path_pattern = source
-                        else:
-                            # Relative path - add prefix
-                            full_path_pattern = os.path.join(path_prefix, source)
+                        full_path_pattern = os.path.join(path_prefix, Image.__context_relative_source(source))
 
                         # Handle glob patterns
                         matching_files = glob.glob(full_path_pattern)
 
                         if matching_files:
-                            sources.extend((matching_file, source) for matching_file in matching_files)
+                            for matching_file in matching_files:
+                                Image.__ensure_within_build_context(real_root, matching_file)
+                                sources.append((matching_file, source))
                         else:
                             # If no files match, include the pattern anyway
+                            Image.__ensure_within_build_context(real_root, full_path_pattern)
                             sources.append((full_path_pattern, source))
 
         return sources
+
+    @staticmethod
+    def __context_relative_source(source: str) -> str:
+        """Mirrors how `docker build` interprets a COPY source.
+
+        A leading separator and any parent-directory navigation are stripped, so the source
+        always names something inside the build context.
+
+        Dockerfile paths are POSIX, so the source is normalised with POSIX semantics regardless
+        of the platform the SDK runs on. A Windows drive or UNC prefix is dropped first, and
+        backslashes are read as separators, so that such a source cannot survive the POSIX
+        normalisation only to be rejoined as an absolute path on Windows.
+
+        Args:
+            source: str: The COPY-command source path.
+
+        Returns:
+            str: The source path relative to the build context root.
+        """
+        _, source = ntpath.splitdrive(source)
+        source = source.replace("\\", "/")
+        return posixpath.normpath(posixpath.join("/", source)).lstrip("/") or "."
+
+    @staticmethod
+    def __ensure_within_build_context(real_root: str, candidate: str) -> None:
+        """Rejects a source that resolves outside the build context.
+
+        Normalisation alone cannot see this: a symlinked parent directory is traversed
+        transparently by the archiver, so a regular file reached through one is stored with its
+        contents even though the written path stays inside the context.
+
+        Args:
+            real_root: str: The resolved build context root.
+            candidate: str: The resolved source path to check.
+
+        Raises:
+            DaytonaValidationError: If the candidate resolves outside the build context.
+        """
+        # A path that does not exist cannot be archived. A symlink whose target is missing still
+        # leaves the context, so lexists rather than exists decides whether to check.
+        if not os.path.lexists(candidate):
+            return
+
+        resolved = os.path.realpath(candidate)
+        try:
+            relative = os.path.relpath(resolved, real_root)
+        except ValueError as error:  # different drives on Windows
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}") from error
+
+        if relative == os.pardir or relative.startswith(os.pardir + os.sep):
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}")
 
     @staticmethod
     def __dockerfile_logical_lines(dockerfile_content: str) -> list[str]:

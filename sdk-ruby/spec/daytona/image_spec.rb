@@ -371,4 +371,78 @@ RSpec.describe Daytona::Image do
         .to raise_error(Daytona::Sdk::Error, /Unsupported Python version: 3.8/)
     end
   end
+  describe '.from_dockerfile build-context containment' do
+    around do |example|
+      Dir.mktmpdir do |tmp|
+        @tmp = tmp
+        @context = File.join(tmp, 'repo')
+        Dir.mkdir(@context)
+        example.run
+      end
+    end
+
+    def dockerfile(content)
+      path = File.join(@context, 'Dockerfile')
+      File.write(path, content)
+      path
+    end
+
+    it 'resolves a parent-traversal source inside the build context' do
+      File.write(File.join(@context, 'secret.txt'), 'in context')
+      File.write(File.join(@tmp, 'secret.txt'), 'credential')
+
+      image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY ../secret.txt /app/\n"))
+
+      expect(image.context_list.map { |c| [c.source_path, c.archive_path] })
+        .to eq([[File.join(@context, 'secret.txt'), 'secret.txt']])
+    end
+
+    it 'resolves an absolute source inside the build context' do
+      FileUtils.mkdir_p(File.join(@context, 'etc'))
+      File.write(File.join(@context, 'etc', 'hosts'), 'in context')
+
+      image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY /etc/hosts /app/\n"))
+
+      expect(image.context_list.map(&:source_path)).to eq([File.join(@context, 'etc', 'hosts')])
+    end
+
+    it 'rejects a source reached through a symlinked directory' do
+      outside = File.join(@tmp, 'outside')
+      Dir.mkdir(outside)
+      File.write(File.join(outside, 'secret.txt'), 'credential')
+      File.symlink(outside, File.join(@context, 'dirlink'))
+
+      expect { described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n")) }
+        .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    end
+
+    it 'confines parent, absolute and dot sources supplied through dockerfile_commands' do
+      File.write(File.join(@context, 'secret.txt'), 'in context')
+      FileUtils.mkdir_p(File.join(@context, 'etc'))
+      File.write(File.join(@context, 'etc', 'hosts'), 'in context')
+      File.write(File.join(@tmp, 'secret.txt'), 'credential')
+
+      image = described_class.base('python:3.12').dockerfile_commands(
+        ['COPY ../secret.txt /app/', 'COPY /etc/hosts /app/', 'COPY . /app/'], context_dir: @context
+      )
+
+      expect(image.context_list.map { |c| [File.realpath(c.source_path), c.archive_path] }).to eq(
+        [
+          [File.realpath(File.join(@context, 'secret.txt')), '/secret.txt'],
+          [File.realpath(File.join(@context, 'etc', 'hosts')), '/etc/hosts'],
+          [File.realpath(@context), '/.']
+        ]
+      )
+    end
+
+    it 'archives the context root for a bare dot or parent operand' do
+      File.write(File.join(@context, 'a.txt'), 'a')
+
+      ['.', '..'].each do |operand|
+        image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY #{operand} /app/\n"))
+
+        expect(image.context_list.map(&:archive_path)).to eq(['.'])
+      end
+    end
+  end
 end

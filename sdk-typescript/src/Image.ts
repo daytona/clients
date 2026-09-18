@@ -661,20 +661,23 @@ export class Image {
 
         const importErrorPrefix = '"extractCopySources" is not supported: '
         const fg = dynamicRequire('fast-glob', importErrorPrefix)
+        const fs = dynamicRequire('fs', importErrorPrefix)
+        const realRoot = Image.resolveRealPath(fs, pathPrefix || process.cwd())
 
         const commandParts = this.parseCopyCommand(line)
         if (commandParts) {
           // Get source paths from the parsed command parts
           for (const source of commandParts.sources) {
-            // Handle absolute and relative paths differently
-            const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
+            const fullPathPattern = pathe.join(pathPrefix, Image.contextRelativeSource(source))
 
             const matchingFiles = fg.sync([fullPathPattern], { dot: true })
             if (matchingFiles.length > 0) {
               for (const matchingFile of matchingFiles) {
+                Image.ensureWithinBuildContext(fs, realRoot, matchingFile)
                 sources.push([matchingFile, source])
               }
             } else {
+              Image.ensureWithinBuildContext(fs, realRoot, fullPathPattern)
               sources.push([fullPathPattern, source])
             }
           }
@@ -683,6 +686,63 @@ export class Image {
     }
 
     return sources
+  }
+
+  /**
+   * Mirrors how `docker build` interprets a COPY source: a leading separator and any
+   * parent-directory navigation are stripped, so the source always names something inside
+   * the build context.
+   *
+   * @param {string} source - The COPY-command source path.
+   * @returns {string} The source path relative to the build context root.
+   */
+  private static contextRelativeSource(source: string): string {
+    return pathe.join('/', source).replace(/^\/+/, '') || '.'
+  }
+
+  /**
+   * Resolves a path to its real location, falling back to a lexical absolute path when it cannot
+   * be resolved.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string} target - The path to resolve.
+   * @returns {string} The resolved path.
+   */
+  private static resolveRealPath(fs: any, target: string): string {
+    try {
+      return pathe.normalize(fs.realpathSync(target))
+    } catch {
+      return pathe.resolve(target)
+    }
+  }
+
+  /**
+   * Rejects a source that resolves outside the build context. Normalisation alone cannot see
+   * this: a symlinked parent directory is traversed transparently by the archiver, so a regular
+   * file reached through one is stored with its contents even though the written path stays
+   * inside the context.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string} realRoot - The resolved build context root.
+   * @param {string} candidate - The resolved source path to check.
+   */
+  private static ensureWithinBuildContext(fs: any, realRoot: string, candidate: string): void {
+    let resolved: string
+    try {
+      resolved = pathe.normalize(fs.realpathSync(candidate))
+    } catch {
+      // A path that does not exist cannot be archived. A symlink whose target is missing still
+      // leaves the context, so an entry that lstat can see is rejected rather than tolerated.
+      if (fs.lstatSync(candidate, { throwIfNoEntry: false })) {
+        throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${candidate}`)
+      }
+      return
+    }
+
+    const relative = pathe.relative(realRoot, resolved)
+    if (relative === '..' || relative.startsWith('../')) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${resolved}`)
+    }
   }
 
   /**
