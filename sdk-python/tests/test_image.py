@@ -321,15 +321,47 @@ class TestImageFromDockerfile:
         with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
             Image.from_dockerfile(dockerfile)
 
+    def test_from_dockerfile_rejects_a_symlinked_file_pointing_out_of_the_context(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (tmp_path / "secret.txt").write_text("credential")
+        (context / "link.txt").symlink_to(tmp_path / "secret.txt")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY link.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile)
+
+    def test_from_dockerfile_rejects_a_glob_match_that_resolves_out_of_the_context(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "a.txt").write_text("a")
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (context / "dirlink").symlink_to(outside)
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY * /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile)
+
     def test_dockerfile_commands_confines_copy_sources(self, tmp_path):
         context = tmp_path / "repo"
         context.mkdir()
         (context / "secret.txt").write_text("in context")
+        (context / "etc").mkdir()
+        (context / "etc" / "hosts").write_text("in context")
         (tmp_path / "secret.txt").write_text("credential")
 
-        img = Image.base("python:3.12").dockerfile_commands(["COPY ../secret.txt /app/"], context_dir=str(context))
+        img = Image.base("python:3.12").dockerfile_commands(
+            ["COPY ../secret.txt /app/", "COPY /etc/hosts /app/", "COPY . /app/"], context_dir=str(context)
+        )
 
-        assert [c.source_path for c in img._context_list] == [str(context / "secret.txt")]
+        assert [(c.source_path, c.archive_path) for c in img._context_list] == [
+            (str(context / "secret.txt"), "/secret.txt"),
+            (str(context / "etc" / "hosts"), "/etc/hosts"),
+            (str(context) + "/.", "/."),
+        ]
 
     def test_from_dockerfile_archives_the_context_root_for_dot_and_parent_operands(self, tmp_path):
         context = tmp_path / "repo"

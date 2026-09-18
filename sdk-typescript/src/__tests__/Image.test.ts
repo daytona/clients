@@ -380,6 +380,38 @@ describe('Image', () => {
     )
   })
 
+  it('fromDockerfile and dockerfileCommands archive the context root for a dot operand', async () => {
+    const { Image } = await import('../Image')
+    const pathe = await import('pathe')
+
+    const fsModule = {
+      existsSync: jest.fn(() => true),
+      readFileSync: jest.fn(() => 'FROM debian:12\nCOPY . /app/\n'),
+      statSync: jest.fn(() => ({ isDirectory: () => true, isFile: () => true })),
+      realpathSync: jest.fn((target: string) => target),
+      lstatSync: jest.fn(() => undefined),
+    }
+    const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
+
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fs') return fsModule
+      if (moduleName === 'expand-tilde') return (value: string) => value
+      if (moduleName === 'fast-glob') return fastGlob
+      return {}
+    })
+
+    const fromDockerfile = Image.fromDockerfile('/repo/Dockerfile')
+    const viaCommands = Image.base('debian:12').dockerfileCommands(['COPY . /app/'], '/repo')
+
+    for (const image of [fromDockerfile, viaCommands]) {
+      expect(image.contextList).toHaveLength(1)
+      expect(image.contextList[0].sourcePath).toBe('/repo')
+      // An empty archive path normalises to '.', which is the form ObjectStorage.uploadAsTar
+      // handles explicitly when the source is the context root itself.
+      expect(pathe.normalize(image.contextList[0].archivePath)).toBe('.')
+    }
+  })
+
   it('parseCopyCommand handles json array copy commands', async () => {
     const { Image } = await import('../Image')
     const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>

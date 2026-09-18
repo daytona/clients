@@ -416,15 +416,23 @@ RSpec.describe Daytona::Image do
         .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
     end
 
-    it 'confines sources supplied through dockerfile_commands' do
+    it 'confines parent, absolute and dot sources supplied through dockerfile_commands' do
       File.write(File.join(@context, 'secret.txt'), 'in context')
+      FileUtils.mkdir_p(File.join(@context, 'etc'))
+      File.write(File.join(@context, 'etc', 'hosts'), 'in context')
       File.write(File.join(@tmp, 'secret.txt'), 'credential')
 
-      image = described_class.base('python:3.12')
-                             .dockerfile_commands(['COPY ../secret.txt /app/'], context_dir: @context)
+      image = described_class.base('python:3.12').dockerfile_commands(
+        ['COPY ../secret.txt /app/', 'COPY /etc/hosts /app/', 'COPY . /app/'], context_dir: @context
+      )
 
-      expect(image.context_list.map { |c| File.realpath(c.source_path) })
-        .to eq([File.realpath(File.join(@context, 'secret.txt'))])
+      expect(image.context_list.map { |c| [File.realpath(c.source_path), c.archive_path] }).to eq(
+        [
+          [File.realpath(File.join(@context, 'secret.txt')), '/secret.txt'],
+          [File.realpath(File.join(@context, 'etc', 'hosts')), '/etc/hosts'],
+          [File.realpath(@context), '/.']
+        ]
+      )
     end
 
     it 'archives the context root for a bare dot or parent operand' do
