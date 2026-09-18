@@ -147,6 +147,46 @@ func TestGetApiClientHonoursExplicitProfile(t *testing.T) {
 	}
 }
 
+// An explicitly passed token profile is used as given: the refresh path acts on the
+// active profile, so it must not run for, or leak into, a profile the caller supplied.
+func TestGetApiClientExplicitTokenProfileIgnoresActiveProfile(t *testing.T) {
+	dir := isolatedConfigDir(t)
+
+	// The active profile carries no credentials at all, so refreshing it would fail.
+	// That must not affect a caller who supplied a complete profile of its own.
+	unset := `{"activeProfile":"initial","profiles":[{"id":"initial","name":"initial",
+		"api":{"url":"https://api.example.test/api","key":null,"token":null},
+		"activeOrganizationId":"ORG-A"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(unset), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	org := "ORG-Z"
+	explicit := config.Profile{
+		Id:                   "p-ORG-Z",
+		Api:                  config.ServerApi{Url: "https://api.example.test/api"},
+		ActiveOrganizationId: &org,
+	}
+	explicit.Api.Token = &config.Token{
+		AccessToken:  "token-EXPLICIT",
+		RefreshToken: "refresh",
+		ExpiresAt:    time.Now().Add(24 * time.Hour),
+	}
+
+	client, err := GetApiClient(&explicit, nil)
+	if err != nil {
+		t.Fatalf("explicit token profile call: %v", err)
+	}
+
+	headers := client.GetConfig().DefaultHeader
+	if got, want := headers["Authorization"], "Bearer token-EXPLICIT"; got != want {
+		t.Errorf("authorization header = %q, want %q", got, want)
+	}
+	if got, want := headers["X-Daytona-Organization-ID"], "ORG-Z"; got != want {
+		t.Errorf("organization header = %q, want %q", got, want)
+	}
+}
+
 // Headers passed by a caller such as the MCP server must be applied on every call.
 func TestGetApiClientAppliesDefaultHeadersOnEveryCall(t *testing.T) {
 	dir := isolatedConfigDir(t)

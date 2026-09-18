@@ -115,22 +115,22 @@ func GetApiClient(profile *config.Profile, defaultHeaders map[string]string) (*a
 
 	// Refresh before the default headers are applied, and re-read the profile the refresh
 	// wrote, so the returned client always carries the current token and organization.
-	if activeProfile.Api.Key == nil && activeProfile.Api.Token != nil {
+	// RefreshTokenIfNeeded acts on the active profile, which is not necessarily the one
+	// passed in, so an explicitly supplied profile is used exactly as given.
+	if profile == nil && activeProfile.Api.Key == nil && activeProfile.Api.Token != nil {
 		err = auth.RefreshTokenIfNeeded(context.Background())
 		if err != nil {
 			return nil, err
 		}
 
-		if profile == nil {
-			c, err = config.GetConfig()
-			if err != nil {
-				return nil, err
-			}
+		c, err = config.GetConfig()
+		if err != nil {
+			return nil, err
+		}
 
-			activeProfile, err = c.GetActiveProfile()
-			if err != nil {
-				return nil, err
-			}
+		activeProfile, err = c.GetActiveProfile()
+		if err != nil {
+			return nil, err
 		}
 	}
 
