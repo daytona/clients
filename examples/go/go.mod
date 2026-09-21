@@ -54,3 +54,5 @@ replace github.com/daytona/clients/sdk-go => ../../sdk-go
 replace github.com/daytona/clients/api-client-go => ../../api-client-go
 
 replace github.com/daytona/clients/toolbox-api-client-go => ../../toolbox-api-client-go
+
+replace github.com/daytona/clients/analytics-api-client-go => ../../analytics-api-client-go
