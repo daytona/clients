@@ -21,12 +21,12 @@ sed -i 's/^license = ".*"/license = "Apache-2.0"/' "$PROJECT_ROOT/pyproject.toml
 sed -i 's/^requires-python = ">=3.9"/requires-python = ">=3.10"/' "$PROJECT_ROOT/pyproject.toml"
 sed -i 's/^PYTHON_REQUIRES = ">= 3.9"/PYTHON_REQUIRES = ">= 3.10"/' "$PROJECT_ROOT/setup.py"
 
-# Ensure urllib3 lower bound is pinned to version 2.7.0 in pyproject.toml, setup.py, and requirements.txt.
-# 2.7.0 carries the fixes for GHSA-mf9v-mfxr-j63j and GHSA-qccp-gfcp-xxvc (and,
+# Ensure urllib3 lower bound is pinned to version 2.8.0 in pyproject.toml, setup.py, and requirements.txt.
+# 2.8.0 carries the fixes for GHSA-mf9v-mfxr-j63j and GHSA-qccp-gfcp-xxvc (and,
 # historically, the >=2.1.0 PoolKey 'key_ca_cert_data' compatibility floor).
-# pyproject.toml already gets 2.7.0 from the template override; this keeps
+# pyproject.toml already gets 2.8.0 from the template override; this keeps
 # setup.py and requirements.txt (upstream templates) consistent.
-sed -i -E 's/(urllib3[^0-9\n]*)([0-9]+\.[0-9]+\.[0-9]+)/\12.7.0/g' \
+sed -i -E 's/(urllib3[^0-9\n]*)([0-9]+\.[0-9]+\.[0-9]+)/\12.8.0/g' \
   "$PROJECT_ROOT/pyproject.toml" \
   "$PROJECT_ROOT/setup.py" \
   "$PROJECT_ROOT/requirements.txt"
