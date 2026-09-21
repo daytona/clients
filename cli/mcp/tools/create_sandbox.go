@@ -38,6 +38,7 @@ type CreateSandboxArgs struct {
 	BuildInfo           *apiclient.CreateBuildInfo `json:"buildInfo,omitempty"`
 	NetworkBlockAll     *bool                      `json:"networkBlockAll,omitempty"`
 	NetworkAllowList    *string                    `json:"networkAllowList,omitempty"`
+	DomainAllowList     *string                    `json:"domainAllowList,omitempty"`
 }
 
 func GetCreateSandboxTool() mcp.Tool {
@@ -63,7 +64,8 @@ func GetCreateSandboxTool() mcp.Tool {
 		mcp.WithArray("volumes", mcp.Description("Volumes to attach to the sandbox."), mcp.Items(map[string]any{"type": "object", "properties": map[string]any{"volumeId": map[string]any{"type": "string"}, "mountPath": map[string]any{"type": "string"}}})),
 		mcp.WithObject("buildInfo", mcp.Description("Build information for the sandbox."), mcp.Properties(map[string]any{"dockerfileContent": map[string]any{"type": "string"}, "contextHashes": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}})),
 		mcp.WithBoolean("networkBlockAll", mcp.Description("Whether to block all network access to the sandbox.")),
-		mcp.WithString("networkAllowList", mcp.Description("Comma-separated list of domains to allow network access to the sandbox.")),
+		mcp.WithString("networkAllowList", mcp.Description("Comma-separated list of allowed IPv4 CIDR network addresses for the sandbox (e.g. 192.168.1.0/24,10.0.0.0/8). Hostnames, domains, and IPv6 are not supported; use domainAllowList for domains. Cannot be combined with a non-empty domainAllowList.")),
+		mcp.WithString("domainAllowList", mcp.Description("Comma-separated list of allowed domains for the sandbox (e.g. example.com,*.daytona.io). Supports a leading *. wildcard. Cannot be combined with a non-empty networkAllowList.")),
 	)
 }
 
@@ -223,12 +225,22 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		createSandbox.SetBuildInfo(*args.BuildInfo)
 	}
 
+	hasNetworkAllowList := args.NetworkAllowList != nil && strings.TrimSpace(*args.NetworkAllowList) != ""
+	hasDomainAllowList := args.DomainAllowList != nil && strings.TrimSpace(*args.DomainAllowList) != ""
+	if hasNetworkAllowList && hasDomainAllowList {
+		return nil, fmt.Errorf("networkAllowList and domainAllowList are mutually exclusive and cannot be set at the same time. Provide only one of them")
+	}
+
 	if args.NetworkBlockAll != nil {
 		createSandbox.SetNetworkBlockAll(*args.NetworkBlockAll)
 	}
 
 	if args.NetworkAllowList != nil {
 		createSandbox.SetNetworkAllowList(*args.NetworkAllowList)
+	}
+
+	if args.DomainAllowList != nil {
+		createSandbox.SetDomainAllowList(*args.DomainAllowList)
 	}
 
 	return createSandbox, nil
