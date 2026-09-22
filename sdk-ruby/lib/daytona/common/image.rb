@@ -255,6 +255,10 @@ module Daytona
     #
     # @param dockerfile_commands [Array<String>] The commands to add to the Dockerfile
     # @param context_dir [String, nil] The path to the context directory
+    # @param strict_context [Boolean] When true, a COPY source that resolves outside context_dir is
+    #   rejected instead of read. Requires context_dir, so that the boundary is explicit rather than
+    #   taken from the working directory. Sources that legitimately live elsewhere belong in
+    #   add_local_file or add_local_dir
     # @return [Image] The image with the Dockerfile commands added
     #
     # @example
@@ -280,6 +284,9 @@ module Daytona
       # Creates an Image from an existing Dockerfile
       #
       # @param path [String] The path to the Dockerfile
+      # @param strict_context [Boolean] When true, a COPY source that resolves outside the
+      #   Dockerfile's directory is rejected instead of read. Sources that legitimately live
+      #   elsewhere belong in add_local_file or add_local_dir
       # @return [Image] The image with the Dockerfile added
       #
       # @example
@@ -414,6 +421,10 @@ module Daytona
       # @return [String, nil] The expanded context directory
       # @raise [Sdk::Error] If the directory is missing, or strict_context was asked for without one
       def validate_context_dir(context_dir, strict_context)
+        # An empty string is truthy in Ruby and expands to the working directory, which would let
+        # a strict context take its boundary from wherever the process was started
+        context_dir = nil if context_dir.nil? || context_dir.to_s.strip.empty?
+
         if context_dir
           context_dir = File.expand_path(context_dir)
           raise Sdk::Error, "Context directory #{context_dir} does not exist" unless Dir.exist?(context_dir)

@@ -405,6 +405,10 @@ export class Image {
       if (!fs.statSync(expandedPath).isDirectory()) {
         throw new DaytonaInvalidArgumentError(`Context path ${contextDir} exists but is not a directory`)
       }
+      if (strictContext) {
+        // Resolve sources against the directory that was validated, not the literal argument
+        contextDir = expandedPath
+      }
     }
 
     for (const [contextPath, originalPath] of Image.extractCopySources(

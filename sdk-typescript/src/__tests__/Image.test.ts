@@ -430,6 +430,29 @@ describe('Image', () => {
     ).toThrow('strictContext requires contextDir')
   })
 
+  it('dockerfileCommands resolves strict sources against the expanded context directory', async () => {
+    const { Image } = await import('../Image')
+    const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    const fsModule = {
+      existsSync: jest.fn(() => true),
+      statSync: jest.fn(() => ({ isDirectory: () => true, isFile: () => true })),
+      realpathSync: jest.fn((target: string) => target),
+      lstatSync: jest.fn(() => undefined),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => {
+      if (moduleName === 'fast-glob') return fastGlob
+      if (moduleName === 'fs') return fsModule
+      if (moduleName === 'expand-tilde') return (value: string) => value.replace('~', '/home/user')
+      return {}
+    })
+
+    const image = Image.base('debian:12').dockerfileCommands(['COPY a.txt /app/'], '~/repo', {
+      strictContext: true,
+    })
+
+    expect(image.contextList).toEqual([{ sourcePath: '/home/user/repo/a.txt', archivePath: 'a.txt' }])
+  })
+
   it('parseCopyCommand handles json array copy commands', async () => {
     const { Image } = await import('../Image')
     const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>

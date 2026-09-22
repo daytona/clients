@@ -408,8 +408,18 @@ RSpec.describe Daytona::Image do
     end
 
     it 'rejects an absolute source when strict' do
-      expect { strict_from("FROM python:3.12\nCOPY /etc/hosts /app/\n") }
+      outside = File.join(@tmp, 'secret.txt')
+      File.write(outside, 'credential')
+
+      expect { strict_from("FROM python:3.12\nCOPY #{outside} /app/\n") }
         .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    end
+
+    it 'refuses an empty context directory for a strict dockerfile_commands build' do
+      expect do
+        described_class.base('python:3.12')
+                       .dockerfile_commands(['COPY a.txt /app/'], context_dir: '', strict_context: true)
+      end.to raise_error(Daytona::Sdk::Error, /strict_context requires context_dir/)
     end
 
     it 'rejects a source reached through a symlinked directory when strict' do

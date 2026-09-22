@@ -292,8 +292,10 @@ class TestImageFromDockerfile:
     def test_from_dockerfile_rejects_an_absolute_source_when_strict(self, tmp_path):
         context = tmp_path / "repo"
         context.mkdir()
+        outside = tmp_path / "secret.txt"
+        outside.write_text("credential")
         dockerfile = context / "Dockerfile"
-        dockerfile.write_text("FROM python:3.12\nCOPY /etc/hosts /app/\n")
+        dockerfile.write_text(f"FROM python:3.12\nCOPY {outside} /app/\n")
 
         with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
             Image.from_dockerfile(dockerfile, strict_context=True)
