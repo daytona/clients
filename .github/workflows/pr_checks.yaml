@@ -219,8 +219,8 @@ jobs:
           if not isinstance(gate, int) or gate < 10080:
               print('::error::npmMinimalAgeGate must be >= 10080')
               sys.exit(1)
-          if config.get('enableScripts'):
-              print('::error::enableScripts must stay disabled')
+          if config.get('enableScripts') is not False:
+              print('::error::enableScripts must be present and set to false')
               sys.exit(1)
           print('OK -- .yarnrc.yml passes integrity check')
           PY

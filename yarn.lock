@@ -8698,6 +8698,21 @@ __metadata:
     typescript-eslint: "npm:^8.70.0"
     verdaccio: "npm:6.10.3"
     ws: "npm:^8.21.3"
+  dependenciesMeta:
+    "@openapitools/openapi-generator-cli":
+      built: true
+    "@parcel/watcher":
+      built: true
+    "@swc/core":
+      built: true
+    esbuild:
+      built: true
+    nx:
+      built: true
+    protobufjs:
+      built: true
+    unrs-resolver:
+      built: true
   languageName: unknown
   linkType: soft
 

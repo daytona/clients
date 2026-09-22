@@ -90,6 +90,29 @@
     "typescript-eslint": "^8.70.0",
     "verdaccio": "6.10.3"
   },
+  "dependenciesMeta": {
+    "@openapitools/openapi-generator-cli": {
+      "built": true
+    },
+    "@parcel/watcher": {
+      "built": true
+    },
+    "@swc/core": {
+      "built": true
+    },
+    "esbuild": {
+      "built": true
+    },
+    "nx": {
+      "built": true
+    },
+    "protobufjs": {
+      "built": true
+    },
+    "unrs-resolver": {
+      "built": true
+    }
+  },
   "packageManager": "yarn@4.13.0",
   "nx": {
     "includedScripts": []
