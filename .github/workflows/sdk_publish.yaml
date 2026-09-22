@@ -108,6 +108,9 @@ jobs:
         env:
           NPM_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_TOKEN || '' }}
           PYPI_TOKEN: ${{ matrix.projects == 'sdk-python' && secrets.PYPI_TOKEN || '' }}
+          # The nx ruby publish targets rewrite ~/.gem/credentials from this variable
+          # before `gem push`, so it has to be present on this step too.
+          RUBYGEMS_API_KEY: ${{ matrix.projects == 'sdk-ruby' && secrets.RUBYGEMS_API_KEY || '' }}
           MAVEN_USERNAME: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_USERNAME || '' }}
           MAVEN_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_PASSWORD || '' }}
           MAVEN_GPG_SIGNING_KEY: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_KEY || '' }}
