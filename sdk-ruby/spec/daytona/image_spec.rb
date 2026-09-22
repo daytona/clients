@@ -371,7 +371,7 @@ RSpec.describe Daytona::Image do
         .to raise_error(Daytona::Sdk::Error, /Unsupported Python version: 3.8/)
     end
   end
-  describe '.from_dockerfile build-context containment' do
+  describe 'build-context containment' do
     around do |example|
       Dir.mktmpdir do |tmp|
         @tmp = tmp
@@ -387,61 +387,71 @@ RSpec.describe Daytona::Image do
       path
     end
 
-    it 'resolves a parent-traversal source inside the build context' do
-      File.write(File.join(@context, 'secret.txt'), 'in context')
+    def strict_from(content)
+      described_class.from_dockerfile(dockerfile(content), strict_context: true)
+    end
+
+    it 'reads a source outside the context by default' do
       File.write(File.join(@tmp, 'secret.txt'), 'credential')
 
       image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY ../secret.txt /app/\n"))
 
-      expect(image.context_list.map { |c| [c.source_path, c.archive_path] })
-        .to eq([[File.join(@context, 'secret.txt'), 'secret.txt']])
+      expect(image.context_list.map { |c| File.realpath(c.source_path) })
+        .to eq([File.realpath(File.join(@tmp, 'secret.txt'))])
     end
 
-    it 'resolves an absolute source inside the build context' do
-      FileUtils.mkdir_p(File.join(@context, 'etc'))
-      File.write(File.join(@context, 'etc', 'hosts'), 'in context')
+    it 'rejects a parent-traversal source when strict' do
+      File.write(File.join(@tmp, 'secret.txt'), 'credential')
 
-      image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY /etc/hosts /app/\n"))
-
-      expect(image.context_list.map(&:source_path)).to eq([File.join(@context, 'etc', 'hosts')])
+      expect { strict_from("FROM python:3.12\nCOPY ../secret.txt /app/\n") }
+        .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
     end
 
-    it 'rejects a source reached through a symlinked directory' do
+    it 'rejects an absolute source when strict' do
+      expect { strict_from("FROM python:3.12\nCOPY /etc/hosts /app/\n") }
+        .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    end
+
+    it 'rejects a source reached through a symlinked directory when strict' do
       outside = File.join(@tmp, 'outside')
       Dir.mkdir(outside)
       File.write(File.join(outside, 'secret.txt'), 'credential')
       File.symlink(outside, File.join(@context, 'dirlink'))
 
-      expect { described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n")) }
+      expect { strict_from("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n") }
         .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
     end
 
-    it 'confines parent, absolute and dot sources supplied through dockerfile_commands' do
-      File.write(File.join(@context, 'secret.txt'), 'in context')
-      FileUtils.mkdir_p(File.join(@context, 'etc'))
-      File.write(File.join(@context, 'etc', 'hosts'), 'in context')
-      File.write(File.join(@tmp, 'secret.txt'), 'credential')
-
-      image = described_class.base('python:3.12').dockerfile_commands(
-        ['COPY ../secret.txt /app/', 'COPY /etc/hosts /app/', 'COPY . /app/'], context_dir: @context
-      )
-
-      expect(image.context_list.map { |c| [File.realpath(c.source_path), c.archive_path] }).to eq(
-        [
-          [File.realpath(File.join(@context, 'secret.txt')), '/secret.txt'],
-          [File.realpath(File.join(@context, 'etc', 'hosts')), '/etc/hosts'],
-          [File.realpath(@context), '/.']
-        ]
-      )
-    end
-
-    it 'archives the context root for a bare dot or parent operand' do
+    it 'allows a source inside the context when strict' do
       File.write(File.join(@context, 'a.txt'), 'a')
 
-      ['.', '..'].each do |operand|
-        image = described_class.from_dockerfile(dockerfile("FROM python:3.12\nCOPY #{operand} /app/\n"))
+      image = strict_from("FROM python:3.12\nCOPY a.txt /app/\n")
 
-        expect(image.context_list.map(&:archive_path)).to eq(['.'])
+      expect(image.context_list.map(&:archive_path)).to eq(['a.txt'])
+    end
+
+    it 'requires a context directory for a strict dockerfile_commands build' do
+      expect { described_class.base('python:3.12').dockerfile_commands(['COPY a.txt /app/'], strict_context: true) }
+        .to raise_error(Daytona::Sdk::Error, /strict_context requires context_dir/)
+    end
+
+    it 'rejects an escaping source through dockerfile_commands when strict' do
+      File.write(File.join(@tmp, 'secret.txt'), 'credential')
+
+      expect do
+        described_class.base('python:3.12')
+                       .dockerfile_commands(['COPY ../secret.txt /app/'], context_dir: @context, strict_context: true)
+      end.to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    end
+
+    it 'resolves a relative source against the working directory without a context directory' do
+      Dir.chdir(@context) do
+        File.write('a.txt', 'a')
+
+        image = described_class.base('python:3.12').dockerfile_commands(['COPY a.txt /app/'])
+
+        expect(image.context_list.map { |c| File.realpath(c.source_path) })
+          .to eq([File.realpath(File.join(@context, 'a.txt'))])
       end
     end
   end

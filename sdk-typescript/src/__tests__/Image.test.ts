@@ -338,7 +338,7 @@ describe('Image', () => {
     expect(sources[0]).toEqual(['/repo/a.txt', './a.txt'])
   })
 
-  it('extractCopySources confines parent-traversal and absolute sources to the build context', async () => {
+  it('extractCopySources reads escaping sources by default and rejects them when strict', async () => {
     const { Image } = await import('../Image')
     const fastGlob = { sync: jest.fn((patterns: string[]) => [patterns[0]]) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
@@ -349,17 +349,22 @@ describe('Image', () => {
 
     const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
 
+    // Default: today's resolution, an escaping source is read as written
     expect(imageRuntime.extractCopySources('COPY ../secret.txt /app/', '/repo')).toEqual([
-      ['/repo/secret.txt', '../secret.txt'],
+      ['/secret.txt', '../secret.txt'],
     ])
-    expect(imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo')).toEqual([
-      ['/repo/etc/hosts', '/etc/hosts'],
-    ])
-    expect(imageRuntime.extractCopySources('COPY . /app/', '/repo')).toEqual([['/repo', '.']])
-    expect(imageRuntime.extractCopySources('COPY .. /app/', '/repo')).toEqual([['/repo', '..']])
+    expect(imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo')).toEqual([['/etc/hosts', '/etc/hosts']])
+
+    // Strict: the same sources are rejected rather than read
+    expect(() => imageRuntime.extractCopySources('COPY ../secret.txt /app/', '/repo', true)).toThrow(
+      'forbidden path outside the build context',
+    )
+    expect(() => imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo', true)).toThrow(
+      'forbidden path outside the build context',
+    )
   })
 
-  it('extractCopySources rejects a source reached through a symlinked directory', async () => {
+  it('extractCopySources rejects a source reached through a symlinked directory when strict', async () => {
     const { Image } = await import('../Image')
     const fastGlob = { sync: jest.fn(() => ['/repo/dirlink/secret.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
@@ -375,9 +380,14 @@ describe('Image', () => {
 
     const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
 
-    expect(() => imageRuntime.extractCopySources('COPY dirlink/secret.txt /app/', '/repo')).toThrow(
+    expect(() => imageRuntime.extractCopySources('COPY dirlink/secret.txt /app/', '/repo', true)).toThrow(
       'forbidden path outside the build context: /outside/secret.txt',
     )
+
+    // Without strictContext the same source is read as written
+    expect(imageRuntime.extractCopySources('COPY dirlink/secret.txt /app/', '/repo')).toEqual([
+      ['/repo/dirlink/secret.txt', 'dirlink/secret.txt'],
+    ])
   })
 
   it('fromDockerfile and dockerfileCommands archive the context root for a dot operand', async () => {
@@ -410,6 +420,14 @@ describe('Image', () => {
       // handles explicitly when the source is the context root itself.
       expect(pathe.normalize(image.contextList[0].archivePath)).toBe('.')
     }
+  })
+
+  it('dockerfileCommands requires a context directory when strictContext is set', async () => {
+    const { Image } = await import('../Image')
+
+    expect(() =>
+      Image.base('debian:12').dockerfileCommands(['COPY a.txt /app/'], undefined, { strictContext: true }),
+    ).toThrow('strictContext requires contextDir')
   })
 
   it('parseCopyCommand handles json array copy commands', async () => {

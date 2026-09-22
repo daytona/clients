@@ -259,22 +259,20 @@ module Daytona
     #
     # @example
     #   image = Image.debian_slim("3.12").dockerfile_commands(["RUN echo 'Hello, world!'"])
-    def dockerfile_commands(dockerfile_commands, context_dir: nil) # rubocop:disable Metrics/MethodLength
-      if context_dir
-        context_dir = File.expand_path(context_dir)
-        raise Sdk::Error, "Context directory #{context_dir} does not exist" unless Dir.exist?(context_dir)
-      end
+    def dockerfile_commands(dockerfile_commands, context_dir: nil, strict_context: false) # rubocop:disable Metrics/MethodLength
+      context_dir = self.class.send(:validate_context_dir, context_dir, strict_context)
+      root, real_root = self.class.send(:context_boundary, context_dir, strict_context)
+      commands = dockerfile_commands.join("\n")
 
       # Extract copy sources from dockerfile commands (class-level helper)
-      root = self.class.send(:context_root, context_dir || '')
-      self.class.send(:extract_copy_sources, dockerfile_commands.join("\n"),
-                      context_dir || '').each do |context_path, original_path|
+      copy_sources = self.class.send(:extract_copy_sources, commands, context_dir || '', real_root)
+      copy_sources.each do |context_path, original_path|
         archive_base_path = context_path
         archive_base_path = context_path.delete_prefix(root) unless original_path.start_with?(root)
         @context_list << Context.new(source_path: context_path, archive_path: archive_base_path)
       end
 
-      @dockerfile += "#{dockerfile_commands.join("\n")}\n"
+      @dockerfile += "#{commands}\n"
       self
     end
 
@@ -286,15 +284,16 @@ module Daytona
       #
       # @example
       #   image = Image.from_dockerfile("Dockerfile")
-      def from_dockerfile(path) # rubocop:disable Metrics/AbcSize
+      def from_dockerfile(path, strict_context: false) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         path = Pathname.new(File.expand_path(path))
         dockerfile = path.read
         img = new(dockerfile: dockerfile)
 
         # Remove dockerfile filename from path
         path_prefix = path.to_s.delete_suffix(path.basename.to_s)
+        real_root = strict_root(path_prefix, strict_context)
 
-        extract_copy_sources(dockerfile, path_prefix).each do |context_path, original_path|
+        extract_copy_sources(dockerfile, path_prefix, real_root).each do |context_path, original_path|
           archive_base_path = context_path
           archive_base_path = context_path.delete_prefix(path_prefix) unless original_path.start_with?(path_prefix)
           img.context_list << Context.new(source_path: context_path, archive_path: archive_base_path)
@@ -360,10 +359,9 @@ module Daytona
       # @param dockerfile_content [String] The content of the Dockerfile
       # @param path_prefix [String] The path prefix to use for the sources
       # @return [Array<Array<String>>] The list of the actual file path and its corresponding COPY-command source path
-      def extract_copy_sources(dockerfile_content, path_prefix = '') # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
+      def extract_copy_sources(dockerfile_content, path_prefix = '', real_root = nil) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/MethodLength
         sources = []
         lines = dockerfile_logical_lines(dockerfile_content)
-        real_root = real_path(context_root(path_prefix)) || File.expand_path(context_root(path_prefix))
 
         lines.each do |line|
           # Skip empty lines and comments
@@ -381,7 +379,14 @@ module Daytona
 
           # Get source paths from the parsed command parts
           command_parts['sources'].each do |source|
-            full_path_pattern = resolve_context_source(path_prefix, source)
+            # Handle absolute and relative paths differently
+            full_path_pattern = if Pathname.new(source).absolute?
+                                  # Absolute path - use as is
+                                  source
+                                else
+                                  # Relative path - add prefix
+                                  File.join(context_root(path_prefix), source)
+                                end
 
             # Handle glob patterns
             matching_files = Dir.glob(full_path_pattern)
@@ -402,6 +407,44 @@ module Daytona
         sources
       end
 
+      # Validates the context directory and the strict_context combination
+      #
+      # @param context_dir [String, nil] The caller-supplied context directory
+      # @param strict_context [Boolean] Whether the build context boundary is enforced
+      # @return [String, nil] The expanded context directory
+      # @raise [Sdk::Error] If the directory is missing, or strict_context was asked for without one
+      def validate_context_dir(context_dir, strict_context)
+        if context_dir
+          context_dir = File.expand_path(context_dir)
+          raise Sdk::Error, "Context directory #{context_dir} does not exist" unless Dir.exist?(context_dir)
+        elsif strict_context
+          raise Sdk::Error, 'strict_context requires context_dir so that the build context boundary is explicit'
+        end
+
+        context_dir
+      end
+
+      # The join root and the strict boundary for a set of COPY sources
+      #
+      # @param context_dir [String, nil] The expanded context directory
+      # @param strict_context [Boolean] Whether the build context boundary is enforced
+      # @return [Array<String, String, nil>] The join root and the strict boundary
+      def context_boundary(context_dir, strict_context)
+        [context_root(context_dir || ''), strict_root(context_dir, strict_context)]
+      end
+
+      # The resolved boundary a strict build context is enforced against, or nil when the caller
+      # did not ask for one
+      #
+      # @param root [String, nil] The build context root
+      # @param strict_context [Boolean] Whether the build context boundary is enforced
+      # @return [String, nil] The resolved boundary, or nil
+      def strict_root(root, strict_context)
+        return nil unless strict_context
+
+        real_path(root) || root
+      end
+
       # The build context root that a COPY source is resolved against. An empty prefix means
       # the caller supplied no context directory, in which case `docker build .` semantics
       # apply and the working directory is the context.
@@ -410,18 +453,6 @@ module Daytona
       # @return [String] The build context root
       def context_root(path_prefix)
         path_prefix.nil? || path_prefix.empty? ? Dir.pwd : path_prefix
-      end
-
-      # Mirrors how `docker build` interprets a COPY source: a leading separator and any
-      # parent-directory navigation are stripped, so the source always names something
-      # inside the build context.
-      #
-      # @param path_prefix [String, nil] The path prefix the sources are resolved against
-      # @param source [String] The COPY-command source path
-      # @return [String] The resolved path inside the build context
-      def resolve_context_source(path_prefix, source)
-        context_relative = Pathname.new(File.join('/', source)).cleanpath.to_s.delete_prefix('/')
-        File.join(context_root(path_prefix), context_relative.empty? ? '.' : context_relative)
       end
 
       # Rejects a source that resolves outside the build context. Normalisation alone cannot see
@@ -433,6 +464,9 @@ module Daytona
       # @param candidate [String] The resolved source path to check
       # @raise [Sdk::Error] If the candidate resolves outside the build context
       def ensure_within_build_context(real_root, candidate)
+        # real_root is nil unless the caller asked for a strict build context
+        return if real_root.nil?
+
         resolved = real_path(candidate)
         # A path that does not exist cannot be archived. A symlink whose target is missing still
         # leaves the context, so it is rejected rather than tolerated.

@@ -386,7 +386,13 @@ export class Image {
    *  .debianSlim('3.12')
    *  .dockerfileCommands(['RUN echo "Hello, world!"'])
    */
-  dockerfileCommands(dockerfileCommands: string[], contextDir?: string): Image {
+  dockerfileCommands(dockerfileCommands: string[], contextDir?: string, options?: { strictContext?: boolean }): Image {
+    const strictContext = options?.strictContext ?? false
+    if (!contextDir && strictContext) {
+      throw new DaytonaInvalidArgumentError(
+        'strictContext requires contextDir so that the build context boundary is explicit',
+      )
+    }
     if (contextDir) {
       const importErrorPrefix = '"dockerfileCommands" is not supported: '
       const expandTilde = dynamicRequire('expand-tilde', importErrorPrefix)
@@ -404,6 +410,7 @@ export class Image {
     for (const [contextPath, originalPath] of Image.extractCopySources(
       dockerfileCommands.join('\n'),
       contextDir || '',
+      strictContext,
     )) {
       let archiveBasePath = contextPath
       if (contextDir && !originalPath.startsWith(contextDir)) {
@@ -428,7 +435,7 @@ export class Image {
    * @example
    * const image = Image.fromDockerfile('Dockerfile')
    */
-  static fromDockerfile(path: string): Image {
+  static fromDockerfile(path: string, options?: { strictContext?: boolean }): Image {
     const importErrorPrefix = '"fromDockerfile" is not supported: '
     const expandTilde = dynamicRequire('expand-tilde', importErrorPrefix)
     const fs = dynamicRequire('fs', importErrorPrefix)
@@ -448,7 +455,11 @@ export class Image {
     // Remove dockerfile filename from path to get the path prefix
     const pathPrefix = pathe.dirname(expandedPath) + pathe.sep
 
-    for (const [contextPath, originalPath] of Image.extractCopySources(dockerfileContent, pathPrefix)) {
+    for (const [contextPath, originalPath] of Image.extractCopySources(
+      dockerfileContent,
+      pathPrefix,
+      options?.strictContext ?? false,
+    )) {
       let archiveBasePath = contextPath
       if (!originalPath.startsWith(pathPrefix)) {
         // Remove the path prefix from the context path to get the archive path
@@ -642,7 +653,11 @@ export class Image {
    * @param {string} pathPrefix - The path prefix to use for the sources.
    * @returns {Array<[string, string]>} The list of the actual file path and its corresponding COPY-command source path.
    */
-  private static extractCopySources(dockerfileContent: string, pathPrefix = ''): Array<[string, string]> {
+  private static extractCopySources(
+    dockerfileContent: string,
+    pathPrefix = '',
+    strictContext = false,
+  ): Array<[string, string]> {
     const sources: Array<[string, string]> = []
     const lines = Image.dockerfileLogicalLines(dockerfileContent)
 
@@ -662,13 +677,14 @@ export class Image {
         const importErrorPrefix = '"extractCopySources" is not supported: '
         const fg = dynamicRequire('fast-glob', importErrorPrefix)
         const fs = dynamicRequire('fs', importErrorPrefix)
-        const realRoot = Image.resolveRealPath(fs, pathPrefix || process.cwd())
+        const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
 
         const commandParts = this.parseCopyCommand(line)
         if (commandParts) {
           // Get source paths from the parsed command parts
           for (const source of commandParts.sources) {
-            const fullPathPattern = pathe.join(pathPrefix, Image.contextRelativeSource(source))
+            // Handle absolute and relative paths differently
+            const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
             const matchingFiles = fg.sync([fullPathPattern], { dot: true })
             if (matchingFiles.length > 0) {
@@ -686,18 +702,6 @@ export class Image {
     }
 
     return sources
-  }
-
-  /**
-   * Mirrors how `docker build` interprets a COPY source: a leading separator and any
-   * parent-directory navigation are stripped, so the source always names something inside
-   * the build context.
-   *
-   * @param {string} source - The COPY-command source path.
-   * @returns {string} The source path relative to the build context root.
-   */
-  private static contextRelativeSource(source: string): string {
-    return pathe.join('/', source).replace(/^\/+/, '') || '.'
   }
 
   /**
@@ -723,10 +727,14 @@ export class Image {
    * inside the context.
    *
    * @param {any} fs - The filesystem module.
-   * @param {string} realRoot - The resolved build context root.
+   * @param {string | null} realRoot - The resolved build context root, or null when the caller did
+   * not ask for a strict build context.
    * @param {string} candidate - The resolved source path to check.
    */
-  private static ensureWithinBuildContext(fs: any, realRoot: string, candidate: string): void {
+  private static ensureWithinBuildContext(fs: any, realRoot: string | null, candidate: string): void {
+    // realRoot is null unless the caller asked for a strict build context
+    if (realRoot === null) return
+
     let resolved: string
     try {
       resolved = pathe.normalize(fs.realpathSync(candidate))
