@@ -424,6 +424,14 @@ RSpec.describe Daytona::Image do
       end.to raise_error(Daytona::Sdk::Error, /strict_context requires context_dir/)
     end
 
+    it 'rejects windows-style sources when strict' do
+      # Quoting preserves the backslash; unquoted the COPY parser consumes it
+      ['"..\\secret.txt"', '"\\foo"', '"C:\\x"', '"..\\..\\x"'].each do |source|
+        expect { strict_from("FROM python:3.12\nCOPY #{source} /app/\n") }
+          .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+      end
+    end
+
     it 'rejects a source reached through a symlinked directory when strict' do
       outside = File.join(@tmp, 'outside')
       Dir.mkdir(outside)

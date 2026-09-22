@@ -307,6 +307,18 @@ class TestImageFromDockerfile:
         with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
             Image.from_dockerfile(dockerfile, strict_context=True)
 
+    def test_from_dockerfile_rejects_windows_style_sources_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        dockerfile = context / "Dockerfile"
+
+        # Quoting preserves the backslash; unquoted the COPY parser consumes it
+        for source in ('"..\\secret.txt"', '"\\foo"', '"C:\\x"', '"..\\..\\x"'):
+            dockerfile.write_text(f"FROM python:3.12\nCOPY {source} /app/\n")
+
+            with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+                Image.from_dockerfile(dockerfile, strict_context=True)
+
     def test_from_dockerfile_rejects_a_source_reached_through_a_symlinked_directory_when_strict(self, tmp_path):
         context = tmp_path / "repo"
         context.mkdir()

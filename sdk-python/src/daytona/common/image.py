@@ -591,9 +591,13 @@ class Image(BaseModel):
         Raises:
             DaytonaValidationError: If the source names something outside the build context.
         """
-        normalized = posixpath.normpath(source)
+        # A backslash is a separator on Windows, so fold it before deciding: otherwise
+        # "..\\secret.txt" reads as an ordinary filename here and as a traversal there.
+        candidate = source.replace("\\", "/")
+        normalized = posixpath.normpath(candidate)
         outside = (
-            posixpath.isabs(source)
+            posixpath.isabs(candidate)
+            or ntpath.isabs(source)
             or bool(ntpath.splitdrive(source)[0])
             or normalized == ".."
             or normalized.startswith("../")
