@@ -402,18 +402,20 @@ class Image(BaseModel):
             image = Image.debian_slim("3.12").dockerfile_commands(["RUN echo 'Hello, world!'"])
             ```
         """
+        real_root: str | None = None
+
         if context_dir:
             context_dir = os.path.expanduser(context_dir)
             if not os.path.exists(context_dir):
                 raise DaytonaNotFoundError(f"Context directory {context_dir} does not exist")
             if not os.path.isdir(context_dir):
                 raise DaytonaValidationError(f"Context path {context_dir} exists but is not a directory")
+            if strict_context:
+                real_root = os.path.realpath(context_dir)
         elif strict_context:
             raise DaytonaValidationError(
                 "strict_context requires context_dir so that the build context boundary is explicit"
             )
-
-        real_root = os.path.realpath(context_dir) if strict_context else None
 
         for context_path, original_path in Image.__extract_copy_sources(
             "\n".join(dockerfile_commands), context_dir or "", real_root
