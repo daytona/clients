@@ -36,6 +36,8 @@ type ApiKeyList struct {
 	ExpiresAt NullableTime `json:"expiresAt"`
 	// The user ID of the user who created the API key
 	UserId string `json:"userId"`
+	// The organization ID associated with the API key
+	OrganizationId *string `json:"organizationId,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -237,6 +239,38 @@ func (o *ApiKeyList) SetUserId(v string) {
 	o.UserId = v
 }
 
+// GetOrganizationId returns the OrganizationId field value if set, zero value otherwise.
+func (o *ApiKeyList) GetOrganizationId() string {
+	if o == nil || IsNil(o.OrganizationId) {
+		var ret string
+		return ret
+	}
+	return *o.OrganizationId
+}
+
+// GetOrganizationIdOk returns a tuple with the OrganizationId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ApiKeyList) GetOrganizationIdOk() (*string, bool) {
+	if o == nil || IsNil(o.OrganizationId) {
+		return nil, false
+	}
+	return o.OrganizationId, true
+}
+
+// HasOrganizationId returns a boolean if a field has been set.
+func (o *ApiKeyList) HasOrganizationId() bool {
+	if o != nil && !IsNil(o.OrganizationId) {
+		return true
+	}
+
+	return false
+}
+
+// SetOrganizationId gets a reference to the given string and assigns it to the OrganizationId field.
+func (o *ApiKeyList) SetOrganizationId(v string) {
+	o.OrganizationId = &v
+}
+
 func (o ApiKeyList) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -254,6 +288,9 @@ func (o ApiKeyList) ToMap() (map[string]interface{}, error) {
 	toSerialize["lastUsedAt"] = o.LastUsedAt.Get()
 	toSerialize["expiresAt"] = o.ExpiresAt.Get()
 	toSerialize["userId"] = o.UserId
+	if !IsNil(o.OrganizationId) {
+		toSerialize["organizationId"] = o.OrganizationId
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -310,6 +347,7 @@ func (o *ApiKeyList) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "lastUsedAt")
 		delete(additionalProperties, "expiresAt")
 		delete(additionalProperties, "userId")
+		delete(additionalProperties, "organizationId")
 		o.AdditionalProperties = additionalProperties
 	}
 

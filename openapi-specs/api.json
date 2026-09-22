@@ -11519,6 +11519,11 @@
             "type": "string",
             "description": "The user ID of the user who created the API key",
             "example": "123"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "The organization ID associated with the API key",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
           }
         },
         "required": [

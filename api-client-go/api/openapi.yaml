@@ -7855,6 +7855,7 @@ components:
       type: object
     ApiKeyList:
       example:
+        organizationId: 123e4567-e89b-12d3-a456-426614174000
         createdAt: 2024-03-14T12:00:00Z
         lastUsedAt: 2024-03-14T12:00:00Z
         permissions:
@@ -7943,6 +7944,10 @@ components:
         userId:
           description: The user ID of the user who created the API key
           example: "123"
+          type: string
+        organizationId:
+          description: The organization ID associated with the API key
+          example: 123e4567-e89b-12d3-a456-426614174000
           type: string
       required:
       - createdAt
