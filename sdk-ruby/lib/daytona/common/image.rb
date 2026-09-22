@@ -386,6 +386,8 @@ module Daytona
 
           # Get source paths from the parsed command parts
           command_parts['sources'].each do |source|
+            ensure_source_within_context(source) unless real_root.nil?
+
             # Handle absolute and relative paths differently
             full_path_pattern = if Pathname.new(source).absolute?
                                   # Absolute path - use as is
@@ -464,6 +466,25 @@ module Daytona
       # @return [String] The build context root
       def context_root(path_prefix)
         path_prefix.nil? || path_prefix.empty? ? Dir.pwd : path_prefix
+      end
+
+      # Rejects a COPY source that names something outside the build context. This is decided on
+      # the source itself, before anything is read, so that a source is accepted or rejected the
+      # same way whether or not it happens to exist on disk. An absolute source, including a
+      # Windows drive or UNC path, and one whose normalised form climbs above the context both
+      # name something the build context cannot address.
+      #
+      # @param source [String] The COPY-command source path
+      # @raise [Sdk::Error] If the source names something outside the build context
+      def ensure_source_within_context(source)
+        normalized = Pathname.new(source).cleanpath.to_s
+        outside = Pathname.new(source).absolute? ||
+                  source.match?(/\A([A-Za-z]:|\\\\)/) ||
+                  normalized == '..' ||
+                  normalized.start_with?('../')
+        return unless outside
+
+        raise Sdk::Error, "forbidden path outside the build context: #{source}"
       end
 
       # Rejects a source that resolves outside the build context. Normalisation alone cannot see

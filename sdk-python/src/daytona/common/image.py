@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import glob
 import json
+import ntpath
 import os
+import posixpath
 import re
 import shlex
 import sys
@@ -549,6 +551,9 @@ class Image(BaseModel):
                 if command_parts:
                     # Get source paths from the parsed command parts
                     for source in command_parts["sources"]:
+                        if real_root is not None:
+                            Image.__ensure_source_within_context(source)
+
                         # Handle absolute and relative paths differently
                         if PurePosixPath(source).is_absolute():
                             # Absolute path - use as is
@@ -570,6 +575,31 @@ class Image(BaseModel):
                             sources.append((full_path_pattern, source))
 
         return sources
+
+    @staticmethod
+    def __ensure_source_within_context(source: str) -> None:
+        """Rejects a COPY source that names something outside the build context.
+
+        This is decided on the source itself, before anything is read, so that a source is
+        accepted or rejected the same way whether or not it happens to exist on disk. An absolute
+        source, including a Windows drive or UNC path, and one whose normalised form climbs above
+        the context both name something the build context cannot address.
+
+        Args:
+            source: str: The COPY-command source path.
+
+        Raises:
+            DaytonaValidationError: If the source names something outside the build context.
+        """
+        normalized = posixpath.normpath(source)
+        outside = (
+            posixpath.isabs(source)
+            or bool(ntpath.splitdrive(source)[0])
+            or normalized == ".."
+            or normalized.startswith("../")
+        )
+        if outside:
+            raise DaytonaValidationError(f"forbidden path outside the build context: {source}")
 
     @staticmethod
     def __ensure_within_build_context(real_root: str | None, candidate: str) -> None:

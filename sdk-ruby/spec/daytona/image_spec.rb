@@ -408,11 +408,13 @@ RSpec.describe Daytona::Image do
     end
 
     it 'rejects an absolute source when strict' do
-      outside = File.join(@tmp, 'secret.txt')
-      File.write(outside, 'credential')
+      expect { strict_from("FROM python:3.12\nCOPY /nonexistent/secret.txt /app/\n") }
+        .to raise_error(Daytona::Sdk::Error, %r{forbidden path outside the build context: /nonexistent/secret.txt})
+    end
 
-      expect { strict_from("FROM python:3.12\nCOPY #{outside} /app/\n") }
-        .to raise_error(Daytona::Sdk::Error, /forbidden path outside the build context/)
+    it 'rejects an escaping source when strict even if nothing is there' do
+      expect { strict_from("FROM python:3.12\nCOPY ../nope.txt /app/\n") }
+        .to raise_error(Daytona::Sdk::Error, %r{forbidden path outside the build context: \.\./nope\.txt})
     end
 
     it 'refuses an empty context directory for a strict dockerfile_commands build' do

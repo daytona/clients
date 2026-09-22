@@ -687,6 +687,10 @@ export class Image {
         if (commandParts) {
           // Get source paths from the parsed command parts
           for (const source of commandParts.sources) {
+            if (realRoot !== null) {
+              Image.ensureSourceWithinContext(source)
+            }
+
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
@@ -721,6 +725,28 @@ export class Image {
       return pathe.normalize(fs.realpathSync(target))
     } catch {
       return pathe.resolve(target)
+    }
+  }
+
+  /**
+   * Rejects a COPY source that names something outside the build context. This is decided on the
+   * source itself, before anything is read, so that a source is accepted or rejected the same way
+   * whether or not it happens to exist on disk. An absolute source, including a Windows drive or
+   * UNC path, and one whose normalised form climbs above the context both name something the
+   * build context cannot address.
+   *
+   * @param {string} source - The COPY-command source path.
+   */
+  private static ensureSourceWithinContext(source: string): void {
+    const normalized = pathe.normalize(source)
+    const outside =
+      pathe.isAbsolute(source) ||
+      /^([A-Za-z]:|\\\\)/.test(source) ||
+      normalized === '..' ||
+      normalized.startsWith('../')
+
+    if (outside) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
     }
   }
 

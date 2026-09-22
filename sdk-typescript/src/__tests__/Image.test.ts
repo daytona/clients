@@ -355,13 +355,12 @@ describe('Image', () => {
     ])
     expect(imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo')).toEqual([['/etc/hosts', '/etc/hosts']])
 
-    // Strict: the same sources are rejected rather than read
-    expect(() => imageRuntime.extractCopySources('COPY ../secret.txt /app/', '/repo', true)).toThrow(
-      'forbidden path outside the build context',
-    )
-    expect(() => imageRuntime.extractCopySources('COPY /etc/hosts /app/', '/repo', true)).toThrow(
-      'forbidden path outside the build context',
-    )
+    // Strict: the same sources are rejected rather than read, whether or not they exist
+    for (const source of ['../secret.txt', '/etc/hosts', '../nope.txt', '/nonexistent/secret.txt']) {
+      expect(() => imageRuntime.extractCopySources(`COPY ${source} /app/`, '/repo', true)).toThrow(
+        `forbidden path outside the build context: ${source}`,
+      )
+    }
   })
 
   it('extractCopySources rejects a source reached through a symlinked directory when strict', async () => {
