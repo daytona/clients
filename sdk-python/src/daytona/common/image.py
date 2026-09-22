@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import glob
 import json
+import ntpath
 import os
+import posixpath
 import re
 import shlex
 import sys
@@ -381,12 +383,18 @@ class Image(BaseModel):
         self,
         dockerfile_commands: list[str],
         context_dir: Path | str | None = None,
+        *,
+        strict_context: bool = False,
     ) -> "Image":
         """Adds arbitrary Dockerfile-like commands to the image.
 
         Args:
             *dockerfile_commands: The commands to add to the Dockerfile.
             context_dir: Path | str | None: The path to the context directory.
+            strict_context: bool: When True, a COPY source that resolves outside context_dir is
+                rejected instead of read. Requires context_dir, so that the boundary is explicit
+                rather than taken from the working directory. Sources that legitimately live
+                elsewhere belong in add_local_file or add_local_dir.
 
         Returns:
             Image: The image with the Dockerfile commands added.
@@ -396,15 +404,23 @@ class Image(BaseModel):
             image = Image.debian_slim("3.12").dockerfile_commands(["RUN echo 'Hello, world!'"])
             ```
         """
+        real_root: str | None = None
+
         if context_dir:
             context_dir = os.path.expanduser(context_dir)
             if not os.path.exists(context_dir):
                 raise DaytonaNotFoundError(f"Context directory {context_dir} does not exist")
             if not os.path.isdir(context_dir):
                 raise DaytonaValidationError(f"Context path {context_dir} exists but is not a directory")
+            if strict_context:
+                real_root = os.path.realpath(context_dir)
+        elif strict_context:
+            raise DaytonaValidationError(
+                "strict_context requires context_dir so that the build context boundary is explicit"
+            )
 
         for context_path, original_path in Image.__extract_copy_sources(
-            "\n".join(dockerfile_commands), context_dir or ""
+            "\n".join(dockerfile_commands), context_dir or "", real_root
         ):
             archive_base_path = context_path
             if context_dir and not original_path.startswith(context_dir):
@@ -416,11 +432,14 @@ class Image(BaseModel):
         return self
 
     @staticmethod
-    def from_dockerfile(path: str | Path) -> "Image":
+    def from_dockerfile(path: str | Path, *, strict_context: bool = False) -> "Image":
         """Creates an Image from an existing Dockerfile.
 
         Args:
             path: str | Path: The path to the Dockerfile.
+            strict_context: bool: When True, a COPY source that resolves outside the Dockerfile's
+                directory is rejected instead of read. Sources that legitimately live elsewhere
+                belong in add_local_file or add_local_dir.
 
         Returns:
             Image: The image with the Dockerfile added.
@@ -442,8 +461,9 @@ class Image(BaseModel):
 
         # remove dockerfile filename from path
         path_prefix = str(path).removesuffix(path.name)
+        real_root = os.path.realpath(path_prefix) if strict_context else None
 
-        for context_path, original_path in Image.__extract_copy_sources(dockerfile, path_prefix):
+        for context_path, original_path in Image.__extract_copy_sources(dockerfile, path_prefix, real_root):
             archive_base_path = context_path
             if not original_path.startswith(path_prefix):
                 archive_base_path = context_path.removeprefix(path_prefix)
@@ -499,7 +519,9 @@ class Image(BaseModel):
         return img
 
     @staticmethod
-    def __extract_copy_sources(dockerfile_content: str, path_prefix: str = "") -> list[tuple[str, str]]:
+    def __extract_copy_sources(
+        dockerfile_content: str, path_prefix: str = "", real_root: str | None = None
+    ) -> list[tuple[str, str]]:
         """Extracts source files from COPY commands in a Dockerfile.
 
         Args:
@@ -529,6 +551,9 @@ class Image(BaseModel):
                 if command_parts:
                     # Get source paths from the parsed command parts
                     for source in command_parts["sources"]:
+                        if real_root is not None:
+                            Image.__ensure_source_within_context(source)
+
                         # Handle absolute and relative paths differently
                         if PurePosixPath(source).is_absolute():
                             # Absolute path - use as is
@@ -541,12 +566,78 @@ class Image(BaseModel):
                         matching_files = glob.glob(full_path_pattern)
 
                         if matching_files:
-                            sources.extend((matching_file, source) for matching_file in matching_files)
+                            for matching_file in matching_files:
+                                Image.__ensure_within_build_context(real_root, matching_file)
+                                sources.append((matching_file, source))
                         else:
                             # If no files match, include the pattern anyway
+                            Image.__ensure_within_build_context(real_root, full_path_pattern)
                             sources.append((full_path_pattern, source))
 
         return sources
+
+    @staticmethod
+    def __ensure_source_within_context(source: str) -> None:
+        """Rejects a COPY source that names something outside the build context.
+
+        This is decided on the source itself, before anything is read, so that a source is
+        accepted or rejected the same way whether or not it happens to exist on disk. An absolute
+        source, including a Windows drive or UNC path, and one whose normalised form climbs above
+        the context both name something the build context cannot address.
+
+        Args:
+            source: str: The COPY-command source path.
+
+        Raises:
+            DaytonaValidationError: If the source names something outside the build context.
+        """
+        # A backslash is a separator on Windows, so fold it before deciding: otherwise
+        # "..\\secret.txt" reads as an ordinary filename here and as a traversal there.
+        candidate = source.replace("\\", "/")
+        normalized = posixpath.normpath(candidate)
+        outside = (
+            posixpath.isabs(candidate)
+            or ntpath.isabs(source)
+            or bool(ntpath.splitdrive(source)[0])
+            or normalized == ".."
+            or normalized.startswith("../")
+        )
+        if outside:
+            raise DaytonaValidationError(f"forbidden path outside the build context: {source}")
+
+    @staticmethod
+    def __ensure_within_build_context(real_root: str | None, candidate: str) -> None:
+        """Rejects a source that resolves outside the build context.
+
+        Normalisation alone cannot see this: a symlinked parent directory is traversed
+        transparently by the archiver, so a regular file reached through one is stored with its
+        contents even though the written path stays inside the context.
+
+        Args:
+            real_root: str | None: The resolved build context root, or None when the caller did
+                not ask for a strict build context.
+            candidate: str: The resolved source path to check.
+
+        Raises:
+            DaytonaValidationError: If the candidate resolves outside the build context.
+        """
+        # real_root is None unless the caller asked for a strict build context
+        if real_root is None:
+            return
+
+        # A path that does not exist cannot be archived. A symlink whose target is missing still
+        # leaves the context, so lexists rather than exists decides whether to check.
+        if not os.path.lexists(candidate):
+            return
+
+        resolved = os.path.realpath(candidate)
+        try:
+            relative = os.path.relpath(resolved, real_root)
+        except ValueError as error:  # different drives on Windows
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}") from error
+
+        if relative == os.pardir or relative.startswith(os.pardir + os.sep):
+            raise DaytonaValidationError(f"forbidden path outside the build context: {resolved}")
 
     @staticmethod
     def __dockerfile_logical_lines(dockerfile_content: str) -> list[str]:

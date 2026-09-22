@@ -386,7 +386,13 @@ export class Image {
    *  .debianSlim('3.12')
    *  .dockerfileCommands(['RUN echo "Hello, world!"'])
    */
-  dockerfileCommands(dockerfileCommands: string[], contextDir?: string): Image {
+  dockerfileCommands(dockerfileCommands: string[], contextDir?: string, options?: { strictContext?: boolean }): Image {
+    const strictContext = options?.strictContext ?? false
+    if (!contextDir && strictContext) {
+      throw new DaytonaInvalidArgumentError(
+        'strictContext requires contextDir so that the build context boundary is explicit',
+      )
+    }
     if (contextDir) {
       const importErrorPrefix = '"dockerfileCommands" is not supported: '
       const expandTilde = dynamicRequire('expand-tilde', importErrorPrefix)
@@ -399,11 +405,16 @@ export class Image {
       if (!fs.statSync(expandedPath).isDirectory()) {
         throw new DaytonaInvalidArgumentError(`Context path ${contextDir} exists but is not a directory`)
       }
+      if (strictContext) {
+        // Resolve sources against the directory that was validated, not the literal argument
+        contextDir = expandedPath
+      }
     }
 
     for (const [contextPath, originalPath] of Image.extractCopySources(
       dockerfileCommands.join('\n'),
       contextDir || '',
+      strictContext,
     )) {
       let archiveBasePath = contextPath
       if (contextDir && !originalPath.startsWith(contextDir)) {
@@ -428,7 +439,7 @@ export class Image {
    * @example
    * const image = Image.fromDockerfile('Dockerfile')
    */
-  static fromDockerfile(path: string): Image {
+  static fromDockerfile(path: string, options?: { strictContext?: boolean }): Image {
     const importErrorPrefix = '"fromDockerfile" is not supported: '
     const expandTilde = dynamicRequire('expand-tilde', importErrorPrefix)
     const fs = dynamicRequire('fs', importErrorPrefix)
@@ -448,7 +459,11 @@ export class Image {
     // Remove dockerfile filename from path to get the path prefix
     const pathPrefix = pathe.dirname(expandedPath) + pathe.sep
 
-    for (const [contextPath, originalPath] of Image.extractCopySources(dockerfileContent, pathPrefix)) {
+    for (const [contextPath, originalPath] of Image.extractCopySources(
+      dockerfileContent,
+      pathPrefix,
+      options?.strictContext ?? false,
+    )) {
       let archiveBasePath = contextPath
       if (!originalPath.startsWith(pathPrefix)) {
         // Remove the path prefix from the context path to get the archive path
@@ -642,7 +657,11 @@ export class Image {
    * @param {string} pathPrefix - The path prefix to use for the sources.
    * @returns {Array<[string, string]>} The list of the actual file path and its corresponding COPY-command source path.
    */
-  private static extractCopySources(dockerfileContent: string, pathPrefix = ''): Array<[string, string]> {
+  private static extractCopySources(
+    dockerfileContent: string,
+    pathPrefix = '',
+    strictContext = false,
+  ): Array<[string, string]> {
     const sources: Array<[string, string]> = []
     const lines = Image.dockerfileLogicalLines(dockerfileContent)
 
@@ -661,20 +680,28 @@ export class Image {
 
         const importErrorPrefix = '"extractCopySources" is not supported: '
         const fg = dynamicRequire('fast-glob', importErrorPrefix)
+        const fs = dynamicRequire('fs', importErrorPrefix)
+        const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
 
         const commandParts = this.parseCopyCommand(line)
         if (commandParts) {
           // Get source paths from the parsed command parts
           for (const source of commandParts.sources) {
+            if (realRoot !== null) {
+              Image.ensureSourceWithinContext(source)
+            }
+
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
             const matchingFiles = fg.sync([fullPathPattern], { dot: true })
             if (matchingFiles.length > 0) {
               for (const matchingFile of matchingFiles) {
+                Image.ensureWithinBuildContext(fs, realRoot, matchingFile)
                 sources.push([matchingFile, source])
               }
             } else {
+              Image.ensureWithinBuildContext(fs, realRoot, fullPathPattern)
               sources.push([fullPathPattern, source])
             }
           }
@@ -683,6 +710,77 @@ export class Image {
     }
 
     return sources
+  }
+
+  /**
+   * Resolves a path to its real location, falling back to a lexical absolute path when it cannot
+   * be resolved.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string} target - The path to resolve.
+   * @returns {string} The resolved path.
+   */
+  private static resolveRealPath(fs: any, target: string): string {
+    try {
+      return pathe.normalize(fs.realpathSync(target))
+    } catch {
+      return pathe.resolve(target)
+    }
+  }
+
+  /**
+   * Rejects a COPY source that names something outside the build context. This is decided on the
+   * source itself, before anything is read, so that a source is accepted or rejected the same way
+   * whether or not it happens to exist on disk. An absolute source, including a Windows drive or
+   * UNC path, and one whose normalised form climbs above the context both name something the
+   * build context cannot address.
+   *
+   * @param {string} source - The COPY-command source path.
+   */
+  private static ensureSourceWithinContext(source: string): void {
+    const normalized = pathe.normalize(source)
+    const outside =
+      pathe.isAbsolute(source) ||
+      /^([A-Za-z]:|\\\\)/.test(source) ||
+      normalized === '..' ||
+      normalized.startsWith('../')
+
+    if (outside) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
+    }
+  }
+
+  /**
+   * Rejects a source that resolves outside the build context. Normalisation alone cannot see
+   * this: a symlinked parent directory is traversed transparently by the archiver, so a regular
+   * file reached through one is stored with its contents even though the written path stays
+   * inside the context.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string | null} realRoot - The resolved build context root, or null when the caller did
+   * not ask for a strict build context.
+   * @param {string} candidate - The resolved source path to check.
+   */
+  private static ensureWithinBuildContext(fs: any, realRoot: string | null, candidate: string): void {
+    // realRoot is null unless the caller asked for a strict build context
+    if (realRoot === null) return
+
+    let resolved: string
+    try {
+      resolved = pathe.normalize(fs.realpathSync(candidate))
+    } catch {
+      // A path that does not exist cannot be archived. A symlink whose target is missing still
+      // leaves the context, so an entry that lstat can see is rejected rather than tolerated.
+      if (fs.lstatSync(candidate, { throwIfNoEntry: false })) {
+        throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${candidate}`)
+      }
+      return
+    }
+
+    const relative = pathe.relative(realRoot, resolved)
+    if (relative === '..' || relative.startsWith('../')) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${resolved}`)
+    }
   }
 
   /**

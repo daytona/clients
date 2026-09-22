@@ -266,6 +266,97 @@ class TestImageFromDockerfile:
 
         assert [c.archive_path for c in img._context_list] == ["a.txt"]
 
+    def test_from_dockerfile_reads_a_source_outside_the_context_by_default(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (tmp_path / "secret.txt").write_text("credential")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY ../secret.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert [os.path.realpath(c.source_path) for c in img._context_list] == [
+            os.path.realpath(tmp_path / "secret.txt")
+        ]
+
+    def test_from_dockerfile_rejects_a_parent_traversal_source_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (tmp_path / "secret.txt").write_text("credential")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY ../secret.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile, strict_context=True)
+
+    def test_from_dockerfile_rejects_an_absolute_source_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY /nonexistent/secret.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile, strict_context=True)
+
+    def test_from_dockerfile_rejects_an_escaping_source_when_strict_even_if_absent(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY ../nope.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile, strict_context=True)
+
+    def test_from_dockerfile_rejects_windows_style_sources_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        dockerfile = context / "Dockerfile"
+
+        # Quoting preserves the backslash; unquoted the COPY parser consumes it
+        for source in ('"..\\secret.txt"', '"\\foo"', '"C:\\x"', '"..\\..\\x"'):
+            dockerfile.write_text(f"FROM python:3.12\nCOPY {source} /app/\n")
+
+            with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+                Image.from_dockerfile(dockerfile, strict_context=True)
+
+    def test_from_dockerfile_rejects_a_source_reached_through_a_symlinked_directory_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "secret.txt").write_text("credential")
+        (context / "dirlink").symlink_to(outside)
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY dirlink/secret.txt /app/\n")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.from_dockerfile(dockerfile, strict_context=True)
+
+    def test_from_dockerfile_allows_a_source_inside_the_context_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (context / "a.txt").write_text("a")
+        dockerfile = context / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY a.txt /app/\n")
+
+        img = Image.from_dockerfile(dockerfile, strict_context=True)
+
+        assert [c.archive_path for c in img._context_list] == ["a.txt"]
+
+    def test_dockerfile_commands_requires_a_context_dir_when_strict(self):
+        with pytest.raises(DaytonaError, match="strict_context requires context_dir"):
+            Image.base("python:3.12").dockerfile_commands(["COPY a.txt /app/"], strict_context=True)
+
+    def test_dockerfile_commands_rejects_an_escaping_source_when_strict(self, tmp_path):
+        context = tmp_path / "repo"
+        context.mkdir()
+        (tmp_path / "secret.txt").write_text("credential")
+
+        with pytest.raises(DaytonaError, match="forbidden path outside the build context"):
+            Image.base("python:3.12").dockerfile_commands(
+                ["COPY ../secret.txt /app/"], context_dir=str(context), strict_context=True
+            )
+
 
 class TestImageDockerfileCommands:
     def test_add_dockerfile_commands(self):
