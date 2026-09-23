@@ -63,6 +63,7 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.disk).to eq(30)
       expect(sandbox.last_activity_at).to eq('2025-01-01T00:00:00Z')
       expect(sandbox.network_block_all).to be(false)
+      expect(sandbox.kvm).to be(false)
       expect(sandbox.network_allow_list).to be_nil
       expect(sandbox.sandbox_class).to eq('linux-vm')
       expect(sandbox.warm_pool_id).to be_nil

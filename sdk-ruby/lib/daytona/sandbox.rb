@@ -80,6 +80,9 @@ module Daytona
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :network_block_all
 
+    # @return [Boolean, nil] Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+    attr_reader :kvm
+
     # @return [String, nil] Comma-separated list of allowed CIDR network addresses for the sandbox.
     #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :network_allow_list
@@ -1136,6 +1139,7 @@ module Daytona
       if sandbox_dto.is_a?(DaytonaApiClient::Sandbox)
         @env = sandbox_dto.env
         @network_block_all = sandbox_dto.network_block_all
+        @kvm = sandbox_dto.kvm
         @network_allow_list = sandbox_dto.network_allow_list
         @domain_allow_list = sandbox_dto.domain_allow_list
         @outbound_proxy_url = sandbox_dto.outbound_proxy_url

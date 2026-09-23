@@ -363,6 +363,31 @@ RSpec.describe Daytona::Daytona do
       end
     end
 
+    it 'passes kvm: true to the API client when set' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(
+        snapshot: 'snap-1',
+        kvm: true
+      )
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.kvm).to be(true)
+      end
+    end
+
+    it 'omits kvm from the API request when not set' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1')
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.kvm).to be_nil
+      end
+    end
+
     it 'waits for the sandbox to start when the API returns a non-started state' do
       pending_sandbox = instance_double(Daytona::Sandbox, state: 'pending')
       allow(Daytona::Sandbox).to receive(:new).and_return(pending_sandbox)

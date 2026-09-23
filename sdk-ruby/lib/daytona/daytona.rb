@@ -291,6 +291,7 @@ module Daytona
         volumes: params.volumes,
         secrets: params.secrets&.map { |env_var, secret_name| { env_var.to_s => secret_name.to_s } },
         network_block_all: params.network_block_all,
+        kvm: params.kvm,
         network_allow_list: params.network_allow_list,
         domain_allow_list: params.domain_allow_list,
         outbound_proxy_url: params.outbound_proxy_url,
