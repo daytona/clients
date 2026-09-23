@@ -12,6 +12,7 @@ func TestCreateSandboxToolNetworkAllowListSchema(t *testing.T) {
 	tool := GetCreateSandboxTool()
 	networkDesc := schemaDescription(t, tool.InputSchema.Properties, "networkAllowList")
 	domainDesc := schemaDescription(t, tool.InputSchema.Properties, "domainAllowList")
+	kvmDesc := schemaDescription(t, tool.InputSchema.Properties, "kvm")
 
 	for _, needle := range []string{"IPv4", "CIDR", "domainAllowList"} {
 		if !strings.Contains(networkDesc, needle) {
@@ -37,6 +38,9 @@ func TestCreateSandboxToolNetworkAllowListSchema(t *testing.T) {
 	if strings.Contains(strings.ToLower(domainDesc), "mutually exclusive") && strings.Contains(domainDesc, "networkBlockAll") {
 		t.Errorf("domainAllowList description overclaims exclusivity with networkBlockAll: %q", domainDesc)
 	}
+	if kvmDesc != "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization." {
+		t.Errorf("kvm description = %q", kvmDesc)
+	}
 
 	for _, field := range []string{"networkAllowList", "domainAllowList"} {
 		for _, required := range tool.InputSchema.Required {
@@ -53,6 +57,7 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 	empty := ""
 	whitespace := "   "
 	blockAll := true
+	kvm := true
 	name := "allowlist-test"
 
 	tests := []struct {
@@ -61,6 +66,7 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 		wantCIDR     *string
 		wantDomains  *string
 		wantBlockAll *bool
+		wantKvm      bool
 		wantName     *string
 	}{
 		{
@@ -95,6 +101,11 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			wantBlockAll: &blockAll,
 		},
 		{
+			name:    "kvm only",
+			args:    CreateSandboxArgs{Kvm: &kvm},
+			wantKvm: true,
+		},
+		{
 			name:     "name and cidr",
 			args:     CreateSandboxArgs{Name: &name, NetworkAllowList: &cidr},
 			wantCIDR: &cidr,
@@ -123,6 +134,9 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			}
 			if tt.wantName != nil && req.GetName() != *tt.wantName {
 				t.Errorf("name = %q, want %q", req.GetName(), *tt.wantName)
+			}
+			if req.GetKvm() != tt.wantKvm {
+				t.Errorf("kvm = %v, want %v", req.GetKvm(), tt.wantKvm)
 			}
 		})
 	}

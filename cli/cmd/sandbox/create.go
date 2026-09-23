@@ -110,6 +110,7 @@ var CreateCmd = &cobra.Command{
 		}
 
 		createSandbox.SetNetworkBlockAll(networkBlockAllFlag)
+		createSandbox.SetKvm(kvmFlag)
 		if networkAllowListFlag != "" {
 			createSandbox.SetNetworkAllowList(networkAllowListFlag)
 		}
@@ -227,6 +228,7 @@ var (
 	dockerfileFlag       string
 	contextFlag          []string
 	networkBlockAllFlag  bool
+	kvmFlag              bool
 	networkAllowListFlag string
 )
 
@@ -251,6 +253,7 @@ func init() {
 	CreateCmd.Flags().StringVarP(&dockerfileFlag, "dockerfile", "f", "", "Path to Dockerfile for Sandbox snapshot")
 	CreateCmd.Flags().StringArrayVarP(&contextFlag, "context", "c", []string{}, "Files or directories to include in the build context (can be specified multiple times)")
 	CreateCmd.Flags().BoolVar(&networkBlockAllFlag, "network-block-all", false, "Whether to block all network access for the sandbox")
+	CreateCmd.Flags().BoolVar(&kvmFlag, "kvm", false, "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.")
 	CreateCmd.Flags().StringVar(&networkAllowListFlag, "network-allow-list", "", "Comma-separated list of allowed CIDR network addresses for the sandbox")
 
 	CreateCmd.MarkFlagsMutuallyExclusive("snapshot", "dockerfile")
