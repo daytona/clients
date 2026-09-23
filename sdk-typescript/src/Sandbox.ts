@@ -115,6 +115,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {string} [createdAt] - When the Sandbox was created
  * @property {string} [updatedAt] - When the Sandbox was last updated
  * @property {string} [lastActivityAt] - When the Sandbox last had activity
+ * @property {boolean} [kvm] - Whether the sandbox exposes KVM (/dev/kvm) to its guest.
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
  * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
@@ -173,6 +174,8 @@ export class Sandbox {
   public createdAt?: string
   public updatedAt?: string
   public lastActivityAt?: string
+  /** Whether the sandbox exposes KVM (/dev/kvm) to its guest. */
+  public kvm?: boolean
   public networkBlockAll?: boolean
   public networkAllowList?: string
   public domainAllowList?: string
@@ -1494,6 +1497,7 @@ export class Sandbox {
     // Fields only present in the full SandboxDto (not returned by list endpoint)
     if ('env' in sandboxDto) {
       this.env = sandboxDto.env
+      this.kvm = sandboxDto.kvm
       this.networkBlockAll = sandboxDto.networkBlockAll
       this.networkAllowList = sandboxDto.networkAllowList
       this.domainAllowList = sandboxDto.domainAllowList

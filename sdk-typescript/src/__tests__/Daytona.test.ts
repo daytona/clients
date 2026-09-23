@@ -533,6 +533,34 @@ describe('Daytona', () => {
     expect(payload.secrets).toBeUndefined()
   })
 
+  it('passes kvm: true to the api-client when set', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-kvm', state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+
+    await instance.create({ language: 'python', kvm: true })
+
+    const payload = mockSandboxApi.createSandbox.mock.calls[0][0] as { kvm?: boolean }
+    expect(payload.kvm).toBe(true)
+  })
+
+  it('leaves kvm undefined when not provided', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-nokvm', state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+
+    await instance.create({ language: 'python' })
+
+    const payload = mockSandboxApi.createSandbox.mock.calls[0][0] as { kvm?: boolean }
+    expect(payload.kvm).toBeUndefined()
+  })
+
   it('creates sandboxes from image names using buildInfo dockerfile content', async () => {
     const { Daytona } = await import('../Daytona')
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
