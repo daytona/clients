@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -145,14 +146,14 @@ func TestRefreshTokenIfNeededRefreshesAWorkOSTokenAgainstItsIssuer(t *testing.T)
 	refusingAuth0(t)
 	newExp := time.Now().Add(time.Hour).Truncate(time.Second)
 
-	var authenticateCalls int
+	var authenticateCalls atomic.Int32
 	workos := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/user_management/authenticate" {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 			http.NotFound(w, r)
 			return
 		}
-		authenticateCalls++
+		authenticateCalls.Add(1)
 		if err := r.ParseForm(); err != nil {
 			t.Error(err)
 		}
@@ -186,8 +187,8 @@ func TestRefreshTokenIfNeededRefreshesAWorkOSTokenAgainstItsIssuer(t *testing.T)
 		t.Fatal(err)
 	}
 
-	if authenticateCalls != 1 {
-		t.Errorf("authenticate calls = %d, want 1", authenticateCalls)
+	if calls := authenticateCalls.Load(); calls != 1 {
+		t.Errorf("authenticate calls = %d, want 1", calls)
 	}
 	token := storedToken(t)
 	if token.RefreshToken != "rotated-refresh" {
@@ -205,7 +206,7 @@ func TestRefreshTokenIfNeededRefreshesAWorkOSTokenAgainstItsIssuer(t *testing.T)
 }
 
 func TestRefreshTokenIfNeededRefreshesAnAuth0TokenAgainstAuth0(t *testing.T) {
-	var tokenCalls int
+	var tokenCalls atomic.Int32
 	var auth0 *httptest.Server
 	auth0 = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -214,7 +215,7 @@ func TestRefreshTokenIfNeededRefreshesAnAuth0TokenAgainstAuth0(t *testing.T) {
 			_, _ = fmt.Fprintf(w, `{"issuer":%q,"authorization_endpoint":%q,"token_endpoint":%q,"jwks_uri":%q}`,
 				auth0.URL, auth0.URL+"/authorize", auth0.URL+"/oauth/token", auth0.URL+"/.well-known/jwks.json")
 		case "/oauth/token":
-			tokenCalls++
+			tokenCalls.Add(1)
 			if err := r.ParseForm(); err != nil {
 				t.Error(err)
 			}
@@ -244,8 +245,8 @@ func TestRefreshTokenIfNeededRefreshesAnAuth0TokenAgainstAuth0(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if tokenCalls != 1 {
-		t.Errorf("token endpoint calls = %d, want 1", tokenCalls)
+	if calls := tokenCalls.Load(); calls != 1 {
+		t.Errorf("token endpoint calls = %d, want 1", calls)
 	}
 	token := storedToken(t)
 	if token.AccessToken != "fresh" || token.RefreshToken != "rotated-refresh" {
@@ -327,6 +328,7 @@ func TestWorkOSConfigRequiresHttpsOffLoopback(t *testing.T) {
 		"http://localhost:3001/user_management/client_123":    false,
 		"http://127.0.0.1:3001/user_management/client_123":    false,
 		"http://[::1]:3001/user_management/client_123":        false,
+		"ftp://localhost/user_management/client_123":          true,
 	} {
 		_, err := WorkOSConfig(config.WorkOSClient{Issuer: issuer, ClientId: "client_123"})
 		if (err != nil) != wantErr {

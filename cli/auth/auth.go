@@ -138,7 +138,8 @@ func WorkOSConfig(client config.WorkOSClient) (oauth2.Config, error) {
 
 	// The user's credentials and refresh token travel to this host, so only a local
 	// development issuer may skip TLS.
-	if issuer.Scheme != "https" && !isLoopback(issuer.Hostname()) {
+	plainLocal := issuer.Scheme == "http" && isLoopback(issuer.Hostname())
+	if issuer.Scheme != "https" && !plainLocal {
 		return oauth2.Config{}, fmt.Errorf("WorkOS issuer %q must use https", client.Issuer)
 	}
 

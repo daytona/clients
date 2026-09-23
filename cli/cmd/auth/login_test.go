@@ -21,6 +21,10 @@ func serveConfig(t *testing.T, status int, body string) string {
 			http.NotFound(w, r)
 			return
 		}
+		if r.Method != http.MethodGet {
+			http.Error(w, "config is read-only", http.StatusMethodNotAllowed)
+			return
+		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))
@@ -53,6 +57,22 @@ func TestFetchOidcConfigTreatsAMissingProviderAsAuth0(t *testing.T) {
 
 	if advertised.Provider == workosProvider {
 		t.Error("an API without a provider field must not select WorkOS")
+	}
+}
+
+func TestFetchOidcConfigFailsOnAMalformedBody(t *testing.T) {
+	for name, body := range map[string]string{
+		"not json":        `not json`,
+		"truncated":       `{"oidc": {"issuer": "https://auth.example.com"`,
+		"oidc not object": `{"oidc": "workos"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			apiUrl := serveConfig(t, http.StatusOK, body)
+
+			if _, err := fetchOidcConfig(context.Background(), apiUrl); err == nil {
+				t.Error("expected a decode error")
+			}
+		})
 	}
 }
 
