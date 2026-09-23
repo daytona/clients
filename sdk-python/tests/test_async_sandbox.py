@@ -53,12 +53,12 @@ class TestAsyncSandboxInit:
         assert sandbox.toolbox_proxy_url == "http://hydrated:2280"
 
     def test_kvm_hydrated_from_dto(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
-        dto = make_sandbox_dto(kvm=True)
+        dto = AsyncSandboxDto(**make_sandbox_dto(kvm=True).model_dump())
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         assert sandbox.kvm is True
 
     def test_kvm_default_false_from_dto(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
-        dto = make_sandbox_dto()
+        dto = AsyncSandboxDto(**make_sandbox_dto().model_dump())
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         assert sandbox.kvm is False
 

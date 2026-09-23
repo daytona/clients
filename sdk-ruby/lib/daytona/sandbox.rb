@@ -81,6 +81,7 @@ module Daytona
     attr_reader :network_block_all
 
     # @return [Boolean, nil] Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+    #   Not returned by list results; call #refresh on each item to populate.
     attr_reader :kvm
 
     # @return [String, nil] Comma-separated list of allowed CIDR network addresses for the sandbox.

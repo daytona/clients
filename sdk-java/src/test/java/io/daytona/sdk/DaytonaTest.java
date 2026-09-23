@@ -382,7 +382,7 @@ class DaytonaTest {
     }
 
     @Test
-    void createFromSnapshotOmitsKvmWhenUnset() {
+    void createFromSnapshotDefaultsKvmToFalseWhenUnset() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-kvm-null", SandboxState.STARTED));
 
         CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();

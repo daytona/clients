@@ -151,7 +151,8 @@ class Sandbox(SandboxDto):
             is configured).
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
-        kvm (bool | None): Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+        kvm (bool | None): Whether the sandbox exposes KVM (/dev/kvm) to its guest
+            (not returned by list results; call `refresh_data()` on each item to populate).
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for
             the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
         domain_allow_list (str | None): Comma-separated list of allowed domains for
