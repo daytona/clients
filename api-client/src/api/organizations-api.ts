@@ -36,21 +36,17 @@ import type { CreateRegion } from '../models';
 // @ts-ignore
 import type { CreateRegionResponse } from '../models';
 // @ts-ignore
+import type { GenerateWorkosAdminPortalLink } from '../models';
+// @ts-ignore
+import type { GpuCapacityResponse } from '../models';
+// @ts-ignore
 import type { IdentityProvider } from '../models';
 // @ts-ignore
 import type { Organization } from '../models';
 // @ts-ignore
 import type { OrganizationInvitation } from '../models';
 // @ts-ignore
-import type { OrganizationPreviewWarning } from '../models';
-// @ts-ignore
 import type { OrganizationRole } from '../models';
-// @ts-ignore
-import type { OrganizationSandboxDefaultLimitedNetworkEgress } from '../models';
-// @ts-ignore
-import type { OrganizationSsoEnabled } from '../models';
-// @ts-ignore
-import type { OrganizationSuspension } from '../models';
 // @ts-ignore
 import type { OrganizationUsageOverview } from '../models';
 // @ts-ignore
@@ -61,6 +57,8 @@ import type { OtelConfig } from '../models';
 import type { RegenerateApiKeyResponse } from '../models';
 // @ts-ignore
 import type { Region } from '../models';
+// @ts-ignore
+import type { SandboxIdentity } from '../models';
 // @ts-ignore
 import type { SnapshotManagerCredentials } from '../models';
 // @ts-ignore
@@ -76,13 +74,13 @@ import type { UpdateOrganizationInvitation } from '../models';
 // @ts-ignore
 import type { UpdateOrganizationMemberAccess } from '../models';
 // @ts-ignore
-import type { UpdateOrganizationQuota } from '../models';
-// @ts-ignore
-import type { UpdateOrganizationRegionQuota } from '../models';
-// @ts-ignore
 import type { UpdateOrganizationRole } from '../models';
 // @ts-ignore
 import type { UpdateRegion } from '../models';
+// @ts-ignore
+import type { WorkosAdminPortalLink } from '../models';
+// @ts-ignore
+import type { WorkosSsoConnection } from '../models';
 /**
  * OrganizationsApi - axios parameter creator
  */
@@ -683,6 +681,91 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
+         * @summary Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+         * @param {string} organizationId Organization ID
+         * @param {GenerateWorkosAdminPortalLink} generateWorkosAdminPortalLink 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        generateWorkosAdminPortalLink: async (organizationId: string, generateWorkosAdminPortalLink: GenerateWorkosAdminPortalLink, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('generateWorkosAdminPortalLink', 'organizationId', organizationId)
+            // verify required parameter 'generateWorkosAdminPortalLink' is not null or undefined
+            assertParamExists('generateWorkosAdminPortalLink', 'generateWorkosAdminPortalLink', generateWorkosAdminPortalLink)
+            const localVarPath = `/organizations/{organizationId}/identity-providers/workos-admin-portal-link`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(generateWorkosAdminPortalLink, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+         * @summary Get shared GPU capacity
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getGpuCapacity: async (organizationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('getGpuCapacity', 'organizationId', organizationId)
+            const localVarPath = `/organizations/{organizationId}/gpu-capacity`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get organization by ID
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -956,6 +1039,46 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
             if (xDaytonaOrganizationID != null) {
                 localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
             }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get sandbox identity by sandbox auth token
+         * @param {string} authToken Sandbox Auth Token
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSandboxIdentityBySandboxAuthToken: async (authToken: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'authToken' is not null or undefined
+            assertParamExists('getSandboxIdentityBySandboxAuthToken', 'authToken', authToken)
+            const localVarPath = `/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}`
+                .replace(`{${"authToken"}}`, encodeURIComponent(String(authToken)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
@@ -1318,6 +1441,46 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
+         * @summary List the SSO connections configured for the organization in WorkOS
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listWorkosSsoConnections: async (organizationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('listWorkosSsoConnections', 'organizationId', organizationId)
+            const localVarPath = `/organizations/{organizationId}/identity-providers/workos-sso-connections`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Regenerate proxy API key for a region
          * @param {string} id Region ID
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -1494,48 +1657,6 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
-         * @summary Suspend organization
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSuspension} [organizationSuspension] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        suspendOrganization: async (organizationId: string, organizationSuspension?: OrganizationSuspension, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('suspendOrganization', 'organizationId', organizationId)
-            const localVarPath = `/organizations/{organizationId}/suspend`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(organizationSuspension, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @summary Test OIDC identity provider connection
          * @param {string} organizationId Organization ID
          * @param {TestIdentityProviderConnection} testIdentityProviderConnection 
@@ -1573,45 +1694,6 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(testIdentityProviderConnection, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Unsuspend organization
-         * @param {string} organizationId Organization ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        unsuspendOrganization: async (organizationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('unsuspendOrganization', 'organizationId', organizationId)
-            const localVarPath = `/organizations/{organizationId}/unsuspend`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1853,142 +1935,6 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
-         * @summary Update organization preview warning
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationPreviewWarning: async (organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('updateOrganizationPreviewWarning', 'organizationId', organizationId)
-            // verify required parameter 'organizationPreviewWarning' is not null or undefined
-            assertParamExists('updateOrganizationPreviewWarning', 'organizationPreviewWarning', organizationPreviewWarning)
-            const localVarPath = `/organizations/{organizationId}/preview-warning`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(organizationPreviewWarning, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Update organization quota
-         * @param {string} organizationId Organization ID
-         * @param {UpdateOrganizationQuota} updateOrganizationQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationQuota: async (organizationId: string, updateOrganizationQuota: UpdateOrganizationQuota, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('updateOrganizationQuota', 'organizationId', organizationId)
-            // verify required parameter 'updateOrganizationQuota' is not null or undefined
-            assertParamExists('updateOrganizationQuota', 'updateOrganizationQuota', updateOrganizationQuota)
-            const localVarPath = `/organizations/{organizationId}/quota`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(updateOrganizationQuota, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Update organization region quota
-         * @param {string} organizationId Organization ID
-         * @param {string} regionId ID of the region where the updated quota will be applied
-         * @param {UpdateOrganizationRegionQuota} updateOrganizationRegionQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationRegionQuota: async (organizationId: string, regionId: string, updateOrganizationRegionQuota: UpdateOrganizationRegionQuota, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('updateOrganizationRegionQuota', 'organizationId', organizationId)
-            // verify required parameter 'regionId' is not null or undefined
-            assertParamExists('updateOrganizationRegionQuota', 'regionId', regionId)
-            // verify required parameter 'updateOrganizationRegionQuota' is not null or undefined
-            assertParamExists('updateOrganizationRegionQuota', 'updateOrganizationRegionQuota', updateOrganizationRegionQuota)
-            const localVarPath = `/organizations/{organizationId}/quota/{regionId}`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)))
-                .replace(`{${"regionId"}}`, encodeURIComponent(String(regionId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(updateOrganizationRegionQuota, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @summary Update organization role
          * @param {string} organizationId Organization ID
          * @param {string} roleId Role ID
@@ -2038,50 +1984,6 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
-         * @summary Update organization SSO entitlement
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSsoEnabled} organizationSsoEnabled 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationSsoEnabled: async (organizationId: string, organizationSsoEnabled: OrganizationSsoEnabled, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('updateOrganizationSsoEnabled', 'organizationId', organizationId)
-            // verify required parameter 'organizationSsoEnabled' is not null or undefined
-            assertParamExists('updateOrganizationSsoEnabled', 'organizationSsoEnabled', organizationSsoEnabled)
-            const localVarPath = `/organizations/{organizationId}/sso-enabled`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(organizationSsoEnabled, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @summary Update region configuration
          * @param {string} id Region ID
          * @param {UpdateRegion} updateRegion 
@@ -2122,50 +2024,6 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(updateRegion, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Update sandbox default limited network egress
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSandboxDefaultLimitedNetworkEgress} organizationSandboxDefaultLimitedNetworkEgress 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateSandboxDefaultLimitedNetworkEgress: async (organizationId: string, organizationSandboxDefaultLimitedNetworkEgress: OrganizationSandboxDefaultLimitedNetworkEgress, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'organizationId' is not null or undefined
-            assertParamExists('updateSandboxDefaultLimitedNetworkEgress', 'organizationId', organizationId)
-            // verify required parameter 'organizationSandboxDefaultLimitedNetworkEgress' is not null or undefined
-            assertParamExists('updateSandboxDefaultLimitedNetworkEgress', 'organizationSandboxDefaultLimitedNetworkEgress', organizationSandboxDefaultLimitedNetworkEgress)
-            const localVarPath = `/organizations/{organizationId}/sandbox-default-limited-network-egress`
-                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(organizationSandboxDefaultLimitedNetworkEgress, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2374,6 +2232,33 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+         * @param {string} organizationId Organization ID
+         * @param {GenerateWorkosAdminPortalLink} generateWorkosAdminPortalLink 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async generateWorkosAdminPortalLink(organizationId: string, generateWorkosAdminPortalLink: GenerateWorkosAdminPortalLink, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkosAdminPortalLink>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.generateWorkosAdminPortalLink(organizationId, generateWorkosAdminPortalLink, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.generateWorkosAdminPortalLink']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+         * @summary Get shared GPU capacity
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getGpuCapacity(organizationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpuCapacityResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getGpuCapacity(organizationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.getGpuCapacity']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get organization by ID
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -2462,6 +2347,19 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getRegionById(id, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.getRegionById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get sandbox identity by sandbox auth token
+         * @param {string} authToken Sandbox Auth Token
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getSandboxIdentityBySandboxAuthToken(authToken: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<SandboxIdentity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getSandboxIdentityBySandboxAuthToken(authToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.getSandboxIdentityBySandboxAuthToken']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -2581,6 +2479,19 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary List the SSO connections configured for the organization in WorkOS
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listWorkosSsoConnections(organizationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<WorkosSsoConnection>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listWorkosSsoConnections(organizationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.listWorkosSsoConnections']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Regenerate proxy API key for a region
          * @param {string} id Region ID
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -2637,20 +2548,6 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Suspend organization
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSuspension} [organizationSuspension] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async suspendOrganization(organizationId: string, organizationSuspension?: OrganizationSuspension, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.suspendOrganization(organizationId, organizationSuspension, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.suspendOrganization']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
          * @summary Test OIDC identity provider connection
          * @param {string} organizationId Organization ID
          * @param {TestIdentityProviderConnection} testIdentityProviderConnection 
@@ -2661,19 +2558,6 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.testOrganizationIdentityProviderConnection(organizationId, testIdentityProviderConnection, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.testOrganizationIdentityProviderConnection']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Unsuspend organization
-         * @param {string} organizationId Organization ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async unsuspendOrganization(organizationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.unsuspendOrganization(organizationId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.unsuspendOrganization']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -2751,49 +2635,6 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Update organization preview warning
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationPreviewWarning']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Update organization quota
-         * @param {string} organizationId Organization ID
-         * @param {UpdateOrganizationQuota} updateOrganizationQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateOrganizationQuota(organizationId: string, updateOrganizationQuota: UpdateOrganizationQuota, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationQuota(organizationId, updateOrganizationQuota, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationQuota']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Update organization region quota
-         * @param {string} organizationId Organization ID
-         * @param {string} regionId ID of the region where the updated quota will be applied
-         * @param {UpdateOrganizationRegionQuota} updateOrganizationRegionQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateOrganizationRegionQuota(organizationId: string, regionId: string, updateOrganizationRegionQuota: UpdateOrganizationRegionQuota, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationRegionQuota(organizationId, regionId, updateOrganizationRegionQuota, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationRegionQuota']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
          * @summary Update organization role
          * @param {string} organizationId Organization ID
          * @param {string} roleId Role ID
@@ -2809,20 +2650,6 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Update organization SSO entitlement
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSsoEnabled} organizationSsoEnabled 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateOrganizationSsoEnabled(organizationId: string, organizationSsoEnabled: OrganizationSsoEnabled, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationSsoEnabled(organizationId, organizationSsoEnabled, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationSsoEnabled']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
          * @summary Update region configuration
          * @param {string} id Region ID
          * @param {UpdateRegion} updateRegion 
@@ -2834,20 +2661,6 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.updateRegion(id, updateRegion, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateRegion']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Update sandbox default limited network egress
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSandboxDefaultLimitedNetworkEgress} organizationSandboxDefaultLimitedNetworkEgress 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateSandboxDefaultLimitedNetworkEgress(organizationId: string, organizationSandboxDefaultLimitedNetworkEgress: OrganizationSandboxDefaultLimitedNetworkEgress, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateSandboxDefaultLimitedNetworkEgress(organizationId, organizationSandboxDefaultLimitedNetworkEgress, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateSandboxDefaultLimitedNetworkEgress']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -3010,6 +2823,27 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
+         * @summary Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+         * @param {string} organizationId Organization ID
+         * @param {GenerateWorkosAdminPortalLink} generateWorkosAdminPortalLink 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        generateWorkosAdminPortalLink(organizationId: string, generateWorkosAdminPortalLink: GenerateWorkosAdminPortalLink, options?: RawAxiosRequestConfig): AxiosPromise<WorkosAdminPortalLink> {
+            return localVarFp.generateWorkosAdminPortalLink(organizationId, generateWorkosAdminPortalLink, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+         * @summary Get shared GPU capacity
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getGpuCapacity(organizationId: string, options?: RawAxiosRequestConfig): AxiosPromise<GpuCapacityResponse> {
+            return localVarFp.getGpuCapacity(organizationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get organization by ID
          * @param {string} organizationId Organization ID
          * @param {*} [options] Override http request option.
@@ -3078,6 +2912,16 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
          */
         getRegionById(id: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Region> {
             return localVarFp.getRegionById(id, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get sandbox identity by sandbox auth token
+         * @param {string} authToken Sandbox Auth Token
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSandboxIdentityBySandboxAuthToken(authToken: string, options?: RawAxiosRequestConfig): AxiosPromise<SandboxIdentity> {
+            return localVarFp.getSandboxIdentityBySandboxAuthToken(authToken, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3169,6 +3013,16 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
+         * @summary List the SSO connections configured for the organization in WorkOS
+         * @param {string} organizationId Organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listWorkosSsoConnections(organizationId: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<WorkosSsoConnection>> {
+            return localVarFp.listWorkosSsoConnections(organizationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Regenerate proxy API key for a region
          * @param {string} id Region ID
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3213,17 +3067,6 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
-         * @summary Suspend organization
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSuspension} [organizationSuspension] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        suspendOrganization(organizationId: string, organizationSuspension?: OrganizationSuspension, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.suspendOrganization(organizationId, organizationSuspension, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
          * @summary Test OIDC identity provider connection
          * @param {string} organizationId Organization ID
          * @param {TestIdentityProviderConnection} testIdentityProviderConnection 
@@ -3232,16 +3075,6 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
          */
         testOrganizationIdentityProviderConnection(organizationId: string, testIdentityProviderConnection: TestIdentityProviderConnection, options?: RawAxiosRequestConfig): AxiosPromise<TestIdentityProviderConnectionResponse> {
             return localVarFp.testOrganizationIdentityProviderConnection(organizationId, testIdentityProviderConnection, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Unsuspend organization
-         * @param {string} organizationId Organization ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        unsuspendOrganization(organizationId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.unsuspendOrganization(organizationId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3303,40 +3136,6 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
-         * @summary Update organization preview warning
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationPreviewWarning} organizationPreviewWarning 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Update organization quota
-         * @param {string} organizationId Organization ID
-         * @param {UpdateOrganizationQuota} updateOrganizationQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationQuota(organizationId: string, updateOrganizationQuota: UpdateOrganizationQuota, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateOrganizationQuota(organizationId, updateOrganizationQuota, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Update organization region quota
-         * @param {string} organizationId Organization ID
-         * @param {string} regionId ID of the region where the updated quota will be applied
-         * @param {UpdateOrganizationRegionQuota} updateOrganizationRegionQuota 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationRegionQuota(organizationId: string, regionId: string, updateOrganizationRegionQuota: UpdateOrganizationRegionQuota, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateOrganizationRegionQuota(organizationId, regionId, updateOrganizationRegionQuota, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
          * @summary Update organization role
          * @param {string} organizationId Organization ID
          * @param {string} roleId Role ID
@@ -3349,17 +3148,6 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
         },
         /**
          * 
-         * @summary Update organization SSO entitlement
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSsoEnabled} organizationSsoEnabled 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateOrganizationSsoEnabled(organizationId: string, organizationSsoEnabled: OrganizationSsoEnabled, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateOrganizationSsoEnabled(organizationId, organizationSsoEnabled, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
          * @summary Update region configuration
          * @param {string} id Region ID
          * @param {UpdateRegion} updateRegion 
@@ -3369,17 +3157,6 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
          */
         updateRegion(id: string, updateRegion: UpdateRegion, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.updateRegion(id, updateRegion, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Update sandbox default limited network egress
-         * @param {string} organizationId Organization ID
-         * @param {OrganizationSandboxDefaultLimitedNetworkEgress} organizationSandboxDefaultLimitedNetworkEgress 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateSandboxDefaultLimitedNetworkEgress(organizationId: string, organizationSandboxDefaultLimitedNetworkEgress: OrganizationSandboxDefaultLimitedNetworkEgress, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateSandboxDefaultLimitedNetworkEgress(organizationId, organizationSandboxDefaultLimitedNetworkEgress, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -3553,6 +3330,29 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
+     * @summary Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+     * @param {string} organizationId Organization ID
+     * @param {GenerateWorkosAdminPortalLink} generateWorkosAdminPortalLink 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public generateWorkosAdminPortalLink(organizationId: string, generateWorkosAdminPortalLink: GenerateWorkosAdminPortalLink, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).generateWorkosAdminPortalLink(organizationId, generateWorkosAdminPortalLink, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+     * @summary Get shared GPU capacity
+     * @param {string} organizationId Organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getGpuCapacity(organizationId: string, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).getGpuCapacity(organizationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get organization by ID
      * @param {string} organizationId Organization ID
      * @param {*} [options] Override http request option.
@@ -3627,6 +3427,17 @@ export class OrganizationsApi extends BaseAPI {
      */
     public getRegionById(id: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return OrganizationsApiFp(this.configuration).getRegionById(id, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get sandbox identity by sandbox auth token
+     * @param {string} authToken Sandbox Auth Token
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getSandboxIdentityBySandboxAuthToken(authToken: string, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).getSandboxIdentityBySandboxAuthToken(authToken, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3728,6 +3539,17 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
+     * @summary List the SSO connections configured for the organization in WorkOS
+     * @param {string} organizationId Organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listWorkosSsoConnections(organizationId: string, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).listWorkosSsoConnections(organizationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Regenerate proxy API key for a region
      * @param {string} id Region ID
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3776,18 +3598,6 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
-     * @summary Suspend organization
-     * @param {string} organizationId Organization ID
-     * @param {OrganizationSuspension} [organizationSuspension] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public suspendOrganization(organizationId: string, organizationSuspension?: OrganizationSuspension, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).suspendOrganization(organizationId, organizationSuspension, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
      * @summary Test OIDC identity provider connection
      * @param {string} organizationId Organization ID
      * @param {TestIdentityProviderConnection} testIdentityProviderConnection 
@@ -3796,17 +3606,6 @@ export class OrganizationsApi extends BaseAPI {
      */
     public testOrganizationIdentityProviderConnection(organizationId: string, testIdentityProviderConnection: TestIdentityProviderConnection, options?: RawAxiosRequestConfig) {
         return OrganizationsApiFp(this.configuration).testOrganizationIdentityProviderConnection(organizationId, testIdentityProviderConnection, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Unsuspend organization
-     * @param {string} organizationId Organization ID
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public unsuspendOrganization(organizationId: string, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).unsuspendOrganization(organizationId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3874,43 +3673,6 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
-     * @summary Update organization preview warning
-     * @param {string} organizationId Organization ID
-     * @param {OrganizationPreviewWarning} organizationPreviewWarning 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public updateOrganizationPreviewWarning(organizationId: string, organizationPreviewWarning: OrganizationPreviewWarning, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Update organization quota
-     * @param {string} organizationId Organization ID
-     * @param {UpdateOrganizationQuota} updateOrganizationQuota 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public updateOrganizationQuota(organizationId: string, updateOrganizationQuota: UpdateOrganizationQuota, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).updateOrganizationQuota(organizationId, updateOrganizationQuota, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Update organization region quota
-     * @param {string} organizationId Organization ID
-     * @param {string} regionId ID of the region where the updated quota will be applied
-     * @param {UpdateOrganizationRegionQuota} updateOrganizationRegionQuota 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public updateOrganizationRegionQuota(organizationId: string, regionId: string, updateOrganizationRegionQuota: UpdateOrganizationRegionQuota, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).updateOrganizationRegionQuota(organizationId, regionId, updateOrganizationRegionQuota, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
      * @summary Update organization role
      * @param {string} organizationId Organization ID
      * @param {string} roleId Role ID
@@ -3924,18 +3686,6 @@ export class OrganizationsApi extends BaseAPI {
 
     /**
      * 
-     * @summary Update organization SSO entitlement
-     * @param {string} organizationId Organization ID
-     * @param {OrganizationSsoEnabled} organizationSsoEnabled 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public updateOrganizationSsoEnabled(organizationId: string, organizationSsoEnabled: OrganizationSsoEnabled, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).updateOrganizationSsoEnabled(organizationId, organizationSsoEnabled, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
      * @summary Update region configuration
      * @param {string} id Region ID
      * @param {UpdateRegion} updateRegion 
@@ -3945,18 +3695,6 @@ export class OrganizationsApi extends BaseAPI {
      */
     public updateRegion(id: string, updateRegion: UpdateRegion, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return OrganizationsApiFp(this.configuration).updateRegion(id, updateRegion, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Update sandbox default limited network egress
-     * @param {string} organizationId Organization ID
-     * @param {OrganizationSandboxDefaultLimitedNetworkEgress} organizationSandboxDefaultLimitedNetworkEgress 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public updateSandboxDefaultLimitedNetworkEgress(organizationId: string, organizationSandboxDefaultLimitedNetworkEgress: OrganizationSandboxDefaultLimitedNetworkEgress, options?: RawAxiosRequestConfig) {
-        return OrganizationsApiFp(this.configuration).updateSandboxDefaultLimitedNetworkEgress(organizationId, organizationSandboxDefaultLimitedNetworkEgress, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

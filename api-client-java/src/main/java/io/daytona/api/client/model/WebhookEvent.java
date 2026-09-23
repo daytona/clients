@@ -24,7 +24,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 /**
- * The type of event being sent
+ * Event type identifier
  */
 @JsonAdapter(WebhookEvent.Adapter.class)
 public enum WebhookEvent {

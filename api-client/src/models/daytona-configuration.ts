@@ -115,6 +115,22 @@ export interface DaytonaConfiguration {
      */
     'sshGatewayPublicKey'?: string;
     /**
+     * Hostname of the SSH Gateway that sandbox SSH connections terminate at
+     */
+    'sshGatewayHost'?: string;
+    /**
+     * TCP port of the SSH Gateway
+     */
+    'sshGatewayPort'?: number;
+    /**
+     * SSH host public keys presented by the SSH Gateway, as OpenSSH public key lines (`<type> <base64>`). To build a known_hosts entry, prefix each with `sshGatewayHost` when `sshGatewayPort` is 22, or with `[sshGatewayHost]:sshGatewayPort` otherwise.
+     */
+    'sshGatewayHostKeys'?: Array<string>;
+    /**
+     * SHA256 fingerprints of sshGatewayHostKeys, in the same order, in `ssh-keygen -lf` format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification
+     */
+    'sshGatewayHostKeyFingerprints'?: Array<string>;
+    /**
      * Rate limit configuration
      */
     'rateLimit'?: RateLimitConfig;

@@ -216,6 +216,38 @@ public class DaytonaConfigurationTest {
     }
 
     /**
+     * Test the property 'sshGatewayHost'
+     */
+    @Test
+    public void sshGatewayHostTest() {
+        // TODO: test sshGatewayHost
+    }
+
+    /**
+     * Test the property 'sshGatewayPort'
+     */
+    @Test
+    public void sshGatewayPortTest() {
+        // TODO: test sshGatewayPort
+    }
+
+    /**
+     * Test the property 'sshGatewayHostKeys'
+     */
+    @Test
+    public void sshGatewayHostKeysTest() {
+        // TODO: test sshGatewayHostKeys
+    }
+
+    /**
+     * Test the property 'sshGatewayHostKeyFingerprints'
+     */
+    @Test
+    public void sshGatewayHostKeyFingerprintsTest() {
+        // TODO: test sshGatewayHostKeyFingerprints
+    }
+
+    /**
      * Test the property 'rateLimit'
      */
     @Test

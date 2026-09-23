@@ -23,7 +23,6 @@ import io.daytona.api.client.model.MetricsResponse;
 import java.time.OffsetDateTime;
 import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.PaginatedLogs;
-import io.daytona.api.client.model.PaginatedSandboxesDeprecated;
 import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
@@ -453,6 +452,8 @@ public class SandboxApiTest {
         BigDecimal maxMemoryGiB = null;
         BigDecimal minDiskGiB = null;
         BigDecimal maxDiskGiB = null;
+        BigDecimal minGpu = null;
+        BigDecimal maxGpu = null;
         Boolean isPublic = null;
         Boolean isRecoverable = null;
         OffsetDateTime createdAtAfter = null;
@@ -463,38 +464,7 @@ public class SandboxApiTest {
         OffsetDateTime autoDestroyAtBefore = null;
         SandboxListSortField sort = null;
         SandboxListSortDirection order = null;
-        ListSandboxesResponse response = api.listSandboxes(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, autoDestroyAtAfter, autoDestroyAtBefore, sort, order);
-        // TODO: test validations
-    }
-
-    /**
-     * [DEPRECATED] List all sandboxes paginated
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void listSandboxesPaginatedDeprecatedTest() throws ApiException {
-        String xDaytonaOrganizationID = null;
-        Integer page = null;
-        Integer limit = null;
-        String id = null;
-        String name = null;
-        String labels = null;
-        Boolean includeErroredDeleted = null;
-        List<String> states = null;
-        List<String> snapshots = null;
-        List<String> regions = null;
-        BigDecimal minCpu = null;
-        BigDecimal maxCpu = null;
-        BigDecimal minMemoryGiB = null;
-        BigDecimal maxMemoryGiB = null;
-        BigDecimal minDiskGiB = null;
-        BigDecimal maxDiskGiB = null;
-        OffsetDateTime lastEventAfter = null;
-        OffsetDateTime lastEventBefore = null;
-        String sort = null;
-        String order = null;
-        PaginatedSandboxesDeprecated response = api.listSandboxesPaginatedDeprecated(xDaytonaOrganizationID, page, limit, id, name, labels, includeErroredDeleted, states, snapshots, regions, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, lastEventAfter, lastEventBefore, sort, order);
+        ListSandboxesResponse response = api.listSandboxes(xDaytonaOrganizationID, cursor, limit, id, name, labels, includeErroredDeleted, includeWarm, states, snapshots, regionIds, sandboxClasses, minCpu, maxCpu, minMemoryGiB, maxMemoryGiB, minDiskGiB, maxDiskGiB, minGpu, maxGpu, isPublic, isRecoverable, createdAtAfter, createdAtBefore, lastEventAfter, lastEventBefore, autoDestroyAtAfter, autoDestroyAtBefore, sort, order);
         // TODO: test validations
     }
 

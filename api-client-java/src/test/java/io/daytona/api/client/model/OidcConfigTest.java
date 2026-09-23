@@ -61,4 +61,20 @@ public class OidcConfigTest {
         // TODO: test audience
     }
 
+    /**
+     * Test the property 'provider'
+     */
+    @Test
+    public void providerTest() {
+        // TODO: test provider
+    }
+
+    /**
+     * Test the property 'authApiHostname'
+     */
+    @Test
+    public void authApiHostnameTest() {
+        // TODO: test authApiHostname
+    }
+
 }

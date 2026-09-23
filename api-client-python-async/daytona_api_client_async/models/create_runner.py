@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona_api_client_async.models.create_runner_sandbox_class import CreateRunnerSandboxClass
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,8 +34,9 @@ class CreateRunner(BaseModel):
     region_id: StrictStr = Field(serialization_alias="regionId")
     name: StrictStr
     tags: Optional[List[StrictStr]] = Field(default=None, description="Tags to associate with the runner")
+    sandbox_class: Optional[CreateRunnerSandboxClass] = Field(default=None, description="The sandbox class supported by the runner. Defaults to container when omitted or null.", serialization_alias="sandboxClass")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["regionId", "name", "tags"]
+    __properties: ClassVar[List[str]] = ["regionId", "name", "tags", "sandboxClass"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -81,6 +83,11 @@ class CreateRunner(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
+        # set to None if sandbox_class (nullable) is None
+        # and model_fields_set contains the field
+        if self.sandbox_class is None and "sandbox_class" in self.model_fields_set:
+            _dict['sandboxClass'] = None
+
         return _dict
 
     @classmethod
@@ -95,7 +102,8 @@ class CreateRunner(BaseModel):
         _obj = cls.model_validate({
             "region_id": obj.get("regionId"),
             "name": obj.get("name"),
-            "tags": obj.get("tags")
+            "tags": obj.get("tags"),
+            "sandbox_class": obj.get("sandboxClass")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

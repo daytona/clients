@@ -153,10 +153,20 @@ public class Organization {
   @javax.annotation.Nonnull
   private Boolean ssoEnabled;
 
+  public static final String SERIALIZED_NAME_SCIM_ENABLED = "scimEnabled";
+  @SerializedName(SERIALIZED_NAME_SCIM_ENABLED)
+  @javax.annotation.Nonnull
+  private Boolean scimEnabled;
+
   public static final String SERIALIZED_NAME_DEFAULT_REGION_ID = "defaultRegionId";
   @SerializedName(SERIALIZED_NAME_DEFAULT_REGION_ID)
   @javax.annotation.Nullable
   private String defaultRegionId;
+
+  public static final String SERIALIZED_NAME_WORKOS_ORG_ID = "workosOrgId";
+  @SerializedName(SERIALIZED_NAME_WORKOS_ORG_ID)
+  @javax.annotation.Nullable
+  private String workosOrgId;
 
   public static final String SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT = "authenticatedRateLimit";
   @SerializedName(SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT)
@@ -581,6 +591,25 @@ public class Organization {
   }
 
 
+  public Organization scimEnabled(@javax.annotation.Nonnull Boolean scimEnabled) {
+    this.scimEnabled = scimEnabled;
+    return this;
+  }
+
+  /**
+   * Whether this organization may use SCIM directory sync
+   * @return scimEnabled
+   */
+  @javax.annotation.Nonnull
+  public Boolean getScimEnabled() {
+    return scimEnabled;
+  }
+
+  public void setScimEnabled(@javax.annotation.Nonnull Boolean scimEnabled) {
+    this.scimEnabled = scimEnabled;
+  }
+
+
   public Organization defaultRegionId(@javax.annotation.Nullable String defaultRegionId) {
     this.defaultRegionId = defaultRegionId;
     return this;
@@ -597,6 +626,25 @@ public class Organization {
 
   public void setDefaultRegionId(@javax.annotation.Nullable String defaultRegionId) {
     this.defaultRegionId = defaultRegionId;
+  }
+
+
+  public Organization workosOrgId(@javax.annotation.Nullable String workosOrgId) {
+    this.workosOrgId = workosOrgId;
+    return this;
+  }
+
+  /**
+   * ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
+   * @return workosOrgId
+   */
+  @javax.annotation.Nullable
+  public String getWorkosOrgId() {
+    return workosOrgId;
+  }
+
+  public void setWorkosOrgId(@javax.annotation.Nullable String workosOrgId) {
+    this.workosOrgId = workosOrgId;
   }
 
 
@@ -826,7 +874,9 @@ public class Organization {
         Objects.equals(this.sandboxLimitedNetworkEgress, organization.sandboxLimitedNetworkEgress) &&
         Objects.equals(this.previewWarningEnabled, organization.previewWarningEnabled) &&
         Objects.equals(this.ssoEnabled, organization.ssoEnabled) &&
+        Objects.equals(this.scimEnabled, organization.scimEnabled) &&
         Objects.equals(this.defaultRegionId, organization.defaultRegionId) &&
+        Objects.equals(this.workosOrgId, organization.workosOrgId) &&
         Objects.equals(this.authenticatedRateLimit, organization.authenticatedRateLimit) &&
         Objects.equals(this.sandboxCreateRateLimit, organization.sandboxCreateRateLimit) &&
         Objects.equals(this.sandboxLifecycleRateLimit, organization.sandboxLifecycleRateLimit) &&
@@ -840,7 +890,7 @@ public class Organization {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, secretQuota, maxSecretsPerSandbox, snapshotDeactivationTimeoutMinutes, sandboxLimitedNetworkEgress, previewWarningEnabled, ssoEnabled, defaultRegionId, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
+    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, secretQuota, maxSecretsPerSandbox, snapshotDeactivationTimeoutMinutes, sandboxLimitedNetworkEgress, previewWarningEnabled, ssoEnabled, scimEnabled, defaultRegionId, workosOrgId, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
   }
 
   @Override
@@ -867,7 +917,9 @@ public class Organization {
     sb.append("    sandboxLimitedNetworkEgress: ").append(toIndentedString(sandboxLimitedNetworkEgress)).append("\n");
     sb.append("    previewWarningEnabled: ").append(toIndentedString(previewWarningEnabled)).append("\n");
     sb.append("    ssoEnabled: ").append(toIndentedString(ssoEnabled)).append("\n");
+    sb.append("    scimEnabled: ").append(toIndentedString(scimEnabled)).append("\n");
     sb.append("    defaultRegionId: ").append(toIndentedString(defaultRegionId)).append("\n");
+    sb.append("    workosOrgId: ").append(toIndentedString(workosOrgId)).append("\n");
     sb.append("    authenticatedRateLimit: ").append(toIndentedString(authenticatedRateLimit)).append("\n");
     sb.append("    sandboxCreateRateLimit: ").append(toIndentedString(sandboxCreateRateLimit)).append("\n");
     sb.append("    sandboxLifecycleRateLimit: ").append(toIndentedString(sandboxLifecycleRateLimit)).append("\n");
@@ -895,10 +947,10 @@ public class Organization {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "defaultRegionId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "defaultRegionId", "workosOrgId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
   }
 
   /**
@@ -935,6 +987,9 @@ public class Organization {
       }
       if ((jsonObj.get("defaultRegionId") != null && !jsonObj.get("defaultRegionId").isJsonNull()) && !jsonObj.get("defaultRegionId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `defaultRegionId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("defaultRegionId").toString()));
+      }
+      if ((jsonObj.get("workosOrgId") != null && !jsonObj.get("workosOrgId").isJsonNull()) && !jsonObj.get("workosOrgId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `workosOrgId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("workosOrgId").toString()));
       }
       if (jsonObj.get("otelConfig") != null && !jsonObj.get("otelConfig").isJsonNull()) {
       // validate the required field `otelConfig`

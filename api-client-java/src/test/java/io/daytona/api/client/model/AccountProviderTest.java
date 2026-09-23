@@ -38,11 +38,11 @@ public class AccountProviderTest {
     }
 
     /**
-     * Test the property 'name'
+     * Test the property 'provider'
      */
     @Test
-    public void nameTest() {
-        // TODO: test name
+    public void providerTest() {
+        // TODO: test provider
     }
 
     /**
@@ -51,6 +51,14 @@ public class AccountProviderTest {
     @Test
     public void displayNameTest() {
         // TODO: test displayName
+    }
+
+    /**
+     * Test the property 'linked'
+     */
+    @Test
+    public void linkedTest() {
+        // TODO: test linked
     }
 
 }

@@ -15,7 +15,7 @@
 
 
 /**
- * The type of event being sent
+ * Event type identifier
  */
 
 export const WebhookEvent = {

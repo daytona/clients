@@ -32,6 +32,8 @@ type User struct {
 	EmailVerified bool `json:"emailVerified"`
 	// HMAC of the user email for Pylon support-widget identity verification
 	PylonEmailHash *string `json:"pylonEmailHash,omitempty"`
+	// Whether the user has accepted the current privacy policies. Populated on the /users/me endpoint.
+	PrivacyPoliciesAccepted *bool `json:"privacyPoliciesAccepted,omitempty"`
 	// User public keys
 	PublicKeys []UserPublicKey `json:"publicKeys"`
 	// Creation timestamp
@@ -192,6 +194,38 @@ func (o *User) SetPylonEmailHash(v string) {
 	o.PylonEmailHash = &v
 }
 
+// GetPrivacyPoliciesAccepted returns the PrivacyPoliciesAccepted field value if set, zero value otherwise.
+func (o *User) GetPrivacyPoliciesAccepted() bool {
+	if o == nil || IsNil(o.PrivacyPoliciesAccepted) {
+		var ret bool
+		return ret
+	}
+	return *o.PrivacyPoliciesAccepted
+}
+
+// GetPrivacyPoliciesAcceptedOk returns a tuple with the PrivacyPoliciesAccepted field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *User) GetPrivacyPoliciesAcceptedOk() (*bool, bool) {
+	if o == nil || IsNil(o.PrivacyPoliciesAccepted) {
+		return nil, false
+	}
+	return o.PrivacyPoliciesAccepted, true
+}
+
+// HasPrivacyPoliciesAccepted returns a boolean if a field has been set.
+func (o *User) HasPrivacyPoliciesAccepted() bool {
+	if o != nil && !IsNil(o.PrivacyPoliciesAccepted) {
+		return true
+	}
+
+	return false
+}
+
+// SetPrivacyPoliciesAccepted gets a reference to the given bool and assigns it to the PrivacyPoliciesAccepted field.
+func (o *User) SetPrivacyPoliciesAccepted(v bool) {
+	o.PrivacyPoliciesAccepted = &v
+}
+
 // GetPublicKeys returns the PublicKeys field value
 func (o *User) GetPublicKeys() []UserPublicKey {
 	if o == nil {
@@ -257,6 +291,9 @@ func (o User) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.PylonEmailHash) {
 		toSerialize["pylonEmailHash"] = o.PylonEmailHash
 	}
+	if !IsNil(o.PrivacyPoliciesAccepted) {
+		toSerialize["privacyPoliciesAccepted"] = o.PrivacyPoliciesAccepted
+	}
 	toSerialize["publicKeys"] = o.PublicKeys
 	toSerialize["createdAt"] = o.CreatedAt
 
@@ -312,6 +349,7 @@ func (o *User) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "email")
 		delete(additionalProperties, "emailVerified")
 		delete(additionalProperties, "pylonEmailHash")
+		delete(additionalProperties, "privacyPoliciesAccepted")
 		delete(additionalProperties, "publicKeys")
 		delete(additionalProperties, "createdAt")
 		o.AdditionalProperties = additionalProperties

@@ -24,6 +24,17 @@ import (
 type UsersAPI interface {
 
 	/*
+	AcceptPrivacyPolicies Accept the current privacy policies
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIAcceptPrivacyPoliciesRequest
+	*/
+	AcceptPrivacyPolicies(ctx context.Context) UsersAPIAcceptPrivacyPoliciesRequest
+
+	// AcceptPrivacyPoliciesExecute executes the request
+	AcceptPrivacyPoliciesExecute(r UsersAPIAcceptPrivacyPoliciesRequest) (*http.Response, error)
+
+	/*
 	ConfirmPendingSsoLink Confirm (link) a pending SSO account link
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -48,16 +59,18 @@ type UsersAPI interface {
 	DismissPendingSsoLinkExecute(r UsersAPIDismissPendingSsoLinkRequest) (*http.Response, error)
 
 	/*
-	EnrollInSmsMfa Enroll in SMS MFA
+	GetAccountProviders Get account providers
+
+	Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIEnrollInSmsMfaRequest
+	@return UsersAPIGetAccountProvidersRequest
 	*/
-	EnrollInSmsMfa(ctx context.Context) UsersAPIEnrollInSmsMfaRequest
+	GetAccountProviders(ctx context.Context) UsersAPIGetAccountProvidersRequest
 
-	// EnrollInSmsMfaExecute executes the request
-	//  @return string
-	EnrollInSmsMfaExecute(r UsersAPIEnrollInSmsMfaRequest) (string, *http.Response, error)
+	// GetAccountProvidersExecute executes the request
+	//  @return []AccountProvider
+	GetAccountProvidersExecute(r UsersAPIGetAccountProvidersRequest) ([]AccountProvider, *http.Response, error)
 
 	/*
 	GetAuthenticatedUser Get authenticated user
@@ -72,26 +85,19 @@ type UsersAPI interface {
 	GetAuthenticatedUserExecute(r UsersAPIGetAuthenticatedUserRequest) (*User, *http.Response, error)
 
 	/*
-	GetAvailableAccountProviders Get available account providers
+	LinkAccount Link account (withdrawn)
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIGetAvailableAccountProvidersRequest
-	*/
-	GetAvailableAccountProviders(ctx context.Context) UsersAPIGetAvailableAccountProvidersRequest
-
-	// GetAvailableAccountProvidersExecute executes the request
-	//  @return []AccountProvider
-	GetAvailableAccountProvidersExecute(r UsersAPIGetAvailableAccountProvidersRequest) ([]AccountProvider, *http.Response, error)
-
-	/*
-	LinkAccount Link account
+	Withdrawn. This operation is no longer supported and always responds 410.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@return UsersAPILinkAccountRequest
+
+	Deprecated
 	*/
 	LinkAccount(ctx context.Context) UsersAPILinkAccountRequest
 
 	// LinkAccountExecute executes the request
+	// Deprecated
 	LinkAccountExecute(r UsersAPILinkAccountRequest) (*http.Response, error)
 
 	/*
@@ -107,21 +113,107 @@ type UsersAPI interface {
 	ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLinksRequest) ([]PendingSsoLink, *http.Response, error)
 
 	/*
-	UnlinkAccount Unlink account
+	RecordLogin Record a completed login
+
+	Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param provider
-	@param providerUserId
-	@return UsersAPIUnlinkAccountRequest
+	@return UsersAPIRecordLoginRequest
 	*/
-	UnlinkAccount(ctx context.Context, provider string, providerUserId string) UsersAPIUnlinkAccountRequest
+	RecordLogin(ctx context.Context) UsersAPIRecordLoginRequest
 
-	// UnlinkAccountExecute executes the request
-	UnlinkAccountExecute(r UsersAPIUnlinkAccountRequest) (*http.Response, error)
+	// RecordLoginExecute executes the request
+	RecordLoginExecute(r UsersAPIRecordLoginRequest) (*http.Response, error)
 }
 
 // UsersAPIService UsersAPI service
 type UsersAPIService service
+
+type UsersAPIAcceptPrivacyPoliciesRequest struct {
+	ctx context.Context
+	ApiService UsersAPI
+}
+
+func (r UsersAPIAcceptPrivacyPoliciesRequest) Execute() (*http.Response, error) {
+	return r.ApiService.AcceptPrivacyPoliciesExecute(r)
+}
+
+/*
+AcceptPrivacyPolicies Accept the current privacy policies
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return UsersAPIAcceptPrivacyPoliciesRequest
+*/
+func (a *UsersAPIService) AcceptPrivacyPolicies(ctx context.Context) UsersAPIAcceptPrivacyPoliciesRequest {
+	return UsersAPIAcceptPrivacyPoliciesRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+func (a *UsersAPIService) AcceptPrivacyPoliciesExecute(r UsersAPIAcceptPrivacyPoliciesRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.AcceptPrivacyPolicies")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/users/privacy-policies/accept"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
 
 type UsersAPIConfirmPendingSsoLinkRequest struct {
 	ctx context.Context
@@ -303,44 +395,46 @@ func (a *UsersAPIService) DismissPendingSsoLinkExecute(r UsersAPIDismissPendingS
 	return localVarHTTPResponse, nil
 }
 
-type UsersAPIEnrollInSmsMfaRequest struct {
+type UsersAPIGetAccountProvidersRequest struct {
 	ctx context.Context
 	ApiService UsersAPI
 }
 
-func (r UsersAPIEnrollInSmsMfaRequest) Execute() (string, *http.Response, error) {
-	return r.ApiService.EnrollInSmsMfaExecute(r)
+func (r UsersAPIGetAccountProvidersRequest) Execute() ([]AccountProvider, *http.Response, error) {
+	return r.ApiService.GetAccountProvidersExecute(r)
 }
 
 /*
-EnrollInSmsMfa Enroll in SMS MFA
+GetAccountProviders Get account providers
+
+Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIEnrollInSmsMfaRequest
+ @return UsersAPIGetAccountProvidersRequest
 */
-func (a *UsersAPIService) EnrollInSmsMfa(ctx context.Context) UsersAPIEnrollInSmsMfaRequest {
-	return UsersAPIEnrollInSmsMfaRequest{
+func (a *UsersAPIService) GetAccountProviders(ctx context.Context) UsersAPIGetAccountProvidersRequest {
+	return UsersAPIGetAccountProvidersRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//  @return string
-func (a *UsersAPIService) EnrollInSmsMfaExecute(r UsersAPIEnrollInSmsMfaRequest) (string, *http.Response, error) {
+//  @return []AccountProvider
+func (a *UsersAPIService) GetAccountProvidersExecute(r UsersAPIGetAccountProvidersRequest) ([]AccountProvider, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
+		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  string
+		localVarReturnValue  []AccountProvider
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.EnrollInSmsMfa")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.GetAccountProviders")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/users/mfa/sms/enroll"
+	localVarPath := localBasePath + "/users/account-providers"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -497,103 +591,6 @@ func (a *UsersAPIService) GetAuthenticatedUserExecute(r UsersAPIGetAuthenticated
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type UsersAPIGetAvailableAccountProvidersRequest struct {
-	ctx context.Context
-	ApiService UsersAPI
-}
-
-func (r UsersAPIGetAvailableAccountProvidersRequest) Execute() ([]AccountProvider, *http.Response, error) {
-	return r.ApiService.GetAvailableAccountProvidersExecute(r)
-}
-
-/*
-GetAvailableAccountProviders Get available account providers
-
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIGetAvailableAccountProvidersRequest
-*/
-func (a *UsersAPIService) GetAvailableAccountProviders(ctx context.Context) UsersAPIGetAvailableAccountProvidersRequest {
-	return UsersAPIGetAvailableAccountProvidersRequest{
-		ApiService: a,
-		ctx: ctx,
-	}
-}
-
-// Execute executes the request
-//  @return []AccountProvider
-func (a *UsersAPIService) GetAvailableAccountProvidersExecute(r UsersAPIGetAvailableAccountProvidersRequest) ([]AccountProvider, *http.Response, error) {
-	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []AccountProvider
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.GetAvailableAccountProviders")
-	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/users/account-providers"
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := url.Values{}
-	localVarFormParams := url.Values{}
-
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := &GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
 type UsersAPILinkAccountRequest struct {
 	ctx context.Context
 	ApiService UsersAPI
@@ -610,10 +607,14 @@ func (r UsersAPILinkAccountRequest) Execute() (*http.Response, error) {
 }
 
 /*
-LinkAccount Link account
+LinkAccount Link account (withdrawn)
+
+Withdrawn. This operation is no longer supported and always responds 410.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return UsersAPILinkAccountRequest
+
+Deprecated
 */
 func (a *UsersAPIService) LinkAccount(ctx context.Context) UsersAPILinkAccountRequest {
 	return UsersAPILinkAccountRequest{
@@ -623,6 +624,7 @@ func (a *UsersAPIService) LinkAccount(ctx context.Context) UsersAPILinkAccountRe
 }
 
 // Execute executes the request
+// Deprecated
 func (a *UsersAPIService) LinkAccountExecute(r UsersAPILinkAccountRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
@@ -788,50 +790,44 @@ func (a *UsersAPIService) ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLin
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type UsersAPIUnlinkAccountRequest struct {
+type UsersAPIRecordLoginRequest struct {
 	ctx context.Context
 	ApiService UsersAPI
-	provider string
-	providerUserId string
 }
 
-func (r UsersAPIUnlinkAccountRequest) Execute() (*http.Response, error) {
-	return r.ApiService.UnlinkAccountExecute(r)
+func (r UsersAPIRecordLoginRequest) Execute() (*http.Response, error) {
+	return r.ApiService.RecordLoginExecute(r)
 }
 
 /*
-UnlinkAccount Unlink account
+RecordLogin Record a completed login
+
+Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param provider
- @param providerUserId
- @return UsersAPIUnlinkAccountRequest
+ @return UsersAPIRecordLoginRequest
 */
-func (a *UsersAPIService) UnlinkAccount(ctx context.Context, provider string, providerUserId string) UsersAPIUnlinkAccountRequest {
-	return UsersAPIUnlinkAccountRequest{
+func (a *UsersAPIService) RecordLogin(ctx context.Context) UsersAPIRecordLoginRequest {
+	return UsersAPIRecordLoginRequest{
 		ApiService: a,
 		ctx: ctx,
-		provider: provider,
-		providerUserId: providerUserId,
 	}
 }
 
 // Execute executes the request
-func (a *UsersAPIService) UnlinkAccountExecute(r UsersAPIUnlinkAccountRequest) (*http.Response, error) {
+func (a *UsersAPIService) RecordLoginExecute(r UsersAPIRecordLoginRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodDelete
+		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.UnlinkAccount")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.RecordLogin")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/users/linked-accounts/{provider}/{providerUserId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"provider"+"}", url.PathEscape(parameterValueToString(r.provider, "provider")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"providerUserId"+"}", url.PathEscape(parameterValueToString(r.providerUserId, "providerUserId")), -1)
+	localVarPath := localBasePath + "/users/me/logins"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

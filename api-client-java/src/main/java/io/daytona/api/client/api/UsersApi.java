@@ -76,6 +76,118 @@ public class UsersApi {
     }
 
     /**
+     * Build call for acceptPrivacyPolicies
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Privacy policies accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call acceptPrivacyPoliciesCall(final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/users/privacy-policies/accept";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call acceptPrivacyPoliciesValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return acceptPrivacyPoliciesCall(_callback);
+
+    }
+
+    /**
+     * Accept the current privacy policies
+     * 
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Privacy policies accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public void acceptPrivacyPolicies() throws ApiException {
+        acceptPrivacyPoliciesWithHttpInfo();
+    }
+
+    /**
+     * Accept the current privacy policies
+     * 
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Privacy policies accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> acceptPrivacyPoliciesWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = acceptPrivacyPoliciesValidateBeforeCall(null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Accept the current privacy policies (asynchronously)
+     * 
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Privacy policies accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call acceptPrivacyPoliciesAsync(final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = acceptPrivacyPoliciesValidateBeforeCall(_callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for confirmPendingSsoLink
      * @param id  (required)
      * @param _callback Callback for upload/download progress
@@ -320,7 +432,7 @@ public class UsersApi {
         return localVarCall;
     }
     /**
-     * Build call for enrollInSmsMfa
+     * Build call for getAccountProviders
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -328,10 +440,10 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> SMS MFA enrollment URL </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Account providers </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call enrollInSmsMfaCall(final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call getAccountProvidersCall(final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -348,7 +460,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/mfa/sms/enroll";
+        String localVarPath = "/users/account-providers";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -372,53 +484,53 @@ public class UsersApi {
         }
 
         String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call enrollInSmsMfaValidateBeforeCall(final ApiCallback _callback) throws ApiException {
-        return enrollInSmsMfaCall(_callback);
+    private okhttp3.Call getAccountProvidersValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return getAccountProvidersCall(_callback);
 
     }
 
     /**
-     * Enroll in SMS MFA
-     * 
-     * @return String
+     * Get account providers
+     * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+     * @return List&lt;AccountProvider&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> SMS MFA enrollment URL </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Account providers </td><td>  -  </td></tr>
      </table>
      */
-    public String enrollInSmsMfa() throws ApiException {
-        ApiResponse<String> localVarResp = enrollInSmsMfaWithHttpInfo();
+    public List<AccountProvider> getAccountProviders() throws ApiException {
+        ApiResponse<List<AccountProvider>> localVarResp = getAccountProvidersWithHttpInfo();
         return localVarResp.getData();
     }
 
     /**
-     * Enroll in SMS MFA
-     * 
-     * @return ApiResponse&lt;String&gt;
+     * Get account providers
+     * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+     * @return ApiResponse&lt;List&lt;AccountProvider&gt;&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> SMS MFA enrollment URL </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Account providers </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<String> enrollInSmsMfaWithHttpInfo() throws ApiException {
-        okhttp3.Call localVarCall = enrollInSmsMfaValidateBeforeCall(null);
-        Type localVarReturnType = new TypeToken<String>(){}.getType();
+    public ApiResponse<List<AccountProvider>> getAccountProvidersWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getAccountProvidersValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<List<AccountProvider>>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
 
     /**
-     * Enroll in SMS MFA (asynchronously)
-     * 
+     * Get account providers (asynchronously)
+     * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -426,13 +538,13 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> SMS MFA enrollment URL </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Account providers </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call enrollInSmsMfaAsync(final ApiCallback<String> _callback) throws ApiException {
+    public okhttp3.Call getAccountProvidersAsync(final ApiCallback<List<AccountProvider>> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = enrollInSmsMfaValidateBeforeCall(_callback);
-        Type localVarReturnType = new TypeToken<String>(){}.getType();
+        okhttp3.Call localVarCall = getAccountProvidersValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<List<AccountProvider>>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -554,123 +666,6 @@ public class UsersApi {
         return localVarCall;
     }
     /**
-     * Build call for getAvailableAccountProviders
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Available account providers </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call getAvailableAccountProvidersCall(final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = null;
-
-        // create path and map variables
-        String localVarPath = "/users/account-providers";
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-            "application/json"
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call getAvailableAccountProvidersValidateBeforeCall(final ApiCallback _callback) throws ApiException {
-        return getAvailableAccountProvidersCall(_callback);
-
-    }
-
-    /**
-     * Get available account providers
-     * 
-     * @return List&lt;AccountProvider&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Available account providers </td><td>  -  </td></tr>
-     </table>
-     */
-    public List<AccountProvider> getAvailableAccountProviders() throws ApiException {
-        ApiResponse<List<AccountProvider>> localVarResp = getAvailableAccountProvidersWithHttpInfo();
-        return localVarResp.getData();
-    }
-
-    /**
-     * Get available account providers
-     * 
-     * @return ApiResponse&lt;List&lt;AccountProvider&gt;&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Available account providers </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<List<AccountProvider>> getAvailableAccountProvidersWithHttpInfo() throws ApiException {
-        okhttp3.Call localVarCall = getAvailableAccountProvidersValidateBeforeCall(null);
-        Type localVarReturnType = new TypeToken<List<AccountProvider>>(){}.getType();
-        return localVarApiClient.execute(localVarCall, localVarReturnType);
-    }
-
-    /**
-     * Get available account providers (asynchronously)
-     * 
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Available account providers </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call getAvailableAccountProvidersAsync(final ApiCallback<List<AccountProvider>> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = getAvailableAccountProvidersValidateBeforeCall(_callback);
-        Type localVarReturnType = new TypeToken<List<AccountProvider>>(){}.getType();
-        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
-        return localVarCall;
-    }
-    /**
      * Build call for linkAccount
      * @param createLinkedAccount  (required)
      * @param _callback Callback for upload/download progress
@@ -680,9 +675,11 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account linked successfully </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Account linking is no longer supported </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call linkAccountCall(@javax.annotation.Nonnull CreateLinkedAccount createLinkedAccount, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
@@ -727,6 +724,7 @@ public class UsersApi {
         return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
+    @Deprecated
     @SuppressWarnings("rawtypes")
     private okhttp3.Call linkAccountValidateBeforeCall(@javax.annotation.Nonnull CreateLinkedAccount createLinkedAccount, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'createLinkedAccount' is set
@@ -739,24 +737,26 @@ public class UsersApi {
     }
 
     /**
-     * Link account
-     * 
+     * Link account (withdrawn)
+     * Withdrawn. This operation is no longer supported and always responds 410.
      * @param createLinkedAccount  (required)
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account linked successfully </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Account linking is no longer supported </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public void linkAccount(@javax.annotation.Nonnull CreateLinkedAccount createLinkedAccount) throws ApiException {
         linkAccountWithHttpInfo(createLinkedAccount);
     }
 
     /**
-     * Link account
-     * 
+     * Link account (withdrawn)
+     * Withdrawn. This operation is no longer supported and always responds 410.
      * @param createLinkedAccount  (required)
      * @return ApiResponse&lt;Void&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -764,17 +764,19 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account linked successfully </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Account linking is no longer supported </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public ApiResponse<Void> linkAccountWithHttpInfo(@javax.annotation.Nonnull CreateLinkedAccount createLinkedAccount) throws ApiException {
         okhttp3.Call localVarCall = linkAccountValidateBeforeCall(createLinkedAccount, null);
         return localVarApiClient.execute(localVarCall);
     }
 
     /**
-     * Link account (asynchronously)
-     * 
+     * Link account (withdrawn) (asynchronously)
+     * Withdrawn. This operation is no longer supported and always responds 410.
      * @param createLinkedAccount  (required)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
@@ -783,9 +785,11 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account linked successfully </td><td>  -  </td></tr>
+        <tr><td> 410 </td><td> Account linking is no longer supported </td><td>  -  </td></tr>
      </table>
+     * @deprecated
      */
+    @Deprecated
     public okhttp3.Call linkAccountAsync(@javax.annotation.Nonnull CreateLinkedAccount createLinkedAccount, final ApiCallback<Void> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = linkAccountValidateBeforeCall(createLinkedAccount, _callback);
@@ -910,9 +914,7 @@ public class UsersApi {
         return localVarCall;
     }
     /**
-     * Build call for unlinkAccount
-     * @param provider  (required)
-     * @param providerUserId  (required)
+     * Build call for recordLogin
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -920,10 +922,10 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account unlinked successfully </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> Login recorded </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call unlinkAccountCall(@javax.annotation.Nonnull String provider, @javax.annotation.Nonnull String providerUserId, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call recordLoginCall(final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -940,9 +942,7 @@ public class UsersApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/users/linked-accounts/{provider}/{providerUserId}"
-            .replace("{" + "provider" + "}", localVarApiClient.escapeString(provider.toString()))
-            .replace("{" + "providerUserId" + "}", localVarApiClient.escapeString(providerUserId.toString()));
+        String localVarPath = "/users/me/logins";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -965,66 +965,50 @@ public class UsersApi {
         }
 
         String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "DELETE", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call unlinkAccountValidateBeforeCall(@javax.annotation.Nonnull String provider, @javax.annotation.Nonnull String providerUserId, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'provider' is set
-        if (provider == null) {
-            throw new ApiException("Missing the required parameter 'provider' when calling unlinkAccount(Async)");
-        }
-
-        // verify the required parameter 'providerUserId' is set
-        if (providerUserId == null) {
-            throw new ApiException("Missing the required parameter 'providerUserId' when calling unlinkAccount(Async)");
-        }
-
-        return unlinkAccountCall(provider, providerUserId, _callback);
+    private okhttp3.Call recordLoginValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return recordLoginCall(_callback);
 
     }
 
     /**
-     * Unlink account
-     * 
-     * @param provider  (required)
-     * @param providerUserId  (required)
+     * Record a completed login
+     * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account unlinked successfully </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> Login recorded </td><td>  -  </td></tr>
      </table>
      */
-    public void unlinkAccount(@javax.annotation.Nonnull String provider, @javax.annotation.Nonnull String providerUserId) throws ApiException {
-        unlinkAccountWithHttpInfo(provider, providerUserId);
+    public void recordLogin() throws ApiException {
+        recordLoginWithHttpInfo();
     }
 
     /**
-     * Unlink account
-     * 
-     * @param provider  (required)
-     * @param providerUserId  (required)
+     * Record a completed login
+     * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
      * @return ApiResponse&lt;Void&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account unlinked successfully </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> Login recorded </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<Void> unlinkAccountWithHttpInfo(@javax.annotation.Nonnull String provider, @javax.annotation.Nonnull String providerUserId) throws ApiException {
-        okhttp3.Call localVarCall = unlinkAccountValidateBeforeCall(provider, providerUserId, null);
+    public ApiResponse<Void> recordLoginWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = recordLoginValidateBeforeCall(null);
         return localVarApiClient.execute(localVarCall);
     }
 
     /**
-     * Unlink account (asynchronously)
-     * 
-     * @param provider  (required)
-     * @param providerUserId  (required)
+     * Record a completed login (asynchronously)
+     * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -1032,12 +1016,12 @@ public class UsersApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Account unlinked successfully </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> Login recorded </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call unlinkAccountAsync(@javax.annotation.Nonnull String provider, @javax.annotation.Nonnull String providerUserId, final ApiCallback<Void> _callback) throws ApiException {
+    public okhttp3.Call recordLoginAsync(final ApiCallback<Void> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = unlinkAccountValidateBeforeCall(provider, providerUserId, _callback);
+        okhttp3.Call localVarCall = recordLoginValidateBeforeCall(_callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }

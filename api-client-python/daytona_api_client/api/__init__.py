@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from daytona_api_client.api.health_api import HealthApi
-    from daytona_api_client.api.admin_api import AdminApi
     from daytona_api_client.api.api_keys_api import ApiKeysApi
     from daytona_api_client.api.audit_api import AuditApi
     from daytona_api_client.api.config_api import ConfigApi
@@ -30,7 +29,6 @@ if TYPE_CHECKING:
 
 _DYNAMIC_IMPORTS: dict[str, str] = {
     "HealthApi": "daytona_api_client.api.health_api",
-    "AdminApi": "daytona_api_client.api.admin_api",
     "ApiKeysApi": "daytona_api_client.api.api_keys_api",
     "AuditApi": "daytona_api_client.api.audit_api",
     "ConfigApi": "daytona_api_client.api.config_api",

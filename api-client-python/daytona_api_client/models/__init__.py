@@ -21,9 +21,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # import models into model package
     from daytona_api_client.models.account_provider import AccountProvider
-    from daytona_api_client.models.admin_create_organization import AdminCreateOrganization
-    from daytona_api_client.models.admin_create_runner import AdminCreateRunner
-    from daytona_api_client.models.admin_get_webhook_status200_response import AdminGetWebhookStatus200Response
     from daytona_api_client.models.announcement import Announcement
     from daytona_api_client.models.api_key_list import ApiKeyList
     from daytona_api_client.models.api_key_response import ApiKeyResponse
@@ -39,24 +36,25 @@ if TYPE_CHECKING:
     from daytona_api_client.models.create_linked_account import CreateLinkedAccount
     from daytona_api_client.models.create_organization import CreateOrganization
     from daytona_api_client.models.create_organization_invitation import CreateOrganizationInvitation
-    from daytona_api_client.models.create_organization_quota import CreateOrganizationQuota
-    from daytona_api_client.models.create_organization_region_quota import CreateOrganizationRegionQuota
     from daytona_api_client.models.create_organization_role import CreateOrganizationRole
     from daytona_api_client.models.create_region import CreateRegion
     from daytona_api_client.models.create_region_response import CreateRegionResponse
     from daytona_api_client.models.create_runner import CreateRunner
     from daytona_api_client.models.create_runner_response import CreateRunnerResponse
+    from daytona_api_client.models.create_runner_sandbox_class import CreateRunnerSandboxClass
     from daytona_api_client.models.create_sandbox import CreateSandbox
     from daytona_api_client.models.create_sandbox_snapshot import CreateSandboxSnapshot
     from daytona_api_client.models.create_secret import CreateSecret
     from daytona_api_client.models.create_snapshot import CreateSnapshot
-    from daytona_api_client.models.create_user import CreateUser
     from daytona_api_client.models.create_volume import CreateVolume
     from daytona_api_client.models.create_warm_pool import CreateWarmPool
     from daytona_api_client.models.date_filter import DateFilter
     from daytona_api_client.models.daytona_configuration import DaytonaConfiguration
     from daytona_api_client.models.docker_registry import DockerRegistry
     from daytona_api_client.models.fork_sandbox import ForkSandbox
+    from daytona_api_client.models.generate_workos_admin_portal_link import GenerateWorkosAdminPortalLink
+    from daytona_api_client.models.gpu_capacity import GpuCapacity
+    from daytona_api_client.models.gpu_capacity_response import GpuCapacityResponse
     from daytona_api_client.models.gpu_type import GpuType
     from daytona_api_client.models.health_controller_check200_response import HealthControllerCheck200Response
     from daytona_api_client.models.health_controller_check200_response_info_value import HealthControllerCheck200ResponseInfoValue
@@ -77,18 +75,13 @@ if TYPE_CHECKING:
     from daytona_api_client.models.oidc_id_p_config_response import OidcIdPConfigResponse
     from daytona_api_client.models.organization import Organization
     from daytona_api_client.models.organization_invitation import OrganizationInvitation
-    from daytona_api_client.models.organization_preview_warning import OrganizationPreviewWarning
     from daytona_api_client.models.organization_role import OrganizationRole
-    from daytona_api_client.models.organization_sandbox_default_limited_network_egress import OrganizationSandboxDefaultLimitedNetworkEgress
-    from daytona_api_client.models.organization_sso_enabled import OrganizationSsoEnabled
-    from daytona_api_client.models.organization_suspension import OrganizationSuspension
     from daytona_api_client.models.organization_usage_overview import OrganizationUsageOverview
     from daytona_api_client.models.organization_user import OrganizationUser
     from daytona_api_client.models.otel_config import OtelConfig
     from daytona_api_client.models.paginated_audit_logs import PaginatedAuditLogs
     from daytona_api_client.models.paginated_jobs import PaginatedJobs
     from daytona_api_client.models.paginated_logs import PaginatedLogs
-    from daytona_api_client.models.paginated_sandboxes_deprecated import PaginatedSandboxesDeprecated
     from daytona_api_client.models.paginated_snapshots import PaginatedSnapshots
     from daytona_api_client.models.paginated_traces import PaginatedTraces
     from daytona_api_client.models.pending_sso_link import PendingSsoLink
@@ -116,20 +109,24 @@ if TYPE_CHECKING:
     from daytona_api_client.models.runner_state import RunnerState
     from daytona_api_client.models.sandbox import Sandbox
     from daytona_api_client.models.sandbox_class import SandboxClass
+    from daytona_api_client.models.sandbox_created_webhook import SandboxCreatedWebhook
     from daytona_api_client.models.sandbox_desired_state import SandboxDesiredState
+    from daytona_api_client.models.sandbox_identity import SandboxIdentity
     from daytona_api_client.models.sandbox_labels import SandboxLabels
     from daytona_api_client.models.sandbox_list_item import SandboxListItem
     from daytona_api_client.models.sandbox_list_sort_direction import SandboxListSortDirection
     from daytona_api_client.models.sandbox_list_sort_field import SandboxListSortField
     from daytona_api_client.models.sandbox_state import SandboxState
+    from daytona_api_client.models.sandbox_state_updated_webhook import SandboxStateUpdatedWebhook
     from daytona_api_client.models.sandbox_volume import SandboxVolume
     from daytona_api_client.models.secret import Secret
-    from daytona_api_client.models.send_webhook_dto import SendWebhookDto
-    from daytona_api_client.models.set_snapshot_general_status_dto import SetSnapshotGeneralStatusDto
     from daytona_api_client.models.signed_port_preview_url import SignedPortPreviewUrl
+    from daytona_api_client.models.snapshot_created_webhook import SnapshotCreatedWebhook
     from daytona_api_client.models.snapshot_dto import SnapshotDto
     from daytona_api_client.models.snapshot_manager_credentials import SnapshotManagerCredentials
+    from daytona_api_client.models.snapshot_removed_webhook import SnapshotRemovedWebhook
     from daytona_api_client.models.snapshot_state import SnapshotState
+    from daytona_api_client.models.snapshot_state_updated_webhook import SnapshotStateUpdatedWebhook
     from daytona_api_client.models.ssh_access_dto import SshAccessDto
     from daytona_api_client.models.ssh_access_validation_dto import SshAccessValidationDto
     from daytona_api_client.models.sso_oidc_config import SsoOidcConfig
@@ -148,8 +145,6 @@ if TYPE_CHECKING:
     from daytona_api_client.models.update_organization_default_region import UpdateOrganizationDefaultRegion
     from daytona_api_client.models.update_organization_invitation import UpdateOrganizationInvitation
     from daytona_api_client.models.update_organization_member_access import UpdateOrganizationMemberAccess
-    from daytona_api_client.models.update_organization_quota import UpdateOrganizationQuota
-    from daytona_api_client.models.update_organization_region_quota import UpdateOrganizationRegionQuota
     from daytona_api_client.models.update_organization_role import UpdateOrganizationRole
     from daytona_api_client.models.update_region import UpdateRegion
     from daytona_api_client.models.update_sandbox_network_settings import UpdateSandboxNetworkSettings
@@ -160,18 +155,20 @@ if TYPE_CHECKING:
     from daytona_api_client.models.url import Url
     from daytona_api_client.models.user import User
     from daytona_api_client.models.user_public_key import UserPublicKey
+    from daytona_api_client.models.volume_created_webhook import VolumeCreatedWebhook
     from daytona_api_client.models.volume_dto import VolumeDto
     from daytona_api_client.models.volume_state import VolumeState
+    from daytona_api_client.models.volume_state_updated_webhook import VolumeStateUpdatedWebhook
     from daytona_api_client.models.warm_pool import WarmPool
     from daytona_api_client.models.webhook_app_portal_access import WebhookAppPortalAccess
     from daytona_api_client.models.webhook_event import WebhookEvent
     from daytona_api_client.models.webhook_initialization_status import WebhookInitializationStatus
+    from daytona_api_client.models.workos_admin_portal_intent import WorkosAdminPortalIntent
+    from daytona_api_client.models.workos_admin_portal_link import WorkosAdminPortalLink
+    from daytona_api_client.models.workos_sso_connection import WorkosSsoConnection
 
 _DYNAMIC_IMPORTS: dict[str, str] = {
     "AccountProvider": "daytona_api_client.models.account_provider",
-    "AdminCreateOrganization": "daytona_api_client.models.admin_create_organization",
-    "AdminCreateRunner": "daytona_api_client.models.admin_create_runner",
-    "AdminGetWebhookStatus200Response": "daytona_api_client.models.admin_get_webhook_status200_response",
     "Announcement": "daytona_api_client.models.announcement",
     "ApiKeyList": "daytona_api_client.models.api_key_list",
     "ApiKeyResponse": "daytona_api_client.models.api_key_response",
@@ -187,24 +184,25 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateLinkedAccount": "daytona_api_client.models.create_linked_account",
     "CreateOrganization": "daytona_api_client.models.create_organization",
     "CreateOrganizationInvitation": "daytona_api_client.models.create_organization_invitation",
-    "CreateOrganizationQuota": "daytona_api_client.models.create_organization_quota",
-    "CreateOrganizationRegionQuota": "daytona_api_client.models.create_organization_region_quota",
     "CreateOrganizationRole": "daytona_api_client.models.create_organization_role",
     "CreateRegion": "daytona_api_client.models.create_region",
     "CreateRegionResponse": "daytona_api_client.models.create_region_response",
     "CreateRunner": "daytona_api_client.models.create_runner",
     "CreateRunnerResponse": "daytona_api_client.models.create_runner_response",
+    "CreateRunnerSandboxClass": "daytona_api_client.models.create_runner_sandbox_class",
     "CreateSandbox": "daytona_api_client.models.create_sandbox",
     "CreateSandboxSnapshot": "daytona_api_client.models.create_sandbox_snapshot",
     "CreateSecret": "daytona_api_client.models.create_secret",
     "CreateSnapshot": "daytona_api_client.models.create_snapshot",
-    "CreateUser": "daytona_api_client.models.create_user",
     "CreateVolume": "daytona_api_client.models.create_volume",
     "CreateWarmPool": "daytona_api_client.models.create_warm_pool",
     "DateFilter": "daytona_api_client.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client.models.daytona_configuration",
     "DockerRegistry": "daytona_api_client.models.docker_registry",
     "ForkSandbox": "daytona_api_client.models.fork_sandbox",
+    "GenerateWorkosAdminPortalLink": "daytona_api_client.models.generate_workos_admin_portal_link",
+    "GpuCapacity": "daytona_api_client.models.gpu_capacity",
+    "GpuCapacityResponse": "daytona_api_client.models.gpu_capacity_response",
     "GpuType": "daytona_api_client.models.gpu_type",
     "HealthControllerCheck200Response": "daytona_api_client.models.health_controller_check200_response",
     "HealthControllerCheck200ResponseInfoValue": "daytona_api_client.models.health_controller_check200_response_info_value",
@@ -225,18 +223,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "OidcIdPConfigResponse": "daytona_api_client.models.oidc_id_p_config_response",
     "Organization": "daytona_api_client.models.organization",
     "OrganizationInvitation": "daytona_api_client.models.organization_invitation",
-    "OrganizationPreviewWarning": "daytona_api_client.models.organization_preview_warning",
     "OrganizationRole": "daytona_api_client.models.organization_role",
-    "OrganizationSandboxDefaultLimitedNetworkEgress": "daytona_api_client.models.organization_sandbox_default_limited_network_egress",
-    "OrganizationSsoEnabled": "daytona_api_client.models.organization_sso_enabled",
-    "OrganizationSuspension": "daytona_api_client.models.organization_suspension",
     "OrganizationUsageOverview": "daytona_api_client.models.organization_usage_overview",
     "OrganizationUser": "daytona_api_client.models.organization_user",
     "OtelConfig": "daytona_api_client.models.otel_config",
     "PaginatedAuditLogs": "daytona_api_client.models.paginated_audit_logs",
     "PaginatedJobs": "daytona_api_client.models.paginated_jobs",
     "PaginatedLogs": "daytona_api_client.models.paginated_logs",
-    "PaginatedSandboxesDeprecated": "daytona_api_client.models.paginated_sandboxes_deprecated",
     "PaginatedSnapshots": "daytona_api_client.models.paginated_snapshots",
     "PaginatedTraces": "daytona_api_client.models.paginated_traces",
     "PendingSsoLink": "daytona_api_client.models.pending_sso_link",
@@ -264,20 +257,24 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "RunnerState": "daytona_api_client.models.runner_state",
     "Sandbox": "daytona_api_client.models.sandbox",
     "SandboxClass": "daytona_api_client.models.sandbox_class",
+    "SandboxCreatedWebhook": "daytona_api_client.models.sandbox_created_webhook",
     "SandboxDesiredState": "daytona_api_client.models.sandbox_desired_state",
+    "SandboxIdentity": "daytona_api_client.models.sandbox_identity",
     "SandboxLabels": "daytona_api_client.models.sandbox_labels",
     "SandboxListItem": "daytona_api_client.models.sandbox_list_item",
     "SandboxListSortDirection": "daytona_api_client.models.sandbox_list_sort_direction",
     "SandboxListSortField": "daytona_api_client.models.sandbox_list_sort_field",
     "SandboxState": "daytona_api_client.models.sandbox_state",
+    "SandboxStateUpdatedWebhook": "daytona_api_client.models.sandbox_state_updated_webhook",
     "SandboxVolume": "daytona_api_client.models.sandbox_volume",
     "Secret": "daytona_api_client.models.secret",
-    "SendWebhookDto": "daytona_api_client.models.send_webhook_dto",
-    "SetSnapshotGeneralStatusDto": "daytona_api_client.models.set_snapshot_general_status_dto",
     "SignedPortPreviewUrl": "daytona_api_client.models.signed_port_preview_url",
+    "SnapshotCreatedWebhook": "daytona_api_client.models.snapshot_created_webhook",
     "SnapshotDto": "daytona_api_client.models.snapshot_dto",
     "SnapshotManagerCredentials": "daytona_api_client.models.snapshot_manager_credentials",
+    "SnapshotRemovedWebhook": "daytona_api_client.models.snapshot_removed_webhook",
     "SnapshotState": "daytona_api_client.models.snapshot_state",
+    "SnapshotStateUpdatedWebhook": "daytona_api_client.models.snapshot_state_updated_webhook",
     "SshAccessDto": "daytona_api_client.models.ssh_access_dto",
     "SshAccessValidationDto": "daytona_api_client.models.ssh_access_validation_dto",
     "SsoOidcConfig": "daytona_api_client.models.sso_oidc_config",
@@ -296,8 +293,6 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateOrganizationDefaultRegion": "daytona_api_client.models.update_organization_default_region",
     "UpdateOrganizationInvitation": "daytona_api_client.models.update_organization_invitation",
     "UpdateOrganizationMemberAccess": "daytona_api_client.models.update_organization_member_access",
-    "UpdateOrganizationQuota": "daytona_api_client.models.update_organization_quota",
-    "UpdateOrganizationRegionQuota": "daytona_api_client.models.update_organization_region_quota",
     "UpdateOrganizationRole": "daytona_api_client.models.update_organization_role",
     "UpdateRegion": "daytona_api_client.models.update_region",
     "UpdateSandboxNetworkSettings": "daytona_api_client.models.update_sandbox_network_settings",
@@ -308,12 +303,17 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Url": "daytona_api_client.models.url",
     "User": "daytona_api_client.models.user",
     "UserPublicKey": "daytona_api_client.models.user_public_key",
+    "VolumeCreatedWebhook": "daytona_api_client.models.volume_created_webhook",
     "VolumeDto": "daytona_api_client.models.volume_dto",
     "VolumeState": "daytona_api_client.models.volume_state",
+    "VolumeStateUpdatedWebhook": "daytona_api_client.models.volume_state_updated_webhook",
     "WarmPool": "daytona_api_client.models.warm_pool",
     "WebhookAppPortalAccess": "daytona_api_client.models.webhook_app_portal_access",
     "WebhookEvent": "daytona_api_client.models.webhook_event",
     "WebhookInitializationStatus": "daytona_api_client.models.webhook_initialization_status",
+    "WorkosAdminPortalIntent": "daytona_api_client.models.workos_admin_portal_intent",
+    "WorkosAdminPortalLink": "daytona_api_client.models.workos_admin_portal_link",
+    "WorkosSsoConnection": "daytona_api_client.models.workos_sso_connection",
 }
 
 

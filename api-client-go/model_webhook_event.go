@@ -15,7 +15,7 @@ import (
 	"encoding/json"
 )
 
-// WebhookEvent The type of event being sent
+// WebhookEvent Event type identifier
 type WebhookEvent string
 
 // List of WebhookEvent

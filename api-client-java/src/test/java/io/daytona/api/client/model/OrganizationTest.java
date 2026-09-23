@@ -201,11 +201,27 @@ public class OrganizationTest {
     }
 
     /**
+     * Test the property 'scimEnabled'
+     */
+    @Test
+    public void scimEnabledTest() {
+        // TODO: test scimEnabled
+    }
+
+    /**
      * Test the property 'defaultRegionId'
      */
     @Test
     public void defaultRegionIdTest() {
         // TODO: test defaultRegionId
+    }
+
+    /**
+     * Test the property 'workosOrgId'
+     */
+    @Test
+    public void workosOrgIdTest() {
+        // TODO: test workosOrgId
     }
 
     /**

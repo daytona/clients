@@ -18,7 +18,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -30,10 +30,11 @@ class AccountProvider(BaseModel):
     """
     AccountProvider
     """ # noqa: E501
-    name: StrictStr
-    display_name: StrictStr = Field(serialization_alias="displayName")
+    provider: StrictStr = Field(description="WorkOS identity provider, e.g. GoogleOAuth or GitHubOAuth")
+    display_name: StrictStr = Field(description="Human-readable provider name", serialization_alias="displayName")
+    linked: StrictBool = Field(description="Whether the authenticated user has an identity from this provider")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "displayName"]
+    __properties: ClassVar[List[str]] = ["provider", "displayName", "linked"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,8 +93,9 @@ class AccountProvider(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "display_name": obj.get("displayName")
+            "provider": obj.get("provider"),
+            "display_name": obj.get("displayName"),
+            "linked": obj.get("linked")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

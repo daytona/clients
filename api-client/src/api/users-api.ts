@@ -36,6 +36,41 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
     return {
         /**
          * 
+         * @summary Accept the current privacy policies
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        acceptPrivacyPolicies: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/users/privacy-policies/accept`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Confirm (link) a pending SSO account link
          * @param {string} id 
          * @param {*} [options] Override http request option.
@@ -113,13 +148,13 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
-         * 
-         * @summary Enroll in SMS MFA
+         * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+         * @summary Get account providers
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        enrollInSmsMfa: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/users/mfa/sms/enroll`;
+        getAccountProviders: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/users/account-providers`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -127,7 +162,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
                 baseOptions = configuration.baseOptions;
             }
 
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -185,46 +220,11 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
-         * 
-         * @summary Get available account providers
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAvailableAccountProviders: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/users/account-providers`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication bearer required
-            // http bearer authentication required
-            await setBearerAuthToObject(localVarHeaderParameter, configuration)
-
-            // authentication oauth2 required
-
-            localVarHeaderParameter['Accept'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Link account
+         * Withdrawn. This operation is no longer supported and always responds 410.
+         * @summary Link account (withdrawn)
          * @param {CreateLinkedAccount} createLinkedAccount 
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         linkAccount: async (createLinkedAccount: CreateLinkedAccount, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
@@ -297,21 +297,13 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
-         * 
-         * @summary Unlink account
-         * @param {string} provider 
-         * @param {string} providerUserId 
+         * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
+         * @summary Record a completed login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        unlinkAccount: async (provider: string, providerUserId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'provider' is not null or undefined
-            assertParamExists('unlinkAccount', 'provider', provider)
-            // verify required parameter 'providerUserId' is not null or undefined
-            assertParamExists('unlinkAccount', 'providerUserId', providerUserId)
-            const localVarPath = `/users/linked-accounts/{provider}/{providerUserId}`
-                .replace(`{${"provider"}}`, encodeURIComponent(String(provider)))
-                .replace(`{${"providerUserId"}}`, encodeURIComponent(String(providerUserId)));
+        recordLogin: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/users/me/logins`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -319,7 +311,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
                 baseOptions = configuration.baseOptions;
             }
 
-            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -350,6 +342,18 @@ export const UsersApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary Accept the current privacy policies
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async acceptPrivacyPolicies(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.acceptPrivacyPolicies(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.acceptPrivacyPolicies']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Confirm (link) a pending SSO account link
          * @param {string} id 
          * @param {*} [options] Override http request option.
@@ -375,15 +379,15 @@ export const UsersApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
-         * @summary Enroll in SMS MFA
+         * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+         * @summary Get account providers
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async enrollInSmsMfa(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.enrollInSmsMfa(options);
+        async getAccountProviders(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<AccountProvider>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAccountProviders(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['UsersApi.enrollInSmsMfa']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.getAccountProviders']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -399,22 +403,11 @@ export const UsersApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
-         * @summary Get available account providers
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getAvailableAccountProviders(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<AccountProvider>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAvailableAccountProviders(options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['UsersApi.getAvailableAccountProviders']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Link account
+         * Withdrawn. This operation is no longer supported and always responds 410.
+         * @summary Link account (withdrawn)
          * @param {CreateLinkedAccount} createLinkedAccount 
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         async linkAccount(createLinkedAccount: CreateLinkedAccount, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
@@ -436,17 +429,15 @@ export const UsersApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
-         * @summary Unlink account
-         * @param {string} provider 
-         * @param {string} providerUserId 
+         * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
+         * @summary Record a completed login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async unlinkAccount(provider: string, providerUserId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.unlinkAccount(provider, providerUserId, options);
+        async recordLogin(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.recordLogin(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['UsersApi.unlinkAccount']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.recordLogin']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -458,6 +449,15 @@ export const UsersApiFp = function(configuration?: Configuration) {
 export const UsersApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = UsersApiFp(configuration)
     return {
+        /**
+         * 
+         * @summary Accept the current privacy policies
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        acceptPrivacyPolicies(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.acceptPrivacyPolicies(options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @summary Confirm (link) a pending SSO account link
@@ -479,13 +479,13 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.dismissPendingSsoLink(id, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
-         * @summary Enroll in SMS MFA
+         * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+         * @summary Get account providers
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        enrollInSmsMfa(options?: RawAxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.enrollInSmsMfa(options).then((request) => request(axios, basePath));
+        getAccountProviders(options?: RawAxiosRequestConfig): AxiosPromise<Array<AccountProvider>> {
+            return localVarFp.getAccountProviders(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -497,19 +497,11 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.getAuthenticatedUser(options).then((request) => request(axios, basePath));
         },
         /**
-         * 
-         * @summary Get available account providers
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAvailableAccountProviders(options?: RawAxiosRequestConfig): AxiosPromise<Array<AccountProvider>> {
-            return localVarFp.getAvailableAccountProviders(options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Link account
+         * Withdrawn. This operation is no longer supported and always responds 410.
+         * @summary Link account (withdrawn)
          * @param {CreateLinkedAccount} createLinkedAccount 
          * @param {*} [options] Override http request option.
+         * @deprecated
          * @throws {RequiredError}
          */
         linkAccount(createLinkedAccount: CreateLinkedAccount, options?: RawAxiosRequestConfig): AxiosPromise<void> {
@@ -525,15 +517,13 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.listPendingSsoLinks(options).then((request) => request(axios, basePath));
         },
         /**
-         * 
-         * @summary Unlink account
-         * @param {string} provider 
-         * @param {string} providerUserId 
+         * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
+         * @summary Record a completed login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        unlinkAccount(provider: string, providerUserId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.unlinkAccount(provider, providerUserId, options).then((request) => request(axios, basePath));
+        recordLogin(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.recordLogin(options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -542,6 +532,16 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
  * UsersApi - object-oriented interface
  */
 export class UsersApi extends BaseAPI {
+    /**
+     * 
+     * @summary Accept the current privacy policies
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public acceptPrivacyPolicies(options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).acceptPrivacyPolicies(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Confirm (link) a pending SSO account link
@@ -565,13 +565,13 @@ export class UsersApi extends BaseAPI {
     }
 
     /**
-     * 
-     * @summary Enroll in SMS MFA
+     * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+     * @summary Get account providers
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public enrollInSmsMfa(options?: RawAxiosRequestConfig) {
-        return UsersApiFp(this.configuration).enrollInSmsMfa(options).then((request) => request(this.axios, this.basePath));
+    public getAccountProviders(options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).getAccountProviders(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -585,20 +585,11 @@ export class UsersApi extends BaseAPI {
     }
 
     /**
-     * 
-     * @summary Get available account providers
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public getAvailableAccountProviders(options?: RawAxiosRequestConfig) {
-        return UsersApiFp(this.configuration).getAvailableAccountProviders(options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Link account
+     * Withdrawn. This operation is no longer supported and always responds 410.
+     * @summary Link account (withdrawn)
      * @param {CreateLinkedAccount} createLinkedAccount 
      * @param {*} [options] Override http request option.
+     * @deprecated
      * @throws {RequiredError}
      */
     public linkAccount(createLinkedAccount: CreateLinkedAccount, options?: RawAxiosRequestConfig) {
@@ -616,15 +607,13 @@ export class UsersApi extends BaseAPI {
     }
 
     /**
-     * 
-     * @summary Unlink account
-     * @param {string} provider 
-     * @param {string} providerUserId 
+     * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
+     * @summary Record a completed login
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public unlinkAccount(provider: string, providerUserId: string, options?: RawAxiosRequestConfig) {
-        return UsersApiFp(this.configuration).unlinkAccount(provider, providerUserId, options).then((request) => request(this.axios, this.basePath));
+    public recordLogin(options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).recordLogin(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

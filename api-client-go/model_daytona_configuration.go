@@ -63,6 +63,14 @@ type DaytonaConfiguration struct {
 	SshGatewayCommand *string `json:"sshGatewayCommand,omitempty"`
 	// Base64 encoded SSH Gateway public key
 	SshGatewayPublicKey *string `json:"sshGatewayPublicKey,omitempty"`
+	// Hostname of the SSH Gateway that sandbox SSH connections terminate at
+	SshGatewayHost *string `json:"sshGatewayHost,omitempty"`
+	// TCP port of the SSH Gateway
+	SshGatewayPort *float32 `json:"sshGatewayPort,omitempty"`
+	// SSH host public keys presented by the SSH Gateway, as OpenSSH public key lines (`<type> <base64>`). To build a known_hosts entry, prefix each with `sshGatewayHost` when `sshGatewayPort` is 22, or with `[sshGatewayHost]:sshGatewayPort` otherwise.
+	SshGatewayHostKeys []string `json:"sshGatewayHostKeys,omitempty"`
+	// SHA256 fingerprints of sshGatewayHostKeys, in the same order, in `ssh-keygen -lf` format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification
+	SshGatewayHostKeyFingerprints []string `json:"sshGatewayHostKeyFingerprints,omitempty"`
 	// Rate limit configuration
 	RateLimit *RateLimitConfig `json:"rateLimit,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -682,6 +690,134 @@ func (o *DaytonaConfiguration) SetSshGatewayPublicKey(v string) {
 	o.SshGatewayPublicKey = &v
 }
 
+// GetSshGatewayHost returns the SshGatewayHost field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetSshGatewayHost() string {
+	if o == nil || IsNil(o.SshGatewayHost) {
+		var ret string
+		return ret
+	}
+	return *o.SshGatewayHost
+}
+
+// GetSshGatewayHostOk returns a tuple with the SshGatewayHost field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetSshGatewayHostOk() (*string, bool) {
+	if o == nil || IsNil(o.SshGatewayHost) {
+		return nil, false
+	}
+	return o.SshGatewayHost, true
+}
+
+// HasSshGatewayHost returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasSshGatewayHost() bool {
+	if o != nil && !IsNil(o.SshGatewayHost) {
+		return true
+	}
+
+	return false
+}
+
+// SetSshGatewayHost gets a reference to the given string and assigns it to the SshGatewayHost field.
+func (o *DaytonaConfiguration) SetSshGatewayHost(v string) {
+	o.SshGatewayHost = &v
+}
+
+// GetSshGatewayPort returns the SshGatewayPort field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetSshGatewayPort() float32 {
+	if o == nil || IsNil(o.SshGatewayPort) {
+		var ret float32
+		return ret
+	}
+	return *o.SshGatewayPort
+}
+
+// GetSshGatewayPortOk returns a tuple with the SshGatewayPort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetSshGatewayPortOk() (*float32, bool) {
+	if o == nil || IsNil(o.SshGatewayPort) {
+		return nil, false
+	}
+	return o.SshGatewayPort, true
+}
+
+// HasSshGatewayPort returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasSshGatewayPort() bool {
+	if o != nil && !IsNil(o.SshGatewayPort) {
+		return true
+	}
+
+	return false
+}
+
+// SetSshGatewayPort gets a reference to the given float32 and assigns it to the SshGatewayPort field.
+func (o *DaytonaConfiguration) SetSshGatewayPort(v float32) {
+	o.SshGatewayPort = &v
+}
+
+// GetSshGatewayHostKeys returns the SshGatewayHostKeys field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetSshGatewayHostKeys() []string {
+	if o == nil || IsNil(o.SshGatewayHostKeys) {
+		var ret []string
+		return ret
+	}
+	return o.SshGatewayHostKeys
+}
+
+// GetSshGatewayHostKeysOk returns a tuple with the SshGatewayHostKeys field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetSshGatewayHostKeysOk() ([]string, bool) {
+	if o == nil || IsNil(o.SshGatewayHostKeys) {
+		return nil, false
+	}
+	return o.SshGatewayHostKeys, true
+}
+
+// HasSshGatewayHostKeys returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasSshGatewayHostKeys() bool {
+	if o != nil && !IsNil(o.SshGatewayHostKeys) {
+		return true
+	}
+
+	return false
+}
+
+// SetSshGatewayHostKeys gets a reference to the given []string and assigns it to the SshGatewayHostKeys field.
+func (o *DaytonaConfiguration) SetSshGatewayHostKeys(v []string) {
+	o.SshGatewayHostKeys = v
+}
+
+// GetSshGatewayHostKeyFingerprints returns the SshGatewayHostKeyFingerprints field value if set, zero value otherwise.
+func (o *DaytonaConfiguration) GetSshGatewayHostKeyFingerprints() []string {
+	if o == nil || IsNil(o.SshGatewayHostKeyFingerprints) {
+		var ret []string
+		return ret
+	}
+	return o.SshGatewayHostKeyFingerprints
+}
+
+// GetSshGatewayHostKeyFingerprintsOk returns a tuple with the SshGatewayHostKeyFingerprints field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *DaytonaConfiguration) GetSshGatewayHostKeyFingerprintsOk() ([]string, bool) {
+	if o == nil || IsNil(o.SshGatewayHostKeyFingerprints) {
+		return nil, false
+	}
+	return o.SshGatewayHostKeyFingerprints, true
+}
+
+// HasSshGatewayHostKeyFingerprints returns a boolean if a field has been set.
+func (o *DaytonaConfiguration) HasSshGatewayHostKeyFingerprints() bool {
+	if o != nil && !IsNil(o.SshGatewayHostKeyFingerprints) {
+		return true
+	}
+
+	return false
+}
+
+// SetSshGatewayHostKeyFingerprints gets a reference to the given []string and assigns it to the SshGatewayHostKeyFingerprints field.
+func (o *DaytonaConfiguration) SetSshGatewayHostKeyFingerprints(v []string) {
+	o.SshGatewayHostKeyFingerprints = v
+}
+
 // GetRateLimit returns the RateLimit field value if set, zero value otherwise.
 func (o *DaytonaConfiguration) GetRateLimit() RateLimitConfig {
 	if o == nil || IsNil(o.RateLimit) {
@@ -765,6 +901,18 @@ func (o DaytonaConfiguration) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.SshGatewayPublicKey) {
 		toSerialize["sshGatewayPublicKey"] = o.SshGatewayPublicKey
 	}
+	if !IsNil(o.SshGatewayHost) {
+		toSerialize["sshGatewayHost"] = o.SshGatewayHost
+	}
+	if !IsNil(o.SshGatewayPort) {
+		toSerialize["sshGatewayPort"] = o.SshGatewayPort
+	}
+	if !IsNil(o.SshGatewayHostKeys) {
+		toSerialize["sshGatewayHostKeys"] = o.SshGatewayHostKeys
+	}
+	if !IsNil(o.SshGatewayHostKeyFingerprints) {
+		toSerialize["sshGatewayHostKeyFingerprints"] = o.SshGatewayHostKeyFingerprints
+	}
 	if !IsNil(o.RateLimit) {
 		toSerialize["rateLimit"] = o.RateLimit
 	}
@@ -842,6 +990,10 @@ func (o *DaytonaConfiguration) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "stripePublishableKey")
 		delete(additionalProperties, "sshGatewayCommand")
 		delete(additionalProperties, "sshGatewayPublicKey")
+		delete(additionalProperties, "sshGatewayHost")
+		delete(additionalProperties, "sshGatewayPort")
+		delete(additionalProperties, "sshGatewayHostKeys")
+		delete(additionalProperties, "sshGatewayHostKeyFingerprints")
 		delete(additionalProperties, "rateLimit")
 		o.AdditionalProperties = additionalProperties
 	}

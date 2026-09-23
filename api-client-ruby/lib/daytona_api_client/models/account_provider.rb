@@ -15,15 +15,21 @@ require 'time'
 
 module DaytonaApiClient
   class AccountProvider < ApiModelBase
-    attr_accessor :name
+    # WorkOS identity provider, e.g. GoogleOAuth or GitHubOAuth
+    attr_accessor :provider
 
+    # Human-readable provider name
     attr_accessor :display_name
+
+    # Whether the authenticated user has an identity from this provider
+    attr_accessor :linked
 
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
-        :'name' => :'name',
-        :'display_name' => :'displayName'
+        :'provider' => :'provider',
+        :'display_name' => :'displayName',
+        :'linked' => :'linked'
       }
     end
 
@@ -40,8 +46,9 @@ module DaytonaApiClient
     # Attribute type mapping.
     def self.openapi_types
       {
-        :'name' => :'String',
-        :'display_name' => :'String'
+        :'provider' => :'String',
+        :'display_name' => :'String',
+        :'linked' => :'Boolean'
       }
     end
 
@@ -67,16 +74,22 @@ module DaytonaApiClient
         h[k.to_sym] = v
       }
 
-      if attributes.key?(:'name')
-        self.name = attributes[:'name']
+      if attributes.key?(:'provider')
+        self.provider = attributes[:'provider']
       else
-        self.name = nil
+        self.provider = nil
       end
 
       if attributes.key?(:'display_name')
         self.display_name = attributes[:'display_name']
       else
         self.display_name = nil
+      end
+
+      if attributes.key?(:'linked')
+        self.linked = attributes[:'linked']
+      else
+        self.linked = nil
       end
     end
 
@@ -85,12 +98,16 @@ module DaytonaApiClient
     def list_invalid_properties
       warn '[DEPRECATED] the `list_invalid_properties` method is obsolete'
       invalid_properties = Array.new
-      if @name.nil?
-        invalid_properties.push('invalid value for "name", name cannot be nil.')
+      if @provider.nil?
+        invalid_properties.push('invalid value for "provider", provider cannot be nil.')
       end
 
       if @display_name.nil?
         invalid_properties.push('invalid value for "display_name", display_name cannot be nil.')
+      end
+
+      if @linked.nil?
+        invalid_properties.push('invalid value for "linked", linked cannot be nil.')
       end
 
       invalid_properties
@@ -100,19 +117,20 @@ module DaytonaApiClient
     # @return true if the model is valid
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
-      return false if @name.nil?
+      return false if @provider.nil?
       return false if @display_name.nil?
+      return false if @linked.nil?
       true
     end
 
     # Custom attribute writer method with validation
-    # @param [Object] name Value to be assigned
-    def name=(name)
-      if name.nil?
-        fail ArgumentError, 'name cannot be nil'
+    # @param [Object] provider Value to be assigned
+    def provider=(provider)
+      if provider.nil?
+        fail ArgumentError, 'provider cannot be nil'
       end
 
-      @name = name
+      @provider = provider
     end
 
     # Custom attribute writer method with validation
@@ -125,13 +143,24 @@ module DaytonaApiClient
       @display_name = display_name
     end
 
+    # Custom attribute writer method with validation
+    # @param [Object] linked Value to be assigned
+    def linked=(linked)
+      if linked.nil?
+        fail ArgumentError, 'linked cannot be nil'
+      end
+
+      @linked = linked
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
       return true if self.equal?(o)
       self.class == o.class &&
-          name == o.name &&
-          display_name == o.display_name
+          provider == o.provider &&
+          display_name == o.display_name &&
+          linked == o.linked
     end
 
     # @see the `==` method
@@ -143,7 +172,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, display_name].hash
+      [provider, display_name, linked].hash
     end
 
     # Builds the object from hash
