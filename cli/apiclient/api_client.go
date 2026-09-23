@@ -60,14 +60,50 @@ func checkVersionsMismatch(res *http.Response) {
 		return
 	}
 
+	// The API being ahead only means a newer CLI *might* exist: not every API
+	// release ships a CLI release. Only tell the user to upgrade when there is
+	// actually a newer CLI to upgrade to.
 	versionMismatchWarningOnce.Do(func() {
-		log.Warn(fmt.Sprintf("Version mismatch: Daytona CLI is on v%s and API is on v%s.\nMake sure the versions are aligned using 'brew upgrade daytonaio/cli/daytona' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, apiVersion))
+		latestVersion, err := latestCliVersion()
+		if err != nil {
+			log.Debug(err)
+			return
+		}
+
+		if compareVersions(cliVersion, latestVersion) >= 0 {
+			return
+		}
+
+		log.Warn(fmt.Sprintf("Daytona CLI v%s is outdated, the latest version is v%s.\nUpgrade using 'brew upgrade daytonaio/cli/daytona' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, latestVersion))
 	})
 }
 
 // compareVersions compares two semver strings
 // Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+// A pre-release (e.g. 0.216.0-alpha1) sorts before its release (0.216.0).
 func compareVersions(v1, v2 string) int {
+	core1, pre1, _ := strings.Cut(v1, "-")
+	core2, pre2, _ := strings.Cut(v2, "-")
+
+	if c := compareVersionCores(core1, core2); c != 0 {
+		return c
+	}
+
+	switch {
+	case pre1 == pre2:
+		return 0
+	case pre1 == "":
+		return 1
+	case pre2 == "":
+		return -1
+	case pre1 < pre2:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func compareVersionCores(v1, v2 string) int {
 	parts1 := strings.Split(v1, ".")
 	parts2 := strings.Split(v2, ".")
 
