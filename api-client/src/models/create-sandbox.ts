@@ -132,5 +132,9 @@ export interface CreateSandbox {
      * Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
      */
     'secrets'?: Array<{ [key: string]: string; }>;
+    /**
+     * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+     */
+    'kvm'?: boolean;
 }
 

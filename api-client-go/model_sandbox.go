@@ -109,6 +109,8 @@ type Sandbox struct {
 	LinkedSandboxId *string `json:"linkedSandboxId,omitempty"`
 	// The toolbox proxy URL for the sandbox
 	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
+	// Whether the sandbox exposes KVM (/dev/kvm) to its guest
+	Kvm bool `json:"kvm"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -118,7 +120,7 @@ type _Sandbox Sandbox
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string) *Sandbox {
+func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string, kvm bool) *Sandbox {
 	this := Sandbox{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -136,6 +138,7 @@ func NewSandbox(id string, organizationId string, name string, user string, env 
 	this.Memory = memory
 	this.Disk = disk
 	this.ToolboxProxyUrl = toolboxProxyUrl
+	this.Kvm = kvm
 	return &this
 }
 
@@ -1419,6 +1422,30 @@ func (o *Sandbox) SetToolboxProxyUrl(v string) {
 	o.ToolboxProxyUrl = v
 }
 
+// GetKvm returns the Kvm field value
+func (o *Sandbox) GetKvm() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.Kvm
+}
+
+// GetKvmOk returns a tuple with the Kvm field value
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetKvmOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Kvm, true
+}
+
+// SetKvm sets field value
+func (o *Sandbox) SetKvm(v bool) {
+	o.Kvm = v
+}
+
 func (o Sandbox) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -1530,6 +1557,7 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 		toSerialize["linkedSandboxId"] = o.LinkedSandboxId
 	}
 	toSerialize["toolboxProxyUrl"] = o.ToolboxProxyUrl
+	toSerialize["kvm"] = o.Kvm
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -1557,6 +1585,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		"memory",
 		"disk",
 		"toolboxProxyUrl",
+		"kvm",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -1629,6 +1658,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "runnerId")
 		delete(additionalProperties, "linkedSandboxId")
 		delete(additionalProperties, "toolboxProxyUrl")
+		delete(additionalProperties, "kvm")
 		o.AdditionalProperties = additionalProperties
 	}
 

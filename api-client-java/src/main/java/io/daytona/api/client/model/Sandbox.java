@@ -395,6 +395,11 @@ public class Sandbox {
   @javax.annotation.Nonnull
   private String toolboxProxyUrl;
 
+  public static final String SERIALIZED_NAME_KVM = "kvm";
+  @SerializedName(SERIALIZED_NAME_KVM)
+  @javax.annotation.Nonnull
+  private Boolean kvm;
+
   public Sandbox() {
   }
 
@@ -1246,6 +1251,25 @@ public class Sandbox {
     this.toolboxProxyUrl = toolboxProxyUrl;
   }
 
+
+  public Sandbox kvm(@javax.annotation.Nonnull Boolean kvm) {
+    this.kvm = kvm;
+    return this;
+  }
+
+  /**
+   * Whether the sandbox exposes KVM (/dev/kvm) to its guest
+   * @return kvm
+   */
+  @javax.annotation.Nonnull
+  public Boolean getKvm() {
+    return kvm;
+  }
+
+  public void setKvm(@javax.annotation.Nonnull Boolean kvm) {
+    this.kvm = kvm;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -1343,13 +1367,14 @@ public class Sandbox {
         Objects.equals(this.daemonVersion, sandbox.daemonVersion) &&
         Objects.equals(this.runnerId, sandbox.runnerId) &&
         Objects.equals(this.linkedSandboxId, sandbox.linkedSandboxId) &&
-        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl)&&
+        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl) &&
+        Objects.equals(this.kvm, sandbox.kvm)&&
         Objects.equals(this.additionalProperties, sandbox.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, kvm, additionalProperties);
   }
 
   @Override
@@ -1399,6 +1424,7 @@ public class Sandbox {
     sb.append("    runnerId: ").append(toIndentedString(runnerId)).append("\n");
     sb.append("    linkedSandboxId: ").append(toIndentedString(linkedSandboxId)).append("\n");
     sb.append("    toolboxProxyUrl: ").append(toIndentedString(toolboxProxyUrl)).append("\n");
+    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -1418,10 +1444,10 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "kvm"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl", "kvm"));
   }
 
   /**

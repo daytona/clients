@@ -96,6 +96,9 @@ module DaytonaApiClient
     # Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
     attr_accessor :secrets
 
+    # Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+    attr_accessor :kvm
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -125,7 +128,8 @@ module DaytonaApiClient
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
         :'linked_sandbox' => :'linkedSandbox',
-        :'secrets' => :'secrets'
+        :'secrets' => :'secrets',
+        :'kvm' => :'kvm'
       }
     end
 
@@ -168,7 +172,8 @@ module DaytonaApiClient
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'CreateBuildInfo',
         :'linked_sandbox' => :'String',
-        :'secrets' => :'Array<Hash<String, String>>'
+        :'secrets' => :'Array<Hash<String, String>>',
+        :'kvm' => :'Boolean'
       }
     end
 
@@ -313,6 +318,12 @@ module DaytonaApiClient
           self.secrets = value
         end
       end
+
+      if attributes.key?(:'kvm')
+        self.kvm = attributes[:'kvm']
+      else
+        self.kvm = false
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -361,7 +372,8 @@ module DaytonaApiClient
           volumes == o.volumes &&
           build_info == o.build_info &&
           linked_sandbox == o.linked_sandbox &&
-          secrets == o.secrets
+          secrets == o.secrets &&
+          kvm == o.kvm
     end
 
     # @see the `==` method
@@ -373,7 +385,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets, kvm].hash
     end
 
     # Builds the object from hash

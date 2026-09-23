@@ -391,4 +391,12 @@ public class SandboxTest {
         // TODO: test toolboxProxyUrl
     }
 
+    /**
+     * Test the property 'kvm'
+     */
+    @Test
+    public void kvmTest() {
+        // TODO: test kvm
+    }
+
 }

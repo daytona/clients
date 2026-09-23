@@ -74,6 +74,8 @@ type CreateSandbox struct {
 	LinkedSandbox *string `json:"linkedSandbox,omitempty"`
 	// Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
 	Secrets []map[string]string `json:"secrets,omitempty"`
+	// Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+	Kvm *bool `json:"kvm,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -87,6 +89,8 @@ func NewCreateSandbox() *CreateSandbox {
 	this := CreateSandbox{}
 	var spot bool = false
 	this.Spot = &spot
+	var kvm bool = false
+	this.Kvm = &kvm
 	return &this
 }
 
@@ -97,6 +101,8 @@ func NewCreateSandboxWithDefaults() *CreateSandbox {
 	this := CreateSandbox{}
 	var spot bool = false
 	this.Spot = &spot
+	var kvm bool = false
+	this.Kvm = &kvm
 	return &this
 }
 
@@ -964,6 +970,38 @@ func (o *CreateSandbox) SetSecrets(v []map[string]string) {
 	o.Secrets = v
 }
 
+// GetKvm returns the Kvm field value if set, zero value otherwise.
+func (o *CreateSandbox) GetKvm() bool {
+	if o == nil || IsNil(o.Kvm) {
+		var ret bool
+		return ret
+	}
+	return *o.Kvm
+}
+
+// GetKvmOk returns a tuple with the Kvm field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetKvmOk() (*bool, bool) {
+	if o == nil || IsNil(o.Kvm) {
+		return nil, false
+	}
+	return o.Kvm, true
+}
+
+// HasKvm returns a boolean if a field has been set.
+func (o *CreateSandbox) HasKvm() bool {
+	if o != nil && !IsNil(o.Kvm) {
+		return true
+	}
+
+	return false
+}
+
+// SetKvm gets a reference to the given bool and assigns it to the Kvm field.
+func (o *CreateSandbox) SetKvm(v bool) {
+	o.Kvm = &v
+}
+
 func (o CreateSandbox) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -1055,6 +1093,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Secrets) {
 		toSerialize["secrets"] = o.Secrets
 	}
+	if !IsNil(o.Kvm) {
+		toSerialize["kvm"] = o.Kvm
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -1104,6 +1145,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "linkedSandbox")
 		delete(additionalProperties, "secrets")
+		delete(additionalProperties, "kvm")
 		o.AdditionalProperties = additionalProperties
 	}
 

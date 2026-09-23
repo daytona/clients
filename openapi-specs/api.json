@@ -12103,6 +12103,12 @@
                 "DB_PASSWORD": "DB_PASSWORD"
               }
             ]
+          },
+          "kvm": {
+            "type": "boolean",
+            "description": "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.",
+            "example": false,
+            "default": false
           }
         }
       },
@@ -12412,6 +12418,11 @@
             "type": "string",
             "description": "The toolbox proxy URL for the sandbox",
             "example": "https://proxy.app.daytona.io/toolbox"
+          },
+          "kvm": {
+            "type": "boolean",
+            "description": "Whether the sandbox exposes KVM (/dev/kvm) to its guest",
+            "example": false
           }
         },
         "required": [
@@ -12428,7 +12439,8 @@
           "gpu",
           "memory",
           "disk",
-          "toolboxProxyUrl"
+          "toolboxProxyUrl",
+          "kvm"
         ]
       },
       "ResizeSandbox": {
