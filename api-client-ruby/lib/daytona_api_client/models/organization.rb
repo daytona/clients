@@ -75,8 +75,14 @@ module DaytonaApiClient
     # Whether this organization may configure SSO identity providers
     attr_accessor :sso_enabled
 
+    # Whether this organization may use SCIM directory sync
+    attr_accessor :scim_enabled
+
     # Default region ID
     attr_accessor :default_region_id
+
+    # ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
+    attr_accessor :workos_org_id
 
     # Authenticated rate limit per minute
     attr_accessor :authenticated_rate_limit
@@ -125,7 +131,9 @@ module DaytonaApiClient
         :'sandbox_limited_network_egress' => :'sandboxLimitedNetworkEgress',
         :'preview_warning_enabled' => :'previewWarningEnabled',
         :'sso_enabled' => :'ssoEnabled',
+        :'scim_enabled' => :'scimEnabled',
         :'default_region_id' => :'defaultRegionId',
+        :'workos_org_id' => :'workosOrgId',
         :'authenticated_rate_limit' => :'authenticatedRateLimit',
         :'sandbox_create_rate_limit' => :'sandboxCreateRateLimit',
         :'sandbox_lifecycle_rate_limit' => :'sandboxLifecycleRateLimit',
@@ -170,7 +178,9 @@ module DaytonaApiClient
         :'sandbox_limited_network_egress' => :'Boolean',
         :'preview_warning_enabled' => :'Boolean',
         :'sso_enabled' => :'Boolean',
+        :'scim_enabled' => :'Boolean',
         :'default_region_id' => :'String',
+        :'workos_org_id' => :'String',
         :'authenticated_rate_limit' => :'Float',
         :'sandbox_create_rate_limit' => :'Float',
         :'sandbox_lifecycle_rate_limit' => :'Float',
@@ -331,8 +341,18 @@ module DaytonaApiClient
         self.sso_enabled = nil
       end
 
+      if attributes.key?(:'scim_enabled')
+        self.scim_enabled = attributes[:'scim_enabled']
+      else
+        self.scim_enabled = nil
+      end
+
       if attributes.key?(:'default_region_id')
         self.default_region_id = attributes[:'default_region_id']
+      end
+
+      if attributes.key?(:'workos_org_id')
+        self.workos_org_id = attributes[:'workos_org_id']
       end
 
       if attributes.key?(:'authenticated_rate_limit')
@@ -469,6 +489,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "sso_enabled", sso_enabled cannot be nil.')
       end
 
+      if @scim_enabled.nil?
+        invalid_properties.push('invalid value for "scim_enabled", scim_enabled cannot be nil.')
+      end
+
       if @experimental_config.nil?
         invalid_properties.push('invalid value for "experimental_config", experimental_config cannot be nil.')
       end
@@ -500,6 +524,7 @@ module DaytonaApiClient
       return false if @sandbox_limited_network_egress.nil?
       return false if @preview_warning_enabled.nil?
       return false if @sso_enabled.nil?
+      return false if @scim_enabled.nil?
       return false if @experimental_config.nil?
       true
     end
@@ -705,6 +730,16 @@ module DaytonaApiClient
     end
 
     # Custom attribute writer method with validation
+    # @param [Object] scim_enabled Value to be assigned
+    def scim_enabled=(scim_enabled)
+      if scim_enabled.nil?
+        fail ArgumentError, 'scim_enabled cannot be nil'
+      end
+
+      @scim_enabled = scim_enabled
+    end
+
+    # Custom attribute writer method with validation
     # @param [Object] experimental_config Value to be assigned
     def experimental_config=(experimental_config)
       if experimental_config.nil?
@@ -739,7 +774,9 @@ module DaytonaApiClient
           sandbox_limited_network_egress == o.sandbox_limited_network_egress &&
           preview_warning_enabled == o.preview_warning_enabled &&
           sso_enabled == o.sso_enabled &&
+          scim_enabled == o.scim_enabled &&
           default_region_id == o.default_region_id &&
+          workos_org_id == o.workos_org_id &&
           authenticated_rate_limit == o.authenticated_rate_limit &&
           sandbox_create_rate_limit == o.sandbox_create_rate_limit &&
           sandbox_lifecycle_rate_limit == o.sandbox_lifecycle_rate_limit &&
@@ -759,7 +796,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, preview_warning_enabled, sso_enabled, default_region_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
+      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, preview_warning_enabled, sso_enabled, scim_enabled, default_region_id, workos_org_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
     end
 
     # Builds the object from hash

@@ -49,6 +49,7 @@ model_create_region.go
 model_create_region_response.go
 model_create_runner.go
 model_create_runner_response.go
+model_create_runner_sandbox_class.go
 model_create_sandbox.go
 model_create_sandbox_snapshot.go
 model_create_secret.go

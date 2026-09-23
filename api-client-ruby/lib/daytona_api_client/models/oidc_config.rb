@@ -24,12 +24,42 @@ module DaytonaApiClient
     # OIDC audience
     attr_accessor :audience
 
+    # Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.
+    attr_accessor :provider
+
+    # WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
+    attr_accessor :auth_api_hostname
+
+    class EnumAttributeValidator
+      attr_reader :datatype
+      attr_reader :allowable_values
+
+      def initialize(datatype, allowable_values)
+        @allowable_values = allowable_values.map do |value|
+          case datatype.to_s
+          when /Integer/i
+            value.to_i
+          when /Float/i
+            value.to_f
+          else
+            value
+          end
+        end
+      end
+
+      def valid?(value)
+        !value || allowable_values.include?(value)
+      end
+    end
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'issuer' => :'issuer',
         :'client_id' => :'clientId',
-        :'audience' => :'audience'
+        :'audience' => :'audience',
+        :'provider' => :'provider',
+        :'auth_api_hostname' => :'authApiHostname'
       }
     end
 
@@ -48,7 +78,9 @@ module DaytonaApiClient
       {
         :'issuer' => :'String',
         :'client_id' => :'String',
-        :'audience' => :'String'
+        :'audience' => :'String',
+        :'provider' => :'String',
+        :'auth_api_hostname' => :'String'
       }
     end
 
@@ -91,6 +123,16 @@ module DaytonaApiClient
       else
         self.audience = nil
       end
+
+      if attributes.key?(:'provider')
+        self.provider = attributes[:'provider']
+      else
+        self.provider = nil
+      end
+
+      if attributes.key?(:'auth_api_hostname')
+        self.auth_api_hostname = attributes[:'auth_api_hostname']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -110,6 +152,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "audience", audience cannot be nil.')
       end
 
+      if @provider.nil?
+        invalid_properties.push('invalid value for "provider", provider cannot be nil.')
+      end
+
       invalid_properties
     end
 
@@ -120,6 +166,9 @@ module DaytonaApiClient
       return false if @issuer.nil?
       return false if @client_id.nil?
       return false if @audience.nil?
+      return false if @provider.nil?
+      provider_validator = EnumAttributeValidator.new('String', ["auth0", "workos", "unknown_default_open_api"])
+      return false unless provider_validator.valid?(@provider)
       true
     end
 
@@ -153,6 +202,16 @@ module DaytonaApiClient
       @audience = audience
     end
 
+    # Custom attribute writer method checking allowed values (enum).
+    # @param [Object] provider Object to be assigned
+    def provider=(provider)
+      validator = EnumAttributeValidator.new('String', ["auth0", "workos", "unknown_default_open_api"])
+      unless validator.valid?(provider)
+        fail ArgumentError, "invalid value for \"provider\", must be one of #{validator.allowable_values}."
+      end
+      @provider = provider
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -160,7 +219,9 @@ module DaytonaApiClient
       self.class == o.class &&
           issuer == o.issuer &&
           client_id == o.client_id &&
-          audience == o.audience
+          audience == o.audience &&
+          provider == o.provider &&
+          auth_api_hostname == o.auth_api_hostname
     end
 
     # @see the `==` method
@@ -172,7 +233,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [issuer, client_id, audience].hash
+      [issuer, client_id, audience, provider, auth_api_hostname].hash
     end
 
     # Builds the object from hash

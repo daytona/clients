@@ -27,5 +27,22 @@ export interface OidcConfig {
      * OIDC audience
      */
     'audience': string;
+    /**
+     * Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.
+     */
+    'provider': OidcConfigProviderEnum;
+    /**
+     * WorkOS \"Authentication API\" custom domain the dashboard\'s client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
+     */
+    'authApiHostname'?: string;
 }
+
+export const OidcConfigProviderEnum = {
+    AUTH0: 'auth0',
+    WORKOS: 'workos',
+    UNKNOWN_DEFAULT_OPEN_API: '11184809',
+} as const;
+
+export type OidcConfigProviderEnum = typeof OidcConfigProviderEnum[keyof typeof OidcConfigProviderEnum];
+
 

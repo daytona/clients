@@ -79,6 +79,11 @@ public class User {
   @javax.annotation.Nullable
   private String pylonEmailHash;
 
+  public static final String SERIALIZED_NAME_PRIVACY_POLICIES_ACCEPTED = "privacyPoliciesAccepted";
+  @SerializedName(SERIALIZED_NAME_PRIVACY_POLICIES_ACCEPTED)
+  @javax.annotation.Nullable
+  private Boolean privacyPoliciesAccepted;
+
   public static final String SERIALIZED_NAME_PUBLIC_KEYS = "publicKeys";
   @SerializedName(SERIALIZED_NAME_PUBLIC_KEYS)
   @javax.annotation.Nonnull
@@ -187,6 +192,25 @@ public class User {
   }
 
 
+  public User privacyPoliciesAccepted(@javax.annotation.Nullable Boolean privacyPoliciesAccepted) {
+    this.privacyPoliciesAccepted = privacyPoliciesAccepted;
+    return this;
+  }
+
+  /**
+   * Whether the user has accepted the current privacy policies. Populated on the /users/me endpoint.
+   * @return privacyPoliciesAccepted
+   */
+  @javax.annotation.Nullable
+  public Boolean getPrivacyPoliciesAccepted() {
+    return privacyPoliciesAccepted;
+  }
+
+  public void setPrivacyPoliciesAccepted(@javax.annotation.Nullable Boolean privacyPoliciesAccepted) {
+    this.privacyPoliciesAccepted = privacyPoliciesAccepted;
+  }
+
+
   public User publicKeys(@javax.annotation.Nonnull List<UserPublicKey> publicKeys) {
     this.publicKeys = publicKeys;
     return this;
@@ -292,6 +316,7 @@ public class User {
         Objects.equals(this.email, user.email) &&
         Objects.equals(this.emailVerified, user.emailVerified) &&
         Objects.equals(this.pylonEmailHash, user.pylonEmailHash) &&
+        Objects.equals(this.privacyPoliciesAccepted, user.privacyPoliciesAccepted) &&
         Objects.equals(this.publicKeys, user.publicKeys) &&
         Objects.equals(this.createdAt, user.createdAt)&&
         Objects.equals(this.additionalProperties, user.additionalProperties);
@@ -299,7 +324,7 @@ public class User {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, email, emailVerified, pylonEmailHash, publicKeys, createdAt, additionalProperties);
+    return Objects.hash(id, name, email, emailVerified, pylonEmailHash, privacyPoliciesAccepted, publicKeys, createdAt, additionalProperties);
   }
 
   @Override
@@ -311,6 +336,7 @@ public class User {
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("    emailVerified: ").append(toIndentedString(emailVerified)).append("\n");
     sb.append("    pylonEmailHash: ").append(toIndentedString(pylonEmailHash)).append("\n");
+    sb.append("    privacyPoliciesAccepted: ").append(toIndentedString(privacyPoliciesAccepted)).append("\n");
     sb.append("    publicKeys: ").append(toIndentedString(publicKeys)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
@@ -332,7 +358,7 @@ public class User {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "pylonEmailHash", "publicKeys", "createdAt"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "pylonEmailHash", "privacyPoliciesAccepted", "publicKeys", "createdAt"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "email", "emailVerified", "publicKeys", "createdAt"));

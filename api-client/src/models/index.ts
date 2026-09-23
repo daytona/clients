@@ -24,6 +24,7 @@ export * from './create-region';
 export * from './create-region-response';
 export * from './create-runner';
 export * from './create-runner-response';
+export * from './create-runner-sandbox-class';
 export * from './create-sandbox';
 export * from './create-sandbox-snapshot';
 export * from './create-secret';

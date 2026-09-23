@@ -37,10 +37,11 @@ class User(BaseModel):
     email: StrictStr = Field(description="User email")
     email_verified: StrictBool = Field(description="Whether the user email address has been verified", serialization_alias="emailVerified")
     pylon_email_hash: Optional[StrictStr] = Field(default=None, description="HMAC of the user email for Pylon support-widget identity verification", serialization_alias="pylonEmailHash")
+    privacy_policies_accepted: Optional[StrictBool] = Field(default=None, description="Whether the user has accepted the current privacy policies. Populated on the /users/me endpoint.", serialization_alias="privacyPoliciesAccepted")
     public_keys: List[UserPublicKey] = Field(description="User public keys", serialization_alias="publicKeys")
     created_at: datetime = Field(description="Creation timestamp", serialization_alias="createdAt")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "email", "emailVerified", "pylonEmailHash", "publicKeys", "createdAt"]
+    __properties: ClassVar[List[str]] = ["id", "name", "email", "emailVerified", "pylonEmailHash", "privacyPoliciesAccepted", "publicKeys", "createdAt"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -111,6 +112,7 @@ class User(BaseModel):
             "email": obj.get("email"),
             "email_verified": obj.get("emailVerified"),
             "pylon_email_hash": obj.get("pylonEmailHash"),
+            "privacy_policies_accepted": obj.get("privacyPoliciesAccepted"),
             "public_keys": [UserPublicKey.from_dict(_item) for _item in obj["publicKeys"]] if obj.get("publicKeys") is not None else None,
             "created_at": obj.get("createdAt")
         })

@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from daytona_api_client.models.create_region_response import CreateRegionResponse
     from daytona_api_client.models.create_runner import CreateRunner
     from daytona_api_client.models.create_runner_response import CreateRunnerResponse
+    from daytona_api_client.models.create_runner_sandbox_class import CreateRunnerSandboxClass
     from daytona_api_client.models.create_sandbox import CreateSandbox
     from daytona_api_client.models.create_sandbox_snapshot import CreateSandboxSnapshot
     from daytona_api_client.models.create_secret import CreateSecret
@@ -259,6 +260,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateRegionResponse": "daytona_api_client.models.create_region_response",
     "CreateRunner": "daytona_api_client.models.create_runner",
     "CreateRunnerResponse": "daytona_api_client.models.create_runner_response",
+    "CreateRunnerSandboxClass": "daytona_api_client.models.create_runner_sandbox_class",
     "CreateSandbox": "daytona_api_client.models.create_sandbox",
     "CreateSandboxSnapshot": "daytona_api_client.models.create_sandbox_snapshot",
     "CreateSecret": "daytona_api_client.models.create_secret",
@@ -452,6 +454,7 @@ __all__ = [
     "CreateRegionResponse",
     "CreateRunner",
     "CreateRunnerResponse",
+    "CreateRunnerSandboxClass",
     "CreateSandbox",
     "CreateSandboxSnapshot",
     "CreateSecret",

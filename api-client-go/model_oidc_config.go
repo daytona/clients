@@ -27,6 +27,10 @@ type OidcConfig struct {
 	ClientId string `json:"clientId"`
 	// OIDC audience
 	Audience string `json:"audience"`
+	// Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.
+	Provider string `json:"provider"`
+	// WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
+	AuthApiHostname *string `json:"authApiHostname,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -36,11 +40,12 @@ type _OidcConfig OidcConfig
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewOidcConfig(issuer string, clientId string, audience string) *OidcConfig {
+func NewOidcConfig(issuer string, clientId string, audience string, provider string) *OidcConfig {
 	this := OidcConfig{}
 	this.Issuer = issuer
 	this.ClientId = clientId
 	this.Audience = audience
+	this.Provider = provider
 	return &this
 }
 
@@ -124,6 +129,62 @@ func (o *OidcConfig) SetAudience(v string) {
 	o.Audience = v
 }
 
+// GetProvider returns the Provider field value
+func (o *OidcConfig) GetProvider() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.Provider
+}
+
+// GetProviderOk returns a tuple with the Provider field value
+// and a boolean to check if the value has been set.
+func (o *OidcConfig) GetProviderOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Provider, true
+}
+
+// SetProvider sets field value
+func (o *OidcConfig) SetProvider(v string) {
+	o.Provider = v
+}
+
+// GetAuthApiHostname returns the AuthApiHostname field value if set, zero value otherwise.
+func (o *OidcConfig) GetAuthApiHostname() string {
+	if o == nil || IsNil(o.AuthApiHostname) {
+		var ret string
+		return ret
+	}
+	return *o.AuthApiHostname
+}
+
+// GetAuthApiHostnameOk returns a tuple with the AuthApiHostname field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *OidcConfig) GetAuthApiHostnameOk() (*string, bool) {
+	if o == nil || IsNil(o.AuthApiHostname) {
+		return nil, false
+	}
+	return o.AuthApiHostname, true
+}
+
+// HasAuthApiHostname returns a boolean if a field has been set.
+func (o *OidcConfig) HasAuthApiHostname() bool {
+	if o != nil && !IsNil(o.AuthApiHostname) {
+		return true
+	}
+
+	return false
+}
+
+// SetAuthApiHostname gets a reference to the given string and assigns it to the AuthApiHostname field.
+func (o *OidcConfig) SetAuthApiHostname(v string) {
+	o.AuthApiHostname = &v
+}
+
 func (o OidcConfig) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -137,6 +198,10 @@ func (o OidcConfig) ToMap() (map[string]interface{}, error) {
 	toSerialize["issuer"] = o.Issuer
 	toSerialize["clientId"] = o.ClientId
 	toSerialize["audience"] = o.Audience
+	toSerialize["provider"] = o.Provider
+	if !IsNil(o.AuthApiHostname) {
+		toSerialize["authApiHostname"] = o.AuthApiHostname
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -153,6 +218,7 @@ func (o *OidcConfig) UnmarshalJSON(data []byte) (err error) {
 		"issuer",
 		"clientId",
 		"audience",
+		"provider",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -185,6 +251,8 @@ func (o *OidcConfig) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "issuer")
 		delete(additionalProperties, "clientId")
 		delete(additionalProperties, "audience")
+		delete(additionalProperties, "provider")
+		delete(additionalProperties, "authApiHostname")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -67,6 +67,7 @@ src/main/java/io/daytona/api/client/model/CreateRegion.java
 src/main/java/io/daytona/api/client/model/CreateRegionResponse.java
 src/main/java/io/daytona/api/client/model/CreateRunner.java
 src/main/java/io/daytona/api/client/model/CreateRunnerResponse.java
+src/main/java/io/daytona/api/client/model/CreateRunnerSandboxClass.java
 src/main/java/io/daytona/api/client/model/CreateSandbox.java
 src/main/java/io/daytona/api/client/model/CreateSandboxSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateSecret.java
@@ -231,6 +232,7 @@ src/test/java/io/daytona/api/client/model/CreateOrganizationTest.java
 src/test/java/io/daytona/api/client/model/CreateRegionResponseTest.java
 src/test/java/io/daytona/api/client/model/CreateRegionTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerResponseTest.java
+src/test/java/io/daytona/api/client/model/CreateRunnerSandboxClassTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxTest.java

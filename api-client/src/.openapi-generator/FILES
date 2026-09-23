@@ -49,6 +49,7 @@ models/create-organization.ts
 models/create-region-response.ts
 models/create-region.ts
 models/create-runner-response.ts
+models/create-runner-sandbox-class.ts
 models/create-runner.ts
 models/create-sandbox-snapshot.ts
 models/create-sandbox.ts

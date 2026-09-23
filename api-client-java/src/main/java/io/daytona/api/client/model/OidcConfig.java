@@ -65,6 +65,70 @@ public class OidcConfig {
   @javax.annotation.Nonnull
   private String audience;
 
+  /**
+   * Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.
+   */
+  @JsonAdapter(ProviderEnum.Adapter.class)
+  public enum ProviderEnum {
+    AUTH0("auth0"),
+    
+    WORKOS("workos"),
+    
+    UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
+
+    private String value;
+
+    ProviderEnum(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    public static ProviderEnum fromValue(String value) {
+      for (ProviderEnum b : ProviderEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      return UNKNOWN_DEFAULT_OPEN_API;
+    }
+
+    public static class Adapter extends TypeAdapter<ProviderEnum> {
+      @Override
+      public void write(final JsonWriter jsonWriter, final ProviderEnum enumeration) throws IOException {
+        jsonWriter.value(enumeration.getValue());
+      }
+
+      @Override
+      public ProviderEnum read(final JsonReader jsonReader) throws IOException {
+        String value =  jsonReader.nextString();
+        return ProviderEnum.fromValue(value);
+      }
+    }
+
+    public static void validateJsonElement(JsonElement jsonElement) throws IOException {
+      String value = jsonElement.getAsString();
+      ProviderEnum.fromValue(value);
+    }
+  }
+
+  public static final String SERIALIZED_NAME_PROVIDER = "provider";
+  @SerializedName(SERIALIZED_NAME_PROVIDER)
+  @javax.annotation.Nonnull
+  private ProviderEnum provider;
+
+  public static final String SERIALIZED_NAME_AUTH_API_HOSTNAME = "authApiHostname";
+  @SerializedName(SERIALIZED_NAME_AUTH_API_HOSTNAME)
+  @javax.annotation.Nullable
+  private String authApiHostname;
+
   public OidcConfig() {
   }
 
@@ -124,6 +188,44 @@ public class OidcConfig {
     this.audience = audience;
   }
 
+
+  public OidcConfig provider(@javax.annotation.Nonnull ProviderEnum provider) {
+    this.provider = provider;
+    return this;
+  }
+
+  /**
+   * Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.
+   * @return provider
+   */
+  @javax.annotation.Nonnull
+  public ProviderEnum getProvider() {
+    return provider;
+  }
+
+  public void setProvider(@javax.annotation.Nonnull ProviderEnum provider) {
+    this.provider = provider;
+  }
+
+
+  public OidcConfig authApiHostname(@javax.annotation.Nullable String authApiHostname) {
+    this.authApiHostname = authApiHostname;
+    return this;
+  }
+
+  /**
+   * WorkOS \&quot;Authentication API\&quot; custom domain the dashboard&#39;s client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
+   * @return authApiHostname
+   */
+  @javax.annotation.Nullable
+  public String getAuthApiHostname() {
+    return authApiHostname;
+  }
+
+  public void setAuthApiHostname(@javax.annotation.Nullable String authApiHostname) {
+    this.authApiHostname = authApiHostname;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -181,13 +283,15 @@ public class OidcConfig {
     OidcConfig oidcConfig = (OidcConfig) o;
     return Objects.equals(this.issuer, oidcConfig.issuer) &&
         Objects.equals(this.clientId, oidcConfig.clientId) &&
-        Objects.equals(this.audience, oidcConfig.audience)&&
+        Objects.equals(this.audience, oidcConfig.audience) &&
+        Objects.equals(this.provider, oidcConfig.provider) &&
+        Objects.equals(this.authApiHostname, oidcConfig.authApiHostname)&&
         Objects.equals(this.additionalProperties, oidcConfig.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(issuer, clientId, audience, additionalProperties);
+    return Objects.hash(issuer, clientId, audience, provider, authApiHostname, additionalProperties);
   }
 
   @Override
@@ -197,6 +301,8 @@ public class OidcConfig {
     sb.append("    issuer: ").append(toIndentedString(issuer)).append("\n");
     sb.append("    clientId: ").append(toIndentedString(clientId)).append("\n");
     sb.append("    audience: ").append(toIndentedString(audience)).append("\n");
+    sb.append("    provider: ").append(toIndentedString(provider)).append("\n");
+    sb.append("    authApiHostname: ").append(toIndentedString(authApiHostname)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -216,10 +322,10 @@ public class OidcConfig {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience"));
+    openapiFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience", "provider", "authApiHostname"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience", "provider"));
   }
 
   /**
@@ -250,6 +356,14 @@ public class OidcConfig {
       }
       if (!jsonObj.get("audience").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `audience` to be a primitive type in the JSON string but got `%s`", jsonObj.get("audience").toString()));
+      }
+      if (!jsonObj.get("provider").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `provider` to be a primitive type in the JSON string but got `%s`", jsonObj.get("provider").toString()));
+      }
+      // validate the required field `provider`
+      ProviderEnum.validateJsonElement(jsonObj.get("provider"));
+      if ((jsonObj.get("authApiHostname") != null && !jsonObj.get("authApiHostname").isJsonNull()) && !jsonObj.get("authApiHostname").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `authApiHostname` to be a primitive type in the JSON string but got `%s`", jsonObj.get("authApiHostname").toString()));
       }
   }
 

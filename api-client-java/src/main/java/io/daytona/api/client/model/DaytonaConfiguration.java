@@ -165,6 +165,26 @@ public class DaytonaConfiguration {
   @javax.annotation.Nullable
   private String sshGatewayPublicKey;
 
+  public static final String SERIALIZED_NAME_SSH_GATEWAY_HOST = "sshGatewayHost";
+  @SerializedName(SERIALIZED_NAME_SSH_GATEWAY_HOST)
+  @javax.annotation.Nullable
+  private String sshGatewayHost;
+
+  public static final String SERIALIZED_NAME_SSH_GATEWAY_PORT = "sshGatewayPort";
+  @SerializedName(SERIALIZED_NAME_SSH_GATEWAY_PORT)
+  @javax.annotation.Nullable
+  private BigDecimal sshGatewayPort;
+
+  public static final String SERIALIZED_NAME_SSH_GATEWAY_HOST_KEYS = "sshGatewayHostKeys";
+  @SerializedName(SERIALIZED_NAME_SSH_GATEWAY_HOST_KEYS)
+  @javax.annotation.Nullable
+  private List<String> sshGatewayHostKeys = new ArrayList<>();
+
+  public static final String SERIALIZED_NAME_SSH_GATEWAY_HOST_KEY_FINGERPRINTS = "sshGatewayHostKeyFingerprints";
+  @SerializedName(SERIALIZED_NAME_SSH_GATEWAY_HOST_KEY_FINGERPRINTS)
+  @javax.annotation.Nullable
+  private List<String> sshGatewayHostKeyFingerprints = new ArrayList<>();
+
   public static final String SERIALIZED_NAME_RATE_LIMIT = "rateLimit";
   @SerializedName(SERIALIZED_NAME_RATE_LIMIT)
   @javax.annotation.Nullable
@@ -588,6 +608,98 @@ public class DaytonaConfiguration {
   }
 
 
+  public DaytonaConfiguration sshGatewayHost(@javax.annotation.Nullable String sshGatewayHost) {
+    this.sshGatewayHost = sshGatewayHost;
+    return this;
+  }
+
+  /**
+   * Hostname of the SSH Gateway that sandbox SSH connections terminate at
+   * @return sshGatewayHost
+   */
+  @javax.annotation.Nullable
+  public String getSshGatewayHost() {
+    return sshGatewayHost;
+  }
+
+  public void setSshGatewayHost(@javax.annotation.Nullable String sshGatewayHost) {
+    this.sshGatewayHost = sshGatewayHost;
+  }
+
+
+  public DaytonaConfiguration sshGatewayPort(@javax.annotation.Nullable BigDecimal sshGatewayPort) {
+    this.sshGatewayPort = sshGatewayPort;
+    return this;
+  }
+
+  /**
+   * TCP port of the SSH Gateway
+   * @return sshGatewayPort
+   */
+  @javax.annotation.Nullable
+  public BigDecimal getSshGatewayPort() {
+    return sshGatewayPort;
+  }
+
+  public void setSshGatewayPort(@javax.annotation.Nullable BigDecimal sshGatewayPort) {
+    this.sshGatewayPort = sshGatewayPort;
+  }
+
+
+  public DaytonaConfiguration sshGatewayHostKeys(@javax.annotation.Nullable List<String> sshGatewayHostKeys) {
+    this.sshGatewayHostKeys = sshGatewayHostKeys;
+    return this;
+  }
+
+  public DaytonaConfiguration addSshGatewayHostKeysItem(String sshGatewayHostKeysItem) {
+    if (this.sshGatewayHostKeys == null) {
+      this.sshGatewayHostKeys = new ArrayList<>();
+    }
+    this.sshGatewayHostKeys.add(sshGatewayHostKeysItem);
+    return this;
+  }
+
+  /**
+   * SSH host public keys presented by the SSH Gateway, as OpenSSH public key lines (&#x60;&lt;type&gt; &lt;base64&gt;&#x60;). To build a known_hosts entry, prefix each with &#x60;sshGatewayHost&#x60; when &#x60;sshGatewayPort&#x60; is 22, or with &#x60;[sshGatewayHost]:sshGatewayPort&#x60; otherwise.
+   * @return sshGatewayHostKeys
+   */
+  @javax.annotation.Nullable
+  public List<String> getSshGatewayHostKeys() {
+    return sshGatewayHostKeys;
+  }
+
+  public void setSshGatewayHostKeys(@javax.annotation.Nullable List<String> sshGatewayHostKeys) {
+    this.sshGatewayHostKeys = sshGatewayHostKeys;
+  }
+
+
+  public DaytonaConfiguration sshGatewayHostKeyFingerprints(@javax.annotation.Nullable List<String> sshGatewayHostKeyFingerprints) {
+    this.sshGatewayHostKeyFingerprints = sshGatewayHostKeyFingerprints;
+    return this;
+  }
+
+  public DaytonaConfiguration addSshGatewayHostKeyFingerprintsItem(String sshGatewayHostKeyFingerprintsItem) {
+    if (this.sshGatewayHostKeyFingerprints == null) {
+      this.sshGatewayHostKeyFingerprints = new ArrayList<>();
+    }
+    this.sshGatewayHostKeyFingerprints.add(sshGatewayHostKeyFingerprintsItem);
+    return this;
+  }
+
+  /**
+   * SHA256 fingerprints of sshGatewayHostKeys, in the same order, in &#x60;ssh-keygen -lf&#x60; format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification
+   * @return sshGatewayHostKeyFingerprints
+   */
+  @javax.annotation.Nullable
+  public List<String> getSshGatewayHostKeyFingerprints() {
+    return sshGatewayHostKeyFingerprints;
+  }
+
+  public void setSshGatewayHostKeyFingerprints(@javax.annotation.Nullable List<String> sshGatewayHostKeyFingerprints) {
+    this.sshGatewayHostKeyFingerprints = sshGatewayHostKeyFingerprints;
+  }
+
+
   public DaytonaConfiguration rateLimit(@javax.annotation.Nullable RateLimitConfig rateLimit) {
     this.rateLimit = rateLimit;
     return this;
@@ -682,13 +794,17 @@ public class DaytonaConfiguration {
         Objects.equals(this.stripePublishableKey, daytonaConfiguration.stripePublishableKey) &&
         Objects.equals(this.sshGatewayCommand, daytonaConfiguration.sshGatewayCommand) &&
         Objects.equals(this.sshGatewayPublicKey, daytonaConfiguration.sshGatewayPublicKey) &&
+        Objects.equals(this.sshGatewayHost, daytonaConfiguration.sshGatewayHost) &&
+        Objects.equals(this.sshGatewayPort, daytonaConfiguration.sshGatewayPort) &&
+        Objects.equals(this.sshGatewayHostKeys, daytonaConfiguration.sshGatewayHostKeys) &&
+        Objects.equals(this.sshGatewayHostKeyFingerprints, daytonaConfiguration.sshGatewayHostKeyFingerprints) &&
         Objects.equals(this.rateLimit, daytonaConfiguration.rateLimit)&&
         Objects.equals(this.additionalProperties, daytonaConfiguration.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(version, buildSha, posthog, oidc, ssoOidc, forcedFeatureFlags, linkedAccountsEnabled, announcements, pylonAppId, proxyTemplateUrl, proxyToolboxUrl, defaultSnapshot, dashboardUrl, maxAutoArchiveInterval, maintananceMode, environment, billingApiUrl, analyticsApiUrl, stripePublishableKey, sshGatewayCommand, sshGatewayPublicKey, rateLimit, additionalProperties);
+    return Objects.hash(version, buildSha, posthog, oidc, ssoOidc, forcedFeatureFlags, linkedAccountsEnabled, announcements, pylonAppId, proxyTemplateUrl, proxyToolboxUrl, defaultSnapshot, dashboardUrl, maxAutoArchiveInterval, maintananceMode, environment, billingApiUrl, analyticsApiUrl, stripePublishableKey, sshGatewayCommand, sshGatewayPublicKey, sshGatewayHost, sshGatewayPort, sshGatewayHostKeys, sshGatewayHostKeyFingerprints, rateLimit, additionalProperties);
   }
 
   @Override
@@ -716,6 +832,10 @@ public class DaytonaConfiguration {
     sb.append("    stripePublishableKey: ").append(toIndentedString(stripePublishableKey)).append("\n");
     sb.append("    sshGatewayCommand: ").append(toIndentedString(sshGatewayCommand)).append("\n");
     sb.append("    sshGatewayPublicKey: ").append(toIndentedString(sshGatewayPublicKey)).append("\n");
+    sb.append("    sshGatewayHost: ").append(toIndentedString(sshGatewayHost)).append("\n");
+    sb.append("    sshGatewayPort: ").append(toIndentedString(sshGatewayPort)).append("\n");
+    sb.append("    sshGatewayHostKeys: ").append(toIndentedString(sshGatewayHostKeys)).append("\n");
+    sb.append("    sshGatewayHostKeyFingerprints: ").append(toIndentedString(sshGatewayHostKeyFingerprints)).append("\n");
     sb.append("    rateLimit: ").append(toIndentedString(rateLimit)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -736,7 +856,7 @@ public class DaytonaConfiguration {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"));
+    openapiFields = new HashSet<String>(Arrays.asList("version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "sshGatewayHost", "sshGatewayPort", "sshGatewayHostKeys", "sshGatewayHostKeyFingerprints", "rateLimit"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("version", "oidc", "linkedAccountsEnabled", "announcements", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment"));
@@ -814,6 +934,17 @@ public class DaytonaConfiguration {
       }
       if ((jsonObj.get("sshGatewayPublicKey") != null && !jsonObj.get("sshGatewayPublicKey").isJsonNull()) && !jsonObj.get("sshGatewayPublicKey").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sshGatewayPublicKey` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sshGatewayPublicKey").toString()));
+      }
+      if ((jsonObj.get("sshGatewayHost") != null && !jsonObj.get("sshGatewayHost").isJsonNull()) && !jsonObj.get("sshGatewayHost").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sshGatewayHost` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sshGatewayHost").toString()));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("sshGatewayHostKeys") != null && !jsonObj.get("sshGatewayHostKeys").isJsonNull() && !jsonObj.get("sshGatewayHostKeys").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sshGatewayHostKeys` to be an array in the JSON string but got `%s`", jsonObj.get("sshGatewayHostKeys").toString()));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("sshGatewayHostKeyFingerprints") != null && !jsonObj.get("sshGatewayHostKeyFingerprints").isJsonNull() && !jsonObj.get("sshGatewayHostKeyFingerprints").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `sshGatewayHostKeyFingerprints` to be an array in the JSON string but got `%s`", jsonObj.get("sshGatewayHostKeyFingerprints").toString()));
       }
       // validate the optional field `rateLimit`
       if (jsonObj.get("rateLimit") != null && !jsonObj.get("rateLimit").isJsonNull()) {

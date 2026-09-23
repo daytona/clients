@@ -99,9 +99,17 @@ export interface Organization {
      */
     'ssoEnabled': boolean;
     /**
+     * Whether this organization may use SCIM directory sync
+     */
+    'scimEnabled': boolean;
+    /**
      * Default region ID
      */
     'defaultRegionId'?: string;
+    /**
+     * ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
+     */
+    'workosOrgId'?: string;
     /**
      * Authenticated rate limit per minute
      */

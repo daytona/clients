@@ -7501,10 +7501,32 @@ components:
           description: OIDC audience
           example: daytona-api
           type: string
+        provider:
+          description: "Which identity provider the advertised issuer above belongs\
+            \ to. The dashboard needs this because provider-specific logout URLs are\
+            \ not discoverable from the issuer alone: ending an Auth0 session uses\
+            \ its proprietary /v2/logout, which does not exist on WorkOS AuthKit.\
+            \ Anything that branches on provider behaviour must read this rather than\
+            \ pattern-matching the issuer hostname."
+          enum:
+          - auth0
+          - workos
+          example: auth0
+          type: string
+        authApiHostname:
+          description: "WorkOS \"Authentication API\" custom domain the dashboard's\
+            \ client-side SDK should call instead of api.workos.com, so the refresh-token\
+            \ cookie is first-party. Present only when the provider is workos and\
+            \ a custom domain is configured (WorkOS production environments only);\
+            \ absent means the SDK runs in devMode and keeps the refresh token in\
+            \ localStorage."
+          example: auth.example.com
+          type: string
       required:
       - audience
       - clientId
       - issuer
+      - provider
       type: object
     SsoOidcConfig:
       properties:
@@ -7556,33 +7578,39 @@ components:
       type: object
     DaytonaConfiguration:
       example:
+        sshGatewayPublicKey: ssh-gateway-public-key
+        proxyToolboxUrl: https://proxy.example.com/toolbox
+        posthog: ""
+        maxAutoArchiveInterval: 43200
+        pylonAppId: pylon-app-123
+        maintananceMode: false
+        forcedFeatureFlags:
+        - forcedFeatureFlags
+        - forcedFeatureFlags
+        sshGatewayPort: 22
+        sshGatewayHostKeys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIBh7nbXJuVs1AkREaeJsOxlKD219FLKyrf37BmRKq8A
         dashboardUrl: https://dashboard.example.com
         ssoOidc: ""
         rateLimit: ""
         analyticsApiUrl: https://analytics.example.com
-        sshGatewayPublicKey: ssh-gateway-public-key
         buildSha: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b
         billingApiUrl: https://billing.example.com
         linkedAccountsEnabled: true
         stripePublishableKey: pk_live_...
         version: 0.0.1
         oidc: ""
-        proxyToolboxUrl: https://proxy.example.com/toolbox
-        posthog: ""
-        maxAutoArchiveInterval: 43200
-        pylonAppId: pylon-app-123
+        sshGatewayHostKeyFingerprints:
+        - SHA256:+0Mw+mXcYJg98TZSC4utJjM8amxj8SSRaEAGo9nkbWk
         proxyTemplateUrl: "https://{{PORT}}-{{sandboxId}}.proxy.example.com"
-        maintananceMode: false
         environment: production
-        forcedFeatureFlags:
-        - forcedFeatureFlags
-        - forcedFeatureFlags
         defaultSnapshot: ubuntu:22.04
         sshGatewayCommand: "ssh -p 2222 {{TOKEN}}@localhost"
         announcements:
           feature-update:
             text: New feature available!
             learnMoreUrl: https://example.com
+        sshGatewayHost: ssh.app.daytona.io
       properties:
         version:
           description: Daytona version
@@ -7678,6 +7706,34 @@ components:
           description: Base64 encoded SSH Gateway public key
           example: ssh-gateway-public-key
           type: string
+        sshGatewayHost:
+          description: Hostname of the SSH Gateway that sandbox SSH connections terminate
+            at
+          example: ssh.app.daytona.io
+          type: string
+        sshGatewayPort:
+          description: TCP port of the SSH Gateway
+          example: 22
+          type: number
+        sshGatewayHostKeys:
+          description: "SSH host public keys presented by the SSH Gateway, as OpenSSH\
+            \ public key lines (`<type> <base64>`). To build a known_hosts entry,\
+            \ prefix each with `sshGatewayHost` when `sshGatewayPort` is 22, or with\
+            \ `[sshGatewayHost]:sshGatewayPort` otherwise."
+          example:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIBh7nbXJuVs1AkREaeJsOxlKD219FLKyrf37BmRKq8A
+          items:
+            type: string
+          type: array
+        sshGatewayHostKeyFingerprints:
+          description: "SHA256 fingerprints of sshGatewayHostKeys, in the same order,\
+            \ in `ssh-keygen -lf` format. Compare against the fingerprint published\
+            \ at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification"
+          example:
+          - SHA256:+0Mw+mXcYJg98TZSC4utJjM8amxj8SSRaEAGo9nkbWk
+          items:
+            type: string
+          type: array
         rateLimit:
           allOf:
           - $ref: "#/components/schemas/RateLimitConfig"
@@ -8202,8 +8258,10 @@ components:
         authenticatedRateLimit: 9.301444243932576
         suspended: true
         maxCpuPerSandbox: 6.027456183070403
+        scimEnabled: true
         maxDiskPerSandbox: 5.962133916683182
         createdBy: createdBy
+        workosOrgId: workosOrgId
         name: name
         maxMemoryPerSandbox: 1.4658129805029452
       properties:
@@ -8273,8 +8331,15 @@ components:
         ssoEnabled:
           description: Whether this organization may configure SSO identity providers
           type: boolean
+        scimEnabled:
+          description: Whether this organization may use SCIM directory sync
+          type: boolean
         defaultRegionId:
           description: Default region ID
+          type: string
+        workosOrgId:
+          description: "ID of the WorkOS organization mirrored from this organization\
+            \ (absent for personal organizations, which are never mirrored)"
           type: string
         authenticatedRateLimit:
           description: Authenticated rate limit per minute
@@ -8328,6 +8393,7 @@ components:
       - sandboxLifecycleRateLimit
       - sandboxLifecycleRateLimitTtlSeconds
       - sandboxLimitedNetworkEgress
+      - scimEnabled
       - secretQuota
       - snapshotDeactivationTimeoutMinutes
       - ssoEnabled
@@ -9620,6 +9686,7 @@ components:
         name: name
         id: id
         email: email
+        privacyPoliciesAccepted: true
       properties:
         id:
           description: User ID
@@ -9636,6 +9703,10 @@ components:
         pylonEmailHash:
           description: HMAC of the user email for Pylon support-widget identity verification
           type: string
+        privacyPoliciesAccepted:
+          description: Whether the user has accepted the current privacy policies.
+            Populated on the /users/me endpoint.
+          type: boolean
         publicKeys:
           description: User public keys
           items:
@@ -11126,6 +11197,16 @@ components:
       - totalGpuQuota
       - totalMemoryQuota
       type: object
+    CreateRunnerSandboxClass:
+      description: The sandbox class supported by the runner. Defaults to container
+        when omitted or null.
+      enum:
+      - container
+      - linux-vm
+      - windows
+      - null
+      nullable: true
+      type: string
     CreateRunner:
       example:
         regionId: regionId
@@ -11133,6 +11214,7 @@ components:
         tags:
         - gpu
         - us-east
+        sandboxClass: container
       properties:
         regionId:
           type: string
@@ -11146,6 +11228,13 @@ components:
           items:
             type: string
           type: array
+        sandboxClass:
+          allOf:
+          - $ref: "#/components/schemas/CreateRunnerSandboxClass"
+          default: container
+          description: The sandbox class supported by the runner. Defaults to container
+            when omitted or null.
+          example: container
       required:
       - name
       - regionId
@@ -13362,6 +13451,7 @@ components:
             - decline
             - link_account
             - unlink_account
+            - accept_privacy_policies
             - leave_organization
             - regenerate_key_pair
             - update_scheduling
@@ -13393,6 +13483,8 @@ components:
             - update_sandbox_default_limited_network_egress
             - update_preview_warning
             - update_sso_enabled
+            - generate_workos_admin_portal_link
+            - update_scim_enabled
             - update_otel_config
             - delete_otel_config
             - create_ssh_access

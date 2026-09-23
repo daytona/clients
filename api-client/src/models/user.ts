@@ -39,6 +39,10 @@ export interface User {
      */
     'pylonEmailHash'?: string;
     /**
+     * Whether the user has accepted the current privacy policies. Populated on the /users/me endpoint.
+     */
+    'privacyPoliciesAccepted'?: boolean;
+    /**
      * User public keys
      */
     'publicKeys': Array<UserPublicKey>;

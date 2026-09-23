@@ -62,8 +62,12 @@ type Organization struct {
 	PreviewWarningEnabled bool `json:"previewWarningEnabled"`
 	// Whether this organization may configure SSO identity providers
 	SsoEnabled bool `json:"ssoEnabled"`
+	// Whether this organization may use SCIM directory sync
+	ScimEnabled bool `json:"scimEnabled"`
 	// Default region ID
 	DefaultRegionId *string `json:"defaultRegionId,omitempty"`
+	// ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
+	WorkosOrgId *string `json:"workosOrgId,omitempty"`
 	// Authenticated rate limit per minute
 	AuthenticatedRateLimit NullableFloat32 `json:"authenticatedRateLimit"`
 	// Sandbox create rate limit per minute
@@ -89,7 +93,7 @@ type _Organization Organization
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, secretQuota float32, maxSecretsPerSandbox float32, snapshotDeactivationTimeoutMinutes float32, sandboxLimitedNetworkEgress bool, previewWarningEnabled bool, ssoEnabled bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
+func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, secretQuota float32, maxSecretsPerSandbox float32, snapshotDeactivationTimeoutMinutes float32, sandboxLimitedNetworkEgress bool, previewWarningEnabled bool, ssoEnabled bool, scimEnabled bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
 	this := Organization{}
 	this.Id = id
 	this.Name = name
@@ -111,6 +115,7 @@ func NewOrganization(id string, name string, createdBy string, personal bool, cr
 	this.SandboxLimitedNetworkEgress = sandboxLimitedNetworkEgress
 	this.PreviewWarningEnabled = previewWarningEnabled
 	this.SsoEnabled = ssoEnabled
+	this.ScimEnabled = scimEnabled
 	this.AuthenticatedRateLimit = authenticatedRateLimit
 	this.SandboxCreateRateLimit = sandboxCreateRateLimit
 	this.SandboxLifecycleRateLimit = sandboxLifecycleRateLimit
@@ -612,6 +617,30 @@ func (o *Organization) SetSsoEnabled(v bool) {
 	o.SsoEnabled = v
 }
 
+// GetScimEnabled returns the ScimEnabled field value
+func (o *Organization) GetScimEnabled() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.ScimEnabled
+}
+
+// GetScimEnabledOk returns a tuple with the ScimEnabled field value
+// and a boolean to check if the value has been set.
+func (o *Organization) GetScimEnabledOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.ScimEnabled, true
+}
+
+// SetScimEnabled sets field value
+func (o *Organization) SetScimEnabled(v bool) {
+	o.ScimEnabled = v
+}
+
 // GetDefaultRegionId returns the DefaultRegionId field value if set, zero value otherwise.
 func (o *Organization) GetDefaultRegionId() string {
 	if o == nil || IsNil(o.DefaultRegionId) {
@@ -642,6 +671,38 @@ func (o *Organization) HasDefaultRegionId() bool {
 // SetDefaultRegionId gets a reference to the given string and assigns it to the DefaultRegionId field.
 func (o *Organization) SetDefaultRegionId(v string) {
 	o.DefaultRegionId = &v
+}
+
+// GetWorkosOrgId returns the WorkosOrgId field value if set, zero value otherwise.
+func (o *Organization) GetWorkosOrgId() string {
+	if o == nil || IsNil(o.WorkosOrgId) {
+		var ret string
+		return ret
+	}
+	return *o.WorkosOrgId
+}
+
+// GetWorkosOrgIdOk returns a tuple with the WorkosOrgId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Organization) GetWorkosOrgIdOk() (*string, bool) {
+	if o == nil || IsNil(o.WorkosOrgId) {
+		return nil, false
+	}
+	return o.WorkosOrgId, true
+}
+
+// HasWorkosOrgId returns a boolean if a field has been set.
+func (o *Organization) HasWorkosOrgId() bool {
+	if o != nil && !IsNil(o.WorkosOrgId) {
+		return true
+	}
+
+	return false
+}
+
+// SetWorkosOrgId gets a reference to the given string and assigns it to the WorkosOrgId field.
+func (o *Organization) SetWorkosOrgId(v string) {
+	o.WorkosOrgId = &v
 }
 
 // GetAuthenticatedRateLimit returns the AuthenticatedRateLimit field value
@@ -880,8 +941,12 @@ func (o Organization) ToMap() (map[string]interface{}, error) {
 	toSerialize["sandboxLimitedNetworkEgress"] = o.SandboxLimitedNetworkEgress
 	toSerialize["previewWarningEnabled"] = o.PreviewWarningEnabled
 	toSerialize["ssoEnabled"] = o.SsoEnabled
+	toSerialize["scimEnabled"] = o.ScimEnabled
 	if !IsNil(o.DefaultRegionId) {
 		toSerialize["defaultRegionId"] = o.DefaultRegionId
+	}
+	if !IsNil(o.WorkosOrgId) {
+		toSerialize["workosOrgId"] = o.WorkosOrgId
 	}
 	toSerialize["authenticatedRateLimit"] = o.AuthenticatedRateLimit.Get()
 	toSerialize["sandboxCreateRateLimit"] = o.SandboxCreateRateLimit.Get()
@@ -924,6 +989,7 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		"sandboxLimitedNetworkEgress",
 		"previewWarningEnabled",
 		"ssoEnabled",
+		"scimEnabled",
 		"authenticatedRateLimit",
 		"sandboxCreateRateLimit",
 		"sandboxLifecycleRateLimit",
@@ -981,7 +1047,9 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "sandboxLimitedNetworkEgress")
 		delete(additionalProperties, "previewWarningEnabled")
 		delete(additionalProperties, "ssoEnabled")
+		delete(additionalProperties, "scimEnabled")
 		delete(additionalProperties, "defaultRegionId")
+		delete(additionalProperties, "workosOrgId")
 		delete(additionalProperties, "authenticatedRateLimit")
 		delete(additionalProperties, "sandboxCreateRateLimit")
 		delete(additionalProperties, "sandboxLifecycleRateLimit")

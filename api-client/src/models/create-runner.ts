@@ -13,6 +13,9 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { CreateRunnerSandboxClass } from './create-runner-sandbox-class';
 
 export interface CreateRunner {
     'regionId': string;
@@ -21,5 +24,11 @@ export interface CreateRunner {
      * Tags to associate with the runner
      */
     'tags'?: Array<string>;
+    /**
+     * The sandbox class supported by the runner. Defaults to container when omitted or null.
+     */
+    'sandboxClass'?: CreateRunnerSandboxClass | null;
 }
+
+
 

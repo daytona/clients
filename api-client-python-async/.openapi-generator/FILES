@@ -51,6 +51,7 @@ daytona_api_client_async/models/create_region.py
 daytona_api_client_async/models/create_region_response.py
 daytona_api_client_async/models/create_runner.py
 daytona_api_client_async/models/create_runner_response.py
+daytona_api_client_async/models/create_runner_sandbox_class.py
 daytona_api_client_async/models/create_sandbox.py
 daytona_api_client_async/models/create_sandbox_snapshot.py
 daytona_api_client_async/models/create_secret.py

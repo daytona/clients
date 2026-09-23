@@ -56,9 +56,13 @@ class DaytonaConfiguration(BaseModel):
     stripe_publishable_key: Optional[StrictStr] = Field(default=None, description="Stripe publishable key for client-side Stripe.js", serialization_alias="stripePublishableKey")
     ssh_gateway_command: Optional[StrictStr] = Field(default=None, description="SSH Gateway command", serialization_alias="sshGatewayCommand")
     ssh_gateway_public_key: Optional[StrictStr] = Field(default=None, description="Base64 encoded SSH Gateway public key", serialization_alias="sshGatewayPublicKey")
+    ssh_gateway_host: Optional[StrictStr] = Field(default=None, description="Hostname of the SSH Gateway that sandbox SSH connections terminate at", serialization_alias="sshGatewayHost")
+    ssh_gateway_port: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="TCP port of the SSH Gateway", serialization_alias="sshGatewayPort")
+    ssh_gateway_host_keys: Optional[List[StrictStr]] = Field(default=None, description="SSH host public keys presented by the SSH Gateway, as OpenSSH public key lines (`<type> <base64>`). To build a known_hosts entry, prefix each with `sshGatewayHost` when `sshGatewayPort` is 22, or with `[sshGatewayHost]:sshGatewayPort` otherwise.", serialization_alias="sshGatewayHostKeys")
+    ssh_gateway_host_key_fingerprints: Optional[List[StrictStr]] = Field(default=None, description="SHA256 fingerprints of sshGatewayHostKeys, in the same order, in `ssh-keygen -lf` format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification", serialization_alias="sshGatewayHostKeyFingerprints")
     rate_limit: Optional[RateLimitConfig] = Field(default=None, description="Rate limit configuration", serialization_alias="rateLimit")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "rateLimit"]
+    __properties: ClassVar[List[str]] = ["version", "buildSha", "posthog", "oidc", "ssoOidc", "forcedFeatureFlags", "linkedAccountsEnabled", "announcements", "pylonAppId", "proxyTemplateUrl", "proxyToolboxUrl", "defaultSnapshot", "dashboardUrl", "maxAutoArchiveInterval", "maintananceMode", "environment", "billingApiUrl", "analyticsApiUrl", "stripePublishableKey", "sshGatewayCommand", "sshGatewayPublicKey", "sshGatewayHost", "sshGatewayPort", "sshGatewayHostKeys", "sshGatewayHostKeyFingerprints", "rateLimit"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -162,6 +166,10 @@ class DaytonaConfiguration(BaseModel):
             "stripe_publishable_key": obj.get("stripePublishableKey"),
             "ssh_gateway_command": obj.get("sshGatewayCommand"),
             "ssh_gateway_public_key": obj.get("sshGatewayPublicKey"),
+            "ssh_gateway_host": obj.get("sshGatewayHost"),
+            "ssh_gateway_port": obj.get("sshGatewayPort"),
+            "ssh_gateway_host_keys": obj.get("sshGatewayHostKeys"),
+            "ssh_gateway_host_key_fingerprints": obj.get("sshGatewayHostKeyFingerprints"),
             "rate_limit": RateLimitConfig.from_dict(obj["rateLimit"]) if obj.get("rateLimit") is not None else None
         })
         # store additional fields in additional_properties

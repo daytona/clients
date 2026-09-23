@@ -182,6 +182,8 @@ public class AuditTargetScenario {
     
     UNLINK_ACCOUNT("unlink_account"),
     
+    ACCEPT_PRIVACY_POLICIES("accept_privacy_policies"),
+    
     LEAVE_ORGANIZATION("leave_organization"),
     
     REGENERATE_KEY_PAIR("regenerate_key_pair"),
@@ -243,6 +245,10 @@ public class AuditTargetScenario {
     UPDATE_PREVIEW_WARNING("update_preview_warning"),
     
     UPDATE_SSO_ENABLED("update_sso_enabled"),
+    
+    GENERATE_WORKOS_ADMIN_PORTAL_LINK("generate_workos_admin_portal_link"),
+    
+    UPDATE_SCIM_ENABLED("update_scim_enabled"),
     
     UPDATE_OTEL_CONFIG("update_otel_config"),
     

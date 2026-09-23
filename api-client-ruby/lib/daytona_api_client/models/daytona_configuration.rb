@@ -78,6 +78,18 @@ module DaytonaApiClient
     # Base64 encoded SSH Gateway public key
     attr_accessor :ssh_gateway_public_key
 
+    # Hostname of the SSH Gateway that sandbox SSH connections terminate at
+    attr_accessor :ssh_gateway_host
+
+    # TCP port of the SSH Gateway
+    attr_accessor :ssh_gateway_port
+
+    # SSH host public keys presented by the SSH Gateway, as OpenSSH public key lines (`<type> <base64>`). To build a known_hosts entry, prefix each with `sshGatewayHost` when `sshGatewayPort` is 22, or with `[sshGatewayHost]:sshGatewayPort` otherwise.
+    attr_accessor :ssh_gateway_host_keys
+
+    # SHA256 fingerprints of sshGatewayHostKeys, in the same order, in `ssh-keygen -lf` format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification
+    attr_accessor :ssh_gateway_host_key_fingerprints
+
     # Rate limit configuration
     attr_accessor :rate_limit
 
@@ -105,6 +117,10 @@ module DaytonaApiClient
         :'stripe_publishable_key' => :'stripePublishableKey',
         :'ssh_gateway_command' => :'sshGatewayCommand',
         :'ssh_gateway_public_key' => :'sshGatewayPublicKey',
+        :'ssh_gateway_host' => :'sshGatewayHost',
+        :'ssh_gateway_port' => :'sshGatewayPort',
+        :'ssh_gateway_host_keys' => :'sshGatewayHostKeys',
+        :'ssh_gateway_host_key_fingerprints' => :'sshGatewayHostKeyFingerprints',
         :'rate_limit' => :'rateLimit'
       }
     end
@@ -143,6 +159,10 @@ module DaytonaApiClient
         :'stripe_publishable_key' => :'String',
         :'ssh_gateway_command' => :'String',
         :'ssh_gateway_public_key' => :'String',
+        :'ssh_gateway_host' => :'String',
+        :'ssh_gateway_port' => :'Float',
+        :'ssh_gateway_host_keys' => :'Array<String>',
+        :'ssh_gateway_host_key_fingerprints' => :'Array<String>',
         :'rate_limit' => :'RateLimitConfig'
       }
     end
@@ -277,6 +297,26 @@ module DaytonaApiClient
 
       if attributes.key?(:'ssh_gateway_public_key')
         self.ssh_gateway_public_key = attributes[:'ssh_gateway_public_key']
+      end
+
+      if attributes.key?(:'ssh_gateway_host')
+        self.ssh_gateway_host = attributes[:'ssh_gateway_host']
+      end
+
+      if attributes.key?(:'ssh_gateway_port')
+        self.ssh_gateway_port = attributes[:'ssh_gateway_port']
+      end
+
+      if attributes.key?(:'ssh_gateway_host_keys')
+        if (value = attributes[:'ssh_gateway_host_keys']).is_a?(Array)
+          self.ssh_gateway_host_keys = value
+        end
+      end
+
+      if attributes.key?(:'ssh_gateway_host_key_fingerprints')
+        if (value = attributes[:'ssh_gateway_host_key_fingerprints']).is_a?(Array)
+          self.ssh_gateway_host_key_fingerprints = value
+        end
       end
 
       if attributes.key?(:'rate_limit')
@@ -490,6 +530,10 @@ module DaytonaApiClient
           stripe_publishable_key == o.stripe_publishable_key &&
           ssh_gateway_command == o.ssh_gateway_command &&
           ssh_gateway_public_key == o.ssh_gateway_public_key &&
+          ssh_gateway_host == o.ssh_gateway_host &&
+          ssh_gateway_port == o.ssh_gateway_port &&
+          ssh_gateway_host_keys == o.ssh_gateway_host_keys &&
+          ssh_gateway_host_key_fingerprints == o.ssh_gateway_host_key_fingerprints &&
           rate_limit == o.rate_limit
     end
 
@@ -502,7 +546,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [version, build_sha, posthog, oidc, sso_oidc, forced_feature_flags, linked_accounts_enabled, announcements, pylon_app_id, proxy_template_url, proxy_toolbox_url, default_snapshot, dashboard_url, max_auto_archive_interval, maintanance_mode, environment, billing_api_url, analytics_api_url, stripe_publishable_key, ssh_gateway_command, ssh_gateway_public_key, rate_limit].hash
+      [version, build_sha, posthog, oidc, sso_oidc, forced_feature_flags, linked_accounts_enabled, announcements, pylon_app_id, proxy_template_url, proxy_toolbox_url, default_snapshot, dashboard_url, max_auto_archive_interval, maintanance_mode, environment, billing_api_url, analytics_api_url, stripe_publishable_key, ssh_gateway_command, ssh_gateway_public_key, ssh_gateway_host, ssh_gateway_port, ssh_gateway_host_keys, ssh_gateway_host_key_fingerprints, rate_limit].hash
     end
 
     # Builds the object from hash

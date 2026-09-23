@@ -22,12 +22,38 @@ module DaytonaApiClient
     # Tags to associate with the runner
     attr_accessor :tags
 
+    # The sandbox class supported by the runner. Defaults to container when omitted or null.
+    attr_accessor :sandbox_class
+
+    class EnumAttributeValidator
+      attr_reader :datatype
+      attr_reader :allowable_values
+
+      def initialize(datatype, allowable_values)
+        @allowable_values = allowable_values.map do |value|
+          case datatype.to_s
+          when /Integer/i
+            value.to_i
+          when /Float/i
+            value.to_f
+          else
+            value
+          end
+        end
+      end
+
+      def valid?(value)
+        !value || allowable_values.include?(value)
+      end
+    end
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
         :'region_id' => :'regionId',
         :'name' => :'name',
-        :'tags' => :'tags'
+        :'tags' => :'tags',
+        :'sandbox_class' => :'sandboxClass'
       }
     end
 
@@ -46,13 +72,15 @@ module DaytonaApiClient
       {
         :'region_id' => :'String',
         :'name' => :'String',
-        :'tags' => :'Array<String>'
+        :'tags' => :'Array<String>',
+        :'sandbox_class' => :'CreateRunnerSandboxClass'
       }
     end
 
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'sandbox_class'
       ])
     end
 
@@ -88,6 +116,10 @@ module DaytonaApiClient
         if (value = attributes[:'tags']).is_a?(Array)
           self.tags = value
         end
+      end
+
+      if attributes.key?(:'sandbox_class')
+        self.sandbox_class = attributes[:'sandbox_class']
       end
     end
 
@@ -143,7 +175,8 @@ module DaytonaApiClient
       self.class == o.class &&
           region_id == o.region_id &&
           name == o.name &&
-          tags == o.tags
+          tags == o.tags &&
+          sandbox_class == o.sandbox_class
     end
 
     # @see the `==` method
@@ -155,7 +188,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [region_id, name, tags].hash
+      [region_id, name, tags, sandbox_class].hash
     end
 
     # Builds the object from hash

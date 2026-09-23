@@ -82,6 +82,14 @@ public class UserTest {
     }
 
     /**
+     * Test the property 'privacyPoliciesAccepted'
+     */
+    @Test
+    public void privacyPoliciesAcceptedTest() {
+        // TODO: test privacyPoliciesAccepted
+    }
+
+    /**
      * Test the property 'publicKeys'
      */
     @Test

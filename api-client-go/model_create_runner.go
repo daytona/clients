@@ -25,6 +25,8 @@ type CreateRunner struct {
 	Name string `json:"name"`
 	// Tags to associate with the runner
 	Tags []string `json:"tags,omitempty"`
+	// The sandbox class supported by the runner. Defaults to container when omitted or null.
+	SandboxClass NullableCreateRunnerSandboxClass `json:"sandboxClass,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -38,6 +40,8 @@ func NewCreateRunner(regionId string, name string) *CreateRunner {
 	this := CreateRunner{}
 	this.RegionId = regionId
 	this.Name = name
+	var sandboxClass CreateRunnerSandboxClass = CREATERUNNERSANDBOXCLASS_CONTAINER
+	this.SandboxClass = *NewNullableCreateRunnerSandboxClass(&sandboxClass)
 	return &this
 }
 
@@ -46,6 +50,8 @@ func NewCreateRunner(regionId string, name string) *CreateRunner {
 // but it doesn't guarantee that properties required by API are set
 func NewCreateRunnerWithDefaults() *CreateRunner {
 	this := CreateRunner{}
+	var sandboxClass CreateRunnerSandboxClass = CREATERUNNERSANDBOXCLASS_CONTAINER
+	this.SandboxClass = *NewNullableCreateRunnerSandboxClass(&sandboxClass)
 	return &this
 }
 
@@ -129,6 +135,48 @@ func (o *CreateRunner) SetTags(v []string) {
 	o.Tags = v
 }
 
+// GetSandboxClass returns the SandboxClass field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *CreateRunner) GetSandboxClass() CreateRunnerSandboxClass {
+	if o == nil || IsNil(o.SandboxClass.Get()) {
+		var ret CreateRunnerSandboxClass
+		return ret
+	}
+	return *o.SandboxClass.Get()
+}
+
+// GetSandboxClassOk returns a tuple with the SandboxClass field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *CreateRunner) GetSandboxClassOk() (*CreateRunnerSandboxClass, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SandboxClass.Get(), o.SandboxClass.IsSet()
+}
+
+// HasSandboxClass returns a boolean if a field has been set.
+func (o *CreateRunner) HasSandboxClass() bool {
+	if o != nil && o.SandboxClass.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSandboxClass gets a reference to the given NullableCreateRunnerSandboxClass and assigns it to the SandboxClass field.
+func (o *CreateRunner) SetSandboxClass(v CreateRunnerSandboxClass) {
+	o.SandboxClass.Set(&v)
+}
+// SetSandboxClassNil sets the value for SandboxClass to be an explicit nil
+func (o *CreateRunner) SetSandboxClassNil() {
+	o.SandboxClass.Set(nil)
+}
+
+// UnsetSandboxClass ensures that no value is present for SandboxClass, not even an explicit nil
+func (o *CreateRunner) UnsetSandboxClass() {
+	o.SandboxClass.Unset()
+}
+
 func (o CreateRunner) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -143,6 +191,9 @@ func (o CreateRunner) ToMap() (map[string]interface{}, error) {
 	toSerialize["name"] = o.Name
 	if !IsNil(o.Tags) {
 		toSerialize["tags"] = o.Tags
+	}
+	if o.SandboxClass.IsSet() {
+		toSerialize["sandboxClass"] = o.SandboxClass.Get()
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -191,6 +242,7 @@ func (o *CreateRunner) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "regionId")
 		delete(additionalProperties, "name")
 		delete(additionalProperties, "tags")
+		delete(additionalProperties, "sandboxClass")
 		o.AdditionalProperties = additionalProperties
 	}
 

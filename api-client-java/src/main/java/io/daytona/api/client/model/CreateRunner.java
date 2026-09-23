@@ -19,10 +19,12 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.CreateRunnerSandboxClass;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -66,6 +68,11 @@ public class CreateRunner {
   @SerializedName(SERIALIZED_NAME_TAGS)
   @javax.annotation.Nullable
   private List<String> tags = new ArrayList<>();
+
+  public static final String SERIALIZED_NAME_SANDBOX_CLASS = "sandboxClass";
+  @SerializedName(SERIALIZED_NAME_SANDBOX_CLASS)
+  @javax.annotation.Nullable
+  private CreateRunnerSandboxClass sandboxClass = CreateRunnerSandboxClass.CONTAINER;
 
   public CreateRunner() {
   }
@@ -134,6 +141,25 @@ public class CreateRunner {
     this.tags = tags;
   }
 
+
+  public CreateRunner sandboxClass(@javax.annotation.Nullable CreateRunnerSandboxClass sandboxClass) {
+    this.sandboxClass = sandboxClass;
+    return this;
+  }
+
+  /**
+   * The sandbox class supported by the runner. Defaults to container when omitted or null.
+   * @return sandboxClass
+   */
+  @javax.annotation.Nullable
+  public CreateRunnerSandboxClass getSandboxClass() {
+    return sandboxClass;
+  }
+
+  public void setSandboxClass(@javax.annotation.Nullable CreateRunnerSandboxClass sandboxClass) {
+    this.sandboxClass = sandboxClass;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -191,13 +217,25 @@ public class CreateRunner {
     CreateRunner createRunner = (CreateRunner) o;
     return Objects.equals(this.regionId, createRunner.regionId) &&
         Objects.equals(this.name, createRunner.name) &&
-        Objects.equals(this.tags, createRunner.tags)&&
+        Objects.equals(this.tags, createRunner.tags) &&
+        Objects.equals(this.sandboxClass, createRunner.sandboxClass)&&
         Objects.equals(this.additionalProperties, createRunner.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(regionId, name, tags, additionalProperties);
+    return Objects.hash(regionId, name, tags, sandboxClass, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -207,6 +245,7 @@ public class CreateRunner {
     sb.append("    regionId: ").append(toIndentedString(regionId)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    tags: ").append(toIndentedString(tags)).append("\n");
+    sb.append("    sandboxClass: ").append(toIndentedString(sandboxClass)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -226,7 +265,7 @@ public class CreateRunner {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("regionId", "name", "tags"));
+    openapiFields = new HashSet<String>(Arrays.asList("regionId", "name", "tags", "sandboxClass"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("regionId", "name"));
@@ -261,6 +300,10 @@ public class CreateRunner {
       // ensure the optional json data is an array if present
       if (jsonObj.get("tags") != null && !jsonObj.get("tags").isJsonNull() && !jsonObj.get("tags").isJsonArray()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `tags` to be an array in the JSON string but got `%s`", jsonObj.get("tags").toString()));
+      }
+      // validate the optional field `sandboxClass`
+      if (jsonObj.get("sandboxClass") != null && !jsonObj.get("sandboxClass").isJsonNull()) {
+        CreateRunnerSandboxClass.validateJsonElement(jsonObj.get("sandboxClass"));
       }
   }
 

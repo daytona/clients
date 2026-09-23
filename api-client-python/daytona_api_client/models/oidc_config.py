@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List, Optional
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,8 +33,10 @@ class OidcConfig(BaseModel):
     issuer: StrictStr = Field(description="OIDC issuer")
     client_id: StrictStr = Field(description="OIDC client ID", serialization_alias="clientId")
     audience: StrictStr = Field(description="OIDC audience")
+    provider: StrictStr = Field(description="Which identity provider the advertised issuer above belongs to. The dashboard needs this because provider-specific logout URLs are not discoverable from the issuer alone: ending an Auth0 session uses its proprietary /v2/logout, which does not exist on WorkOS AuthKit. Anything that branches on provider behaviour must read this rather than pattern-matching the issuer hostname.")
+    auth_api_hostname: Optional[StrictStr] = Field(default=None, description="WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.", serialization_alias="authApiHostname")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["issuer", "clientId", "audience"]
+    __properties: ClassVar[List[str]] = ["issuer", "clientId", "audience", "provider", "authApiHostname"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,7 +97,9 @@ class OidcConfig(BaseModel):
         _obj = cls.model_validate({
             "issuer": obj.get("issuer"),
             "client_id": obj.get("clientId"),
-            "audience": obj.get("audience")
+            "audience": obj.get("audience"),
+            "provider": obj.get("provider"),
+            "auth_api_hostname": obj.get("authApiHostname")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

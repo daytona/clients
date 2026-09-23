@@ -30,6 +30,9 @@ module DaytonaApiClient
     # HMAC of the user email for Pylon support-widget identity verification
     attr_accessor :pylon_email_hash
 
+    # Whether the user has accepted the current privacy policies. Populated on the /users/me endpoint.
+    attr_accessor :privacy_policies_accepted
+
     # User public keys
     attr_accessor :public_keys
 
@@ -44,6 +47,7 @@ module DaytonaApiClient
         :'email' => :'email',
         :'email_verified' => :'emailVerified',
         :'pylon_email_hash' => :'pylonEmailHash',
+        :'privacy_policies_accepted' => :'privacyPoliciesAccepted',
         :'public_keys' => :'publicKeys',
         :'created_at' => :'createdAt'
       }
@@ -67,6 +71,7 @@ module DaytonaApiClient
         :'email' => :'String',
         :'email_verified' => :'Boolean',
         :'pylon_email_hash' => :'String',
+        :'privacy_policies_accepted' => :'Boolean',
         :'public_keys' => :'Array<UserPublicKey>',
         :'created_at' => :'Time'
       }
@@ -120,6 +125,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'pylon_email_hash')
         self.pylon_email_hash = attributes[:'pylon_email_hash']
+      end
+
+      if attributes.key?(:'privacy_policies_accepted')
+        self.privacy_policies_accepted = attributes[:'privacy_policies_accepted']
       end
 
       if attributes.key?(:'public_keys')
@@ -252,6 +261,7 @@ module DaytonaApiClient
           email == o.email &&
           email_verified == o.email_verified &&
           pylon_email_hash == o.pylon_email_hash &&
+          privacy_policies_accepted == o.privacy_policies_accepted &&
           public_keys == o.public_keys &&
           created_at == o.created_at
     end
@@ -265,7 +275,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, email, email_verified, pylon_email_hash, public_keys, created_at].hash
+      [id, name, email, email_verified, pylon_email_hash, privacy_policies_accepted, public_keys, created_at].hash
     end
 
     # Builds the object from hash
