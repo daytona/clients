@@ -469,7 +469,7 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
-		s.Kvm = &full.Kvm
+		s.Kvm = full.Kvm
 		s.NetworkAllowList = full.NetworkAllowList
 		s.DomainAllowList = full.DomainAllowList
 		s.OutboundProxyUrl = full.OutboundProxyUrl

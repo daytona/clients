@@ -1474,7 +1474,7 @@ class Sandbox(SandboxDto):
             self.network_block_all: bool | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
                 sandbox_dto.network_block_all
             )
-            self.kvm: bool | None = sandbox_dto.kvm  # pyright: ignore[reportIncompatibleVariableOverride]
+            self.kvm: bool | None = sandbox_dto.kvm
             self.network_allow_list: str | None = sandbox_dto.network_allow_list
             self.domain_allow_list: str | None = sandbox_dto.domain_allow_list
             self.outbound_proxy_url: str | None = sandbox_dto.outbound_proxy_url
