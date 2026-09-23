@@ -36,6 +36,9 @@ module DaytonaApiClient
     # The user ID of the user who created the API key
     attr_accessor :user_id
 
+    # The organization ID associated with the API key
+    attr_accessor :organization_id
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -67,7 +70,8 @@ module DaytonaApiClient
         :'permissions' => :'permissions',
         :'last_used_at' => :'lastUsedAt',
         :'expires_at' => :'expiresAt',
-        :'user_id' => :'userId'
+        :'user_id' => :'userId',
+        :'organization_id' => :'organizationId'
       }
     end
 
@@ -90,7 +94,8 @@ module DaytonaApiClient
         :'permissions' => :'Array<String>',
         :'last_used_at' => :'Time',
         :'expires_at' => :'Time',
-        :'user_id' => :'String'
+        :'user_id' => :'String',
+        :'organization_id' => :'String'
       }
     end
 
@@ -160,6 +165,10 @@ module DaytonaApiClient
         self.user_id = attributes[:'user_id']
       else
         self.user_id = nil
+      end
+
+      if attributes.key?(:'organization_id')
+        self.organization_id = attributes[:'organization_id']
       end
     end
 
@@ -254,7 +263,8 @@ module DaytonaApiClient
           permissions == o.permissions &&
           last_used_at == o.last_used_at &&
           expires_at == o.expires_at &&
-          user_id == o.user_id
+          user_id == o.user_id &&
+          organization_id == o.organization_id
     end
 
     # @see the `==` method
@@ -266,7 +276,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, value, created_at, permissions, last_used_at, expires_at, user_id].hash
+      [name, value, created_at, permissions, last_used_at, expires_at, user_id, organization_id].hash
     end
 
     # Builds the object from hash

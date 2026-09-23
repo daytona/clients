@@ -43,6 +43,10 @@ export interface ApiKeyList {
      * The user ID of the user who created the API key
      */
     'userId': string;
+    /**
+     * The organization ID associated with the API key
+     */
+    'organizationId'?: string;
 }
 
 export const ApiKeyListPermissionsEnum = {

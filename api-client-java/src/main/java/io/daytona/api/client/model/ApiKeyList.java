@@ -180,6 +180,11 @@ public class ApiKeyList {
   @javax.annotation.Nonnull
   private String userId;
 
+  public static final String SERIALIZED_NAME_ORGANIZATION_ID = "organizationId";
+  @SerializedName(SERIALIZED_NAME_ORGANIZATION_ID)
+  @javax.annotation.Nullable
+  private String organizationId;
+
   public ApiKeyList() {
   }
 
@@ -323,6 +328,25 @@ public class ApiKeyList {
     this.userId = userId;
   }
 
+
+  public ApiKeyList organizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
+    return this;
+  }
+
+  /**
+   * The organization ID associated with the API key
+   * @return organizationId
+   */
+  @javax.annotation.Nullable
+  public String getOrganizationId() {
+    return organizationId;
+  }
+
+  public void setOrganizationId(@javax.annotation.Nullable String organizationId) {
+    this.organizationId = organizationId;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -384,13 +408,14 @@ public class ApiKeyList {
         Objects.equals(this.permissions, apiKeyList.permissions) &&
         Objects.equals(this.lastUsedAt, apiKeyList.lastUsedAt) &&
         Objects.equals(this.expiresAt, apiKeyList.expiresAt) &&
-        Objects.equals(this.userId, apiKeyList.userId)&&
+        Objects.equals(this.userId, apiKeyList.userId) &&
+        Objects.equals(this.organizationId, apiKeyList.organizationId)&&
         Objects.equals(this.additionalProperties, apiKeyList.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, value, createdAt, permissions, lastUsedAt, expiresAt, userId, additionalProperties);
+    return Objects.hash(name, value, createdAt, permissions, lastUsedAt, expiresAt, userId, organizationId, additionalProperties);
   }
 
   @Override
@@ -404,6 +429,7 @@ public class ApiKeyList {
     sb.append("    lastUsedAt: ").append(toIndentedString(lastUsedAt)).append("\n");
     sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
     sb.append("    userId: ").append(toIndentedString(userId)).append("\n");
+    sb.append("    organizationId: ").append(toIndentedString(organizationId)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -423,7 +449,7 @@ public class ApiKeyList {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId", "organizationId"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId"));
@@ -463,6 +489,9 @@ public class ApiKeyList {
       }
       if (!jsonObj.get("userId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `userId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("userId").toString()));
+      }
+      if ((jsonObj.get("organizationId") != null && !jsonObj.get("organizationId").isJsonNull()) && !jsonObj.get("organizationId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `organizationId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("organizationId").toString()));
       }
   }
 
