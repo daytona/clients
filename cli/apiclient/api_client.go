@@ -60,8 +60,21 @@ func checkVersionsMismatch(res *http.Response) {
 		return
 	}
 
+	// The API being ahead only means a newer CLI *might* exist: not every API
+	// release ships a CLI release. Only tell the user to upgrade when there is
+	// actually a newer CLI to upgrade to.
 	versionMismatchWarningOnce.Do(func() {
-		log.Warn(fmt.Sprintf("Version mismatch: Daytona CLI is on v%s and API is on v%s.\nMake sure the versions are aligned using 'brew upgrade daytonaio/cli/daytona' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, apiVersion))
+		latestVersion, err := latestCliVersion(res.Request.Context())
+		if err != nil {
+			log.Debug(err)
+			return
+		}
+
+		if compareVersions(cliVersion, latestVersion) >= 0 {
+			return
+		}
+
+		log.Warn(fmt.Sprintf("Daytona CLI v%s is outdated, the latest version is v%s.\nUpgrade using 'brew upgrade daytonaio/cli/daytona' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, latestVersion))
 	})
 }
 
