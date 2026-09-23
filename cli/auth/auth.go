@@ -8,8 +8,12 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,6 +38,16 @@ func StartCallbackServer(expectedState string) (string, error) {
 		if r.URL.Query().Get("state") != expectedState {
 			err = fmt.Errorf("invalid state parameter")
 			http.Error(w, "State invalid", http.StatusBadRequest)
+			wg.Done()
+			return
+		}
+
+		// An identity provider that refuses the login (e.g. an Auth0 post-login deny)
+		// redirects back with an error and no code; show its reason instead of "no code".
+		if providerError := r.URL.Query().Get("error"); providerError != "" {
+			description := r.URL.Query().Get("error_description")
+			err = fmt.Errorf("%s: %s", providerError, description)
+			http.Error(w, description, http.StatusUnauthorized)
 			wg.Done()
 			return
 		}
@@ -80,6 +94,103 @@ func GenerateRandomState() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+// callbackURL is the redirect URI registered with both identity providers.
+func callbackURL() string {
+	return fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort())
+}
+
+// Auth0Config is the Auth0 public client, built in at release time. Public clients send
+// client_id in the token-request body; forcing it keeps oauth2 from probing Basic auth
+// first and burning the single-use code or the rotating refresh token on a failed retry.
+func Auth0Config(ctx context.Context) (oauth2.Config, *oidc.Provider, error) {
+	provider, err := oidc.NewProvider(ctx, config.GetAuth0Domain())
+	if err != nil {
+		return oauth2.Config{}, nil, fmt.Errorf("failed to initialize OIDC provider: %w", err)
+	}
+
+	endpoint := provider.Endpoint()
+	endpoint.AuthStyle = oauth2.AuthStyleInParams
+
+	return oauth2.Config{
+		ClientID:    config.GetAuth0ClientId(),
+		RedirectURL: callbackURL(),
+		Endpoint:    endpoint,
+		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
+	}, provider, nil
+}
+
+/*
+WorkOSConfig is the WorkOS AuthKit User Management surface, the one the Daytona
+dashboard logs in through. The API accepts a WorkOS token only when its client_id
+equals the advertised client id and its iss equals the advertised issuer exactly,
+and WorkOS derives iss from the host that served /user_management/authenticate,
+so both endpoints live on the issuer's host.
+*/
+func WorkOSConfig(client config.WorkOSClient) (oauth2.Config, error) {
+	issuer, err := url.Parse(client.Issuer)
+	if err != nil || issuer.Scheme == "" || issuer.Host == "" {
+		return oauth2.Config{}, fmt.Errorf("invalid WorkOS issuer %q", client.Issuer)
+	}
+
+	host := issuer.Scheme + "://" + issuer.Host
+
+	return oauth2.Config{
+		ClientID:    client.ClientId,
+		RedirectURL: callbackURL(),
+		Endpoint: oauth2.Endpoint{
+			AuthURL:   host + "/user_management/authorize",
+			TokenURL:  host + "/user_management/authenticate",
+			AuthStyle: oauth2.AuthStyleInParams,
+		},
+	}, nil
+}
+
+// NewToken converts an OAuth token into the stored form. WorkOS answers without
+// expires_in, so the expiry falls back to the access token's own exp claim.
+func NewToken(token *oauth2.Token, workos *config.WorkOSClient) (*config.Token, error) {
+	expiresAt := token.Expiry
+	if expiresAt.IsZero() {
+		var err error
+		expiresAt, err = accessTokenExpiry(token.AccessToken)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &config.Token{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		ExpiresAt:    expiresAt,
+		WorkOS:       workos,
+	}, nil
+}
+
+// accessTokenExpiry reads exp from a JWT without verifying it. It only schedules the
+// next refresh; the API verifies the token.
+func accessTokenExpiry(accessToken string) (time.Time, error) {
+	parts := strings.Split(accessToken, ".")
+	if len(parts) != 3 {
+		return time.Time{}, errors.New("access token is not a JWT")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("decoding access token: %w", err)
+	}
+
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return time.Time{}, fmt.Errorf("decoding access token: %w", err)
+	}
+	if claims.Exp == 0 {
+		return time.Time{}, errors.New("access token has no exp claim")
+	}
+
+	return time.Unix(claims.Exp, 0), nil
+}
+
 func RefreshTokenIfNeeded(ctx context.Context) error {
 	c, err := config.GetConfig()
 	if err != nil {
@@ -95,45 +206,35 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 		return nil
 	}
 
-	if activeProfile.Api.Token == nil {
+	storedToken := activeProfile.Api.Token
+	if storedToken == nil {
 		return fmt.Errorf("no valid token found, use 'daytona login' to reauthenticate")
 	}
 
 	// Check if token is about to expire (within 5 minutes)
-	if time.Until(activeProfile.Api.Token.ExpiresAt) > 5*time.Minute {
+	if time.Until(storedToken.ExpiresAt) > 5*time.Minute {
 		return nil
 	}
 
-	provider, err := oidc.NewProvider(ctx, config.GetAuth0Domain())
+	var oauth2Config oauth2.Config
+	if storedToken.WorkOS != nil {
+		oauth2Config, err = WorkOSConfig(*storedToken.WorkOS)
+	} else {
+		oauth2Config, _, err = Auth0Config(ctx)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to initialize OIDC provider: %w", err)
+		return err
 	}
 
-	// Public client sends client_id in the token-request body; force it so oauth2 does not
-	// probe Basic auth first and burn the (rotating) refresh token on a failed retry.
-	endpoint := provider.Endpoint()
-	endpoint.AuthStyle = oauth2.AuthStyleInParams
-
-	oauth2Config := oauth2.Config{
-		ClientID:    config.GetAuth0ClientId(),
-		RedirectURL: fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
-		Endpoint:    endpoint,
-		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
-	}
-
-	token := &oauth2.Token{
-		RefreshToken: activeProfile.Api.Token.RefreshToken,
-	}
-
-	newToken, err := oauth2Config.TokenSource(ctx, token).Token()
+	// WorkOS rotates refresh tokens, so the returned one replaces the stored one.
+	newToken, err := oauth2Config.TokenSource(ctx, &oauth2.Token{RefreshToken: storedToken.RefreshToken}).Token()
 	if err != nil {
 		return fmt.Errorf("use 'daytona login' to reauthenticate: %w", err)
 	}
 
-	activeProfile.Api.Token = &config.Token{
-		AccessToken:  newToken.AccessToken,
-		RefreshToken: newToken.RefreshToken,
-		ExpiresAt:    newToken.Expiry,
+	activeProfile.Api.Token, err = NewToken(newToken, storedToken.WorkOS)
+	if err != nil {
+		return err
 	}
 
 	return c.EditProfile(activeProfile)

@@ -5,7 +5,10 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/daytona/clients/cli/auth"
@@ -44,10 +47,7 @@ var LoginCmd = &cobra.Command{
 			return nil
 		}
 
-		var tokenConfig *config.Token
-		setApiKey := choice == "Set Daytona API Key"
-
-		if setApiKey {
+		if choice == "Set Daytona API Key" {
 			// Prompt for API key
 			apiKey, err := view_common.PromptForInput("", "Enter your Daytona API key", "You can find it in the Daytona dashboard - https://app.daytona.io/dashboard")
 			if err != nil {
@@ -61,13 +61,7 @@ var LoginCmd = &cobra.Command{
 			return err
 		}
 
-		tokenConfig = &config.Token{
-			AccessToken:  token.AccessToken,
-			RefreshToken: token.RefreshToken,
-			ExpiresAt:    token.Expiry,
-		}
-
-		return updateProfileWithLogin(tokenConfig, nil)
+		return updateProfileWithLogin(token, nil)
 	},
 }
 
@@ -131,50 +125,146 @@ func createInitialProfile(c *config.Config) (config.Profile, error) {
 		Id:   "initial",
 		Name: "initial",
 		Api: config.ServerApi{
-			Url: config.GetDaytonaApiUrl(),
+			Url: defaultApiUrl(),
 		},
-	}
-
-	if internal.Version == "v0.0.0-dev" {
-		profile.Api.Url = "http://localhost:3001/api"
 	}
 
 	return profile, c.AddProfile(profile)
 }
 
-func login(ctx context.Context) (*oauth2.Token, error) {
-	provider, err := oidc.NewProvider(ctx, config.GetAuth0Domain())
+func defaultApiUrl() string {
+	if internal.Version == "v0.0.0-dev" {
+		return "http://localhost:3001/api"
+	}
+
+	return config.GetDaytonaApiUrl()
+}
+
+// loginApiUrl is the API the login is for: the active profile's, or the one a new
+// initial profile will get.
+func loginApiUrl() string {
+	c, err := config.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize OIDC provider: %w", err)
+		return defaultApiUrl()
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: config.GetAuth0ClientId()})
-
-	// Public client sends client_id in the token-request body; force it so oauth2 does not
-	// probe Basic auth first and burn the single-use authorization code on a failed retry.
-	endpoint := provider.Endpoint()
-	endpoint.AuthStyle = oauth2.AuthStyleInParams
-
-	oauth2Config := oauth2.Config{
-		ClientID:    config.GetAuth0ClientId(),
-		RedirectURL: fmt.Sprintf("http://localhost:%s/callback", config.GetAuth0CallbackPort()),
-		Endpoint:    endpoint,
-		Scopes:      []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile"},
+	activeProfile, err := c.GetActiveProfile()
+	if err != nil {
+		return defaultApiUrl()
 	}
 
+	return activeProfile.Api.Url
+}
+
+// oidcConfig is the oidc block of /api/config: the login the API currently advertises.
+type oidcConfig struct {
+	Issuer   string `json:"issuer"`
+	ClientId string `json:"clientId"`
+	Provider string `json:"provider"`
+}
+
+const workosProvider = "workos"
+
+// fetchOidcConfig decodes only the oidc block, so an API that predates a field of the
+// full configuration schema does not break login. An API without `provider` is Auth0.
+func fetchOidcConfig(ctx context.Context, apiUrl string) (oidcConfig, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(apiUrl, "/")+"/config", nil)
+	if err != nil {
+		return oidcConfig{}, err
+	}
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return oidcConfig{}, fmt.Errorf("failed to fetch the login configuration: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return oidcConfig{}, fmt.Errorf("failed to fetch the login configuration: %s", response.Status)
+	}
+
+	var body struct {
+		Oidc oidcConfig `json:"oidc"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		return oidcConfig{}, fmt.Errorf("failed to decode the login configuration: %w", err)
+	}
+
+	return body.Oidc, nil
+}
+
+func login(ctx context.Context) (*config.Token, error) {
+	advertised, err := fetchOidcConfig(ctx, loginApiUrl())
+	if err != nil {
+		return nil, err
+	}
+
+	var token *config.Token
+	if advertised.Provider == workosProvider {
+		token, err = loginWithWorkOS(ctx, config.WorkOSClient{Issuer: advertised.Issuer, ClientId: advertised.ClientId})
+	} else {
+		token, err = loginWithAuth0(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	view_common.RenderInfoMessageBold("Successfully logged in!")
+
+	return token, nil
+}
+
+func loginWithWorkOS(ctx context.Context, client config.WorkOSClient) (*config.Token, error) {
+	oauth2Config, err := auth.WorkOSConfig(client)
+	if err != nil {
+		return nil, err
+	}
+
+	// provider=authkit opens the hosted AuthKit page instead of a single provider.
+	token, err := authorize(ctx, oauth2Config, oauth2.SetAuthURLParam("provider", "authkit"))
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewToken(token, &client)
+}
+
+func loginWithAuth0(ctx context.Context) (*config.Token, error) {
+	oauth2Config, provider, err := auth.Auth0Config(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := authorize(ctx, oauth2Config, oauth2.SetAuthURLParam("audience", config.GetAuth0Audience()))
+	if err != nil {
+		return nil, err
+	}
+
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		return nil, fmt.Errorf("no id_token in token response")
+	}
+
+	verifier := provider.Verifier(&oidc.Config{ClientID: oauth2Config.ClientID})
+	_, err = verifier.Verify(ctx, rawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify ID token: %w", err)
+	}
+
+	return auth.NewToken(token, nil)
+}
+
+// authorize runs the browser login: Authorization Code with PKCE (RFC 7636), which
+// replaces a client secret for this public client, and a local callback server.
+func authorize(ctx context.Context, oauth2Config oauth2.Config, authURLOptions ...oauth2.AuthCodeOption) (*oauth2.Token, error) {
 	state, err := auth.GenerateRandomState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random state: %w", err)
 	}
 
-	// PKCE (RFC 7636) replaces the confidential client secret for this public client.
 	pkceVerifier := oauth2.GenerateVerifier()
 
-	authURL := oauth2Config.AuthCodeURL(
-		state,
-		oauth2.SetAuthURLParam("audience", config.GetAuth0Audience()),
-		oauth2.S256ChallengeOption(pkceVerifier),
-	)
+	authURL := oauth2Config.AuthCodeURL(state, append(authURLOptions, oauth2.S256ChallengeOption(pkceVerifier))...)
 
 	view_common.RenderInfoMessageBold("Opening the browser for authentication ...")
 
@@ -193,18 +283,6 @@ func login(ctx context.Context) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
-
-	rawIDToken, ok := token.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("no id_token in token response")
-	}
-
-	_, err = verifier.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify ID token: %w", err)
-	}
-
-	view_common.RenderInfoMessageBold("Successfully logged in!")
 
 	return token, nil
 }

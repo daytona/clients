@@ -40,6 +40,15 @@ type Token struct {
 	AccessToken  string    `json:"accessToken"`
 	RefreshToken string    `json:"refreshToken"`
 	ExpiresAt    time.Time `json:"expiresAt"`
+	// WorkOS is set when WorkOS issued the token and nil for an Auth0 token, so a refresh
+	// goes back to the provider that issued it.
+	WorkOS *WorkOSClient `json:"workos,omitempty"`
+}
+
+// WorkOSClient is the WorkOS login the API advertises in the oidc block of /api/config.
+type WorkOSClient struct {
+	Issuer   string `json:"issuer"`
+	ClientId string `json:"clientId"`
 }
 
 func GetConfig() (*Config, error) {
