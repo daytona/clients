@@ -207,7 +207,7 @@ export interface Sandbox {
     /**
      * Whether the sandbox exposes KVM (/dev/kvm) to its guest
      */
-    'kvm': boolean;
+    'kvm'?: boolean;
 }
 
 export const SandboxBackupStateEnum = {

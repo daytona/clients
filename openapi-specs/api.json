@@ -12439,8 +12439,7 @@
           "gpu",
           "memory",
           "disk",
-          "toolboxProxyUrl",
-          "kvm"
+          "toolboxProxyUrl"
         ]
       },
       "ResizeSandbox": {

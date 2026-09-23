@@ -9436,7 +9436,6 @@ components:
       - env
       - gpu
       - id
-      - kvm
       - labels
       - memory
       - name

@@ -511,8 +511,6 @@ module DaytonaApiClient
 
       if attributes.key?(:'kvm')
         self.kvm = attributes[:'kvm']
-      else
-        self.kvm = nil
       end
     end
 
@@ -577,10 +575,6 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "toolbox_proxy_url", toolbox_proxy_url cannot be nil.')
       end
 
-      if @kvm.nil?
-        invalid_properties.push('invalid value for "kvm", kvm cannot be nil.')
-      end
-
       invalid_properties
     end
 
@@ -606,7 +600,6 @@ module DaytonaApiClient
       sandbox_class_validator = EnumAttributeValidator.new('String', ["linux-vm", "container", "android", "windows", "unknown_default_open_api"])
       return false unless sandbox_class_validator.valid?(@sandbox_class)
       return false if @toolbox_proxy_url.nil?
-      return false if @kvm.nil?
       true
     end
 
@@ -768,16 +761,6 @@ module DaytonaApiClient
       end
 
       @toolbox_proxy_url = toolbox_proxy_url
-    end
-
-    # Custom attribute writer method with validation
-    # @param [Object] kvm Value to be assigned
-    def kvm=(kvm)
-      if kvm.nil?
-        fail ArgumentError, 'kvm cannot be nil'
-      end
-
-      @kvm = kvm
     end
 
     # Checks equality by comparing each attribute.

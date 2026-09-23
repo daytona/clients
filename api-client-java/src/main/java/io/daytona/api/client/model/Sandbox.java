@@ -397,7 +397,7 @@ public class Sandbox {
 
   public static final String SERIALIZED_NAME_KVM = "kvm";
   @SerializedName(SERIALIZED_NAME_KVM)
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private Boolean kvm;
 
   public Sandbox() {
@@ -1252,7 +1252,7 @@ public class Sandbox {
   }
 
 
-  public Sandbox kvm(@javax.annotation.Nonnull Boolean kvm) {
+  public Sandbox kvm(@javax.annotation.Nullable Boolean kvm) {
     this.kvm = kvm;
     return this;
   }
@@ -1261,12 +1261,12 @@ public class Sandbox {
    * Whether the sandbox exposes KVM (/dev/kvm) to its guest
    * @return kvm
    */
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   public Boolean getKvm() {
     return kvm;
   }
 
-  public void setKvm(@javax.annotation.Nonnull Boolean kvm) {
+  public void setKvm(@javax.annotation.Nullable Boolean kvm) {
     this.kvm = kvm;
   }
 
@@ -1447,7 +1447,7 @@ public class Sandbox {
     openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "kvm"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl", "kvm"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
   }
 
   /**

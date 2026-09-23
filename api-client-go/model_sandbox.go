@@ -110,7 +110,7 @@ type Sandbox struct {
 	// The toolbox proxy URL for the sandbox
 	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
 	// Whether the sandbox exposes KVM (/dev/kvm) to its guest
-	Kvm bool `json:"kvm"`
+	Kvm *bool `json:"kvm,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -120,7 +120,7 @@ type _Sandbox Sandbox
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string, kvm bool) *Sandbox {
+func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string) *Sandbox {
 	this := Sandbox{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -138,7 +138,6 @@ func NewSandbox(id string, organizationId string, name string, user string, env 
 	this.Memory = memory
 	this.Disk = disk
 	this.ToolboxProxyUrl = toolboxProxyUrl
-	this.Kvm = kvm
 	return &this
 }
 
@@ -1422,28 +1421,36 @@ func (o *Sandbox) SetToolboxProxyUrl(v string) {
 	o.ToolboxProxyUrl = v
 }
 
-// GetKvm returns the Kvm field value
+// GetKvm returns the Kvm field value if set, zero value otherwise.
 func (o *Sandbox) GetKvm() bool {
-	if o == nil {
+	if o == nil || IsNil(o.Kvm) {
 		var ret bool
 		return ret
 	}
-
-	return o.Kvm
+	return *o.Kvm
 }
 
-// GetKvmOk returns a tuple with the Kvm field value
+// GetKvmOk returns a tuple with the Kvm field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *Sandbox) GetKvmOk() (*bool, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Kvm) {
 		return nil, false
 	}
-	return &o.Kvm, true
+	return o.Kvm, true
 }
 
-// SetKvm sets field value
+// HasKvm returns a boolean if a field has been set.
+func (o *Sandbox) HasKvm() bool {
+	if o != nil && !IsNil(o.Kvm) {
+		return true
+	}
+
+	return false
+}
+
+// SetKvm gets a reference to the given bool and assigns it to the Kvm field.
 func (o *Sandbox) SetKvm(v bool) {
-	o.Kvm = v
+	o.Kvm = &v
 }
 
 func (o Sandbox) MarshalJSON() ([]byte, error) {
@@ -1557,7 +1564,9 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 		toSerialize["linkedSandboxId"] = o.LinkedSandboxId
 	}
 	toSerialize["toolboxProxyUrl"] = o.ToolboxProxyUrl
-	toSerialize["kvm"] = o.Kvm
+	if !IsNil(o.Kvm) {
+		toSerialize["kvm"] = o.Kvm
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -1585,7 +1594,6 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		"memory",
 		"disk",
 		"toolboxProxyUrl",
-		"kvm",
 	}
 
 	allProperties := make(map[string]interface{})
