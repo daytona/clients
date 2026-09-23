@@ -32,6 +32,7 @@ func testSandboxPayload(id, name string, state apiclient.SandboxState) map[strin
 		"labels":               map[string]string{types.CodeToolboxLanguageLabel: string(types.CodeLanguagePython)},
 		"public":               false,
 		"networkBlockAll":      false,
+		"kvm":                  false,
 		"target":               "us-east-1",
 		"cpu":                  1,
 		"gpu":                  0,

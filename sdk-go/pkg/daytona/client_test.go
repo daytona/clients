@@ -1064,6 +1064,43 @@ func TestClientCreateSuccessRequestMapping(t *testing.T) {
 		assert.NotNil(t, sandbox.Process)
 	})
 
+	t.Run("kvm true is sent in request body", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.Equal(t, true, body["kvm"])
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-kvm", "kvm-sandbox", apiclient.SANDBOXSTATE_STARTED))
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox, err := client.Create(context.Background(), types.SnapshotParams{
+			Snapshot: "snap-1",
+			SandboxBaseParams: types.SandboxBaseParams{
+				Kvm: true,
+			},
+		}, options.WithWaitForStart(false))
+		require.NoError(t, err)
+		assert.Equal(t, "sb-kvm", sandbox.ID)
+	})
+
+	t.Run("kvm default sends false in request body", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.Equal(t, false, body["kvm"])
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-no-kvm", "no-kvm", apiclient.SANDBOXSTATE_STARTED))
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox, err := client.Create(context.Background(), types.SnapshotParams{
+			Snapshot: "snap-1",
+		}, options.WithWaitForStart(false))
+		require.NoError(t, err)
+		assert.Equal(t, "sb-no-kvm", sandbox.ID)
+	})
+
 	t.Run("snapshot params send snapshot field", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body map[string]any

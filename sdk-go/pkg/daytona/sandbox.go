@@ -132,6 +132,10 @@ type Sandbox struct {
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
 	NetworkBlockAll *bool
 
+	// Kvm reports whether the sandbox exposes KVM (/dev/kvm) to its guest.
+	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+	Kvm *bool
+
 	// NetworkAllowList is a comma-separated list of allowed CIDR addresses.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
 	NetworkAllowList *string
@@ -465,6 +469,7 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
+		s.Kvm = &full.Kvm
 		s.NetworkAllowList = full.NetworkAllowList
 		s.DomainAllowList = full.DomainAllowList
 		s.OutboundProxyUrl = full.OutboundProxyUrl
