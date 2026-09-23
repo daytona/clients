@@ -1,0 +1,49 @@
+api-client-go/api/openapi.yaml
+  s_c581ab6ac63ac0::t_8763f4613adee3 8929,9116-9121,9185,9429-9432,9439
+api-client-go/model_create_sandbox.go
+  s_c581ab6ac63ac0::t_c2a2c98b06152f 77-78,92-93,104-105,973-1004,1096-1098,1148
+api-client-go/model_sandbox.go
+  s_c581ab6ac63ac0::t_ebe849cd1dc196 112-113,123,141,1425-1448,1560,1588,1661
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandbox.java
+  s_c581ab6ac63ac0::t_c7037d987ec4ad 195-199,755-773,855-856,862,896,916
+api-client-java/src/main/java/io/daytona/api/client/model/Sandbox.java
+  s_c581ab6ac63ac0::t_fc94631bf897f5 398-402,1254-1272,1370-1371,1377,1427,1447,1450
+api-client-java/src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
+  s_c581ab6ac63ac0::t_b3d14b570b42ee 263-270
+api-client-java/src/test/java/io/daytona/api/client/model/SandboxTest.java
+  s_c581ab6ac63ac0::t_3413f45e4c27c7 394-401
+api-client-python-async/daytona_api_client_async/models/create_sandbox.py
+  s_c581ab6ac63ac0::t_d20f8557ef9586 63,65,160-161
+api-client-python-async/daytona_api_client_async/models/sandbox.py
+  s_c581ab6ac63ac0::t_85446eadaac81f 81,83,194-195
+api-client-python/daytona_api_client/models/create_sandbox.py
+  s_c581ab6ac63ac0::t_3ba743a9e58e40 63,65,160-161
+api-client-python/daytona_api_client/models/sandbox.py
+  s_c581ab6ac63ac0::t_46a7483dbf4362 81,83,194-195
+api-client-ruby/lib/daytona_api_client/models/create_sandbox.rb
+  s_c581ab6ac63ac0::t_34969bed592c7b 99-101,131-132,175-176,321-326,375-376,388
+api-client-ruby/lib/daytona_api_client/models/sandbox.rb
+  s_c581ab6ac63ac0::t_9d24e91a13a090 147-149,217-218,277-278,511-516,580-583,609,773-782,830-831,843
+api-client/src/models/create-sandbox.ts
+  s_c581ab6ac63ac0::t_b675bf7358ba8a 135-138
+api-client/src/models/sandbox.ts
+  s_c581ab6ac63ac0::t_7b4fa513f5648c 207-210
+openapi-specs/api.json
+  s_c581ab6ac63ac0::t_629fbe396aaab5 12106-12111,12421-12425,12442-12443
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b77c862ea2f2d6b9988662f22628ec33fa6acc5e",
+  "prompts": {},
+  "sessions": {
+    "s_c581ab6ac63ac0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f306ef9caffe1oK8QoATUfvVeS",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

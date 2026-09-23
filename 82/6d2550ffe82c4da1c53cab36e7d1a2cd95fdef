@@ -1,0 +1,26 @@
+cli/pkg/minio/minio.go
+  s_acc65a9d21b097::t_722d320efdfcfc 207-214,220-228
+  s_acc65a9d21b097::t_07a9744c0947f7 31-36,39-42
+  s_acc65a9d21b097::t_8c1e3444796f67 12,15,19
+  s_acc65a9d21b097::t_ce403d69d62d78 243-248,252-253
+cli/pkg/minio/minio_test.go
+  s_acc65a9d21b097::t_cb18e5aa2cfbeb 211-257
+  s_acc65a9d21b097::t_6a0df3f223ad56 342-345,347-348,350-358
+  s_acc65a9d21b097::t_73a97771276ae5 12,18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "826d2550ffe82c4da1c53cab36e7d1a2cd95fdef",
+  "prompts": {},
+  "sessions": {
+    "s_acc65a9d21b097": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f94884cdbffe0UxLmltN4l5BuM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

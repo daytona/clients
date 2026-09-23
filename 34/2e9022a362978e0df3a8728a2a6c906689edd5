@@ -1,0 +1,55 @@
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_cab85c6177d1e9::t_1bc801bd73d066 173
+  s_cab85c6177d1e9::t_8a0eb906fbfc09 1498-1504
+  s_cab85c6177d1e9::t_4eafc00cc774b6 897
+  s_cab85c6177d1e9::t_5cfc03eca6674e 882
+  s_cab85c6177d1e9::t_12b7744cfbfc20 860
+  s_d1156b086934d2::t_985a43680616ca 1497
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  s_b97cce262e882f::t_0b67e807b1e4e2 394
+  s_cab85c6177d1e9::t_afe7ed3a7b350e 222
+  s_cab85c6177d1e9::t_c803ab2d98379c 245
+  s_cab85c6177d1e9::t_3638417bc28996 370-393,395-406
+  s_d1156b086934d2::t_7149bfdc1a5fff 407
+sdk-java/src/test/java/io/daytona/sdk/TestSupport.java
+  s_cab85c6177d1e9::t_17bfaedae71e24 31
+sdk-java/src/main/java/io/daytona/sdk/model/CreateSandboxParams.java
+  s_cab85c6177d1e9::t_8a2b626bdb81a8 33
+  s_cab85c6177d1e9::t_68643eb07a15d9 247-261
+  s_d1156b086934d2::t_1947891be5f383 262
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  s_cab85c6177d1e9::t_427f9c17c89eac 607
+  s_cab85c6177d1e9::t_ff1304d01922cb 266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "342e9022a362978e0df3a8728a2a6c906689edd5",
+  "prompts": {},
+  "sessions": {
+    "s_b97cce262e882f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f304c77b5ffelftz7iTkUpsx3T",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_cab85c6177d1e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f305e4d1cffeaDieSm6DdiE0iU",
+        "model": "unknown"
+      },
+      "human_author": null
+    },
+    "s_d1156b086934d2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f302b633dffeAxk5otdcSNu60N",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
