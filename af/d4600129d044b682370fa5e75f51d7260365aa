@@ -1,0 +1,36 @@
+sdk-ruby/lib/daytona/daytona.rb
+  s_9c3ea8b544df5a::t_c32f562813d953 294
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_9c3ea8b544df5a::t_3abfa17a437473 66
+sdk-ruby/spec/spec_helper.rb
+  s_9c3ea8b544df5a::t_d7dccb7160be35 94
+sdk-ruby/lib/daytona/sandbox.rb
+  s_9c3ea8b544df5a::t_f097281fad2d83 83-85
+  s_9c3ea8b544df5a::t_c6530b03bb87b7 1142
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_9c3ea8b544df5a::t_41927cafae9a3f 366-390
+sdk-ruby/lib/daytona/common/daytona.rb
+  s_9c3ea8b544df5a::t_58e94dfc536f01 245-246
+  s_9c3ea8b544df5a::t_85edb5aac080e0 296-297
+  s_9c3ea8b544df5a::t_08931e0c46f2da 187
+  s_9c3ea8b544df5a::t_1c1c4654c27ffe 102-103
+  s_9c3ea8b544df5a::t_8bc903c135bdfb 155
+  s_9c3ea8b544df5a::t_17f11be47561f6 53-56
+  s_9c3ea8b544df5a::t_09545693bbe149 132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "afd4600129d044b682370fa5e75f51d7260365aa",
+  "prompts": {},
+  "sessions": {
+    "s_9c3ea8b544df5a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f305e774dffecd3J4Cba54gnv5",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}
