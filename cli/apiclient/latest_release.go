@@ -40,7 +40,7 @@ type latestReleaseCache struct {
 // command. An error is returned only when no version is known at all.
 func latestCliVersion(ctx context.Context) (string, error) {
 	cachePath, cached := readLatestReleaseCache()
-	if cached != nil && time.Since(cached.CheckedAt) < latestReleaseCacheTTL {
+	if cached != nil && isFreshCache(cached.CheckedAt) {
 		if cached.Version == "" {
 			return "", errors.New("latest CLI version unknown")
 		}
@@ -64,6 +64,13 @@ func latestCliVersion(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("fetch latest CLI version: %w", err)
 	}
 	return version, nil
+}
+
+// A timestamp in the future means the clock moved backwards or the cache
+// came from another machine; treat it as stale rather than trusting it.
+func isFreshCache(checkedAt time.Time) bool {
+	age := time.Since(checkedAt)
+	return age >= 0 && age < latestReleaseCacheTTL
 }
 
 func fetchLatestCliVersion(ctx context.Context) (string, error) {

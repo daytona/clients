@@ -80,7 +80,30 @@ func checkVersionsMismatch(res *http.Response) {
 
 // compareVersions compares two semver strings
 // Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+// A pre-release (e.g. 0.216.0-alpha1) sorts before its release (0.216.0).
 func compareVersions(v1, v2 string) int {
+	core1, pre1, _ := strings.Cut(v1, "-")
+	core2, pre2, _ := strings.Cut(v2, "-")
+
+	if c := compareVersionCores(core1, core2); c != 0 {
+		return c
+	}
+
+	switch {
+	case pre1 == pre2:
+		return 0
+	case pre1 == "":
+		return 1
+	case pre2 == "":
+		return -1
+	case pre1 < pre2:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func compareVersionCores(v1, v2 string) int {
 	parts1 := strings.Split(v1, ".")
 	parts2 := strings.Split(v2, ".")
 

@@ -246,6 +246,55 @@ func TestVersionCheckFallsBackToStaleCacheWhenRefreshFails(t *testing.T) {
 	}
 }
 
+func TestVersionCheckTreatsFutureCacheAsStale(t *testing.T) {
+	f := newVersionCheckFixture(t, "v0.215.0", "v0.217.0", http.StatusOK)
+	f.writeCache(t, "0.216.0", time.Now().Add(time.Hour))
+
+	checkVersionsMismatch(apiResponse("0.217.0"))
+
+	if !strings.Contains(f.logs.String(), "latest version is v0.217.0") {
+		t.Errorf("expected refreshed version in warning, got %q", f.logs.String())
+	}
+	if got := f.requests.Load(); got != 1 {
+		t.Errorf("release lookups = %d, want 1", got)
+	}
+}
+
+// A pre-release CLI must be told when its stable release ships.
+func TestVersionCheckWarnsPrereleaseAboutStableRelease(t *testing.T) {
+	f := newVersionCheckFixture(t, "v0.216.0-alpha1", "v0.216.0", http.StatusOK)
+
+	checkVersionsMismatch(apiResponse("0.216.0"))
+
+	if !strings.Contains(f.logs.String(), "Daytona CLI v0.216.0-alpha1 is outdated, the latest version is v0.216.0") {
+		t.Errorf("unexpected warning output %q", f.logs.String())
+	}
+}
+
+func TestCompareVersions(t *testing.T) {
+	cases := []struct {
+		v1, v2 string
+		want   int
+	}{
+		{"0.216.0", "0.216.0", 0},
+		{"0.215.0", "0.216.0", -1},
+		{"0.216.1", "0.216.0", 1},
+		{"0.216", "0.216.0", 0},
+		{"1.0.0", "0.999.999", 1},
+		{"0.216.0-alpha1", "0.216.0", -1},
+		{"0.216.0", "0.216.0-alpha1", 1},
+		{"0.216.0-alpha1", "0.216.0-alpha1", 0},
+		{"0.216.0-alpha1", "0.216.0-alpha2", -1},
+		{"0.216.0-rc.1", "0.215.0", 1},
+		{"0.0.0-dev", "0.216.0", -1},
+	}
+	for _, c := range cases {
+		if got := compareVersions(c.v1, c.v2); got != c.want {
+			t.Errorf("compareVersions(%q, %q) = %d, want %d", c.v1, c.v2, got, c.want)
+		}
+	}
+}
+
 func TestVersionCheckIgnoresCorruptCache(t *testing.T) {
 	f := newVersionCheckFixture(t, "v0.215.0", "v0.216.0", http.StatusOK)
 	if err := os.WriteFile(filepath.Join(f.dir, latestReleaseCacheFile), []byte("{not json"), 0600); err != nil {
