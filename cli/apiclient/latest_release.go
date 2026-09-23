@@ -38,7 +38,7 @@ type latestReleaseCache struct {
 // in the config directory. A failed refresh keeps serving the previously cached
 // version and is itself cached, so an offline machine does not retry on every
 // command. An error is returned only when no version is known at all.
-func latestCliVersion(ctx context.Context) (string, error) {
+func latestCliVersion() (string, error) {
 	cachePath, cached := readLatestReleaseCache()
 	if cached != nil && isFreshCache(cached.CheckedAt) {
 		if cached.Version == "" {
@@ -47,7 +47,7 @@ func latestCliVersion(ctx context.Context) (string, error) {
 		return cached.Version, nil
 	}
 
-	version, err := fetchLatestCliVersion(ctx)
+	version, err := fetchLatestCliVersion()
 	if err != nil {
 		if cached != nil && cached.Version != "" {
 			version = cached.Version
@@ -73,8 +73,8 @@ func isFreshCache(checkedAt time.Time) bool {
 	return age >= 0 && age < latestReleaseCacheTTL
 }
 
-func fetchLatestCliVersion(ctx context.Context) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, latestReleaseTimeout)
+func fetchLatestCliVersion() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), latestReleaseTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestReleaseURL, nil)

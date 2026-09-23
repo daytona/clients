@@ -64,7 +64,7 @@ func checkVersionsMismatch(res *http.Response) {
 	// release ships a CLI release. Only tell the user to upgrade when there is
 	// actually a newer CLI to upgrade to.
 	versionMismatchWarningOnce.Do(func() {
-		latestVersion, err := latestCliVersion(res.Request.Context())
+		latestVersion, err := latestCliVersion()
 		if err != nil {
 			log.Debug(err)
 			return
