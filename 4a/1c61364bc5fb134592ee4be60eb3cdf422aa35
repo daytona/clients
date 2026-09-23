@@ -1,0 +1,36 @@
+sdk-go/pkg/daytona/sandbox_test.go
+  s_e51f56a48bf344::t_ca13e6116026d5 91
+  s_e51f56a48bf344::t_2b4fea264f243c 129
+  s_e51f56a48bf344::t_2f811acc2ef608 138-152,154
+  s_65bd7a3e9992f9::t_21013060d4b669 153,155-156
+sdk-python/src/daytona/_async/sandbox.py
+  s_e51f56a48bf344::t_a0965c955d20bb 1494
+sdk-python/src/daytona/_sync/sandbox.py
+  s_e51f56a48bf344::t_af31ac8b20c66b 1477
+sdk-go/pkg/daytona/sandbox.go
+  s_e51f56a48bf344::t_84edf0b0beea62 472
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a1c61364bc5fb134592ee4be60eb3cdf422aa35",
+  "prompts": {},
+  "sessions": {
+    "s_65bd7a3e9992f9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f315f57d6ffewglIZHUo94YmnH",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_e51f56a48bf344": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
