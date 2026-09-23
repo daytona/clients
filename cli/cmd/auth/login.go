@@ -6,9 +6,11 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/daytona/clients/cli/auth"
@@ -141,19 +143,23 @@ func defaultApiUrl() string {
 }
 
 // loginApiUrl is the API the login is for: the active profile's, or the one a new
-// initial profile will get.
-func loginApiUrl() string {
+// initial profile will get. Any other config problem is reported here, before the
+// browser opens, rather than after the user has completed the login.
+func loginApiUrl() (string, error) {
 	c, err := config.GetConfig()
 	if err != nil {
-		return defaultApiUrl()
+		return "", err
 	}
 
 	activeProfile, err := c.GetActiveProfile()
+	if errors.Is(err, config.ErrNoProfilesFound) {
+		return defaultApiUrl(), nil
+	}
 	if err != nil {
-		return defaultApiUrl()
+		return "", err
 	}
 
-	return activeProfile.Api.Url
+	return activeProfile.Api.Url, nil
 }
 
 // oidcConfig is the oidc block of /api/config: the login the API currently advertises.
@@ -163,7 +169,10 @@ type oidcConfig struct {
 	Provider string `json:"provider"`
 }
 
-const workosProvider = "workos"
+const (
+	workosProvider     = "workos"
+	loginConfigTimeout = 10 * time.Second
+)
 
 // fetchOidcConfig decodes only the oidc block, so an API that predates a field of the
 // full configuration schema does not break login. An API without `provider` is Auth0.
@@ -173,7 +182,8 @@ func fetchOidcConfig(ctx context.Context, apiUrl string) (oidcConfig, error) {
 		return oidcConfig{}, err
 	}
 
-	response, err := http.DefaultClient.Do(request)
+	client := &http.Client{Timeout: loginConfigTimeout}
+	response, err := client.Do(request)
 	if err != nil {
 		return oidcConfig{}, fmt.Errorf("failed to fetch the login configuration: %w", err)
 	}
@@ -194,7 +204,12 @@ func fetchOidcConfig(ctx context.Context, apiUrl string) (oidcConfig, error) {
 }
 
 func login(ctx context.Context) (*config.Token, error) {
-	advertised, err := fetchOidcConfig(ctx, loginApiUrl())
+	apiUrl, err := loginApiUrl()
+	if err != nil {
+		return nil, err
+	}
+
+	advertised, err := fetchOidcConfig(ctx, apiUrl)
 	if err != nil {
 		return nil, err
 	}

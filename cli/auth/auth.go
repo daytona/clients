@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -32,9 +33,10 @@ func StartCallbackServer(expectedState string) (string, error) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	server := &http.Server{Addr: fmt.Sprintf(":%s", config.GetAuth0CallbackPort())}
+	mux := http.NewServeMux()
+	server := &http.Server{Addr: fmt.Sprintf(":%s", config.GetAuth0CallbackPort()), Handler: mux}
 
-	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("state") != expectedState {
 			err = fmt.Errorf("invalid state parameter")
 			http.Error(w, "State invalid", http.StatusBadRequest)
@@ -77,6 +79,8 @@ func StartCallbackServer(expectedState string) (string, error) {
 		}
 	}()
 	wg.Wait()
+	// Release the port on the error paths too, so a retried login can bind it again.
+	_ = server.Close()
 
 	if err != nil {
 		return "", err
@@ -132,6 +136,12 @@ func WorkOSConfig(client config.WorkOSClient) (oauth2.Config, error) {
 		return oauth2.Config{}, fmt.Errorf("invalid WorkOS issuer %q", client.Issuer)
 	}
 
+	// The user's credentials and refresh token travel to this host, so only a local
+	// development issuer may skip TLS.
+	if issuer.Scheme != "https" && !isLoopback(issuer.Hostname()) {
+		return oauth2.Config{}, fmt.Errorf("WorkOS issuer %q must use https", client.Issuer)
+	}
+
 	host := issuer.Scheme + "://" + issuer.Host
 
 	return oauth2.Config{
@@ -143,6 +153,16 @@ func WorkOSConfig(client config.WorkOSClient) (oauth2.Config, error) {
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}, nil
+}
+
+func isLoopback(hostname string) bool {
+	if hostname == "localhost" {
+		return true
+	}
+
+	ip := net.ParseIP(hostname)
+
+	return ip != nil && ip.IsLoopback()
 }
 
 // NewToken converts an OAuth token into the stored form. WorkOS answers without
@@ -191,6 +211,19 @@ func accessTokenExpiry(accessToken string) (time.Time, error) {
 	return time.Unix(claims.Exp, 0), nil
 }
 
+// refreshError tells a dead session apart from a transient failure. Only an
+// invalid_grant (RFC 6749 §5.2: revoked, expired, or already-rotated refresh token)
+// means the user has to log in again; a timeout or a 5xx from the provider does
+// not, and telling the user to re-login for those would discard a working session.
+func refreshError(err error) error {
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(err, &retrieveErr) && retrieveErr.ErrorCode == "invalid_grant" {
+		return fmt.Errorf("use 'daytona login' to reauthenticate: %w", err)
+	}
+
+	return fmt.Errorf("failed to refresh the access token, please retry: %w", err)
+}
+
 func RefreshTokenIfNeeded(ctx context.Context) error {
 	c, err := config.GetConfig()
 	if err != nil {
@@ -229,7 +262,7 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 	// WorkOS rotates refresh tokens, so the returned one replaces the stored one.
 	newToken, err := oauth2Config.TokenSource(ctx, &oauth2.Token{RefreshToken: storedToken.RefreshToken}).Token()
 	if err != nil {
-		return fmt.Errorf("use 'daytona login' to reauthenticate: %w", err)
+		return refreshError(err)
 	}
 
 	activeProfile.Api.Token, err = NewToken(newToken, storedToken.WorkOS)
