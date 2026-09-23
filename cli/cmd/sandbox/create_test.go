@@ -66,7 +66,7 @@ func TestCreateCmdWiresKvmIntoCreateRequest(t *testing.T) {
 				NetworkBlockAll: true,
 				Target:          "us",
 				ToolboxProxyUrl: "",
-				Kvm:             true,
+				Kvm:             apiclient.PtrBool(true),
 			}); err != nil {
 				t.Fatalf("encode sandbox response: %v", err)
 			}
