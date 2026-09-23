@@ -19,6 +19,59 @@ module DaytonaApiClient
     def initialize(api_client = ApiClient.default)
       @api_client = api_client
     end
+    # Accept the current privacy policies
+    # @param [Hash] opts the optional parameters
+    # @return [nil]
+    def accept_privacy_policies(opts = {})
+      accept_privacy_policies_with_http_info(opts)
+      nil
+    end
+
+    # Accept the current privacy policies
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    def accept_privacy_policies_with_http_info(opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: UsersApi.accept_privacy_policies ...'
+      end
+      # resource path
+      local_var_path = '/users/privacy-policies/accept'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type]
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"UsersApi.accept_privacy_policies",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: UsersApi#accept_privacy_policies\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Confirm (link) a pending SSO account link
     # @param id [String] 
     # @param [Hash] opts the optional parameters
@@ -137,23 +190,25 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Enroll in SMS MFA
+    # Get account providers
+    # Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
     # @param [Hash] opts the optional parameters
-    # @return [String]
-    def enroll_in_sms_mfa(opts = {})
-      data, _status_code, _headers = enroll_in_sms_mfa_with_http_info(opts)
+    # @return [Array<AccountProvider>]
+    def get_account_providers(opts = {})
+      data, _status_code, _headers = get_account_providers_with_http_info(opts)
       data
     end
 
-    # Enroll in SMS MFA
+    # Get account providers
+    # Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
     # @param [Hash] opts the optional parameters
-    # @return [Array<(String, Integer, Hash)>] String data, response status code and response headers
-    def enroll_in_sms_mfa_with_http_info(opts = {})
+    # @return [Array<(Array<AccountProvider>, Integer, Hash)>] Array<AccountProvider> data, response status code and response headers
+    def get_account_providers_with_http_info(opts = {})
       if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: UsersApi.enroll_in_sms_mfa ...'
+        @api_client.config.logger.debug 'Calling API: UsersApi.get_account_providers ...'
       end
       # resource path
-      local_var_path = '/users/mfa/sms/enroll'
+      local_var_path = '/users/account-providers'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -170,13 +225,13 @@ module DaytonaApiClient
       post_body = opts[:debug_body]
 
       # return_type
-      return_type = opts[:debug_return_type] || 'String'
+      return_type = opts[:debug_return_type] || 'Array<AccountProvider>'
 
       # auth_names
       auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
 
       new_options = opts.merge(
-        :operation => :"UsersApi.enroll_in_sms_mfa",
+        :operation => :"UsersApi.get_account_providers",
         :header_params => header_params,
         :query_params => query_params,
         :form_params => form_params,
@@ -185,9 +240,9 @@ module DaytonaApiClient
         :return_type => return_type
       )
 
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: UsersApi#enroll_in_sms_mfa\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+        @api_client.config.logger.debug "API called: UsersApi#get_account_providers\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -247,62 +302,8 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Get available account providers
-    # @param [Hash] opts the optional parameters
-    # @return [Array<AccountProvider>]
-    def get_available_account_providers(opts = {})
-      data, _status_code, _headers = get_available_account_providers_with_http_info(opts)
-      data
-    end
-
-    # Get available account providers
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(Array<AccountProvider>, Integer, Hash)>] Array<AccountProvider> data, response status code and response headers
-    def get_available_account_providers_with_http_info(opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: UsersApi.get_available_account_providers ...'
-      end
-      # resource path
-      local_var_path = '/users/account-providers'
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Accept' (if needed)
-      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body]
-
-      # return_type
-      return_type = opts[:debug_return_type] || 'Array<AccountProvider>'
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"UsersApi.get_available_account_providers",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: UsersApi#get_available_account_providers\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
-    # Link account
+    # Link account (withdrawn)
+    # Withdrawn. This operation is no longer supported and always responds 410.
     # @param create_linked_account [CreateLinkedAccount] 
     # @param [Hash] opts the optional parameters
     # @return [nil]
@@ -311,7 +312,8 @@ module DaytonaApiClient
       nil
     end
 
-    # Link account
+    # Link account (withdrawn)
+    # Withdrawn. This operation is no longer supported and always responds 410.
     # @param create_linked_account [CreateLinkedAccount] 
     # @param [Hash] opts the optional parameters
     # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
@@ -421,35 +423,25 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Unlink account
-    # @param provider [String] 
-    # @param provider_user_id [String] 
+    # Record a completed login
+    # Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
     # @param [Hash] opts the optional parameters
     # @return [nil]
-    def unlink_account(provider, provider_user_id, opts = {})
-      unlink_account_with_http_info(provider, provider_user_id, opts)
+    def record_login(opts = {})
+      record_login_with_http_info(opts)
       nil
     end
 
-    # Unlink account
-    # @param provider [String] 
-    # @param provider_user_id [String] 
+    # Record a completed login
+    # Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
     # @param [Hash] opts the optional parameters
     # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def unlink_account_with_http_info(provider, provider_user_id, opts = {})
+    def record_login_with_http_info(opts = {})
       if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: UsersApi.unlink_account ...'
-      end
-      # verify the required parameter 'provider' is set
-      if @api_client.config.client_side_validation && provider.nil?
-        fail ArgumentError, "Missing the required parameter 'provider' when calling UsersApi.unlink_account"
-      end
-      # verify the required parameter 'provider_user_id' is set
-      if @api_client.config.client_side_validation && provider_user_id.nil?
-        fail ArgumentError, "Missing the required parameter 'provider_user_id' when calling UsersApi.unlink_account"
+        @api_client.config.logger.debug 'Calling API: UsersApi.record_login ...'
       end
       # resource path
-      local_var_path = '/users/linked-accounts/{provider}/{providerUserId}'.sub('{' + 'provider' + '}', CGI.escape(provider.to_s)).sub('{' + 'providerUserId' + '}', CGI.escape(provider_user_id.to_s))
+      local_var_path = '/users/me/logins'
 
       # query parameters
       query_params = opts[:query_params] || {}
@@ -470,7 +462,7 @@ module DaytonaApiClient
       auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
 
       new_options = opts.merge(
-        :operation => :"UsersApi.unlink_account",
+        :operation => :"UsersApi.record_login",
         :header_params => header_params,
         :query_params => query_params,
         :form_params => form_params,
@@ -479,9 +471,9 @@ module DaytonaApiClient
         :return_type => return_type
       )
 
-      data, status_code, headers = @api_client.call_api(:DELETE, local_var_path, new_options)
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
       if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: UsersApi#unlink_account\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+        @api_client.config.logger.debug "API called: UsersApi#record_login\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

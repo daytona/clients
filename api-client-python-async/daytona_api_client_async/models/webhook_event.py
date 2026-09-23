@@ -21,7 +21,7 @@ from typing_extensions import Self
 
 class WebhookEvent(str, Enum):
     """
-    The type of event being sent
+    Event type identifier
     """
 
     """

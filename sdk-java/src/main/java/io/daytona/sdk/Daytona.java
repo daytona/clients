@@ -423,6 +423,8 @@ public class Daytona implements AutoCloseable {
                 fMaxMemoryGib,
                 fMinDiskGib,
                 fMaxDiskGib,
+                null,
+                null,
                 fIsPublic,
                 fIsRecoverable,
                 fCreatedAtAfter,

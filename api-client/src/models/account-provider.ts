@@ -15,7 +15,17 @@
 
 
 export interface AccountProvider {
-    'name': string;
+    /**
+     * WorkOS identity provider, e.g. GoogleOAuth or GitHubOAuth
+     */
+    'provider': string;
+    /**
+     * Human-readable provider name
+     */
     'displayName': string;
+    /**
+     * Whether the authenticated user has an identity from this provider
+     */
+    'linked': boolean;
 }
 

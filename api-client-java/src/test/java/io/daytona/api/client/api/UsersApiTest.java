@@ -35,6 +35,17 @@ public class UsersApiTest {
     private final UsersApi api = new UsersApi();
 
     /**
+     * Accept the current privacy policies
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void acceptPrivacyPoliciesTest() throws ApiException {
+        api.acceptPrivacyPolicies();
+        // TODO: test validations
+    }
+
+    /**
      * Confirm (link) a pending SSO account link
      *
      * @throws ApiException if the Api call fails
@@ -59,13 +70,15 @@ public class UsersApiTest {
     }
 
     /**
-     * Enroll in SMS MFA
+     * Get account providers
+     *
+     * Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
      *
      * @throws ApiException if the Api call fails
      */
     @Test
-    public void enrollInSmsMfaTest() throws ApiException {
-        String response = api.enrollInSmsMfa();
+    public void getAccountProvidersTest() throws ApiException {
+        List<AccountProvider> response = api.getAccountProviders();
         // TODO: test validations
     }
 
@@ -81,18 +94,9 @@ public class UsersApiTest {
     }
 
     /**
-     * Get available account providers
+     * Link account (withdrawn)
      *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void getAvailableAccountProvidersTest() throws ApiException {
-        List<AccountProvider> response = api.getAvailableAccountProviders();
-        // TODO: test validations
-    }
-
-    /**
-     * Link account
+     * Withdrawn. This operation is no longer supported and always responds 410.
      *
      * @throws ApiException if the Api call fails
      */
@@ -115,15 +119,15 @@ public class UsersApiTest {
     }
 
     /**
-     * Unlink account
+     * Record a completed login
+     *
+     * Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
      *
      * @throws ApiException if the Api call fails
      */
     @Test
-    public void unlinkAccountTest() throws ApiException {
-        String provider = null;
-        String providerUserId = null;
-        api.unlinkAccount(provider, providerUserId);
+    public void recordLoginTest() throws ApiException {
+        api.recordLogin();
         // TODO: test validations
     }
 

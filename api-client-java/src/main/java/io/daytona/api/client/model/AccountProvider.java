@@ -50,35 +50,40 @@ import io.daytona.api.client.JSON;
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.21.0")
 public class AccountProvider {
-  public static final String SERIALIZED_NAME_NAME = "name";
-  @SerializedName(SERIALIZED_NAME_NAME)
+  public static final String SERIALIZED_NAME_PROVIDER = "provider";
+  @SerializedName(SERIALIZED_NAME_PROVIDER)
   @javax.annotation.Nonnull
-  private String name;
+  private String provider;
 
   public static final String SERIALIZED_NAME_DISPLAY_NAME = "displayName";
   @SerializedName(SERIALIZED_NAME_DISPLAY_NAME)
   @javax.annotation.Nonnull
   private String displayName;
 
+  public static final String SERIALIZED_NAME_LINKED = "linked";
+  @SerializedName(SERIALIZED_NAME_LINKED)
+  @javax.annotation.Nonnull
+  private Boolean linked;
+
   public AccountProvider() {
   }
 
-  public AccountProvider name(@javax.annotation.Nonnull String name) {
-    this.name = name;
+  public AccountProvider provider(@javax.annotation.Nonnull String provider) {
+    this.provider = provider;
     return this;
   }
 
   /**
-   * Get name
-   * @return name
+   * WorkOS identity provider, e.g. GoogleOAuth or GitHubOAuth
+   * @return provider
    */
   @javax.annotation.Nonnull
-  public String getName() {
-    return name;
+  public String getProvider() {
+    return provider;
   }
 
-  public void setName(@javax.annotation.Nonnull String name) {
-    this.name = name;
+  public void setProvider(@javax.annotation.Nonnull String provider) {
+    this.provider = provider;
   }
 
 
@@ -88,7 +93,7 @@ public class AccountProvider {
   }
 
   /**
-   * Get displayName
+   * Human-readable provider name
    * @return displayName
    */
   @javax.annotation.Nonnull
@@ -98,6 +103,25 @@ public class AccountProvider {
 
   public void setDisplayName(@javax.annotation.Nonnull String displayName) {
     this.displayName = displayName;
+  }
+
+
+  public AccountProvider linked(@javax.annotation.Nonnull Boolean linked) {
+    this.linked = linked;
+    return this;
+  }
+
+  /**
+   * Whether the authenticated user has an identity from this provider
+   * @return linked
+   */
+  @javax.annotation.Nonnull
+  public Boolean getLinked() {
+    return linked;
+  }
+
+  public void setLinked(@javax.annotation.Nonnull Boolean linked) {
+    this.linked = linked;
   }
 
   /**
@@ -155,22 +179,24 @@ public class AccountProvider {
       return false;
     }
     AccountProvider accountProvider = (AccountProvider) o;
-    return Objects.equals(this.name, accountProvider.name) &&
-        Objects.equals(this.displayName, accountProvider.displayName)&&
+    return Objects.equals(this.provider, accountProvider.provider) &&
+        Objects.equals(this.displayName, accountProvider.displayName) &&
+        Objects.equals(this.linked, accountProvider.linked)&&
         Objects.equals(this.additionalProperties, accountProvider.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, displayName, additionalProperties);
+    return Objects.hash(provider, displayName, linked, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class AccountProvider {\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
+    sb.append("    provider: ").append(toIndentedString(provider)).append("\n");
     sb.append("    displayName: ").append(toIndentedString(displayName)).append("\n");
+    sb.append("    linked: ").append(toIndentedString(linked)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -190,10 +216,10 @@ public class AccountProvider {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "displayName"));
+    openapiFields = new HashSet<String>(Arrays.asList("provider", "displayName", "linked"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("name", "displayName"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("provider", "displayName", "linked"));
   }
 
   /**
@@ -216,8 +242,8 @@ public class AccountProvider {
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (!jsonObj.get("name").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `name` to be a primitive type in the JSON string but got `%s`", jsonObj.get("name").toString()));
+      if (!jsonObj.get("provider").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `provider` to be a primitive type in the JSON string but got `%s`", jsonObj.get("provider").toString()));
       }
       if (!jsonObj.get("displayName").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `displayName` to be a primitive type in the JSON string but got `%s`", jsonObj.get("displayName").toString()));

@@ -930,6 +930,141 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+    # @param organization_id [String] Organization ID
+    # @param generate_workos_admin_portal_link [GenerateWorkosAdminPortalLink] 
+    # @param [Hash] opts the optional parameters
+    # @return [WorkosAdminPortalLink]
+    def generate_workos_admin_portal_link(organization_id, generate_workos_admin_portal_link, opts = {})
+      data, _status_code, _headers = generate_workos_admin_portal_link_with_http_info(organization_id, generate_workos_admin_portal_link, opts)
+      data
+    end
+
+    # Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+    # @param organization_id [String] Organization ID
+    # @param generate_workos_admin_portal_link [GenerateWorkosAdminPortalLink] 
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(WorkosAdminPortalLink, Integer, Hash)>] WorkosAdminPortalLink data, response status code and response headers
+    def generate_workos_admin_portal_link_with_http_info(organization_id, generate_workos_admin_portal_link, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: OrganizationsApi.generate_workos_admin_portal_link ...'
+      end
+      # verify the required parameter 'organization_id' is set
+      if @api_client.config.client_side_validation && organization_id.nil?
+        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.generate_workos_admin_portal_link"
+      end
+      # verify the required parameter 'generate_workos_admin_portal_link' is set
+      if @api_client.config.client_side_validation && generate_workos_admin_portal_link.nil?
+        fail ArgumentError, "Missing the required parameter 'generate_workos_admin_portal_link' when calling OrganizationsApi.generate_workos_admin_portal_link"
+      end
+      # resource path
+      local_var_path = '/organizations/{organizationId}/identity-providers/workos-admin-portal-link'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(generate_workos_admin_portal_link)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'WorkosAdminPortalLink'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"OrganizationsApi.generate_workos_admin_portal_link",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: OrganizationsApi#generate_workos_admin_portal_link\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get shared GPU capacity
+    # Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+    # @param organization_id [String] Organization ID
+    # @param [Hash] opts the optional parameters
+    # @return [GpuCapacityResponse]
+    def get_gpu_capacity(organization_id, opts = {})
+      data, _status_code, _headers = get_gpu_capacity_with_http_info(organization_id, opts)
+      data
+    end
+
+    # Get shared GPU capacity
+    # Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+    # @param organization_id [String] Organization ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(GpuCapacityResponse, Integer, Hash)>] GpuCapacityResponse data, response status code and response headers
+    def get_gpu_capacity_with_http_info(organization_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: OrganizationsApi.get_gpu_capacity ...'
+      end
+      # verify the required parameter 'organization_id' is set
+      if @api_client.config.client_side_validation && organization_id.nil?
+        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.get_gpu_capacity"
+      end
+      # resource path
+      local_var_path = '/organizations/{organizationId}/gpu-capacity'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'GpuCapacityResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"OrganizationsApi.get_gpu_capacity",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: OrganizationsApi#get_gpu_capacity\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Get organization by ID
     # @param organization_id [String] Organization ID
     # @param [Hash] opts the optional parameters
@@ -1356,6 +1491,67 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: OrganizationsApi#get_region_by_id\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get sandbox identity by sandbox auth token
+    # @param auth_token [String] Sandbox Auth Token
+    # @param [Hash] opts the optional parameters
+    # @return [SandboxIdentity]
+    def get_sandbox_identity_by_sandbox_auth_token(auth_token, opts = {})
+      data, _status_code, _headers = get_sandbox_identity_by_sandbox_auth_token_with_http_info(auth_token, opts)
+      data
+    end
+
+    # Get sandbox identity by sandbox auth token
+    # @param auth_token [String] Sandbox Auth Token
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(SandboxIdentity, Integer, Hash)>] SandboxIdentity data, response status code and response headers
+    def get_sandbox_identity_by_sandbox_auth_token_with_http_info(auth_token, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: OrganizationsApi.get_sandbox_identity_by_sandbox_auth_token ...'
+      end
+      # verify the required parameter 'auth_token' is set
+      if @api_client.config.client_side_validation && auth_token.nil?
+        fail ArgumentError, "Missing the required parameter 'auth_token' when calling OrganizationsApi.get_sandbox_identity_by_sandbox_auth_token"
+      end
+      # resource path
+      local_var_path = '/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}'.sub('{' + 'authToken' + '}', CGI.escape(auth_token.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'SandboxIdentity'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"OrganizationsApi.get_sandbox_identity_by_sandbox_auth_token",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: OrganizationsApi#get_sandbox_identity_by_sandbox_auth_token\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -1892,6 +2088,67 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # List the SSO connections configured for the organization in WorkOS
+    # @param organization_id [String] Organization ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<WorkosSsoConnection>]
+    def list_workos_sso_connections(organization_id, opts = {})
+      data, _status_code, _headers = list_workos_sso_connections_with_http_info(organization_id, opts)
+      data
+    end
+
+    # List the SSO connections configured for the organization in WorkOS
+    # @param organization_id [String] Organization ID
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Array<WorkosSsoConnection>, Integer, Hash)>] Array<WorkosSsoConnection> data, response status code and response headers
+    def list_workos_sso_connections_with_http_info(organization_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: OrganizationsApi.list_workos_sso_connections ...'
+      end
+      # verify the required parameter 'organization_id' is set
+      if @api_client.config.client_side_validation && organization_id.nil?
+        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.list_workos_sso_connections"
+      end
+      # resource path
+      local_var_path = '/organizations/{organizationId}/identity-providers/workos-sso-connections'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Array<WorkosSsoConnection>'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"OrganizationsApi.list_workos_sso_connections",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: OrganizationsApi#list_workos_sso_connections\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Regenerate proxy API key for a region
     # @param id [String] Region ID
     # @param [Hash] opts the optional parameters
@@ -2154,72 +2411,6 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Suspend organization
-    # @param organization_id [String] Organization ID
-    # @param [Hash] opts the optional parameters
-    # @option opts [OrganizationSuspension] :organization_suspension 
-    # @return [nil]
-    def suspend_organization(organization_id, opts = {})
-      suspend_organization_with_http_info(organization_id, opts)
-      nil
-    end
-
-    # Suspend organization
-    # @param organization_id [String] Organization ID
-    # @param [Hash] opts the optional parameters
-    # @option opts [OrganizationSuspension] :organization_suspension 
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def suspend_organization_with_http_info(organization_id, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.suspend_organization ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.suspend_organization"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/suspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(opts[:'organization_suspension'])
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.suspend_organization",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#suspend_organization\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
     # Test OIDC identity provider connection
     # @param organization_id [String] Organization ID
     # @param test_identity_provider_connection [TestIdentityProviderConnection] 
@@ -2288,65 +2479,6 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: OrganizationsApi#test_organization_identity_provider_connection\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
-    # Unsuspend organization
-    # @param organization_id [String] Organization ID
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def unsuspend_organization(organization_id, opts = {})
-      unsuspend_organization_with_http_info(organization_id, opts)
-      nil
-    end
-
-    # Unsuspend organization
-    # @param organization_id [String] Organization ID
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def unsuspend_organization_with_http_info(organization_id, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.unsuspend_organization ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.unsuspend_organization"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/unsuspend'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body]
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.unsuspend_organization",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#unsuspend_organization\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -2721,222 +2853,6 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Update organization preview warning
-    # @param organization_id [String] Organization ID
-    # @param organization_preview_warning [OrganizationPreviewWarning] 
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def update_organization_preview_warning(organization_id, organization_preview_warning, opts = {})
-      update_organization_preview_warning_with_http_info(organization_id, organization_preview_warning, opts)
-      nil
-    end
-
-    # Update organization preview warning
-    # @param organization_id [String] Organization ID
-    # @param organization_preview_warning [OrganizationPreviewWarning] 
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def update_organization_preview_warning_with_http_info(organization_id, organization_preview_warning, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.update_organization_preview_warning ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_organization_preview_warning"
-      end
-      # verify the required parameter 'organization_preview_warning' is set
-      if @api_client.config.client_side_validation && organization_preview_warning.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_preview_warning' when calling OrganizationsApi.update_organization_preview_warning"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/preview-warning'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(organization_preview_warning)
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.update_organization_preview_warning",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#update_organization_preview_warning\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
-    # Update organization quota
-    # @param organization_id [String] Organization ID
-    # @param update_organization_quota [UpdateOrganizationQuota] 
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def update_organization_quota(organization_id, update_organization_quota, opts = {})
-      update_organization_quota_with_http_info(organization_id, update_organization_quota, opts)
-      nil
-    end
-
-    # Update organization quota
-    # @param organization_id [String] Organization ID
-    # @param update_organization_quota [UpdateOrganizationQuota] 
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def update_organization_quota_with_http_info(organization_id, update_organization_quota, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.update_organization_quota ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_organization_quota"
-      end
-      # verify the required parameter 'update_organization_quota' is set
-      if @api_client.config.client_side_validation && update_organization_quota.nil?
-        fail ArgumentError, "Missing the required parameter 'update_organization_quota' when calling OrganizationsApi.update_organization_quota"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/quota'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(update_organization_quota)
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.update_organization_quota",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:PATCH, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#update_organization_quota\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
-    # Update organization region quota
-    # @param organization_id [String] Organization ID
-    # @param region_id [String] ID of the region where the updated quota will be applied
-    # @param update_organization_region_quota [UpdateOrganizationRegionQuota] 
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def update_organization_region_quota(organization_id, region_id, update_organization_region_quota, opts = {})
-      update_organization_region_quota_with_http_info(organization_id, region_id, update_organization_region_quota, opts)
-      nil
-    end
-
-    # Update organization region quota
-    # @param organization_id [String] Organization ID
-    # @param region_id [String] ID of the region where the updated quota will be applied
-    # @param update_organization_region_quota [UpdateOrganizationRegionQuota] 
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def update_organization_region_quota_with_http_info(organization_id, region_id, update_organization_region_quota, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.update_organization_region_quota ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_organization_region_quota"
-      end
-      # verify the required parameter 'region_id' is set
-      if @api_client.config.client_side_validation && region_id.nil?
-        fail ArgumentError, "Missing the required parameter 'region_id' when calling OrganizationsApi.update_organization_region_quota"
-      end
-      # verify the required parameter 'update_organization_region_quota' is set
-      if @api_client.config.client_side_validation && update_organization_region_quota.nil?
-        fail ArgumentError, "Missing the required parameter 'update_organization_region_quota' when calling OrganizationsApi.update_organization_region_quota"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/quota/{regionId}'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s)).sub('{' + 'regionId' + '}', CGI.escape(region_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(update_organization_region_quota)
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.update_organization_region_quota",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:PATCH, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#update_organization_region_quota\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
     # Update organization role
     # @param organization_id [String] Organization ID
     # @param role_id [String] Role ID
@@ -3015,76 +2931,6 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
-    # Update organization SSO entitlement
-    # @param organization_id [String] Organization ID
-    # @param organization_sso_enabled [OrganizationSsoEnabled] 
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def update_organization_sso_enabled(organization_id, organization_sso_enabled, opts = {})
-      update_organization_sso_enabled_with_http_info(organization_id, organization_sso_enabled, opts)
-      nil
-    end
-
-    # Update organization SSO entitlement
-    # @param organization_id [String] Organization ID
-    # @param organization_sso_enabled [OrganizationSsoEnabled] 
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def update_organization_sso_enabled_with_http_info(organization_id, organization_sso_enabled, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.update_organization_sso_enabled ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_organization_sso_enabled"
-      end
-      # verify the required parameter 'organization_sso_enabled' is set
-      if @api_client.config.client_side_validation && organization_sso_enabled.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_sso_enabled' when calling OrganizationsApi.update_organization_sso_enabled"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/sso-enabled'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(organization_sso_enabled)
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.update_organization_sso_enabled",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#update_organization_sso_enabled\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
     # Update region configuration
     # @param id [String] Region ID
     # @param update_region [UpdateRegion] 
@@ -3154,76 +3000,6 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:PATCH, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: OrganizationsApi#update_region\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
-      end
-      return data, status_code, headers
-    end
-
-    # Update sandbox default limited network egress
-    # @param organization_id [String] Organization ID
-    # @param organization_sandbox_default_limited_network_egress [OrganizationSandboxDefaultLimitedNetworkEgress] 
-    # @param [Hash] opts the optional parameters
-    # @return [nil]
-    def update_sandbox_default_limited_network_egress(organization_id, organization_sandbox_default_limited_network_egress, opts = {})
-      update_sandbox_default_limited_network_egress_with_http_info(organization_id, organization_sandbox_default_limited_network_egress, opts)
-      nil
-    end
-
-    # Update sandbox default limited network egress
-    # @param organization_id [String] Organization ID
-    # @param organization_sandbox_default_limited_network_egress [OrganizationSandboxDefaultLimitedNetworkEgress] 
-    # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
-    def update_sandbox_default_limited_network_egress_with_http_info(organization_id, organization_sandbox_default_limited_network_egress, opts = {})
-      if @api_client.config.debugging
-        @api_client.config.logger.debug 'Calling API: OrganizationsApi.update_sandbox_default_limited_network_egress ...'
-      end
-      # verify the required parameter 'organization_id' is set
-      if @api_client.config.client_side_validation && organization_id.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_id' when calling OrganizationsApi.update_sandbox_default_limited_network_egress"
-      end
-      # verify the required parameter 'organization_sandbox_default_limited_network_egress' is set
-      if @api_client.config.client_side_validation && organization_sandbox_default_limited_network_egress.nil?
-        fail ArgumentError, "Missing the required parameter 'organization_sandbox_default_limited_network_egress' when calling OrganizationsApi.update_sandbox_default_limited_network_egress"
-      end
-      # resource path
-      local_var_path = '/organizations/{organizationId}/sandbox-default-limited-network-egress'.sub('{' + 'organizationId' + '}', CGI.escape(organization_id.to_s))
-
-      # query parameters
-      query_params = opts[:query_params] || {}
-
-      # header parameters
-      header_params = opts[:header_params] || {}
-      # HTTP header 'Content-Type'
-      content_type = @api_client.select_header_content_type(['application/json'])
-      if !content_type.nil?
-          header_params['Content-Type'] = content_type
-      end
-
-      # form parameters
-      form_params = opts[:form_params] || {}
-
-      # http body (model)
-      post_body = opts[:debug_body] || @api_client.object_to_http_body(organization_sandbox_default_limited_network_egress)
-
-      # return_type
-      return_type = opts[:debug_return_type]
-
-      # auth_names
-      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
-
-      new_options = opts.merge(
-        :operation => :"OrganizationsApi.update_sandbox_default_limited_network_egress",
-        :header_params => header_params,
-        :query_params => query_params,
-        :form_params => form_params,
-        :body => post_body,
-        :auth_names => auth_names,
-        :return_type => return_type
-      )
-
-      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
-      if @api_client.config.debugging
-        @api_client.config.logger.debug "API called: OrganizationsApi#update_sandbox_default_limited_network_egress\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

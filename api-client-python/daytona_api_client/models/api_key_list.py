@@ -38,8 +38,9 @@ class ApiKeyList(BaseModel):
     last_used_at: Optional[datetime] = Field(description="When the API key was last used", serialization_alias="lastUsedAt")
     expires_at: Optional[datetime] = Field(description="When the API key expires", serialization_alias="expiresAt")
     user_id: StrictStr = Field(description="The user ID of the user who created the API key", serialization_alias="userId")
+    organization_id: Optional[StrictStr] = Field(default=None, description="The organization ID associated with the API key", serialization_alias="organizationId")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId"]
+    __properties: ClassVar[List[str]] = ["name", "value", "createdAt", "permissions", "lastUsedAt", "expiresAt", "userId", "organizationId"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -114,7 +115,8 @@ class ApiKeyList(BaseModel):
             "permissions": obj.get("permissions"),
             "last_used_at": obj.get("lastUsedAt"),
             "expires_at": obj.get("expiresAt"),
-            "user_id": obj.get("userId")
+            "user_id": obj.get("userId"),
+            "organization_id": obj.get("organizationId")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

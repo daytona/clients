@@ -96,4 +96,12 @@ public class ApiKeyListTest {
         // TODO: test userId
     }
 
+    /**
+     * Test the property 'organizationId'
+     */
+    @Test
+    public void organizationIdTest() {
+        // TODO: test organizationId
+    }
+
 }

@@ -21,8 +21,12 @@ var _ MappedNullable = &AccountProvider{}
 
 // AccountProvider struct for AccountProvider
 type AccountProvider struct {
-	Name string `json:"name"`
+	// WorkOS identity provider, e.g. GoogleOAuth or GitHubOAuth
+	Provider string `json:"provider"`
+	// Human-readable provider name
 	DisplayName string `json:"displayName"`
+	// Whether the authenticated user has an identity from this provider
+	Linked bool `json:"linked"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -32,10 +36,11 @@ type _AccountProvider AccountProvider
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewAccountProvider(name string, displayName string) *AccountProvider {
+func NewAccountProvider(provider string, displayName string, linked bool) *AccountProvider {
 	this := AccountProvider{}
-	this.Name = name
+	this.Provider = provider
 	this.DisplayName = displayName
+	this.Linked = linked
 	return &this
 }
 
@@ -47,28 +52,28 @@ func NewAccountProviderWithDefaults() *AccountProvider {
 	return &this
 }
 
-// GetName returns the Name field value
-func (o *AccountProvider) GetName() string {
+// GetProvider returns the Provider field value
+func (o *AccountProvider) GetProvider() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.Name
+	return o.Provider
 }
 
-// GetNameOk returns a tuple with the Name field value
+// GetProviderOk returns a tuple with the Provider field value
 // and a boolean to check if the value has been set.
-func (o *AccountProvider) GetNameOk() (*string, bool) {
+func (o *AccountProvider) GetProviderOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.Name, true
+	return &o.Provider, true
 }
 
-// SetName sets field value
-func (o *AccountProvider) SetName(v string) {
-	o.Name = v
+// SetProvider sets field value
+func (o *AccountProvider) SetProvider(v string) {
+	o.Provider = v
 }
 
 // GetDisplayName returns the DisplayName field value
@@ -95,6 +100,30 @@ func (o *AccountProvider) SetDisplayName(v string) {
 	o.DisplayName = v
 }
 
+// GetLinked returns the Linked field value
+func (o *AccountProvider) GetLinked() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.Linked
+}
+
+// GetLinkedOk returns a tuple with the Linked field value
+// and a boolean to check if the value has been set.
+func (o *AccountProvider) GetLinkedOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Linked, true
+}
+
+// SetLinked sets field value
+func (o *AccountProvider) SetLinked(v bool) {
+	o.Linked = v
+}
+
 func (o AccountProvider) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -105,8 +134,9 @@ func (o AccountProvider) MarshalJSON() ([]byte, error) {
 
 func (o AccountProvider) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["name"] = o.Name
+	toSerialize["provider"] = o.Provider
 	toSerialize["displayName"] = o.DisplayName
+	toSerialize["linked"] = o.Linked
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -120,8 +150,9 @@ func (o *AccountProvider) UnmarshalJSON(data []byte) (err error) {
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
-		"name",
+		"provider",
 		"displayName",
+		"linked",
 	}
 
 	allProperties := make(map[string]interface{})
@@ -151,8 +182,9 @@ func (o *AccountProvider) UnmarshalJSON(data []byte) (err error) {
 	additionalProperties := make(map[string]interface{})
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
-		delete(additionalProperties, "name")
+		delete(additionalProperties, "provider")
 		delete(additionalProperties, "displayName")
+		delete(additionalProperties, "linked")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -22,19 +22,18 @@ import io.daytona.api.client.model.CreateOrganizationInvitation;
 import io.daytona.api.client.model.CreateOrganizationRole;
 import io.daytona.api.client.model.CreateRegion;
 import io.daytona.api.client.model.CreateRegionResponse;
+import io.daytona.api.client.model.GenerateWorkosAdminPortalLink;
+import io.daytona.api.client.model.GpuCapacityResponse;
 import io.daytona.api.client.model.IdentityProvider;
 import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.OrganizationInvitation;
-import io.daytona.api.client.model.OrganizationPreviewWarning;
 import io.daytona.api.client.model.OrganizationRole;
-import io.daytona.api.client.model.OrganizationSandboxDefaultLimitedNetworkEgress;
-import io.daytona.api.client.model.OrganizationSsoEnabled;
-import io.daytona.api.client.model.OrganizationSuspension;
 import io.daytona.api.client.model.OrganizationUsageOverview;
 import io.daytona.api.client.model.OrganizationUser;
 import io.daytona.api.client.model.OtelConfig;
 import io.daytona.api.client.model.RegenerateApiKeyResponse;
 import io.daytona.api.client.model.Region;
+import io.daytona.api.client.model.SandboxIdentity;
 import io.daytona.api.client.model.SnapshotManagerCredentials;
 import io.daytona.api.client.model.TestIdentityProviderConnection;
 import io.daytona.api.client.model.TestIdentityProviderConnectionResponse;
@@ -42,10 +41,10 @@ import io.daytona.api.client.model.UpdateIdentityProvider;
 import io.daytona.api.client.model.UpdateOrganizationDefaultRegion;
 import io.daytona.api.client.model.UpdateOrganizationInvitation;
 import io.daytona.api.client.model.UpdateOrganizationMemberAccess;
-import io.daytona.api.client.model.UpdateOrganizationQuota;
-import io.daytona.api.client.model.UpdateOrganizationRegionQuota;
 import io.daytona.api.client.model.UpdateOrganizationRole;
 import io.daytona.api.client.model.UpdateRegion;
+import io.daytona.api.client.model.WorkosAdminPortalLink;
+import io.daytona.api.client.model.WorkosSsoConnection;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -240,6 +239,33 @@ public class OrganizationsApiTest {
     }
 
     /**
+     * Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void generateWorkosAdminPortalLinkTest() throws ApiException {
+        String organizationId = null;
+        GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink = null;
+        WorkosAdminPortalLink response = api.generateWorkosAdminPortalLink(organizationId, generateWorkosAdminPortalLink);
+        // TODO: test validations
+    }
+
+    /**
+     * Get shared GPU capacity
+     *
+     * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getGpuCapacityTest() throws ApiException {
+        String organizationId = null;
+        GpuCapacityResponse response = api.getGpuCapacity(organizationId);
+        // TODO: test validations
+    }
+
+    /**
      * Get organization by ID
      *
      * @throws ApiException if the Api call fails
@@ -321,6 +347,18 @@ public class OrganizationsApiTest {
         String id = null;
         String xDaytonaOrganizationID = null;
         Region response = api.getRegionById(id, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Get sandbox identity by sandbox auth token
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getSandboxIdentityBySandboxAuthTokenTest() throws ApiException {
+        String authToken = null;
+        SandboxIdentity response = api.getSandboxIdentityBySandboxAuthToken(authToken);
         // TODO: test validations
     }
 
@@ -431,6 +469,18 @@ public class OrganizationsApiTest {
     }
 
     /**
+     * List the SSO connections configured for the organization in WorkOS
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void listWorkosSsoConnectionsTest() throws ApiException {
+        String organizationId = null;
+        List<WorkosSsoConnection> response = api.listWorkosSsoConnections(organizationId);
+        // TODO: test validations
+    }
+
+    /**
      * Regenerate proxy API key for a region
      *
      * @throws ApiException if the Api call fails
@@ -483,19 +533,6 @@ public class OrganizationsApiTest {
     }
 
     /**
-     * Suspend organization
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void suspendOrganizationTest() throws ApiException {
-        String organizationId = null;
-        OrganizationSuspension organizationSuspension = null;
-        api.suspendOrganization(organizationId, organizationSuspension);
-        // TODO: test validations
-    }
-
-    /**
      * Test OIDC identity provider connection
      *
      * @throws ApiException if the Api call fails
@@ -505,18 +542,6 @@ public class OrganizationsApiTest {
         String organizationId = null;
         TestIdentityProviderConnection testIdentityProviderConnection = null;
         TestIdentityProviderConnectionResponse response = api.testOrganizationIdentityProviderConnection(organizationId, testIdentityProviderConnection);
-        // TODO: test validations
-    }
-
-    /**
-     * Unsuspend organization
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void unsuspendOrganizationTest() throws ApiException {
-        String organizationId = null;
-        api.unsuspendOrganization(organizationId);
         // TODO: test validations
     }
 
@@ -589,46 +614,6 @@ public class OrganizationsApiTest {
     }
 
     /**
-     * Update organization preview warning
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void updateOrganizationPreviewWarningTest() throws ApiException {
-        String organizationId = null;
-        OrganizationPreviewWarning organizationPreviewWarning = null;
-        api.updateOrganizationPreviewWarning(organizationId, organizationPreviewWarning);
-        // TODO: test validations
-    }
-
-    /**
-     * Update organization quota
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void updateOrganizationQuotaTest() throws ApiException {
-        String organizationId = null;
-        UpdateOrganizationQuota updateOrganizationQuota = null;
-        api.updateOrganizationQuota(organizationId, updateOrganizationQuota);
-        // TODO: test validations
-    }
-
-    /**
-     * Update organization region quota
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void updateOrganizationRegionQuotaTest() throws ApiException {
-        String organizationId = null;
-        String regionId = null;
-        UpdateOrganizationRegionQuota updateOrganizationRegionQuota = null;
-        api.updateOrganizationRegionQuota(organizationId, regionId, updateOrganizationRegionQuota);
-        // TODO: test validations
-    }
-
-    /**
      * Update organization role
      *
      * @throws ApiException if the Api call fails
@@ -643,19 +628,6 @@ public class OrganizationsApiTest {
     }
 
     /**
-     * Update organization SSO entitlement
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void updateOrganizationSsoEnabledTest() throws ApiException {
-        String organizationId = null;
-        OrganizationSsoEnabled organizationSsoEnabled = null;
-        api.updateOrganizationSsoEnabled(organizationId, organizationSsoEnabled);
-        // TODO: test validations
-    }
-
-    /**
      * Update region configuration
      *
      * @throws ApiException if the Api call fails
@@ -666,19 +638,6 @@ public class OrganizationsApiTest {
         UpdateRegion updateRegion = null;
         String xDaytonaOrganizationID = null;
         api.updateRegion(id, updateRegion, xDaytonaOrganizationID);
-        // TODO: test validations
-    }
-
-    /**
-     * Update sandbox default limited network egress
-     *
-     * @throws ApiException if the Api call fails
-     */
-    @Test
-    public void updateSandboxDefaultLimitedNetworkEgressTest() throws ApiException {
-        String organizationId = null;
-        OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress = null;
-        api.updateSandboxDefaultLimitedNetworkEgress(organizationId, organizationSandboxDefaultLimitedNetworkEgress);
         // TODO: test validations
     }
 

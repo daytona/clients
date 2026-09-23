@@ -35,19 +35,18 @@ import io.daytona.api.client.model.CreateOrganizationInvitation;
 import io.daytona.api.client.model.CreateOrganizationRole;
 import io.daytona.api.client.model.CreateRegion;
 import io.daytona.api.client.model.CreateRegionResponse;
+import io.daytona.api.client.model.GenerateWorkosAdminPortalLink;
+import io.daytona.api.client.model.GpuCapacityResponse;
 import io.daytona.api.client.model.IdentityProvider;
 import io.daytona.api.client.model.Organization;
 import io.daytona.api.client.model.OrganizationInvitation;
-import io.daytona.api.client.model.OrganizationPreviewWarning;
 import io.daytona.api.client.model.OrganizationRole;
-import io.daytona.api.client.model.OrganizationSandboxDefaultLimitedNetworkEgress;
-import io.daytona.api.client.model.OrganizationSsoEnabled;
-import io.daytona.api.client.model.OrganizationSuspension;
 import io.daytona.api.client.model.OrganizationUsageOverview;
 import io.daytona.api.client.model.OrganizationUser;
 import io.daytona.api.client.model.OtelConfig;
 import io.daytona.api.client.model.RegenerateApiKeyResponse;
 import io.daytona.api.client.model.Region;
+import io.daytona.api.client.model.SandboxIdentity;
 import io.daytona.api.client.model.SnapshotManagerCredentials;
 import io.daytona.api.client.model.TestIdentityProviderConnection;
 import io.daytona.api.client.model.TestIdentityProviderConnectionResponse;
@@ -55,10 +54,10 @@ import io.daytona.api.client.model.UpdateIdentityProvider;
 import io.daytona.api.client.model.UpdateOrganizationDefaultRegion;
 import io.daytona.api.client.model.UpdateOrganizationInvitation;
 import io.daytona.api.client.model.UpdateOrganizationMemberAccess;
-import io.daytona.api.client.model.UpdateOrganizationQuota;
-import io.daytona.api.client.model.UpdateOrganizationRegionQuota;
 import io.daytona.api.client.model.UpdateOrganizationRole;
 import io.daytona.api.client.model.UpdateRegion;
+import io.daytona.api.client.model.WorkosAdminPortalLink;
+import io.daytona.api.client.model.WorkosSsoConnection;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -1930,6 +1929,274 @@ public class OrganizationsApi {
         return localVarCall;
     }
     /**
+     * Build call for generateWorkosAdminPortalLink
+     * @param organizationId Organization ID (required)
+     * @param generateWorkosAdminPortalLink  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Admin Portal link generated; it expires five minutes after issuance </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call generateWorkosAdminPortalLinkCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = generateWorkosAdminPortalLink;
+
+        // create path and map variables
+        String localVarPath = "/organizations/{organizationId}/identity-providers/workos-admin-portal-link"
+            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call generateWorkosAdminPortalLinkValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'organizationId' is set
+        if (organizationId == null) {
+            throw new ApiException("Missing the required parameter 'organizationId' when calling generateWorkosAdminPortalLink(Async)");
+        }
+
+        // verify the required parameter 'generateWorkosAdminPortalLink' is set
+        if (generateWorkosAdminPortalLink == null) {
+            throw new ApiException("Missing the required parameter 'generateWorkosAdminPortalLink' when calling generateWorkosAdminPortalLink(Async)");
+        }
+
+        return generateWorkosAdminPortalLinkCall(organizationId, generateWorkosAdminPortalLink, _callback);
+
+    }
+
+    /**
+     * Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+     * 
+     * @param organizationId Organization ID (required)
+     * @param generateWorkosAdminPortalLink  (required)
+     * @return WorkosAdminPortalLink
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Admin Portal link generated; it expires five minutes after issuance </td><td>  -  </td></tr>
+     </table>
+     */
+    public WorkosAdminPortalLink generateWorkosAdminPortalLink(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink) throws ApiException {
+        ApiResponse<WorkosAdminPortalLink> localVarResp = generateWorkosAdminPortalLinkWithHttpInfo(organizationId, generateWorkosAdminPortalLink);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync
+     * 
+     * @param organizationId Organization ID (required)
+     * @param generateWorkosAdminPortalLink  (required)
+     * @return ApiResponse&lt;WorkosAdminPortalLink&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Admin Portal link generated; it expires five minutes after issuance </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<WorkosAdminPortalLink> generateWorkosAdminPortalLinkWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink) throws ApiException {
+        okhttp3.Call localVarCall = generateWorkosAdminPortalLinkValidateBeforeCall(organizationId, generateWorkosAdminPortalLink, null);
+        Type localVarReturnType = new TypeToken<WorkosAdminPortalLink>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync (asynchronously)
+     * 
+     * @param organizationId Organization ID (required)
+     * @param generateWorkosAdminPortalLink  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 201 </td><td> Admin Portal link generated; it expires five minutes after issuance </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call generateWorkosAdminPortalLinkAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull GenerateWorkosAdminPortalLink generateWorkosAdminPortalLink, final ApiCallback<WorkosAdminPortalLink> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = generateWorkosAdminPortalLinkValidateBeforeCall(organizationId, generateWorkosAdminPortalLink, _callback);
+        Type localVarReturnType = new TypeToken<WorkosAdminPortalLink>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getGpuCapacity
+     * @param organizationId Organization ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Shared GPU capacity grouped by GPU type. </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> GPU capacity is not enabled for this organization. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getGpuCapacityCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/organizations/{organizationId}/gpu-capacity"
+            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getGpuCapacityValidateBeforeCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'organizationId' is set
+        if (organizationId == null) {
+            throw new ApiException("Missing the required parameter 'organizationId' when calling getGpuCapacity(Async)");
+        }
+
+        return getGpuCapacityCall(organizationId, _callback);
+
+    }
+
+    /**
+     * Get shared GPU capacity
+     * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+     * @param organizationId Organization ID (required)
+     * @return GpuCapacityResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Shared GPU capacity grouped by GPU type. </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> GPU capacity is not enabled for this organization. </td><td>  -  </td></tr>
+     </table>
+     */
+    public GpuCapacityResponse getGpuCapacity(@javax.annotation.Nonnull String organizationId) throws ApiException {
+        ApiResponse<GpuCapacityResponse> localVarResp = getGpuCapacityWithHttpInfo(organizationId);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get shared GPU capacity
+     * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+     * @param organizationId Organization ID (required)
+     * @return ApiResponse&lt;GpuCapacityResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Shared GPU capacity grouped by GPU type. </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> GPU capacity is not enabled for this organization. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GpuCapacityResponse> getGpuCapacityWithHttpInfo(@javax.annotation.Nonnull String organizationId) throws ApiException {
+        okhttp3.Call localVarCall = getGpuCapacityValidateBeforeCall(organizationId, null);
+        Type localVarReturnType = new TypeToken<GpuCapacityResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get shared GPU capacity (asynchronously)
+     * Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+     * @param organizationId Organization ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Shared GPU capacity grouped by GPU type. </td><td>  -  </td></tr>
+        <tr><td> 403 </td><td> GPU capacity is not enabled for this organization. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getGpuCapacityAsync(@javax.annotation.Nonnull String organizationId, final ApiCallback<GpuCapacityResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getGpuCapacityValidateBeforeCall(organizationId, _callback);
+        Type localVarReturnType = new TypeToken<GpuCapacityResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for getOrganization
      * @param organizationId Organization ID (required)
      * @param _callback Callback for upload/download progress
@@ -2824,6 +3091,133 @@ public class OrganizationsApi {
 
         okhttp3.Call localVarCall = getRegionByIdValidateBeforeCall(id, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<Region>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getSandboxIdentityBySandboxAuthToken
+     * @param authToken Sandbox Auth Token (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Sandbox identity </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSandboxIdentityBySandboxAuthTokenCall(@javax.annotation.Nonnull String authToken, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}"
+            .replace("{" + "authToken" + "}", localVarApiClient.escapeString(authToken.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getSandboxIdentityBySandboxAuthTokenValidateBeforeCall(@javax.annotation.Nonnull String authToken, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'authToken' is set
+        if (authToken == null) {
+            throw new ApiException("Missing the required parameter 'authToken' when calling getSandboxIdentityBySandboxAuthToken(Async)");
+        }
+
+        return getSandboxIdentityBySandboxAuthTokenCall(authToken, _callback);
+
+    }
+
+    /**
+     * Get sandbox identity by sandbox auth token
+     * 
+     * @param authToken Sandbox Auth Token (required)
+     * @return SandboxIdentity
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Sandbox identity </td><td>  -  </td></tr>
+     </table>
+     */
+    public SandboxIdentity getSandboxIdentityBySandboxAuthToken(@javax.annotation.Nonnull String authToken) throws ApiException {
+        ApiResponse<SandboxIdentity> localVarResp = getSandboxIdentityBySandboxAuthTokenWithHttpInfo(authToken);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get sandbox identity by sandbox auth token
+     * 
+     * @param authToken Sandbox Auth Token (required)
+     * @return ApiResponse&lt;SandboxIdentity&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Sandbox identity </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<SandboxIdentity> getSandboxIdentityBySandboxAuthTokenWithHttpInfo(@javax.annotation.Nonnull String authToken) throws ApiException {
+        okhttp3.Call localVarCall = getSandboxIdentityBySandboxAuthTokenValidateBeforeCall(authToken, null);
+        Type localVarReturnType = new TypeToken<SandboxIdentity>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get sandbox identity by sandbox auth token (asynchronously)
+     * 
+     * @param authToken Sandbox Auth Token (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Sandbox identity </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSandboxIdentityBySandboxAuthTokenAsync(@javax.annotation.Nonnull String authToken, final ApiCallback<SandboxIdentity> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getSandboxIdentityBySandboxAuthTokenValidateBeforeCall(authToken, _callback);
+        Type localVarReturnType = new TypeToken<SandboxIdentity>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -3945,6 +4339,133 @@ public class OrganizationsApi {
         return localVarCall;
     }
     /**
+     * Build call for listWorkosSsoConnections
+     * @param organizationId Organization ID (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> SSO connections as configured in the WorkOS Admin Portal; empty when none exist </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listWorkosSsoConnectionsCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/organizations/{organizationId}/identity-providers/workos-sso-connections"
+            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call listWorkosSsoConnectionsValidateBeforeCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'organizationId' is set
+        if (organizationId == null) {
+            throw new ApiException("Missing the required parameter 'organizationId' when calling listWorkosSsoConnections(Async)");
+        }
+
+        return listWorkosSsoConnectionsCall(organizationId, _callback);
+
+    }
+
+    /**
+     * List the SSO connections configured for the organization in WorkOS
+     * 
+     * @param organizationId Organization ID (required)
+     * @return List&lt;WorkosSsoConnection&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> SSO connections as configured in the WorkOS Admin Portal; empty when none exist </td><td>  -  </td></tr>
+     </table>
+     */
+    public List<WorkosSsoConnection> listWorkosSsoConnections(@javax.annotation.Nonnull String organizationId) throws ApiException {
+        ApiResponse<List<WorkosSsoConnection>> localVarResp = listWorkosSsoConnectionsWithHttpInfo(organizationId);
+        return localVarResp.getData();
+    }
+
+    /**
+     * List the SSO connections configured for the organization in WorkOS
+     * 
+     * @param organizationId Organization ID (required)
+     * @return ApiResponse&lt;List&lt;WorkosSsoConnection&gt;&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> SSO connections as configured in the WorkOS Admin Portal; empty when none exist </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<List<WorkosSsoConnection>> listWorkosSsoConnectionsWithHttpInfo(@javax.annotation.Nonnull String organizationId) throws ApiException {
+        okhttp3.Call localVarCall = listWorkosSsoConnectionsValidateBeforeCall(organizationId, null);
+        Type localVarReturnType = new TypeToken<List<WorkosSsoConnection>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * List the SSO connections configured for the organization in WorkOS (asynchronously)
+     * 
+     * @param organizationId Organization ID (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> SSO connections as configured in the WorkOS Admin Portal; empty when none exist </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call listWorkosSsoConnectionsAsync(@javax.annotation.Nonnull String organizationId, final ApiCallback<List<WorkosSsoConnection>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = listWorkosSsoConnectionsValidateBeforeCall(organizationId, _callback);
+        Type localVarReturnType = new TypeToken<List<WorkosSsoConnection>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for regenerateProxyApiKey
      * @param id Region ID (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
@@ -4485,133 +5006,6 @@ public class OrganizationsApi {
         return localVarCall;
     }
     /**
-     * Build call for suspendOrganization
-     * @param organizationId Organization ID (required)
-     * @param organizationSuspension  (optional)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization suspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call suspendOrganizationCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable OrganizationSuspension organizationSuspension, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = organizationSuspension;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/suspend"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call suspendOrganizationValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable OrganizationSuspension organizationSuspension, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling suspendOrganization(Async)");
-        }
-
-        return suspendOrganizationCall(organizationId, organizationSuspension, _callback);
-
-    }
-
-    /**
-     * Suspend organization
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSuspension  (optional)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization suspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void suspendOrganization(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable OrganizationSuspension organizationSuspension) throws ApiException {
-        suspendOrganizationWithHttpInfo(organizationId, organizationSuspension);
-    }
-
-    /**
-     * Suspend organization
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSuspension  (optional)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization suspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> suspendOrganizationWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable OrganizationSuspension organizationSuspension) throws ApiException {
-        okhttp3.Call localVarCall = suspendOrganizationValidateBeforeCall(organizationId, organizationSuspension, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Suspend organization (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSuspension  (optional)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization suspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call suspendOrganizationAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable OrganizationSuspension organizationSuspension, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = suspendOrganizationValidateBeforeCall(organizationId, organizationSuspension, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
      * Build call for testOrganizationIdentityProviderConnection
      * @param organizationId Organization ID (required)
      * @param testIdentityProviderConnection  (required)
@@ -4746,128 +5140,6 @@ public class OrganizationsApi {
         okhttp3.Call localVarCall = testOrganizationIdentityProviderConnectionValidateBeforeCall(organizationId, testIdentityProviderConnection, _callback);
         Type localVarReturnType = new TypeToken<TestIdentityProviderConnectionResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
-        return localVarCall;
-    }
-    /**
-     * Build call for unsuspendOrganization
-     * @param organizationId Organization ID (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization unsuspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call unsuspendOrganizationCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = null;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/unsuspend"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call unsuspendOrganizationValidateBeforeCall(@javax.annotation.Nonnull String organizationId, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling unsuspendOrganization(Async)");
-        }
-
-        return unsuspendOrganizationCall(organizationId, _callback);
-
-    }
-
-    /**
-     * Unsuspend organization
-     * 
-     * @param organizationId Organization ID (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization unsuspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void unsuspendOrganization(@javax.annotation.Nonnull String organizationId) throws ApiException {
-        unsuspendOrganizationWithHttpInfo(organizationId);
-    }
-
-    /**
-     * Unsuspend organization
-     * 
-     * @param organizationId Organization ID (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization unsuspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> unsuspendOrganizationWithHttpInfo(@javax.annotation.Nonnull String organizationId) throws ApiException {
-        okhttp3.Call localVarCall = unsuspendOrganizationValidateBeforeCall(organizationId, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Unsuspend organization (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization unsuspended successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call unsuspendOrganizationAsync(@javax.annotation.Nonnull String organizationId, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = unsuspendOrganizationValidateBeforeCall(organizationId, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }
     /**
@@ -5571,412 +5843,6 @@ public class OrganizationsApi {
         return localVarCall;
     }
     /**
-     * Build call for updateOrganizationPreviewWarning
-     * @param organizationId Organization ID (required)
-     * @param organizationPreviewWarning  (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Preview warning updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationPreviewWarningCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationPreviewWarning organizationPreviewWarning, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = organizationPreviewWarning;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/preview-warning"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateOrganizationPreviewWarningValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationPreviewWarning organizationPreviewWarning, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling updateOrganizationPreviewWarning(Async)");
-        }
-
-        // verify the required parameter 'organizationPreviewWarning' is set
-        if (organizationPreviewWarning == null) {
-            throw new ApiException("Missing the required parameter 'organizationPreviewWarning' when calling updateOrganizationPreviewWarning(Async)");
-        }
-
-        return updateOrganizationPreviewWarningCall(organizationId, organizationPreviewWarning, _callback);
-
-    }
-
-    /**
-     * Update organization preview warning
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationPreviewWarning  (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Preview warning updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void updateOrganizationPreviewWarning(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationPreviewWarning organizationPreviewWarning) throws ApiException {
-        updateOrganizationPreviewWarningWithHttpInfo(organizationId, organizationPreviewWarning);
-    }
-
-    /**
-     * Update organization preview warning
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationPreviewWarning  (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Preview warning updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> updateOrganizationPreviewWarningWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationPreviewWarning organizationPreviewWarning) throws ApiException {
-        okhttp3.Call localVarCall = updateOrganizationPreviewWarningValidateBeforeCall(organizationId, organizationPreviewWarning, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Update organization preview warning (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationPreviewWarning  (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Preview warning updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationPreviewWarningAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationPreviewWarning organizationPreviewWarning, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = updateOrganizationPreviewWarningValidateBeforeCall(organizationId, organizationPreviewWarning, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
-     * Build call for updateOrganizationQuota
-     * @param organizationId Organization ID (required)
-     * @param updateOrganizationQuota  (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationQuotaCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationQuota updateOrganizationQuota, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = updateOrganizationQuota;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/quota"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "PATCH", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateOrganizationQuotaValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationQuota updateOrganizationQuota, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling updateOrganizationQuota(Async)");
-        }
-
-        // verify the required parameter 'updateOrganizationQuota' is set
-        if (updateOrganizationQuota == null) {
-            throw new ApiException("Missing the required parameter 'updateOrganizationQuota' when calling updateOrganizationQuota(Async)");
-        }
-
-        return updateOrganizationQuotaCall(organizationId, updateOrganizationQuota, _callback);
-
-    }
-
-    /**
-     * Update organization quota
-     * 
-     * @param organizationId Organization ID (required)
-     * @param updateOrganizationQuota  (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void updateOrganizationQuota(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationQuota updateOrganizationQuota) throws ApiException {
-        updateOrganizationQuotaWithHttpInfo(organizationId, updateOrganizationQuota);
-    }
-
-    /**
-     * Update organization quota
-     * 
-     * @param organizationId Organization ID (required)
-     * @param updateOrganizationQuota  (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> updateOrganizationQuotaWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationQuota updateOrganizationQuota) throws ApiException {
-        okhttp3.Call localVarCall = updateOrganizationQuotaValidateBeforeCall(organizationId, updateOrganizationQuota, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Update organization quota (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param updateOrganizationQuota  (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Organization quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationQuotaAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationQuota updateOrganizationQuota, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = updateOrganizationQuotaValidateBeforeCall(organizationId, updateOrganizationQuota, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
-     * Build call for updateOrganizationRegionQuota
-     * @param organizationId Organization ID (required)
-     * @param regionId ID of the region where the updated quota will be applied (required)
-     * @param updateOrganizationRegionQuota  (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Region quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationRegionQuotaCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull String regionId, @javax.annotation.Nonnull UpdateOrganizationRegionQuota updateOrganizationRegionQuota, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = updateOrganizationRegionQuota;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/quota/{regionId}"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()))
-            .replace("{" + "regionId" + "}", localVarApiClient.escapeString(regionId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "PATCH", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateOrganizationRegionQuotaValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull String regionId, @javax.annotation.Nonnull UpdateOrganizationRegionQuota updateOrganizationRegionQuota, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling updateOrganizationRegionQuota(Async)");
-        }
-
-        // verify the required parameter 'regionId' is set
-        if (regionId == null) {
-            throw new ApiException("Missing the required parameter 'regionId' when calling updateOrganizationRegionQuota(Async)");
-        }
-
-        // verify the required parameter 'updateOrganizationRegionQuota' is set
-        if (updateOrganizationRegionQuota == null) {
-            throw new ApiException("Missing the required parameter 'updateOrganizationRegionQuota' when calling updateOrganizationRegionQuota(Async)");
-        }
-
-        return updateOrganizationRegionQuotaCall(organizationId, regionId, updateOrganizationRegionQuota, _callback);
-
-    }
-
-    /**
-     * Update organization region quota
-     * 
-     * @param organizationId Organization ID (required)
-     * @param regionId ID of the region where the updated quota will be applied (required)
-     * @param updateOrganizationRegionQuota  (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Region quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void updateOrganizationRegionQuota(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull String regionId, @javax.annotation.Nonnull UpdateOrganizationRegionQuota updateOrganizationRegionQuota) throws ApiException {
-        updateOrganizationRegionQuotaWithHttpInfo(organizationId, regionId, updateOrganizationRegionQuota);
-    }
-
-    /**
-     * Update organization region quota
-     * 
-     * @param organizationId Organization ID (required)
-     * @param regionId ID of the region where the updated quota will be applied (required)
-     * @param updateOrganizationRegionQuota  (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Region quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> updateOrganizationRegionQuotaWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull String regionId, @javax.annotation.Nonnull UpdateOrganizationRegionQuota updateOrganizationRegionQuota) throws ApiException {
-        okhttp3.Call localVarCall = updateOrganizationRegionQuotaValidateBeforeCall(organizationId, regionId, updateOrganizationRegionQuota, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Update organization region quota (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param regionId ID of the region where the updated quota will be applied (required)
-     * @param updateOrganizationRegionQuota  (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Region quota updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationRegionQuotaAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull String regionId, @javax.annotation.Nonnull UpdateOrganizationRegionQuota updateOrganizationRegionQuota, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = updateOrganizationRegionQuotaValidateBeforeCall(organizationId, regionId, updateOrganizationRegionQuota, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
      * Build call for updateOrganizationRole
      * @param organizationId Organization ID (required)
      * @param roleId Role ID (required)
@@ -6124,138 +5990,6 @@ public class OrganizationsApi {
         return localVarCall;
     }
     /**
-     * Build call for updateOrganizationSsoEnabled
-     * @param organizationId Organization ID (required)
-     * @param organizationSsoEnabled  (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> SSO entitlement updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationSsoEnabledCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSsoEnabled organizationSsoEnabled, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = organizationSsoEnabled;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/sso-enabled"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateOrganizationSsoEnabledValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSsoEnabled organizationSsoEnabled, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling updateOrganizationSsoEnabled(Async)");
-        }
-
-        // verify the required parameter 'organizationSsoEnabled' is set
-        if (organizationSsoEnabled == null) {
-            throw new ApiException("Missing the required parameter 'organizationSsoEnabled' when calling updateOrganizationSsoEnabled(Async)");
-        }
-
-        return updateOrganizationSsoEnabledCall(organizationId, organizationSsoEnabled, _callback);
-
-    }
-
-    /**
-     * Update organization SSO entitlement
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSsoEnabled  (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> SSO entitlement updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void updateOrganizationSsoEnabled(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSsoEnabled organizationSsoEnabled) throws ApiException {
-        updateOrganizationSsoEnabledWithHttpInfo(organizationId, organizationSsoEnabled);
-    }
-
-    /**
-     * Update organization SSO entitlement
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSsoEnabled  (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> SSO entitlement updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> updateOrganizationSsoEnabledWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSsoEnabled organizationSsoEnabled) throws ApiException {
-        okhttp3.Call localVarCall = updateOrganizationSsoEnabledValidateBeforeCall(organizationId, organizationSsoEnabled, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Update organization SSO entitlement (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSsoEnabled  (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> SSO entitlement updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateOrganizationSsoEnabledAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSsoEnabled organizationSsoEnabled, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = updateOrganizationSsoEnabledValidateBeforeCall(organizationId, organizationSsoEnabled, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
      * Build call for updateRegion
      * @param id Region ID (required)
      * @param updateRegion  (required)
@@ -6393,138 +6127,6 @@ public class OrganizationsApi {
     public okhttp3.Call updateRegionAsync(@javax.annotation.Nonnull String id, @javax.annotation.Nonnull UpdateRegion updateRegion, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<Void> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = updateRegionValidateBeforeCall(id, updateRegion, xDaytonaOrganizationID, _callback);
-        localVarApiClient.executeAsync(localVarCall, _callback);
-        return localVarCall;
-    }
-    /**
-     * Build call for updateSandboxDefaultLimitedNetworkEgress
-     * @param organizationId Organization ID (required)
-     * @param organizationSandboxDefaultLimitedNetworkEgress  (required)
-     * @param _callback Callback for upload/download progress
-     * @return Call to execute
-     * @throws ApiException If fail to serialize the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Sandbox default limited network egress updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateSandboxDefaultLimitedNetworkEgressCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress, final ApiCallback _callback) throws ApiException {
-        String basePath = null;
-        // Operation Servers
-        String[] localBasePaths = new String[] {  };
-
-        // Determine Base Path to Use
-        if (localCustomBaseUrl != null){
-            basePath = localCustomBaseUrl;
-        } else if ( localBasePaths.length > 0 ) {
-            basePath = localBasePaths[localHostIndex];
-        } else {
-            basePath = null;
-        }
-
-        Object localVarPostBody = organizationSandboxDefaultLimitedNetworkEgress;
-
-        // create path and map variables
-        String localVarPath = "/organizations/{organizationId}/sandbox-default-limited-network-egress"
-            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
-
-        List<Pair> localVarQueryParams = new ArrayList<Pair>();
-        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-        Map<String, String> localVarCookieParams = new HashMap<String, String>();
-        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-        final String[] localVarAccepts = {
-        };
-        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
-        if (localVarAccept != null) {
-            localVarHeaderParams.put("Accept", localVarAccept);
-        }
-
-        final String[] localVarContentTypes = {
-            "application/json"
-        };
-        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
-        if (localVarContentType != null) {
-            localVarHeaderParams.put("Content-Type", localVarContentType);
-        }
-
-        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
-        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private okhttp3.Call updateSandboxDefaultLimitedNetworkEgressValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress, final ApiCallback _callback) throws ApiException {
-        // verify the required parameter 'organizationId' is set
-        if (organizationId == null) {
-            throw new ApiException("Missing the required parameter 'organizationId' when calling updateSandboxDefaultLimitedNetworkEgress(Async)");
-        }
-
-        // verify the required parameter 'organizationSandboxDefaultLimitedNetworkEgress' is set
-        if (organizationSandboxDefaultLimitedNetworkEgress == null) {
-            throw new ApiException("Missing the required parameter 'organizationSandboxDefaultLimitedNetworkEgress' when calling updateSandboxDefaultLimitedNetworkEgress(Async)");
-        }
-
-        return updateSandboxDefaultLimitedNetworkEgressCall(organizationId, organizationSandboxDefaultLimitedNetworkEgress, _callback);
-
-    }
-
-    /**
-     * Update sandbox default limited network egress
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSandboxDefaultLimitedNetworkEgress  (required)
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Sandbox default limited network egress updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public void updateSandboxDefaultLimitedNetworkEgress(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress) throws ApiException {
-        updateSandboxDefaultLimitedNetworkEgressWithHttpInfo(organizationId, organizationSandboxDefaultLimitedNetworkEgress);
-    }
-
-    /**
-     * Update sandbox default limited network egress
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSandboxDefaultLimitedNetworkEgress  (required)
-     * @return ApiResponse&lt;Void&gt;
-     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Sandbox default limited network egress updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public ApiResponse<Void> updateSandboxDefaultLimitedNetworkEgressWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress) throws ApiException {
-        okhttp3.Call localVarCall = updateSandboxDefaultLimitedNetworkEgressValidateBeforeCall(organizationId, organizationSandboxDefaultLimitedNetworkEgress, null);
-        return localVarApiClient.execute(localVarCall);
-    }
-
-    /**
-     * Update sandbox default limited network egress (asynchronously)
-     * 
-     * @param organizationId Organization ID (required)
-     * @param organizationSandboxDefaultLimitedNetworkEgress  (required)
-     * @param _callback The callback to be executed when the API call finishes
-     * @return The request call
-     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
-     * @http.response.details
-     <table border="1">
-       <caption>Response Details</caption>
-        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 204 </td><td> Sandbox default limited network egress updated successfully </td><td>  -  </td></tr>
-     </table>
-     */
-    public okhttp3.Call updateSandboxDefaultLimitedNetworkEgressAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull OrganizationSandboxDefaultLimitedNetworkEgress organizationSandboxDefaultLimitedNetworkEgress, final ApiCallback<Void> _callback) throws ApiException {
-
-        okhttp3.Call localVarCall = updateSandboxDefaultLimitedNetworkEgressValidateBeforeCall(organizationId, organizationSandboxDefaultLimitedNetworkEgress, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }
