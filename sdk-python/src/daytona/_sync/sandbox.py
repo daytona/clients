@@ -151,6 +151,7 @@ class Sandbox(SandboxDto):
             is configured).
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
+        kvm (bool | None): Whether the sandbox exposes KVM (/dev/kvm) to its guest.
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for
             the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
         domain_allow_list (str | None): Comma-separated list of allowed domains for
@@ -172,6 +173,7 @@ class Sandbox(SandboxDto):
 
     env: dict[str, str] | None = None  # pyright: ignore[reportRedeclaration]
     network_block_all: bool | None = None  # pyright: ignore[reportRedeclaration]
+    kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
 
     _fs: FileSystem = PrivateAttr()
     _git: Git = PrivateAttr()
@@ -1472,6 +1474,7 @@ class Sandbox(SandboxDto):
             self.network_block_all: bool | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
                 sandbox_dto.network_block_all
             )
+            self.kvm: bool | None = sandbox_dto.kvm  # pyright: ignore[reportIncompatibleVariableOverride]
             self.network_allow_list: str | None = sandbox_dto.network_allow_list
             self.domain_allow_list: str | None = sandbox_dto.domain_allow_list
             self.outbound_proxy_url: str | None = sandbox_dto.outbound_proxy_url

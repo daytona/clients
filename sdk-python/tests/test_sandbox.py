@@ -60,6 +60,16 @@ class TestSandboxInit:
         sandbox._Sandbox__process_sandbox_dto(update_dto)
         assert sandbox.toolbox_proxy_url == "http://hydrated:2280"
 
+    def test_kvm_hydrated_from_dto(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(kvm=True)
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        assert sandbox.kvm is True
+
+    def test_kvm_default_false_from_dto(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto()
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        assert sandbox.kvm is False
+
 
 class TestSandboxLifecycleSettings:
     def test_negative_autostop_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):

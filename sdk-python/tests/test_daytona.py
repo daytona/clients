@@ -231,6 +231,25 @@ class TestDaytonaCreateValidation:
         assert create_request.volumes[0].volume_id == "vol-1"
         assert create_request.volumes[0].subpath == "logs"
 
+    def test_create_with_kvm_true(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        params = CreateSandboxFromSnapshotParams(language="python", kvm=True)
+        daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.kvm is True
+
+    def test_create_default_kvm_is_none(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        params = CreateSandboxFromSnapshotParams(language="python")
+        assert params.kvm is None
+        daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.kvm is None
+
 
 class TestDaytonaGetAndList:
     def test_get_empty_id_raises(self, env_with_api_key):

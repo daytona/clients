@@ -167,6 +167,8 @@ class CreateSandboxBaseParams(BaseModel):
             requests to the Secret's allowed hosts. Every referenced Secret name must already exist
             in the organization.
         network_block_all (bool | None): Whether to block all network access for the Sandbox.
+        kvm (bool | None): Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+            linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
         network_allow_list (str | None): Comma-separated list of allowed CIDR network addresses for the Sandbox.
         domain_allow_list (str | None): Comma-separated list of allowed domains for the Sandbox.
         outbound_proxy_url (str | None): Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied
@@ -200,6 +202,7 @@ class CreateSandboxBaseParams(BaseModel):
     volumes: list[VolumeMount] | None = None
     secrets: dict[str, str] | None = None
     network_block_all: bool | None = None
+    kvm: bool | None = None
     network_allow_list: str | None = None
     domain_allow_list: str | None = None
     outbound_proxy_url: str | None = None

@@ -541,6 +541,25 @@ class TestAsyncDaytonaCreateValidation:
         assert create_request.volumes[0].volume_id == "vol-1"
         assert create_request.volumes[0].subpath == "logs"
 
+    @pytest.mark.asyncio
+    async def test_create_with_kvm_true(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        params = CreateSandboxFromSnapshotParams(language="python", kvm=True)
+        await daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.kvm is True
+
+    @pytest.mark.asyncio
+    async def test_create_default_kvm_is_none(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        params = CreateSandboxFromSnapshotParams(language="python")
+        assert params.kvm is None
+        await daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.kvm is None
+
 
 class TestAsyncDaytonaGetAndList:
     @pytest.mark.asyncio
