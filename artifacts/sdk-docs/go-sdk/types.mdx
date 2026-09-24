@@ -368,7 +368,7 @@ type GitStatus struct {
 <a name="GpuType"></a>
 ## type GpuType
 
-GpuType identifies a specific GPU model. Used in [Resources.GpuType](<#Resources>) as an ordered preference list — the scheduler tries each in order and pins the sandbox/snapshot to the first that has capacity. It is an alias for the API client's GpuType type.
+GpuType identifies a specific GPU model. Used in \[Resources.GpuType\] as an ordered preference list — the scheduler tries each in order and pins the sandbox/snapshot to the first that has capacity. It is an alias for the API client's GpuType type.
 
 ```go
 type GpuType = apiclient.GpuType
@@ -678,7 +678,7 @@ type ScreenshotResponse struct {
 
 Secret represents an organization\-scoped secret.
 
-A Secret stores a write\-only plaintext value that is never returned by the API. When referenced from a sandbox, the env var holds the opaque [Secret.Placeholder](<#Secret>) token, which is resolved to the real value only for the secret's allowed [Secret.Hosts](<#Secret>).
+A Secret stores a write\-only plaintext value that is never returned by the API. When referenced from a sandbox, the env var holds the opaque \[Secret.Placeholder\] token, which is resolved to the real value only for the secret's allowed \[Secret.Hosts\].
 
 ```go
 type Secret struct {
