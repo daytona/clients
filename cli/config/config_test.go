@@ -6,7 +6,9 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -73,5 +75,59 @@ func TestConfigIgnoresLegacyToolboxProxyUrlsKey(t *testing.T) {
 	}
 	if profile.ActiveOrganizationId == nil || *profile.ActiveOrganizationId != "org-123" {
 		t.Fatalf("expected organization id to be preserved, got %v", profile.ActiveOrganizationId)
+	}
+}
+
+func TestSaveNeverExposesAPartialConfigToAConcurrentReader(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DAYTONA_CONFIG_DIR", dir)
+	t.Setenv(DAYTONA_API_URL_ENV_VAR, "")
+	t.Setenv(DAYTONA_API_KEY_ENV_VAR, "")
+
+	c := &Config{ActiveProfileId: "default", Profiles: []Profile{{Id: "default", Name: "default"}}}
+	if err := c.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	const rounds = 200
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < rounds; i++ {
+			if err := c.Save(); err != nil {
+				t.Errorf("Save() error = %v", err)
+				return
+			}
+		}
+	}()
+
+	// Join the writer before failing: after the test returns, t.Setenv restores the
+	// real DAYTONA_CONFIG_DIR and a still-running Save would overwrite the user's config.
+	var readErr error
+	for i := 0; i < rounds && readErr == nil; i++ {
+		_, readErr = GetConfig()
+	}
+	wg.Wait()
+	if readErr != nil {
+		t.Fatalf("a concurrent GetConfig() saw a partial file: %v", readErr)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "config.json" {
+		t.Errorf("expected only config.json in the config dir, got %v", entries)
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(filepath.Join(dir, "config.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("config mode = %v, want 0600", info.Mode().Perm())
+		}
 	}
 }
