@@ -114,20 +114,23 @@ func writeProfileWithToken(t *testing.T, token config.Token) {
 }
 
 // writeToken replaces the active profile's token, as another daytona process would.
+// It runs on an httptest handler goroutine, so it reports with Errorf, never Fatal.
 func writeToken(t *testing.T, token config.Token) {
 	t.Helper()
 
 	c, err := config.GetConfig()
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("reading config: %v", err)
+		return
 	}
 	profile, err := c.GetActiveProfile()
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("reading active profile: %v", err)
+		return
 	}
 	profile.Api.Token = &token
 	if err := c.EditProfile(profile); err != nil {
-		t.Fatal(err)
+		t.Errorf("writing token: %v", err)
 	}
 }
 

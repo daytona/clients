@@ -132,7 +132,32 @@ func (c *Config) Save() error {
 		return err
 	}
 
-	return os.WriteFile(configFilePath, configContent, 0600)
+	return writeFileAtomically(configFilePath, configContent)
+}
+
+/*
+writeFileAtomically replaces path through a temporary file in the same directory
+and a rename, so a daytona process reading the config concurrently (the MCP
+server, or a parallel command refreshing its token) sees the old or the new
+content, never a truncated file. The temporary file is created 0600, so the
+config keeps owner-only permissions.
+*/
+func writeFileAtomically(path string, content []byte) error {
+	temp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temp.Name())
+
+	_, err = temp.Write(content)
+	if closeErr := temp.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(temp.Name(), path)
 }
 
 func (c *Config) AddProfile(profile Profile) error {
