@@ -17,6 +17,7 @@ module DaytonaApiClient
   class GpuType
     H100 = "H100".freeze
     H200 = "H200".freeze
+    B300 = "B300".freeze
     RTX_PRO_6000 = "RTX-PRO-6000".freeze
     RTX_4090 = "RTX-4090".freeze
     RTX_5090 = "RTX-5090".freeze
@@ -24,7 +25,7 @@ module DaytonaApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [H100, H200, RTX_PRO_6000, RTX_4090, RTX_5090, MI355X, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [H100, H200, B300, RTX_PRO_6000, RTX_4090, RTX_5090, MI355X, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

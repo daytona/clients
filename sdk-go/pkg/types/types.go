@@ -30,6 +30,7 @@ type GpuType = apiclient.GpuType
 
 const (
 	GpuTypeH100       GpuType = apiclient.GPUTYPE_H100
+	GpuTypeB300       GpuType = apiclient.GPUTYPE_B300
 	GpuTypeRtxPro6000 GpuType = apiclient.GPUTYPE_RTX_PRO_6000
 	GpuTypeMI355X     GpuType = apiclient.GPUTYPE_MI355X
 )
