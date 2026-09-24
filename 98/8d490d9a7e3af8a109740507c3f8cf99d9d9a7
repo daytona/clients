@@ -1,0 +1,11 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  ai_agent 708,750,885,926,1572,1605,2011,2045,3140,3175,5343,5377,5538,5582,5832,5868,6011,6044
+artifacts/sdk-docs/go-sdk/types.mdx
+  ai_agent 371,681
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "988d490d9a7e3af8a109740507c3f8cf99d9d9a7",
+  "prompts": {}
+}
