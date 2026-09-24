@@ -225,6 +225,27 @@ func refreshError(err error) error {
 	return fmt.Errorf("failed to refresh the access token, please retry: %w", err)
 }
 
+/*
+rotatedByAnotherProcess reports whether the stored refresh token changed since
+spentRefreshToken was read. Daytona processes share the config file, and WorkOS
+rotates refresh tokens: when another one (e.g. the MCP server) refreshed first,
+ours is already spent and fails with invalid_grant, while the token it stored is
+valid and can be used as is.
+*/
+func rotatedByAnotherProcess(spentRefreshToken string) bool {
+	c, err := config.GetConfig()
+	if err != nil {
+		return false
+	}
+
+	activeProfile, err := c.GetActiveProfile()
+	if err != nil || activeProfile.Api.Token == nil {
+		return false
+	}
+
+	return activeProfile.Api.Token.RefreshToken != spentRefreshToken
+}
+
 func RefreshTokenIfNeeded(ctx context.Context) error {
 	c, err := config.GetConfig()
 	if err != nil {
@@ -263,6 +284,10 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 	// WorkOS rotates refresh tokens, so the returned one replaces the stored one.
 	newToken, err := oauth2Config.TokenSource(ctx, &oauth2.Token{RefreshToken: storedToken.RefreshToken}).Token()
 	if err != nil {
+		if rotatedByAnotherProcess(storedToken.RefreshToken) {
+			return nil
+		}
+
 		return refreshError(err)
 	}
 

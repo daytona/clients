@@ -113,6 +113,24 @@ func writeProfileWithToken(t *testing.T, token config.Token) {
 	}
 }
 
+// writeToken replaces the active profile's token, as another daytona process would.
+func writeToken(t *testing.T, token config.Token) {
+	t.Helper()
+
+	c, err := config.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := c.GetActiveProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile.Api.Token = &token
+	if err := c.EditProfile(profile); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func storedToken(t *testing.T) config.Token {
 	t.Helper()
 
@@ -318,6 +336,43 @@ func TestRefreshTokenIfNeededAsksForLoginOnlyWhenTheSessionIsDead(t *testing.T) 
 				t.Error("a failed refresh must not touch the stored token")
 			}
 		})
+	}
+}
+
+func TestRefreshTokenIfNeededUsesATokenAnotherProcessRotated(t *testing.T) {
+	refusingAuth0(t)
+
+	workosClient := &config.WorkOSClient{ClientId: "client_123"}
+	rotated := config.Token{
+		AccessToken:  "fresh-from-other-process",
+		RefreshToken: "rotated-by-other-process",
+		ExpiresAt:    time.Now().Add(time.Hour),
+		WorkOS:       workosClient,
+	}
+
+	// Another process refreshes first and stores its result; ours then presents the
+	// spent refresh token and WorkOS refuses it.
+	workos := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeToken(t, rotated)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"Invalid refresh token."}`))
+	}))
+	t.Cleanup(workos.Close)
+	workosClient.Issuer = workos.URL + "/user_management/client_123"
+
+	writeProfileWithToken(t, config.Token{
+		AccessToken:  "expiring",
+		RefreshToken: "old-refresh",
+		ExpiresAt:    time.Now().Add(time.Minute),
+		WorkOS:       workosClient,
+	})
+
+	if err := RefreshTokenIfNeeded(context.Background()); err != nil {
+		t.Fatalf("expected the other process's token to be used, got %v", err)
+	}
+	if token := storedToken(t); token.RefreshToken != rotated.RefreshToken || token.AccessToken != rotated.AccessToken {
+		t.Errorf("stored token = %+v, want the other process's", token)
 	}
 }
 
