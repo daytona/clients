@@ -49,3 +49,6 @@ require (
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+// v0.217.0 was tagged on a pre-bump commit and does not compile standalone; use v0.217.1.
+retract v0.217.0
