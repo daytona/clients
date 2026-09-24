@@ -102,12 +102,16 @@ func TestSaveNeverExposesAPartialConfigToAConcurrentReader(t *testing.T) {
 		}
 	}()
 
-	for i := 0; i < rounds; i++ {
-		if _, err := GetConfig(); err != nil {
-			t.Fatalf("a concurrent GetConfig() saw a partial file: %v", err)
-		}
+	// Join the writer before failing: after the test returns, t.Setenv restores the
+	// real DAYTONA_CONFIG_DIR and a still-running Save would overwrite the user's config.
+	var readErr error
+	for i := 0; i < rounds && readErr == nil; i++ {
+		_, readErr = GetConfig()
 	}
 	wg.Wait()
+	if readErr != nil {
+		t.Fatalf("a concurrent GetConfig() saw a partial file: %v", readErr)
+	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
