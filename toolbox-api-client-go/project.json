@@ -90,7 +90,11 @@
         "parallel": false
       },
       "dependsOn": [
-        "check-version-env"
+        "check-version-env",
+        {
+          "target": "set-version",
+          "projects": ["api-client-go"]
+        }
       ]
     }
   },
