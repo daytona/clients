@@ -135,27 +135,30 @@ func TestLoginApiUrlFailsBeforeTheBrowserOpensWhenNoProfileIsActive(t *testing.T
 	}
 }
 
+// Applications of one WorkOS environment share its issuer and differ only in client
+// id (verified on prod), so the advertised CLI application carries the dashboard's
+// issuer with its own client id.
 func TestFetchOidcConfigReadsTheAdvertisedCliApplication(t *testing.T) {
-	apiUrl := serveConfig(t, http.StatusOK, `{"oidc":{"issuer":"https://auth.example.com/user_management/client_dash","clientId":"client_dash","provider":"workos","cli":{"issuer":"https://auth.example.com/user_management/client_cli","clientId":"client_cli"}}}`)
+	apiUrl := serveConfig(t, http.StatusOK, `{"oidc":{"issuer":"https://auth.example.com/user_management/client_env","clientId":"client_dash","provider":"workos","cli":{"issuer":"https://auth.example.com/user_management/client_env","clientId":"client_cli"}}}`)
 
 	advertised, err := fetchOidcConfig(context.Background(), apiUrl)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := config.WorkOSClient{Issuer: "https://auth.example.com/user_management/client_cli", ClientId: "client_cli"}
+	want := config.WorkOSClient{Issuer: "https://auth.example.com/user_management/client_env", ClientId: "client_cli"}
 	if got := advertised.workosClient(); got != want {
 		t.Errorf("workosClient() = %+v, want the CLI application %+v", got, want)
 	}
 }
 
 func TestWorkosClientFallsBackToTheDashboardApplication(t *testing.T) {
-	dashboard := config.WorkOSClient{Issuer: "https://auth.example.com/user_management/client_dash", ClientId: "client_dash"}
+	dashboard := config.WorkOSClient{Issuer: "https://auth.example.com/user_management/client_env", ClientId: "client_dash"}
 
 	for name, cli := range map[string]*config.WorkOSClient{
 		"no cli block":         nil,
 		"cli without issuer":   {ClientId: "client_cli"},
-		"cli without clientId": {Issuer: "https://auth.example.com/user_management/client_cli"},
+		"cli without clientId": {Issuer: "https://auth.example.com/user_management/client_env"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			advertised := oidcConfig{Issuer: dashboard.Issuer, ClientId: dashboard.ClientId, Provider: workosProvider, Cli: cli}
