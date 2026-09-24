@@ -1,0 +1,19 @@
+cli/cmd/auth/login_test.go
+  s_7927d7aeddcf0f::t_33100fc02e7e0e 138-140,142,149,156,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40c46b8ebb5c763d49c5e5bbacc86dfb5976aacf",
+  "prompts": {},
+  "sessions": {
+    "s_7927d7aeddcf0f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "95ff542d-924e-4b57-97e7-dec87bbb8ce2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}
