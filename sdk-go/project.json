@@ -134,7 +134,7 @@
         "commands": [
           "git add pkg/daytona/VERSION",
           "git add ../api-client-go/VERSION ../toolbox-api-client-go/VERSION",
-          "git add go.mod ../cli/go.mod",
+          "git add go.mod ../cli/go.mod ../examples/go/go.mod",
           "git commit -s -m \"chore(sdk-go): bump to ${VERSION:-v0.0.0-dev}\" || true"
         ],
         "parallel": false

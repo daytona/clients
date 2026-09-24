@@ -66,6 +66,7 @@
       "cache": true,
       "inputs": [
         "{workspaceRoot}/sdk-go/go.mod",
+        "{workspaceRoot}/examples/go/go.mod",
         {
           "env": "VERSION"
         },
@@ -76,12 +77,14 @@
       ],
       "outputs": [
         "{workspaceRoot}/sdk-go/go.mod",
+        "{workspaceRoot}/examples/go/go.mod",
         "{projectRoot}/VERSION"
       ],
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
           "cd sdk-go && go mod edit -require=github.com/daytona/clients/toolbox-api-client-go@$VERSION",
+          "cd examples/go && go mod edit -require=github.com/daytona/clients/toolbox-api-client-go@$VERSION",
           "echo \"$VERSION\" > toolbox-api-client-go/VERSION"
         ],
         "parallel": false

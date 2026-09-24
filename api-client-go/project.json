@@ -54,6 +54,7 @@
       "inputs": [
         "{workspaceRoot}/cli/go.mod",
         "{workspaceRoot}/sdk-go/go.mod",
+        "{workspaceRoot}/examples/go/go.mod",
         {
           "env": "VERSION"
         },
@@ -65,6 +66,7 @@
       "outputs": [
         "{workspaceRoot}/cli/go.mod",
         "{workspaceRoot}/sdk-go/go.mod",
+        "{workspaceRoot}/examples/go/go.mod",
         "{projectRoot}/VERSION"
       ],
       "options": {
@@ -72,6 +74,7 @@
         "commands": [
           "cd cli && go mod edit -require=github.com/daytona/clients/api-client-go@$VERSION",
           "cd sdk-go && go mod edit -require=github.com/daytona/clients/api-client-go@$VERSION",
+          "cd examples/go && go mod edit -require=github.com/daytona/clients/api-client-go@$VERSION",
           "echo \"$VERSION\" > api-client-go/VERSION"
         ],
         "parallel": false
