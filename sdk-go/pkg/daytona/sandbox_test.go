@@ -88,6 +88,7 @@ func TestNewSandboxConstruction(t *testing.T) {
 			assert.Equal(t, tt.autoDeleteInterval, sandbox.AutoDeleteInterval)
 			require.NotNil(t, sandbox.NetworkBlockAll)
 			assert.Equal(t, tt.networkBlockAll, *sandbox.NetworkBlockAll)
+			assert.Nil(t, sandbox.Kvm)
 			assert.Equal(t, tt.networkAllowList, sandbox.NetworkAllowList)
 
 			assert.NotNil(t, sandbox.FileSystem)
@@ -110,6 +111,46 @@ func TestNewSandboxConstruction(t *testing.T) {
 			assert.Equal(t, "http://otel.test:4318", *sandbox.OtelEndpointOverride)
 		})
 	}
+	os.Clearenv()
+}
+
+func TestSandboxKvmHydration(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("DAYTONA_API_KEY", "test-api-key")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+
+	state := apiclient.SANDBOXSTATE_STARTED
+	dto := &apiclient.Sandbox{
+		Id:    "kvm-sandbox",
+		Name:  "kvm-test",
+		State: &state,
+		Kvm:   apiclient.PtrBool(true),
+	}
+	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
+	require.NotNil(t, sandbox.Kvm)
+	assert.True(t, *sandbox.Kvm)
+
+	os.Clearenv()
+}
+
+func TestSandboxKvmAbsentFromDTO(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("DAYTONA_API_KEY", "test-api-key")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+
+	state := apiclient.SANDBOXSTATE_STARTED
+	dto := &apiclient.Sandbox{
+		Id:    "no-kvm-sandbox",
+		Name:  "no-kvm-test",
+		State: &state,
+	}
+	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
+	assert.Nil(t, sandbox.Kvm)
+
 	os.Clearenv()
 }
 

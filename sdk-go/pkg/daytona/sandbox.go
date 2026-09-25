@@ -132,6 +132,10 @@ type Sandbox struct {
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
 	NetworkBlockAll *bool
 
+	// Kvm reports whether the sandbox exposes KVM (/dev/kvm) to its guest.
+	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+	Kvm *bool
+
 	// NetworkAllowList is a comma-separated list of allowed CIDR addresses.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
 	NetworkAllowList *string
@@ -171,8 +175,8 @@ const (
 // [Sandbox.populateFromDTO] accept either DTO without duplicating logic.
 //
 // Fields that exist only on the full [apiclient.Sandbox] DTO (Env,
-// NetworkBlockAll, NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes,
-// BuildInfo, BackupCreatedAt) are populated via a type assertion inside populateFromDTO.
+// NetworkBlockAll, Kvm, NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes,
+// BuildInfo, BackupCreatedAt, OtelEndpointOverride) are populated via a type assertion inside populateFromDTO.
 type sandboxDTO interface {
 	GetId() string
 	GetName() string
@@ -392,8 +396,8 @@ func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO
 // (or, at construction, directly) so that state waiters are notified.
 //
 // Fields present only on the full *[apiclient.Sandbox] DTO (Env, NetworkBlockAll,
-// NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes, BuildInfo,
-// BackupCreatedAt) are populated via a type assertion. When dto is a
+// Kvm, NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes, BuildInfo,
+// BackupCreatedAt, OtelEndpointOverride) are populated via a type assertion. When dto is a
 // *[apiclient.SandboxListItem] they remain at their zero values.
 func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	// Fields shared by both apiclient.Sandbox and apiclient.SandboxListItem.
@@ -465,6 +469,7 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
+		s.Kvm = full.Kvm
 		s.NetworkAllowList = full.NetworkAllowList
 		s.DomainAllowList = full.DomainAllowList
 		s.OutboundProxyUrl = full.OutboundProxyUrl

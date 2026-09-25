@@ -204,6 +204,10 @@ export interface Sandbox {
      * The toolbox proxy URL for the sandbox
      */
     'toolboxProxyUrl': string;
+    /**
+     * Whether the sandbox exposes KVM (/dev/kvm) to its guest
+     */
+    'kvm'?: boolean;
 }
 
 export const SandboxBackupStateEnum = {

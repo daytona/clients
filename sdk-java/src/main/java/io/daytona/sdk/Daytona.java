@@ -263,7 +263,7 @@ public class Daytona implements AutoCloseable {
      *
      * <p>The returned {@link Iterable} lazily fetches pages from the API as iteration proceeds.
      * Sandboxes are hydrated from the list endpoint, so fields marked "Not returned by
-     * {@code Daytona.list}" on {@link Sandbox} (env, networkBlockAll, networkAllowList, volumes,
+     * {@code Daytona.list}" on {@link Sandbox} (env, networkBlockAll, kvm, networkAllowList, volumes,
      * buildInfo, backupCreatedAt) remain {@code null} until {@link Sandbox#refreshData()} is called.
      * For a {@link Stream} variant see {@link #listStream(ListSandboxesQuery)}.
      *
@@ -604,6 +604,7 @@ public class Daytona implements AutoCloseable {
         if (params.getAutoDeleteInterval() != null) body.setAutoDeleteInterval(params.getAutoDeleteInterval());
         if (params.getTtlMinutes() != null) body.setTtlMinutes(params.getTtlMinutes());
         if (params.getNetworkBlockAll() != null) body.setNetworkBlockAll(params.getNetworkBlockAll());
+        if (params.getKvm() != null) body.setKvm(params.getKvm());
         if (params.getDomainAllowList() != null) body.setDomainAllowList(params.getDomainAllowList());
         if (params.getOutboundProxyUrl() != null) body.setOutboundProxyUrl(params.getOutboundProxyUrl());
         if (params.getOtelEndpointOverride() != null) body.setOtelEndpointOverride(params.getOtelEndpointOverride());

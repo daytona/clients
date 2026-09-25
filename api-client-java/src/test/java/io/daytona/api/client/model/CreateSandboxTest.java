@@ -260,4 +260,12 @@ public class CreateSandboxTest {
         // TODO: test secrets
     }
 
+    /**
+     * Test the property 'kvm'
+     */
+    @Test
+    public void kvmTest() {
+        // TODO: test kvm
+    }
+
 }

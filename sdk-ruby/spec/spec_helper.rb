@@ -91,6 +91,7 @@ def build_sandbox_dto(overrides = {}) # rubocop:disable Metrics/MethodLength
     last_activity_at: '2025-01-01T00:00:00Z',
     daemon_version: '1.0.0',
     network_block_all: false,
+    kvm: false,
     network_allow_list: nil,
     domain_allow_list: nil,
     outbound_proxy_url: nil,

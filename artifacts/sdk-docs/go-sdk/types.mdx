@@ -585,8 +585,11 @@ type SandboxBaseParams struct {
     // sandbox holding the secret's opaque placeholder, which is resolved to the
     // real value only when the sandbox connects to one of the secret's allowed
     // hosts. The referenced secrets must already exist (see [Client.Secret]).
-    Secrets          map[string]string
-    NetworkBlockAll  bool
+    Secrets         map[string]string
+    NetworkBlockAll bool
+    // Kvm exposes KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    // linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+    Kvm              bool
     NetworkAllowList *string
     DomainAllowList  *string
     // OutboundProxyUrl is the outbound proxy URL the sandbox HTTP(S) traffic is

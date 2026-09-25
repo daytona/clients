@@ -653,6 +653,7 @@ class AsyncDaytona:
             volumes=volumes,
             secrets=secrets,
             network_block_all=params.network_block_all,
+            kvm=params.kvm,
             network_allow_list=params.network_allow_list,
             domain_allow_list=params.domain_allow_list,
             outbound_proxy_url=params.outbound_proxy_url,

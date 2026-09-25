@@ -30,6 +30,7 @@ public class CreateSandboxParams {
     private List<VolumeMount> volumes;
     private Map<String, String> secrets;
     private Boolean networkBlockAll;
+    private Boolean kvm;
     private String domainAllowList;
     private String outboundProxyUrl;
     private String otelEndpointOverride;
@@ -242,6 +243,22 @@ public class CreateSandboxParams {
      * @param networkBlockAll network block flag
      */
     public void setNetworkBlockAll(Boolean networkBlockAll) { this.networkBlockAll = networkBlockAll; }
+
+    /**
+     * Returns whether KVM (/dev/kvm) is exposed inside the sandbox via nested virtualization.
+     * linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+     *
+     * @return {@code true} if KVM is exposed, or {@code null} if unset
+     */
+    public Boolean getKvm() { return kvm; }
+
+    /**
+     * Sets whether to expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+     * linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+     *
+     * @param kvm KVM exposure flag
+     */
+    public void setKvm(Boolean kvm) { this.kvm = kvm; }
 
     /**
      * Returns the comma-separated list of allowed domains.

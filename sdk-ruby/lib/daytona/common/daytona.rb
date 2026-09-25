@@ -50,6 +50,10 @@ module Daytona
     # @return [Boolean, nil] Whether to block all network access for the Sandbox
     attr_accessor :network_block_all
 
+    # @return [Boolean, nil] Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    #   linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+    attr_accessor :kvm
+
     # @return [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     attr_accessor :network_allow_list
 
@@ -95,6 +99,8 @@ module Daytona
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
+    # @param kvm [Boolean, nil] Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    #   linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
@@ -123,6 +129,7 @@ module Daytona
       volumes: nil,
       secrets: nil,
       network_block_all: nil,
+      kvm: nil,
       network_allow_list: nil,
       domain_allow_list: nil,
       outbound_proxy_url: nil,
@@ -145,6 +152,7 @@ module Daytona
       @volumes = volumes
       @secrets = secrets
       @network_block_all = network_block_all
+      @kvm = kvm
       @network_allow_list = network_allow_list
       @domain_allow_list = domain_allow_list
       @outbound_proxy_url = outbound_proxy_url
@@ -176,6 +184,7 @@ module Daytona
         volumes:,
         secrets:,
         network_block_all:,
+        kvm:,
         network_allow_list:,
         domain_allow_list:,
         outbound_proxy_url:,
@@ -233,6 +242,8 @@ module Daytona
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
+    # @param kvm [Boolean, nil] Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    #   linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
@@ -282,6 +293,8 @@ module Daytona
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name
     # @param network_block_all [Boolean, nil] Whether to block all network access for the Sandbox
+    # @param kvm [Boolean, nil] Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    #   linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
     # @param network_allow_list [String, nil] Comma-separated list of allowed CIDR network addresses for the Sandbox
     # @param domain_allow_list [String, nil] Comma-separated list of allowed domains for the Sandbox
     # @param outbound_proxy_url [String, nil] Outbound proxy URL to route the Sandbox HTTP(S) traffic through.

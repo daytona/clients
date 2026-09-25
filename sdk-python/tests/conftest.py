@@ -71,6 +71,7 @@ def make_sandbox_dto(
         created_at=cast(str | None, kwargs.get("created_at", "2025-01-01T00:00:00Z")),
         updated_at=cast(str | None, kwargs.get("updated_at", "2025-01-01T00:00:00Z")),
         network_block_all=cast(bool, kwargs.get("network_block_all", False)),
+        kvm=cast(bool, kwargs.get("kvm", False)),
         network_allow_list=cast(str | None, kwargs.get("network_allow_list", None)),
         domain_allow_list=cast(str | None, kwargs.get("domain_allow_list", None)),
         auto_destroy_at=cast(str | None, kwargs.get("auto_destroy_at", None)),

@@ -56,6 +56,7 @@ const baseDto: SandboxDto = {
   memory: 4,
   disk: 10,
   state: 'stopped',
+  kvm: false,
   networkBlockAll: false,
   toolboxProxyUrl: 'http://proxy',
 }
@@ -124,6 +125,11 @@ describe('Sandbox', () => {
     expect(sandbox.id).toBe('sb-1')
     expect(sandbox.labels).toEqual({ team: 'sdk' })
     expect(sandbox.autoStopInterval).toBe(10)
+  })
+
+  it('hydrates kvm from dto', () => {
+    const { sandbox } = makeSandbox({ kvm: true })
+    expect(sandbox.kvm).toBe(true)
   })
 
   it('maps sandboxClass, warmPoolId, gpuType, desiredState, daemonVersion and otelEndpointOverride from dto', () => {

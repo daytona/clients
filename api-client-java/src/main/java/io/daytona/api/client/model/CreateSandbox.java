@@ -192,6 +192,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private List<Map<String, String>> secrets = new ArrayList<>();
 
+  public static final String SERIALIZED_NAME_KVM = "kvm";
+  @SerializedName(SERIALIZED_NAME_KVM)
+  @javax.annotation.Nullable
+  private Boolean kvm = false;
+
   public CreateSandbox() {
   }
 
@@ -747,6 +752,25 @@ public class CreateSandbox {
     this.secrets = secrets;
   }
 
+
+  public CreateSandbox kvm(@javax.annotation.Nullable Boolean kvm) {
+    this.kvm = kvm;
+    return this;
+  }
+
+  /**
+   * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+   * @return kvm
+   */
+  @javax.annotation.Nullable
+  public Boolean getKvm() {
+    return kvm;
+  }
+
+  public void setKvm(@javax.annotation.Nullable Boolean kvm) {
+    this.kvm = kvm;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -828,13 +852,14 @@ public class CreateSandbox {
         Objects.equals(this.volumes, createSandbox.volumes) &&
         Objects.equals(this.buildInfo, createSandbox.buildInfo) &&
         Objects.equals(this.linkedSandbox, createSandbox.linkedSandbox) &&
-        Objects.equals(this.secrets, createSandbox.secrets)&&
+        Objects.equals(this.secrets, createSandbox.secrets) &&
+        Objects.equals(this.kvm, createSandbox.kvm)&&
         Objects.equals(this.additionalProperties, createSandbox.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, kvm, additionalProperties);
   }
 
   @Override
@@ -868,6 +893,7 @@ public class CreateSandbox {
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    linkedSandbox: ").append(toIndentedString(linkedSandbox)).append("\n");
     sb.append("    secrets: ").append(toIndentedString(secrets)).append("\n");
+    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -887,7 +913,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets", "kvm"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

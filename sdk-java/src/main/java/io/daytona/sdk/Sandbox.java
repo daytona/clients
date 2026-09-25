@@ -170,6 +170,7 @@ public class Sandbox {
     // call refreshData() on each item to populate.
     private Map<String, String> env;
     private Boolean networkBlockAll;
+    private Boolean kvm;
     private String networkAllowList;
     private String domainAllowList;
     private String outboundProxyUrl;
@@ -856,7 +857,7 @@ public class Sandbox {
      * Copies fields from the full {@link io.daytona.api.client.model.Sandbox} DTO onto this instance.
      *
      * <p>Populates every field, including those not returned by the list endpoint (env,
-     * networkBlockAll, networkAllowList, volumes, buildInfo, backupCreatedAt).
+     * networkBlockAll, kvm, networkAllowList, volumes, buildInfo, backupCreatedAt).
      */
     private void populateFromDTO(io.daytona.api.client.model.Sandbox d) {
         if (d == null) {
@@ -878,6 +879,7 @@ public class Sandbox {
         // Fields only present on the full Sandbox DTO.
         this.env = d.getEnv() == null ? new HashMap<String, String>() : new HashMap<String, String>(d.getEnv());
         this.networkBlockAll = d.getNetworkBlockAll();
+        this.kvm = d.getKvm();
         this.networkAllowList = d.getNetworkAllowList();
         this.domainAllowList = d.getDomainAllowList();
         this.outboundProxyUrl = d.getOutboundProxyUrl();
@@ -892,7 +894,7 @@ public class Sandbox {
     /**
      * Copies fields from a {@link SandboxListItem} DTO onto this instance.
      *
-     * <p>The list endpoint omits env, networkBlockAll, networkAllowList, volumes, buildInfo, and
+     * <p>The list endpoint omits env, networkBlockAll, kvm, networkAllowList, volumes, buildInfo, and
      * backupCreatedAt; those fields remain {@code null} until {@link #refreshData()} is called.
      */
     private void populateFromDTO(SandboxListItem d) {
@@ -1492,6 +1494,14 @@ public class Sandbox {
      * @return block-all flag, or {@code null} if not yet populated
      */
     public Boolean getNetworkBlockAll() { return networkBlockAll; }
+    /**
+     * Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+     *
+     * <p>Not returned by {@link Daytona#list}; call {@link #refreshData()} on each item to populate.
+     *
+     * @return KVM flag, or {@code null} if not yet populated
+     */
+    public Boolean getKvm() { return kvm; }
     /**
      * Returns the comma-separated CIDR allow list, if any.
      *

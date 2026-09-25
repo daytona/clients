@@ -8928,6 +8928,7 @@ components:
         outboundProxyUrl: http://user:pass@proxy.example.com:3128
         gpuType:
         - H100
+        kvm: false
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
         volumes:
         - mountPath: /data
@@ -9114,6 +9115,12 @@ components:
               type: string
             type: object
           type: array
+        kvm:
+          default: false
+          description: Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+            linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+          example: false
+          type: boolean
       type: object
     BuildInfo:
       properties:
@@ -9177,6 +9184,7 @@ components:
         updatedAt: 2024-10-01T12:00:00Z
         sandboxClass: linux-vm
         desiredState: destroyed
+        kvm: false
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
         spotEvictedAt: 2026-08-13T12:00:00.000Z
         volumes:
@@ -9420,6 +9428,10 @@ components:
           description: The toolbox proxy URL for the sandbox
           example: https://proxy.app.daytona.io/toolbox
           type: string
+        kvm:
+          description: Whether the sandbox exposes KVM (/dev/kvm) to its guest
+          example: false
+          type: boolean
       required:
       - cpu
       - disk

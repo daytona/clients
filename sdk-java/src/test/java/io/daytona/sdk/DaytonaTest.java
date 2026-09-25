@@ -219,6 +219,7 @@ class DaytonaTest {
         params.setAutoArchiveInterval(8);
         params.setAutoDeleteInterval(9);
         params.setNetworkBlockAll(true);
+        params.setKvm(true);
         params.setSnapshot("snap-1");
         VolumeMount mount = new VolumeMount();
         mount.setVolumeId("vol-1");
@@ -241,6 +242,7 @@ class DaytonaTest {
         assertThat(body.getAutoArchiveInterval()).isEqualTo(8);
         assertThat(body.getAutoDeleteInterval()).isEqualTo(9);
         assertThat(body.getNetworkBlockAll()).isTrue();
+        assertThat(body.getKvm()).isTrue();
         assertThat(body.getSnapshot()).isEqualTo("snap-1");
         assertThat(body.getVolumes()).singleElement().satisfies(volume -> {
             assertThat(volume.getVolumeId()).isEqualTo("vol-1");
@@ -363,6 +365,44 @@ class DaytonaTest {
         ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
         assertThat(captor.getValue().getTtlMinutes()).isEqualTo(30);
+    }
+
+    @Test
+    void createFromSnapshotWiresKvmTrueToBody() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-kvm", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setKvm(true);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getKvm()).isTrue();
+    }
+
+    @Test
+    void createFromSnapshotDefaultsKvmToFalseWhenUnset() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-kvm-null", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getKvm()).isFalse();
+    }
+
+    @Test
+    void sandboxHydratesKvmFromDTO() {
+        io.daytona.api.client.model.Sandbox dto = TestSupport.mainSandbox("sb-kvm-h", SandboxState.STARTED);
+        dto.setKvm(true);
+        when(sandboxApi.getSandbox("sb-kvm-h", null, null)).thenReturn(dto);
+
+        Sandbox sandbox = daytona.get("sb-kvm-h");
+
+        assertThat(sandbox.getKvm()).isTrue();
     }
 
     @Test

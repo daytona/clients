@@ -144,6 +144,9 @@ module DaytonaApiClient
     # The toolbox proxy URL for the sandbox
     attr_accessor :toolbox_proxy_url
 
+    # Whether the sandbox exposes KVM (/dev/kvm) to its guest
+    attr_accessor :kvm
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -211,7 +214,8 @@ module DaytonaApiClient
         :'daemon_version' => :'daemonVersion',
         :'runner_id' => :'runnerId',
         :'linked_sandbox_id' => :'linkedSandboxId',
-        :'toolbox_proxy_url' => :'toolboxProxyUrl'
+        :'toolbox_proxy_url' => :'toolboxProxyUrl',
+        :'kvm' => :'kvm'
       }
     end
 
@@ -270,7 +274,8 @@ module DaytonaApiClient
         :'daemon_version' => :'String',
         :'runner_id' => :'String',
         :'linked_sandbox_id' => :'String',
-        :'toolbox_proxy_url' => :'String'
+        :'toolbox_proxy_url' => :'String',
+        :'kvm' => :'Boolean'
       }
     end
 
@@ -502,6 +507,10 @@ module DaytonaApiClient
         self.toolbox_proxy_url = attributes[:'toolbox_proxy_url']
       else
         self.toolbox_proxy_url = nil
+      end
+
+      if attributes.key?(:'kvm')
+        self.kvm = attributes[:'kvm']
       end
     end
 
@@ -801,7 +810,8 @@ module DaytonaApiClient
           daemon_version == o.daemon_version &&
           runner_id == o.runner_id &&
           linked_sandbox_id == o.linked_sandbox_id &&
-          toolbox_proxy_url == o.toolbox_proxy_url
+          toolbox_proxy_url == o.toolbox_proxy_url &&
+          kvm == o.kvm
     end
 
     # @see the `==` method
@@ -813,7 +823,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url, kvm].hash
     end
 
     # Builds the object from hash

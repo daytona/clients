@@ -536,6 +536,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 	createReq.SetPublic(baseParams.Public)
 	createReq.SetNetworkBlockAll(baseParams.NetworkBlockAll)
+	createReq.SetKvm(baseParams.Kvm)
 
 	if baseParams.EnvVars != nil {
 		createReq.SetEnv(baseParams.EnvVars)

@@ -192,6 +192,7 @@ export interface Resources {
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
  * @property {number} [ttlMinutes] - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox
+ * @property {boolean} [kvm] - Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
@@ -215,6 +216,7 @@ export type CreateSandboxBaseParams = {
   autoDeleteInterval?: number
   ttlMinutes?: number
   volumes?: VolumeMount[]
+  kvm?: boolean
   networkBlockAll?: boolean
   networkAllowList?: string
   domainAllowList?: string
@@ -735,6 +737,7 @@ export class Daytona implements AsyncDisposable {
           autoDeleteInterval: params.autoDeleteInterval,
           ttlMinutes: params.ttlMinutes,
           volumes: params.volumes,
+          kvm: params.kvm,
           networkBlockAll: params.networkBlockAll,
           networkAllowList: params.networkAllowList,
           domainAllowList: params.domainAllowList,

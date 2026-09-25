@@ -28,6 +28,7 @@ final class TestSupport {
         sandbox.setLabels(new HashMap<String, String>());
         sandbox.setPublic(false);
         sandbox.setNetworkBlockAll(false);
+        sandbox.setKvm(false);
         sandbox.setTarget("us");
         sandbox.setCpu(1);
         sandbox.setGpu(0);
