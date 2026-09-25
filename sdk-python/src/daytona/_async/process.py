@@ -105,7 +105,9 @@ class AsyncProcess:
         Returns:
             ExecuteResponse: Command execution results containing:
                 - exit_code: The command's exit status
-                - result: Standard output from the command
+                - result: Combined stdout and stderr from the command (interleaved)
+                - stdout: Standard output only; None when the sandbox daemon predates split streams
+                - stderr: Standard error only; None when the sandbox daemon predates split streams
                 - artifacts: ExecutionArtifacts object containing `stdout` (same as result)
                 and `charts` (matplotlib charts metadata)
 
@@ -114,6 +116,11 @@ class AsyncProcess:
             # Simple command
             response = await sandbox.process.exec("echo 'Hello'")
             print(response.artifacts.stdout)  # Prints: Hello
+
+            # Split streams
+            response = await sandbox.process.exec("echo out; echo err >&2")
+            print(response.stdout)  # Prints: out
+            print(response.stderr)  # Prints: err
 
             # Command with working directory
             result = await sandbox.process.exec("ls", cwd="workspace/src")
@@ -138,6 +145,8 @@ class AsyncProcess:
                 response.exit_code if response.exit_code is not None else response.additional_properties.get("code")
             ),
             result=result,
+            stdout=response.stdout,
+            stderr=response.stderr,
             artifacts=artifacts,
             additional_properties=response.additional_properties,
         )

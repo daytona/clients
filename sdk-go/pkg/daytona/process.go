@@ -176,6 +176,8 @@ func (p *ProcessService) ExecuteCommand(ctx context.Context, command string, opt
 		return &types.ExecuteResponse{
 			ExitCode: exitCode,
 			Result:   resp.Result,
+			Stdout:   resp.Stdout,
+			Stderr:   resp.Stderr,
 			Artifacts: &types.ExecutionArtifacts{
 				Stdout: resp.Result,
 			},

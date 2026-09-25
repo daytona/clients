@@ -4276,11 +4276,22 @@ components:
     ExecuteResponse:
       example:
         result: result
+        stdout: stdout
         exitCode: 0
+        stderr: stderr
       properties:
         exitCode:
           type: integer
         result:
+          description: Combined stdout and stderr in arrival order (interleaved)
+          type: string
+        stderr:
+          description: Standard error only; omitted by daemons that predate split
+            streams
+          type: string
+        stdout:
+          description: Standard output only; omitted by daemons that predate split
+            streams
           type: string
       required:
       - result
