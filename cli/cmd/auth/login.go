@@ -167,6 +167,20 @@ type oidcConfig struct {
 	Issuer   string `json:"issuer"`
 	ClientId string `json:"clientId"`
 	Provider string `json:"provider"`
+	// Cli is the WorkOS application for the CLI, configured apart from the
+	// dashboard's so CLI sessions can have their own lifetime. Absent on APIs
+	// without one.
+	Cli *config.WorkOSClient `json:"cli,omitempty"`
+}
+
+// workosClient is the WorkOS application to log in through: the CLI's own when
+// the API advertises it, else the dashboard's.
+func (c oidcConfig) workosClient() config.WorkOSClient {
+	if c.Cli != nil && c.Cli.Issuer != "" && c.Cli.ClientId != "" {
+		return *c.Cli
+	}
+
+	return config.WorkOSClient{Issuer: c.Issuer, ClientId: c.ClientId}
 }
 
 const (
@@ -216,7 +230,7 @@ func login(ctx context.Context) (*config.Token, error) {
 
 	var token *config.Token
 	if advertised.Provider == workosProvider {
-		token, err = loginWithWorkOS(ctx, config.WorkOSClient{Issuer: advertised.Issuer, ClientId: advertised.ClientId})
+		token, err = loginWithWorkOS(ctx, advertised.workosClient())
 	} else {
 		token, err = loginWithAuth0(ctx)
 	}
