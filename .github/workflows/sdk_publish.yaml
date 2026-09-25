@@ -67,14 +67,10 @@ jobs:
           - name: Java SDK
             projects: sdk-java
             pkg_version: ${{ inputs.maven_pkg_version }}
+    # Registry credentials are set per step rather than for the whole job, so that
+    # `yarn install` in setup-toolchain runs with none of them in its environment, and
+    # each matrix leg only ever sees the registry it publishes to.
     env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-      MAVEN_GPG_SIGNING_KEY: ${{ secrets.MAVEN_GPG_SIGNING_KEY }}
-      MAVEN_GPG_SIGNING_PASSWORD: ${{ secrets.MAVEN_GPG_SIGNING_PASSWORD }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - name: Skip publish (no version provided)
@@ -100,6 +96,8 @@ jobs:
           install-swag: 'false'
       - name: Configure RubyGems credentials
         if: matrix.projects == 'sdk-ruby' && matrix.pkg_version != ''
+        env:
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
           mkdir -p ~/.gem
           echo "---" > ~/.gem/credentials
@@ -107,6 +105,16 @@ jobs:
           chmod 0600 ~/.gem/credentials
       - name: Publish projects
         if: matrix.pkg_version != ''
+        env:
+          NPM_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_TOKEN || '' }}
+          PYPI_TOKEN: ${{ matrix.projects == 'sdk-python' && secrets.PYPI_TOKEN || '' }}
+          # The nx ruby publish targets rewrite ~/.gem/credentials from this variable
+          # before `gem push`, so it has to be present on this step too.
+          RUBYGEMS_API_KEY: ${{ matrix.projects == 'sdk-ruby' && secrets.RUBYGEMS_API_KEY || '' }}
+          MAVEN_USERNAME: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_USERNAME || '' }}
+          MAVEN_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_PASSWORD || '' }}
+          MAVEN_GPG_SIGNING_KEY: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_KEY || '' }}
+          MAVEN_GPG_SIGNING_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_PASSWORD || '' }}
         run: |
           source "$(poetry env info --path)/bin/activate"
           yarn nx run-many --target=publish --projects=${{ matrix.projects }}
