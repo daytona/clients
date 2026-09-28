@@ -82,7 +82,10 @@ class Image(BaseModel):
         if not pkgs:
             return self
         extra_args = self.__format_pip_install_args(find_links, index_url, extra_index_urls, pre, extra_options)
-        self._dockerfile += f"RUN python -m pip install {shlex.join(sorted(pkgs))}{extra_args}\n"
+        # Options come first and `--` closes them, so a package name beginning with `-` is
+        # installed as the requirement it is rather than read as a pip option. Shell quoting
+        # does not prevent that: the shell strips the escaping and pip parses what it gets.
+        self._dockerfile += f"RUN python -m pip install{extra_args} -- {shlex.join(sorted(pkgs))}\n"
 
         return self
 

@@ -55,7 +55,17 @@ class TestImageDebianSlim:
 class TestImagePipInstall:
     def test_single_package(self):
         img = Image.base("python:3.12").pip_install("requests")
-        assert "RUN python -m pip install requests" in img.dockerfile()
+        assert "RUN python -m pip install -- requests" in img.dockerfile()
+
+    def test_options_precede_the_terminator(self):
+        img = Image.base("python:3.12").pip_install("requests", index_url="https://pypi.example.com/simple")
+        assert "RUN python -m pip install --index-url https://pypi.example.com/simple -- requests" in img.dockerfile()
+
+    def test_dash_leading_package_stays_a_requirement(self):
+        img = Image.base("python:3.12").pip_install("--extra-index-url=https://elsewhere.invalid/simple", "requests")
+        line = next(ln for ln in img.dockerfile().splitlines() if ln.startswith("RUN python -m pip install"))
+        assert line.startswith("RUN python -m pip install -- ")
+        assert line.index(" -- ") < line.index("--extra-index-url")
 
     def test_multiple_packages(self):
         img = Image.base("python:3.12").pip_install("requests", "pandas")

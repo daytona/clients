@@ -60,7 +60,10 @@ module Daytona
       return self if pkgs.empty?
 
       extra_args = format_pip_install_args(find_links:, index_url:, extra_index_urls:, pre:, extra_options:)
-      @dockerfile += "RUN python -m pip install #{Shellwords.join(pkgs.sort)}#{extra_args}\n"
+      # Options come first and `--` closes them, so a package name beginning with `-` is
+      # installed as the requirement it is rather than read as a pip option. Shell quoting
+      # does not prevent that: the shell strips the escaping and pip parses what it receives.
+      @dockerfile += "RUN python -m pip install#{extra_args} -- #{Shellwords.join(pkgs.sort)}\n"
 
       self
     end
