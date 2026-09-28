@@ -94,9 +94,9 @@ export class Image {
     if (!pkgs.length) return this
 
     const extraArgs = this.formatPipInstallArgs(options)
-    // Options come first and `--` closes them, so a package name beginning with `-` is
-    // installed as the requirement it is rather than read as a pip option. Shell quoting
-    // does not prevent that: the shell strips the escaping and pip parses what it receives.
+    // pip reads an argument beginning with `-` as an option, and shell quoting does not
+    // change that — the escaping covers shell metacharacters, not a leading dash. `--`
+    // closes the option list, so every package is parsed as a requirement.
     this._dockerfile += `RUN python -m pip install${extraArgs} -- ${quote(pkgs.sort())}\n`
 
     return this

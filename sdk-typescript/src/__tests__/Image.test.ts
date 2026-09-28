@@ -57,8 +57,9 @@ describe('Image', () => {
     const image = Image.base('python:3.12').pipInstall('requests', { indexUrl: 'https://pypi.example.com/simple' })
 
     const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))!
-    expect(line.indexOf('--index-url')).toBeLessThan(line.indexOf(' -- '))
-    expect(line.endsWith(' -- requests')).toBe(true)
+    const [options, operands] = line.split(' -- ')
+    expect(options).toContain('--index-url')
+    expect(operands).toBe('requests')
   })
 
   it('passes a package name beginning with a dash as a requirement', async () => {
