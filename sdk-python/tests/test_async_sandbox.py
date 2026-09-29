@@ -295,6 +295,17 @@ class TestAsyncSandboxQueueTimeout:
         assert isinstance(exc_info.value, DaytonaTimeoutError)
 
     @pytest.mark.asyncio
+    async def test_queue_timeout_message_omits_duration_when_unknown(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.DESTROYED, queue_timed_out_at="2026-08-13T12:00:00Z")
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        with pytest.raises(
+            DaytonaQueueTimeoutError, match=r"was destroyed after waiting for a runner \(queue timed out at"
+        ):
+            await sandbox.wait_for_sandbox_start(timeout=0)
+
+    @pytest.mark.asyncio
     async def test_wait_for_start_raises_spot_evicted_error(
         self, mock_async_toolbox_api_client, mock_async_sandbox_api
     ):
