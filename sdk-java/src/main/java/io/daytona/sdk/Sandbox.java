@@ -1203,11 +1203,12 @@ public class Sandbox {
             String resolved = resolvedState.get();
             if (DESTROYED_STATES.contains(resolved) && !targetStates.contains(resolved)) {
                 if (sandbox.queueTimedOutAt != null) {
+                    String waited = sandbox.queueTimeout == null
+                            ? ""
+                            : " " + sandbox.queueTimeout + (sandbox.queueTimeout == 1 ? " minute" : " minutes");
                     throw new DaytonaQueueTimeoutException(
-                            "Sandbox " + sandbox.id + " was destroyed after waiting "
-                                    + sandbox.queueTimeout + (sandbox.queueTimeout != null && sandbox.queueTimeout == 1 ? " minute" : " minutes")
-                                    + " for a runner (queue timed out at "
-                                    + sandbox.queueTimedOutAt + ")"
+                            "Sandbox " + sandbox.id + " was destroyed after waiting" + waited
+                                    + " for a runner (queue timed out at " + sandbox.queueTimedOutAt + ")"
                     );
                 }
                 if (sandbox.spotEvictedAt != null) {

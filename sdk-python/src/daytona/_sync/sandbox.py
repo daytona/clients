@@ -1352,10 +1352,11 @@ class Sandbox(SandboxDto):
             return
 
         if self.queue_timed_out_at:
+            waited = ""
+            if self.queue_timeout is not None:
+                waited = f" {self.queue_timeout} " + ("minute" if self.queue_timeout == 1 else "minutes")
             raise DaytonaQueueTimeoutError(
-                f"Sandbox {self.id} was destroyed after waiting {self.queue_timeout} "
-                + ("minute" if self.queue_timeout == 1 else "minutes")
-                + " for a runner "
+                f"Sandbox {self.id} was destroyed after waiting{waited} for a runner "
                 + f"(queue timed out at {self.queue_timed_out_at})"
             )
 

@@ -401,6 +401,26 @@ describe('Sandbox', () => {
     )
   })
 
+  it('waitUntilStarted omits the duration from the queue timeout error when queueTimeout is unknown', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'starting' }, '')
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        state: 'destroyed',
+        queueTimeout: null,
+        queueTimedOutAt: '2026-09-29T10:00:00.000Z',
+      }),
+    )
+
+    const error = await sandbox.waitUntilStarted(5).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(DaytonaQueueTimeoutError)
+    expect(error).toHaveProperty(
+      'message',
+      'Sandbox sb-1 was destroyed after waiting for a runner (queue timed out at 2026-09-29T10:00:00.000Z)',
+    )
+  })
+
   it('waitUntilStarted rejects with DaytonaSpotEvictedError when the refreshed sandbox was spot evicted', async () => {
     const { sandbox, sandboxApi } = makeSandbox({ state: 'starting' }, '')
     sandboxApi.getSandbox.mockResolvedValue(

@@ -1611,8 +1611,10 @@ export class Sandbox {
     }
 
     if (this.queueTimedOutAt) {
+      const waited =
+        this.queueTimeout == null ? '' : ` ${this.queueTimeout} ${this.queueTimeout === 1 ? 'minute' : 'minutes'}`
       return new DaytonaQueueTimeoutError(
-        `Sandbox ${this.id} was destroyed after waiting ${this.queueTimeout} ${this.queueTimeout === 1 ? 'minute' : 'minutes'} for a runner (queue timed out at ${this.queueTimedOutAt})`,
+        `Sandbox ${this.id} was destroyed after waiting${waited} for a runner (queue timed out at ${this.queueTimedOutAt})`,
       )
     }
 

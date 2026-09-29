@@ -258,6 +258,14 @@ class TestSandboxQueueTimeout:
             sandbox.wait_for_sandbox_start(timeout=0)
         assert isinstance(exc_info.value, DaytonaTimeoutError)
 
+    def test_queue_timeout_message_omits_duration_when_unknown(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.DESTROYED, queue_timed_out_at="2026-08-13T12:00:00Z")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        with pytest.raises(
+            DaytonaQueueTimeoutError, match=r"was destroyed after waiting for a runner \(queue timed out at"
+        ):
+            sandbox.wait_for_sandbox_start(timeout=0)
+
     def test_wait_for_start_raises_spot_evicted_error(self, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api)
         mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(

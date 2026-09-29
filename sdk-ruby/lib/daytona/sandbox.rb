@@ -1308,16 +1308,20 @@ module Daytona
       return unless state.to_s == DaytonaApiClient::SandboxState::DESTROYED.to_s
       return if target_strings.include?(DaytonaApiClient::SandboxState::DESTROYED.to_s)
 
-      if queue_timed_out_at
-        raise Sdk::QueueTimeoutError,
-              "Sandbox #{id} was destroyed after waiting #{queue_timeout} #{queue_timeout == 1 ? 'minute' : 'minutes'} for a runner " \
-              "(queue timed out at #{queue_timed_out_at})"
-      end
-
+      raise Sdk::QueueTimeoutError, queue_timeout_message if queue_timed_out_at
       return unless spot_evicted_at
 
       raise Sdk::SpotEvictedError,
             "Sandbox #{id} was evicted by spot preemption at #{spot_evicted_at}"
+    end
+
+    def queue_timeout_message
+      waited = if queue_timeout.nil?
+                 ''
+               else
+                 " #{queue_timeout} #{queue_timeout == 1 ? 'minute' : 'minutes'}"
+               end
+      "Sandbox #{id} was destroyed after waiting#{waited} for a runner (queue timed out at #{queue_timed_out_at})"
     end
 
     def ensure_subscribed
