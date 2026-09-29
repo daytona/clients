@@ -1,0 +1,185 @@
+sdk-python/tests/conftest.py
+  s_cd9938a71833ab::t_ef1396ca0a4911 78-80
+sdk-go/pkg/daytona/sandbox.go
+  s_874acea03a26ab::t_3d33c9635932b0 79,115,224-225,424-434,689-691,709-711,745-749,767-786
+  s_874acea03a26ab::t_6e2df91f544886 487-488
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_cd9938a71833ab::t_cb686fde15c7ba 678-687,689-702
+  s_b5e723c55911bd::t_05416a9796fa61 435,460-462,554-565
+cli/mcp/tools/create_sandbox.go
+  s_874acea03a26ab::t_707c4b2feac54b 34,63,168-171,192-193
+sdk-java/src/main/java/io/daytona/sdk/exception/DaytonaQueueTimeoutException.java
+  s_f438d3a8013889::t_b2d2b02b4598da 1-34
+sdk-java/src/main/java/io/daytona/sdk/model/CreateSandboxParams.java
+  s_f438d3a8013889::t_0970f64f9d7f5d 30,201-215
+sdk-java/src/test/java/io/daytona/sdk/TestSupport.java
+  s_f438d3a8013889::t_6d8d126726171e 38-39,70-71
+sdk-go/pkg/daytona/client.go
+  s_874acea03a26ab::t_bdfc406f6bbc00 515-517,568-569
+sdk-python/src/daytona/_sync/daytona.py
+  s_a2fa777397ab03::t_eee1acbcc1852e 495-496,523
+sdk-ruby/lib/daytona/daytona.rb
+  s_939720ffa3ee7c::t_2c765d0377fecf 277-280,295
+sdk-ruby/lib/daytona/sdk/errors.rb
+  s_939720ffa3ee7c::t_2c765d0377fecf 111-120
+sdk-typescript/src/index.ts
+  s_b5e723c55911bd::t_05416a9796fa61 62-63
+sdk-typescript/src/Sandbox.ts
+  s_b5e723c55911bd::t_05416a9796fa61 53-54,114,162,177,736-740,1490,1506,1591-1596,1608-1619,1621-1623
+  s_b5e723c55911bd::t_4fb76d7c994faa 98
+cli/views/sandbox/info.go
+  s_874acea03a26ab::t_04c31dedf58a06 27-30,52-56,58-66
+sdk-java/src/main/java/io/daytona/sdk/exception/DaytonaSpotEvictedException.java
+  s_f438d3a8013889::t_b2d2b02b4598da 1-19
+sdk-go/pkg/errors/errors.go
+  s_874acea03a26ab::t_bdfc406f6bbc00 53-54,118-129,164-166
+cli/cmd/sandbox/create_test.go
+  s_874acea03a26ab::t_707c4b2feac54b 20-32,35-45,49,52,59,135,148-150,155-166,191-194,196-200
+  s_874acea03a26ab::t_6e2df91f544886 88
+  s_874acea03a26ab::t_986d47a4b5b99d 167-190,195
+sdk-ruby/lib/daytona/common/daytona.rb
+  s_939720ffa3ee7c::t_2c765d0377fecf 72-74,116,133,157,190,248,300
+sdk-ruby/spec/daytona/sdk/errors_spec.rb
+  s_939720ffa3ee7c::t_88c67732662674 24-26,77-78
+sdk-python/src/daytona/__init__.py
+  s_a2fa777397ab03::t_bebf863950967c 80,86,203,209,294,300
+sdk-go/pkg/errors/errors_test.go
+  s_874acea03a26ab::t_1203bc7d2285be 59-93,127-142
+sdk-python/tests/test_sandbox.py
+  s_cd9938a71833ab::t_2f3a5635eaecf1 11-15,17
+  s_cd9938a71833ab::t_6fdc7081f5e6e0 238-287
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  s_f438d3a8013889::t_6d8d126726171e 221,245,372-416
+sdk-python/src/daytona/common/daytona.py
+  s_a2fa777397ab03::t_7ab576a9a4f280 163-164,204
+sdk-go/pkg/daytona/client_test.go
+  s_874acea03a26ab::t_fe88672c526ac3 1106-1126,1161-1183
+  s_874acea03a26ab::t_19239a33a44343 264,296
+sdk-python/src/daytona/_async/sandbox.py
+  s_a2fa777397ab03::t_d65801bbbc38e9 689-690,1429,1444-1445,1462
+  s_a2fa777397ab03::t_7ce5cee7e0b731 1371-1383
+  s_cd9938a71833ab::t_af69526f208623 1463-1464
+  s_a2fa777397ab03::t_9382f66fd5b3f6 1492,1520
+  s_a2fa777397ab03::t_97f11085c931be 62-66,68
+  s_a2fa777397ab03::t_0e77e955109066 145-146,172-173
+sdk-python/src/daytona/_sync/sandbox.py
+  s_a2fa777397ab03::t_47273450ffd496 133-134,160-161
+  s_a2fa777397ab03::t_bac39266d72200 1350-1361
+  s_a2fa777397ab03::t_eee1acbcc1852e 62-66,68
+  s_a2fa777397ab03::t_c3f106beed4467 1412,1426-1427,1444
+  s_cd9938a71833ab::t_900c5c00358e12 1445-1446
+  s_a2fa777397ab03::t_6e88586b317210 1475,1503
+  s_a2fa777397ab03::t_820e9445b4b5cd 671-672
+sdk-go/pkg/daytona/sandbox_test.go
+  s_874acea03a26ab::t_19239a33a44343 91-92
+  s_874acea03a26ab::t_6e2df91f544886 130,147
+  s_874acea03a26ab::t_5c28dd274b20de 158-205,679-698,702-728,1101-1126
+  s_874acea03a26ab::t_aa0fb5717b0cd5 699-701
+sdk-python/src/daytona/common/errors.py
+  s_a2fa777397ab03::t_f879d9b31880e5 200-207
+sdk-ruby/lib/daytona/sandbox.rb
+  s_939720ffa3ee7c::t_88c67732662674 119-121,172-174,1120,1132,1256,1282-1283,1307-1320
+sdk-ruby/spec/spec_helper.rb
+  s_939720ffa3ee7c::t_88c67732662674 76,88
+sdk-typescript/src/Daytona.ts
+  s_cd9938a71833ab::t_ed87251b354e24 27
+  s_b5e723c55911bd::t_05416a9796fa61 195,220,689-692,746
+  s_cd9938a71833ab::t_8cce6938c36414 823
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_939720ffa3ee7c::t_88c67732662674 67-68,539-584,747-763
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  s_f438d3a8013889::t_6d8d126726171e 21,24,154-180,250-265,324-325,330-343
+sdk-python/tests/test_daytona.py
+  s_cd9938a71833ab::t_9c3dab60c018fb 253-282
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  s_f438d3a8013889::t_0970f64f9d7f5d 582-584,609
+cli/mcp/tools/create_sandbox_test.go
+  s_874acea03a26ab::t_707c4b2feac54b 16,45-47,65,75,114-118,152-181
+cli/cmd/common/state_test.go
+  s_874acea03a26ab::t_16c2feadd32998 18,23,41,46,63,68
+  s_874acea03a26ab::t_04c31dedf58a06 1-17,19-22,24-40,42-45,47-62,64-67,69-82,84
+  s_874acea03a26ab::t_7ef6cef2394f42 83
+sdk-go/pkg/types/types.go
+  s_874acea03a26ab::t_b30abc254a1594 112
+  s_874acea03a26ab::t_bdfc406f6bbc00 109-111
+cli/cmd/common/state.go
+  s_874acea03a26ab::t_04c31dedf58a06 53-63,75-82
+sdk-python/tests/test_async_sandbox.py
+  s_cd9938a71833ab::t_9fae9f074ccb88 266-337
+  s_cd9938a71833ab::t_934548e6696377 12-16,18
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_939720ffa3ee7c::t_88c67732662674 322-334,404-425
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_b5e723c55911bd::t_05416a9796fa61 136-141,383-417,587-599
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_f438d3a8013889::t_cb3cb3834cae09 1474-1475
+  s_cd9938a71833ab::t_960f1c14275495 1048-1053
+  s_f438d3a8013889::t_895aca3da63d0a 1504-1505
+  s_f438d3a8013889::t_d44115f6c93c6b 1054-1055,1095,1097,1102,1131,1137-1143,1176-1180,1197,1204-1218
+  s_cd9938a71833ab::t_064cda529d7ce4 982
+  s_f438d3a8013889::t_26ad6894f136ea 27-28,148,163,873,877,911,915,929-930,933,949,968
+sdk-python/src/daytona/_async/daytona.py
+  s_a2fa777397ab03::t_147807e62a38ed 628-629,656
+sdk-python/tests/test_async_daytona.py
+  s_cd9938a71833ab::t_86dafafe0e0901 563-592
+sdk-typescript/src/errors/DaytonaError.ts
+  s_b5e723c55911bd::t_05416a9796fa61 163-169
+cli/cmd/sandbox/create.go
+  s_874acea03a26ab::t_707c4b2feac54b 111-116,233,259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ff5abd7f291cc35e203ea820e3f1d9c813879f89",
+  "prompts": {},
+  "sessions": {
+    "s_874acea03a26ab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f13cd313fffeGWF91u3Ld5byGY",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_939720ffa3ee7c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f13e22b22ffeSLHcREUepl0WoV",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a2fa777397ab03": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f13e30a3effeyEx9iD15RmCN2U",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_b5e723c55911bd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f13e37292ffeE6VD79eB8vAz5l",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_cd9938a71833ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f13fc9164ffeU7jz2Y83ypoS80",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f438d3a8013889": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f13e1d8cfffet7W015yyma96VQ",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
