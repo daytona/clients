@@ -345,9 +345,15 @@ module Daytona
           headers = {}
           sandbox_api.api_client.update_params_for_auth!(headers, nil, ['bearer'])
           Util.stream_async(uri:, headers:, on_chunk: on_snapshot_create_logs)
-        rescue StandardError
-          response = sandbox_api.get_sandbox(response.id)
-          raise unless destroyed_by_lifecycle?(response)
+        rescue StandardError => e
+          refreshed = begin
+            sandbox_api.get_sandbox(response.id)
+          rescue StandardError
+            raise e
+          end
+          raise e unless destroyed_by_lifecycle?(refreshed)
+
+          response = refreshed
         end
       end
 

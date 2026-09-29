@@ -225,8 +225,12 @@ public class Daytona implements AutoCloseable {
             try {
                 streamSandboxBuildLogs(response.getId(), onSnapshotCreateLogs, timeoutSeconds, startTime);
             } catch (DaytonaException streamError) {
-                io.daytona.api.client.model.Sandbox current =
-                        ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null));
+                io.daytona.api.client.model.Sandbox current;
+                try {
+                    current = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null));
+                } catch (DaytonaException refreshError) {
+                    throw streamError;
+                }
                 if (!isDestroyedByLifecycle(current)) {
                     throw streamError;
                 }

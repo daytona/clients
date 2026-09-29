@@ -728,10 +728,14 @@ class AsyncDaytona:
                     should_terminate=should_terminate,
                     session=self._shared_session.session,
                 )
-            except Exception:
-                response_ref["response"] = await self._sandbox_api.get_sandbox(response_ref["response"].id)
-                if not _destroyed_by_lifecycle(response_ref["response"]):
+            except Exception as stream_error:
+                try:
+                    refreshed = await self._sandbox_api.get_sandbox(response_ref["response"].id)
+                except Exception:
+                    raise stream_error from None
+                if not _destroyed_by_lifecycle(refreshed):
                     raise
+                response_ref["response"] = refreshed
             response = response_ref["response"]
 
         sandbox = AsyncSandbox(

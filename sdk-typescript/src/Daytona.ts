@@ -297,10 +297,6 @@ export type ForkSandboxParams = {
  * });
  * @class
  */
-function isDestroyedByLifecycle(sandbox: SandboxDto): boolean {
-  return sandbox.state === SandboxState.DESTROYED && Boolean(sandbox.queueTimedOutAt || sandbox.spotEvictedAt)
-}
-
 export class Daytona implements AsyncDisposable {
   private readonly clientConfig: Configuration
   private readonly sandboxApi: SandboxApi
@@ -806,10 +802,11 @@ export class Daytona implements AsyncDisposable {
             },
           )
         } catch (streamError) {
-          sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
-          if (!isDestroyedByLifecycle(sandboxInstance)) {
+          const refreshed = await this.sandboxApi.getSandbox(sandboxInstance.id).catch(() => undefined)
+          if (!refreshed || !Daytona.isDestroyedByLifecycle(refreshed.data)) {
             throw streamError
           }
+          sandboxInstance = refreshed.data
         }
       }
 
@@ -977,6 +974,10 @@ export class Daytona implements AsyncDisposable {
     }
 
     return generator()
+  }
+
+  private static isDestroyedByLifecycle(sandbox: SandboxDto): boolean {
+    return sandbox.state === SandboxState.DESTROYED && Boolean(sandbox.queueTimedOutAt || sandbox.spotEvictedAt)
   }
 
   private async ensureToolboxProxyUrl<T extends SandboxDto | SandboxListItemDto>(sandboxDto: T): Promise<T> {

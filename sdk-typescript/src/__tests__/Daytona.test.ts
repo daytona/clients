@@ -716,19 +716,26 @@ describe('Daytona', () => {
     const queueError = new DaytonaQueueTimeoutError(
       'Sandbox sb-build was destroyed after waiting 1 minute for a runner',
     )
-    ;(Sandbox as jest.Mock).mockImplementationOnce((dto: { id: string; state?: string }, ..._args: unknown[]) => ({
-      ...dto,
-      start: jest.fn(),
-      stop: jest.fn(),
-      delete: jest.fn(),
-      waitUntilStarted: jest.fn().mockRejectedValue(queueError),
-      fork: jest.fn(),
-      _experimental_fork: jest.fn(),
-    }))
+    let constructedDto: { state?: string; queueTimedOutAt?: string } | undefined
+    ;(Sandbox as jest.Mock).mockImplementationOnce(
+      (dto: { id: string; state?: string; queueTimedOutAt?: string }, ..._args: unknown[]) => {
+        constructedDto = dto
+        return {
+          ...dto,
+          start: jest.fn(),
+          stop: jest.fn(),
+          delete: jest.fn(),
+          waitUntilStarted: jest.fn().mockRejectedValue(queueError),
+          fork: jest.fn(),
+          _experimental_fork: jest.fn(),
+        }
+      },
+    )
 
     await expect(
       instance.create({ image: 'python:3.12', language: 'python' }, { timeout: 7, onSnapshotCreateLogs: jest.fn() }),
     ).rejects.toBe(queueError)
+    expect(constructedDto).toMatchObject({ state: 'destroyed', queueTimedOutAt: '2026-09-29T10:00:00.000Z' })
   })
 
   it('rethrows the build log stream error when the sandbox is still alive', async () => {
