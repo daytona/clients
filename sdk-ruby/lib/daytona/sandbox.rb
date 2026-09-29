@@ -1310,7 +1310,7 @@ module Daytona
 
       if queue_timed_out_at
         raise Sdk::QueueTimeoutError,
-              "Sandbox #{id} was destroyed after waiting #{queue_timeout} minutes for a runner " \
+              "Sandbox #{id} was destroyed after waiting #{queue_timeout} #{queue_timeout == 1 ? 'minute' : 'minutes'} for a runner " \
               "(queue timed out at #{queue_timed_out_at})"
       end
 

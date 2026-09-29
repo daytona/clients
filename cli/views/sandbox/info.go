@@ -24,7 +24,6 @@ type sandboxInfo interface {
 	GetLabels() map[string]string
 	GetStateOk() (*apiclient.SandboxState, bool)
 	GetSnapshotOk() (*string, bool)
-	GetAutoDestroyAtOk() (*string, bool)
 	GetSpotEvictedAtOk() (*string, bool)
 	GetQueueTimeoutOk() (*int32, bool)
 	GetQueueTimedOutAtOk() (*string, bool)
@@ -59,10 +58,6 @@ func RenderInfo(sandbox sandboxInfo, forceUnstyled bool) {
 
 	if spotEvictedAt, ok := sandbox.GetSpotEvictedAtOk(); ok && spotEvictedAt != nil {
 		output += getInfoLine("Spot Evicted At", util.GetTimeSinceLabelFromString(*spotEvictedAt)) + "\n"
-	}
-
-	if autoDestroyAt, ok := sandbox.GetAutoDestroyAtOk(); ok && autoDestroyAt != nil {
-		output += getInfoLine("Auto Destroy At", util.GetTimeSinceLabelFromString(*autoDestroyAt)) + "\n"
 	}
 
 	if createdAt, ok := sandbox.GetCreatedAtOk(); ok && createdAt != nil {

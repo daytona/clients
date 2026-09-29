@@ -774,7 +774,7 @@ func (s *Sandbox) destroyedLifecycleError(targetStates []apiclient.SandboxState)
 
 	if s.QueueTimedOutAt != nil {
 		if s.QueueTimeout != nil {
-			return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting %d minutes for a runner (queue timed out at %s)", s.ID, *s.QueueTimeout, *s.QueueTimedOutAt))
+			return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting %d %s for a runner (queue timed out at %s)", s.ID, *s.QueueTimeout, minutesLabel(*s.QueueTimeout), *s.QueueTimedOutAt))
 		}
 		return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting for a runner (queue timed out at %s)", s.ID, *s.QueueTimedOutAt))
 	}
@@ -798,6 +798,13 @@ func (s *Sandbox) refreshDataSafe(ctx context.Context) error {
 	}
 
 	return refreshErr
+}
+
+func minutesLabel(minutes int) string {
+	if minutes == 1 {
+		return "minute"
+	}
+	return "minutes"
 }
 
 func containsSandboxState(states []apiclient.SandboxState, state apiclient.SandboxState) bool {

@@ -512,7 +512,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.TtlMinutes != nil && *baseParams.TtlMinutes < 0 {
 		return nil, errors.NewDaytonaError("ttlMinutes must be a non-negative integer", 0, nil)
 	}
-	if baseParams.QueueTimeout != nil && *baseParams.QueueTimeout < 1 {
+	if baseParams.QueueTimeout != nil && (*baseParams.QueueTimeout < 1 || *baseParams.QueueTimeout > math.MaxInt32) {
 		return nil, errors.NewDaytonaError("queueTimeout must be a positive integer", 0, nil)
 	}
 

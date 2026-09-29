@@ -36,6 +36,51 @@ func TestAwaitSandboxStateQueueTimeoutError(t *testing.T) {
 	}
 }
 
+func TestAwaitSandboxStateQueueTimeoutErrorWithoutQueueTimeout(t *testing.T) {
+	queueTimedOutAt := "2026-09-29T10:00:00.000Z"
+	state := apiclient.SANDBOXSTATE_DESTROYED
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(apiclient.Sandbox{
+			Id:              "sb-1",
+			State:           &state,
+			QueueTimedOutAt: &queueTimedOutAt,
+		})
+	}))
+	defer server.Close()
+
+	err := AwaitSandboxState(context.Background(), apiClientForStateTest(server.URL), "sb-1", apiclient.SANDBOXSTATE_STARTED)
+	if err == nil {
+		t.Fatal("expected queue-timeout error")
+	}
+	if err.Error() != "sandbox sb-1 was destroyed after waiting for a runner (queue timed out at 2026-09-29T10:00:00.000Z)" {
+		t.Fatalf("error = %q", err)
+	}
+}
+
+func TestAwaitSandboxStateQueueTimeoutErrorSingularMinute(t *testing.T) {
+	queueTimedOutAt := "2026-09-29T10:00:00.000Z"
+	state := apiclient.SANDBOXSTATE_DESTROYED
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(apiclient.Sandbox{
+			Id:              "sb-1",
+			State:           &state,
+			QueueTimedOutAt: &queueTimedOutAt,
+			QueueTimeout:    *apiclient.NewNullableInt32(apiclient.PtrInt32(1)),
+		})
+	}))
+	defer server.Close()
+
+	err := AwaitSandboxState(context.Background(), apiClientForStateTest(server.URL), "sb-1", apiclient.SANDBOXSTATE_STARTED)
+	if err == nil {
+		t.Fatal("expected queue-timeout error")
+	}
+	if err.Error() != "sandbox sb-1 was destroyed after waiting 1 minute for a runner (queue timed out at 2026-09-29T10:00:00.000Z)" {
+		t.Fatalf("error = %q", err)
+	}
+}
+
 func TestAwaitSandboxStateSpotEvictedError(t *testing.T) {
 	spotEvictedAt := "2026-09-29T10:05:00.000Z"
 	state := apiclient.SANDBOXSTATE_DESTROYED

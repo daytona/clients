@@ -179,6 +179,30 @@ class SandboxTest {
     }
 
     @Test
+    void waitUntilStartedFailsFastOnCachedQueueTimedOutState() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimeout(1);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, mockSubscriptionManager());
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2))
+                .isInstanceOf(DaytonaQueueTimeoutException.class)
+                .hasMessage("Sandbox sb-1 was destroyed after waiting 1 minute for a runner (queue timed out at 2026-09-29T12:00:00Z)");
+        verify(sandboxApi, org.mockito.Mockito.never()).getSandbox("sb-1", null, null);
+    }
+
+    @Test
+    void waitUntilStartedFailsFastOnCachedSpotEvictedState() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setSpotEvictedAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, mockSubscriptionManager());
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2))
+                .isInstanceOf(DaytonaSpotEvictedException.class);
+        verify(sandboxApi, org.mockito.Mockito.never()).getSandbox("sb-1", null, null);
+    }
+
+    @Test
     void waitUntilStartedFallsBackToPollingWhenDeprecatedPollingIsEnabled() {
         Sandbox pollingSandbox = new Sandbox(
                 sandboxApi,

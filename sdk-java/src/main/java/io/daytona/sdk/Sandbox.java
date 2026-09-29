@@ -1205,7 +1205,8 @@ public class Sandbox {
                 if (sandbox.queueTimedOutAt != null) {
                     throw new DaytonaQueueTimeoutException(
                             "Sandbox " + sandbox.id + " was destroyed after waiting "
-                                    + sandbox.queueTimeout + " minutes for a runner (queue timed out at "
+                                    + sandbox.queueTimeout + (sandbox.queueTimeout != null && sandbox.queueTimeout == 1 ? " minute" : " minutes")
+                                    + " for a runner (queue timed out at "
                                     + sandbox.queueTimedOutAt + ")"
                     );
                 }

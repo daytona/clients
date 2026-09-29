@@ -254,7 +254,7 @@ class TestSandboxQueueTimeout:
         mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
             state=SandboxState.DESTROYED, queue_timeout=1, queue_timed_out_at="2026-08-13T12:00:00.000Z"
         )
-        with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minutes for a runner") as exc_info:
+        with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minute for a runner") as exc_info:
             sandbox.wait_for_sandbox_start(timeout=0)
         assert isinstance(exc_info.value, DaytonaTimeoutError)
 

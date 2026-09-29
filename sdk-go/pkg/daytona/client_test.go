@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1169,6 +1170,7 @@ func TestClientCreateValidationRejectsInvalidQueueTimeout(t *testing.T) {
 	}{
 		{name: "zero", queueTimeout: 0},
 		{name: "negative", queueTimeout: -1},
+		{name: "exceeds int32", queueTimeout: math.MaxInt32 + 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := client.Create(context.Background(), types.ImageParams{

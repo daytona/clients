@@ -53,7 +53,7 @@ func AwaitSandboxState(ctx context.Context, apiClient *apiclient.APIClient, targ
 			if *sandbox.State == apiclient.SANDBOXSTATE_DESTROYED && !containsSandboxState(states, apiclient.SANDBOXSTATE_DESTROYED) {
 				if sandbox.QueueTimedOutAt != nil {
 					if queueTimeout, ok := sandbox.GetQueueTimeoutOk(); ok && queueTimeout != nil {
-						return fmt.Errorf("sandbox %s was destroyed after waiting %d minutes for a runner (queue timed out at %s)", sandbox.Id, *queueTimeout, *sandbox.QueueTimedOutAt)
+						return fmt.Errorf("sandbox %s was destroyed after waiting %d %s for a runner (queue timed out at %s)", sandbox.Id, *queueTimeout, minutesLabel(*queueTimeout), *sandbox.QueueTimedOutAt)
 					}
 					return fmt.Errorf("sandbox %s was destroyed after waiting for a runner (queue timed out at %s)", sandbox.Id, *sandbox.QueueTimedOutAt)
 				}
@@ -71,6 +71,13 @@ func AwaitSandboxState(ctx context.Context, apiClient *apiclient.APIClient, targ
 
 		time.Sleep(time.Second)
 	}
+}
+
+func minutesLabel(minutes int32) string {
+	if minutes == 1 {
+		return "minute"
+	}
+	return "minutes"
 }
 
 func containsSandboxState(states []apiclient.SandboxState, want apiclient.SandboxState) bool {
