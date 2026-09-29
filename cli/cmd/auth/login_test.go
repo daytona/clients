@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/cli/config"
 )
 
@@ -166,5 +167,43 @@ func TestWorkosClientFallsBackToTheDashboardApplication(t *testing.T) {
 				t.Errorf("workosClient() = %+v, want the dashboard application %+v", got, dashboard)
 			}
 		})
+	}
+}
+
+func TestOrganizationAfterLoginKeepsTheStoredOrganizationTheUserIsAMemberOf(t *testing.T) {
+	organizationList := []apiclient.Organization{
+		{Id: "personal", Personal: true},
+		{Id: "acme"},
+	}
+	stored := "acme"
+
+	got := organizationAfterLogin(organizationList, &stored)
+	if got == nil || *got != "acme" {
+		t.Errorf("got %v, want acme", got)
+	}
+}
+
+func TestOrganizationAfterLoginFallsBackToPersonalWhenTheUserLeftTheStoredOrganization(t *testing.T) {
+	organizationList := []apiclient.Organization{
+		{Id: "personal", Personal: true},
+		{Id: "acme"},
+	}
+	stored := "former-employer"
+
+	got := organizationAfterLogin(organizationList, &stored)
+	if got == nil || *got != "personal" {
+		t.Errorf("got %v, want personal", got)
+	}
+}
+
+func TestOrganizationAfterLoginSelectsPersonalOnAFirstLogin(t *testing.T) {
+	organizationList := []apiclient.Organization{
+		{Id: "acme"},
+		{Id: "personal", Personal: true},
+	}
+
+	got := organizationAfterLogin(organizationList, nil)
+	if got == nil || *got != "personal" {
+		t.Errorf("got %v, want personal", got)
 	}
 }

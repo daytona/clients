@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/cli/auth"
 	"github.com/daytona/clients/cli/cmd/common"
 	"github.com/daytona/clients/cli/config"
@@ -109,17 +110,33 @@ func updateProfileWithLogin(tokenConfig *config.Token, apiKey *string) error {
 			return err
 		}
 
-		if activeProfile.Api.Key == nil {
-			personalOrganizationId, err := common.GetPersonalOrganizationId(activeProfile)
-			if err != nil {
-				return err
-			}
-
-			activeProfile.ActiveOrganizationId = &personalOrganizationId
+		organizationList, err := common.ListOrganizations(activeProfile)
+		if err != nil {
+			return err
 		}
+
+		activeProfile.ActiveOrganizationId = organizationAfterLogin(organizationList, activeProfile.ActiveOrganizationId)
 	}
 
 	return c.EditProfile(activeProfile)
+}
+
+// organizationAfterLogin keeps the organization the profile was using, so that
+// re-authenticating does not silently switch the CLI back to the personal organization.
+// It falls back to the personal organization when the logged-in user is not a member of
+// the stored one (e.g. a different account logged into the same profile).
+func organizationAfterLogin(organizationList []apiclient.Organization, stored *string) *string {
+	if stored != nil {
+		for _, organization := range organizationList {
+			if organization.Id == *stored {
+				return stored
+			}
+		}
+	}
+
+	personalOrganizationId := common.PersonalOrganizationId(organizationList)
+
+	return &personalOrganizationId
 }
 
 func createInitialProfile(c *config.Config) (config.Profile, error) {
