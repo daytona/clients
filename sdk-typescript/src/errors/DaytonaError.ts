@@ -160,6 +160,13 @@ export class DaytonaConnectionError extends DaytonaError {}
 /** Transport-layer timeout (connect / read). Subclass of DaytonaConnectionError. */
 export class DaytonaConnectionTimeoutError extends DaytonaConnectionError {}
 
+// SDK-detected sandbox lifecycle states.
+
+/** Raised when a sandbox was destroyed by the API because it waited longer than its queue timeout for a runner. */
+export class DaytonaQueueTimeoutError extends DaytonaTimeoutError {}
+/** Raised when a sandbox was destroyed by spot preemption. */
+export class DaytonaSpotEvictedError extends DaytonaError {}
+
 // Domain-specific subclasses. Each inherits from the HTTP-status class that
 // matches its server-side status, so callers can catch either level.
 

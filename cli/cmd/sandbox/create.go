@@ -108,6 +108,12 @@ var CreateCmd = &cobra.Command{
 			}
 			createSandbox.SetTtlMinutes(ttlFlag)
 		}
+		if cmd.Flags().Changed("queue-timeout") {
+			if queueTimeoutFlag < 1 {
+				return fmt.Errorf("queue-timeout must be a positive integer")
+			}
+			createSandbox.SetQueueTimeout(queueTimeoutFlag)
+		}
 
 		createSandbox.SetNetworkBlockAll(networkBlockAllFlag)
 		createSandbox.SetKvm(kvmFlag)
@@ -224,6 +230,7 @@ var (
 	autoArchiveFlag      int32
 	autoDeleteFlag       int32
 	ttlFlag              int32
+	queueTimeoutFlag     int32
 	volumesFlag          []string
 	dockerfileFlag       string
 	contextFlag          []string
@@ -249,6 +256,7 @@ func init() {
 	CreateCmd.Flags().Int32Var(&autoArchiveFlag, "auto-archive", 10080, "Auto-archive interval in minutes (0 means the maximum interval will be used)")
 	CreateCmd.Flags().Int32Var(&autoDeleteFlag, "auto-delete", -1, "Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)")
 	CreateCmd.Flags().Int32Var(&ttlFlag, "ttl", 0, "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived")
+	CreateCmd.Flags().Int32Var(&queueTimeoutFlag, "queue-timeout", 0, "Minutes to wait for runner assignment before the sandbox creation is cancelled (omit to use the organization default)")
 	CreateCmd.Flags().StringArrayVarP(&volumesFlag, "volume", "v", []string{}, "Volumes to mount (format: VOLUME_ID_OR_NAME:MOUNT_PATH)")
 	CreateCmd.Flags().StringVarP(&dockerfileFlag, "dockerfile", "f", "", "Path to Dockerfile for Sandbox snapshot")
 	CreateCmd.Flags().StringArrayVarP(&contextFlag, "context", "c", []string{}, "Files or directories to include in the build context (can be specified multiple times)")

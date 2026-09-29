@@ -18,6 +18,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.CliOidcConfig;
 import java.io.IOException;
 import java.util.Arrays;
 import org.junit.jupiter.api.Disabled;
@@ -75,6 +76,14 @@ public class OidcConfigTest {
     @Test
     public void authApiHostnameTest() {
         // TODO: test authApiHostname
+    }
+
+    /**
+     * Test the property 'cli'
+     */
+    @Test
+    public void cliTest() {
+        // TODO: test cli
     }
 
 }

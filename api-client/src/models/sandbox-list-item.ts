@@ -108,6 +108,10 @@ export interface SandboxListItem {
      */
     'spotEvictedAt'?: string;
     /**
+     * When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+     */
+    'queueTimedOutAt'?: string;
+    /**
      * The GPU type assigned to the sandbox
      */
     'gpuType'?: GpuType;
@@ -147,6 +151,10 @@ export interface SandboxListItem {
      * When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
      */
     'autoDestroyAt'?: string;
+    /**
+     * Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+     */
+    'queueTimeout'?: number | null;
     /**
      * The creation timestamp of the sandbox
      */

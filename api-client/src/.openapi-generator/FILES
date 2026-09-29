@@ -32,6 +32,7 @@ models/audit-scenarios.ts
 models/audit-target-scenario.ts
 models/available-sandbox-class.ts
 models/build-info.ts
+models/cli-oidc-config.ts
 models/create-api-key.ts
 models/create-build-info.ts
 models/create-docker-registry.ts
@@ -53,6 +54,7 @@ models/create-volume.ts
 models/create-warm-pool.ts
 models/date-filter.ts
 models/daytona-configuration.ts
+models/directory-sync-status.ts
 models/docker-registry.ts
 models/fork-sandbox.ts
 models/generate-workos-admin-portal-link.ts
@@ -146,6 +148,7 @@ models/update-identity-provider.ts
 models/update-job-status.ts
 models/update-last-activity.ts
 models/update-oidc-id-pconfig.ts
+models/update-organization-default-queue-timeout.ts
 models/update-organization-default-region.ts
 models/update-organization-invitation.ts
 models/update-organization-member-access.ts

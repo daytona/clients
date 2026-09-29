@@ -4344,6 +4344,7 @@ type Sandbox struct {
     Gpu            int32                          // Number of GPUs allocated to the sandbox
     Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
     SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
+    QueueTimeout   *int                           // Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it; nil when unset or null
     Memory         int32                          // Amount of memory allocated to the sandbox in GiB
     Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
     State          apiclient.SandboxState         // Current sandbox state
@@ -4379,6 +4380,7 @@ type Sandbox struct {
     LastActivityAt  *string // When the sandbox last had activity
     ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
     AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
+    QueueTimedOutAt *string // When the sandbox was destroyed after exceeding its queue timeout
 
     // Env contains environment variables set in the sandbox.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.

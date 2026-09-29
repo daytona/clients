@@ -218,6 +218,7 @@ class DaytonaTest {
         params.setAutoStopInterval(7);
         params.setAutoArchiveInterval(8);
         params.setAutoDeleteInterval(9);
+        params.setQueueTimeout(11);
         params.setNetworkBlockAll(true);
         params.setKvm(true);
         params.setSnapshot("snap-1");
@@ -241,6 +242,7 @@ class DaytonaTest {
         assertThat(body.getAutoStopInterval()).isEqualTo(7);
         assertThat(body.getAutoArchiveInterval()).isEqualTo(8);
         assertThat(body.getAutoDeleteInterval()).isEqualTo(9);
+        assertThat(body.getQueueTimeout()).isEqualTo(11);
         assertThat(body.getNetworkBlockAll()).isTrue();
         assertThat(body.getKvm()).isTrue();
         assertThat(body.getSnapshot()).isEqualTo("snap-1");
@@ -365,6 +367,53 @@ class DaytonaTest {
         ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
         assertThat(captor.getValue().getTtlMinutes()).isEqualTo(30);
+    }
+
+    @Test
+    void createFromSnapshotRejectsZeroQueueTimeout() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setQueueTimeout(0);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("queueTimeout must be a positive integer");
+    }
+
+    @Test
+    void createFromSnapshotRejectsNegativeQueueTimeout() {
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setQueueTimeout(-1);
+
+        assertThatThrownBy(() -> daytona.create(params, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("queueTimeout must be a positive integer");
+    }
+
+    @Test
+    void createFromSnapshotWiresQueueTimeoutToBody() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-queue-timeout", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setQueueTimeout(45);
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getQueueTimeout()).isEqualTo(45);
+    }
+
+    @Test
+    void createFromSnapshotLeavesQueueTimeoutUnsetWhenNull() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-queue-timeout-null", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+
+        daytona.create(params, 1);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getQueueTimeout()).isNull();
     }
 
     @Test

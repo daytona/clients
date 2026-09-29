@@ -50,6 +50,8 @@ import {
   DaytonaError,
   DaytonaInvalidArgumentError,
   DaytonaNotFoundError,
+  DaytonaQueueTimeoutError,
+  DaytonaSpotEvictedError,
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { CODE_TOOLBOX_LANGUAGE_LABEL } from './Daytona'
@@ -93,6 +95,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {boolean} [spot] - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated to free
  * capacity for on-demand GPU Sandboxes
  * @property {string} [spotEvictedAt] - When the Sandbox was evicted by spot preemption
+ * @property {number | null} [queueTimeout] - Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it. Null when no per-sandbox queue timeout was recorded.
  * @property {GpuType} [gpuType] - The GPU type assigned to the Sandbox
  * @property {number} memory - Amount of memory allocated to the Sandbox in GiB
  * @property {number} disk - Amount of disk space allocated to the Sandbox in GiB
@@ -108,6 +111,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes
  * @property {string} [autoDestroyAt] - When the Sandbox will be automatically destroyed (only set when a TTL is configured)
+ * @property {string} [queueTimedOutAt] - When the Sandbox was destroyed by the API after exceeding its queue timeout
  * @property {Array<SandboxVolume>} [volumes] - Volumes attached to the Sandbox (not returned by
  * list results; call `refreshData()` on each item to populate)
  * @property {BuildInfo} [buildInfo] - Build information for the Sandbox if it was created from dynamic build
@@ -155,6 +159,7 @@ export class Sandbox {
   public gpu!: number
   public spot?: boolean
   public spotEvictedAt?: string
+  public queueTimeout?: number | null
   public gpuType?: GpuType
   public memory!: number
   public disk!: number
@@ -169,6 +174,7 @@ export class Sandbox {
   public autoArchiveInterval?: number
   public autoDeleteInterval?: number
   public autoDestroyAt?: string
+  public queueTimedOutAt?: string
   public volumes?: Array<SandboxVolume>
   public buildInfo?: BuildInfo
   public createdAt?: string
@@ -725,6 +731,11 @@ export class Sandbox {
 
     if (this.state === SandboxState.STARTED) {
       return
+    }
+
+    const destroyedLifecycleError = this.getDestroyedLifecycleError(new Set([SandboxState.STARTED]))
+    if (destroyedLifecycleError) {
+      throw destroyedLifecycleError
     }
 
     return this.waitForState(
@@ -1476,6 +1487,7 @@ export class Sandbox {
     this.gpu = sandboxDto.gpu
     this.spot = sandboxDto.spot ?? false
     this.spotEvictedAt = sandboxDto.spotEvictedAt
+    this.queueTimeout = sandboxDto.queueTimeout
     this.gpuType = sandboxDto.gpuType
     this.memory = sandboxDto.memory
     this.disk = sandboxDto.disk
@@ -1491,6 +1503,7 @@ export class Sandbox {
     this.autoArchiveInterval = sandboxDto.autoArchiveInterval
     this.autoDeleteInterval = sandboxDto.autoDeleteInterval
     this.autoDestroyAt = sandboxDto.autoDestroyAt
+    this.queueTimedOutAt = sandboxDto.queueTimedOutAt
     this.createdAt = sandboxDto.createdAt
     this.updatedAt = sandboxDto.updatedAt
     this.lastActivityAt = sandboxDto.lastActivityAt
@@ -1575,6 +1588,12 @@ export class Sandbox {
       return true
     }
 
+    const destroyedLifecycleError = this.getDestroyedLifecycleError(waiter.targetStates)
+    if (destroyedLifecycleError) {
+      waiter.reject(destroyedLifecycleError)
+      return true
+    }
+
     if (waiter.errorStates.has(state)) {
       const errorMessageFn = this.stateWaiterErrorMessageFns.get(waiter)
       waiter.reject(
@@ -1584,6 +1603,24 @@ export class Sandbox {
     }
 
     return false
+  }
+
+  private getDestroyedLifecycleError(targetStates: Set<SandboxState>): DaytonaError | undefined {
+    if (this.state !== SandboxState.DESTROYED || targetStates.has(SandboxState.DESTROYED)) {
+      return undefined
+    }
+
+    if (this.queueTimedOutAt) {
+      return new DaytonaQueueTimeoutError(
+        `Sandbox ${this.id} was destroyed after waiting ${this.queueTimeout} minutes for a runner (queue timed out at ${this.queueTimedOutAt})`,
+      )
+    }
+
+    if (this.spotEvictedAt) {
+      return new DaytonaSpotEvictedError(`Sandbox ${this.id} was evicted by spot preemption at ${this.spotEvictedAt}`)
+    }
+
+    return undefined
   }
 
   private removeStateWaiter(waiter: (typeof this.stateWaiters)[number]): void {

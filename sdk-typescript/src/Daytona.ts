@@ -24,6 +24,7 @@ import {
   createAxiosDaytonaError,
   DaytonaError,
   DaytonaInvalidArgumentError,
+  DaytonaQueueTimeoutError,
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { Image } from './Image'
@@ -191,6 +192,7 @@ export interface Resources {
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes (0 means the maximum interval will be used). Default is 7 days.
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
  * @property {number} [ttlMinutes] - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
+ * @property {number} [queueTimeout] - Minutes to wait for runner assignment before the API destroys an unassigned sandbox. Omit to use the organization default.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox
  * @property {boolean} [kvm] - Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
@@ -215,6 +217,7 @@ export type CreateSandboxBaseParams = {
   autoArchiveInterval?: number
   autoDeleteInterval?: number
   ttlMinutes?: number
+  queueTimeout?: number
   volumes?: VolumeMount[]
   kvm?: boolean
   networkBlockAll?: boolean
@@ -683,6 +686,10 @@ export class Daytona implements AsyncDisposable {
       throw new DaytonaInvalidArgumentError('ttlMinutes must be a non-negative integer')
     }
 
+    if (params.queueTimeout !== undefined && (!Number.isInteger(params.queueTimeout) || params.queueTimeout < 1)) {
+      throw new DaytonaInvalidArgumentError('queueTimeout must be a positive integer')
+    }
+
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
@@ -736,6 +743,7 @@ export class Daytona implements AsyncDisposable {
           autoArchiveInterval: params.autoArchiveInterval,
           autoDeleteInterval: params.autoDeleteInterval,
           ttlMinutes: params.ttlMinutes,
+          queueTimeout: params.queueTimeout,
           volumes: params.volumes,
           kvm: params.kvm,
           networkBlockAll: params.networkBlockAll,
@@ -812,7 +820,7 @@ export class Daytona implements AsyncDisposable {
 
       return sandbox
     } catch (error) {
-      if (error instanceof DaytonaTimeoutError) {
+      if (error instanceof DaytonaTimeoutError && !(error instanceof DaytonaQueueTimeoutError)) {
         const errMsg = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
         throw new DaytonaTimeoutError(errMsg, error.statusCode, error.headers, error.code, error.source)
       }

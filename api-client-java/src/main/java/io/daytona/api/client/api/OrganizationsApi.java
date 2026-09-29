@@ -51,6 +51,7 @@ import io.daytona.api.client.model.SnapshotManagerCredentials;
 import io.daytona.api.client.model.TestIdentityProviderConnection;
 import io.daytona.api.client.model.TestIdentityProviderConnectionResponse;
 import io.daytona.api.client.model.UpdateIdentityProvider;
+import io.daytona.api.client.model.UpdateOrganizationDefaultQueueTimeout;
 import io.daytona.api.client.model.UpdateOrganizationDefaultRegion;
 import io.daytona.api.client.model.UpdateOrganizationInvitation;
 import io.daytona.api.client.model.UpdateOrganizationMemberAccess;
@@ -5413,6 +5414,138 @@ public class OrganizationsApi {
     public okhttp3.Call updateExperimentalConfigAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nullable Map<String, Object> requestBody, final ApiCallback<Void> _callback) throws ApiException {
 
         okhttp3.Call localVarCall = updateExperimentalConfigValidateBeforeCall(organizationId, requestBody, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for updateOrganizationDefaultQueueTimeout
+     * @param organizationId Organization ID (required)
+     * @param updateOrganizationDefaultQueueTimeout  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Default queue timeout updated successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call updateOrganizationDefaultQueueTimeoutCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = updateOrganizationDefaultQueueTimeout;
+
+        // create path and map variables
+        String localVarPath = "/organizations/{organizationId}/default-queue-timeout"
+            .replace("{" + "organizationId" + "}", localVarApiClient.escapeString(organizationId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "PATCH", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call updateOrganizationDefaultQueueTimeoutValidateBeforeCall(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'organizationId' is set
+        if (organizationId == null) {
+            throw new ApiException("Missing the required parameter 'organizationId' when calling updateOrganizationDefaultQueueTimeout(Async)");
+        }
+
+        // verify the required parameter 'updateOrganizationDefaultQueueTimeout' is set
+        if (updateOrganizationDefaultQueueTimeout == null) {
+            throw new ApiException("Missing the required parameter 'updateOrganizationDefaultQueueTimeout' when calling updateOrganizationDefaultQueueTimeout(Async)");
+        }
+
+        return updateOrganizationDefaultQueueTimeoutCall(organizationId, updateOrganizationDefaultQueueTimeout, _callback);
+
+    }
+
+    /**
+     * Set organization default queue timeout
+     * 
+     * @param organizationId Organization ID (required)
+     * @param updateOrganizationDefaultQueueTimeout  (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Default queue timeout updated successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public void updateOrganizationDefaultQueueTimeout(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout) throws ApiException {
+        updateOrganizationDefaultQueueTimeoutWithHttpInfo(organizationId, updateOrganizationDefaultQueueTimeout);
+    }
+
+    /**
+     * Set organization default queue timeout
+     * 
+     * @param organizationId Organization ID (required)
+     * @param updateOrganizationDefaultQueueTimeout  (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Default queue timeout updated successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> updateOrganizationDefaultQueueTimeoutWithHttpInfo(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout) throws ApiException {
+        okhttp3.Call localVarCall = updateOrganizationDefaultQueueTimeoutValidateBeforeCall(organizationId, updateOrganizationDefaultQueueTimeout, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Set organization default queue timeout (asynchronously)
+     * 
+     * @param organizationId Organization ID (required)
+     * @param updateOrganizationDefaultQueueTimeout  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Default queue timeout updated successfully </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call updateOrganizationDefaultQueueTimeoutAsync(@javax.annotation.Nonnull String organizationId, @javax.annotation.Nonnull UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = updateOrganizationDefaultQueueTimeoutValidateBeforeCall(organizationId, updateOrganizationDefaultQueueTimeout, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }

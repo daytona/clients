@@ -56,6 +56,41 @@ func TestNewDaytonaTimeoutError_HasRequestTimeoutStatus(t *testing.T) {
 	}
 }
 
+func TestNewQueueTimeoutError_MatchesQueueTimeoutAndTimeoutSentinels(t *testing.T) {
+	err := sdkerrors.NewQueueTimeoutError("queue timed out")
+	if err.StatusCode != http.StatusRequestTimeout {
+		t.Fatalf("StatusCode = %d, want %d", err.StatusCode, http.StatusRequestTimeout)
+	}
+	if err.Source != sdkerrors.SourceSDK {
+		t.Fatalf("Source = %q, want %q", err.Source, sdkerrors.SourceSDK)
+	}
+	if err.Code != "SANDBOX_QUEUE_TIMEOUT" {
+		t.Fatalf("Code = %q", err.Code)
+	}
+	if !stderrors.Is(err, sdkerrors.ErrQueueTimeout) {
+		t.Fatalf("errors.Is(err, ErrQueueTimeout) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) = false")
+	}
+}
+
+func TestNewSpotEvictedError_MatchesSpotEvictedSentinelOnly(t *testing.T) {
+	err := sdkerrors.NewSpotEvictedError("spot evicted")
+	if err.Source != sdkerrors.SourceSDK {
+		t.Fatalf("Source = %q, want %q", err.Source, sdkerrors.SourceSDK)
+	}
+	if err.Code != "SANDBOX_SPOT_EVICTED" {
+		t.Fatalf("Code = %q", err.Code)
+	}
+	if !stderrors.Is(err, sdkerrors.ErrSpotEvicted) {
+		t.Fatalf("errors.Is(err, ErrSpotEvicted) = false")
+	}
+	if stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) should be false")
+	}
+}
+
 func TestNewDaytonaConnectionError_NoStatus(t *testing.T) {
 	err := sdkerrors.NewDaytonaConnectionError("no route")
 	if err.StatusCode != 0 {
@@ -86,6 +121,25 @@ func TestErrorsIs_GatewayTimeoutSentinel(t *testing.T) {
 	}
 	if stderrors.Is(err, sdkerrors.ErrTimeout) {
 		t.Fatalf("errors.Is(err, ErrTimeout) should be false for 504 (408 sentinel)")
+	}
+}
+
+func TestErrorsIs_SDKQueueTimeoutDomainInheritsTimeoutStatus(t *testing.T) {
+	err := &sdkerrors.DaytonaError{
+		Message:    "queue timed out",
+		StatusCode: http.StatusRequestTimeout,
+		Source:     sdkerrors.SourceSDK,
+		Code:       "SANDBOX_QUEUE_TIMEOUT",
+	}
+
+	if !stderrors.Is(err, sdkerrors.ErrQueueTimeout) {
+		t.Fatalf("errors.Is(err, ErrQueueTimeout) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) = false")
+	}
+	if stderrors.Is(err, sdkerrors.ErrSpotEvicted) {
+		t.Fatalf("errors.Is(err, ErrSpotEvicted) = true; want false")
 	}
 }
 

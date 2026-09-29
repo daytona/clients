@@ -40,6 +40,7 @@ class CreateSandbox(BaseModel):
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels for the sandbox")
     public: Optional[StrictBool] = Field(default=None, description="Whether the sandbox http preview is publicly accessible")
     network_block_all: Optional[StrictBool] = Field(default=None, description="Whether to block all network access for the sandbox", serialization_alias="networkBlockAll")
+    kvm: Optional[StrictBool] = Field(default=False, description="Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.")
     network_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed CIDR network addresses for the sandbox", serialization_alias="networkAllowList")
     domain_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed domains for the sandbox", serialization_alias="domainAllowList")
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.", serialization_alias="outboundProxyUrl")
@@ -56,13 +57,13 @@ class CreateSandbox(BaseModel):
     auto_archive_interval: Optional[StrictInt] = Field(default=None, description="Auto-archive interval in minutes (0 means the maximum interval will be used)", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[StrictInt] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
     ttl_minutes: Optional[StrictInt] = Field(default=None, description="Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.", serialization_alias="ttlMinutes")
+    queue_timeout: Optional[StrictInt] = Field(default=None, description="Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.", serialization_alias="queueTimeout")
     volumes: Optional[List[SandboxVolume]] = Field(default=None, description="Array of volumes to attach to the sandbox")
     build_info: Optional[CreateBuildInfo] = Field(default=None, description="Build information for the sandbox", serialization_alias="buildInfo")
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.", serialization_alias="linkedSandbox")
     secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
-    kvm: Optional[StrictBool] = Field(default=False, description="Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets", "kvm"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -138,6 +139,7 @@ class CreateSandbox(BaseModel):
             "labels": obj.get("labels"),
             "public": obj.get("public"),
             "network_block_all": obj.get("networkBlockAll"),
+            "kvm": obj.get("kvm") if obj.get("kvm") is not None else False,
             "network_allow_list": obj.get("networkAllowList"),
             "domain_allow_list": obj.get("domainAllowList"),
             "outbound_proxy_url": obj.get("outboundProxyUrl"),
@@ -154,11 +156,11 @@ class CreateSandbox(BaseModel):
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
             "ttl_minutes": obj.get("ttlMinutes"),
+            "queue_timeout": obj.get("queueTimeout"),
             "volumes": [SandboxVolume.from_dict(_item) for _item in obj["volumes"]] if obj.get("volumes") is not None else None,
             "build_info": CreateBuildInfo.from_dict(obj["buildInfo"]) if obj.get("buildInfo") is not None else None,
             "linked_sandbox": obj.get("linkedSandbox"),
-            "secrets": obj.get("secrets"),
-            "kvm": obj.get("kvm") if obj.get("kvm") is not None else False
+            "secrets": obj.get("secrets")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

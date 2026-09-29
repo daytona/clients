@@ -102,6 +102,7 @@ export const AuditTargetScenarioActionsEnum = {
     UPDATE_SCIM_ENABLED: 'update_scim_enabled',
     UPDATE_OTEL_CONFIG: 'update_otel_config',
     DELETE_OTEL_CONFIG: 'delete_otel_config',
+    UPDATE_DEFAULT_QUEUE_TIMEOUT: 'update_default_queue_timeout',
     CREATE_SSH_ACCESS: 'create_ssh_access',
     REVOKE_SSH_ACCESS: 'revoke_ssh_access',
     RECOVER: 'recover',
@@ -112,6 +113,7 @@ export const AuditTargetScenarioActionsEnum = {
     AUTO_ARCHIVE: 'auto_archive',
     AUTO_DELETE: 'auto_delete',
     TTL_EXPIRE: 'ttl_expire',
+    QUEUE_TIMEOUT_EXPIRE: 'queue_timeout_expire',
     SPOT_EVICT: 'spot_evict',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;

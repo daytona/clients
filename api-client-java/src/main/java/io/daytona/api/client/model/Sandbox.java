@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -105,6 +106,11 @@ public class Sandbox {
   @javax.annotation.Nonnull
   private Boolean networkBlockAll;
 
+  public static final String SERIALIZED_NAME_KVM = "kvm";
+  @SerializedName(SERIALIZED_NAME_KVM)
+  @javax.annotation.Nonnull
+  private Boolean kvm;
+
   public static final String SERIALIZED_NAME_NETWORK_ALLOW_LIST = "networkAllowList";
   @SerializedName(SERIALIZED_NAME_NETWORK_ALLOW_LIST)
   @javax.annotation.Nullable
@@ -149,6 +155,11 @@ public class Sandbox {
   @SerializedName(SERIALIZED_NAME_SPOT_EVICTED_AT)
   @javax.annotation.Nullable
   private String spotEvictedAt;
+
+  public static final String SERIALIZED_NAME_QUEUE_TIMED_OUT_AT = "queueTimedOutAt";
+  @SerializedName(SERIALIZED_NAME_QUEUE_TIMED_OUT_AT)
+  @javax.annotation.Nullable
+  private String queueTimedOutAt;
 
   public static final String SERIALIZED_NAME_GPU_TYPE = "gpuType";
   @SerializedName(SERIALIZED_NAME_GPU_TYPE)
@@ -287,6 +298,11 @@ public class Sandbox {
   @javax.annotation.Nullable
   private String autoDestroyAt;
 
+  public static final String SERIALIZED_NAME_QUEUE_TIMEOUT = "queueTimeout";
+  @SerializedName(SERIALIZED_NAME_QUEUE_TIMEOUT)
+  @javax.annotation.Nullable
+  private Integer queueTimeout;
+
   public static final String SERIALIZED_NAME_VOLUMES = "volumes";
   @SerializedName(SERIALIZED_NAME_VOLUMES)
   @javax.annotation.Nullable
@@ -394,11 +410,6 @@ public class Sandbox {
   @SerializedName(SERIALIZED_NAME_TOOLBOX_PROXY_URL)
   @javax.annotation.Nonnull
   private String toolboxProxyUrl;
-
-  public static final String SERIALIZED_NAME_KVM = "kvm";
-  @SerializedName(SERIALIZED_NAME_KVM)
-  @javax.annotation.Nullable
-  private Boolean kvm;
 
   public Sandbox() {
   }
@@ -590,6 +601,25 @@ public class Sandbox {
   }
 
 
+  public Sandbox kvm(@javax.annotation.Nonnull Boolean kvm) {
+    this.kvm = kvm;
+    return this;
+  }
+
+  /**
+   * Whether the sandbox exposes KVM (/dev/kvm) to its guest
+   * @return kvm
+   */
+  @javax.annotation.Nonnull
+  public Boolean getKvm() {
+    return kvm;
+  }
+
+  public void setKvm(@javax.annotation.Nonnull Boolean kvm) {
+    this.kvm = kvm;
+  }
+
+
   public Sandbox networkAllowList(@javax.annotation.Nullable String networkAllowList) {
     this.networkAllowList = networkAllowList;
     return this;
@@ -758,6 +788,25 @@ public class Sandbox {
 
   public void setSpotEvictedAt(@javax.annotation.Nullable String spotEvictedAt) {
     this.spotEvictedAt = spotEvictedAt;
+  }
+
+
+  public Sandbox queueTimedOutAt(@javax.annotation.Nullable String queueTimedOutAt) {
+    this.queueTimedOutAt = queueTimedOutAt;
+    return this;
+  }
+
+  /**
+   * When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+   * @return queueTimedOutAt
+   */
+  @javax.annotation.Nullable
+  public String getQueueTimedOutAt() {
+    return queueTimedOutAt;
+  }
+
+  public void setQueueTimedOutAt(@javax.annotation.Nullable String queueTimedOutAt) {
+    this.queueTimedOutAt = queueTimedOutAt;
   }
 
 
@@ -1054,6 +1103,25 @@ public class Sandbox {
   }
 
 
+  public Sandbox queueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+    return this;
+  }
+
+  /**
+   * Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+   * @return queueTimeout
+   */
+  @javax.annotation.Nullable
+  public Integer getQueueTimeout() {
+    return queueTimeout;
+  }
+
+  public void setQueueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+  }
+
+
   public Sandbox volumes(@javax.annotation.Nullable List<SandboxVolume> volumes) {
     this.volumes = volumes;
     return this;
@@ -1251,25 +1319,6 @@ public class Sandbox {
     this.toolboxProxyUrl = toolboxProxyUrl;
   }
 
-
-  public Sandbox kvm(@javax.annotation.Nullable Boolean kvm) {
-    this.kvm = kvm;
-    return this;
-  }
-
-  /**
-   * Whether the sandbox exposes KVM (/dev/kvm) to its guest
-   * @return kvm
-   */
-  @javax.annotation.Nullable
-  public Boolean getKvm() {
-    return kvm;
-  }
-
-  public void setKvm(@javax.annotation.Nullable Boolean kvm) {
-    this.kvm = kvm;
-  }
-
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -1334,6 +1383,7 @@ public class Sandbox {
         Objects.equals(this.labels, sandbox.labels) &&
         Objects.equals(this._public, sandbox._public) &&
         Objects.equals(this.networkBlockAll, sandbox.networkBlockAll) &&
+        Objects.equals(this.kvm, sandbox.kvm) &&
         Objects.equals(this.networkAllowList, sandbox.networkAllowList) &&
         Objects.equals(this.domainAllowList, sandbox.domainAllowList) &&
         Objects.equals(this.outboundProxyUrl, sandbox.outboundProxyUrl) &&
@@ -1343,6 +1393,7 @@ public class Sandbox {
         Objects.equals(this.gpu, sandbox.gpu) &&
         Objects.equals(this.spot, sandbox.spot) &&
         Objects.equals(this.spotEvictedAt, sandbox.spotEvictedAt) &&
+        Objects.equals(this.queueTimedOutAt, sandbox.queueTimedOutAt) &&
         Objects.equals(this.gpuType, sandbox.gpuType) &&
         Objects.equals(this.memory, sandbox.memory) &&
         Objects.equals(this.disk, sandbox.disk) &&
@@ -1358,6 +1409,7 @@ public class Sandbox {
         Objects.equals(this.autoArchiveInterval, sandbox.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, sandbox.autoDeleteInterval) &&
         Objects.equals(this.autoDestroyAt, sandbox.autoDestroyAt) &&
+        Objects.equals(this.queueTimeout, sandbox.queueTimeout) &&
         Objects.equals(this.volumes, sandbox.volumes) &&
         Objects.equals(this.buildInfo, sandbox.buildInfo) &&
         Objects.equals(this.createdAt, sandbox.createdAt) &&
@@ -1367,14 +1419,24 @@ public class Sandbox {
         Objects.equals(this.daemonVersion, sandbox.daemonVersion) &&
         Objects.equals(this.runnerId, sandbox.runnerId) &&
         Objects.equals(this.linkedSandboxId, sandbox.linkedSandboxId) &&
-        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl) &&
-        Objects.equals(this.kvm, sandbox.kvm)&&
+        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl)&&
         Objects.equals(this.additionalProperties, sandbox.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, kvm, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, queueTimedOutAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, queueTimeout, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -1390,6 +1452,7 @@ public class Sandbox {
     sb.append("    labels: ").append(toIndentedString(labels)).append("\n");
     sb.append("    _public: ").append(toIndentedString(_public)).append("\n");
     sb.append("    networkBlockAll: ").append(toIndentedString(networkBlockAll)).append("\n");
+    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
@@ -1399,6 +1462,7 @@ public class Sandbox {
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
     sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
     sb.append("    spotEvictedAt: ").append(toIndentedString(spotEvictedAt)).append("\n");
+    sb.append("    queueTimedOutAt: ").append(toIndentedString(queueTimedOutAt)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
@@ -1414,6 +1478,7 @@ public class Sandbox {
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
     sb.append("    autoDestroyAt: ").append(toIndentedString(autoDestroyAt)).append("\n");
+    sb.append("    queueTimeout: ").append(toIndentedString(queueTimeout)).append("\n");
     sb.append("    volumes: ").append(toIndentedString(volumes)).append("\n");
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
@@ -1424,7 +1489,6 @@ public class Sandbox {
     sb.append("    runnerId: ").append(toIndentedString(runnerId)).append("\n");
     sb.append("    linkedSandboxId: ").append(toIndentedString(linkedSandboxId)).append("\n");
     sb.append("    toolboxProxyUrl: ").append(toIndentedString(toolboxProxyUrl)).append("\n");
-    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -1444,10 +1508,10 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "kvm"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "kvm", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
   }
 
   /**
@@ -1502,6 +1566,9 @@ public class Sandbox {
       }
       if ((jsonObj.get("spotEvictedAt") != null && !jsonObj.get("spotEvictedAt").isJsonNull()) && !jsonObj.get("spotEvictedAt").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `spotEvictedAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("spotEvictedAt").toString()));
+      }
+      if ((jsonObj.get("queueTimedOutAt") != null && !jsonObj.get("queueTimedOutAt").isJsonNull()) && !jsonObj.get("queueTimedOutAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `queueTimedOutAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("queueTimedOutAt").toString()));
       }
       // validate the optional field `gpuType`
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull()) {

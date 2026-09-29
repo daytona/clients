@@ -160,6 +160,8 @@ class CreateSandboxBaseParams(BaseModel):
         ttl_minutes (int | None): Maximum time to live in minutes, counted as wall-clock time since
             creation regardless of sandbox state. When it elapses the sandbox is destroyed, even if
             it is stopped, paused, or archived. 0 means disabled.
+        queue_timeout (int | None): Minutes to wait for runner assignment before Sandbox creation is
+            cancelled. Omit to use the organization default. Must be a positive integer.
         volumes (list[VolumeMount] | None): List of volumes mounts to attach to the Sandbox.
         secrets (dict[str, str] | None): Map of environment variable name to the name of an existing
             organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque
@@ -199,6 +201,7 @@ class CreateSandboxBaseParams(BaseModel):
     auto_archive_interval: int | None = None
     auto_delete_interval: int | None = None
     ttl_minutes: int | None = None
+    queue_timeout: int | None = None
     volumes: list[VolumeMount] | None = None
     secrets: dict[str, str] | None = None
     network_block_all: bool | None = None

@@ -394,6 +394,36 @@ paths:
       summary: Set default region for organization
       tags:
       - organizations
+  /organizations/{organizationId}/default-queue-timeout:
+    patch:
+      operationId: updateOrganizationDefaultQueueTimeout
+      parameters:
+      - description: Organization ID
+        explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationDefaultQueueTimeout"
+        required: true
+      responses:
+        "204":
+          description: Default queue timeout updated successfully
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Set organization default queue timeout
+      tags:
+      - organizations
   /organizations/{organizationId}:
     delete:
       operationId: deleteOrganization
@@ -2158,7 +2188,8 @@ paths:
       - sandbox
     get:
       description: Sandboxes destroyed by spot preemption remain retrievable for 24
-        hours so `spotEvictedAt` can be read.
+        hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout
+        remain retrievable for 24 hours so `queueTimedOutAt` can be read.
       operationId: getSandbox
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -6349,6 +6380,20 @@ components:
       - apiKey
       - host
       type: object
+    CliOidcConfig:
+      properties:
+        issuer:
+          description: WorkOS issuer of the Daytona CLI application
+          example: https://auth.example.com/user_management/client_123
+          type: string
+        clientId:
+          description: WorkOS client ID of the Daytona CLI application
+          example: client_123
+          type: string
+      required:
+      - clientId
+      - issuer
+      type: object
     OidcConfig:
       properties:
         issuer:
@@ -6384,6 +6429,13 @@ components:
             \ localStorage."
           example: auth.example.com
           type: string
+        cli:
+          allOf:
+          - $ref: "#/components/schemas/CliOidcConfig"
+          description: "WorkOS application the Daytona CLI logs in through, configured\
+            \ apart from the dashboard's so CLI sessions can have their own lifetime.\
+            \ Present only when the provider is workos and a CLI application is configured;\
+            \ absent means the CLI uses the issuer and client ID above."
       required:
       - audience
       - clientId
@@ -7074,6 +7126,14 @@ components:
       - defaultRegionId
       - name
       type: object
+    DirectorySyncStatus:
+      description: "Connection state of the WorkOS SCIM directory, as last reported\
+        \ by WorkOS (absent when no directory has ever reported in)"
+      enum:
+      - active
+      - inactive
+      - deleted
+      type: string
     OtelConfig:
       example:
         organizationId: organizationId
@@ -7101,29 +7161,32 @@ components:
     Organization:
       example:
         secretQuota: 5.637376656633329
-        sandboxCreateRateLimit: 3.616076749251911
-        sandboxLifecycleRateLimitTtlSeconds: 1.2315135367772556
+        sandboxCreateRateLimit: 2.027123023002322
+        sandboxLifecycleRateLimitTtlSeconds: 1.0246457001441578
         createdAt: 2000-01-23T04:56:07.000+00:00
         sandboxLimitedNetworkEgress: true
         suspendedUntil: 2000-01-23T04:56:07.000+00:00
         ssoEnabled: true
+        directorySyncStatusChangedAt: 2000-01-23T04:56:07.000+00:00
         previewWarningEnabled: true
         snapshotDeactivationTimeoutMinutes: 7.061401241503109
         otelConfig: ""
-        authenticatedRateLimitTtlSeconds: 4.145608029883936
+        authenticatedRateLimitTtlSeconds: 7.386281948385884
         id: id
         experimentalConfig: "{}"
         updatedAt: 2000-01-23T04:56:07.000+00:00
         defaultRegionId: defaultRegionId
-        sandboxCreateRateLimitTtlSeconds: 7.386281948385884
+        sandboxCreateRateLimitTtlSeconds: 1.2315135367772556
         suspensionReason: suspensionReason
-        sandboxLifecycleRateLimit: 2.027123023002322
+        sandboxLifecycleRateLimit: 4.145608029883936
         suspendedAt: 2000-01-23T04:56:07.000+00:00
         personal: true
         suspensionCleanupGracePeriodHours: 0.8008281904610115
         maxSecretsPerSandbox: 2.3021358869347655
-        authenticatedRateLimit: 9.301444243932576
+        directorySyncStatus: ""
+        authenticatedRateLimit: 3.616076749251911
         suspended: true
+        defaultQueueTimeout: 9
         maxCpuPerSandbox: 6.027456183070403
         scimEnabled: true
         maxDiskPerSandbox: 5.962133916683182
@@ -7131,6 +7194,7 @@ components:
         workosOrgId: workosOrgId
         name: name
         maxMemoryPerSandbox: 1.4658129805029452
+        directorySyncTokenRevokedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         id:
           description: Organization ID
@@ -7188,6 +7252,12 @@ components:
           default: 20160
           description: Time in minutes before an unused snapshot is deactivated
           type: number
+        defaultQueueTimeout:
+          description: Default minutes to wait for runner assignment before cancelling
+            sandbox creation. Applied when sandbox create omits queueTimeout. Null
+            means no default.
+          nullable: true
+          type: integer
         sandboxLimitedNetworkEgress:
           description: Sandbox default network block all
           type: boolean
@@ -7207,6 +7277,21 @@ components:
         workosOrgId:
           description: "ID of the WorkOS organization mirrored from this organization\
             \ (absent for personal organizations, which are never mirrored)"
+          type: string
+        directorySyncStatus:
+          allOf:
+          - $ref: "#/components/schemas/DirectorySyncStatus"
+          description: "Connection state of the WorkOS SCIM directory, as last reported\
+            \ by WorkOS (absent when no directory has ever reported in)"
+        directorySyncStatusChangedAt:
+          description: When the directory sync status last changed
+          format: date-time
+          type: string
+        directorySyncTokenRevokedAt:
+          description: When the directory bearer token was revoked; absent while a
+            valid token exists. A revoked token stops provisioning even if the directory
+            is still active.
+          format: date-time
           type: string
         authenticatedRateLimit:
           description: Authenticated rate limit per minute
@@ -7245,6 +7330,7 @@ components:
       - authenticatedRateLimitTtlSeconds
       - createdAt
       - createdBy
+      - defaultQueueTimeout
       - experimentalConfig
       - id
       - maxCpuPerSandbox
@@ -7281,6 +7367,20 @@ components:
           type: string
       required:
       - defaultRegionId
+      type: object
+    UpdateOrganizationDefaultQueueTimeout:
+      example:
+        defaultQueueTimeout: 5
+      properties:
+        defaultQueueTimeout:
+          description: Default minutes to wait for runner assignment before cancelling
+            sandbox creation. Null disables the default. A number must be a positive
+            integer.
+          example: 5
+          nullable: true
+          type: integer
+      required:
+      - defaultQueueTimeout
       type: object
     SandboxClass:
       enum:
@@ -8587,12 +8687,14 @@ components:
           daytona.io/public: "true"
         disk: 10
         autoDestroyAt: 2026-07-15T12:00:00.000Z
+        queueTimedOutAt: 2026-08-13T12:00:00.000Z
         spot: false
         name: MySandbox
         backupState: None
         user: daytona
         autoArchiveInterval: 10080
         snapshot: daytonaio/sandbox:latest
+        queueTimeout: 5
       properties:
         id:
           description: The ID of the sandbox
@@ -8683,6 +8785,12 @@ components:
             \ the sandbox is still winding down."
           example: 2026-08-13T12:00:00.000Z
           type: string
+        queueTimedOutAt:
+          description: "When this sandbox was destroyed because it waited too long\
+            \ for a runner. Set only for queue-timeout sandboxes, which stay retrievable\
+            \ by ID for 24 hours after the timeout."
+          example: 2026-08-13T12:00:00.000Z
+          type: string
         gpuType:
           allOf:
           - $ref: "#/components/schemas/GpuType"
@@ -8735,6 +8843,12 @@ components:
             \ of its state (only set when a TTL is configured)"
           example: 2026-07-15T12:00:00.000Z
           type: string
+        queueTimeout:
+          description: Minutes to wait for runner assignment before cancelling sandbox
+            creation. Null means the wait is unlimited.
+          example: 5
+          nullable: true
+          type: integer
         createdAt:
           description: The creation timestamp of the sandbox
           example: 2024-10-01T12:00:00Z
@@ -8809,12 +8923,14 @@ components:
             daytona.io/public: "true"
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          queueTimedOutAt: 2026-08-13T12:00:00.000Z
           spot: false
           name: MySandbox
           backupState: None
           user: daytona
           autoArchiveInterval: 10080
           snapshot: daytonaio/sandbox:latest
+          queueTimeout: 5
         - memory: 4
           toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
           lastActivityAt: 2024-10-01T12:00:00Z
@@ -8846,12 +8962,14 @@ components:
             daytona.io/public: "true"
           disk: 10
           autoDestroyAt: 2026-07-15T12:00:00.000Z
+          queueTimedOutAt: 2026-08-13T12:00:00.000Z
           spot: false
           name: MySandbox
           backupState: None
           user: daytona
           autoArchiveInterval: 10080
           snapshot: daytonaio/sandbox:latest
+          queueTimeout: 5
       properties:
         items:
           description: List of results for the current page
@@ -8954,6 +9072,7 @@ components:
         user: daytona
         autoArchiveInterval: 10080
         snapshot: ubuntu-4vcpu-8ram-100gb
+        queueTimeout: 5
       properties:
         name:
           description: "The name of the sandbox. If not provided, the sandbox ID will\
@@ -8988,6 +9107,12 @@ components:
           type: boolean
         networkBlockAll:
           description: Whether to block all network access for the sandbox
+          example: false
+          type: boolean
+        kvm:
+          default: false
+          description: Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+            linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
           example: false
           type: boolean
         networkAllowList:
@@ -9085,6 +9210,15 @@ components:
             \ to that maximum and cannot be disabled."
           example: 1440
           type: integer
+        queueTimeout:
+          description: Minutes to wait for runner assignment before cancelling sandbox
+            creation. Applies only while the sandbox is unassigned in pending_build
+            or pulling_snapshot. Only honored when default queue timeout is enabled
+            for the organization. Omit to use the organization default; null/omit
+            with no organization default leaves the wait unlimited. Must be a positive
+            integer.
+          example: 5
+          type: integer
         volumes:
           description: Array of volumes to attach to the sandbox
           items:
@@ -9115,12 +9249,6 @@ components:
               type: string
             type: object
           type: array
-        kvm:
-          default: false
-          description: Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
-            linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
-          example: false
-          type: boolean
       type: object
     BuildInfo:
       properties:
@@ -9206,12 +9334,14 @@ components:
         target: local
         disk: 10
         autoDestroyAt: 2026-07-15T12:00:00.000Z
+        queueTimedOutAt: 2026-08-13T12:00:00.000Z
         spot: false
         name: MySandbox
         backupState: None
         user: daytona
         autoArchiveInterval: 10080
         snapshot: daytonaio/sandbox:latest
+        queueTimeout: 5
       properties:
         id:
           description: The ID of the sandbox
@@ -9253,6 +9383,10 @@ components:
           type: boolean
         networkBlockAll:
           description: Whether to block all network access for the sandbox
+          example: false
+          type: boolean
+        kvm:
+          description: Whether the sandbox exposes KVM (/dev/kvm) to its guest
           example: false
           type: boolean
         networkAllowList:
@@ -9301,6 +9435,12 @@ components:
           description: "When this sandbox was destroyed by spot preemption. Set only\
             \ for spot-evicted sandboxes, which stay retrievable by ID for 24 hours\
             \ after eviction."
+          example: 2026-08-13T12:00:00.000Z
+          type: string
+        queueTimedOutAt:
+          description: "When this sandbox was destroyed because it waited too long\
+            \ for a runner. Set only for queue-timeout sandboxes, which stay retrievable\
+            \ by ID for 24 hours after the timeout."
           example: 2026-08-13T12:00:00.000Z
           type: string
         gpuType:
@@ -9376,6 +9516,12 @@ components:
             \ of its state (only set when a TTL is configured)"
           example: 2026-07-15T12:00:00.000Z
           type: string
+        queueTimeout:
+          description: Minutes to wait for runner assignment before cancelling sandbox
+            creation. Null means the wait is unlimited.
+          example: 5
+          nullable: true
+          type: integer
         volumes:
           description: Array of volumes attached to the sandbox
           items:
@@ -9428,16 +9574,13 @@ components:
           description: The toolbox proxy URL for the sandbox
           example: https://proxy.app.daytona.io/toolbox
           type: string
-        kvm:
-          description: Whether the sandbox exposes KVM (/dev/kvm) to its guest
-          example: false
-          type: boolean
       required:
       - cpu
       - disk
       - env
       - gpu
       - id
+      - kvm
       - labels
       - memory
       - name
@@ -11870,6 +12013,7 @@ components:
             - update_scim_enabled
             - update_otel_config
             - delete_otel_config
+            - update_default_queue_timeout
             - create_ssh_access
             - revoke_ssh_access
             - recover
@@ -11880,6 +12024,7 @@ components:
             - auto_archive
             - auto_delete
             - ttl_expire
+            - queue_timeout_expire
             - spot_evict
             type: string
           type: array

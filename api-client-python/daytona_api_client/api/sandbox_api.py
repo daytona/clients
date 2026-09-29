@@ -3796,7 +3796,7 @@ class SandboxApi:
     ) -> Sandbox:
         """Get sandbox details
 
-        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str
@@ -3871,7 +3871,7 @@ class SandboxApi:
     ) -> ApiResponse[Sandbox]:
         """Get sandbox details
 
-        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str
@@ -3946,7 +3946,7 @@ class SandboxApi:
     ) -> RESTResponseType:
         """Get sandbox details
 
-        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+        Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
         :param sandbox_id_or_name: ID or name of the sandbox (required)
         :type sandbox_id_or_name: str

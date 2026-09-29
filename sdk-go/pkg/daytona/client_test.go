@@ -261,6 +261,7 @@ func TestNewClientDefaultCreatesDispatcher(t *testing.T) {
 }
 
 func TestNewClientDeprecatedPollingViaConfig(t *testing.T) {
+	//nolint:staticcheck // exercises deprecated config precedence until the field is removed.
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(true)})
 	require.NoError(t, err)
 	require.NotNil(t, client.subscriptionManager)
@@ -292,6 +293,7 @@ func TestNewClientDeprecatedPollingUnsetFallsBackToEnv(t *testing.T) {
 func TestNewClientDeprecatedPollingExplicitFalseBeatsEnv(t *testing.T) {
 	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
 
+	//nolint:staticcheck // exercises deprecated config precedence until the field is removed.
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(false)})
 	require.NoError(t, err)
 	require.NotNil(t, client.subscriptionManager)
@@ -1101,6 +1103,27 @@ func TestClientCreateSuccessRequestMapping(t *testing.T) {
 		assert.Equal(t, "sb-no-kvm", sandbox.ID)
 	})
 
+	t.Run("queue timeout is sent in request body when set", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.Equal(t, float64(7), body["queueTimeout"])
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-queue-timeout", "queue-timeout", apiclient.SANDBOXSTATE_STARTED))
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		queueTimeout := 7
+		sandbox, err := client.Create(context.Background(), types.SnapshotParams{
+			Snapshot: "snap-1",
+			SandboxBaseParams: types.SandboxBaseParams{
+				QueueTimeout: &queueTimeout,
+			},
+		}, options.WithWaitForStart(false))
+		require.NoError(t, err)
+		assert.Equal(t, "sb-queue-timeout", sandbox.ID)
+	})
+
 	t.Run("snapshot params send snapshot field", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body map[string]any
@@ -1133,6 +1156,31 @@ func TestClientCreateValidationInvalidLanguage(t *testing.T) {
 	}, options.WithWaitForStart(false))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Supported languages: python, javascript, typescript")
+}
+
+func TestClientCreateValidationRejectsInvalidQueueTimeout(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	client := createTestClientWithServer(t, server)
+
+	for _, tc := range []struct {
+		name         string
+		queueTimeout int
+	}{
+		{name: "zero", queueTimeout: 0},
+		{name: "negative", queueTimeout: -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.Create(context.Background(), types.ImageParams{
+				Image: "alpine:3.20",
+				SandboxBaseParams: types.SandboxBaseParams{
+					QueueTimeout: &tc.queueTimeout,
+				},
+			}, options.WithWaitForStart(false))
+			require.Error(t, err)
+			assert.EqualError(t, err, "Daytona error: queueTimeout must be a positive integer")
+		})
+	}
 }
 
 func TestClientGetAndListSuccess(t *testing.T) {

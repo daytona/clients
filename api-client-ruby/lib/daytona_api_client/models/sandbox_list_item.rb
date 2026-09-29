@@ -75,6 +75,9 @@ module DaytonaApiClient
     # When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.
     attr_accessor :spot_evicted_at
 
+    # When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+    attr_accessor :queue_timed_out_at
+
     # The GPU type assigned to the sandbox
     attr_accessor :gpu_type
 
@@ -104,6 +107,9 @@ module DaytonaApiClient
 
     # When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
     attr_accessor :auto_destroy_at
+
+    # Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+    attr_accessor :queue_timeout
 
     # The creation timestamp of the sandbox
     attr_accessor :created_at
@@ -168,6 +174,7 @@ module DaytonaApiClient
         :'gpu' => :'gpu',
         :'spot' => :'spot',
         :'spot_evicted_at' => :'spotEvictedAt',
+        :'queue_timed_out_at' => :'queueTimedOutAt',
         :'gpu_type' => :'gpuType',
         :'memory' => :'memory',
         :'disk' => :'disk',
@@ -178,6 +185,7 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'auto_destroy_at' => :'autoDestroyAt',
+        :'queue_timeout' => :'queueTimeout',
         :'created_at' => :'createdAt',
         :'updated_at' => :'updatedAt',
         :'last_activity_at' => :'lastActivityAt',
@@ -220,6 +228,7 @@ module DaytonaApiClient
         :'gpu' => :'Integer',
         :'spot' => :'Boolean',
         :'spot_evicted_at' => :'String',
+        :'queue_timed_out_at' => :'String',
         :'gpu_type' => :'GpuType',
         :'memory' => :'Integer',
         :'disk' => :'Integer',
@@ -230,6 +239,7 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'Float',
         :'auto_delete_interval' => :'Float',
         :'auto_destroy_at' => :'String',
+        :'queue_timeout' => :'Integer',
         :'created_at' => :'String',
         :'updated_at' => :'String',
         :'last_activity_at' => :'String',
@@ -242,6 +252,7 @@ module DaytonaApiClient
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'queue_timeout',
       ])
     end
 
@@ -361,6 +372,10 @@ module DaytonaApiClient
         self.spot_evicted_at = attributes[:'spot_evicted_at']
       end
 
+      if attributes.key?(:'queue_timed_out_at')
+        self.queue_timed_out_at = attributes[:'queue_timed_out_at']
+      end
+
       if attributes.key?(:'gpu_type')
         self.gpu_type = attributes[:'gpu_type']
       end
@@ -407,6 +422,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'auto_destroy_at')
         self.auto_destroy_at = attributes[:'auto_destroy_at']
+      end
+
+      if attributes.key?(:'queue_timeout')
+        self.queue_timeout = attributes[:'queue_timeout']
       end
 
       if attributes.key?(:'created_at')
@@ -683,6 +702,7 @@ module DaytonaApiClient
           gpu == o.gpu &&
           spot == o.spot &&
           spot_evicted_at == o.spot_evicted_at &&
+          queue_timed_out_at == o.queue_timed_out_at &&
           gpu_type == o.gpu_type &&
           memory == o.memory &&
           disk == o.disk &&
@@ -693,6 +713,7 @@ module DaytonaApiClient
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
           auto_destroy_at == o.auto_destroy_at &&
+          queue_timeout == o.queue_timeout &&
           created_at == o.created_at &&
           updated_at == o.updated_at &&
           last_activity_at == o.last_activity_at &&
@@ -710,7 +731,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, network_block_all, network_allow_list, domain_allow_list, cpu, gpu, spot, spot_evicted_at, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, created_at, updated_at, last_activity_at, daemon_version, warm_pool_id, toolbox_proxy_url].hash
+      [id, organization_id, name, target, runner_id, sandbox_class, state, desired_state, snapshot, user, error_reason, recoverable, public, network_block_all, network_allow_list, domain_allow_list, cpu, gpu, spot, spot_evicted_at, queue_timed_out_at, gpu_type, memory, disk, labels, backup_state, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, queue_timeout, created_at, updated_at, last_activity_at, daemon_version, warm_pool_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

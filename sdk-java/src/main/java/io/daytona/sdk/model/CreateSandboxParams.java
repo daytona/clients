@@ -27,6 +27,7 @@ public class CreateSandboxParams {
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
     private Integer ttlMinutes;
+    private Integer queueTimeout;
     private List<VolumeMount> volumes;
     private Map<String, String> secrets;
     private Boolean networkBlockAll;
@@ -196,6 +197,22 @@ public class CreateSandboxParams {
      * @param ttlMinutes minutes until the Sandbox expires
      */
     public void setTtlMinutes(Integer ttlMinutes) { this.ttlMinutes = ttlMinutes; }
+
+    /**
+     * Returns queue timeout in minutes.
+     *
+     * @return minutes to wait for runner assignment before creation is cancelled, or {@code null}
+     * if the organization default applies
+     */
+    public Integer getQueueTimeout() { return queueTimeout; }
+
+    /**
+     * Sets queue timeout in minutes.
+     *
+     * @param queueTimeout minutes to wait for runner assignment before creation is cancelled; must
+     * be at least 1, or {@code null} to use the organization default
+     */
+    public void setQueueTimeout(Integer queueTimeout) { this.queueTimeout = queueTimeout; }
 
     /**
      * Returns volume mounts to attach.

@@ -49,6 +49,7 @@ src/main/java/io/daytona/api/client/model/AuditScenarios.java
 src/main/java/io/daytona/api/client/model/AuditTargetScenario.java
 src/main/java/io/daytona/api/client/model/AvailableSandboxClass.java
 src/main/java/io/daytona/api/client/model/BuildInfo.java
+src/main/java/io/daytona/api/client/model/CliOidcConfig.java
 src/main/java/io/daytona/api/client/model/CreateApiKey.java
 src/main/java/io/daytona/api/client/model/CreateBuildInfo.java
 src/main/java/io/daytona/api/client/model/CreateDockerRegistry.java
@@ -70,6 +71,7 @@ src/main/java/io/daytona/api/client/model/CreateVolume.java
 src/main/java/io/daytona/api/client/model/CreateWarmPool.java
 src/main/java/io/daytona/api/client/model/DateFilter.java
 src/main/java/io/daytona/api/client/model/DaytonaConfiguration.java
+src/main/java/io/daytona/api/client/model/DirectorySyncStatus.java
 src/main/java/io/daytona/api/client/model/DockerRegistry.java
 src/main/java/io/daytona/api/client/model/ForkSandbox.java
 src/main/java/io/daytona/api/client/model/GenerateWorkosAdminPortalLink.java
@@ -162,6 +164,7 @@ src/main/java/io/daytona/api/client/model/UpdateIdentityProvider.java
 src/main/java/io/daytona/api/client/model/UpdateJobStatus.java
 src/main/java/io/daytona/api/client/model/UpdateLastActivity.java
 src/main/java/io/daytona/api/client/model/UpdateOidcIdPConfig.java
+src/main/java/io/daytona/api/client/model/UpdateOrganizationDefaultQueueTimeout.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationDefaultRegion.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationInvitation.java
 src/main/java/io/daytona/api/client/model/UpdateOrganizationMemberAccess.java
@@ -213,6 +216,7 @@ src/test/java/io/daytona/api/client/model/AuditScenariosTest.java
 src/test/java/io/daytona/api/client/model/AuditTargetScenarioTest.java
 src/test/java/io/daytona/api/client/model/AvailableSandboxClassTest.java
 src/test/java/io/daytona/api/client/model/BuildInfoTest.java
+src/test/java/io/daytona/api/client/model/CliOidcConfigTest.java
 src/test/java/io/daytona/api/client/model/CreateApiKeyTest.java
 src/test/java/io/daytona/api/client/model/CreateBuildInfoTest.java
 src/test/java/io/daytona/api/client/model/CreateDockerRegistryTest.java
@@ -234,6 +238,7 @@ src/test/java/io/daytona/api/client/model/CreateVolumeTest.java
 src/test/java/io/daytona/api/client/model/CreateWarmPoolTest.java
 src/test/java/io/daytona/api/client/model/DateFilterTest.java
 src/test/java/io/daytona/api/client/model/DaytonaConfigurationTest.java
+src/test/java/io/daytona/api/client/model/DirectorySyncStatusTest.java
 src/test/java/io/daytona/api/client/model/DockerRegistryTest.java
 src/test/java/io/daytona/api/client/model/ForkSandboxTest.java
 src/test/java/io/daytona/api/client/model/GenerateWorkosAdminPortalLinkTest.java
@@ -326,6 +331,7 @@ src/test/java/io/daytona/api/client/model/UpdateIdentityProviderTest.java
 src/test/java/io/daytona/api/client/model/UpdateJobStatusTest.java
 src/test/java/io/daytona/api/client/model/UpdateLastActivityTest.java
 src/test/java/io/daytona/api/client/model/UpdateOidcIdPConfigTest.java
+src/test/java/io/daytona/api/client/model/UpdateOrganizationDefaultQueueTimeoutTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationDefaultRegionTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationInvitationTest.java
 src/test/java/io/daytona/api/client/model/UpdateOrganizationMemberAccessTest.java

@@ -69,6 +69,9 @@ module Daytona
     # @return [Integer, nil] Time to live in minutes (0 to disable)
     attr_accessor :ttl_minutes
 
+    # @return [Integer, nil] Minutes to wait for runner assignment before the API auto-destroys the sandbox
+    attr_accessor :queue_timeout
+
     # @return [Boolean, nil] Whether the Sandbox should be ephemeral
     attr_accessor :ephemeral
 
@@ -110,6 +113,7 @@ module Daytona
     #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
     #   available in the Daytona analytics API or dashboard.
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
+    # @param queue_timeout [Integer, nil] Minutes to wait for runner assignment before the API auto-destroys the sandbox
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     # @param spot [Boolean, nil] GPU-only. Whether the Sandbox may be instantly terminated to free GPU
     #   capacity for an on-demand GPU Sandbox
@@ -126,6 +130,7 @@ module Daytona
       auto_archive_interval: nil,
       auto_delete_interval: nil,
       ttl_minutes: nil,
+      queue_timeout: nil,
       volumes: nil,
       secrets: nil,
       network_block_all: nil,
@@ -149,6 +154,7 @@ module Daytona
       @auto_archive_interval = auto_archive_interval
       @auto_delete_interval = auto_delete_interval
       @ttl_minutes = ttl_minutes
+      @queue_timeout = queue_timeout
       @volumes = volumes
       @secrets = secrets
       @network_block_all = network_block_all
@@ -181,6 +187,7 @@ module Daytona
         auto_archive_interval:,
         auto_delete_interval:,
         ttl_minutes:,
+        queue_timeout:,
         volumes:,
         secrets:,
         network_block_all:,
@@ -238,6 +245,7 @@ module Daytona
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
+    # @param queue_timeout [Integer, nil] Minutes to wait for runner assignment before the API auto-destroys the sandbox
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name
@@ -289,6 +297,7 @@ module Daytona
     # @param auto_archive_interval [Integer, nil] Auto-archive interval in minutes
     # @param auto_delete_interval [Integer, nil] Auto-delete interval in minutes
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
+    # @param queue_timeout [Integer, nil] Minutes to wait for runner assignment before the API auto-destroys the sandbox
     # @param volumes [Array<DaytonaApiClient::SandboxVolume>, nil] List of volumes mounts to attach to the Sandbox
     # @param secrets [Hash<String, String>, nil] Organization Secrets to expose in the Sandbox, as a
     #   mapping of env var name to existing Secret name

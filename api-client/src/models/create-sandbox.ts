@@ -53,6 +53,10 @@ export interface CreateSandbox {
      */
     'networkBlockAll'?: boolean;
     /**
+     * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+     */
+    'kvm'?: boolean;
+    /**
      * Comma-separated list of allowed CIDR network addresses for the sandbox
      */
     'networkAllowList'?: string;
@@ -117,6 +121,10 @@ export interface CreateSandbox {
      */
     'ttlMinutes'?: number;
     /**
+     * Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.
+     */
+    'queueTimeout'?: number;
+    /**
      * Array of volumes to attach to the sandbox
      */
     'volumes'?: Array<SandboxVolume>;
@@ -132,9 +140,5 @@ export interface CreateSandbox {
      * Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
      */
     'secrets'?: Array<{ [key: string]: string; }>;
-    /**
-     * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
-     */
-    'kvm'?: boolean;
 }
 

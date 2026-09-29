@@ -512,6 +512,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.TtlMinutes != nil && *baseParams.TtlMinutes < 0 {
 		return nil, errors.NewDaytonaError("ttlMinutes must be a non-negative integer", 0, nil)
 	}
+	if baseParams.QueueTimeout != nil && *baseParams.QueueTimeout < 1 {
+		return nil, errors.NewDaytonaError("queueTimeout must be a positive integer", 0, nil)
+	}
 
 	// Handle ephemeral sandboxes
 	if baseParams.Ephemeral {
@@ -561,6 +564,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 	if baseParams.TtlMinutes != nil {
 		createReq.SetTtlMinutes(int32(*baseParams.TtlMinutes))
+	}
+	if baseParams.QueueTimeout != nil {
+		createReq.SetQueueTimeout(int32(*baseParams.QueueTimeout))
 	}
 	// Convert SDK VolumeMount to API SandboxVolume
 	if len(baseParams.Volumes) > 0 {

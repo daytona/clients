@@ -68,6 +68,8 @@ import type { TestIdentityProviderConnectionResponse } from '../models';
 // @ts-ignore
 import type { UpdateIdentityProvider } from '../models';
 // @ts-ignore
+import type { UpdateOrganizationDefaultQueueTimeout } from '../models';
+// @ts-ignore
 import type { UpdateOrganizationDefaultRegion } from '../models';
 // @ts-ignore
 import type { UpdateOrganizationInvitation } from '../models';
@@ -1793,6 +1795,50 @@ export const OrganizationsApiAxiosParamCreator = function (configuration?: Confi
         },
         /**
          * 
+         * @summary Set organization default queue timeout
+         * @param {string} organizationId Organization ID
+         * @param {UpdateOrganizationDefaultQueueTimeout} updateOrganizationDefaultQueueTimeout 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateOrganizationDefaultQueueTimeout: async (organizationId: string, updateOrganizationDefaultQueueTimeout: UpdateOrganizationDefaultQueueTimeout, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organizationId' is not null or undefined
+            assertParamExists('updateOrganizationDefaultQueueTimeout', 'organizationId', organizationId)
+            // verify required parameter 'updateOrganizationDefaultQueueTimeout' is not null or undefined
+            assertParamExists('updateOrganizationDefaultQueueTimeout', 'updateOrganizationDefaultQueueTimeout', updateOrganizationDefaultQueueTimeout)
+            const localVarPath = `/organizations/{organizationId}/default-queue-timeout`
+                .replace(`{${"organizationId"}}`, encodeURIComponent(String(organizationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(updateOrganizationDefaultQueueTimeout, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Update organization identity provider
          * @param {string} organizationId Organization ID
          * @param {string} id Identity provider ID
@@ -2591,6 +2637,20 @@ export const OrganizationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Set organization default queue timeout
+         * @param {string} organizationId Organization ID
+         * @param {UpdateOrganizationDefaultQueueTimeout} updateOrganizationDefaultQueueTimeout 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateOrganizationDefaultQueueTimeout(organizationId: string, updateOrganizationDefaultQueueTimeout: UpdateOrganizationDefaultQueueTimeout, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateOrganizationDefaultQueueTimeout(organizationId, updateOrganizationDefaultQueueTimeout, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OrganizationsApi.updateOrganizationDefaultQueueTimeout']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Update organization identity provider
          * @param {string} organizationId Organization ID
          * @param {string} id Identity provider ID
@@ -3098,6 +3158,17 @@ export const OrganizationsApiFactory = function (configuration?: Configuration, 
          */
         updateExperimentalConfig(organizationId: string, requestBody?: { [key: string]: any; }, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.updateExperimentalConfig(organizationId, requestBody, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Set organization default queue timeout
+         * @param {string} organizationId Organization ID
+         * @param {UpdateOrganizationDefaultQueueTimeout} updateOrganizationDefaultQueueTimeout 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateOrganizationDefaultQueueTimeout(organizationId: string, updateOrganizationDefaultQueueTimeout: UpdateOrganizationDefaultQueueTimeout, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.updateOrganizationDefaultQueueTimeout(organizationId, updateOrganizationDefaultQueueTimeout, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3631,6 +3702,18 @@ export class OrganizationsApi extends BaseAPI {
      */
     public updateExperimentalConfig(organizationId: string, requestBody?: { [key: string]: any; }, options?: RawAxiosRequestConfig) {
         return OrganizationsApiFp(this.configuration).updateExperimentalConfig(organizationId, requestBody, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Set organization default queue timeout
+     * @param {string} organizationId Organization ID
+     * @param {UpdateOrganizationDefaultQueueTimeout} updateOrganizationDefaultQueueTimeout 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public updateOrganizationDefaultQueueTimeout(organizationId: string, updateOrganizationDefaultQueueTimeout: UpdateOrganizationDefaultQueueTimeout, options?: RawAxiosRequestConfig) {
+        return OrganizationsApiFp(this.configuration).updateOrganizationDefaultQueueTimeout(organizationId, updateOrganizationDefaultQueueTimeout, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

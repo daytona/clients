@@ -319,6 +319,19 @@ RSpec.describe Daytona::Daytona do
         .to raise_error(Daytona::Sdk::Error, /ttl_minutes must be a non-negative integer/)
     end
 
+    it 'raises on invalid queue_timeout values' do
+      [0, -1, 1.5].each do |queue_timeout|
+        params = Daytona::CreateSandboxFromSnapshotParams.new(
+          snapshot: 'snap-1',
+          language: :python,
+          queue_timeout: queue_timeout
+        )
+
+        expect { described_class.new(config).create(params) }
+          .to raise_error(Daytona::Sdk::Error, /queue_timeout must be a positive integer/)
+      end
+    end
+
     it 'creates a sandbox from a string image and merges labels' do
       params = Daytona::CreateSandboxFromImageParams.new(
         image: 'ruby:3.4',
@@ -385,6 +398,31 @@ RSpec.describe Daytona::Daytona do
 
       expect(sandbox_api).to have_received(:create_sandbox) do |request|
         expect(request.kvm).to be_nil
+      end
+    end
+
+    it 'passes queue_timeout to the API client when set' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(
+        snapshot: 'snap-1',
+        queue_timeout: 15
+      )
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.queue_timeout).to eq(15)
+      end
+    end
+
+    it 'omits queue_timeout from the API request when not set' do
+      params = Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1')
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      described_class.new(config).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) do |request|
+        expect(request.queue_timeout).to be_nil
       end
     end
 

@@ -54,6 +54,7 @@ class SandboxListItem(BaseModel):
     gpu: StrictInt = Field(description="The GPU quota for the sandbox")
     spot: Optional[StrictBool] = Field(default=False, description="Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.")
     spot_evicted_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.", serialization_alias="spotEvictedAt")
+    queue_timed_out_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.", serialization_alias="queueTimedOutAt")
     gpu_type: Optional[GpuType] = Field(default=None, description="The GPU type assigned to the sandbox", serialization_alias="gpuType")
     memory: StrictInt = Field(description="The memory quota for the sandbox")
     disk: StrictInt = Field(description="The disk quota for the sandbox")
@@ -64,6 +65,7 @@ class SandboxListItem(BaseModel):
     auto_archive_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-archive interval in minutes", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
     auto_destroy_at: Optional[StrictStr] = Field(default=None, description="When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)", serialization_alias="autoDestroyAt")
+    queue_timeout: Optional[StrictInt] = Field(default=None, description="Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.", serialization_alias="queueTimeout")
     created_at: Optional[StrictStr] = Field(default=None, description="The creation timestamp of the sandbox", serialization_alias="createdAt")
     updated_at: Optional[StrictStr] = Field(default=None, description="The last update timestamp of the sandbox", serialization_alias="updatedAt")
     last_activity_at: Optional[StrictStr] = Field(default=None, description="The last activity timestamp of the sandbox", serialization_alias="lastActivityAt")
@@ -71,7 +73,7 @@ class SandboxListItem(BaseModel):
     warm_pool_id: Optional[StrictStr] = Field(default=None, description="Id of the warm pool this sandbox waits in; set only while it is an unclaimed member", serialization_alias="warmPoolId")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -118,6 +120,11 @@ class SandboxListItem(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
+        # set to None if queue_timeout (nullable) is None
+        # and model_fields_set contains the field
+        if self.queue_timeout is None and "queue_timeout" in self.model_fields_set:
+            _dict['queueTimeout'] = None
+
         return _dict
 
     @classmethod
@@ -150,6 +157,7 @@ class SandboxListItem(BaseModel):
             "gpu": obj.get("gpu"),
             "spot": obj.get("spot") if obj.get("spot") is not None else False,
             "spot_evicted_at": obj.get("spotEvictedAt"),
+            "queue_timed_out_at": obj.get("queueTimedOutAt"),
             "gpu_type": obj.get("gpuType"),
             "memory": obj.get("memory"),
             "disk": obj.get("disk"),
@@ -160,6 +168,7 @@ class SandboxListItem(BaseModel):
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
             "auto_destroy_at": obj.get("autoDestroyAt"),
+            "queue_timeout": obj.get("queueTimeout"),
             "created_at": obj.get("createdAt"),
             "updated_at": obj.get("updatedAt"),
             "last_activity_at": obj.get("lastActivityAt"),

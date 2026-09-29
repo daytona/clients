@@ -76,6 +76,7 @@ type Sandbox struct {
 	Gpu            int32                          // Number of GPUs allocated to the sandbox
 	Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
 	SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
+	QueueTimeout   *int                           // Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it; nil when unset or null
 	Memory         int32                          // Amount of memory allocated to the sandbox in GiB
 	Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
 	State          apiclient.SandboxState         // Current sandbox state
@@ -111,6 +112,7 @@ type Sandbox struct {
 	LastActivityAt  *string // When the sandbox last had activity
 	ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
 	AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
+	QueueTimedOutAt *string // When the sandbox was destroyed after exceeding its queue timeout
 
 	// Env contains environment variables set in the sandbox.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -219,6 +221,8 @@ type sandboxDTO interface {
 	GetLastActivityAtOk() (*string, bool)
 	GetAutoDestroyAtOk() (*string, bool)
 	GetSpotEvictedAtOk() (*string, bool)
+	GetQueueTimeoutOk() (*int32, bool)
+	GetQueueTimedOutAtOk() (*string, bool)
 	GetWarmPoolIdOk() (*string, bool)
 	GetDaemonVersionOk() (*string, bool)
 	GetGpuTypeOk() (*apiclient.GpuType, bool)
@@ -417,6 +421,17 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if v, ok := dto.GetSpotEvictedAtOk(); ok {
 		s.SpotEvictedAt = v
 	}
+	if v, ok := dto.GetQueueTimeoutOk(); ok && v != nil {
+		queueTimeout := int(*v)
+		s.QueueTimeout = &queueTimeout
+	} else {
+		s.QueueTimeout = nil
+	}
+	if v, ok := dto.GetQueueTimedOutAtOk(); ok {
+		s.QueueTimedOutAt = v
+	} else {
+		s.QueueTimedOutAt = nil
+	}
 	s.Memory = dto.GetMemory()
 	s.Disk = dto.GetDisk()
 	s.ToolboxProxyUrl = dto.GetToolboxProxyUrl()
@@ -469,7 +484,8 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
-		s.Kvm = full.Kvm
+		kvm := full.Kvm
+		s.Kvm = &kvm
 		s.NetworkAllowList = full.NetworkAllowList
 		s.DomainAllowList = full.DomainAllowList
 		s.OutboundProxyUrl = full.OutboundProxyUrl
@@ -670,6 +686,9 @@ func (s *Sandbox) waitForState(
 	if containsSandboxState(targetStates, currentState) {
 		return nil
 	}
+	if err := s.destroyedLifecycleError(targetStates); err != nil {
+		return err
+	}
 
 	refresh := func(rctx context.Context) (done bool, err error) {
 		if safeRefresh {
@@ -686,6 +705,9 @@ func (s *Sandbox) waitForState(
 		s.mu.RUnlock()
 		if containsSandboxState(targetStates, st) {
 			return true, nil
+		}
+		if err := s.destroyedLifecycleError(targetStates); err != nil {
+			return true, err
 		}
 		if containsSandboxState(errorStates, st) {
 			return true, fmt.Errorf("sandbox entered error state: %s", st)
@@ -720,6 +742,11 @@ func (s *Sandbox) waitForState(
 			}
 			return ctx.Err()
 		case newState := <-stateCh:
+			if newState == apiclient.SANDBOXSTATE_DESTROYED {
+				if err := s.destroyedLifecycleError(targetStates); err != nil {
+					return err
+				}
+			}
 			if containsSandboxState(errorStates, newState) {
 				return fmt.Errorf("sandbox entered error state: %s", newState)
 			}
@@ -735,6 +762,28 @@ func (s *Sandbox) waitForState(
 			pollTimer.Reset(pollInterval)
 		}
 	}
+}
+
+func (s *Sandbox) destroyedLifecycleError(targetStates []apiclient.SandboxState) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.State != apiclient.SANDBOXSTATE_DESTROYED || containsSandboxState(targetStates, apiclient.SANDBOXSTATE_DESTROYED) {
+		return nil
+	}
+
+	if s.QueueTimedOutAt != nil {
+		if s.QueueTimeout != nil {
+			return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting %d minutes for a runner (queue timed out at %s)", s.ID, *s.QueueTimeout, *s.QueueTimedOutAt))
+		}
+		return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting for a runner (queue timed out at %s)", s.ID, *s.QueueTimedOutAt))
+	}
+
+	if s.SpotEvictedAt != nil {
+		return errors.NewSpotEvictedError(fmt.Sprintf("Sandbox %s was evicted by spot preemption at %s", s.ID, *s.SpotEvictedAt))
+	}
+
+	return nil
 }
 
 func (s *Sandbox) refreshDataSafe(ctx context.Context) error {

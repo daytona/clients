@@ -42,6 +42,9 @@ module DaytonaApiClient
     # Whether to block all network access for the sandbox
     attr_accessor :network_block_all
 
+    # Whether the sandbox exposes KVM (/dev/kvm) to its guest
+    attr_accessor :kvm
+
     # Comma-separated list of allowed CIDR network addresses for the sandbox
     attr_accessor :network_allow_list
 
@@ -68,6 +71,9 @@ module DaytonaApiClient
 
     # When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
     attr_accessor :spot_evicted_at
+
+    # When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+    attr_accessor :queue_timed_out_at
 
     # The GPU type assigned to the sandbox
     attr_accessor :gpu_type
@@ -114,6 +120,9 @@ module DaytonaApiClient
     # When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
     attr_accessor :auto_destroy_at
 
+    # Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+    attr_accessor :queue_timeout
+
     # Array of volumes attached to the sandbox
     attr_accessor :volumes
 
@@ -143,9 +152,6 @@ module DaytonaApiClient
 
     # The toolbox proxy URL for the sandbox
     attr_accessor :toolbox_proxy_url
-
-    # Whether the sandbox exposes KVM (/dev/kvm) to its guest
-    attr_accessor :kvm
 
     class EnumAttributeValidator
       attr_reader :datatype
@@ -181,6 +187,7 @@ module DaytonaApiClient
         :'labels' => :'labels',
         :'public' => :'public',
         :'network_block_all' => :'networkBlockAll',
+        :'kvm' => :'kvm',
         :'network_allow_list' => :'networkAllowList',
         :'domain_allow_list' => :'domainAllowList',
         :'outbound_proxy_url' => :'outboundProxyUrl',
@@ -190,6 +197,7 @@ module DaytonaApiClient
         :'gpu' => :'gpu',
         :'spot' => :'spot',
         :'spot_evicted_at' => :'spotEvictedAt',
+        :'queue_timed_out_at' => :'queueTimedOutAt',
         :'gpu_type' => :'gpuType',
         :'memory' => :'memory',
         :'disk' => :'disk',
@@ -205,6 +213,7 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'auto_destroy_at' => :'autoDestroyAt',
+        :'queue_timeout' => :'queueTimeout',
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
         :'created_at' => :'createdAt',
@@ -214,8 +223,7 @@ module DaytonaApiClient
         :'daemon_version' => :'daemonVersion',
         :'runner_id' => :'runnerId',
         :'linked_sandbox_id' => :'linkedSandboxId',
-        :'toolbox_proxy_url' => :'toolboxProxyUrl',
-        :'kvm' => :'kvm'
+        :'toolbox_proxy_url' => :'toolboxProxyUrl'
       }
     end
 
@@ -241,6 +249,7 @@ module DaytonaApiClient
         :'labels' => :'Hash<String, String>',
         :'public' => :'Boolean',
         :'network_block_all' => :'Boolean',
+        :'kvm' => :'Boolean',
         :'network_allow_list' => :'String',
         :'domain_allow_list' => :'String',
         :'outbound_proxy_url' => :'String',
@@ -250,6 +259,7 @@ module DaytonaApiClient
         :'gpu' => :'Integer',
         :'spot' => :'Boolean',
         :'spot_evicted_at' => :'String',
+        :'queue_timed_out_at' => :'String',
         :'gpu_type' => :'GpuType',
         :'memory' => :'Integer',
         :'disk' => :'Integer',
@@ -265,6 +275,7 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'Float',
         :'auto_delete_interval' => :'Float',
         :'auto_destroy_at' => :'String',
+        :'queue_timeout' => :'Integer',
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'BuildInfo',
         :'created_at' => :'String',
@@ -274,14 +285,14 @@ module DaytonaApiClient
         :'daemon_version' => :'String',
         :'runner_id' => :'String',
         :'linked_sandbox_id' => :'String',
-        :'toolbox_proxy_url' => :'String',
-        :'kvm' => :'Boolean'
+        :'toolbox_proxy_url' => :'String'
       }
     end
 
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'queue_timeout',
       ])
     end
 
@@ -357,6 +368,12 @@ module DaytonaApiClient
         self.network_block_all = nil
       end
 
+      if attributes.key?(:'kvm')
+        self.kvm = attributes[:'kvm']
+      else
+        self.kvm = nil
+      end
+
       if attributes.key?(:'network_allow_list')
         self.network_allow_list = attributes[:'network_allow_list']
       end
@@ -399,6 +416,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'spot_evicted_at')
         self.spot_evicted_at = attributes[:'spot_evicted_at']
+      end
+
+      if attributes.key?(:'queue_timed_out_at')
+        self.queue_timed_out_at = attributes[:'queue_timed_out_at']
       end
 
       if attributes.key?(:'gpu_type')
@@ -465,6 +486,10 @@ module DaytonaApiClient
         self.auto_destroy_at = attributes[:'auto_destroy_at']
       end
 
+      if attributes.key?(:'queue_timeout')
+        self.queue_timeout = attributes[:'queue_timeout']
+      end
+
       if attributes.key?(:'volumes')
         if (value = attributes[:'volumes']).is_a?(Array)
           self.volumes = value
@@ -508,10 +533,6 @@ module DaytonaApiClient
       else
         self.toolbox_proxy_url = nil
       end
-
-      if attributes.key?(:'kvm')
-        self.kvm = attributes[:'kvm']
-      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -549,6 +570,10 @@ module DaytonaApiClient
 
       if @network_block_all.nil?
         invalid_properties.push('invalid value for "network_block_all", network_block_all cannot be nil.')
+      end
+
+      if @kvm.nil?
+        invalid_properties.push('invalid value for "kvm", kvm cannot be nil.')
       end
 
       if @target.nil?
@@ -590,6 +615,7 @@ module DaytonaApiClient
       return false if @labels.nil?
       return false if @public.nil?
       return false if @network_block_all.nil?
+      return false if @kvm.nil?
       return false if @target.nil?
       return false if @cpu.nil?
       return false if @gpu.nil?
@@ -681,6 +707,16 @@ module DaytonaApiClient
       end
 
       @network_block_all = network_block_all
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] kvm Value to be assigned
+    def kvm=(kvm)
+      if kvm.nil?
+        fail ArgumentError, 'kvm cannot be nil'
+      end
+
+      @kvm = kvm
     end
 
     # Custom attribute writer method with validation
@@ -777,6 +813,7 @@ module DaytonaApiClient
           labels == o.labels &&
           public == o.public &&
           network_block_all == o.network_block_all &&
+          kvm == o.kvm &&
           network_allow_list == o.network_allow_list &&
           domain_allow_list == o.domain_allow_list &&
           outbound_proxy_url == o.outbound_proxy_url &&
@@ -786,6 +823,7 @@ module DaytonaApiClient
           gpu == o.gpu &&
           spot == o.spot &&
           spot_evicted_at == o.spot_evicted_at &&
+          queue_timed_out_at == o.queue_timed_out_at &&
           gpu_type == o.gpu_type &&
           memory == o.memory &&
           disk == o.disk &&
@@ -801,6 +839,7 @@ module DaytonaApiClient
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
           auto_destroy_at == o.auto_destroy_at &&
+          queue_timeout == o.queue_timeout &&
           volumes == o.volumes &&
           build_info == o.build_info &&
           created_at == o.created_at &&
@@ -810,8 +849,7 @@ module DaytonaApiClient
           daemon_version == o.daemon_version &&
           runner_id == o.runner_id &&
           linked_sandbox_id == o.linked_sandbox_id &&
-          toolbox_proxy_url == o.toolbox_proxy_url &&
-          kvm == o.kvm
+          toolbox_proxy_url == o.toolbox_proxy_url
     end
 
     # @see the `==` method
@@ -823,7 +861,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url, kvm].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, queue_timed_out_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, queue_timeout, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
     end
 
     # Builds the object from hash

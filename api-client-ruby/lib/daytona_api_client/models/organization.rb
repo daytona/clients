@@ -66,6 +66,9 @@ module DaytonaApiClient
     # Time in minutes before an unused snapshot is deactivated
     attr_accessor :snapshot_deactivation_timeout_minutes
 
+    # Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.
+    attr_accessor :default_queue_timeout
+
     # Sandbox default network block all
     attr_accessor :sandbox_limited_network_egress
 
@@ -83,6 +86,15 @@ module DaytonaApiClient
 
     # ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
     attr_accessor :workos_org_id
+
+    # Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)
+    attr_accessor :directory_sync_status
+
+    # When the directory sync status last changed
+    attr_accessor :directory_sync_status_changed_at
+
+    # When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active.
+    attr_accessor :directory_sync_token_revoked_at
 
     # Authenticated rate limit per minute
     attr_accessor :authenticated_rate_limit
@@ -108,6 +120,28 @@ module DaytonaApiClient
     # Sandbox lifecycle rate limit TTL in seconds
     attr_accessor :sandbox_lifecycle_rate_limit_ttl_seconds
 
+    class EnumAttributeValidator
+      attr_reader :datatype
+      attr_reader :allowable_values
+
+      def initialize(datatype, allowable_values)
+        @allowable_values = allowable_values.map do |value|
+          case datatype.to_s
+          when /Integer/i
+            value.to_i
+          when /Float/i
+            value.to_f
+          else
+            value
+          end
+        end
+      end
+
+      def valid?(value)
+        !value || allowable_values.include?(value)
+      end
+    end
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -128,12 +162,16 @@ module DaytonaApiClient
         :'secret_quota' => :'secretQuota',
         :'max_secrets_per_sandbox' => :'maxSecretsPerSandbox',
         :'snapshot_deactivation_timeout_minutes' => :'snapshotDeactivationTimeoutMinutes',
+        :'default_queue_timeout' => :'defaultQueueTimeout',
         :'sandbox_limited_network_egress' => :'sandboxLimitedNetworkEgress',
         :'preview_warning_enabled' => :'previewWarningEnabled',
         :'sso_enabled' => :'ssoEnabled',
         :'scim_enabled' => :'scimEnabled',
         :'default_region_id' => :'defaultRegionId',
         :'workos_org_id' => :'workosOrgId',
+        :'directory_sync_status' => :'directorySyncStatus',
+        :'directory_sync_status_changed_at' => :'directorySyncStatusChangedAt',
+        :'directory_sync_token_revoked_at' => :'directorySyncTokenRevokedAt',
         :'authenticated_rate_limit' => :'authenticatedRateLimit',
         :'sandbox_create_rate_limit' => :'sandboxCreateRateLimit',
         :'sandbox_lifecycle_rate_limit' => :'sandboxLifecycleRateLimit',
@@ -175,12 +213,16 @@ module DaytonaApiClient
         :'secret_quota' => :'Float',
         :'max_secrets_per_sandbox' => :'Float',
         :'snapshot_deactivation_timeout_minutes' => :'Float',
+        :'default_queue_timeout' => :'Integer',
         :'sandbox_limited_network_egress' => :'Boolean',
         :'preview_warning_enabled' => :'Boolean',
         :'sso_enabled' => :'Boolean',
         :'scim_enabled' => :'Boolean',
         :'default_region_id' => :'String',
         :'workos_org_id' => :'String',
+        :'directory_sync_status' => :'DirectorySyncStatus',
+        :'directory_sync_status_changed_at' => :'Time',
+        :'directory_sync_token_revoked_at' => :'Time',
         :'authenticated_rate_limit' => :'Float',
         :'sandbox_create_rate_limit' => :'Float',
         :'sandbox_lifecycle_rate_limit' => :'Float',
@@ -195,6 +237,7 @@ module DaytonaApiClient
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'default_queue_timeout',
         :'authenticated_rate_limit',
         :'sandbox_create_rate_limit',
         :'sandbox_lifecycle_rate_limit',
@@ -323,6 +366,12 @@ module DaytonaApiClient
         self.snapshot_deactivation_timeout_minutes = 20160
       end
 
+      if attributes.key?(:'default_queue_timeout')
+        self.default_queue_timeout = attributes[:'default_queue_timeout']
+      else
+        self.default_queue_timeout = nil
+      end
+
       if attributes.key?(:'sandbox_limited_network_egress')
         self.sandbox_limited_network_egress = attributes[:'sandbox_limited_network_egress']
       else
@@ -353,6 +402,18 @@ module DaytonaApiClient
 
       if attributes.key?(:'workos_org_id')
         self.workos_org_id = attributes[:'workos_org_id']
+      end
+
+      if attributes.key?(:'directory_sync_status')
+        self.directory_sync_status = attributes[:'directory_sync_status']
+      end
+
+      if attributes.key?(:'directory_sync_status_changed_at')
+        self.directory_sync_status_changed_at = attributes[:'directory_sync_status_changed_at']
+      end
+
+      if attributes.key?(:'directory_sync_token_revoked_at')
+        self.directory_sync_token_revoked_at = attributes[:'directory_sync_token_revoked_at']
       end
 
       if attributes.key?(:'authenticated_rate_limit')
@@ -771,12 +832,16 @@ module DaytonaApiClient
           secret_quota == o.secret_quota &&
           max_secrets_per_sandbox == o.max_secrets_per_sandbox &&
           snapshot_deactivation_timeout_minutes == o.snapshot_deactivation_timeout_minutes &&
+          default_queue_timeout == o.default_queue_timeout &&
           sandbox_limited_network_egress == o.sandbox_limited_network_egress &&
           preview_warning_enabled == o.preview_warning_enabled &&
           sso_enabled == o.sso_enabled &&
           scim_enabled == o.scim_enabled &&
           default_region_id == o.default_region_id &&
           workos_org_id == o.workos_org_id &&
+          directory_sync_status == o.directory_sync_status &&
+          directory_sync_status_changed_at == o.directory_sync_status_changed_at &&
+          directory_sync_token_revoked_at == o.directory_sync_token_revoked_at &&
           authenticated_rate_limit == o.authenticated_rate_limit &&
           sandbox_create_rate_limit == o.sandbox_create_rate_limit &&
           sandbox_lifecycle_rate_limit == o.sandbox_lifecycle_rate_limit &&
@@ -796,7 +861,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, sandbox_limited_network_egress, preview_warning_enabled, sso_enabled, scim_enabled, default_region_id, workos_org_id, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
+      [id, name, created_by, personal, created_at, updated_at, suspended, suspended_at, suspension_reason, suspended_until, suspension_cleanup_grace_period_hours, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, secret_quota, max_secrets_per_sandbox, snapshot_deactivation_timeout_minutes, default_queue_timeout, sandbox_limited_network_egress, preview_warning_enabled, sso_enabled, scim_enabled, default_region_id, workos_org_id, directory_sync_status, directory_sync_status_changed_at, directory_sync_token_revoked_at, authenticated_rate_limit, sandbox_create_rate_limit, sandbox_lifecycle_rate_limit, experimental_config, otel_config, authenticated_rate_limit_ttl_seconds, sandbox_create_rate_limit_ttl_seconds, sandbox_lifecycle_rate_limit_ttl_seconds].hash
     end
 
     # Builds the object from hash

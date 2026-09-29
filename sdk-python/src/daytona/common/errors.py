@@ -197,6 +197,14 @@ class DaytonaTimeoutError(DaytonaError):
     """
 
 
+class DaytonaQueueTimeoutError(DaytonaTimeoutError):
+    """Raised when a Sandbox was destroyed by the API because it waited longer than its queue timeout for a runner."""
+
+
+class DaytonaSpotEvictedError(DaytonaError):
+    """Raised when a Sandbox was destroyed by spot preemption."""
+
+
 class DaytonaConnectionError(DaytonaError):
     """Error for when a network connection fails (can't connect or mid-request drop)."""
 

@@ -250,6 +250,36 @@ class TestDaytonaCreateValidation:
         create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
         assert create_request.kvm is None
 
+    def test_create_with_queue_timeout(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        params = CreateSandboxFromSnapshotParams(language="python", queue_timeout=7)
+        daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.queue_timeout == 7
+
+    def test_create_default_queue_timeout_is_none(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        params = CreateSandboxFromSnapshotParams(language="python")
+        assert params.queue_timeout is None
+        daytona.create(params)
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.queue_timeout is None
+
+    @pytest.mark.parametrize("queue_timeout", [0, -1, True])
+    def test_create_rejects_invalid_queue_timeout(self, env_with_api_key, sandbox_dto, queue_timeout):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        params = CreateSandboxFromSnapshotParams(language="python")
+        params.queue_timeout = queue_timeout
+        with pytest.raises(DaytonaValidationError, match="queue_timeout must be a positive integer"):
+            daytona.create(params)
+        daytona._sandbox_api.create_sandbox.assert_not_called()
+
 
 class TestDaytonaGetAndList:
     def test_get_empty_id_raises(self, env_with_api_key):

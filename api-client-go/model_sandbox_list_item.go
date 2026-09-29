@@ -61,6 +61,8 @@ type SandboxListItem struct {
 	Spot *bool `json:"spot,omitempty"`
 	// When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.
 	SpotEvictedAt *string `json:"spotEvictedAt,omitempty"`
+	// When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+	QueueTimedOutAt *string `json:"queueTimedOutAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
 	// The memory quota for the sandbox
@@ -81,6 +83,8 @@ type SandboxListItem struct {
 	AutoDeleteInterval *float32 `json:"autoDeleteInterval,omitempty"`
 	// When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
 	AutoDestroyAt *string `json:"autoDestroyAt,omitempty"`
+	// Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+	QueueTimeout NullableInt32 `json:"queueTimeout,omitempty"`
 	// The creation timestamp of the sandbox
 	CreatedAt *string `json:"createdAt,omitempty"`
 	// The last update timestamp of the sandbox
@@ -700,6 +704,38 @@ func (o *SandboxListItem) SetSpotEvictedAt(v string) {
 	o.SpotEvictedAt = &v
 }
 
+// GetQueueTimedOutAt returns the QueueTimedOutAt field value if set, zero value otherwise.
+func (o *SandboxListItem) GetQueueTimedOutAt() string {
+	if o == nil || IsNil(o.QueueTimedOutAt) {
+		var ret string
+		return ret
+	}
+	return *o.QueueTimedOutAt
+}
+
+// GetQueueTimedOutAtOk returns a tuple with the QueueTimedOutAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SandboxListItem) GetQueueTimedOutAtOk() (*string, bool) {
+	if o == nil || IsNil(o.QueueTimedOutAt) {
+		return nil, false
+	}
+	return o.QueueTimedOutAt, true
+}
+
+// HasQueueTimedOutAt returns a boolean if a field has been set.
+func (o *SandboxListItem) HasQueueTimedOutAt() bool {
+	if o != nil && !IsNil(o.QueueTimedOutAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTimedOutAt gets a reference to the given string and assigns it to the QueueTimedOutAt field.
+func (o *SandboxListItem) SetQueueTimedOutAt(v string) {
+	o.QueueTimedOutAt = &v
+}
+
 // GetGpuType returns the GpuType field value if set, zero value otherwise.
 func (o *SandboxListItem) GetGpuType() GpuType {
 	if o == nil || IsNil(o.GpuType) {
@@ -996,6 +1032,48 @@ func (o *SandboxListItem) SetAutoDestroyAt(v string) {
 	o.AutoDestroyAt = &v
 }
 
+// GetQueueTimeout returns the QueueTimeout field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *SandboxListItem) GetQueueTimeout() int32 {
+	if o == nil || IsNil(o.QueueTimeout.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.QueueTimeout.Get()
+}
+
+// GetQueueTimeoutOk returns a tuple with the QueueTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *SandboxListItem) GetQueueTimeoutOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.QueueTimeout.Get(), o.QueueTimeout.IsSet()
+}
+
+// HasQueueTimeout returns a boolean if a field has been set.
+func (o *SandboxListItem) HasQueueTimeout() bool {
+	if o != nil && o.QueueTimeout.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTimeout gets a reference to the given NullableInt32 and assigns it to the QueueTimeout field.
+func (o *SandboxListItem) SetQueueTimeout(v int32) {
+	o.QueueTimeout.Set(&v)
+}
+// SetQueueTimeoutNil sets the value for QueueTimeout to be an explicit nil
+func (o *SandboxListItem) SetQueueTimeoutNil() {
+	o.QueueTimeout.Set(nil)
+}
+
+// UnsetQueueTimeout ensures that no value is present for QueueTimeout, not even an explicit nil
+func (o *SandboxListItem) UnsetQueueTimeout() {
+	o.QueueTimeout.Unset()
+}
+
 // GetCreatedAt returns the CreatedAt field value if set, zero value otherwise.
 func (o *SandboxListItem) GetCreatedAt() string {
 	if o == nil || IsNil(o.CreatedAt) {
@@ -1232,6 +1310,9 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.SpotEvictedAt) {
 		toSerialize["spotEvictedAt"] = o.SpotEvictedAt
 	}
+	if !IsNil(o.QueueTimedOutAt) {
+		toSerialize["queueTimedOutAt"] = o.QueueTimedOutAt
+	}
 	if !IsNil(o.GpuType) {
 		toSerialize["gpuType"] = o.GpuType
 	}
@@ -1255,6 +1336,9 @@ func (o SandboxListItem) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.AutoDestroyAt) {
 		toSerialize["autoDestroyAt"] = o.AutoDestroyAt
+	}
+	if o.QueueTimeout.IsSet() {
+		toSerialize["queueTimeout"] = o.QueueTimeout.Get()
 	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
@@ -1347,6 +1431,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "gpu")
 		delete(additionalProperties, "spot")
 		delete(additionalProperties, "spotEvictedAt")
+		delete(additionalProperties, "queueTimedOutAt")
 		delete(additionalProperties, "gpuType")
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")
@@ -1357,6 +1442,7 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
 		delete(additionalProperties, "autoDestroyAt")
+		delete(additionalProperties, "queueTimeout")
 		delete(additionalProperties, "createdAt")
 		delete(additionalProperties, "updatedAt")
 		delete(additionalProperties, "lastActivityAt")

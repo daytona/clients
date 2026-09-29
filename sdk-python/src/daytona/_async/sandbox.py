@@ -59,7 +59,13 @@ from .._utils.file_url_signing import SIGNING_KEY_CACHE_TTL_SECONDS, build_signe
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
-from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
+from ..common.errors import (
+    DaytonaError,
+    DaytonaNotFoundError,
+    DaytonaQueueTimeoutError,
+    DaytonaSpotEvictedError,
+    DaytonaValidationError,
+)
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
@@ -136,6 +142,8 @@ class AsyncSandbox(SandboxDto):
         spot (bool): Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
             to free capacity for on-demand GPU Sandboxes.
         spot_evicted_at (str | None): When the Sandbox was evicted by spot preemption.
+        queue_timed_out_at (str | None): When the Sandbox was destroyed because it waited too long
+            for a runner.
         gpu_type (GpuType | None): The GPU type assigned to the Sandbox.
         memory (int): Amount of memory allocated to the Sandbox in GiB.
         disk (int): Amount of disk space allocated to the Sandbox in GiB.
@@ -161,6 +169,8 @@ class AsyncSandbox(SandboxDto):
         last_activity_at (str | None): When the Sandbox last had activity.
         auto_destroy_at (str | None): When the Sandbox will be automatically destroyed (only set when a TTL
             is configured).
+        queue_timeout (int | None): Minutes to wait for runner assignment before Sandbox creation is
+            cancelled.
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
         kvm (bool | None): Whether the sandbox exposes KVM (/dev/kvm) to its guest
@@ -676,6 +686,8 @@ class AsyncSandbox(SandboxDto):
         Raises:
             DaytonaError: If timeout is negative; If Sandbox fails to start or times out;
         """
+        self._raise_destroyed_wait_error([SandboxState.STARTED])
+
         if self.state == SandboxState.STARTED:
             return
 
@@ -1356,6 +1368,19 @@ class AsyncSandbox(SandboxDto):
         for waiter in list(self._state_waiters):
             waiter(new_state)
 
+    def _raise_destroyed_wait_error(self, target_states: list[SandboxState]) -> None:
+        if self.state != SandboxState.DESTROYED or SandboxState.DESTROYED in target_states:
+            return
+
+        if self.queue_timed_out_at:
+            raise DaytonaQueueTimeoutError(
+                f"Sandbox {self.id} was destroyed after waiting {self.queue_timeout} minutes for a runner "
+                + f"(queue timed out at {self.queue_timed_out_at})"
+            )
+
+        if self.spot_evicted_at:
+            raise DaytonaSpotEvictedError(f"Sandbox {self.id} was evicted by spot preemption at {self.spot_evicted_at}")
+
     async def _wait_for_state(
         self,
         target_states: list[SandboxState],
@@ -1401,6 +1426,7 @@ class AsyncSandbox(SandboxDto):
             else:
                 await self.refresh_data()
 
+            self._raise_destroyed_wait_error(target_states)
             _waiter(self.state)
 
             while not state_resolved.is_set():
@@ -1414,6 +1440,8 @@ class AsyncSandbox(SandboxDto):
                     await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
+
+                self._raise_destroyed_wait_error(target_states)
 
                 if subscribed or loop.time() - poll_start > 5.0:
                     poll_interval = min(poll_interval * 1.1, 1.0)
@@ -1431,6 +1459,9 @@ class AsyncSandbox(SandboxDto):
                         await self.__refresh_data_safe()
                     else:
                         await self.refresh_data()
+                    self._raise_destroyed_wait_error(target_states)
+                except (DaytonaQueueTimeoutError, DaytonaSpotEvictedError):
+                    raise
                 except Exception:
                     pass
                 if state_resolved.is_set():
@@ -1458,6 +1489,7 @@ class AsyncSandbox(SandboxDto):
         self.gpu: int = sandbox_dto.gpu
         self.spot: bool | None = sandbox_dto.spot or False
         self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
+        self.queue_timed_out_at: str | None = sandbox_dto.queue_timed_out_at
         self.gpu_type: GpuType | None = sandbox_dto.gpu_type
         self.memory: int = sandbox_dto.memory
         self.disk: int = sandbox_dto.disk
@@ -1485,6 +1517,7 @@ class AsyncSandbox(SandboxDto):
         self.warm_pool_id: str | None = sandbox_dto.warm_pool_id
         self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
+        self.queue_timeout: int | None = sandbox_dto.queue_timeout
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):
@@ -1492,7 +1525,7 @@ class AsyncSandbox(SandboxDto):
             self.network_block_all: bool | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
                 sandbox_dto.network_block_all
             )
-            self.kvm: bool | None = sandbox_dto.kvm
+            self.kvm: bool | None = sandbox_dto.kvm  # pyright: ignore[reportIncompatibleVariableOverride]
             self.network_allow_list: str | None = sandbox_dto.network_allow_list
             self.domain_allow_list: str | None = sandbox_dto.domain_allow_list
             self.outbound_proxy_url: str | None = sandbox_dto.outbound_proxy_url

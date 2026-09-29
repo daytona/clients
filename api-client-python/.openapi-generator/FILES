@@ -33,6 +33,7 @@ daytona_api_client/models/audit_scenarios.py
 daytona_api_client/models/audit_target_scenario.py
 daytona_api_client/models/available_sandbox_class.py
 daytona_api_client/models/build_info.py
+daytona_api_client/models/cli_oidc_config.py
 daytona_api_client/models/create_api_key.py
 daytona_api_client/models/create_build_info.py
 daytona_api_client/models/create_docker_registry.py
@@ -54,6 +55,7 @@ daytona_api_client/models/create_volume.py
 daytona_api_client/models/create_warm_pool.py
 daytona_api_client/models/date_filter.py
 daytona_api_client/models/daytona_configuration.py
+daytona_api_client/models/directory_sync_status.py
 daytona_api_client/models/docker_registry.py
 daytona_api_client/models/fork_sandbox.py
 daytona_api_client/models/generate_workos_admin_portal_link.py
@@ -146,6 +148,7 @@ daytona_api_client/models/update_identity_provider.py
 daytona_api_client/models/update_job_status.py
 daytona_api_client/models/update_last_activity.py
 daytona_api_client/models/update_oidc_id_p_config.py
+daytona_api_client/models/update_organization_default_queue_timeout.py
 daytona_api_client/models/update_organization_default_region.py
 daytona_api_client/models/update_organization_invitation.py
 daytona_api_client/models/update_organization_member_access.py

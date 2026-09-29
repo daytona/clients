@@ -108,6 +108,17 @@ module Daytona
     class ConnectionTimeoutError < ConnectionError; end
 
     # ---------------------------------------------------------------------
+    # SDK-detected sandbox lifecycle
+    # ---------------------------------------------------------------------
+
+    # Raised when a Sandbox was destroyed by the API because it waited longer
+    # than its queue timeout for a runner.
+    class QueueTimeoutError < TimeoutError; end
+
+    # Raised when a Sandbox was destroyed by spot preemption.
+    class SpotEvictedError < Error; end
+
+    # ---------------------------------------------------------------------
     # Domain subclasses — each inherits from the HTTP-status parent that
     # matches its server-side status code.
     # ---------------------------------------------------------------------

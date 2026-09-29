@@ -50,6 +50,8 @@ const (
 	SourceAPI    = "DAYTONA_API"
 	SourceDaemon = "DAYTONA_DAEMON"
 	SourceProxy  = "DAYTONA_PROXY"
+	// SourceSDK is stamped on errors synthesized by the SDK itself and never appears on the wire.
+	SourceSDK = "DAYTONA_SDK"
 )
 
 // ----- DaytonaError: the one and only concrete error type -----
@@ -113,6 +115,18 @@ func NewDaytonaTimeoutError(message string) *DaytonaError {
 	return NewDaytonaError(message, http.StatusRequestTimeout, nil)
 }
 
+// NewQueueTimeoutError is a convenience constructor for SDK-detected sandbox
+// queue timeout destruction. It matches both [ErrQueueTimeout] and [ErrTimeout].
+func NewQueueTimeoutError(message string) *DaytonaError {
+	return &DaytonaError{Message: message, StatusCode: http.StatusRequestTimeout, Source: SourceSDK, Code: "SANDBOX_QUEUE_TIMEOUT"}
+}
+
+// NewSpotEvictedError is a convenience constructor for SDK-detected spot
+// preemption destruction.
+func NewSpotEvictedError(message string) *DaytonaError {
+	return &DaytonaError{Message: message, Source: SourceSDK, Code: "SANDBOX_SPOT_EVICTED"}
+}
+
 // Deprecated: use NewDaytonaError(message, http.StatusBadRequest, headers).
 func NewDaytonaValidationError(message string, headers http.Header) *DaytonaError {
 	return NewDaytonaError(message, http.StatusBadRequest, headers)
@@ -146,6 +160,10 @@ var (
 	ErrValidation = ErrBadRequest
 	// Deprecated: use ErrForbidden. Kept so existing callers do not break.
 	ErrAuthorization = ErrForbidden
+
+	// SDK-detected sandbox lifecycle.
+	ErrQueueTimeout = &DaytonaError{StatusCode: http.StatusRequestTimeout, Source: SourceSDK, Code: "SANDBOX_QUEUE_TIMEOUT"}
+	ErrSpotEvicted  = &DaytonaError{Source: SourceSDK, Code: "SANDBOX_SPOT_EVICTED"}
 
 	// Daemon: git.
 	ErrGitAuthFailed     = &DaytonaError{Source: SourceDaemon, Code: "GIT_AUTH_FAILED"}

@@ -106,7 +106,10 @@ type SandboxBaseParams struct {
 	AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
 	AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
 	TtlMinutes          *int // Wall-clock max lifetime in minutes; 0 disables TTL
-	Volumes             []VolumeMount
+	// QueueTimeout is the minutes to wait for runner assignment before sandbox creation is cancelled.
+	// Nil uses the organization default. Must be >= 1.
+	QueueTimeout *int
+	Volumes      []VolumeMount
 	// Secrets maps an environment variable name to the name of an existing
 	// organization secret. For each entry, the env var is injected into the
 	// sandbox holding the secret's opaque placeholder, which is resolved to the

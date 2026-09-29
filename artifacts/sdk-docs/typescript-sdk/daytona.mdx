@@ -414,6 +414,7 @@ Base parameters for creating a new Sandbox.
 - `otelEndpointOverride?` _string_ - OTel collector endpoint override for the Sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and will not be available in the Daytona analytics API or dashboard.
 - `outboundProxyUrl?` _string_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
 - `public?` _boolean_ - Is the Sandbox port preview public
+- `queueTimeout?` _number_ - Minutes to wait for runner assignment before the API destroys an unassigned sandbox. Omit to use the organization default.
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
 - `spot?` _boolean_ - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
 - `ttlMinutes?` _number_ - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
@@ -444,6 +445,7 @@ Parameters for creating a new Sandbox.
 - `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
+- `queueTimeout?` _number_
 - `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
@@ -474,6 +476,7 @@ Parameters for creating a new Sandbox from a snapshot.
 - `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
+- `queueTimeout?` _number_
 - `secrets?` _Record\<string, string\>_
 - `snapshot?` _string_ - Name of the snapshot to use for the Sandbox.
 - `spot?` _boolean_

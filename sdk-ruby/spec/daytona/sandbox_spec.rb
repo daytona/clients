@@ -64,6 +64,8 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.last_activity_at).to eq('2025-01-01T00:00:00Z')
       expect(sandbox.network_block_all).to be(false)
       expect(sandbox.kvm).to be(false)
+      expect(sandbox.queue_timeout).to be_nil
+      expect(sandbox.queue_timed_out_at).to be_nil
       expect(sandbox.network_allow_list).to be_nil
       expect(sandbox.sandbox_class).to eq('linux-vm')
       expect(sandbox.warm_pool_id).to be_nil
@@ -534,6 +536,52 @@ RSpec.describe Daytona::Sandbox do
                          /entered error state: error, error reason: boom/i)
     end
 
+    it 'raises QueueTimeoutError when the sandbox is destroyed after queue timeout' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          queue_timeout: 15,
+          queue_timed_out_at: '2026-09-29T07:00:00Z'
+        )
+      )
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start
+      end.to raise_error(
+        Daytona::Sdk::QueueTimeoutError,
+        'Sandbox sandbox-123 was destroyed after waiting 15 minutes for a runner ' \
+        '(queue timed out at 2026-09-29T07:00:00Z)'
+      )
+    end
+
+    it 'raises SpotEvictedError when the sandbox is destroyed by spot preemption' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          spot_evicted_at: '2026-09-29T07:05:00Z'
+        )
+      )
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start
+      end.to raise_error(
+        Daytona::Sdk::SpotEvictedError,
+        'Sandbox sandbox-123 was evicted by spot preemption at 2026-09-29T07:05:00Z'
+      )
+    end
+
     it 'recovers from stale cached ERROR when refresh returns started' do
       errored = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'stale'),
@@ -694,6 +742,25 @@ RSpec.describe Daytona::Sandbox do
       )
 
       expect { destroyed.wait_for_sandbox_stop }.not_to raise_error
+    end
+
+    it 'treats destroyed as a successful target state even when queue timeout markers are present' do
+      stopping = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'stopping'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          queue_timeout: 15,
+          queue_timed_out_at: '2026-09-29T07:00:00Z'
+        )
+      )
+
+      expect { stopping.wait_for_sandbox_stop }.not_to raise_error
+      expect(stopping.state).to eq('destroyed')
     end
 
     it 'enforces timeout (deliberate keep)' do

@@ -13,6 +13,7 @@ func TestCreateSandboxToolNetworkAllowListSchema(t *testing.T) {
 	networkDesc := schemaDescription(t, tool.InputSchema.Properties, "networkAllowList")
 	domainDesc := schemaDescription(t, tool.InputSchema.Properties, "domainAllowList")
 	kvmDesc := schemaDescription(t, tool.InputSchema.Properties, "kvm")
+	queueTimeoutDesc := schemaDescription(t, tool.InputSchema.Properties, "queueTimeout")
 
 	for _, needle := range []string{"IPv4", "CIDR", "domainAllowList"} {
 		if !strings.Contains(networkDesc, needle) {
@@ -41,6 +42,9 @@ func TestCreateSandboxToolNetworkAllowListSchema(t *testing.T) {
 	if kvmDesc != "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization." {
 		t.Errorf("kvm description = %q", kvmDesc)
 	}
+	if queueTimeoutDesc != "Minutes to wait for runner assignment before the sandbox creation is cancelled (omit to use the organization default)." {
+		t.Errorf("queueTimeout description = %q", queueTimeoutDesc)
+	}
 
 	for _, field := range []string{"networkAllowList", "domainAllowList"} {
 		for _, required := range tool.InputSchema.Required {
@@ -58,6 +62,7 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 	whitespace := "   "
 	blockAll := true
 	kvm := true
+	queueTimeout := int32(7)
 	name := "allowlist-test"
 
 	tests := []struct {
@@ -67,6 +72,7 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 		wantDomains  *string
 		wantBlockAll *bool
 		wantKvm      bool
+		wantQueue    *int32
 		wantName     *string
 	}{
 		{
@@ -106,6 +112,11 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			wantKvm: true,
 		},
 		{
+			name:      "queue timeout only",
+			args:      CreateSandboxArgs{QueueTimeout: &queueTimeout},
+			wantQueue: &queueTimeout,
+		},
+		{
 			name:     "name and cidr",
 			args:     CreateSandboxArgs{Name: &name, NetworkAllowList: &cidr},
 			wantCIDR: &cidr,
@@ -137,6 +148,37 @@ func TestCreateSandboxRequestWiresNetworkSettings(t *testing.T) {
 			}
 			if req.GetKvm() != tt.wantKvm {
 				t.Errorf("kvm = %v, want %v", req.GetKvm(), tt.wantKvm)
+			}
+			gotQueue, queueSet := req.GetQueueTimeoutOk()
+			if tt.wantQueue == nil {
+				if queueSet {
+					t.Errorf("queueTimeout set unexpectedly to %v", gotQueue)
+				}
+			} else if !queueSet || gotQueue == nil || *gotQueue != *tt.wantQueue {
+				t.Errorf("queueTimeout = %v set=%v, want %d", gotQueue, queueSet, *tt.wantQueue)
+			}
+		})
+	}
+}
+
+func TestCreateSandboxRequestRejectsInvalidQueueTimeout(t *testing.T) {
+	zero := int32(0)
+	minusOne := int32(-1)
+
+	for _, tt := range []struct {
+		name string
+		args CreateSandboxArgs
+	}{
+		{name: "zero", args: CreateSandboxArgs{QueueTimeout: &zero}},
+		{name: "negative", args: CreateSandboxArgs{QueueTimeout: &minusOne}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := createSandboxRequest(tt.args)
+			if err == nil {
+				t.Fatal("expected createSandboxRequest() error, got nil")
+			}
+			if err.Error() != "queueTimeout must be a positive integer" {
+				t.Fatalf("error = %q", err)
 			}
 		})
 	}

@@ -56,6 +56,8 @@ if errors.As(err, &de) {
   - [func NewDaytonaErrorFromBody\(body \[\]byte, statusCode int, headers http.Header\) \*DaytonaError](<#NewDaytonaErrorFromBody>)
   - [func NewDaytonaTimeoutError\(message string\) \*DaytonaError](<#NewDaytonaTimeoutError>)
   - [func NewDaytonaValidationError\(message string, headers http.Header\) \*DaytonaError](<#NewDaytonaValidationError>)
+  - [func NewQueueTimeoutError\(message string\) \*DaytonaError](<#NewQueueTimeoutError>)
+  - [func NewSpotEvictedError\(message string\) \*DaytonaError](<#NewSpotEvictedError>)
   - [func \(e \*DaytonaError\) As\(target any\) bool](<#DaytonaError.As>)
   - [func \(e \*DaytonaError\) Error\(\) string](<#DaytonaError.Error>)
   - [func \(e \*DaytonaError\) Is\(target error\) bool](<#DaytonaError.Is>)
@@ -86,6 +88,8 @@ const (
     SourceAPI    = "DAYTONA_API"
     SourceDaemon = "DAYTONA_DAEMON"
     SourceProxy  = "DAYTONA_PROXY"
+    // SourceSDK is stamped on errors synthesized by the SDK itself and never appears on the wire.
+    SourceSDK = "DAYTONA_SDK"
 )
 ```
 
@@ -114,6 +118,10 @@ var (
     ErrValidation = ErrBadRequest
     // Deprecated: use ErrForbidden. Kept so existing callers do not break.
     ErrAuthorization = ErrForbidden
+
+    // SDK-detected sandbox lifecycle.
+    ErrQueueTimeout = &DaytonaError{StatusCode: http.StatusRequestTimeout, Source: SourceSDK, Code: "SANDBOX_QUEUE_TIMEOUT"}
+    ErrSpotEvicted  = &DaytonaError{Source: SourceSDK, Code: "SANDBOX_SPOT_EVICTED"}
 
     // Daemon: git.
     ErrGitAuthFailed     = &DaytonaError{Source: SourceDaemon, Code: "GIT_AUTH_FAILED"}
@@ -285,6 +293,24 @@ func NewDaytonaValidationError(message string, headers http.Header) *DaytonaErro
 ```
 
 Deprecated: use NewDaytonaError\(message, http.StatusBadRequest, headers\).
+
+<a name="NewQueueTimeoutError"></a>
+### func NewQueueTimeoutError
+
+```go
+func NewQueueTimeoutError(message string) *DaytonaError
+```
+
+NewQueueTimeoutError is a convenience constructor for SDK\-detected sandbox queue timeout destruction. It matches both [ErrQueueTimeout](<#ErrBadRequest>) and [ErrTimeout](<#ErrBadRequest>).
+
+<a name="NewSpotEvictedError"></a>
+### func NewSpotEvictedError
+
+```go
+func NewSpotEvictedError(message string) *DaytonaError
+```
+
+NewSpotEvictedError is a convenience constructor for SDK\-detected spot preemption destruction.
 
 <a name="DaytonaError.As"></a>
 ### func \(\*DaytonaError\) As

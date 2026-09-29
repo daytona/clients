@@ -243,7 +243,7 @@ public class SandboxApiTest {
     /**
      * Get sandbox details
      *
-     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read.
+     * Sandboxes destroyed by spot preemption remain retrievable for 24 hours so &#x60;spotEvictedAt&#x60; can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so &#x60;queueTimedOutAt&#x60; can be read.
      *
      * @throws ApiException if the Api call fails
      */

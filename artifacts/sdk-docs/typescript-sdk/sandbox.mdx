@@ -57,6 +57,8 @@ Represents a Daytona Sandbox.
     (not returned by list results; call `refreshData()` on each item to populate)
 - `process` _Process_ - Process execution interface
 - `public` _boolean_ - Whether the Sandbox is publicly accessible
+- `queueTimedOutAt?` _string_ - When the Sandbox was destroyed by the API after exceeding its queue timeout
+- `queueTimeout?` _number_ - Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it. Null when no per-sandbox queue timeout was recorded.
 - `recoverable?` _boolean_ - Whether the Sandbox error is recoverable.
 - `sandboxClass?` _SandboxClass_ - The class of the Sandbox (e.g., "linux-vm", "container")
 - `snapshot?` _string_ - Daytona snapshot used to create the Sandbox

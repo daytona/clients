@@ -274,6 +274,10 @@ module Daytona
 
       raise Sdk::Error, 'ttl_minutes must be a non-negative integer' if params.ttl_minutes&.negative?
 
+      unless params.queue_timeout.nil? || (params.queue_timeout.is_a?(Integer) && params.queue_timeout >= 1)
+        raise Sdk::Error, 'queue_timeout must be a positive integer'
+      end
+
       labels = params.labels&.dup || {}
       labels[CODE_TOOLBOX_LANGUAGE_LABEL] = params.language.to_s if params.language
 
@@ -288,6 +292,7 @@ module Daytona
         auto_archive_interval: params.auto_archive_interval,
         auto_delete_interval: params.auto_delete_interval,
         ttl_minutes: params.ttl_minutes,
+        queue_timeout: params.queue_timeout,
         volumes: params.volumes,
         secrets: params.secrets&.map { |env_var, secret_name| { env_var.to_s => secret_name.to_s } },
         network_block_all: params.network_block_all,

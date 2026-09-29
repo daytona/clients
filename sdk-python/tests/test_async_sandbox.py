@@ -9,7 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from daytona.common.errors import DaytonaError, DaytonaValidationError
+from daytona.common.errors import (
+    DaytonaError,
+    DaytonaQueueTimeoutError,
+    DaytonaSpotEvictedError,
+    DaytonaTimeoutError,
+    DaytonaValidationError,
+)
 from daytona_api_client import SandboxState
 from daytona_api_client_async import Sandbox as AsyncSandboxDto
 from daytona_api_client_async import UpdateSandboxSecrets
@@ -255,6 +261,78 @@ class TestAsyncSandboxWaitForStart:
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=error_dto)
         with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             await sandbox.wait_for_sandbox_start(timeout=0)
+
+
+class TestAsyncSandboxQueueTimeout:
+    def test_queue_timeout_fields_hydrated_from_dto(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = AsyncSandboxDto(
+            **make_sandbox_dto(queue_timeout=5, queue_timed_out_at="2026-08-13T12:00:00.000Z").model_dump()
+        )
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        assert sandbox.queue_timeout == 5
+        assert sandbox.queue_timed_out_at == "2026-08-13T12:00:00.000Z"
+
+    def test_queue_timeout_fields_default_none(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = AsyncSandboxDto(**make_sandbox_dto().model_dump())
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        assert sandbox.queue_timeout is None
+        assert sandbox.queue_timed_out_at is None
+
+    @pytest.mark.asyncio
+    async def test_wait_for_start_raises_queue_timeout_error(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(
+            make_sandbox_dto(state=SandboxState.PENDING_BUILD), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(
+                state=SandboxState.DESTROYED, queue_timeout=1, queue_timed_out_at="2026-08-13T12:00:00.000Z"
+            )
+        )
+        with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minutes for a runner") as exc_info:
+            await sandbox.wait_for_sandbox_start(timeout=0)
+        assert isinstance(exc_info.value, DaytonaTimeoutError)
+
+    @pytest.mark.asyncio
+    async def test_wait_for_start_raises_spot_evicted_error(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(
+            make_sandbox_dto(state=SandboxState.STARTING), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(state=SandboxState.DESTROYED, spot_evicted_at="2026-08-13T12:00:00.000Z")
+        )
+        with pytest.raises(DaytonaSpotEvictedError, match="evicted by spot preemption"):
+            await sandbox.wait_for_sandbox_start(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_cached_queue_timed_out_state_raises_immediately(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(state=SandboxState.DESTROYED, queue_timeout=2, queue_timed_out_at="2026-08-13T12:00:00Z")
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        mock_async_sandbox_api.get_sandbox = AsyncMock()
+        with pytest.raises(DaytonaQueueTimeoutError):
+            await sandbox.wait_for_sandbox_start(timeout=0)
+        mock_async_sandbox_api.get_sandbox.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_wait_succeeds_for_queue_timed_out_sandbox(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(
+            make_sandbox_dto(state=SandboxState.PENDING_BUILD), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.DESTROYING))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(
+                state=SandboxState.DESTROYED, queue_timeout=1, queue_timed_out_at="2026-08-13T12:00:00.000Z"
+            )
+        )
+        await sandbox.delete(timeout=0, wait=True)
+        assert sandbox.state == SandboxState.DESTROYED
 
 
 class TestAsyncSandboxPollingSemantics:

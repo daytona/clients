@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.audit_target_scenario import AuditTargetScenario
     from daytona_api_client_async.models.available_sandbox_class import AvailableSandboxClass
     from daytona_api_client_async.models.build_info import BuildInfo
+    from daytona_api_client_async.models.cli_oidc_config import CliOidcConfig
     from daytona_api_client_async.models.create_api_key import CreateApiKey
     from daytona_api_client_async.models.create_build_info import CreateBuildInfo
     from daytona_api_client_async.models.create_docker_registry import CreateDockerRegistry
@@ -83,6 +84,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_warm_pool import CreateWarmPool
     from daytona_api_client_async.models.date_filter import DateFilter
     from daytona_api_client_async.models.daytona_configuration import DaytonaConfiguration
+    from daytona_api_client_async.models.directory_sync_status import DirectorySyncStatus
     from daytona_api_client_async.models.docker_registry import DockerRegistry
     from daytona_api_client_async.models.fork_sandbox import ForkSandbox
     from daytona_api_client_async.models.generate_workos_admin_portal_link import GenerateWorkosAdminPortalLink
@@ -175,6 +177,7 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.update_job_status import UpdateJobStatus
     from daytona_api_client_async.models.update_last_activity import UpdateLastActivity
     from daytona_api_client_async.models.update_oidc_id_p_config import UpdateOidcIdPConfig
+    from daytona_api_client_async.models.update_organization_default_queue_timeout import UpdateOrganizationDefaultQueueTimeout
     from daytona_api_client_async.models.update_organization_default_region import UpdateOrganizationDefaultRegion
     from daytona_api_client_async.models.update_organization_invitation import UpdateOrganizationInvitation
     from daytona_api_client_async.models.update_organization_member_access import UpdateOrganizationMemberAccess
@@ -240,6 +243,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "AuditTargetScenario": "daytona_api_client_async.models.audit_target_scenario",
     "AvailableSandboxClass": "daytona_api_client_async.models.available_sandbox_class",
     "BuildInfo": "daytona_api_client_async.models.build_info",
+    "CliOidcConfig": "daytona_api_client_async.models.cli_oidc_config",
     "CreateApiKey": "daytona_api_client_async.models.create_api_key",
     "CreateBuildInfo": "daytona_api_client_async.models.create_build_info",
     "CreateDockerRegistry": "daytona_api_client_async.models.create_docker_registry",
@@ -261,6 +265,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateWarmPool": "daytona_api_client_async.models.create_warm_pool",
     "DateFilter": "daytona_api_client_async.models.date_filter",
     "DaytonaConfiguration": "daytona_api_client_async.models.daytona_configuration",
+    "DirectorySyncStatus": "daytona_api_client_async.models.directory_sync_status",
     "DockerRegistry": "daytona_api_client_async.models.docker_registry",
     "ForkSandbox": "daytona_api_client_async.models.fork_sandbox",
     "GenerateWorkosAdminPortalLink": "daytona_api_client_async.models.generate_workos_admin_portal_link",
@@ -353,6 +358,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "UpdateJobStatus": "daytona_api_client_async.models.update_job_status",
     "UpdateLastActivity": "daytona_api_client_async.models.update_last_activity",
     "UpdateOidcIdPConfig": "daytona_api_client_async.models.update_oidc_id_p_config",
+    "UpdateOrganizationDefaultQueueTimeout": "daytona_api_client_async.models.update_organization_default_queue_timeout",
     "UpdateOrganizationDefaultRegion": "daytona_api_client_async.models.update_organization_default_region",
     "UpdateOrganizationInvitation": "daytona_api_client_async.models.update_organization_invitation",
     "UpdateOrganizationMemberAccess": "daytona_api_client_async.models.update_organization_member_access",
@@ -432,6 +438,7 @@ __all__ = [
     "AuditTargetScenario",
     "AvailableSandboxClass",
     "BuildInfo",
+    "CliOidcConfig",
     "CreateApiKey",
     "CreateBuildInfo",
     "CreateDockerRegistry",
@@ -453,6 +460,7 @@ __all__ = [
     "CreateWarmPool",
     "DateFilter",
     "DaytonaConfiguration",
+    "DirectorySyncStatus",
     "DockerRegistry",
     "ForkSandbox",
     "GenerateWorkosAdminPortalLink",
@@ -545,6 +553,7 @@ __all__ = [
     "UpdateJobStatus",
     "UpdateLastActivity",
     "UpdateOidcIdPConfig",
+    "UpdateOrganizationDefaultQueueTimeout",
     "UpdateOrganizationDefaultRegion",
     "UpdateOrganizationInvitation",
     "UpdateOrganizationMemberAccess",

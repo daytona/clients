@@ -624,6 +624,9 @@ class AsyncDaytona:
         if params.ttl_minutes is not None and params.ttl_minutes < 0:
             raise DaytonaValidationError("ttl_minutes must be a non-negative integer")
 
+        if params.queue_timeout is not None and (isinstance(params.queue_timeout, bool) or params.queue_timeout < 1):
+            raise DaytonaValidationError("queue_timeout must be a positive integer")
+
         target = self._target
 
         volumes = []
@@ -650,6 +653,7 @@ class AsyncDaytona:
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             ttl_minutes=params.ttl_minutes,
+            queue_timeout=params.queue_timeout,
             volumes=volumes,
             secrets=secrets,
             network_block_all=params.network_block_all,

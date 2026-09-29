@@ -88,7 +88,8 @@ func TestNewSandboxConstruction(t *testing.T) {
 			assert.Equal(t, tt.autoDeleteInterval, sandbox.AutoDeleteInterval)
 			require.NotNil(t, sandbox.NetworkBlockAll)
 			assert.Equal(t, tt.networkBlockAll, *sandbox.NetworkBlockAll)
-			assert.Nil(t, sandbox.Kvm)
+			require.NotNil(t, sandbox.Kvm)
+			assert.False(t, *sandbox.Kvm)
 			assert.Equal(t, tt.networkAllowList, sandbox.NetworkAllowList)
 
 			assert.NotNil(t, sandbox.FileSystem)
@@ -126,7 +127,7 @@ func TestSandboxKvmHydration(t *testing.T) {
 		Id:    "kvm-sandbox",
 		Name:  "kvm-test",
 		State: &state,
-		Kvm:   apiclient.PtrBool(true),
+		Kvm:   true,
 	}
 	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 	require.NotNil(t, sandbox.Kvm)
@@ -143,13 +144,61 @@ func TestSandboxKvmAbsentFromDTO(t *testing.T) {
 	require.NoError(t, err)
 
 	state := apiclient.SANDBOXSTATE_STARTED
-	dto := &apiclient.Sandbox{
+	dto := &apiclient.SandboxListItem{
 		Id:    "no-kvm-sandbox",
 		Name:  "no-kvm-test",
 		State: &state,
 	}
 	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
 	assert.Nil(t, sandbox.Kvm)
+
+	os.Clearenv()
+}
+
+func TestSandboxQueueTimeoutHydration(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("DAYTONA_API_KEY", "test-api-key")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+
+	state := apiclient.SANDBOXSTATE_STARTED
+	queueTimedOutAt := "2026-09-29T10:00:00.000Z"
+	dto := &apiclient.Sandbox{
+		Id:              "queue-timeout-sandbox",
+		Name:            "queue-timeout-test",
+		State:           &state,
+		QueueTimedOutAt: &queueTimedOutAt,
+	}
+	dto.SetQueueTimeout(11)
+
+	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
+	require.NotNil(t, sandbox.QueueTimeout)
+	assert.Equal(t, 11, *sandbox.QueueTimeout)
+	require.NotNil(t, sandbox.QueueTimedOutAt)
+	assert.Equal(t, queueTimedOutAt, *sandbox.QueueTimedOutAt)
+
+	os.Clearenv()
+}
+
+func TestSandboxQueueTimeoutNullMapsToNil(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("DAYTONA_API_KEY", "test-api-key")
+
+	client, err := NewClient()
+	require.NoError(t, err)
+
+	state := apiclient.SANDBOXSTATE_STARTED
+	dto := &apiclient.Sandbox{
+		Id:    "queue-timeout-null-sandbox",
+		Name:  "queue-timeout-null-test",
+		State: &state,
+	}
+	dto.SetQueueTimeoutNil()
+
+	sandbox := NewSandbox(client, nil, dto, types.CodeLanguagePython, common.NewEventSubscriptionManager(nil))
+	assert.Nil(t, sandbox.QueueTimeout)
+	assert.Nil(t, sandbox.QueueTimedOutAt)
 
 	os.Clearenv()
 }
@@ -627,6 +676,56 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 		var daytonaErr *errors.DaytonaError
 		assert.False(t, stderrors.As(err, &daytonaErr), "error-state failures must not be wrapped in DaytonaError")
 	})
+
+	t.Run("wait for start returns queue timeout error when sandbox is destroyed by queue timeout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			payload := testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYED)
+			payload["queueTimeout"] = 9
+			payload["queueTimedOutAt"] = "2026-09-29T10:00:00.000Z"
+			writeJSONResponse(t, w, http.StatusOK, payload)
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errors.ErrQueueTimeout)
+		assert.ErrorIs(t, err, errors.ErrTimeout)
+		assert.EqualError(t, err, "Daytona error (status 408): Sandbox sb was destroyed after waiting 9 minutes for a runner (queue timed out at 2026-09-29T10:00:00.000Z)")
+	})
+
+	t.Run("wait for start returns queue timeout error immediately from cached destroyed state", func(t *testing.T) {
+		server := httptest.NewServer(http.NotFoundHandler())
+		defer server.Close()
+		client := createTestClientWithServer(t, server)
+		queueTimeout := 4
+		queueTimedOutAt := "2026-09-29T10:10:00.000Z"
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYED, "us", 0, -1, false, nil)
+		sandbox.QueueTimeout = &queueTimeout
+		sandbox.QueueTimedOutAt = &queueTimedOutAt
+
+		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errors.ErrQueueTimeout)
+		assert.ErrorIs(t, err, errors.ErrTimeout)
+	})
+
+	t.Run("wait for start returns spot eviction error when sandbox is destroyed by spot preemption", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			payload := testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYED)
+			payload["spotEvictedAt"] = "2026-09-29T10:05:00.000Z"
+			writeJSONResponse(t, w, http.StatusOK, payload)
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errors.ErrSpotEvicted)
+		assert.EqualError(t, err, "Daytona error: Sandbox sb was evicted by spot preemption at 2026-09-29T10:05:00.000Z")
+	})
 }
 
 func TestSandboxPreviewAndLabelOperations(t *testing.T) {
@@ -997,6 +1096,34 @@ func TestDeleteAndWaitBlocksUntilDestroyed(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, apiclient.SANDBOXSTATE_DESTROYED, sandbox.State)
 	assert.Greater(t, getCount, 0, "DeleteAndWait must poll for state")
+}
+
+func TestDeleteAndWaitSucceedsWhenDestroyedTargetHasQueueTimeoutMarker(t *testing.T) {
+	var getCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING))
+		case http.MethodGet:
+			getCount++
+			payload := testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_DESTROYING)
+			if getCount > 1 {
+				payload["state"] = apiclient.SANDBOXSTATE_DESTROYED
+				payload["queueTimeout"] = 4
+				payload["queueTimedOutAt"] = "2026-09-29T10:10:00.000Z"
+			}
+			writeJSONResponse(t, w, http.StatusOK, payload)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+	err := sandbox.doDeleteAndWait(context.Background(), 3*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_DESTROYED, sandbox.State)
 }
 
 func TestPauseTimeoutReturnsDaytonaTimeoutError(t *testing.T) {

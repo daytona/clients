@@ -50,6 +50,17 @@ func AwaitSandboxState(ctx context.Context, apiClient *apiclient.APIClient, targ
 					return nil
 				}
 			}
+			if *sandbox.State == apiclient.SANDBOXSTATE_DESTROYED && !containsSandboxState(states, apiclient.SANDBOXSTATE_DESTROYED) {
+				if sandbox.QueueTimedOutAt != nil {
+					if queueTimeout, ok := sandbox.GetQueueTimeoutOk(); ok && queueTimeout != nil {
+						return fmt.Errorf("sandbox %s was destroyed after waiting %d minutes for a runner (queue timed out at %s)", sandbox.Id, *queueTimeout, *sandbox.QueueTimedOutAt)
+					}
+					return fmt.Errorf("sandbox %s was destroyed after waiting for a runner (queue timed out at %s)", sandbox.Id, *sandbox.QueueTimedOutAt)
+				}
+				if sandbox.SpotEvictedAt != nil {
+					return fmt.Errorf("sandbox %s was evicted by spot preemption at %s", sandbox.Id, *sandbox.SpotEvictedAt)
+				}
+			}
 			if *sandbox.State == apiclient.SANDBOXSTATE_ERROR || *sandbox.State == apiclient.SANDBOXSTATE_BUILD_FAILED {
 				if sandbox.ErrorReason == nil {
 					return fmt.Errorf("sandbox processing failed")
@@ -60,4 +71,13 @@ func AwaitSandboxState(ctx context.Context, apiClient *apiclient.APIClient, targ
 
 		time.Sleep(time.Second)
 	}
+}
+
+func containsSandboxState(states []apiclient.SandboxState, want apiclient.SandboxState) bool {
+	for _, state := range states {
+		if state == want {
+			return true
+		}
+	}
+	return false
 }

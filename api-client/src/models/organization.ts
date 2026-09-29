@@ -15,6 +15,9 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { DirectorySyncStatus } from './directory-sync-status';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { OtelConfig } from './otel-config';
 
 export interface Organization {
@@ -87,6 +90,10 @@ export interface Organization {
      */
     'snapshotDeactivationTimeoutMinutes': number;
     /**
+     * Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.
+     */
+    'defaultQueueTimeout': number | null;
+    /**
      * Sandbox default network block all
      */
     'sandboxLimitedNetworkEgress': boolean;
@@ -110,6 +117,18 @@ export interface Organization {
      * ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
      */
     'workosOrgId'?: string;
+    /**
+     * Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)
+     */
+    'directorySyncStatus'?: DirectorySyncStatus;
+    /**
+     * When the directory sync status last changed
+     */
+    'directorySyncStatusChangedAt'?: Date;
+    /**
+     * When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active.
+     */
+    'directorySyncTokenRevokedAt'?: Date;
     /**
      * Authenticated rate limit per minute
      */
@@ -143,4 +162,6 @@ export interface Organization {
      */
     'sandboxLifecycleRateLimitTtlSeconds': number | null;
 }
+
+
 

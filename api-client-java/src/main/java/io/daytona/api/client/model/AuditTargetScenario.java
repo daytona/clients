@@ -254,6 +254,8 @@ public class AuditTargetScenario {
     
     DELETE_OTEL_CONFIG("delete_otel_config"),
     
+    UPDATE_DEFAULT_QUEUE_TIMEOUT("update_default_queue_timeout"),
+    
     CREATE_SSH_ACCESS("create_ssh_access"),
     
     REVOKE_SSH_ACCESS("revoke_ssh_access"),
@@ -273,6 +275,8 @@ public class AuditTargetScenario {
     AUTO_DELETE("auto_delete"),
     
     TTL_EXPIRE("ttl_expire"),
+    
+    QUEUE_TIMEOUT_EXPIRE("queue_timeout_expire"),
     
     SPOT_EVICT("spot_evict"),
     

@@ -116,6 +116,9 @@ module Daytona
     # @return [String, nil] When the sandbox was evicted by spot preemption
     attr_reader :spot_evicted_at
 
+    # @return [String, nil] When the sandbox timed out waiting in the queue for a runner
+    attr_reader :queue_timed_out_at
+
     # @return [String, nil] The GPU type assigned to the sandbox
     attr_reader :gpu_type
 
@@ -165,6 +168,9 @@ module Daytona
 
     # @return [String, nil] When the sandbox will be automatically destroyed (nil if no TTL is set)
     attr_reader :auto_destroy_at
+
+    # @return [Integer, nil] Minutes the sandbox may wait for runner assignment before the API auto-destroys it
+    attr_reader :queue_timeout
 
     # @return [String] The creation timestamp of the sandbox
     attr_reader :created_at
@@ -1111,6 +1117,7 @@ module Daytona
       @gpu = sandbox_dto.gpu
       @spot = sandbox_dto.spot || false
       @spot_evicted_at = sandbox_dto.spot_evicted_at
+      @queue_timed_out_at = sandbox_dto.queue_timed_out_at
       @gpu_type = sandbox_dto.gpu_type
       @memory = sandbox_dto.memory
       @disk = sandbox_dto.disk
@@ -1122,6 +1129,7 @@ module Daytona
       @auto_archive_interval = sandbox_dto.auto_archive_interval
       @auto_delete_interval = sandbox_dto.auto_delete_interval
       @auto_destroy_at = sandbox_dto.auto_destroy_at
+      @queue_timeout = sandbox_dto.queue_timeout
       @created_at = sandbox_dto.created_at
       @updated_at = sandbox_dto.updated_at
       @last_activity_at = sandbox_dto.last_activity_at
@@ -1245,6 +1253,7 @@ module Daytona
           first_poll = false
 
           safe_refresh ? refresh_data_safe : refresh
+          raise_destroyed_lifecycle_error_if_needed(target_strings)
 
           mutex.synchronize do
             next if result_state
@@ -1270,6 +1279,8 @@ module Daytona
         rescue StandardError
           raise e
         end
+
+        raise_destroyed_lifecycle_error_if_needed(target_strings)
         current = state.to_s
         return if target_strings.include?(current)
 
@@ -1291,6 +1302,22 @@ module Daytona
     rescue DaytonaApiClient::ApiError => e
       apply_state(DaytonaApiClient::SandboxState::DESTROYED) if e.code == 404
     rescue StandardError # rubocop:disable Lint/SuppressedException
+    end
+
+    def raise_destroyed_lifecycle_error_if_needed(target_strings)
+      return unless state.to_s == DaytonaApiClient::SandboxState::DESTROYED.to_s
+      return if target_strings.include?(DaytonaApiClient::SandboxState::DESTROYED.to_s)
+
+      if queue_timed_out_at
+        raise Sdk::QueueTimeoutError,
+              "Sandbox #{id} was destroyed after waiting #{queue_timeout} minutes for a runner " \
+              "(queue timed out at #{queue_timed_out_at})"
+      end
+
+      return unless spot_evicted_at
+
+      raise Sdk::SpotEvictedError,
+            "Sandbox #{id} was evicted by spot preemption at #{spot_evicted_at}"
     end
 
     def ensure_subscribed

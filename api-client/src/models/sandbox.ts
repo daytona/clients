@@ -67,6 +67,10 @@ export interface Sandbox {
      */
     'networkBlockAll': boolean;
     /**
+     * Whether the sandbox exposes KVM (/dev/kvm) to its guest
+     */
+    'kvm': boolean;
+    /**
      * Comma-separated list of allowed CIDR network addresses for the sandbox
      */
     'networkAllowList'?: string;
@@ -102,6 +106,10 @@ export interface Sandbox {
      * When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
      */
     'spotEvictedAt'?: string;
+    /**
+     * When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+     */
+    'queueTimedOutAt'?: string;
     /**
      * The GPU type assigned to the sandbox
      */
@@ -165,6 +173,10 @@ export interface Sandbox {
      */
     'autoDestroyAt'?: string;
     /**
+     * Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+     */
+    'queueTimeout'?: number | null;
+    /**
      * Array of volumes attached to the sandbox
      */
     'volumes'?: Array<SandboxVolume>;
@@ -204,10 +216,6 @@ export interface Sandbox {
      * The toolbox proxy URL for the sandbox
      */
     'toolboxProxyUrl': string;
-    /**
-     * Whether the sandbox exposes KVM (/dev/kvm) to its guest
-     */
-    'kvm'?: boolean;
 }
 
 export const SandboxBackupStateEnum = {

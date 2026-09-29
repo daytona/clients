@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -120,6 +121,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'kvm'
+     */
+    @Test
+    public void kvmTest() {
+        // TODO: test kvm
+    }
+
+    /**
      * Test the property 'networkAllowList'
      */
     @Test
@@ -189,6 +198,14 @@ public class SandboxTest {
     @Test
     public void spotEvictedAtTest() {
         // TODO: test spotEvictedAt
+    }
+
+    /**
+     * Test the property 'queueTimedOutAt'
+     */
+    @Test
+    public void queueTimedOutAtTest() {
+        // TODO: test queueTimedOutAt
     }
 
     /**
@@ -312,6 +329,14 @@ public class SandboxTest {
     }
 
     /**
+     * Test the property 'queueTimeout'
+     */
+    @Test
+    public void queueTimeoutTest() {
+        // TODO: test queueTimeout
+    }
+
+    /**
      * Test the property 'volumes'
      */
     @Test
@@ -389,14 +414,6 @@ public class SandboxTest {
     @Test
     public void toolboxProxyUrlTest() {
         // TODO: test toolboxProxyUrl
-    }
-
-    /**
-     * Test the property 'kvm'
-     */
-    @Test
-    public void kvmTest() {
-        // TODO: test kvm
     }
 
 }

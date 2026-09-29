@@ -595,6 +595,53 @@
         ]
       }
     },
+    "/organizations/{organizationId}/default-queue-timeout": {
+      "patch": {
+        "operationId": "updateOrganizationDefaultQueueTimeout",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "description": "Organization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationDefaultQueueTimeout"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Default queue timeout updated successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "oauth2": [
+              "openid",
+              "profile",
+              "email"
+            ]
+          }
+        ],
+        "summary": "Set organization default queue timeout",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
     "/organizations/{organizationId}": {
       "get": {
         "operationId": "getOrganization",
@@ -3115,7 +3162,7 @@
     },
     "/sandbox/{sandboxIdOrName}": {
       "get": {
-        "description": "Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.",
+        "description": "Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.",
         "operationId": "getSandbox",
         "parameters": [
           {
@@ -9375,6 +9422,25 @@
           "host"
         ]
       },
+      "CliOidcConfig": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "description": "WorkOS issuer of the Daytona CLI application",
+            "example": "https://auth.example.com/user_management/client_123"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "WorkOS client ID of the Daytona CLI application",
+            "example": "client_123"
+          }
+        },
+        "required": [
+          "issuer",
+          "clientId"
+        ]
+      },
       "OidcConfig": {
         "type": "object",
         "properties": {
@@ -9406,6 +9472,14 @@
             "type": "string",
             "description": "WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.",
             "example": "auth.example.com"
+          },
+          "cli": {
+            "description": "WorkOS application the Daytona CLI logs in through, configured apart from the dashboard's so CLI sessions can have their own lifetime. Present only when the provider is workos and a CLI application is configured; absent means the CLI uses the issuer and client ID above.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CliOidcConfig"
+              }
+            ]
           }
         },
         "required": [
@@ -10133,6 +10207,15 @@
           "defaultRegionId"
         ]
       },
+      "DirectorySyncStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "deleted"
+        ],
+        "description": "Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)"
+      },
       "OtelConfig": {
         "type": "object",
         "properties": {
@@ -10236,6 +10319,11 @@
             "description": "Time in minutes before an unused snapshot is deactivated",
             "default": 20160
           },
+          "defaultQueueTimeout": {
+            "type": "integer",
+            "description": "Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.",
+            "nullable": true
+          },
           "sandboxLimitedNetworkEgress": {
             "type": "boolean",
             "description": "Sandbox default network block all"
@@ -10259,6 +10347,24 @@
           "workosOrgId": {
             "type": "string",
             "description": "ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)"
+          },
+          "directorySyncStatus": {
+            "description": "Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DirectorySyncStatus"
+              }
+            ]
+          },
+          "directorySyncStatusChangedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the directory sync status last changed"
+          },
+          "directorySyncTokenRevokedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active."
           },
           "authenticatedRateLimit": {
             "type": "number",
@@ -10322,6 +10428,7 @@
           "secretQuota",
           "maxSecretsPerSandbox",
           "snapshotDeactivationTimeoutMinutes",
+          "defaultQueueTimeout",
           "sandboxLimitedNetworkEgress",
           "previewWarningEnabled",
           "ssoEnabled",
@@ -10347,6 +10454,20 @@
         },
         "required": [
           "defaultRegionId"
+        ]
+      },
+      "UpdateOrganizationDefaultQueueTimeout": {
+        "type": "object",
+        "properties": {
+          "defaultQueueTimeout": {
+            "type": "integer",
+            "description": "Default minutes to wait for runner assignment before cancelling sandbox creation. Null disables the default. A number must be a positive integer.",
+            "example": 5,
+            "nullable": true
+          }
+        },
+        "required": [
+          "defaultQueueTimeout"
         ]
       },
       "SandboxClass": {
@@ -11753,6 +11874,11 @@
             "description": "When this sandbox was evicted by spot preemption. Set as soon as the sandbox is marked for eviction, so it is already present while the sandbox is still winding down.",
             "example": "2026-08-13T12:00:00.000Z"
           },
+          "queueTimedOutAt": {
+            "type": "string",
+            "description": "When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.",
+            "example": "2026-08-13T12:00:00.000Z"
+          },
           "gpuType": {
             "description": "The GPU type assigned to the sandbox",
             "example": "H100",
@@ -11818,6 +11944,12 @@
             "type": "string",
             "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
             "example": "2026-07-15T12:00:00.000Z"
+          },
+          "queueTimeout": {
+            "type": "integer",
+            "description": "Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.",
+            "example": 5,
+            "nullable": true
           },
           "createdAt": {
             "type": "string",
@@ -11982,6 +12114,12 @@
             "description": "Whether to block all network access for the sandbox",
             "example": false
           },
+          "kvm": {
+            "type": "boolean",
+            "description": "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.",
+            "example": false,
+            "default": false
+          },
           "networkAllowList": {
             "type": "string",
             "description": "Comma-separated list of allowed CIDR network addresses for the sandbox",
@@ -12068,6 +12206,11 @@
             "description": "Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.",
             "example": 1440
           },
+          "queueTimeout": {
+            "type": "integer",
+            "description": "Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.",
+            "example": 5
+          },
           "volumes": {
             "description": "Array of volumes to attach to the sandbox",
             "type": "array",
@@ -12105,12 +12248,6 @@
                 "DB_PASSWORD": "DB_PASSWORD"
               }
             ]
-          },
-          "kvm": {
-            "type": "boolean",
-            "description": "Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.",
-            "example": false,
-            "default": false
           }
         }
       },
@@ -12213,6 +12350,11 @@
             "description": "Whether to block all network access for the sandbox",
             "example": false
           },
+          "kvm": {
+            "type": "boolean",
+            "description": "Whether the sandbox exposes KVM (/dev/kvm) to its guest",
+            "example": false
+          },
           "networkAllowList": {
             "type": "string",
             "description": "Comma-separated list of allowed CIDR network addresses for the sandbox",
@@ -12257,6 +12399,11 @@
           "spotEvictedAt": {
             "type": "string",
             "description": "When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.",
+            "example": "2026-08-13T12:00:00.000Z"
+          },
+          "queueTimedOutAt": {
+            "type": "string",
+            "description": "When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.",
             "example": "2026-08-13T12:00:00.000Z"
           },
           "gpuType": {
@@ -12354,6 +12501,12 @@
             "description": "When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)",
             "example": "2026-07-15T12:00:00.000Z"
           },
+          "queueTimeout": {
+            "type": "integer",
+            "description": "Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.",
+            "example": 5,
+            "nullable": true
+          },
           "volumes": {
             "description": "Array of volumes attached to the sandbox",
             "type": "array",
@@ -12420,11 +12573,6 @@
             "type": "string",
             "description": "The toolbox proxy URL for the sandbox",
             "example": "https://proxy.app.daytona.io/toolbox"
-          },
-          "kvm": {
-            "type": "boolean",
-            "description": "Whether the sandbox exposes KVM (/dev/kvm) to its guest",
-            "example": false
           }
         },
         "required": [
@@ -12436,6 +12584,7 @@
           "labels",
           "public",
           "networkBlockAll",
+          "kvm",
           "target",
           "cpu",
           "gpu",
@@ -14903,6 +15052,7 @@
                 "update_scim_enabled",
                 "update_otel_config",
                 "delete_otel_config",
+                "update_default_queue_timeout",
                 "create_ssh_access",
                 "revoke_ssh_access",
                 "recover",
@@ -14913,6 +15063,7 @@
                 "auto_archive",
                 "auto_delete",
                 "ttl_expire",
+                "queue_timeout_expire",
                 "spot_evict"
               ]
             }

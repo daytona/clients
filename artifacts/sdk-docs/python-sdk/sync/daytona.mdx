@@ -450,6 +450,8 @@ Base parameters for creating a new Sandbox.
 - `ttl_minutes` _int | None_ - Maximum time to live in minutes, counted as wall-clock time since
   creation regardless of sandbox state. When it elapses the sandbox is destroyed, even if
   it is stopped, paused, or archived. 0 means disabled.
+- `queue_timeout` _int | None_ - Minutes to wait for runner assignment before Sandbox creation is
+  cancelled. Omit to use the organization default. Must be a positive integer.
 - `volumes` _list[VolumeMount] | None_ - List of volumes mounts to attach to the Sandbox.
 - `secrets` _dict[str, str] | None_ - Map of environment variable name to the name of an existing
   organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque

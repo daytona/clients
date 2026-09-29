@@ -34,6 +34,8 @@ type CreateSandbox struct {
 	Public *bool `json:"public,omitempty"`
 	// Whether to block all network access for the sandbox
 	NetworkBlockAll *bool `json:"networkBlockAll,omitempty"`
+	// Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+	Kvm *bool `json:"kvm,omitempty"`
 	// Comma-separated list of allowed CIDR network addresses for the sandbox
 	NetworkAllowList *string `json:"networkAllowList,omitempty"`
 	// Comma-separated list of allowed domains for the sandbox
@@ -66,6 +68,8 @@ type CreateSandbox struct {
 	AutoDeleteInterval *int32 `json:"autoDeleteInterval,omitempty"`
 	// Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
 	TtlMinutes *int32 `json:"ttlMinutes,omitempty"`
+	// Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.
+	QueueTimeout *int32 `json:"queueTimeout,omitempty"`
 	// Array of volumes to attach to the sandbox
 	Volumes []SandboxVolume `json:"volumes,omitempty"`
 	// Build information for the sandbox
@@ -74,8 +78,6 @@ type CreateSandbox struct {
 	LinkedSandbox *string `json:"linkedSandbox,omitempty"`
 	// Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
 	Secrets []map[string]string `json:"secrets,omitempty"`
-	// Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
-	Kvm *bool `json:"kvm,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -87,10 +89,10 @@ type _CreateSandbox CreateSandbox
 // will change when the set of required properties is changed
 func NewCreateSandbox() *CreateSandbox {
 	this := CreateSandbox{}
-	var spot bool = false
-	this.Spot = &spot
 	var kvm bool = false
 	this.Kvm = &kvm
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -99,10 +101,10 @@ func NewCreateSandbox() *CreateSandbox {
 // but it doesn't guarantee that properties required by API are set
 func NewCreateSandboxWithDefaults() *CreateSandbox {
 	this := CreateSandbox{}
-	var spot bool = false
-	this.Spot = &spot
 	var kvm bool = false
 	this.Kvm = &kvm
+	var spot bool = false
+	this.Spot = &spot
 	return &this
 }
 
@@ -328,6 +330,38 @@ func (o *CreateSandbox) HasNetworkBlockAll() bool {
 // SetNetworkBlockAll gets a reference to the given bool and assigns it to the NetworkBlockAll field.
 func (o *CreateSandbox) SetNetworkBlockAll(v bool) {
 	o.NetworkBlockAll = &v
+}
+
+// GetKvm returns the Kvm field value if set, zero value otherwise.
+func (o *CreateSandbox) GetKvm() bool {
+	if o == nil || IsNil(o.Kvm) {
+		var ret bool
+		return ret
+	}
+	return *o.Kvm
+}
+
+// GetKvmOk returns a tuple with the Kvm field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetKvmOk() (*bool, bool) {
+	if o == nil || IsNil(o.Kvm) {
+		return nil, false
+	}
+	return o.Kvm, true
+}
+
+// HasKvm returns a boolean if a field has been set.
+func (o *CreateSandbox) HasKvm() bool {
+	if o != nil && !IsNil(o.Kvm) {
+		return true
+	}
+
+	return false
+}
+
+// SetKvm gets a reference to the given bool and assigns it to the Kvm field.
+func (o *CreateSandbox) SetKvm(v bool) {
+	o.Kvm = &v
 }
 
 // GetNetworkAllowList returns the NetworkAllowList field value if set, zero value otherwise.
@@ -842,6 +876,38 @@ func (o *CreateSandbox) SetTtlMinutes(v int32) {
 	o.TtlMinutes = &v
 }
 
+// GetQueueTimeout returns the QueueTimeout field value if set, zero value otherwise.
+func (o *CreateSandbox) GetQueueTimeout() int32 {
+	if o == nil || IsNil(o.QueueTimeout) {
+		var ret int32
+		return ret
+	}
+	return *o.QueueTimeout
+}
+
+// GetQueueTimeoutOk returns a tuple with the QueueTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetQueueTimeoutOk() (*int32, bool) {
+	if o == nil || IsNil(o.QueueTimeout) {
+		return nil, false
+	}
+	return o.QueueTimeout, true
+}
+
+// HasQueueTimeout returns a boolean if a field has been set.
+func (o *CreateSandbox) HasQueueTimeout() bool {
+	if o != nil && !IsNil(o.QueueTimeout) {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTimeout gets a reference to the given int32 and assigns it to the QueueTimeout field.
+func (o *CreateSandbox) SetQueueTimeout(v int32) {
+	o.QueueTimeout = &v
+}
+
 // GetVolumes returns the Volumes field value if set, zero value otherwise.
 func (o *CreateSandbox) GetVolumes() []SandboxVolume {
 	if o == nil || IsNil(o.Volumes) {
@@ -970,38 +1036,6 @@ func (o *CreateSandbox) SetSecrets(v []map[string]string) {
 	o.Secrets = v
 }
 
-// GetKvm returns the Kvm field value if set, zero value otherwise.
-func (o *CreateSandbox) GetKvm() bool {
-	if o == nil || IsNil(o.Kvm) {
-		var ret bool
-		return ret
-	}
-	return *o.Kvm
-}
-
-// GetKvmOk returns a tuple with the Kvm field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *CreateSandbox) GetKvmOk() (*bool, bool) {
-	if o == nil || IsNil(o.Kvm) {
-		return nil, false
-	}
-	return o.Kvm, true
-}
-
-// HasKvm returns a boolean if a field has been set.
-func (o *CreateSandbox) HasKvm() bool {
-	if o != nil && !IsNil(o.Kvm) {
-		return true
-	}
-
-	return false
-}
-
-// SetKvm gets a reference to the given bool and assigns it to the Kvm field.
-func (o *CreateSandbox) SetKvm(v bool) {
-	o.Kvm = &v
-}
-
 func (o CreateSandbox) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -1032,6 +1066,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.NetworkBlockAll) {
 		toSerialize["networkBlockAll"] = o.NetworkBlockAll
+	}
+	if !IsNil(o.Kvm) {
+		toSerialize["kvm"] = o.Kvm
 	}
 	if !IsNil(o.NetworkAllowList) {
 		toSerialize["networkAllowList"] = o.NetworkAllowList
@@ -1081,6 +1118,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.TtlMinutes) {
 		toSerialize["ttlMinutes"] = o.TtlMinutes
 	}
+	if !IsNil(o.QueueTimeout) {
+		toSerialize["queueTimeout"] = o.QueueTimeout
+	}
 	if !IsNil(o.Volumes) {
 		toSerialize["volumes"] = o.Volumes
 	}
@@ -1092,9 +1132,6 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Secrets) {
 		toSerialize["secrets"] = o.Secrets
-	}
-	if !IsNil(o.Kvm) {
-		toSerialize["kvm"] = o.Kvm
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -1125,6 +1162,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "labels")
 		delete(additionalProperties, "public")
 		delete(additionalProperties, "networkBlockAll")
+		delete(additionalProperties, "kvm")
 		delete(additionalProperties, "networkAllowList")
 		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "outboundProxyUrl")
@@ -1141,11 +1179,11 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
 		delete(additionalProperties, "ttlMinutes")
+		delete(additionalProperties, "queueTimeout")
 		delete(additionalProperties, "volumes")
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "linkedSandbox")
 		delete(additionalProperties, "secrets")
-		delete(additionalProperties, "kvm")
 		o.AdditionalProperties = additionalProperties
 	}
 

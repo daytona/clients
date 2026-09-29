@@ -35,6 +35,8 @@ final class TestSupport {
         sandbox.setMemory(2);
         sandbox.setDisk(3);
         sandbox.setState(state);
+        sandbox.setQueueTimeout(null);
+        sandbox.setQueueTimedOutAt(null);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
         sandbox.setSandboxClass(io.daytona.api.client.model.Sandbox.SandboxClassEnum.LINUX_VM);
         sandbox.setWarmPoolId("wp-1");
@@ -65,6 +67,8 @@ final class TestSupport {
         sandbox.setMemory(2);
         sandbox.setDisk(3);
         sandbox.setState(state);
+        sandbox.setQueueTimeout(null);
+        sandbox.setQueueTimedOutAt(null);
         sandbox.setToolboxProxyUrl("http://localhost:1/toolbox");
         sandbox.setSandboxClass(SandboxClass.LINUX_VM);
         sandbox.setWarmPoolId("wp-1");

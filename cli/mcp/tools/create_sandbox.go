@@ -31,6 +31,7 @@ type CreateSandboxArgs struct {
 	Disk                *int32                     `json:"disk,omitempty"`
 	AutoStopInterval    *int32                     `json:"autoStopInterval,omitempty"`
 	TtlMinutes          *int32                     `json:"ttlMinutes,omitempty"`
+	QueueTimeout        *int32                     `json:"queueTimeout,omitempty"`
 	AutoPauseInterval   *int32                     `json:"autoPauseInterval,omitempty"`
 	AutoArchiveInterval *int32                     `json:"autoArchiveInterval,omitempty"`
 	AutoDeleteInterval  *int32                     `json:"autoDeleteInterval,omitempty"`
@@ -59,6 +60,7 @@ func GetCreateSandboxTool() mcp.Tool {
 		mcp.WithNumber("disk", mcp.Description("Disk space allocated to the sandbox in GB. Cannot specify sandbox resources when using a snapshot."), mcp.Max(10)),
 		mcp.WithNumber("autoStopInterval", mcp.DefaultNumber(15), mcp.Min(0), mcp.Description("Auto-stop interval in minutes (0 means disabled) for the sandbox.")),
 		mcp.WithNumber("ttlMinutes", mcp.Min(0), mcp.Description("Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled) for the sandbox. When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived.")),
+		mcp.WithNumber("queueTimeout", mcp.Min(1), mcp.Description("Minutes to wait for runner assignment before the sandbox creation is cancelled (omit to use the organization default).")),
 		mcp.WithNumber("autoPauseInterval", mcp.Min(0), mcp.Description("Auto-pause interval in minutes (0 means disabled) for the sandbox. Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. Mutually exclusive with autoStopInterval.")),
 		mcp.WithNumber("autoArchiveInterval", mcp.DefaultNumber(10080), mcp.Min(0), mcp.Description("Auto-archive interval in minutes (0 means the maximum interval will be used) for the sandbox.")),
 		mcp.WithNumber("autoDeleteInterval", mcp.DefaultNumber(-1), mcp.Description("Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping) for the sandbox.")),
@@ -163,6 +165,10 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 		return nil, fmt.Errorf("ttlMinutes must be a non-negative integer")
 	}
 
+	if args.QueueTimeout != nil && *args.QueueTimeout < 1 {
+		return nil, fmt.Errorf("queueTimeout must be a positive integer")
+	}
+
 	if args.AutoPauseInterval != nil && args.AutoStopInterval != nil && *args.AutoPauseInterval > 0 && *args.AutoStopInterval > 0 {
 		return nil, fmt.Errorf("autoStopInterval and autoPauseInterval are mutually exclusive. Set at most one of them to a non-zero value")
 	}
@@ -181,6 +187,10 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 
 	if args.TtlMinutes != nil {
 		createSandbox.SetTtlMinutes(*args.TtlMinutes)
+	}
+
+	if args.QueueTimeout != nil {
+		createSandbox.SetQueueTimeout(*args.QueueTimeout)
 	}
 
 	if args.AutoArchiveInterval != nil {
