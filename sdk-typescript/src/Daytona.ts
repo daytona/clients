@@ -297,6 +297,10 @@ export type ForkSandboxParams = {
  * });
  * @class
  */
+function isDestroyedByLifecycle(sandbox: SandboxDto): boolean {
+  return sandbox.state === SandboxState.DESTROYED && Boolean(sandbox.queueTimedOutAt || sandbox.spotEvictedAt)
+}
+
 export class Daytona implements AsyncDisposable {
   private readonly clientConfig: Configuration
   private readonly sandboxApi: SandboxApi
@@ -770,6 +774,7 @@ export class Daytona implements AsyncDisposable {
           SandboxState.STARTING,
           SandboxState.ERROR,
           SandboxState.BUILD_FAILED,
+          SandboxState.DESTROYED,
         ]
 
         while (sandboxInstance.state === SandboxState.PENDING_BUILD) {
@@ -785,20 +790,27 @@ export class Daytona implements AsyncDisposable {
           sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
         }
 
-        const response = await this.sandboxApi.getBuildLogsUrl(sandboxInstance.id)
+        try {
+          const response = await this.sandboxApi.getBuildLogsUrl(sandboxInstance.id)
 
-        await processStreamingResponse(
-          () =>
-            fetch(response.data.url + '?follow=true', {
-              method: 'GET',
-              headers: this.clientConfig.baseOptions.headers,
-            }),
-          (chunk) => options.onSnapshotCreateLogs?.(chunk.trimEnd()),
-          async () => {
-            sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
-            return sandboxInstance.state !== undefined && terminalStates.includes(sandboxInstance.state)
-          },
-        )
+          await processStreamingResponse(
+            () =>
+              fetch(response.data.url + '?follow=true', {
+                method: 'GET',
+                headers: this.clientConfig.baseOptions.headers,
+              }),
+            (chunk) => options.onSnapshotCreateLogs?.(chunk.trimEnd()),
+            async () => {
+              sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
+              return sandboxInstance.state !== undefined && terminalStates.includes(sandboxInstance.state)
+            },
+          )
+        } catch (streamError) {
+          sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
+          if (!isDestroyedByLifecycle(sandboxInstance)) {
+            throw streamError
+          }
+        }
       }
 
       const sandbox = new Sandbox(

@@ -222,7 +222,15 @@ public class Daytona implements AutoCloseable {
         String initialState = response.getState() != null ? response.getState().getValue() : "";
         if (onSnapshotCreateLogs != null && "pending_build".equals(initialState)) {
             waitForBuildState(response.getId(), timeoutSeconds, startTime);
-            streamSandboxBuildLogs(response.getId(), onSnapshotCreateLogs, timeoutSeconds, startTime);
+            try {
+                streamSandboxBuildLogs(response.getId(), onSnapshotCreateLogs, timeoutSeconds, startTime);
+            } catch (DaytonaException streamError) {
+                io.daytona.api.client.model.Sandbox current =
+                        ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null));
+                if (!isDestroyedByLifecycle(current)) {
+                    throw streamError;
+                }
+            }
         }
 
         Sandbox sandbox = new Sandbox(sandboxApi, config,
@@ -760,7 +768,13 @@ public class Daytona implements AutoCloseable {
         streamer.streamLogs(logsUrl.getUrl(), onLog, () -> {
             io.daytona.api.client.model.Sandbox s = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(sandboxId, null, null));
             String state = s.getState() != null ? s.getState().getValue() : "";
-            return "started".equals(state) || "starting".equals(state) || "error".equals(state) || "build_failed".equals(state);
+            return "started".equals(state) || "starting".equals(state) || "error".equals(state)
+                    || "build_failed".equals(state) || "destroyed".equals(state);
         });
+    }
+
+    private static boolean isDestroyedByLifecycle(io.daytona.api.client.model.Sandbox sandbox) {
+        String state = sandbox.getState() != null ? sandbox.getState().getValue() : "";
+        return "destroyed".equals(state) && (sandbox.getQueueTimedOutAt() != null || sandbox.getSpotEvictedAt() != null);
     }
 }

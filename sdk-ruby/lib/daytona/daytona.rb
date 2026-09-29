@@ -338,13 +338,17 @@ module Daytona
           response = sandbox_api.get_sandbox(response.id)
         end
 
-        # Get build logs URL from API
-        build_logs_response = sandbox_api.get_build_logs_url(response.id)
-        uri = URI.parse("#{build_logs_response.url}?follow=true")
+        begin
+          build_logs_response = sandbox_api.get_build_logs_url(response.id)
+          uri = URI.parse("#{build_logs_response.url}?follow=true")
 
-        headers = {}
-        sandbox_api.api_client.update_params_for_auth!(headers, nil, ['bearer'])
-        Util.stream_async(uri:, headers:, on_chunk: on_snapshot_create_logs)
+          headers = {}
+          sandbox_api.api_client.update_params_for_auth!(headers, nil, ['bearer'])
+          Util.stream_async(uri:, headers:, on_chunk: on_snapshot_create_logs)
+        rescue StandardError
+          response = sandbox_api.get_sandbox(response.id)
+          raise unless destroyed_by_lifecycle?(response)
+        end
       end
 
       sandbox = to_sandbox(sandbox_dto: response)
@@ -400,6 +404,15 @@ module Daytona
 
     # @param sandbox_dto [DaytonaApiClient::Sandbox, DaytonaApiClient::SandboxListItem]
     # @return [Daytona::Sandbox]
+    def destroyed_by_lifecycle?(sandbox_dto)
+      if sandbox_dto.state == DaytonaApiClient::SandboxState::DESTROYED &&
+         (sandbox_dto.queue_timed_out_at || sandbox_dto.spot_evicted_at)
+        true
+      else
+        false
+      end
+    end
+
     def to_sandbox(sandbox_dto:)
       Sandbox.new(
         sandbox_dto:,

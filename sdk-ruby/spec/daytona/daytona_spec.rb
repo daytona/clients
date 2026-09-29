@@ -464,6 +464,49 @@ RSpec.describe Daytona::Daytona do
         expect(on_chunk).to eq(callback)
       end
     end
+
+    it 'falls through to the start wait when fetching build logs fails for a queue timed out sandbox' do
+      build_response = build_sandbox_dto(id: 'sb-1', state: DaytonaApiClient::SandboxState::PENDING_BUILD)
+      destroyed_response = build_sandbox_dto(
+        id: 'sb-1', state: DaytonaApiClient::SandboxState::DESTROYED,
+        queue_timeout: 1, queue_timed_out_at: '2026-09-29T10:00:00Z'
+      )
+      destroyed_sandbox = instance_double(Daytona::Sandbox, state: DaytonaApiClient::SandboxState::DESTROYED)
+      queue_error = Daytona::Sdk::QueueTimeoutError.new('Sandbox sb-1 was destroyed after waiting for a runner')
+
+      allow(sandbox_api).to receive(:create_sandbox).and_return(build_response)
+      allow(sandbox_api).to receive(:get_sandbox).with('sb-1').and_return(destroyed_response)
+      allow(sandbox_api).to receive(:get_build_logs_url).with('sb-1')
+                                                        .and_raise(DaytonaApiClient::ApiError.new(code: 404))
+      allow(Daytona::Sandbox).to receive(:new).with(hash_including(sandbox_dto: destroyed_response))
+                                              .and_return(destroyed_sandbox)
+      allow(destroyed_sandbox).to receive(:wait_for_sandbox_start).and_raise(queue_error)
+      allow_any_instance_of(described_class).to receive(:sleep)
+
+      expect do
+        described_class.new(config).create(
+          Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python),
+          on_snapshot_create_logs: proc { |_chunk| }
+        )
+      end.to raise_error(Daytona::Sdk::QueueTimeoutError, /waiting for a runner/)
+    end
+
+    it 're-raises the build logs error when the sandbox is still alive' do
+      build_response = build_sandbox_dto(id: 'sb-1', state: DaytonaApiClient::SandboxState::PENDING_BUILD)
+      building_response = build_sandbox_dto(id: 'sb-1', state: DaytonaApiClient::SandboxState::BUILDING_SNAPSHOT)
+
+      allow(sandbox_api).to receive(:create_sandbox).and_return(build_response)
+      allow(sandbox_api).to receive(:get_sandbox).with('sb-1').and_return(building_response)
+      allow(sandbox_api).to receive(:get_build_logs_url).with('sb-1').and_raise(StandardError, 'stream broke')
+      allow_any_instance_of(described_class).to receive(:sleep)
+
+      expect do
+        described_class.new(config).create(
+          Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python),
+          on_snapshot_create_logs: proc { |_chunk| }
+        )
+      end.to raise_error(StandardError, 'stream broke')
+    end
   end
 
   describe '#get' do

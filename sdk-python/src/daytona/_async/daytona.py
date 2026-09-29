@@ -75,6 +75,10 @@ _MISSING_HAPPY_EYEBALLS_DELAY = object()
 _SandboxDtoT = TypeVar("_SandboxDtoT", SandboxDto, SandboxListItem)
 
 
+def _destroyed_by_lifecycle(sandbox: SandboxDto) -> bool:
+    return sandbox.state == SandboxState.DESTROYED and bool(sandbox.queue_timed_out_at or sandbox.spot_evicted_at)
+
+
 def _resolve_happy_eyeballs_delay(raw: str | None) -> object:
     """Parse ``DAYTONA_HAPPY_EYEBALLS_DELAY`` into the value forwarded to
     ``aiohttp.TCPConnector``.
@@ -709,19 +713,25 @@ class AsyncDaytona:
                     SandboxState.STARTING,
                     SandboxState.ERROR,
                     SandboxState.BUILD_FAILED,
+                    SandboxState.DESTROYED,
                 ]
 
             while response_ref["response"].state == SandboxState.PENDING_BUILD:
                 await asyncio.sleep(1)
                 response_ref["response"] = await self._sandbox_api.get_sandbox(response_ref["response"].id)
 
-            await process_streaming_response(
-                url=build_logs_url + "?follow=true",
-                headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
-                on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
-                should_terminate=should_terminate,
-                session=self._shared_session.session,
-            )
+            try:
+                await process_streaming_response(
+                    url=build_logs_url + "?follow=true",
+                    headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
+                    on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
+                    should_terminate=should_terminate,
+                    session=self._shared_session.session,
+                )
+            except Exception:
+                response_ref["response"] = await self._sandbox_api.get_sandbox(response_ref["response"].id)
+                if not _destroyed_by_lifecycle(response_ref["response"]):
+                    raise
             response = response_ref["response"]
 
         sandbox = AsyncSandbox(
