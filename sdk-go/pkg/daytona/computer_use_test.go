@@ -384,6 +384,7 @@ func TestScreenshotAndDisplayServices(t *testing.T) {
 }
 
 func TestRecordingServiceOperations(t *testing.T) {
+	assertNoTempLeak := isolateTempDir(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/download"):
@@ -404,6 +405,7 @@ func TestRecordingServiceOperations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "video-data", string(data))
 	require.NoError(t, recording.Delete(ctx, "rec-1"))
+	assertNoTempLeak()
 }
 
 func newAccessibilityTestService(t *testing.T, handler http.HandlerFunc) (*AccessibilityService, func()) {

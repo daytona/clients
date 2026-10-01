@@ -239,6 +239,8 @@ func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string,
 		if err != nil {
 			return nil, errors.ConvertToolboxError(err, httpResp)
 		}
+		// The generated client buffers the response into a temp file that it never removes.
+		defer os.Remove(file.Name())
 		defer file.Close()
 
 		data, err := io.ReadAll(file)

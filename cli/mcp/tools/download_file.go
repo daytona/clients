@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -52,6 +53,8 @@ func FileDownload(ctx context.Context, request mcp.CallToolRequest, args FileDow
 	if apiErr != nil {
 		return toolboxAPIError("Failed to download file", apiErr)
 	}
+	// The generated client buffers the response into a temp file that it never removes.
+	defer os.Remove(file.Name())
 	defer file.Close()
 
 	// Read file content

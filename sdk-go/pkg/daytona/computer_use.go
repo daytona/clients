@@ -1009,6 +1009,8 @@ func (r *RecordingService) Download(ctx context.Context, id string, localPath st
 		if err != nil {
 			return errors.ConvertToolboxError(err, httpResp)
 		}
+		// The generated client buffers the response into a temp file that it never removes.
+		defer os.Remove(sourceFile.Name())
 		defer sourceFile.Close()
 
 		// Create parent directory if it doesn't exist

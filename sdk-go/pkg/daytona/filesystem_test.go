@@ -127,7 +127,22 @@ func TestDeleteFile(t *testing.T) {
 	}
 }
 
+// isolateTempDir points os.TempDir() at a fresh directory and returns a function
+// asserting that the generated toolbox client left no HttpClientFile* temp files in it.
+func isolateTempDir(t *testing.T) func() {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("TMPDIR", dir)
+	return func() {
+		t.Helper()
+		leftovers, err := filepath.Glob(filepath.Join(dir, "HttpClientFile*"))
+		require.NoError(t, err)
+		assert.Empty(t, leftovers, "download left temp files behind")
+	}
+}
+
 func TestDownloadFile(t *testing.T) {
+	assertNoTempLeak := isolateTempDir(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = w.Write([]byte("file content here"))
@@ -138,9 +153,21 @@ func TestDownloadFile(t *testing.T) {
 	fs := NewFileSystemService(client, nil)
 
 	ctx := context.Background()
-	data, err := fs.DownloadFile(ctx, "/home/user/file.txt", nil)
+	for i := 0; i < 3; i++ {
+		data, err := fs.DownloadFile(ctx, "/home/user/file.txt", nil)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("file content here"), data)
+	}
+
+	localPath := filepath.Join(t.TempDir(), "downloaded.txt")
+	data, err := fs.DownloadFile(ctx, "/home/user/file.txt", &localPath)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("file content here"), data)
+	saved, err := os.ReadFile(localPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("file content here"), saved)
+
+	assertNoTempLeak()
 }
 
 func TestDownloadFileStream(t *testing.T) {
