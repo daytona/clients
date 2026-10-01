@@ -60,7 +60,7 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "cd sdk-go && go mod edit -require=github.com/daytona/clients/analytics-api-client-go@$VERSION",
+          "cd sdk-go && go mod edit -require=go.daytona.com/analytics-api-client-go@$VERSION",
           "echo \"$VERSION\" > analytics-api-client-go/VERSION"
         ],
         "parallel": false

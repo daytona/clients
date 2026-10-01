@@ -7,7 +7,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/daytona/clients/sdk-go/pkg/daytona"
+	"go.daytona.com/sdk-go/pkg/daytona"
 )
 
 func main() {

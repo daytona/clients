@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/middleware"
-	"github.com/daytona/clients/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/errors"
 )
 
 // Upload tuning, kept in step with the Python and TypeScript SDKs.

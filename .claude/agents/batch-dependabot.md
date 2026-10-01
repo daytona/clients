@@ -83,8 +83,8 @@ Compare each version against what's on the `main` branch. If any module shows a 
 
 Pay special attention to these internal dependencies:
 
-- `github.com/daytona/clients/api-client-go`
-- `github.com/daytona/clients/toolbox-api-client-go`
+- `go.daytona.com/api-client-go`
+- `go.daytona.com/toolbox-api-client-go`
 
 ### 3b. Check for breaking API changes
 

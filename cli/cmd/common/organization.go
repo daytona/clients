@@ -6,9 +6,9 @@ package common
 import (
 	"context"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/config"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/config"
 )
 
 // ListOrganizations returns the organizations the profile's user is a member of.

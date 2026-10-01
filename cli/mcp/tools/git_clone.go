@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
+	toolboxclient "go.daytona.com/toolbox-api-client-go"
 
 	log "github.com/sirupsen/logrus"
 )

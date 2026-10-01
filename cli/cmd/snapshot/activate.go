@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net/http"
 
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	view_common "github.com/daytona/clients/cli/views/common"
 	"github.com/spf13/cobra"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	view_common "go.daytona.com/cli/views/common"
 )
 
 var ActivateCmd = &cobra.Command{

@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daytona/clients/cli/internal"
 	log "github.com/sirupsen/logrus"
+	"go.daytona.com/cli/internal"
 )
 
 type versionCheckFixture struct {

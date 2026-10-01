@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/toolbox-api-client-go"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/toolbox-api-client-go"
 )
 
 type downloadStreamCloser struct {

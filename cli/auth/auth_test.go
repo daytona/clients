@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daytona/clients/cli/config"
+	"go.daytona.com/cli/config"
 	"golang.org/x/oauth2"
 )
 

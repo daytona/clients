@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/daytona/clients/cli/cmd/mcp/agents"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/cmd/mcp/agents"
 )
 
 var InitCmd = &cobra.Command{

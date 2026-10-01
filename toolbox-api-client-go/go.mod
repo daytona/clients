@@ -1,3 +1,3 @@
-module github.com/daytona/clients/toolbox-api-client-go
+module go.daytona.com/toolbox-api-client-go
 
 go 1.23

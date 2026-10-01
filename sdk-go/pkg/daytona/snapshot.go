@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
+	apiclient "go.daytona.com/api-client-go"
+	sdkerrors "go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"

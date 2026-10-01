@@ -36,8 +36,8 @@ import (
 	"fmt"
 	"net/http"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	toolbox "github.com/daytona/clients/toolbox-api-client-go"
+	apiclient "go.daytona.com/api-client-go"
+	toolbox "go.daytona.com/toolbox-api-client-go"
 )
 
 // ----- Source identifiers (wire-format, shared with the other SDKs) -----

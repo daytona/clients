@@ -13,7 +13,7 @@ permissions: {}
 env:
   VERSION: ${{ inputs.version }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
-  GONOSUMDB: github.com/daytona/clients
+  GONOSUMDB: go.daytona.com
 
 jobs:
   release:
@@ -54,7 +54,7 @@ jobs:
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
       - name: Tag Go modules
         run: |
-          for mod in api-client-go toolbox-api-client-go sdk-go; do
+          for mod in api-client-go toolbox-api-client-go analytics-api-client-go sdk-go; do
             if git ls-remote --exit-code --tags origin "refs/tags/$mod/$VERSION" >/dev/null 2>&1; then
               echo "Tag $mod/$VERSION already exists on origin; skipping."
             else
@@ -151,7 +151,7 @@ jobs:
             exit 1
           fi
           git checkout -b "sync-gosum-$VERSION"
-          GONOSUMDB=github.com/daytona/clients go work sync
+          GONOSUMDB=go.daytona.com go work sync
           git add -A
           if git diff --cached --quiet; then
             echo "No go workspace changes detected; skipping commit and PR creation."

@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/common"
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
-	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/common"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
+	toolbox "go.daytona.com/toolbox-api-client-go"
 )
 
 func TestNewSandboxConstruction(t *testing.T) {

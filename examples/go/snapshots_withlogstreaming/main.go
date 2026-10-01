@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/daytona/clients/sdk-go/pkg/daytona"
-	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/google/uuid"
+	"go.daytona.com/sdk-go/pkg/daytona"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 // This example demonstrates creating a snapshot with log streaming

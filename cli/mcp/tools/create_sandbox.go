@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
 
 	log "github.com/sirupsen/logrus"
 )

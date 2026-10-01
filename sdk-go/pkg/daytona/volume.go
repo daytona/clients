@@ -7,9 +7,9 @@ import (
 	"context"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 // VolumeService provides persistent storage volume management operations.

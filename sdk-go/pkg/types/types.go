@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	toolbox "github.com/daytona/clients/toolbox-api-client-go"
+	apiclient "go.daytona.com/api-client-go"
+	toolbox "go.daytona.com/toolbox-api-client-go"
 )
 
 const CodeToolboxLanguageLabel = "code-toolbox-language"

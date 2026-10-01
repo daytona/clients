@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/common"
-	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/options"
-	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/common"
+	sdkerrors "go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/options"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 // TestNewClient tests the NewClient function

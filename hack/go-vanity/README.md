@@ -1,102 +1,78 @@
-# Go vanity import setup (`go.daytona.io/*`) via GitHub Pages
+# Go vanity import setup (`go.daytona.com/*`) via GitHub Pages
 
-Serves the Go module **vanity import path** `go.daytona.io/<pkg>` for the Go modules in
+Serves the Go module **vanity import path** `go.daytona.com/<pkg>` for the Go modules in
 this repo, hosted on **GitHub Pages**. Deploy is automated by
 `.github/workflows/deploy-pages.yml` (runs on every push to `main`).
 
-> `go.daytona.io` is a **placeholder** domain — swap it when you pick the real one
-> (see "Changing the domain"). It must be a host you control and can point at Pages.
+## Current setup
 
-## Deploy now, set up DNS later (recommended flow)
+- DNS: `go.daytona.com` CNAME → `daytona.github.io`.
+- Repo **Settings → Pages**: Source = "GitHub Actions", Custom domain = `go.daytona.com`,
+  Enforce HTTPS = on (go requires HTTPS). GitHub Pages serves a project site at the
+  **root** of the custom domain, so there is no `/clients/` prefix.
+- The workflow bakes `DOMAIN=go.daytona.com` into the meta tag and writes a `CNAME` file
+  (`EMIT_CNAME=true`).
 
-You can deploy and validate **before** touching DNS:
+Verify:
 
-1. **Enable Pages**: repo **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
-2. **Merge to `main`** (or run the workflow manually). The workflow generates the site
-   and deploys it. With no custom domain it is served at the **default GitHub URL**:
-
-   ```
-   https://daytona.github.io/clients/
-   ```
-
-   (Project pages are always `https://<owner>.github.io/<repo>/`.)
-
-3. **Validate the meta is served** (no DNS needed):
-
-   ```bash
-   curl -s "https://daytona.github.io/clients/sdk-go?go-get=1" | grep go-import
-   # -> <meta name="go-import" content="go.daytona.io git https://github.com/daytona/clients">
-   curl -s "https://daytona.github.io/clients/anything/deep?go-get=1" | grep go-import   # 404.html catch-all
-   ```
-
-   This confirms the deployment, generator output, and meta content.
-
-4. **What you can't test until DNS**: a real `go get go.daytona.io/sdk-go`. The go tool
-   matches the **module path host** (`go.daytona.io`) against the URL it fetches, so it
-   only resolves once `go.daytona.io` actually points at Pages. The default
-   `daytona.github.io` URL can't stand in for it (the served `go-import` prefix is
-   `go.daytona.io`, which wouldn't match a `daytona.github.io/...` request).
-
-## Going live with the custom domain
-
-1. Add DNS: `go.daytona.io` CNAME → `daytona.github.io`.
-2. Set the workflow env `EMIT_CNAME: "true"` (writes the `CNAME` file into the site) and
-   set the custom domain in **Settings → Pages**. Re-run the workflow.
-3. Enable **Enforce HTTPS** (go requires HTTPS).
-4. Verify:
-
-   ```bash
-   curl -s "https://go.daytona.io/sdk-go?go-get=1" | grep go-import
-   GOFLAGS=-mod=mod go get go.daytona.io/sdk-go@latest   # in a scratch module
-   ```
+```bash
+curl -s "https://go.daytona.com/sdk-go?go-get=1" | grep go-import
+# -> <meta name="go-import" content="go.daytona.com git https://github.com/daytona/clients">
+curl -s "https://go.daytona.com/anything/deep?go-get=1" | grep go-import   # 404.html catch-all
+GOFLAGS=-mod=mod go get go.daytona.com/sdk-go@latest   # in a scratch module
+```
 
 ## How it works
 
-`go get go.daytona.io/sdk-go` → `GET https://go.daytona.io/sdk-go?go-get=1` → reads
-`<meta name="go-import" content="go.daytona.io git https://github.com/daytona/clients">`.
+`go get go.daytona.com/sdk-go` → `GET https://go.daytona.com/sdk-go?go-get=1` → reads
+`<meta name="go-import" content="go.daytona.com git https://github.com/daytona/clients">`.
 The prefix is the bare domain, so one meta covers every module and sub-package; the path
 after the prefix maps to the repo subdir, versioned by the tag `<pkg>/vX.Y.Z`.
+
+GitHub Pages serves `404.html` (with HTTP 404) for every unmatched path; the go tool
+ignores the status code and only parses the meta tags, so `404.html` acts as the
+catch-all for every module and sub-package path.
 
 ## Module → import path → tag
 
 | Dir | Module path | `go get` | Tag |
 | --- | --- | --- | --- |
-| `sdk-go/` | `go.daytona.io/sdk-go` | `go get go.daytona.io/sdk-go` | `sdk-go/vX.Y.Z` |
-| `api-client-go/` | `go.daytona.io/api-client-go` | `go get go.daytona.io/api-client-go` | `api-client-go/vX.Y.Z` |
-| `toolbox-api-client-go/` | `go.daytona.io/toolbox-api-client-go` | `go get go.daytona.io/toolbox-api-client-go` | `toolbox-api-client-go/vX.Y.Z` |
-| `cli/` | `go.daytona.io/cli` | n/a — installed via Homebrew / release binaries¹ | n/a |
+| `sdk-go/` | `go.daytona.com/sdk-go` | `go get go.daytona.com/sdk-go` | `sdk-go/vX.Y.Z` |
+| `api-client-go/` | `go.daytona.com/api-client-go` | `go get go.daytona.com/api-client-go` | `api-client-go/vX.Y.Z` |
+| `toolbox-api-client-go/` | `go.daytona.com/toolbox-api-client-go` | `go get go.daytona.com/toolbox-api-client-go` | `toolbox-api-client-go/vX.Y.Z` |
+| `analytics-api-client-go/` | `go.daytona.com/analytics-api-client-go` | `go get go.daytona.com/analytics-api-client-go` | `analytics-api-client-go/vX.Y.Z` |
+| `cli/` | `go.daytona.com/cli` | n/a — installed via Homebrew / release binaries¹ | n/a |
 
 ¹ The CLI bakes in config (API URL, Auth0) via linker flags in `cli/hack/build.sh`, so a
 plain `go install` would produce a non-functional binary. It is shipped as release
 assets + the Homebrew tap, not via `go install`, and is not git-tagged for module use.
 
-## `go.work` bootstrap replace (pre-publish only)
+## Versions pinned in `go.mod` only resolve after a release
 
-Until those modules are tagged and the vanity host is live, their pinned versions can't
-resolve over the network, so `go.work` carries versioned `replace` directives pointing
-them at local dirs:
+`sdk-go/go.mod` and `cli/go.mod` pin `go.daytona.com/api-client-go@vX.Y.Z` etc. Those
+versions only exist on the network once the release workflow has tagged `<pkg>/vX.Y.Z`
+on a commit whose `go.mod` declares the `go.daytona.com/...` module path. Inside this
+repo that does not matter: `go.work` `use`s every module, so workspace builds resolve
+them locally (the versioned `replace` lines in `go.work` are a leftover of the same
+bootstrap and are harmless). `examples/go/go.mod` carries path `replace`s for the same
+reason so it can be tidied with `GOWORK=off`.
 
-```
-replace go.daytona.io/api-client-go v0.190.0 => ./api-client-go
-replace go.daytona.io/toolbox-api-client-go v0.190.0 => ./toolbox-api-client-go
-```
-
-These live only in `go.work` (not published — consumers never see them). Remove or bump
-them once the deps are tagged + the vanity host is live. If you bump a consumer's
-required version, update the matching version here too.
+Consequence: a plain `go mod tidy` inside `sdk-go/` or `cli/` (which ignores `go.work`)
+fails until the first release under the new path has been tagged. Use `go work sync`
+from the repo root instead.
 
 ## Changing the domain
 
 ```bash
-grep -rl 'go.daytona.io' . --exclude-dir=node_modules --exclude-dir=.git \
-  | xargs sed -i 's#go\.daytona\.io#NEW.DOMAIN#g'
-# then re-run the go.work replaces, `go work sync`, and set DOMAIN in the workflow env.
+grep -rl 'go.daytona.com' . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.nx \
+  | xargs sed -i 's#go\.daytona\.com#NEW.DOMAIN#g'
+# then `go work sync`, set DOMAIN in the workflow env, update DNS and Settings → Pages.
 ```
 
 ## Local preview
 
 ```bash
-bash hack/go-vanity/generate-site.sh           # default github.io mode (no CNAME)
+bash hack/go-vanity/generate-site.sh                   # default github.io mode (no CNAME)
 EMIT_CNAME=true bash hack/go-vanity/generate-site.sh   # custom-domain mode
 # output in hack/go-vanity/site/
 ```

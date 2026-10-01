@@ -6,9 +6,9 @@ package daytona
 import (
 	"context"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 // SecretService provides organization-scoped secret management operations.

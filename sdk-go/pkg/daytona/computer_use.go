@@ -10,9 +10,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
-	"github.com/daytona/clients/toolbox-api-client-go"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
+	"go.daytona.com/toolbox-api-client-go"
 )
 
 // ComputerUseService provides desktop automation operations for a sandbox.

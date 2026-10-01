@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient "go.daytona.com/api-client-go"
 )
 
 func TestAwaitSandboxStateQueueTimeoutError(t *testing.T) {

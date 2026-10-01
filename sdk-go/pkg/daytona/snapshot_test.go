@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiclient "go.daytona.com/api-client-go"
+	sdkerrors "go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 func TestSnapshotServiceCreation(t *testing.T) {

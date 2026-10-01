@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Generate a static GitHub Pages site that serves the Go vanity import meta tag
-# for `go.daytona.io/*`. Output goes to hack/go-vanity/site/.
+# for `go.daytona.com/*`. Output goes to hack/go-vanity/site/.
 #
 # Env:
-#   DOMAIN       vanity import host baked into the meta tag (default: go.daytona.io)
+#   DOMAIN       vanity import host baked into the meta tag (default: go.daytona.com)
 #   REPO         github owner/repo that holds the code (default: daytona/clients)
 #   BRANCH       branch for go-source links (default: main)
 #   EMIT_CNAME   "true" to write a CNAME file (only once DNS for $DOMAIN is ready).
 #                Leave unset/false to serve on the default *.github.io URL for testing.
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-go.daytona.io}"
+DOMAIN="${DOMAIN:-go.daytona.com}"
 REPO="${REPO:-daytona/clients}"
 BRANCH="${BRANCH:-main}"
 EMIT_CNAME="${EMIT_CNAME:-false}"

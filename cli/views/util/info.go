@@ -5,7 +5,7 @@ package util
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/daytona/clients/cli/views/common"
+	"go.daytona.com/cli/views/common"
 )
 
 const PropertyNameWidth = 16

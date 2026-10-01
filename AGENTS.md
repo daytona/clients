@@ -26,7 +26,7 @@ Each shell **auto-installs** its language's dependencies on first entry (idempot
 | `sdk-python` | Python SDK (`daytona`) |
 | `sdk-ruby` | Ruby SDK (`daytona`) |
 | `sdk-java` | Java SDK (`io.daytona:sdk-java`) |
-| `sdk-go` | Go SDK (`github.com/daytona/clients/sdk-go`) |
+| `sdk-go` | Go SDK (`go.daytona.com/sdk-go`) |
 | `api-client*` | Generated Daytona API clients |
 | `toolbox-api-client*` | Generated toolbox API clients |
 | `analytics-api-client` | Generated analytics API client |

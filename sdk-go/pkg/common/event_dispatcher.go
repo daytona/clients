@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient "go.daytona.com/api-client-go"
 )
 
 type SandboxStateEvent struct {

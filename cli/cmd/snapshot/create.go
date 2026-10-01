@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/util"
-	view_common "github.com/daytona/clients/cli/views/common"
-	views_util "github.com/daytona/clients/cli/views/util"
 	"github.com/spf13/cobra"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/util"
+	view_common "go.daytona.com/cli/views/common"
+	views_util "go.daytona.com/cli/views/util"
 )
 
 var CreateCmd = &cobra.Command{

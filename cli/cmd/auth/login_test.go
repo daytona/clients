@@ -10,8 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/cli/config"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/cli/config"
 )
 
 func serveConfig(t *testing.T, status int, body string) string {

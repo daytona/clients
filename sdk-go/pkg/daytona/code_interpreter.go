@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/options"
-	"github.com/daytona/clients/sdk-go/pkg/types"
-	"github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/gorilla/websocket"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/options"
+	"go.daytona.com/sdk-go/pkg/types"
+	"go.daytona.com/toolbox-api-client-go"
 )
 
 // CodeInterpreterService provides Python code execution capabilities for a sandbox.

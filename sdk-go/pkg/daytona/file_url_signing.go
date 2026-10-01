@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daytona/clients/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/errors"
 )
 
 const (

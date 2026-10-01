@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/daytona/clients/cli/cmd"
-	"github.com/daytona/clients/cli/internal"
+	"go.daytona.com/cli/cmd"
+	"go.daytona.com/cli/internal"
 )
 
 const DAYTONA_API_URL_ENV_VAR = "DAYTONA_API_URL"

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/internal"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/internal"
 )
 
 // The GitHub release that carries the CLI binaries. Overridden in tests.

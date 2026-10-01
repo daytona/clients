@@ -101,12 +101,12 @@ fi
 # Build the binary
 echo "Building Daytona CLI with version: $DAYTONA_VERSION"
 go build \
-    -ldflags "-X 'github.com/daytona/clients/cli/internal.Version=${DAYTONA_VERSION}' \
-    -X 'github.com/daytona/clients/cli/internal.DaytonaApiUrl=${DAYTONA_API_URL}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0Domain=${DAYTONA_AUTH0_DOMAIN}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0ClientId=${DAYTONA_AUTH0_CLIENT_ID}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0CallbackPort=${DAYTONA_AUTH0_CALLBACK_PORT}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0Audience=${DAYTONA_AUTH0_AUDIENCE}'" \
+    -ldflags "-X 'go.daytona.com/cli/internal.Version=${DAYTONA_VERSION}' \
+    -X 'go.daytona.com/cli/internal.DaytonaApiUrl=${DAYTONA_API_URL}' \
+    -X 'go.daytona.com/cli/internal.Auth0Domain=${DAYTONA_AUTH0_DOMAIN}' \
+    -X 'go.daytona.com/cli/internal.Auth0ClientId=${DAYTONA_AUTH0_CLIENT_ID}' \
+    -X 'go.daytona.com/cli/internal.Auth0CallbackPort=${DAYTONA_AUTH0_CALLBACK_PORT}' \
+    -X 'go.daytona.com/cli/internal.Auth0Audience=${DAYTONA_AUTH0_AUDIENCE}'" \
     -o "${DIST_DIR}/dist/cli/${OUTPUT_FILE}" main.go
 
 echo "Build complete: ${DIST_DIR}/dist/cli/${OUTPUT_FILE}"

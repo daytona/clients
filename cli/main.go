@@ -8,15 +8,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/daytona/clients/cli/cmd"
-	"github.com/daytona/clients/cli/cmd/auth"
-	"github.com/daytona/clients/cli/cmd/mcp"
-	"github.com/daytona/clients/cli/cmd/organization"
-	"github.com/daytona/clients/cli/cmd/sandbox"
-	"github.com/daytona/clients/cli/cmd/snapshot"
-	"github.com/daytona/clients/cli/cmd/volume"
-	"github.com/daytona/clients/cli/internal"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/cmd"
+	"go.daytona.com/cli/cmd/auth"
+	"go.daytona.com/cli/cmd/mcp"
+	"go.daytona.com/cli/cmd/organization"
+	"go.daytona.com/cli/cmd/sandbox"
+	"go.daytona.com/cli/cmd/snapshot"
+	"go.daytona.com/cli/cmd/volume"
+	"go.daytona.com/cli/internal"
 )
 
 var rootCmd = &cobra.Command{

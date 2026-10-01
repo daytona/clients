@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	analyticsclient "github.com/daytona/clients/analytics-api-client-go"
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/common"
-	"github.com/daytona/clients/sdk-go/pkg/errors"
-	"github.com/daytona/clients/sdk-go/pkg/types"
-	"github.com/daytona/clients/toolbox-api-client-go"
+	analyticsclient "go.daytona.com/analytics-api-client-go"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/common"
+	"go.daytona.com/sdk-go/pkg/errors"
+	"go.daytona.com/sdk-go/pkg/types"
+	"go.daytona.com/toolbox-api-client-go"
 )
 
 // Sandbox represents a Daytona sandbox environment.

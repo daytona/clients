@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	toolboxclient "go.daytona.com/toolbox-api-client-go"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -6,7 +6,7 @@ package organization
 import (
 	"testing"
 
-	apiclient "github.com/daytona/clients/api-client-go"
+	apiclient "go.daytona.com/api-client-go"
 )
 
 func TestResolveRegion(t *testing.T) {

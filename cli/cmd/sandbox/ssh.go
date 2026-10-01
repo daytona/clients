@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
 )
 
 var SSHCmd = &cobra.Command{

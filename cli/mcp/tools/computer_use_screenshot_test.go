@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
+	toolboxclient "go.daytona.com/toolbox-api-client-go"
 )
 
 func TestScreenshotToolResultReturnsTextAndImageContent(t *testing.T) {

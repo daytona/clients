@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
-	"github.com/daytona/clients/cli/toolbox"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
+	"go.daytona.com/cli/toolbox"
 )
 
 var ExecCmd = &cobra.Command{

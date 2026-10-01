@@ -9,8 +9,8 @@ use (
 	./toolbox-api-client-go
 )
 
-replace github.com/daytona/clients/analytics-api-client-go v0.192.0 => ./analytics-api-client-go
+replace go.daytona.com/analytics-api-client-go v0.192.0 => ./analytics-api-client-go
 
-replace github.com/daytona/clients/api-client-go v0.192.0 => ./api-client-go
+replace go.daytona.com/api-client-go v0.192.0 => ./api-client-go
 
-replace github.com/daytona/clients/toolbox-api-client-go v0.192.0 => ./toolbox-api-client-go
+replace go.daytona.com/toolbox-api-client-go v0.192.0 => ./toolbox-api-client-go

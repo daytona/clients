@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"strings"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/internal"
-	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/internal"
+	toolboxclient "go.daytona.com/toolbox-api-client-go"
 )
 
 type ProfileProvider interface {

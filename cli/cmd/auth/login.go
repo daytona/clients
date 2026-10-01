@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/cli/auth"
-	"github.com/daytona/clients/cli/cmd/common"
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/internal"
-	view_common "github.com/daytona/clients/cli/views/common"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/cli/auth"
+	"go.daytona.com/cli/cmd/common"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/internal"
+	view_common "go.daytona.com/cli/views/common"
 	"golang.org/x/oauth2"
 )
 

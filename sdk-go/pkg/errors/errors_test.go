@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
+	sdkerrors "go.daytona.com/sdk-go/pkg/errors"
 )
 
 // ----- Base error -----

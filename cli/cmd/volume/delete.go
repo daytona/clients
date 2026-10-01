@@ -7,10 +7,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
-	view_common "github.com/daytona/clients/cli/views/common"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
+	view_common "go.daytona.com/cli/views/common"
 )
 
 var DeleteCmd = &cobra.Command{

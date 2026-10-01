@@ -23,11 +23,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      DOMAIN: github.com/daytona/clients
+      DOMAIN: go.daytona.com
       REPO: daytona/clients
       BRANCH: main
-      # Set to "true" only after DNS for $DOMAIN points at GitHub Pages.
-      EMIT_CNAME: 'false'
+      # DNS for $DOMAIN points at GitHub Pages (CNAME -> daytona.github.io).
+      EMIT_CNAME: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiclient "go.daytona.com/api-client-go"
+	"go.daytona.com/sdk-go/pkg/types"
 )
 
 func TestSecretServiceCreation(t *testing.T) {

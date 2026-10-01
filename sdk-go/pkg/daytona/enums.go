@@ -3,7 +3,7 @@
 
 package daytona
 
-import apiclient "github.com/daytona/clients/api-client-go"
+import apiclient "go.daytona.com/api-client-go"
 
 // Type aliases re-export api-client enum types under the daytona package so
 // SDK consumers never need to import the api-client directly.

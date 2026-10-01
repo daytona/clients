@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daytona/clients/cli/config"
+	"go.daytona.com/cli/config"
 )
 
 // writeConfig writes a single-profile config.json into dir. Exactly one of token or key

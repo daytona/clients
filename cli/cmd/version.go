@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/daytona/clients/cli/internal"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/internal"
 )
 
 var VersionCmd = &cobra.Command{

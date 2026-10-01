@@ -38,8 +38,8 @@ func buildCLI(t *testing.T) string {
 	t.Helper()
 
 	bin := filepath.Join(t.TempDir(), "daytona-under-test")
-	ldflags := "-X github.com/daytona/clients/cli/internal.Version=" + testVersion +
-		" -X github.com/daytona/clients/cli/internal.DaytonaApiUrl=" + testDefaultURL
+	ldflags := "-X go.daytona.com/cli/internal.Version=" + testVersion +
+		" -X go.daytona.com/cli/internal.DaytonaApiUrl=" + testDefaultURL
 
 	cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", bin, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {

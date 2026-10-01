@@ -6,11 +6,11 @@ package volume
 import (
 	"context"
 
-	"github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/views/volume"
 	"github.com/spf13/cobra"
+	"go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/views/volume"
 )
 
 var ListCmd = &cobra.Command{

@@ -11,11 +11,11 @@ import (
 	"math"
 	"strings"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/toolbox"
-	toolboxclient "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/mark3labs/mcp-go/mcp"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/toolbox"
+	toolboxclient "go.daytona.com/toolbox-api-client-go"
 )
 
 var daytonaMCPHeaders map[string]string = map[string]string{

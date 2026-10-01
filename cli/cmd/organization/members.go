@@ -7,12 +7,12 @@ import (
 	"context"
 	"fmt"
 
-	apiclient "github.com/daytona/clients/api-client-go"
-	apiclient_cli "github.com/daytona/clients/cli/apiclient"
-	"github.com/daytona/clients/cli/cmd/common"
-	"github.com/daytona/clients/cli/config"
-	"github.com/daytona/clients/cli/views/organization"
 	"github.com/spf13/cobra"
+	apiclient "go.daytona.com/api-client-go"
+	apiclient_cli "go.daytona.com/cli/apiclient"
+	"go.daytona.com/cli/cmd/common"
+	"go.daytona.com/cli/config"
+	"go.daytona.com/cli/views/organization"
 )
 
 var MembersCmd = &cobra.Command{
