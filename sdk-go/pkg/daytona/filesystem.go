@@ -236,12 +236,10 @@ func (f *FileSystemService) DeleteFile(ctx context.Context, path string, recursi
 func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string, localPath *string) ([]byte, error) {
 	return withInstrumentation(ctx, f.otel, "FileSystem", "DownloadFile", func(ctx context.Context) ([]byte, error) {
 		file, httpResp, err := f.toolboxClient.FileSystemAPI.DownloadFile(ctx).Path(remotePath).Execute()
+		defer discardTempFile(file)
 		if err != nil {
 			return nil, errors.ConvertToolboxError(err, httpResp)
 		}
-		// The generated client buffers the response into a temp file that it never removes.
-		defer os.Remove(file.Name())
-		defer file.Close()
 
 		data, err := io.ReadAll(file)
 		if err != nil {
@@ -256,6 +254,17 @@ func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string,
 
 		return data, nil
 	})
+}
+
+// discardTempFile closes and deletes the temp file the generated toolbox client
+// creates for *os.File responses. The client may return the file alongside an
+// error, so this must run regardless of the Execute() result.
+func discardTempFile(file *os.File) {
+	if file == nil {
+		return
+	}
+	_ = file.Close()
+	_ = os.Remove(file.Name())
 }
 
 // DownloadStreamOption configures the behavior of DownloadFileStream.

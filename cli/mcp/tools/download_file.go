@@ -50,12 +50,17 @@ func FileDownload(ctx context.Context, request mcp.CallToolRequest, args FileDow
 
 	// Download the file
 	file, _, apiErr := toolboxClient.FileSystemAPI.DownloadFile(ctx).Path(*args.FilePath).Execute()
+	// The generated client buffers the response into a temp file it never removes,
+	// and may return that file together with an error.
+	defer func() {
+		if file != nil {
+			_ = file.Close()
+			_ = os.Remove(file.Name())
+		}
+	}()
 	if apiErr != nil {
 		return toolboxAPIError("Failed to download file", apiErr)
 	}
-	// The generated client buffers the response into a temp file that it never removes.
-	defer os.Remove(file.Name())
-	defer file.Close()
 
 	// Read file content
 	content, err := io.ReadAll(file)
