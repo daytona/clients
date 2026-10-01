@@ -1,0 +1,29 @@
+cli/mcp/tools/download_file.go
+  s_8bf286ee3faa48::t_56dde1a0134a85 56-57
+  s_8bf286ee3faa48::t_80c06c61e68d2f 11
+sdk-go/pkg/daytona/filesystem.go
+  s_8bf286ee3faa48::t_bee6d2675f5151 242-243
+sdk-go/pkg/daytona/filesystem_test.go
+  s_8bf286ee3faa48::t_e930b2e409f07b 130-143,145,156-163,166-170
+sdk-go/pkg/daytona/computer_use.go
+  s_8bf286ee3faa48::t_c6811c81730b34 1012-1013
+sdk-go/pkg/daytona/computer_use_test.go
+  s_8bf286ee3faa48::t_a3e6ed5718762b 408
+  s_8bf286ee3faa48::t_618004c19e1e02 387
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7d28121cb0c81d19f4d7f62b3a87b2752dc20b8",
+  "prompts": {},
+  "sessions": {
+    "s_8bf286ee3faa48": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f096a71f4ffeHvZnvnNT3tslPV",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
