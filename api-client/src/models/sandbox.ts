@@ -231,7 +231,6 @@ export type SandboxBackupStateEnum = typeof SandboxBackupStateEnum[keyof typeof 
 export const SandboxSandboxClassEnum = {
     LINUX_VM: 'linux-vm',
     CONTAINER: 'container',
-    ANDROID: 'android',
     WINDOWS: 'windows',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;

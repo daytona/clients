@@ -337,8 +337,6 @@ public class Sandbox {
     
     CONTAINER("container"),
     
-    ANDROID("android"),
-    
     WINDOWS("windows"),
     
     UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");

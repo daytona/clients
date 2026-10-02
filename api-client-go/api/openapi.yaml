@@ -7386,13 +7386,11 @@ components:
       enum:
       - linux-vm
       - container
-      - android
       - windows
       type: string
       x-enum-varnames:
       - LINUX_VM
       - CONTAINER
-      - ANDROID
       - WINDOWS
     GpuType:
       enum:
@@ -9548,14 +9546,12 @@ components:
           enum:
           - linux-vm
           - container
-          - android
           - windows
           example: linux-vm
           type: string
           x-enum-varnames:
           - LINUX_VM
           - CONTAINER
-          - ANDROID
           - WINDOWS
         daemonVersion:
           description: The version of the daemon running in the sandbox
@@ -10796,14 +10792,12 @@ components:
           enum:
           - linux-vm
           - container
-          - android
           - windows
           example: linux-vm
           type: string
           x-enum-varnames:
           - LINUX_VM
           - CONTAINER
-          - ANDROID
           - WINDOWS
       required:
       - cpu
