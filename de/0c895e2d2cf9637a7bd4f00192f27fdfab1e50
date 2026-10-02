@@ -1,0 +1,18 @@
+api-client-ruby/lib/daytona_api_client/models/sandbox.rb
+  h_e7759ddd73fa65 626,785
+api-client-ruby/lib/daytona_api_client/models/sandbox_class.rb
+  h_e7759ddd73fa65 24
+api-client-ruby/lib/daytona_api_client/models/snapshot_dto.rb
+  h_e7759ddd73fa65 377,485
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de0c895e2d2cf9637a7bd4f00192f27fdfab1e50",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
