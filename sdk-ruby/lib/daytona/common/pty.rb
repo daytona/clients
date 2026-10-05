@@ -65,7 +65,7 @@ module Daytona
     # @param session_id [String] Session ID of the PTY session
     # @param handle_resize [Proc, nil] Optional callback for resizing the PTY
     # @param handle_kill [Proc, nil] Optional callback for killing the PTY
-    def initialize(websocket, session_id:, handle_resize: nil, handle_kill: nil)
+    def initialize(websocket, session_id:, handle_resize: nil, handle_kill: nil) # rubocop:disable Metrics/MethodLength
       @websocket = websocket
       @session_id = session_id
       @handle_resize = handle_resize
@@ -76,7 +76,9 @@ module Daytona
       @logger = Sdk.logger
 
       @status = Status::INIT
+      @write_mutex = Mutex.new
       subscribe
+      start_keepalive
     end
 
     # Check if connected to the PTY session
@@ -108,7 +110,7 @@ module Daytona
     def send_input(input)
       raise Sdk::Error, 'PTY session not connected' unless websocket.open?
 
-      websocket.send(input)
+      @write_mutex.synchronize { websocket.send(input) }
     end
 
     # Resize the PTY terminal
@@ -168,9 +170,36 @@ module Daytona
     # Disconnect from the PTY session
     #
     # @return [void]
-    def disconnect = websocket.close
+    def disconnect
+      stop_keepalive
+      websocket.close
+    end
 
     private
+
+    # A PTY can legitimately stay silent for a long time (a build or test run with no
+    # output) and intermediate proxies/load balancers drop connections that carry no
+    # traffic. Pings keep the connection alive without injecting input into the terminal.
+    #
+    # @return [void]
+    def start_keepalive
+      @keepalive_thread = Thread.new do
+        loop do
+          sleep(KEEPALIVE_INTERVAL)
+          break unless websocket.open?
+
+          @write_mutex.synchronize { websocket.send(nil, type: :ping) }
+        end
+      rescue StandardError => e
+        logger.debug("[Websocket] keepalive stopped: #{e.inspect}")
+      end
+    end
+
+    # @return [void]
+    def stop_keepalive
+      @keepalive_thread&.kill
+      @keepalive_thread = nil
+    end
 
     # @return [Symbol]
     attr_reader :status
@@ -206,6 +235,7 @@ module Daytona
     def on_websocket_close(error)
       logger.debug("[Websocket] close: #{error.inspect}")
       @status = Status::CLOSED
+      stop_keepalive
     end
 
     # @param error [WebSocket::Frame::Incoming::Client]
@@ -296,6 +326,9 @@ module Daytona
 
     SLEEP_INTERVAL = 0.1
     private_constant :SLEEP_INTERVAL
+
+    KEEPALIVE_INTERVAL = 20.0
+    private_constant :KEEPALIVE_INTERVAL
 
     module Status
       ALL = [

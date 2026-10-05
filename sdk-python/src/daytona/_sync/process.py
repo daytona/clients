@@ -37,7 +37,7 @@ from ..common.process import (
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
-from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
+from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, WS_KEEPALIVE_INTERVAL_SECONDS, PtySize
 from ..handle.pty_handle import PtyHandle
 
 
@@ -673,7 +673,14 @@ class Process:
             subprotocols.append(f"X-Daytona-Pty-Envs~{encoded}")
 
         try:
-            ws_cm = httpx_ws.connect_ws(url, self._http_client, headers=headers, subprotocols=subprotocols)
+            ws_cm = httpx_ws.connect_ws(
+                url,
+                self._http_client,
+                headers=headers,
+                subprotocols=subprotocols,
+                keepalive_ping_interval_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+                keepalive_ping_timeout_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+            )
             ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
         except httpx_ws.WebSocketUpgradeError as e:
             # A failed WS upgrade carries the HTTP response; surface it as the matching typed
@@ -745,7 +752,12 @@ class Process:
         # self._http_client's pool (shared TLS context, DNS cache) — once upgraded, that
         # socket is dedicated to this PTY for its entire lifetime.
         ws_cm = httpx_ws.connect_ws(
-            url, self._http_client, headers=headers, subprotocols=[PTY_EXIT_CONTROL_SUBPROTOCOL]
+            url,
+            self._http_client,
+            headers=headers,
+            subprotocols=[PTY_EXIT_CONTROL_SUBPROTOCOL],
+            keepalive_ping_interval_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+            keepalive_ping_timeout_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
         )
         ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
 

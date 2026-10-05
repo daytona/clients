@@ -26,6 +26,14 @@ import java.util.function.Consumer;
 public class PtyHandle {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    /**
+     * Interval between WebSocket ping frames. A PTY can legitimately stay silent for a long
+     * time (a build or test run with no output) and intermediate proxies/load balancers drop
+     * connections that carry no traffic. Pings keep the connection alive without injecting
+     * input into the terminal.
+     */
+    static final long KEEPALIVE_INTERVAL_SECONDS = 20;
+
     private final WebSocket ws;
     private final String sessionId;
     private volatile Integer exitCode;
@@ -52,7 +60,10 @@ public class PtyHandle {
         this.resizeCallback = resizeCallback;
         this.killCallback = killCallback;
         this.onData = onData;
-        this.ws = client.newWebSocket(request, new PtyWebSocketListener());
+        OkHttpClient keepaliveClient = client.newBuilder()
+                .pingInterval(KEEPALIVE_INTERVAL_SECONDS, TimeUnit.SECONDS)
+                .build();
+        this.ws = keepaliveClient.newWebSocket(request, new PtyWebSocketListener());
     }
 
     /**

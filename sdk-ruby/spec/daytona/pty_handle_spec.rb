@@ -28,8 +28,8 @@ RSpec.describe Daytona::PtyHandle do
       @open
     end
 
-    def send(data)
-      @sent_messages << data
+    def send(data, opt = { type: :text })
+      @sent_messages << (opt[:type] == :text ? data : opt[:type])
     end
 
     def close
@@ -43,6 +43,33 @@ RSpec.describe Daytona::PtyHandle do
   let(:kill_handler) { proc { :killed } }
   let(:handle) do
     described_class.new(websocket, session_id: 'pty-1', handle_resize: resize_handler, handle_kill: kill_handler)
+  end
+
+  describe 'keepalive' do
+    before { stub_const('Daytona::PtyHandle::KEEPALIVE_INTERVAL', 0.02) }
+
+    it 'sends ping frames while the socket is open and stops after disconnect' do
+      handle
+      sleep(0.15)
+      expect(websocket.sent_messages.count(:ping)).to be >= 2
+
+      handle.disconnect
+      pings_after_disconnect = websocket.sent_messages.count(:ping)
+      sleep(0.1)
+      expect(websocket.sent_messages.count(:ping)).to eq(pings_after_disconnect)
+    end
+
+    it 'stops pinging when the server closes the socket' do
+      handle
+      sleep(0.15)
+      expect(websocket.sent_messages.count(:ping)).to be >= 2
+
+      websocket.close
+      websocket.emit(:close, StandardError.new('server closed'))
+      pings_after_close = websocket.sent_messages.count(:ping)
+      sleep(0.1)
+      expect(websocket.sent_messages.count(:ping)).to eq(pings_after_close)
+    end
   end
 
   describe Daytona::PtySize do

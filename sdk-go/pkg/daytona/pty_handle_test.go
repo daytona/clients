@@ -99,6 +99,52 @@ func TestPtyHandleSendInputWriteReadAndDisconnect(t *testing.T) {
 	assert.False(t, handle.IsConnected())
 }
 
+func TestPtyHandleSendsKeepalivePings(t *testing.T) {
+	previous := ptyKeepaliveInterval
+	ptyKeepaliveInterval = 20 * time.Millisecond
+	t.Cleanup(func() { ptyKeepaliveInterval = previous })
+
+	pings := make(chan struct{}, 64)
+	serverDone := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+		defer close(serverDone)
+		conn.SetPingHandler(func(string) error {
+			pings <- struct{}{}
+			return nil
+		})
+		require.NoError(t, conn.WriteJSON(controlMessage{Type: "control", Status: "connected"}))
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + server.URL[len("http"):]
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	handle := newPtyHandle(conn, "pty-1", nil, nil)
+	require.NoError(t, handle.WaitForConnection(context.Background()))
+
+	for i := 0; i < 3; i++ {
+		select {
+		case <-pings:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("expected keepalive ping %d within 2s", i+1)
+		}
+	}
+
+	require.NoError(t, handle.Disconnect())
+	<-serverDone
+	drained := len(pings)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, drained, len(pings), "no pings expected after disconnect")
+}
+
 func TestPtyHandleReadEOFAndWriteWithoutConnection(t *testing.T) {
 	handle := &PtyHandle{dataChan: make(chan []byte)}
 	close(handle.dataChan)

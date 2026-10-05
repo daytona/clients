@@ -37,7 +37,7 @@ from ..common.process import (
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
-from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
+from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, WS_KEEPALIVE_INTERVAL_SECONDS, PtySize
 from ..handle.async_pty_handle import AsyncPtyHandle
 from ..internal.shared_session import http_session_of
 
@@ -65,7 +65,7 @@ class AsyncProcess:
         subprotocols: list[str] | None = None,
     ) -> "aiohttp.ClientWebSocketResponse[bool]":
         return await http_session_of(self._api_client.api_client).ws_connect(
-            url, headers=headers, protocols=subprotocols or ()
+            url, headers=headers, protocols=subprotocols or (), heartbeat=WS_KEEPALIVE_INTERVAL_SECONDS
         )
 
     async def _consume_log_websocket(

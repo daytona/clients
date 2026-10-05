@@ -60,7 +60,15 @@ type PtyHandle struct {
 	connectionEstablished bool
 	mu                    sync.RWMutex
 	done                  chan struct{}
+	keepaliveInterval     time.Duration
 }
+
+// A PTY can legitimately stay silent for a long time (a build or test run with no
+// output) and intermediate proxies/load balancers drop connections that carry no
+// traffic. Pings keep the connection alive without injecting input into the terminal.
+var ptyKeepaliveInterval = 20 * time.Second
+
+const ptyKeepaliveWriteWait = 10 * time.Second
 
 // controlMessage represents a WebSocket control message
 type controlMessage struct {
@@ -90,12 +98,39 @@ func newPtyHandle(
 		handleResize: handleResize,
 		handleKill:   handleKill,
 		done:         make(chan struct{}),
+
+		keepaliveInterval: ptyKeepaliveInterval,
 	}
 
 	// Start message handler
 	go h.handleMessages()
+	go h.keepalive()
 
 	return h
+}
+
+// keepalive sends WebSocket ping frames at h.keepaliveInterval until the
+// session ends. WriteControl is safe to call concurrently with WriteMessage.
+func (h *PtyHandle) keepalive() {
+	ticker := time.NewTicker(h.keepaliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-h.done:
+			return
+		case <-ticker.C:
+			h.mu.RLock()
+			ws := h.ws
+			h.mu.RUnlock()
+			if ws == nil {
+				return
+			}
+			if err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(ptyKeepaliveWriteWait)); err != nil {
+				return
+			}
+		}
+	}
 }
 
 // DataChan returns a channel for receiving PTY output.
