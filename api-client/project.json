@@ -44,9 +44,9 @@
       "options": {
         "cwd": "{workspaceRoot}/dist/api-client",
         "commands": [
-          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_TOKEN",
+          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/",
           "node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.name = '@daytonaio/api-client'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));\"",
-          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_TOKEN"
+          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/"
         ],
         "parallel": false
       },

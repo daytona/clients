@@ -117,11 +117,11 @@
       "options": {
         "cwd": "{workspaceRoot}/dist/sdk-typescript",
         "commands": [
-          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_TOKEN",
+          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/",
           "node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.name = '@daytonaio/sdk'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));\"",
           "cp ../../sdk-typescript/README.legacy.md README.md",
-          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_TOKEN",
-          "npm deprecate \"@daytonaio/sdk@$NPM_PKG_VERSION\" \"Moved to @daytona/sdk, same API, no breaking changes. Please update: npm uninstall @daytonaio/sdk && npm i @daytona/sdk\" --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_TOKEN || true"
+          "npm publish --tag $NPM_TAG --access public --registry https://registry.npmjs.org/",
+          "npm deprecate \"@daytonaio/sdk@$NPM_PKG_VERSION\" \"Moved to @daytona/sdk, same API, no breaking changes. Please update: npm uninstall @daytonaio/sdk && npm i @daytona/sdk\" --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_DEPRECATE_TOKEN || true"
         ],
         "parallel": false
       },

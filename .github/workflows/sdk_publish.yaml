@@ -50,6 +50,8 @@ jobs:
     environment: release
     permissions:
       contents: read
+      # OIDC token for npm trusted publishing.
+      id-token: write
     name: Publish ${{ matrix.name }}
     strategy:
       fail-fast: false
@@ -94,6 +96,10 @@ jobs:
         if: matrix.pkg_version != ''
         with:
           install-swag: 'false'
+      - name: Upgrade npm for trusted publishing
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != ''
+        # npm >= 11.5.1 is required for OIDC publishing; Node 22 ships npm 10.
+        run: npm install -g npm@11 && npm --version
       - name: Configure RubyGems credentials
         if: matrix.projects == 'sdk-ruby' && matrix.pkg_version != ''
         env:
@@ -106,7 +112,10 @@ jobs:
       - name: Publish projects
         if: matrix.pkg_version != ''
         env:
-          NPM_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_TOKEN || '' }}
+          # npm publishes via trusted publishing (OIDC). The only remaining npm token is
+          # a granular one scoped to @daytonaio/sdk, used solely by `npm deprecate`
+          # (metadata writes are not covered by OIDC).
+          NPM_DEPRECATE_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_DEPRECATE_TOKEN || '' }}
           PYPI_TOKEN: ${{ matrix.projects == 'sdk-python' && secrets.PYPI_TOKEN || '' }}
           # The nx ruby publish targets rewrite ~/.gem/credentials from this variable
           # before `gem push`, so it has to be present on this step too.

@@ -18,7 +18,7 @@ Before publishing any SDK, ensure you have:
 1. **Maintainer Access**: Write access to the Daytona repository
 2. **Package Registry Credentials**:
    - PyPI: Token with upload permissions
-   - npm: Token with publish permissions
+   - npm: none for CI — publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC); a granular token scoped to `@daytonaio/sdk` is needed only for the `npm deprecate` step
    - RubyGems: API key with push permissions
 3. **Local Development Setup**:
    - All dependencies installed (`yarn install`)
@@ -40,15 +40,14 @@ yarn nx publish sdk-python
 
 ## TypeScript SDK (npm)
 
-### Using Nx
+npm packages are published through npm trusted publishing (OIDC), so they can only be released from the `sdk_publish.yaml` workflow on a GitHub-hosted runner; there is no local publish path.
 
-```bash
-# From repository root
-export NPM_TOKEN="your-npm-token"
-export NPM_PKG_VERSION="X.Y.Z" # pre-release format example: "X.Y.Z-alpha.1"
-export NPM_TAG="latest"  # or "beta", "alpha", etc.
-yarn nx publish sdk-typescript
-```
+Each package has a trusted publisher configured for organization `daytona`, repository `clients`, workflow `sdk_publish.yaml`, environment `release`, with `npm publish` and `npm dist-tag` allowed:
+
+- `@daytona/sdk`, `@daytona/api-client`, `@daytona/toolbox-api-client`, `@daytona/analytics-api-client`
+- legacy mirrors `@daytonaio/sdk`, `@daytonaio/api-client`, `@daytonaio/toolbox-api-client`
+
+OIDC does not cover `npm deprecate`, so the deprecation of each new `@daytonaio/sdk` version uses the granular `NPM_DEPRECATE_TOKEN` secret (read/write on `@daytonaio/sdk` only). Because of that token, `@daytonaio/sdk` must keep "allow tokens that bypass 2FA" in its publishing access settings; every other package can disallow tokens.
 
 **Note**: NPM packages must have [SemVer-aligned formats](https://semver.org/).
 
@@ -87,7 +86,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
 Ensure these secrets are configured in GitHub repository settings:
 
 - `PYPI_TOKEN`: PyPI API token
-- `NPM_TOKEN`: npm access token
+- `NPM_DEPRECATE_TOKEN`: granular npm token scoped to `@daytonaio/sdk`, used only by `npm deprecate` (all packages publish via trusted publishing)
 - `RUBYGEMS_API_KEY`: RubyGems API key
 - `GITHUBBOT_TOKEN`: GitHub token for Homebrew tap updates
 
