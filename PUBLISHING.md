@@ -19,7 +19,7 @@ Before publishing any SDK, ensure you have:
 2. **Package Registry Credentials**:
    - PyPI: Token with upload permissions
    - npm: none for CI — publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC); a granular token scoped to `@daytonaio/sdk` is needed only for the `npm deprecate` step
-   - RubyGems: API key with push permissions
+   - RubyGems: none for CI — publishing uses trusted publishing (OIDC)
 3. **Local Development Setup**:
    - All dependencies installed (`yarn install`)
    - SDKs built successfully
@@ -62,11 +62,13 @@ OIDC does not cover `npm deprecate`, so the deprecation of each new `@daytonaio/
 
 ## Ruby SDK (RubyGems)
 
-### Using Nx
+In CI, gems are published through RubyGems [trusted publishing](https://guides.rubygems.org/trusted-publishing/) (OIDC) from the `sdk_publish.yaml` workflow. Each gem (`daytona`, `daytona_api_client`, `daytona_toolbox_api_client`, `daytona_analytics_api_client`) has a trusted publisher for owner `daytona`, repository `clients`, workflow `sdk_publish.yaml`, environment `release`.
+
+The same nx targets also work locally against a signed-in `gem` CLI (`gem signin`); expect an MFA prompt per `gem push`:
 
 ```bash
 # From repository root
-export RUBYGEMS_API_KEY="your-rubygems-api-key"
+gem signin
 export RUBYGEMS_PKG_VERSION="X.Y.Z" # pre-release format example: "X.Y.Z.alpha.1"
 yarn nx publish sdk-ruby
 ```
@@ -96,7 +98,6 @@ Ensure these secrets are configured in GitHub repository settings:
 
 - `PYPI_TOKEN`: PyPI API token
 - `NPM_DEPRECATE_TOKEN`: granular npm token scoped to `@daytonaio/sdk`, used only by `npm deprecate` (all packages publish via trusted publishing)
-- `RUBYGEMS_API_KEY`: RubyGems API key
 - `GITHUBBOT_TOKEN`: GitHub token for Homebrew tap updates
 
 ### What the Workflow Does

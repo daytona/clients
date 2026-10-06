@@ -56,8 +56,7 @@
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
-          "mkdir -p ~/.gem && echo \":rubygems: $RUBYGEMS_API_KEY\" > ~/.gem/credentials && chmod 0600 ~/.gem/credentials",
-          "gem push daytona_toolbox_api_client-*.gem --key rubygems --host https://rubygems.org"
+          "gem push daytona_toolbox_api_client-*.gem --host https://rubygems.org"
         ],
         "parallel": false
       },
