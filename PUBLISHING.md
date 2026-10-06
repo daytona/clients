@@ -40,7 +40,16 @@ yarn nx publish sdk-python
 
 ## TypeScript SDK (npm)
 
-npm packages are published through npm trusted publishing (OIDC), so they can only be released from the `sdk_publish.yaml` workflow on a GitHub-hosted runner; there is no local publish path.
+In CI, npm packages are published through npm trusted publishing (OIDC) from the `sdk_publish.yaml` workflow on a GitHub-hosted runner. The same nx targets also work locally against a logged-in npm CLI (`npm login`); expect a 2FA prompt per `npm publish`, and no provenance attestation on locally published versions:
+
+```bash
+# From repository root
+npm login
+export NPM_PKG_VERSION="X.Y.Z" # pre-release format example: "X.Y.Z-alpha.1"
+export NPM_TAG="latest"  # or "beta", "alpha", etc.
+export NPM_DEPRECATE_TOKEN="..."  # optional; otherwise run `npm deprecate` for @daytonaio/sdk by hand
+yarn nx publish sdk-typescript
+```
 
 Each package has a trusted publisher configured for organization `daytona`, repository `clients`, workflow `sdk_publish.yaml`, environment `release`, with `npm publish` and `npm dist-tag` allowed:
 
