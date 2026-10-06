@@ -58,7 +58,41 @@
         '';
 
         # Python — sdk-python, api-client-python(-async), examples/python.
-        pythonPkgs = with pkgs; [ python312 poetry ];
+        # Poetry is pinned to the version Dependabot stamps into the poetry.lock
+        # header (and the one setup-toolchain installs in CI); nixpkgs lags behind
+        # it. poetry-core must match the exact version Poetry's own metadata requires.
+        # nixpkgs' poetry wrapper composes its own package set and exposes it as
+        # passthru.python; override on that set so our versions are not re-shadowed.
+        poetryPython = pkgs.poetry.python.override (old: {
+          packageOverrides = pkgs.lib.composeExtensions (old.packageOverrides or (_: _: { })) (_: super: {
+            poetry-core = super.poetry-core.overridePythonAttrs (_: rec {
+              version = "2.5.0";
+              src = pkgs.fetchFromGitHub {
+                owner = "python-poetry";
+                repo = "poetry-core";
+                tag = version;
+                hash = "sha256-KEjdHHiXphtVqkq08VCSwmpw3r5SaDgftw1wxcujJPc=";
+              };
+            });
+            poetry = super.poetry.overridePythonAttrs (old: rec {
+              version = "2.5.1";
+              src = pkgs.fetchFromGitHub {
+                owner = "python-poetry";
+                repo = "poetry";
+                tag = version;
+                hash = "sha256-LlE5u6dyiLGQeMREDtZcCGdDtNjqm8hwlTPfx6UeF8U=";
+              };
+              # Tests added since the nixpkgs pin that cannot pass in the sandbox:
+              # one needs network (git LFS), one asserts on import wall-clock time.
+              disabledTests = old.disabledTests ++ [
+                "test_clone_with_lfs_files"
+                "test_no_slow_imports_when_importing_the_cli_entrypoint"
+              ];
+            });
+          });
+        });
+        poetry = poetryPython.pkgs.toPythonApplication poetryPython.pkgs.poetry;
+        pythonPkgs = [ pkgs.python312 poetry ];
         pythonShellHook = ''
           export POETRY_VIRTUALENVS_IN_PROJECT=true
           ${bootstrap "poetry install (Python)" ".venv" "poetry install"}

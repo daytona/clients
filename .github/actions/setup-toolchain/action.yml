@@ -99,7 +99,9 @@ runs:
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install "poetry==2.3.2"
+        # Must match the Poetry that Dependabot stamps into the poetry.lock header
+        # (and the flake.nix override), or the lock drift check fails on every pip PR.
+        python3 -m pip install "poetry==2.5.1"
 
     - name: Install swag
       if: inputs.install-swag == 'true' && inputs.install-go == 'true'
