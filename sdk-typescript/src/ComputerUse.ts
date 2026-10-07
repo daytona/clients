@@ -8,6 +8,8 @@ import { ComputerUseApi } from '@daytona/toolbox-api-client'
 import type {
   MousePositionResponse,
   MouseMoveRequest,
+  MouseDownRequest,
+  MouseUpRequest,
   MouseClickRequest,
   MouseClickResponse,
   MouseDragRequest,
@@ -16,6 +18,8 @@ import type {
   KeyboardTypeRequest,
   KeyboardPressRequest,
   KeyboardHotkeyRequest,
+  KeyboardKeyDownRequest,
+  KeyboardKeyUpRequest,
   ScreenshotResponse,
   DisplayInfoResponse,
   WindowsResponse,
@@ -119,12 +123,67 @@ export class Mouse {
   }
 
   /**
+   * Presses and holds a mouse button at the specified coordinates
+   *
+   * The button stays held until a matching `up()` call is made, which enables
+   * press-and-hold interactions such as manual drags and marquee selections.
+   *
+   * @param {number} [x] - The x coordinate to press at. Omit to press at the current cursor position
+   * @param {number} [y] - The y coordinate to press at. Omit to press at the current cursor position
+   * @param {string} [button='left'] - The mouse button to press ('left', 'right', 'middle')
+   * @returns {Promise<MousePositionResponse>} Position after the button press
+   *
+   * @example
+   * ```typescript
+   * // Press and hold the left button, move, then release
+   * await sandbox.computerUse.mouse.down(100, 200);
+   * await sandbox.computerUse.mouse.move(300, 400);
+   * await sandbox.computerUse.mouse.up(300, 400);
+   *
+   * // Press at the current cursor position
+   * await sandbox.computerUse.mouse.down();
+   * ```
+   */
+  @WithInstrumentation()
+  public async down(x?: number, y?: number, button = 'left'): Promise<MousePositionResponse> {
+    const request: MouseDownRequest = { x, y, button }
+    const response = await this.apiClient.mouseDown(request)
+    return response.data
+  }
+
+  /**
+   * Releases a held mouse button at the specified coordinates
+   *
+   * @param {number} [x] - The x coordinate to release at. Omit to release at the current cursor position
+   * @param {number} [y] - The y coordinate to release at. Omit to release at the current cursor position
+   * @param {string} [button='left'] - The mouse button to release ('left', 'right', 'middle')
+   * @returns {Promise<MousePositionResponse>} Position after the button release
+   *
+   * @example
+   * ```typescript
+   * const result = await sandbox.computerUse.mouse.up(300, 400);
+   * console.log(`Button released at: ${result.x}, ${result.y}`);
+   *
+   * // Release at the current cursor position
+   * await sandbox.computerUse.mouse.up();
+   * ```
+   */
+  @WithInstrumentation()
+  public async up(x?: number, y?: number, button = 'left'): Promise<MousePositionResponse> {
+    const request: MouseUpRequest = { x, y, button }
+    const response = await this.apiClient.mouseUp(request)
+    return response.data
+  }
+
+  /**
    * Clicks the mouse at the specified coordinates
    *
    * @param {number} x - The x coordinate to click at
    * @param {number} y - The y coordinate to click at
    * @param {string} [button='left'] - The mouse button to click ('left', 'right', 'middle')
    * @param {boolean} [double=false] - Whether to perform a double-click
+   * @param {number} [clicks] - Number of clicks to perform (1-10). Omit to let the server apply its default; `clicks` takes precedence when both it and `double` are supplied
+   * @param {string[]} [modifiers] - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the click
    * @returns {Promise<MouseClickResponse>} Click operation result
    *
    * @example
@@ -137,11 +196,24 @@ export class Mouse {
    *
    * // Right click
    * const rightClick = await sandbox.computerUse.mouse.click(100, 200, 'right');
+   *
+   * // Triple click to select a line
+   * const tripleClick = await sandbox.computerUse.mouse.click(100, 200, 'left', false, 3);
+   *
+   * // Ctrl+click to extend a selection
+   * const ctrlClick = await sandbox.computerUse.mouse.click(100, 200, 'left', false, undefined, ['ctrl']);
    * ```
    */
   @WithInstrumentation()
-  public async click(x: number, y: number, button = 'left', double = false): Promise<MouseClickResponse> {
-    const request: MouseClickRequest = { x, y, button, double }
+  public async click(
+    x: number,
+    y: number,
+    button = 'left',
+    double = false,
+    clicks?: number,
+    modifiers?: string[],
+  ): Promise<MouseClickResponse> {
+    const request: MouseClickRequest = { x, y, button, double, clicks, modifiers }
     const response = await this.apiClient.click(request)
     return response.data
   }
@@ -154,12 +226,16 @@ export class Mouse {
    * @param {number} endX - The ending x coordinate
    * @param {number} endY - The ending y coordinate
    * @param {string} [button='left'] - The mouse button to use for dragging
+   * @param {string[]} [modifiers] - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the drag
    * @returns {Promise<MouseDragResponse>} Drag operation result
    *
    * @example
    * ```typescript
    * const result = await sandbox.computerUse.mouse.drag(50, 50, 150, 150);
    * console.log(`Drag ended at: ${result.x}, ${result.y}`);
+   *
+   * // Shift-constrained drag
+   * const constrained = await sandbox.computerUse.mouse.drag(50, 50, 150, 150, 'left', ['shift']);
    * ```
    */
   @WithInstrumentation()
@@ -169,8 +245,9 @@ export class Mouse {
     endX: number,
     endY: number,
     button = 'left',
+    modifiers?: string[],
   ): Promise<MouseDragResponse> {
-    const request: MouseDragRequest = { startX, startY, endX, endY, button }
+    const request: MouseDragRequest = { startX, startY, endX, endY, button, modifiers }
     const response = await this.apiClient.drag(request)
     return response.data
   }
@@ -180,8 +257,9 @@ export class Mouse {
    *
    * @param {number} x - The x coordinate to scroll at
    * @param {number} y - The y coordinate to scroll at
-   * @param {'up' | 'down'} direction - The direction to scroll
+   * @param {'up' | 'down' | 'left' | 'right'} direction - The direction to scroll
    * @param {number} [amount=1] - The amount to scroll
+   * @param {string[]} [modifiers] - Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Held for the duration of the scroll
    * @returns {Promise<boolean>} Whether the scroll operation was successful
    *
    * @example
@@ -191,11 +269,23 @@ export class Mouse {
    *
    * // Scroll down
    * const scrollDown = await sandbox.computerUse.mouse.scroll(100, 200, 'down', 5);
+   *
+   * // Horizontal scroll
+   * const scrollRight = await sandbox.computerUse.mouse.scroll(100, 200, 'right', 2);
+   *
+   * // Ctrl+scroll to zoom
+   * const zoomIn = await sandbox.computerUse.mouse.scroll(100, 200, 'up', 1, ['ctrl']);
    * ```
    */
   @WithInstrumentation()
-  public async scroll(x: number, y: number, direction: 'up' | 'down', amount = 1): Promise<boolean> {
-    const request: MouseScrollRequest = { x, y, direction, amount }
+  public async scroll(
+    x: number,
+    y: number,
+    direction: 'up' | 'down' | 'left' | 'right',
+    amount = 1,
+    modifiers?: string[],
+  ): Promise<boolean> {
+    const request: MouseScrollRequest = { x, y, direction, amount, modifiers }
     const response = await this.apiClient.scroll(request)
     return response.data.success
   }
@@ -276,6 +366,56 @@ export class Keyboard {
   public async press(key: string, modifiers: string[] = []): Promise<void> {
     const request: KeyboardPressRequest = { key, modifiers }
     await this.apiClient.pressKey(request)
+  }
+
+  /**
+   * Presses and holds a key
+   *
+   * The key stays held until a matching `up()` call is made, which enables
+   * press-and-hold interactions such as holding a modifier across several actions.
+   *
+   * @param {string} key - The key to hold. Uses the same normalized key contract as `press()`, including modifier names such as 'ctrl' and 'shift'.
+   * @throws {DaytonaError} If the key down operation fails
+   *
+   * @example
+   * ```typescript
+   * // Hold Shift while clicking twice, then release.
+   * // Release in `finally` so a failed click cannot leave Shift stuck down.
+   * await sandbox.computerUse.keyboard.down('shift');
+   * try {
+   *   await sandbox.computerUse.mouse.click(100, 200);
+   *   await sandbox.computerUse.mouse.click(300, 400);
+   * } finally {
+   *   await sandbox.computerUse.keyboard.up('shift');
+   * }
+   * ```
+   */
+  @WithInstrumentation()
+  public async down(key: string): Promise<void> {
+    const request: KeyboardKeyDownRequest = { key }
+    await this.apiClient.keyDown(request)
+  }
+
+  /**
+   * Releases a held key
+   *
+   * @param {string} key - The key to release. Uses the same normalized key contract as `press()`, including modifier names such as 'ctrl' and 'shift'.
+   * @throws {DaytonaError} If the key up operation fails
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   await sandbox.computerUse.keyboard.up('shift');
+   *   console.log('Operation success');
+   * } catch (e) {
+   *   console.log('Operation failed:', e);
+   * }
+   * ```
+   */
+  @WithInstrumentation()
+  public async up(key: string): Promise<void> {
+    const request: KeyboardKeyUpRequest = { key }
+    await this.apiClient.keyUp(request)
   }
 
   /**

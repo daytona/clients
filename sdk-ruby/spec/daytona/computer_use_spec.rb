@@ -183,10 +183,110 @@ RSpec.describe Daytona::ComputerUse do
       end
     end
 
+    it 'omits clicks and modifiers for the pre-change click call shape' do
+      result = double('ClickResponse')
+      allow(toolbox_api).to receive(:click).and_return(result)
+
+      expect(mouse.click(x: 50, y: 60)).to eq(result)
+      expect(toolbox_api).to have_received(:click) do |req|
+        expect(req.x).to eq(50)
+        expect(req.y).to eq(60)
+        expect(req.button).to eq('left')
+        expect(req.double).to be(false)
+        expect(req.clicks).to be_nil
+        expect(req.modifiers).to be_nil
+      end
+    end
+
+    it 'clicks with an explicit click count and modifiers' do
+      result = double('ClickResponse')
+      allow(toolbox_api).to receive(:click).and_return(result)
+
+      expect(mouse.click(x: 50, y: 60, clicks: 3, modifiers: %w[ctrl shift])).to eq(result)
+      expect(toolbox_api).to have_received(:click) do |req|
+        expect(req.x).to eq(50)
+        expect(req.y).to eq(60)
+        expect(req.clicks).to eq(3)
+        expect(req.modifiers).to eq(%w[ctrl shift])
+      end
+    end
+
+    it 'forwards an explicit zero click count instead of omitting it' do
+      allow(toolbox_api).to receive(:click)
+
+      mouse.click(x: 1, y: 2, clicks: 0)
+
+      expect(toolbox_api).to have_received(:click) do |req|
+        expect(req.clicks).to eq(0)
+      end
+    end
+
     it 'wraps click errors' do
       allow(toolbox_api).to receive(:click).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500, message: 'err'))
 
       expect { mouse.click(x: 1, y: 2) }.to raise_error(Daytona::Sdk::Error, /Failed to click mouse: err/)
+    end
+
+    it 'presses a mouse button at explicit zero coordinates' do
+      result = double('MousePositionResponse')
+      allow(toolbox_api).to receive(:mouse_down).and_return(result)
+
+      expect(mouse.down(x: 0, y: 0)).to eq(result)
+      expect(toolbox_api).to have_received(:mouse_down) do |req|
+        expect(req.x).to eq(0)
+        expect(req.y).to eq(0)
+        expect(req.button).to eq('left')
+      end
+    end
+
+    it 'presses a mouse button without coordinates' do
+      result = double('MousePositionResponse')
+      allow(toolbox_api).to receive(:mouse_down).and_return(result)
+
+      expect(mouse.down(button: 'right')).to eq(result)
+      expect(toolbox_api).to have_received(:mouse_down) do |req|
+        expect(req.x).to be_nil
+        expect(req.y).to be_nil
+        expect(req.button).to eq('right')
+      end
+    end
+
+    it 'wraps mouse down errors' do
+      allow(toolbox_api).to receive(:mouse_down).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
+                                                                                                 message: 'err'))
+
+      expect { mouse.down(x: 1, y: 2) }.to raise_error(Daytona::Sdk::Error, /Failed to press mouse button: err/)
+    end
+
+    it 'releases a mouse button at explicit zero coordinates' do
+      result = double('MousePositionResponse')
+      allow(toolbox_api).to receive(:mouse_up).and_return(result)
+
+      expect(mouse.up(x: 0, y: 0, button: 'middle')).to eq(result)
+      expect(toolbox_api).to have_received(:mouse_up) do |req|
+        expect(req.x).to eq(0)
+        expect(req.y).to eq(0)
+        expect(req.button).to eq('middle')
+      end
+    end
+
+    it 'releases a mouse button without coordinates' do
+      result = double('MousePositionResponse')
+      allow(toolbox_api).to receive(:mouse_up).and_return(result)
+
+      expect(mouse.up).to eq(result)
+      expect(toolbox_api).to have_received(:mouse_up) do |req|
+        expect(req.x).to be_nil
+        expect(req.y).to be_nil
+        expect(req.button).to eq('left')
+      end
+    end
+
+    it 'wraps mouse up errors' do
+      allow(toolbox_api).to receive(:mouse_up).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
+                                                                                               message: 'err'))
+
+      expect { mouse.up(x: 1, y: 2) }.to raise_error(Daytona::Sdk::Error, /Failed to release mouse button: err/)
     end
 
     it 'drags from start to end coordinates' do
@@ -197,6 +297,31 @@ RSpec.describe Daytona::ComputerUse do
       expect(toolbox_api).to have_received(:drag) do |req|
         expect(req.start_x).to eq(10)
         expect(req.end_y).to eq(200)
+      end
+    end
+
+    it 'drags with modifiers held' do
+      result = double('DragResponse')
+      allow(toolbox_api).to receive(:drag).and_return(result)
+
+      expect(mouse.drag(start_x: 10, start_y: 20, end_x: 100, end_y: 200, button: 'middle',
+                        modifiers: %w[shift alt])).to eq(result)
+      expect(toolbox_api).to have_received(:drag) do |req|
+        expect(req.start_x).to eq(10)
+        expect(req.end_y).to eq(200)
+        expect(req.button).to eq('middle')
+        expect(req.modifiers).to eq(%w[shift alt])
+      end
+    end
+
+    it 'omits modifiers for the pre-change drag call shape' do
+      allow(toolbox_api).to receive(:drag)
+
+      mouse.drag(start_x: 1, start_y: 2, end_x: 3, end_y: 4)
+
+      expect(toolbox_api).to have_received(:drag) do |req|
+        expect(req.button).to eq('left')
+        expect(req.modifiers).to be_nil
       end
     end
 
@@ -214,6 +339,30 @@ RSpec.describe Daytona::ComputerUse do
       expect(toolbox_api).to have_received(:scroll) do |req|
         expect(req.direction).to eq('up')
         expect(req.amount).to eq(3)
+      end
+    end
+
+    it 'scrolls horizontally with modifiers held' do
+      allow(toolbox_api).to receive(:scroll)
+
+      expect(mouse.scroll(x: 100, y: 200, direction: 'left', amount: 2, modifiers: %w[ctrl alt])).to be(true)
+      expect(toolbox_api).to have_received(:scroll) do |req|
+        expect(req.x).to eq(100)
+        expect(req.y).to eq(200)
+        expect(req.direction).to eq('left')
+        expect(req.amount).to eq(2)
+        expect(req.modifiers).to eq(%w[ctrl alt])
+      end
+    end
+
+    it 'omits modifiers for the pre-change scroll call shape' do
+      allow(toolbox_api).to receive(:scroll)
+
+      expect(mouse.scroll(x: 1, y: 2, direction: 'right')).to be(true)
+      expect(toolbox_api).to have_received(:scroll) do |req|
+        expect(req.direction).to eq('right')
+        expect(req.amount).to eq(1)
+        expect(req.modifiers).to be_nil
       end
     end
 
@@ -263,6 +412,40 @@ RSpec.describe Daytona::ComputerUse do
 
       expect { keyboard.press(key: 'c', modifiers: ['ctrl']) }
         .to raise_error(Daytona::Sdk::Error, /Failed to press key: err/)
+    end
+
+    it 'holds a modifier key down' do
+      allow(toolbox_api).to receive(:key_down)
+
+      keyboard.down(key: 'ctrl')
+
+      expect(toolbox_api).to have_received(:key_down) do |req|
+        expect(req.key).to eq('ctrl')
+      end
+    end
+
+    it 'wraps key down errors' do
+      allow(toolbox_api).to receive(:key_down).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
+                                                                                               message: 'err'))
+
+      expect { keyboard.down(key: 'ctrl') }.to raise_error(Daytona::Sdk::Error, /Failed to press key down: err/)
+    end
+
+    it 'releases a held key' do
+      allow(toolbox_api).to receive(:key_up)
+
+      keyboard.up(key: 'shift')
+
+      expect(toolbox_api).to have_received(:key_up) do |req|
+        expect(req.key).to eq('shift')
+      end
+    end
+
+    it 'wraps key up errors' do
+      allow(toolbox_api).to receive(:key_up).and_raise(DaytonaToolboxApiClient::ApiError.new(code: 500,
+                                                                                             message: 'err'))
+
+      expect { keyboard.up(key: 'shift') }.to raise_error(Daytona::Sdk::Error, /Failed to release key: err/)
     end
 
     it 'presses a hotkey combination' do

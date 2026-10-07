@@ -294,6 +294,41 @@ paths:
       summary: Get windows information
       tags:
       - computer-use
+  /computeruse/keyboard/down:
+    post:
+      description: Press a key or modifier and hold it down until a matching key up
+        call
+      operationId: KeyDown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KeyboardKeyDownRequest"
+        description: Key down request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Press and hold a keyboard key
+      tags:
+      - computer-use
+      x-codegen-request-body-name: request
   /computeruse/keyboard/hotkey:
     post:
       description: "Press a hotkey combination (e.g., ctrl+c, cmd+v)"
@@ -396,6 +431,40 @@ paths:
       tags:
       - computer-use
       x-codegen-request-body-name: request
+  /computeruse/keyboard/up:
+    post:
+      description: Release a key or modifier that is currently held down
+      operationId: KeyUp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KeyboardKeyUpRequest"
+        description: Key up request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Release a held keyboard key
+      tags:
+      - computer-use
+      x-codegen-request-body-name: request
   /computeruse/mouse/click:
     post:
       description: Click the mouse button at the specified coordinates
@@ -427,6 +496,41 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Click mouse button
+      tags:
+      - computer-use
+      x-codegen-request-body-name: request
+  /computeruse/mouse/down:
+    post:
+      description: "Press and hold a mouse button, optionally moving to the specified\
+        \ coordinates first"
+      operationId: MouseDown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MouseDownRequest"
+        description: Mouse button press request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MousePositionResponse"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Press mouse button
       tags:
       - computer-use
       x-codegen-request-body-name: request
@@ -549,6 +653,41 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
       summary: Scroll mouse wheel
+      tags:
+      - computer-use
+      x-codegen-request-body-name: request
+  /computeruse/mouse/up:
+    post:
+      description: "Release a held mouse button, optionally moving to the specified\
+        \ coordinates first"
+      operationId: MouseUp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MouseUpRequest"
+        description: Mouse button release request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MousePositionResponse"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Release mouse button
       tags:
       - computer-use
       x-codegen-request-body-name: request
@@ -700,12 +839,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Internal Server Error
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Service Unavailable
       summary: Start a new recording
       tags:
       - computer-use
@@ -777,12 +910,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Not Found
-        "409":
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Conflict
         "500":
           content:
             '*/*':
@@ -1146,6 +1273,18 @@ paths:
                   type: string
                 type: object
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Update process environment
       tags:
       - server
@@ -1292,13 +1431,16 @@ paths:
       operationId: UploadFiles
       responses:
         "200":
-          content: {}
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UploadFilesResponse"
           description: OK
         "400":
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/UploadFilesResponse"
           description: Bad Request
       summary: Upload multiple files
       tags:
@@ -2132,6 +2274,36 @@ paths:
         "200":
           content: {}
           description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Forbidden
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
       summary: Push changes to remote
       tags:
       - git
@@ -2209,36 +2381,6 @@ paths:
         "200":
           content: {}
           description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Bad Request
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Forbidden
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Conflict
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-          description: Internal Server Error
       summary: Restore files
       tags:
       - git
@@ -3373,6 +3515,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Conflict
+        "410":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Gone
         "500":
           content:
             application/json:
@@ -4204,6 +4352,72 @@ components:
       required:
       - sessionId
       type: object
+    DaemonErrorCode:
+      enum:
+      - GIT_AUTH_FAILED
+      - GIT_REPO_NOT_FOUND
+      - GIT_BRANCH_NOT_FOUND
+      - GIT_BRANCH_EXISTS
+      - GIT_PUSH_REJECTED
+      - GIT_DIRTY_WORKTREE
+      - GIT_MERGE_CONFLICT
+      - GIT_TRANSPORT_FAILED
+      - GIT_REMOTE_REJECTED
+      - FILE_NOT_FOUND
+      - FILE_ACCESS_DENIED
+      - INVALID_FILE_PATH
+      - FILE_READ_FAILED
+      - LSP_SERVER_NOT_INITIALIZED
+      - PROCESS_EXECUTION_TIMEOUT
+      - PROCESS_NOT_FOUND
+      - SESSION_ENDED
+      - COMMAND_ALREADY_COMPLETED
+      - A11Y_UNAVAILABLE
+      - RECORDING_STILL_ACTIVE
+      - RECORDING_FFMPEG_NOT_FOUND
+      - BAD_REQUEST
+      - INVALID_REQUEST_BODY
+      - UNAUTHORIZED
+      - FORBIDDEN
+      - NOT_FOUND
+      - CONFLICT
+      - REQUEST_TIMEOUT
+      - GONE
+      - UNPROCESSABLE_ENTITY
+      - INTERNAL_SERVER_ERROR
+      type: string
+      x-enum-varnames:
+      - CodeGitAuthFailed
+      - CodeGitRepoNotFound
+      - CodeGitBranchNotFound
+      - CodeGitBranchExists
+      - CodeGitPushRejected
+      - CodeGitDirtyWorktree
+      - CodeGitMergeConflict
+      - CodeGitTransportFailed
+      - CodeGitRemoteRejected
+      - CodeFileNotFound
+      - CodeFileAccessDenied
+      - CodeInvalidFilePath
+      - CodeFileReadFailed
+      - CodeLspServerNotInitialized
+      - CodeProcessExecutionTimeout
+      - CodeProcessNotFound
+      - CodeSessionEnded
+      - CodeCommandAlreadyCompleted
+      - CodeA11yUnavailable
+      - CodeRecordingStillActive
+      - CodeRecordingFfmpegNotFound
+      - CodeBadRequest
+      - CodeInvalidRequestBody
+      - CodeUnauthorized
+      - CodeForbidden
+      - CodeNotFound
+      - CodeConflict
+      - CodeRequestTimeout
+      - CodeGone
+      - CodeUnprocessableEntity
+      - CodeInternalServerError
     DisplayInfo:
       example:
         width: 1
@@ -4248,6 +4462,46 @@ components:
           type: array
       type: object
     Empty:
+      type: object
+    ErrorResponse:
+      description: Error response
+      example:
+        path: /api/resource
+        code: GIT_REPO_NOT_FOUND
+        method: GET
+        source: DAYTONA_DAEMON
+        message: Bad request
+        statusCode: 400
+        timestamp: 2023-01-01T12:00:00Z
+      properties:
+        code:
+          allOf:
+          - $ref: "#/components/schemas/DaemonErrorCode"
+          example: GIT_REPO_NOT_FOUND
+          type: object
+        message:
+          example: Bad request
+          type: string
+        method:
+          example: GET
+          type: string
+        path:
+          example: /api/resource
+          type: string
+        source:
+          example: DAYTONA_DAEMON
+          type: string
+        statusCode:
+          example: 400
+          type: integer
+        timestamp:
+          example: 2023-01-01T12:00:00Z
+          type: string
+      required:
+      - message
+      - path
+      - statusCode
+      - timestamp
       type: object
     ExecuteRequest:
       example:
@@ -4832,8 +5086,6 @@ components:
       properties:
         token:
           type: string
-      required:
-      - token
       type: object
     InterpreterContext:
       example:
@@ -4874,6 +5126,26 @@ components:
         keys:
           description: "e.g., \"ctrl+c\", \"cmd+v\""
           type: string
+      type: object
+    KeyboardKeyDownRequest:
+      example:
+        key: key
+      properties:
+        key:
+          description: "e.g., \"ctrl\", \"shift\", \"a\""
+          type: string
+      required:
+      - key
+      type: object
+    KeyboardKeyUpRequest:
+      example:
+        key: key
+      properties:
+        key:
+          description: "e.g., \"ctrl\", \"shift\", \"a\""
+          type: string
+      required:
+      - key
       type: object
     KeyboardPressRequest:
       example:
@@ -5135,14 +5407,27 @@ components:
       example:
         button: button
         double: true
-        x: 0
-        "y": 6
+        x: 6
+        clicks: 0
+        "y": 1
+        modifiers:
+        - modifiers
+        - modifiers
       properties:
         button:
           description: "left, right, middle"
           type: string
+        clicks:
+          description: |-
+            Clicks is a pointer so an omitted value is distinguishable from an
+            explicit 0, which must be rejected rather than silently defaulted.
+          type: integer
         double:
           type: boolean
+        modifiers:
+          items:
+            type: string
+          type: array
         x:
           type: integer
         "y":
@@ -5158,6 +5443,20 @@ components:
         "y":
           type: integer
       type: object
+    MouseDownRequest:
+      example:
+        button: button
+        x: 0
+        "y": 6
+      properties:
+        button:
+          description: "left, right, middle"
+          type: string
+        x:
+          type: integer
+        "y":
+          type: integer
+      type: object
     MouseDragRequest:
       example:
         button: button
@@ -5165,6 +5464,9 @@ components:
         endX: 0
         startY: 5
         startX: 1
+        modifiers:
+        - modifiers
+        - modifiers
       properties:
         button:
           type: string
@@ -5172,6 +5474,10 @@ components:
           type: integer
         endY:
           type: integer
+        modifiers:
+          items:
+            type: string
+          type: array
         startX:
           type: integer
         startY:
@@ -5212,13 +5518,34 @@ components:
         amount: 0
         x: 6
         "y": 1
+        modifiers:
+        - modifiers
+        - modifiers
         direction: direction
       properties:
         amount:
           minimum: 0
           type: integer
         direction:
-          description: "up, down"
+          description: "up, down, left, right"
+          type: string
+        modifiers:
+          items:
+            type: string
+          type: array
+        x:
+          type: integer
+        "y":
+          type: integer
+      type: object
+    MouseUpRequest:
+      example:
+        button: button
+        x: 0
+        "y": 6
+      properties:
+        button:
+          description: "left, right, middle"
           type: string
         x:
           type: integer
@@ -5719,6 +6046,26 @@ components:
             secret placeholder vars without the caller knowing the daemon's env.
           type: string
       type: object
+    UploadFilesResponse:
+      example:
+        files:
+        - path: path
+          bytes: 0
+        - path: path
+          bytes: 0
+        errors:
+        - errors
+        - errors
+      properties:
+        errors:
+          items:
+            type: string
+          type: array
+        files:
+          items:
+            $ref: "#/components/schemas/fs.fileResult"
+          type: array
+      type: object
     UploadedFile:
       example:
         path: path
@@ -5846,111 +6193,19 @@ components:
             type: string
           type: array
       type: object
+    fs.fileResult:
+      example:
+        path: path
+        bytes: 0
+      properties:
+        bytes:
+          type: integer
+        path:
+          type: string
+      type: object
     gin.H:
       additionalProperties:
         type: object
-      type: object
-    DaemonErrorCode:
-      enum:
-      - GIT_AUTH_FAILED
-      - GIT_REPO_NOT_FOUND
-      - GIT_BRANCH_NOT_FOUND
-      - GIT_BRANCH_EXISTS
-      - GIT_PUSH_REJECTED
-      - GIT_DIRTY_WORKTREE
-      - GIT_MERGE_CONFLICT
-      - GIT_TRANSPORT_FAILED
-      - GIT_REMOTE_REJECTED
-      - FILE_NOT_FOUND
-      - FILE_ACCESS_DENIED
-      - LSP_SERVER_NOT_INITIALIZED
-      - PROCESS_EXECUTION_TIMEOUT
-      - PROCESS_NOT_FOUND
-      - SESSION_ENDED
-      - COMMAND_ALREADY_COMPLETED
-      - A11Y_UNAVAILABLE
-      - RECORDING_STILL_ACTIVE
-      - RECORDING_FFMPEG_NOT_FOUND
-      - BAD_REQUEST
-      - INVALID_REQUEST_BODY
-      - UNAUTHORIZED
-      - FORBIDDEN
-      - NOT_FOUND
-      - CONFLICT
-      - REQUEST_TIMEOUT
-      - GONE
-      - UNPROCESSABLE_ENTITY
-      - INTERNAL_SERVER_ERROR
-      type: string
-      x-enum-varnames:
-      - CodeGitAuthFailed
-      - CodeGitRepoNotFound
-      - CodeGitBranchNotFound
-      - CodeGitBranchExists
-      - CodeGitPushRejected
-      - CodeGitDirtyWorktree
-      - CodeGitMergeConflict
-      - CodeGitTransportFailed
-      - CodeGitRemoteRejected
-      - CodeFileNotFound
-      - CodeFileAccessDenied
-      - CodeLspServerNotInitialized
-      - CodeProcessExecutionTimeout
-      - CodeProcessNotFound
-      - CodeSessionEnded
-      - CodeCommandAlreadyCompleted
-      - CodeA11yUnavailable
-      - CodeRecordingStillActive
-      - CodeRecordingFfmpegNotFound
-      - CodeBadRequest
-      - CodeInvalidRequestBody
-      - CodeUnauthorized
-      - CodeForbidden
-      - CodeNotFound
-      - CodeConflict
-      - CodeRequestTimeout
-      - CodeGone
-      - CodeUnprocessableEntity
-      - CodeInternalServerError
-    ErrorResponse:
-      description: Error response
-      example:
-        path: /api/resource
-        code: GIT_REPO_NOT_FOUND
-        method: GET
-        source: DAYTONA_DAEMON
-        message: Bad request
-        statusCode: 400
-        timestamp: 2023-01-01T12:00:00Z
-      properties:
-        code:
-          allOf:
-          - $ref: "#/components/schemas/DaemonErrorCode"
-          example: GIT_REPO_NOT_FOUND
-          type: object
-        message:
-          example: Bad request
-          type: string
-        method:
-          example: GET
-          type: string
-        path:
-          example: /api/resource
-          type: string
-        source:
-          example: DAYTONA_DAEMON
-          type: string
-        statusCode:
-          example: 400
-          type: integer
-        timestamp:
-          example: 2023-01-01T12:00:00Z
-          type: string
-      required:
-      - message
-      - path
-      - statusCode
-      - timestamp
       type: object
     UploadFile_request:
       properties:

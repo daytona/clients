@@ -56,6 +56,104 @@ class TestComputerUse:
 
         assert computer_use.mouse.scroll(1, 2, "up") is False
 
+    def test_mouse_hold_methods_delegate_to_api(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.mouse_down.return_value = MagicMock(x=100, y=200)
+        api_client.mouse_up.return_value = MagicMock(x=300, y=400)
+
+        assert computer_use.mouse.down(100, 200).x == 100
+        assert computer_use.mouse.up(300, 400, button="right").y == 400
+
+        down_request = api_client.mouse_down.call_args.args[0]
+        assert (down_request.x, down_request.y, down_request.button) == (100, 200, "left")
+        up_request = api_client.mouse_up.call_args.args[0]
+        assert (up_request.x, up_request.y, up_request.button) == (300, 400, "right")
+
+    def test_mouse_hold_methods_preserve_zero_coordinates(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.mouse_down.return_value = MagicMock(x=0, y=0)
+        api_client.mouse_up.return_value = MagicMock(x=0, y=0)
+
+        computer_use.mouse.down(0, 0)
+        computer_use.mouse.up(0, 0)
+
+        down_request = api_client.mouse_down.call_args.args[0]
+        assert down_request.x == 0
+        assert down_request.y == 0
+        assert down_request.to_dict()["x"] == 0
+        assert down_request.to_dict()["y"] == 0
+        up_request = api_client.mouse_up.call_args.args[0]
+        assert up_request.to_dict()["x"] == 0
+        assert up_request.to_dict()["y"] == 0
+
+    def test_mouse_hold_methods_omit_coordinates_when_not_given(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.mouse_down.return_value = MagicMock(x=7, y=8)
+        api_client.mouse_up.return_value = MagicMock(x=7, y=8)
+
+        computer_use.mouse.down()
+        computer_use.mouse.up()
+
+        down_request = api_client.mouse_down.call_args.args[0]
+        assert down_request.x is None
+        assert down_request.y is None
+        assert "x" not in down_request.to_dict()
+        assert "y" not in down_request.to_dict()
+        up_request = api_client.mouse_up.call_args.args[0]
+        assert up_request.x is None
+        assert up_request.y is None
+        assert "x" not in up_request.to_dict()
+        assert "y" not in up_request.to_dict()
+
+    def test_mouse_click_supports_clicks_and_modifiers(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.click.return_value = MagicMock(success=True)
+
+        assert computer_use.mouse.click(1, 2, clicks=3, modifiers=["ctrl", "shift"]).success is True
+
+        click_request = api_client.click.call_args.args[0]
+        assert click_request.clicks == 3
+        assert click_request.modifiers == ["ctrl", "shift"]
+        assert click_request.double is False
+
+    def test_mouse_click_keeps_legacy_positional_call_shape(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.click.return_value = MagicMock(success=True)
+
+        assert computer_use.mouse.click(1, 2, "left", True, 5.0).success is True
+
+        click_request = api_client.click.call_args.args[0]
+        assert (click_request.x, click_request.y) == (1, 2)
+        assert click_request.button == "left"
+        assert click_request.double is True
+        assert click_request.clicks is None
+        assert click_request.modifiers is None
+        assert api_client.click.call_args.kwargs["_request_timeout"] == 5.0
+
+    def test_mouse_drag_and_scroll_support_modifiers(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.drag.return_value = MagicMock(success=True)
+        api_client.scroll.return_value = MagicMock(success=True)
+
+        assert computer_use.mouse.drag(1, 2, 3, 4, modifiers=["shift"]).success is True
+        assert computer_use.mouse.scroll(5, 6, "right", amount=2, modifiers=["ctrl"]) is True
+
+        drag_request = api_client.drag.call_args.kwargs["request"]
+        assert drag_request.modifiers == ["shift"]
+        scroll_request = api_client.scroll.call_args.kwargs["request"]
+        assert scroll_request.direction == "right"
+        assert scroll_request.modifiers == ["ctrl"]
+
+    def test_mouse_scroll_accepts_horizontal_directions(self):
+        computer_use, api_client = _make_computer_use()
+        api_client.scroll.return_value = MagicMock(success=True)
+
+        for direction in ("up", "down", "left", "right"):
+            assert computer_use.mouse.scroll(1, 2, direction) is True
+
+        directions = [call.kwargs["request"].direction for call in api_client.scroll.call_args_list]
+        assert directions == ["up", "down", "left", "right"]
+
     def test_keyboard_methods_delegate_to_api(self):
         computer_use, api_client = _make_computer_use()
 
@@ -73,6 +171,19 @@ class TestComputerUse:
         assert second_press.modifiers == ["ctrl"]
         hotkey_request = api_client.press_hotkey.call_args.kwargs["request"]
         assert hotkey_request.keys == "ctrl+shift+t"
+
+    def test_keyboard_hold_methods_delegate_to_api(self):
+        computer_use, api_client = _make_computer_use()
+
+        assert computer_use.keyboard.down("shift") is None
+        assert computer_use.keyboard.up("shift", 5.0) is None
+
+        down_request = api_client.key_down.call_args.kwargs["request"]
+        assert down_request.key == "shift"
+        assert api_client.key_down.call_args.kwargs["_request_timeout"] is None
+        up_request = api_client.key_up.call_args.kwargs["request"]
+        assert up_request.key == "shift"
+        assert api_client.key_up.call_args.kwargs["_request_timeout"] == 5.0
 
     def test_screenshot_methods_delegate_to_api(self):
         computer_use, api_client = _make_computer_use()

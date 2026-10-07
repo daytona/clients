@@ -17,8 +17,10 @@ module DaytonaToolboxApiClient
   class MouseScrollRequest < ApiModelBase
     attr_accessor :amount
 
-    # up, down
+    # up, down, left, right
     attr_accessor :direction
+
+    attr_accessor :modifiers
 
     attr_accessor :x
 
@@ -29,6 +31,7 @@ module DaytonaToolboxApiClient
       {
         :'amount' => :'amount',
         :'direction' => :'direction',
+        :'modifiers' => :'modifiers',
         :'x' => :'x',
         :'y' => :'y'
       }
@@ -49,6 +52,7 @@ module DaytonaToolboxApiClient
       {
         :'amount' => :'Integer',
         :'direction' => :'String',
+        :'modifiers' => :'Array<String>',
         :'x' => :'Integer',
         :'y' => :'Integer'
       }
@@ -82,6 +86,12 @@ module DaytonaToolboxApiClient
 
       if attributes.key?(:'direction')
         self.direction = attributes[:'direction']
+      end
+
+      if attributes.key?(:'modifiers')
+        if (value = attributes[:'modifiers']).is_a?(Array)
+          self.modifiers = value
+        end
       end
 
       if attributes.key?(:'x')
@@ -134,6 +144,7 @@ module DaytonaToolboxApiClient
       self.class == o.class &&
           amount == o.amount &&
           direction == o.direction &&
+          modifiers == o.modifiers &&
           x == o.x &&
           y == o.y
     end
@@ -147,7 +158,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [amount, direction, x, y].hash
+      [amount, direction, modifiers, x, y].hash
     end
 
     # Builds the object from hash

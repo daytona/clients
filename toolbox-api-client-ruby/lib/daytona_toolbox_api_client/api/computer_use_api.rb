@@ -1088,6 +1088,142 @@ module DaytonaToolboxApiClient
       return data, status_code, headers
     end
 
+    # Press and hold a keyboard key
+    # Press a key or modifier and hold it down until a matching key up call
+    # @param request [KeyboardKeyDownRequest] Key down request
+    # @param [Hash] opts the optional parameters
+    # @return [Object]
+    def key_down(request, opts = {})
+      data, _status_code, _headers = key_down_with_http_info(request, opts)
+      data
+    end
+
+    # Press and hold a keyboard key
+    # Press a key or modifier and hold it down until a matching key up call
+    # @param request [KeyboardKeyDownRequest] Key down request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Object, Integer, Hash)>] Object data, response status code and response headers
+    def key_down_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ComputerUseApi.key_down ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ComputerUseApi.key_down"
+      end
+      # resource path
+      local_var_path = '/computeruse/keyboard/down'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Object'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ComputerUseApi.key_down",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ComputerUseApi#key_down\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Release a held keyboard key
+    # Release a key or modifier that is currently held down
+    # @param request [KeyboardKeyUpRequest] Key up request
+    # @param [Hash] opts the optional parameters
+    # @return [Object]
+    def key_up(request, opts = {})
+      data, _status_code, _headers = key_up_with_http_info(request, opts)
+      data
+    end
+
+    # Release a held keyboard key
+    # Release a key or modifier that is currently held down
+    # @param request [KeyboardKeyUpRequest] Key up request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(Object, Integer, Hash)>] Object data, response status code and response headers
+    def key_up_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ComputerUseApi.key_up ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ComputerUseApi.key_up"
+      end
+      # resource path
+      local_var_path = '/computeruse/keyboard/up'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'Object'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ComputerUseApi.key_up",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ComputerUseApi#key_up\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # List all recordings
     # Get a list of all recordings (active and completed)
     # @param [Hash] opts the optional parameters
@@ -1141,6 +1277,142 @@ module DaytonaToolboxApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: ComputerUseApi#list_recordings\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Press mouse button
+    # Press and hold a mouse button, optionally moving to the specified coordinates first
+    # @param request [MouseDownRequest] Mouse button press request
+    # @param [Hash] opts the optional parameters
+    # @return [MousePositionResponse]
+    def mouse_down(request, opts = {})
+      data, _status_code, _headers = mouse_down_with_http_info(request, opts)
+      data
+    end
+
+    # Press mouse button
+    # Press and hold a mouse button, optionally moving to the specified coordinates first
+    # @param request [MouseDownRequest] Mouse button press request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(MousePositionResponse, Integer, Hash)>] MousePositionResponse data, response status code and response headers
+    def mouse_down_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ComputerUseApi.mouse_down ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ComputerUseApi.mouse_down"
+      end
+      # resource path
+      local_var_path = '/computeruse/mouse/down'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'MousePositionResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ComputerUseApi.mouse_down",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ComputerUseApi#mouse_down\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Release mouse button
+    # Release a held mouse button, optionally moving to the specified coordinates first
+    # @param request [MouseUpRequest] Mouse button release request
+    # @param [Hash] opts the optional parameters
+    # @return [MousePositionResponse]
+    def mouse_up(request, opts = {})
+      data, _status_code, _headers = mouse_up_with_http_info(request, opts)
+      data
+    end
+
+    # Release mouse button
+    # Release a held mouse button, optionally moving to the specified coordinates first
+    # @param request [MouseUpRequest] Mouse button release request
+    # @param [Hash] opts the optional parameters
+    # @return [Array<(MousePositionResponse, Integer, Hash)>] MousePositionResponse data, response status code and response headers
+    def mouse_up_with_http_info(request, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: ComputerUseApi.mouse_up ...'
+      end
+      # verify the required parameter 'request' is set
+      if @api_client.config.client_side_validation && request.nil?
+        fail ArgumentError, "Missing the required parameter 'request' when calling ComputerUseApi.mouse_up"
+      end
+      # resource path
+      local_var_path = '/computeruse/mouse/up'
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(request)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'MousePositionResponse'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || []
+
+      new_options = opts.merge(
+        :operation => :"ComputerUseApi.mouse_up",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: ComputerUseApi#mouse_up\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end

@@ -15,16 +15,20 @@ import io.daytona.toolbox.client.model.ComputerUseStopResponse;
 import io.daytona.toolbox.client.model.DisplayInfoResponse;
 import io.daytona.toolbox.client.model.FindAccessibilityNodesRequest;
 import io.daytona.toolbox.client.model.KeyboardHotkeyRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyDownRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyUpRequest;
 import io.daytona.toolbox.client.model.KeyboardPressRequest;
 import io.daytona.toolbox.client.model.KeyboardTypeRequest;
 import io.daytona.toolbox.client.model.ListRecordingsResponse;
 import io.daytona.toolbox.client.model.MouseClickRequest;
 import io.daytona.toolbox.client.model.MouseClickResponse;
+import io.daytona.toolbox.client.model.MouseDownRequest;
 import io.daytona.toolbox.client.model.MouseDragRequest;
 import io.daytona.toolbox.client.model.MouseDragResponse;
 import io.daytona.toolbox.client.model.MouseMoveRequest;
 import io.daytona.toolbox.client.model.MousePositionResponse;
 import io.daytona.toolbox.client.model.MouseScrollRequest;
+import io.daytona.toolbox.client.model.MouseUpRequest;
 import io.daytona.toolbox.client.model.Recording;
 import io.daytona.toolbox.client.model.ScreenshotResponse;
 import io.daytona.toolbox.client.model.ScrollResponse;
@@ -256,11 +260,58 @@ public class ComputerUse {
      * @return click response with resulting cursor position
      */
     public MouseClickResponse click(int x, int y, String button) {
+        return click(x, y, button, false, null, null);
+    }
+
+    /**
+     * Performs a mouse click with an explicit repeat count and modifier keys.
+     *
+     * @param x target X coordinate
+     * @param y target Y coordinate
+     * @param button button type ({@code left}, {@code right}, {@code middle})
+     * @param clicks number of clicks to perform, from {@code 1} to {@code 10},
+     *               or {@code null} for a single click
+     * @param modifiers modifier keys held for the duration of the click. Canonical
+     *                  names are {@code ctrl}, {@code alt}, {@code shift}, and
+     *                  {@code cmd}; {@code null} holds no modifiers
+     * @return click response with resulting cursor position
+     */
+    public MouseClickResponse click(int x, int y, String button, Integer clicks, List<String> modifiers) {
+        return click(x, y, button, false, clicks, modifiers);
+    }
+
+    /**
+     * Performs a mouse click with full control over double-click, repeat count, and modifiers.
+     *
+     * <p>When both {@code clicks} and {@code doubleClick} are supplied, {@code clicks} wins,
+     * mirroring the toolbox API.
+     *
+     * @param x target X coordinate
+     * @param y target Y coordinate
+     * @param button button type ({@code left}, {@code right}, {@code middle})
+     * @param doubleClick whether to perform a double-click
+     * @param clicks number of clicks to perform, from {@code 1} to {@code 10},
+     *               or {@code null} to keep the {@code doubleClick} behavior
+     * @param modifiers modifier keys held for the duration of the click. Canonical
+     *                  names are {@code ctrl}, {@code alt}, {@code shift}, and
+     *                  {@code cmd}; {@code null} holds no modifiers
+     * @return click response with resulting cursor position
+     */
+    public MouseClickResponse click(
+            int x,
+            int y,
+            String button,
+            boolean doubleClick,
+            Integer clicks,
+            List<String> modifiers
+    ) {
         MouseClickRequest request = new MouseClickRequest()
                 .x(x)
                 .y(y)
                 .button(button)
-                ._double(false);
+                ._double(doubleClick)
+                .clicks(clicks)
+                .modifiers(modifiers);
         return ExceptionMapper.callToolbox(() -> computerUseApi.click(request));
     }
 
@@ -272,12 +323,107 @@ public class ComputerUse {
      * @return click response with resulting cursor position
      */
     public MouseClickResponse doubleClick(int x, int y) {
-        MouseClickRequest request = new MouseClickRequest()
+        return click(x, y, "left", true, null, null);
+    }
+
+    /**
+     * Presses and holds the left mouse button at the current cursor position.
+     *
+     * <p>The button stays held until a matching {@code mouseUp} call. Modifier keys are not
+     * part of the press itself; hold them with {@link #keyDown(String)} around the press.
+     *
+     * @return mouse position after the button press
+     */
+    public MousePositionResponse mouseDown() {
+        return mouseDown("left");
+    }
+
+    /**
+     * Presses and holds a mouse button at the current cursor position.
+     *
+     * @param button button to press ({@code left}, {@code right}, {@code middle})
+     * @return mouse position after the button press
+     */
+    public MousePositionResponse mouseDown(String button) {
+        MouseDownRequest request = new MouseDownRequest().button(button);
+        return ExceptionMapper.callToolbox(() -> computerUseApi.mouseDown(request));
+    }
+
+    /**
+     * Moves to the given coordinates and presses and holds the left mouse button there.
+     *
+     * @param x X coordinate to move to before pressing
+     * @param y Y coordinate to move to before pressing
+     * @return mouse position after the button press
+     */
+    public MousePositionResponse mouseDown(int x, int y) {
+        return mouseDown(x, y, "left");
+    }
+
+    /**
+     * Moves to the given coordinates and presses and holds a mouse button there.
+     *
+     * @param x X coordinate to move to before pressing
+     * @param y Y coordinate to move to before pressing
+     * @param button button to press ({@code left}, {@code right}, {@code middle})
+     * @return mouse position after the button press
+     */
+    public MousePositionResponse mouseDown(int x, int y, String button) {
+        MouseDownRequest request = new MouseDownRequest()
                 .x(x)
                 .y(y)
-                .button("left")
-                ._double(true);
-        return ExceptionMapper.callToolbox(() -> computerUseApi.click(request));
+                .button(button);
+        return ExceptionMapper.callToolbox(() -> computerUseApi.mouseDown(request));
+    }
+
+    /**
+     * Releases the left mouse button at the current cursor position.
+     *
+     * @return mouse position after the button release
+     */
+    public MousePositionResponse mouseUp() {
+        return mouseUp("left");
+    }
+
+    /**
+     * Releases a held mouse button at the current cursor position.
+     *
+     * @param button button to release ({@code left}, {@code right}, {@code middle})
+     * @return mouse position after the button release
+     */
+    public MousePositionResponse mouseUp(String button) {
+        MouseUpRequest request = new MouseUpRequest().button(button);
+        return ExceptionMapper.callToolbox(() -> computerUseApi.mouseUp(request));
+    }
+
+    /**
+     * Moves to the given coordinates and releases the left mouse button there.
+     *
+     * <p>Pairing {@link #mouseDown(int, int)} with this method composes a manual
+     * press-move-release drag.
+     *
+     * @param x X coordinate to move to before releasing
+     * @param y Y coordinate to move to before releasing
+     * @return mouse position after the button release
+     */
+    public MousePositionResponse mouseUp(int x, int y) {
+        return mouseUp(x, y, "left");
+    }
+
+    /**
+     * Moves to the given coordinates and releases a held mouse button there.
+     *
+     * @param x X coordinate to move to before releasing
+     * @param y Y coordinate to move to before releasing
+     * @param button button to release ({@code left}, {@code right}, {@code middle})
+     * @return mouse position after the button release
+     */
+    public MousePositionResponse mouseUp(int x, int y, String button) {
+        MouseUpRequest request = new MouseUpRequest()
+                .x(x)
+                .y(y)
+                .button(button);
+        return ExceptionMapper.callToolbox(() -> computerUseApi.mouseUp(request));
     }
 
     /**
@@ -311,12 +457,51 @@ public class ComputerUse {
      * @return drag response with resulting cursor position
      */
     public MouseDragResponse drag(int startX, int startY, int endX, int endY) {
+        return drag(startX, startY, endX, endY, "left");
+    }
+
+    /**
+     * Drags the mouse from one point to another using a specific button.
+     *
+     * @param startX drag start X coordinate
+     * @param startY drag start Y coordinate
+     * @param endX drag end X coordinate
+     * @param endY drag end Y coordinate
+     * @param button button held for the drag ({@code left}, {@code right}, {@code middle})
+     * @return drag response with resulting cursor position
+     */
+    public MouseDragResponse drag(int startX, int startY, int endX, int endY, String button) {
+        return drag(startX, startY, endX, endY, button, null);
+    }
+
+    /**
+     * Drags the mouse from one point to another with modifier keys held down.
+     *
+     * @param startX drag start X coordinate
+     * @param startY drag start Y coordinate
+     * @param endX drag end X coordinate
+     * @param endY drag end Y coordinate
+     * @param button button held for the drag ({@code left}, {@code right}, {@code middle})
+     * @param modifiers modifier keys held for the duration of the drag. Canonical
+     *                  names are {@code ctrl}, {@code alt}, {@code shift}, and
+     *                  {@code cmd}; {@code null} holds no modifiers
+     * @return drag response with resulting cursor position
+     */
+    public MouseDragResponse drag(
+            int startX,
+            int startY,
+            int endX,
+            int endY,
+            String button,
+            List<String> modifiers
+    ) {
         MouseDragRequest request = new MouseDragRequest()
                 .startX(startX)
                 .startY(startY)
                 .endX(endX)
                 .endY(endY)
-                .button("left");
+                .button(button)
+                .modifiers(modifiers);
         return ExceptionMapper.callToolbox(() -> computerUseApi.drag(request));
     }
 
@@ -334,15 +519,65 @@ public class ComputerUse {
      * @return scroll response indicating operation success
      */
     public ScrollResponse scroll(int x, int y, int deltaX, int deltaY) {
+        return scroll(x, y, deltaX, deltaY, null);
+    }
+
+    /**
+     * Scrolls at the given coordinates with modifier keys held down.
+     *
+     * <p>Delta-to-direction mapping is identical to {@link #scroll(int, int, int, int)}: this
+     * form only resolves vertical directions ({@code up}/{@code down}). Use
+     * {@link #scroll(int, int, String, int, List)} for horizontal scrolling.
+     *
+     * @param x anchor X coordinate
+     * @param y anchor Y coordinate
+     * @param deltaX horizontal delta (used only when {@code deltaY == 0})
+     * @param deltaY vertical delta
+     * @param modifiers modifier keys held for the duration of the scroll. Canonical
+     *                  names are {@code ctrl}, {@code alt}, {@code shift}, and
+     *                  {@code cmd}; {@code null} holds no modifiers
+     * @return scroll response indicating operation success
+     */
+    public ScrollResponse scroll(int x, int y, int deltaX, int deltaY, List<String> modifiers) {
         int effectiveDelta = deltaY != 0 ? deltaY : deltaX;
         String direction = effectiveDelta < 0 ? "up" : "down";
         int amount = Math.abs(effectiveDelta);
 
+        return scroll(x, y, direction, amount, modifiers);
+    }
+
+    /**
+     * Scrolls at the given coordinates in an explicit direction.
+     *
+     * @param x anchor X coordinate
+     * @param y anchor Y coordinate
+     * @param direction scroll direction ({@code up}, {@code down}, {@code left}, {@code right})
+     * @param amount number of scroll steps
+     * @return scroll response indicating operation success
+     */
+    public ScrollResponse scroll(int x, int y, String direction, int amount) {
+        return scroll(x, y, direction, amount, null);
+    }
+
+    /**
+     * Scrolls at the given coordinates in an explicit direction with modifier keys held down.
+     *
+     * @param x anchor X coordinate
+     * @param y anchor Y coordinate
+     * @param direction scroll direction ({@code up}, {@code down}, {@code left}, {@code right})
+     * @param amount number of scroll steps
+     * @param modifiers modifier keys held for the duration of the scroll. Canonical
+     *                  names are {@code ctrl}, {@code alt}, {@code shift}, and
+     *                  {@code cmd}; {@code null} holds no modifiers
+     * @return scroll response indicating operation success
+     */
+    public ScrollResponse scroll(int x, int y, String direction, int amount, List<String> modifiers) {
         MouseScrollRequest request = new MouseScrollRequest()
                 .x(x)
                 .y(y)
                 .direction(direction)
-                .amount(amount);
+                .amount(amount)
+                .modifiers(modifiers);
         return ExceptionMapper.callToolbox(() -> computerUseApi.scroll(request));
     }
 
@@ -384,6 +619,32 @@ public class ComputerUse {
         String joined = String.join("+", Arrays.asList(keys));
         KeyboardHotkeyRequest request = new KeyboardHotkeyRequest().keys(joined);
         ExceptionMapper.callToolbox(() -> computerUseApi.pressHotkey(request));
+    }
+
+    /**
+     * Presses and holds a key until a matching {@link #keyUp(String)} call.
+     *
+     * <p>Unlike {@link #pressHotkey(String...)}, which sends one atomic chord, this leaves the
+     * key physically held so other actions can happen underneath it (for example, holding
+     * {@code shift} across a drag). Always pair it with {@link #keyUp(String)}.
+     *
+     * @param key key to hold down. Modifiers use the canonical names {@code ctrl},
+     *            {@code alt}, {@code shift}, and {@code cmd}; all other keys follow the same
+     *            normalized contract as {@link #pressKey(String)}
+     */
+    public void keyDown(String key) {
+        KeyboardKeyDownRequest request = new KeyboardKeyDownRequest().key(key);
+        ExceptionMapper.callToolbox(() -> computerUseApi.keyDown(request));
+    }
+
+    /**
+     * Releases a key that is currently held down by {@link #keyDown(String)}.
+     *
+     * @param key key to release, using the same names accepted by {@link #keyDown(String)}
+     */
+    public void keyUp(String key) {
+        KeyboardKeyUpRequest request = new KeyboardKeyUpRequest().key(key);
+        ExceptionMapper.callToolbox(() -> computerUseApi.keyUp(request));
     }
 
     /**

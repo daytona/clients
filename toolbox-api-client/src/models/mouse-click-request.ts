@@ -19,7 +19,12 @@ export interface MouseClickRequest {
      * left, right, middle
      */
     'button'?: string;
+    /**
+     * Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted.
+     */
+    'clicks'?: number;
     'double'?: boolean;
+    'modifiers'?: Array<string>;
     'x'?: number;
     'y'?: number;
 }

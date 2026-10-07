@@ -46,6 +46,10 @@ import type { FindAccessibilityNodesRequest } from '../models';
 // @ts-ignore
 import type { KeyboardHotkeyRequest } from '../models';
 // @ts-ignore
+import type { KeyboardKeyDownRequest } from '../models';
+// @ts-ignore
+import type { KeyboardKeyUpRequest } from '../models';
+// @ts-ignore
 import type { KeyboardPressRequest } from '../models';
 // @ts-ignore
 import type { KeyboardTypeRequest } from '../models';
@@ -56,6 +60,8 @@ import type { MouseClickRequest } from '../models';
 // @ts-ignore
 import type { MouseClickResponse } from '../models';
 // @ts-ignore
+import type { MouseDownRequest } from '../models';
+// @ts-ignore
 import type { MouseDragRequest } from '../models';
 // @ts-ignore
 import type { MouseDragResponse } from '../models';
@@ -65,6 +71,8 @@ import type { MouseMoveRequest } from '../models';
 import type { MousePositionResponse } from '../models';
 // @ts-ignore
 import type { MouseScrollRequest } from '../models';
+// @ts-ignore
+import type { MouseUpRequest } from '../models';
 // @ts-ignore
 import type { ProcessErrorsResponse } from '../models';
 // @ts-ignore
@@ -665,6 +673,76 @@ export const ComputerUseApiAxiosParamCreator = function (configuration?: Configu
             };
         },
         /**
+         * Press a key or modifier and hold it down until a matching key up call
+         * @summary Press and hold a keyboard key
+         * @param {KeyboardKeyDownRequest} request Key down request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        keyDown: async (request: KeyboardKeyDownRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('keyDown', 'request', request)
+            const localVarPath = `/computeruse/keyboard/down`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Release a key or modifier that is currently held down
+         * @summary Release a held keyboard key
+         * @param {KeyboardKeyUpRequest} request Key up request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        keyUp: async (request: KeyboardKeyUpRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('keyUp', 'request', request)
+            const localVarPath = `/computeruse/keyboard/up`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Get a list of all recordings (active and completed)
          * @summary List all recordings
          * @param {*} [options] Override http request option.
@@ -688,6 +766,76 @@ export const ComputerUseApiAxiosParamCreator = function (configuration?: Configu
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Press and hold a mouse button, optionally moving to the specified coordinates first
+         * @summary Press mouse button
+         * @param {MouseDownRequest} request Mouse button press request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        mouseDown: async (request: MouseDownRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('mouseDown', 'request', request)
+            const localVarPath = `/computeruse/mouse/down`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Release a held mouse button, optionally moving to the specified coordinates first
+         * @summary Release mouse button
+         * @param {MouseUpRequest} request Mouse button release request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        mouseUp: async (request: MouseUpRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('mouseUp', 'request', request)
+            const localVarPath = `/computeruse/mouse/up`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1520,6 +1668,32 @@ export const ComputerUseApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Press a key or modifier and hold it down until a matching key up call
+         * @summary Press and hold a keyboard key
+         * @param {KeyboardKeyDownRequest} request Key down request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async keyDown(request: KeyboardKeyDownRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.keyDown(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ComputerUseApi.keyDown']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Release a key or modifier that is currently held down
+         * @summary Release a held keyboard key
+         * @param {KeyboardKeyUpRequest} request Key up request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async keyUp(request: KeyboardKeyUpRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.keyUp(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ComputerUseApi.keyUp']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Get a list of all recordings (active and completed)
          * @summary List all recordings
          * @param {*} [options] Override http request option.
@@ -1529,6 +1703,32 @@ export const ComputerUseApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listRecordings(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ComputerUseApi.listRecordings']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Press and hold a mouse button, optionally moving to the specified coordinates first
+         * @summary Press mouse button
+         * @param {MouseDownRequest} request Mouse button press request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async mouseDown(request: MouseDownRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MousePositionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.mouseDown(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ComputerUseApi.mouseDown']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Release a held mouse button, optionally moving to the specified coordinates first
+         * @summary Release mouse button
+         * @param {MouseUpRequest} request Mouse button release request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async mouseUp(request: MouseUpRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MousePositionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.mouseUp(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ComputerUseApi.mouseUp']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1915,6 +2115,26 @@ export const ComputerUseApiFactory = function (configuration?: Configuration, ba
             return localVarFp.invokeAccessibilityNode(request, options).then((request) => request(axios, basePath));
         },
         /**
+         * Press a key or modifier and hold it down until a matching key up call
+         * @summary Press and hold a keyboard key
+         * @param {KeyboardKeyDownRequest} request Key down request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        keyDown(request: KeyboardKeyDownRequest, options?: RawAxiosRequestConfig): AxiosPromise<object> {
+            return localVarFp.keyDown(request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Release a key or modifier that is currently held down
+         * @summary Release a held keyboard key
+         * @param {KeyboardKeyUpRequest} request Key up request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        keyUp(request: KeyboardKeyUpRequest, options?: RawAxiosRequestConfig): AxiosPromise<object> {
+            return localVarFp.keyUp(request, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Get a list of all recordings (active and completed)
          * @summary List all recordings
          * @param {*} [options] Override http request option.
@@ -1922,6 +2142,26 @@ export const ComputerUseApiFactory = function (configuration?: Configuration, ba
          */
         listRecordings(options?: RawAxiosRequestConfig): AxiosPromise<ListRecordingsResponse> {
             return localVarFp.listRecordings(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Press and hold a mouse button, optionally moving to the specified coordinates first
+         * @summary Press mouse button
+         * @param {MouseDownRequest} request Mouse button press request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        mouseDown(request: MouseDownRequest, options?: RawAxiosRequestConfig): AxiosPromise<MousePositionResponse> {
+            return localVarFp.mouseDown(request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Release a held mouse button, optionally moving to the specified coordinates first
+         * @summary Release mouse button
+         * @param {MouseUpRequest} request Mouse button release request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        mouseUp(request: MouseUpRequest, options?: RawAxiosRequestConfig): AxiosPromise<MousePositionResponse> {
+            return localVarFp.mouseUp(request, options).then((request) => request(axios, basePath));
         },
         /**
          * Move the mouse cursor to the specified coordinates
@@ -2277,6 +2517,28 @@ export class ComputerUseApi extends BaseAPI {
     }
 
     /**
+     * Press a key or modifier and hold it down until a matching key up call
+     * @summary Press and hold a keyboard key
+     * @param {KeyboardKeyDownRequest} request Key down request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public keyDown(request: KeyboardKeyDownRequest, options?: RawAxiosRequestConfig) {
+        return ComputerUseApiFp(this.configuration).keyDown(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Release a key or modifier that is currently held down
+     * @summary Release a held keyboard key
+     * @param {KeyboardKeyUpRequest} request Key up request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public keyUp(request: KeyboardKeyUpRequest, options?: RawAxiosRequestConfig) {
+        return ComputerUseApiFp(this.configuration).keyUp(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Get a list of all recordings (active and completed)
      * @summary List all recordings
      * @param {*} [options] Override http request option.
@@ -2284,6 +2546,28 @@ export class ComputerUseApi extends BaseAPI {
      */
     public listRecordings(options?: RawAxiosRequestConfig) {
         return ComputerUseApiFp(this.configuration).listRecordings(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Press and hold a mouse button, optionally moving to the specified coordinates first
+     * @summary Press mouse button
+     * @param {MouseDownRequest} request Mouse button press request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public mouseDown(request: MouseDownRequest, options?: RawAxiosRequestConfig) {
+        return ComputerUseApiFp(this.configuration).mouseDown(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Release a held mouse button, optionally moving to the specified coordinates first
+     * @summary Release mouse button
+     * @param {MouseUpRequest} request Mouse button release request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public mouseUp(request: MouseUpRequest, options?: RawAxiosRequestConfig) {
+        return ComputerUseApiFp(this.configuration).mouseUp(request, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

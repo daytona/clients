@@ -63,6 +63,7 @@ src/main/java/io/daytona/toolbox/client/model/FileInfo.java
 src/main/java/io/daytona/toolbox/client/model/FileStatus.java
 src/main/java/io/daytona/toolbox/client/model/FilesDownloadRequest.java
 src/main/java/io/daytona/toolbox/client/model/FindAccessibilityNodesRequest.java
+src/main/java/io/daytona/toolbox/client/model/FsFileResult.java
 src/main/java/io/daytona/toolbox/client/model/GitAddRemoteRequest.java
 src/main/java/io/daytona/toolbox/client/model/GitAddRequest.java
 src/main/java/io/daytona/toolbox/client/model/GitAuthenticateRequest.java
@@ -87,6 +88,8 @@ src/main/java/io/daytona/toolbox/client/model/InitializeRequest.java
 src/main/java/io/daytona/toolbox/client/model/InterpreterContext.java
 src/main/java/io/daytona/toolbox/client/model/IsPortInUseResponse.java
 src/main/java/io/daytona/toolbox/client/model/KeyboardHotkeyRequest.java
+src/main/java/io/daytona/toolbox/client/model/KeyboardKeyDownRequest.java
+src/main/java/io/daytona/toolbox/client/model/KeyboardKeyUpRequest.java
 src/main/java/io/daytona/toolbox/client/model/KeyboardPressRequest.java
 src/main/java/io/daytona/toolbox/client/model/KeyboardTypeRequest.java
 src/main/java/io/daytona/toolbox/client/model/ListBranchResponse.java
@@ -103,11 +106,13 @@ src/main/java/io/daytona/toolbox/client/model/LspSymbol.java
 src/main/java/io/daytona/toolbox/client/model/Match.java
 src/main/java/io/daytona/toolbox/client/model/MouseClickRequest.java
 src/main/java/io/daytona/toolbox/client/model/MouseClickResponse.java
+src/main/java/io/daytona/toolbox/client/model/MouseDownRequest.java
 src/main/java/io/daytona/toolbox/client/model/MouseDragRequest.java
 src/main/java/io/daytona/toolbox/client/model/MouseDragResponse.java
 src/main/java/io/daytona/toolbox/client/model/MouseMoveRequest.java
 src/main/java/io/daytona/toolbox/client/model/MousePositionResponse.java
 src/main/java/io/daytona/toolbox/client/model/MouseScrollRequest.java
+src/main/java/io/daytona/toolbox/client/model/MouseUpRequest.java
 src/main/java/io/daytona/toolbox/client/model/PortList.java
 src/main/java/io/daytona/toolbox/client/model/Position.java
 src/main/java/io/daytona/toolbox/client/model/ProcessErrorsResponse.java
@@ -136,6 +141,7 @@ src/main/java/io/daytona/toolbox/client/model/Status.java
 src/main/java/io/daytona/toolbox/client/model/StopRecordingRequest.java
 src/main/java/io/daytona/toolbox/client/model/SystemMetrics.java
 src/main/java/io/daytona/toolbox/client/model/UpdateEnvRequest.java
+src/main/java/io/daytona/toolbox/client/model/UploadFilesResponse.java
 src/main/java/io/daytona/toolbox/client/model/UploadedFile.java
 src/main/java/io/daytona/toolbox/client/model/UserHomeDirResponse.java
 src/main/java/io/daytona/toolbox/client/model/WindowInfo.java
@@ -182,6 +188,7 @@ src/test/java/io/daytona/toolbox/client/model/FileInfoTest.java
 src/test/java/io/daytona/toolbox/client/model/FileStatusTest.java
 src/test/java/io/daytona/toolbox/client/model/FilesDownloadRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/FindAccessibilityNodesRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/FsFileResultTest.java
 src/test/java/io/daytona/toolbox/client/model/GitAddRemoteRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/GitAddRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/GitAuthenticateRequestTest.java
@@ -206,6 +213,8 @@ src/test/java/io/daytona/toolbox/client/model/InitializeRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/InterpreterContextTest.java
 src/test/java/io/daytona/toolbox/client/model/IsPortInUseResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/KeyboardHotkeyRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/KeyboardKeyDownRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/KeyboardKeyUpRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/KeyboardPressRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/KeyboardTypeRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/ListBranchResponseTest.java
@@ -222,11 +231,13 @@ src/test/java/io/daytona/toolbox/client/model/LspSymbolTest.java
 src/test/java/io/daytona/toolbox/client/model/MatchTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseClickRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseClickResponseTest.java
+src/test/java/io/daytona/toolbox/client/model/MouseDownRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseDragRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseDragResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseMoveRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/MousePositionResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/MouseScrollRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/MouseUpRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/PortListTest.java
 src/test/java/io/daytona/toolbox/client/model/PositionTest.java
 src/test/java/io/daytona/toolbox/client/model/ProcessErrorsResponseTest.java
@@ -255,6 +266,7 @@ src/test/java/io/daytona/toolbox/client/model/StatusTest.java
 src/test/java/io/daytona/toolbox/client/model/StopRecordingRequestTest.java
 src/test/java/io/daytona/toolbox/client/model/SystemMetricsTest.java
 src/test/java/io/daytona/toolbox/client/model/UpdateEnvRequestTest.java
+src/test/java/io/daytona/toolbox/client/model/UploadFilesResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/UploadedFileTest.java
 src/test/java/io/daytona/toolbox/client/model/UserHomeDirResponseTest.java
 src/test/java/io/daytona/toolbox/client/model/WindowInfoTest.java

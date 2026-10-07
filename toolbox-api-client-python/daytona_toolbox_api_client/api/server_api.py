@@ -354,6 +354,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -421,6 +423,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -488,6 +492,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,

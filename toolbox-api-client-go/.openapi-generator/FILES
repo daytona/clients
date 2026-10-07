@@ -45,6 +45,7 @@ model_file_info.go
 model_file_status.go
 model_files_download_request.go
 model_find_accessibility_nodes_request.go
+model_fs_file_result.go
 model_git_add_remote_request.go
 model_git_add_request.go
 model_git_authenticate_request.go
@@ -69,6 +70,8 @@ model_initialize_request.go
 model_interpreter_context.go
 model_is_port_in_use_response.go
 model_keyboard_hotkey_request.go
+model_keyboard_key_down_request.go
+model_keyboard_key_up_request.go
 model_keyboard_press_request.go
 model_keyboard_type_request.go
 model_list_branch_response.go
@@ -85,11 +88,13 @@ model_lsp_symbol.go
 model_match.go
 model_mouse_click_request.go
 model_mouse_click_response.go
+model_mouse_down_request.go
 model_mouse_drag_request.go
 model_mouse_drag_response.go
 model_mouse_move_request.go
 model_mouse_position_response.go
 model_mouse_scroll_request.go
+model_mouse_up_request.go
 model_port_list.go
 model_position.go
 model_process_errors_response.go
@@ -118,6 +123,7 @@ model_status.go
 model_stop_recording_request.go
 model_system_metrics.go
 model_update_env_request.go
+model_upload_files_response.go
 model_uploaded_file.go
 model_user_home_dir_response.go
 model_window_info.go

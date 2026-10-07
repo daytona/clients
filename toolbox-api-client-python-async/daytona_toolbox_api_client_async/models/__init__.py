@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.file_status import FileStatus
     from daytona_toolbox_api_client_async.models.files_download_request import FilesDownloadRequest
     from daytona_toolbox_api_client_async.models.find_accessibility_nodes_request import FindAccessibilityNodesRequest
+    from daytona_toolbox_api_client_async.models.fs_file_result import FsFileResult
     from daytona_toolbox_api_client_async.models.git_add_remote_request import GitAddRemoteRequest
     from daytona_toolbox_api_client_async.models.git_add_request import GitAddRequest
     from daytona_toolbox_api_client_async.models.git_authenticate_request import GitAuthenticateRequest
@@ -74,6 +75,8 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.interpreter_context import InterpreterContext
     from daytona_toolbox_api_client_async.models.is_port_in_use_response import IsPortInUseResponse
     from daytona_toolbox_api_client_async.models.keyboard_hotkey_request import KeyboardHotkeyRequest
+    from daytona_toolbox_api_client_async.models.keyboard_key_down_request import KeyboardKeyDownRequest
+    from daytona_toolbox_api_client_async.models.keyboard_key_up_request import KeyboardKeyUpRequest
     from daytona_toolbox_api_client_async.models.keyboard_press_request import KeyboardPressRequest
     from daytona_toolbox_api_client_async.models.keyboard_type_request import KeyboardTypeRequest
     from daytona_toolbox_api_client_async.models.list_branch_response import ListBranchResponse
@@ -90,11 +93,13 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.match import Match
     from daytona_toolbox_api_client_async.models.mouse_click_request import MouseClickRequest
     from daytona_toolbox_api_client_async.models.mouse_click_response import MouseClickResponse
+    from daytona_toolbox_api_client_async.models.mouse_down_request import MouseDownRequest
     from daytona_toolbox_api_client_async.models.mouse_drag_request import MouseDragRequest
     from daytona_toolbox_api_client_async.models.mouse_drag_response import MouseDragResponse
     from daytona_toolbox_api_client_async.models.mouse_move_request import MouseMoveRequest
     from daytona_toolbox_api_client_async.models.mouse_position_response import MousePositionResponse
     from daytona_toolbox_api_client_async.models.mouse_scroll_request import MouseScrollRequest
+    from daytona_toolbox_api_client_async.models.mouse_up_request import MouseUpRequest
     from daytona_toolbox_api_client_async.models.port_list import PortList
     from daytona_toolbox_api_client_async.models.position import Position
     from daytona_toolbox_api_client_async.models.process_errors_response import ProcessErrorsResponse
@@ -123,6 +128,7 @@ if TYPE_CHECKING:
     from daytona_toolbox_api_client_async.models.stop_recording_request import StopRecordingRequest
     from daytona_toolbox_api_client_async.models.system_metrics import SystemMetrics
     from daytona_toolbox_api_client_async.models.update_env_request import UpdateEnvRequest
+    from daytona_toolbox_api_client_async.models.upload_files_response import UploadFilesResponse
     from daytona_toolbox_api_client_async.models.uploaded_file import UploadedFile
     from daytona_toolbox_api_client_async.models.user_home_dir_response import UserHomeDirResponse
     from daytona_toolbox_api_client_async.models.window_info import WindowInfo
@@ -161,6 +167,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "FileStatus": "daytona_toolbox_api_client_async.models.file_status",
     "FilesDownloadRequest": "daytona_toolbox_api_client_async.models.files_download_request",
     "FindAccessibilityNodesRequest": "daytona_toolbox_api_client_async.models.find_accessibility_nodes_request",
+    "FsFileResult": "daytona_toolbox_api_client_async.models.fs_file_result",
     "GitAddRemoteRequest": "daytona_toolbox_api_client_async.models.git_add_remote_request",
     "GitAddRequest": "daytona_toolbox_api_client_async.models.git_add_request",
     "GitAuthenticateRequest": "daytona_toolbox_api_client_async.models.git_authenticate_request",
@@ -185,6 +192,8 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "InterpreterContext": "daytona_toolbox_api_client_async.models.interpreter_context",
     "IsPortInUseResponse": "daytona_toolbox_api_client_async.models.is_port_in_use_response",
     "KeyboardHotkeyRequest": "daytona_toolbox_api_client_async.models.keyboard_hotkey_request",
+    "KeyboardKeyDownRequest": "daytona_toolbox_api_client_async.models.keyboard_key_down_request",
+    "KeyboardKeyUpRequest": "daytona_toolbox_api_client_async.models.keyboard_key_up_request",
     "KeyboardPressRequest": "daytona_toolbox_api_client_async.models.keyboard_press_request",
     "KeyboardTypeRequest": "daytona_toolbox_api_client_async.models.keyboard_type_request",
     "ListBranchResponse": "daytona_toolbox_api_client_async.models.list_branch_response",
@@ -201,11 +210,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "Match": "daytona_toolbox_api_client_async.models.match",
     "MouseClickRequest": "daytona_toolbox_api_client_async.models.mouse_click_request",
     "MouseClickResponse": "daytona_toolbox_api_client_async.models.mouse_click_response",
+    "MouseDownRequest": "daytona_toolbox_api_client_async.models.mouse_down_request",
     "MouseDragRequest": "daytona_toolbox_api_client_async.models.mouse_drag_request",
     "MouseDragResponse": "daytona_toolbox_api_client_async.models.mouse_drag_response",
     "MouseMoveRequest": "daytona_toolbox_api_client_async.models.mouse_move_request",
     "MousePositionResponse": "daytona_toolbox_api_client_async.models.mouse_position_response",
     "MouseScrollRequest": "daytona_toolbox_api_client_async.models.mouse_scroll_request",
+    "MouseUpRequest": "daytona_toolbox_api_client_async.models.mouse_up_request",
     "PortList": "daytona_toolbox_api_client_async.models.port_list",
     "Position": "daytona_toolbox_api_client_async.models.position",
     "ProcessErrorsResponse": "daytona_toolbox_api_client_async.models.process_errors_response",
@@ -234,6 +245,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "StopRecordingRequest": "daytona_toolbox_api_client_async.models.stop_recording_request",
     "SystemMetrics": "daytona_toolbox_api_client_async.models.system_metrics",
     "UpdateEnvRequest": "daytona_toolbox_api_client_async.models.update_env_request",
+    "UploadFilesResponse": "daytona_toolbox_api_client_async.models.upload_files_response",
     "UploadedFile": "daytona_toolbox_api_client_async.models.uploaded_file",
     "UserHomeDirResponse": "daytona_toolbox_api_client_async.models.user_home_dir_response",
     "WindowInfo": "daytona_toolbox_api_client_async.models.window_info",

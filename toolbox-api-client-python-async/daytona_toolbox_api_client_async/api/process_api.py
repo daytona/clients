@@ -4785,6 +4785,7 @@ class ProcessApi:
             '400': "ErrorResponse",
             '404': "ErrorResponse",
             '409': "ErrorResponse",
+            '410': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
@@ -4861,6 +4862,7 @@ class ProcessApi:
             '400': "ErrorResponse",
             '404': "ErrorResponse",
             '409': "ErrorResponse",
+            '410': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
@@ -4937,6 +4939,7 @@ class ProcessApi:
             '400': "ErrorResponse",
             '404': "ErrorResponse",
             '409': "ErrorResponse",
+            '410': "ErrorResponse",
             '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(

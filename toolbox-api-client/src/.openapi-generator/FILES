@@ -46,6 +46,7 @@ models/file-info.ts
 models/file-status.ts
 models/files-download-request.ts
 models/find-accessibility-nodes-request.ts
+models/fs-file-result.ts
 models/git-add-remote-request.ts
 models/git-add-request.ts
 models/git-authenticate-request.ts
@@ -71,6 +72,8 @@ models/initialize-request.ts
 models/interpreter-context.ts
 models/is-port-in-use-response.ts
 models/keyboard-hotkey-request.ts
+models/keyboard-key-down-request.ts
+models/keyboard-key-up-request.ts
 models/keyboard-press-request.ts
 models/keyboard-type-request.ts
 models/list-branch-response.ts
@@ -87,11 +90,13 @@ models/lsp-symbol.ts
 models/match.ts
 models/mouse-click-request.ts
 models/mouse-click-response.ts
+models/mouse-down-request.ts
 models/mouse-drag-request.ts
 models/mouse-drag-response.ts
 models/mouse-move-request.ts
 models/mouse-position-response.ts
 models/mouse-scroll-request.ts
+models/mouse-up-request.ts
 models/port-list.ts
 models/position.ts
 models/process-errors-response.ts
@@ -120,6 +125,7 @@ models/status.ts
 models/stop-recording-request.ts
 models/system-metrics.ts
 models/update-env-request.ts
+models/upload-files-response.ts
 models/uploaded-file.ts
 models/user-home-dir-response.ts
 models/window-info.ts

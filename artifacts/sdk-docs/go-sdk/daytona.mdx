@@ -181,6 +181,8 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
 - [type KeyboardService](<#KeyboardService>)
   - [func NewKeyboardService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*KeyboardService](<#NewKeyboardService>)
   - [func \(k \*KeyboardService\) Hotkey\(ctx context.Context, keys string\) error](<#KeyboardService.Hotkey>)
+  - [func \(k \*KeyboardService\) KeyDown\(ctx context.Context, key string\) error](<#KeyboardService.KeyDown>)
+  - [func \(k \*KeyboardService\) KeyUp\(ctx context.Context, key string\) error](<#KeyboardService.KeyUp>)
   - [func \(k \*KeyboardService\) Press\(ctx context.Context, key string, modifiers \[\]string\) error](<#KeyboardService.Press>)
   - [func \(k \*KeyboardService\) Type\(ctx context.Context, text string, delay \*int\) error](<#KeyboardService.Type>)
 - [type ListSandboxesQuery](<#ListSandboxesQuery>)
@@ -194,13 +196,22 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(l \*LspServerService\) SandboxSymbols\(ctx context.Context, query string\) \(\[\]any, error\)](<#LspServerService.SandboxSymbols>)
   - [func \(l \*LspServerService\) Start\(ctx context.Context\) error](<#LspServerService.Start>)
   - [func \(l \*LspServerService\) Stop\(ctx context.Context\) error](<#LspServerService.Stop>)
+- [type MouseClickOption](<#MouseClickOption>)
+  - [func WithClickModifiers\(modifiers ...string\) MouseClickOption](<#WithClickModifiers>)
+  - [func WithClicks\(clicks int\) MouseClickOption](<#WithClicks>)
+- [type MouseDragOption](<#MouseDragOption>)
+  - [func WithDragModifiers\(modifiers ...string\) MouseDragOption](<#WithDragModifiers>)
+- [type MouseScrollOption](<#MouseScrollOption>)
+  - [func WithScrollModifiers\(modifiers ...string\) MouseScrollOption](<#WithScrollModifiers>)
 - [type MouseService](<#MouseService>)
   - [func NewMouseService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*MouseService](<#NewMouseService>)
-  - [func \(m \*MouseService\) Click\(ctx context.Context, x, y int, button \*string, double \*bool\) \(map\[string\]any, error\)](<#MouseService.Click>)
-  - [func \(m \*MouseService\) Drag\(ctx context.Context, startX, startY, endX, endY int, button \*string\) \(map\[string\]any, error\)](<#MouseService.Drag>)
+  - [func \(m \*MouseService\) Click\(ctx context.Context, x, y int, button \*string, double \*bool, opts ...MouseClickOption\) \(map\[string\]any, error\)](<#MouseService.Click>)
+  - [func \(m \*MouseService\) Down\(ctx context.Context, button \*string, x, y \*int\) \(map\[string\]any, error\)](<#MouseService.Down>)
+  - [func \(m \*MouseService\) Drag\(ctx context.Context, startX, startY, endX, endY int, button \*string, opts ...MouseDragOption\) \(map\[string\]any, error\)](<#MouseService.Drag>)
   - [func \(m \*MouseService\) GetPosition\(ctx context.Context\) \(map\[string\]any, error\)](<#MouseService.GetPosition>)
   - [func \(m \*MouseService\) Move\(ctx context.Context, x, y int\) \(map\[string\]any, error\)](<#MouseService.Move>)
-  - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int\) \(bool, error\)](<#MouseService.Scroll>)
+  - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int, opts ...MouseScrollOption\) \(bool, error\)](<#MouseService.Scroll>)
+  - [func \(m \*MouseService\) Up\(ctx context.Context, button \*string, x, y \*int\) \(map\[string\]any, error\)](<#MouseService.Up>)
 - [type OutputChannels](<#OutputChannels>)
 - [type ProcessService](<#ProcessService>)
   - [func NewProcessService\(toolboxClient \*toolbox.APIClient, otel \*otelState, language types.CodeLanguage\) \*ProcessService](<#NewProcessService>)
@@ -2615,6 +2626,56 @@ err := keyboard.Hotkey(ctx, "alt+tab")
 
 Returns an error if the hotkey fails.
 
+<a name="KeyboardService.KeyDown"></a>
+### func \(\*KeyboardService\) KeyDown
+
+```go
+func (k *KeyboardService) KeyDown(ctx context.Context, key string) error
+```
+
+KeyDown presses a key and holds it down.
+
+The key stays held until a matching [KeyboardService.KeyUp](<#KeyboardService.KeyUp>) call releases it. This enables held\-modifier workflows, such as holding "shift" across several mouse clicks, that a single [KeyboardService.Press](<#KeyboardService.Press>) cannot express.
+
+Parameters:
+
+- key: The key to hold. Uses the same normalized key contract as [KeyboardService.Press](<#KeyboardService.Press>), so modifier names such as "ctrl", "alt", "shift", and "cmd" are valid keys here.
+
+Example:
+
+```
+// Hold Shift, click twice to extend a selection, then release Shift
+if err := keyboard.KeyDown(ctx, "shift"); err != nil {
+    return err
+}
+defer keyboard.KeyUp(ctx, "shift")
+```
+
+Returns an error if the key press fails.
+
+<a name="KeyboardService.KeyUp"></a>
+### func \(\*KeyboardService\) KeyUp
+
+```go
+func (k *KeyboardService) KeyUp(ctx context.Context, key string) error
+```
+
+KeyUp releases a previously held key.
+
+Use it to finish a hold started with [KeyboardService.KeyDown](<#KeyboardService.KeyDown>).
+
+Parameters:
+
+- key: The key to release. Uses the same normalized key contract as [KeyboardService.Press](<#KeyboardService.Press>).
+
+Example:
+
+```
+err := keyboard.KeyUp(ctx, "shift")
+```
+
+Returns an error if the key release fails.
+
 <a name="KeyboardService.Press"></a>
 ### func \(\*KeyboardService\) Press
 
@@ -2966,6 +3027,71 @@ err := lsp.Stop(ctx)
 
 Returns an error if the server fails to stop gracefully.
 
+<a name="MouseClickOption"></a>
+## type MouseClickOption
+
+MouseClickOption configures the behavior of [MouseService.Click](<#MouseService.Click>).
+
+```go
+type MouseClickOption func(*mouseClickConfig)
+```
+
+<a name="WithClickModifiers"></a>
+### func WithClickModifiers
+
+```go
+func WithClickModifiers(modifiers ...string) MouseClickOption
+```
+
+WithClickModifiers returns an option that sets the modifier keys held down while clicking. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
+<a name="WithClicks"></a>
+### func WithClicks
+
+```go
+func WithClicks(clicks int) MouseClickOption
+```
+
+WithClicks returns an option that sets how many times the button is clicked.
+
+Valid values are 1 through 10. The value is always sent explicitly, so an out\-of\-range value such as 0 is rejected by the server rather than silently treated as "not provided".
+
+<a name="MouseDragOption"></a>
+## type MouseDragOption
+
+MouseDragOption configures the behavior of [MouseService.Drag](<#MouseService.Drag>).
+
+```go
+type MouseDragOption func(*mouseDragConfig)
+```
+
+<a name="WithDragModifiers"></a>
+### func WithDragModifiers
+
+```go
+func WithDragModifiers(modifiers ...string) MouseDragOption
+```
+
+WithDragModifiers returns an option that sets the modifier keys held down for the duration of the drag. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
+<a name="MouseScrollOption"></a>
+## type MouseScrollOption
+
+MouseScrollOption configures the behavior of [MouseService.Scroll](<#MouseService.Scroll>).
+
+```go
+type MouseScrollOption func(*mouseScrollConfig)
+```
+
+<a name="WithScrollModifiers"></a>
+### func WithScrollModifiers
+
+```go
+func WithScrollModifiers(modifiers ...string) MouseScrollOption
+```
+
+WithScrollModifiers returns an option that sets the modifier keys held down while scrolling. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
 <a name="MouseService"></a>
 ## type MouseService
 
@@ -2992,7 +3118,7 @@ NewMouseService creates a new MouseService.
 ### func \(\*MouseService\) Click
 
 ```go
-func (m *MouseService) Click(ctx context.Context, x, y int, button *string, double *bool) (map[string]any, error)
+func (m *MouseService) Click(ctx context.Context, x, y int, button *string, double *bool, opts ...MouseClickOption) (map[string]any, error)
 ```
 
 Click performs a mouse click at the specified coordinates.
@@ -3003,6 +3129,7 @@ Parameters:
 - y: Y coordinate to click
 - button: Mouse button \("left", "right", "middle"\), nil for left click
 - double: Whether to double\-click, nil for single click
+- opts: Optional settings such as [WithClicks](<#WithClicks>) and [WithClickModifiers](<#WithClickModifiers>)
 
 Example:
 
@@ -3017,15 +3144,55 @@ pos, err := mouse.Click(ctx, 100, 200, &button, nil)
 // Double click
 doubleClick := true
 pos, err := mouse.Click(ctx, 100, 200, nil, &doubleClick)
+
+// Triple click with Ctrl held down
+pos, err := mouse.Click(ctx, 100, 200, nil, nil,
+    WithClicks(3), WithClickModifiers("ctrl"))
 ```
 
 Returns a map with the click "x" and "y" coordinates.
+
+<a name="MouseService.Down"></a>
+### func \(\*MouseService\) Down
+
+```go
+func (m *MouseService) Down(ctx context.Context, button *string, x, y *int) (map[string]any, error)
+```
+
+Down presses a mouse button and holds it down.
+
+The button stays held until a matching [MouseService.Up](<#MouseService.Up>) call releases it, which makes it possible to build custom press\-move\-release gestures such as marquee selection or drawing strokes.
+
+Parameters:
+
+- button: Mouse button \("left", "right", "middle"\), nil for left button
+- x: X coordinate to press at, nil to press at the current cursor position
+- y: Y coordinate to press at, nil to press at the current cursor position
+
+Both x and y are sent exactly as provided, so an explicit 0 is transmitted as 0 rather than being dropped as an unset value.
+
+Example:
+
+```
+// Press the left button at the current cursor position
+pos, err := mouse.Down(ctx, nil, nil, nil)
+
+// Press and hold the left button at (100, 200), then release at (300, 400)
+x, y := 100, 200
+if _, err := mouse.Down(ctx, nil, &x, &y); err != nil {
+    return err
+}
+endX, endY := 300, 400
+pos, err = mouse.Up(ctx, nil, &endX, &endY)
+```
+
+Returns a map with the resulting "x" and "y" cursor coordinates.
 
 <a name="MouseService.Drag"></a>
 ### func \(\*MouseService\) Drag
 
 ```go
-func (m *MouseService) Drag(ctx context.Context, startX, startY, endX, endY int, button *string) (map[string]any, error)
+func (m *MouseService) Drag(ctx context.Context, startX, startY, endX, endY int, button *string, opts ...MouseDragOption) (map[string]any, error)
 ```
 
 Drag performs a mouse drag operation from start to end coordinates.
@@ -3035,12 +3202,16 @@ Parameters:
 - startX, startY: Starting coordinates
 - endX, endY: Ending coordinates
 - button: Mouse button to use, nil for left button
+- opts: Optional settings such as [WithDragModifiers](<#WithDragModifiers>)
 
 Example:
 
 ```
 // Drag from (100, 100) to (300, 300)
 pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil)
+
+// Drag with Shift held down to extend a selection
+pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil, WithDragModifiers("shift"))
 ```
 
 Returns a map with the final "x" and "y" coordinates.
@@ -3092,7 +3263,7 @@ Returns a map with the new "x" and "y" coordinates.
 ### func \(\*MouseService\) Scroll
 
 ```go
-func (m *MouseService) Scroll(ctx context.Context, x, y int, direction string, amount *int) (bool, error)
+func (m *MouseService) Scroll(ctx context.Context, x, y int, direction string, amount *int, opts ...MouseScrollOption) (bool, error)
 ```
 
 Scroll performs a mouse scroll operation at the specified coordinates.
@@ -3100,8 +3271,9 @@ Scroll performs a mouse scroll operation at the specified coordinates.
 Parameters:
 
 - x, y: Coordinates where the scroll occurs
-- direction: Scroll direction \("up", "down"\)
+- direction: Scroll direction \("up", "down", "left", "right"\)
 - amount: Scroll amount, nil for default
+- opts: Optional settings such as [WithScrollModifiers](<#WithScrollModifiers>)
 
 Example:
 
@@ -3112,9 +3284,40 @@ success, err := mouse.Scroll(ctx, 500, 400, "down", nil)
 // Scroll up with specific amount
 amount := 5
 success, err := mouse.Scroll(ctx, 500, 400, "up", &amount)
+
+// Horizontal scroll with Shift held down
+success, err := mouse.Scroll(ctx, 500, 400, "right", nil, WithScrollModifiers("shift"))
 ```
 
 Returns true if the scroll was successful.
+
+<a name="MouseService.Up"></a>
+### func \(\*MouseService\) Up
+
+```go
+func (m *MouseService) Up(ctx context.Context, button *string, x, y *int) (map[string]any, error)
+```
+
+Up releases a previously held mouse button.
+
+Use it to finish a gesture started with [MouseService.Down](<#MouseService.Down>).
+
+Parameters:
+
+- button: Mouse button \("left", "right", "middle"\), nil for left button
+- x: X coordinate to release at, nil to release at the current cursor position
+- y: Y coordinate to release at, nil to release at the current cursor position
+
+Both x and y are sent exactly as provided, so an explicit 0 is transmitted as 0 rather than being dropped as an unset value.
+
+Example:
+
+```
+// Release the left button at the current cursor position
+pos, err := mouse.Up(ctx, nil, nil, nil)
+```
+
+Returns a map with the resulting "x" and "y" cursor coordinates.
 
 <a name="OutputChannels"></a>
 ## type OutputChannels

@@ -28,16 +28,20 @@ import io.daytona.toolbox.client.model.ErrorResponse;
 import java.io.File;
 import io.daytona.toolbox.client.model.FindAccessibilityNodesRequest;
 import io.daytona.toolbox.client.model.KeyboardHotkeyRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyDownRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyUpRequest;
 import io.daytona.toolbox.client.model.KeyboardPressRequest;
 import io.daytona.toolbox.client.model.KeyboardTypeRequest;
 import io.daytona.toolbox.client.model.ListRecordingsResponse;
 import io.daytona.toolbox.client.model.MouseClickRequest;
 import io.daytona.toolbox.client.model.MouseClickResponse;
+import io.daytona.toolbox.client.model.MouseDownRequest;
 import io.daytona.toolbox.client.model.MouseDragRequest;
 import io.daytona.toolbox.client.model.MouseDragResponse;
 import io.daytona.toolbox.client.model.MouseMoveRequest;
 import io.daytona.toolbox.client.model.MousePositionResponse;
 import io.daytona.toolbox.client.model.MouseScrollRequest;
+import io.daytona.toolbox.client.model.MouseUpRequest;
 import io.daytona.toolbox.client.model.ProcessErrorsResponse;
 import io.daytona.toolbox.client.model.ProcessLogsResponse;
 import io.daytona.toolbox.client.model.ProcessRestartResponse;
@@ -300,6 +304,34 @@ public class ComputerUseApiTest {
     }
 
     /**
+     * Press and hold a keyboard key
+     *
+     * Press a key or modifier and hold it down until a matching key up call
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void keyDownTest() throws ApiException {
+        KeyboardKeyDownRequest request = null;
+        Object response = api.keyDown(request);
+        // TODO: test validations
+    }
+
+    /**
+     * Release a held keyboard key
+     *
+     * Release a key or modifier that is currently held down
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void keyUpTest() throws ApiException {
+        KeyboardKeyUpRequest request = null;
+        Object response = api.keyUp(request);
+        // TODO: test validations
+    }
+
+    /**
      * List all recordings
      *
      * Get a list of all recordings (active and completed)
@@ -309,6 +341,34 @@ public class ComputerUseApiTest {
     @Test
     public void listRecordingsTest() throws ApiException {
         ListRecordingsResponse response = api.listRecordings();
+        // TODO: test validations
+    }
+
+    /**
+     * Press mouse button
+     *
+     * Press and hold a mouse button, optionally moving to the specified coordinates first
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void mouseDownTest() throws ApiException {
+        MouseDownRequest request = null;
+        MousePositionResponse response = api.mouseDown(request);
+        // TODO: test validations
+    }
+
+    /**
+     * Release mouse button
+     *
+     * Release a held mouse button, optionally moving to the specified coordinates first
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void mouseUpTest() throws ApiException {
+        MouseUpRequest request = null;
+        MousePositionResponse response = api.mouseUp(request);
         // TODO: test validations
     }
 

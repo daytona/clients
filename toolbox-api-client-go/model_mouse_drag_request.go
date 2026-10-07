@@ -22,6 +22,7 @@ type MouseDragRequest struct {
 	Button *string `json:"button,omitempty"`
 	EndX *int32 `json:"endX,omitempty"`
 	EndY *int32 `json:"endY,omitempty"`
+	Modifiers []string `json:"modifiers,omitempty"`
 	StartX *int32 `json:"startX,omitempty"`
 	StartY *int32 `json:"startY,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -142,6 +143,38 @@ func (o *MouseDragRequest) SetEndY(v int32) {
 	o.EndY = &v
 }
 
+// GetModifiers returns the Modifiers field value if set, zero value otherwise.
+func (o *MouseDragRequest) GetModifiers() []string {
+	if o == nil || IsNil(o.Modifiers) {
+		var ret []string
+		return ret
+	}
+	return o.Modifiers
+}
+
+// GetModifiersOk returns a tuple with the Modifiers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MouseDragRequest) GetModifiersOk() ([]string, bool) {
+	if o == nil || IsNil(o.Modifiers) {
+		return nil, false
+	}
+	return o.Modifiers, true
+}
+
+// HasModifiers returns a boolean if a field has been set.
+func (o *MouseDragRequest) HasModifiers() bool {
+	if o != nil && !IsNil(o.Modifiers) {
+		return true
+	}
+
+	return false
+}
+
+// SetModifiers gets a reference to the given []string and assigns it to the Modifiers field.
+func (o *MouseDragRequest) SetModifiers(v []string) {
+	o.Modifiers = v
+}
+
 // GetStartX returns the StartX field value if set, zero value otherwise.
 func (o *MouseDragRequest) GetStartX() int32 {
 	if o == nil || IsNil(o.StartX) {
@@ -225,6 +258,9 @@ func (o MouseDragRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.EndY) {
 		toSerialize["endY"] = o.EndY
 	}
+	if !IsNil(o.Modifiers) {
+		toSerialize["modifiers"] = o.Modifiers
+	}
 	if !IsNil(o.StartX) {
 		toSerialize["startX"] = o.StartX
 	}
@@ -256,6 +292,7 @@ func (o *MouseDragRequest) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "button")
 		delete(additionalProperties, "endX")
 		delete(additionalProperties, "endY")
+		delete(additionalProperties, "modifiers")
 		delete(additionalProperties, "startX")
 		delete(additionalProperties, "startY")
 		o.AdditionalProperties = additionalProperties

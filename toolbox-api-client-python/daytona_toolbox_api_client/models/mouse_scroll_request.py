@@ -31,11 +31,12 @@ class MouseScrollRequest(BaseModel):
     MouseScrollRequest
     """ # noqa: E501
     amount: Optional[Annotated[int, Field(strict=True, ge=0)]] = None
-    direction: Optional[StrictStr] = Field(default=None, description="up, down")
+    direction: Optional[StrictStr] = Field(default=None, description="up, down, left, right")
+    modifiers: Optional[List[StrictStr]] = None
     x: Optional[StrictInt] = None
     y: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["amount", "direction", "x", "y"]
+    __properties: ClassVar[List[str]] = ["amount", "direction", "modifiers", "x", "y"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -96,6 +97,7 @@ class MouseScrollRequest(BaseModel):
         _obj = cls.model_validate({
             "amount": obj.get("amount"),
             "direction": obj.get("direction"),
+            "modifiers": obj.get("modifiers"),
             "x": obj.get("x"),
             "y": obj.get("y")
         })

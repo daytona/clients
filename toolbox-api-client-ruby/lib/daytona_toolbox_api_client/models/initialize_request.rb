@@ -65,8 +65,6 @@ module DaytonaToolboxApiClient
 
       if attributes.key?(:'token')
         self.token = attributes[:'token']
-      else
-        self.token = nil
       end
     end
 
@@ -75,10 +73,6 @@ module DaytonaToolboxApiClient
     def list_invalid_properties
       warn '[DEPRECATED] the `list_invalid_properties` method is obsolete'
       invalid_properties = Array.new
-      if @token.nil?
-        invalid_properties.push('invalid value for "token", token cannot be nil.')
-      end
-
       invalid_properties
     end
 
@@ -86,18 +80,7 @@ module DaytonaToolboxApiClient
     # @return true if the model is valid
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
-      return false if @token.nil?
       true
-    end
-
-    # Custom attribute writer method with validation
-    # @param [Object] token Value to be assigned
-    def token=(token)
-      if token.nil?
-        fail ArgumentError, 'token cannot be nil'
-      end
-
-      @token = token
     end
 
     # Checks equality by comparing each attribute.

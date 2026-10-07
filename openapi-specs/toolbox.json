@@ -331,6 +331,47 @@
         }
       }
     },
+    "/computeruse/keyboard/down": {
+      "post": {
+        "description": "Press a key or modifier and hold it down until a matching key up call",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["computer-use"],
+        "summary": "Press and hold a keyboard key",
+        "operationId": "KeyDown",
+        "parameters": [
+          {
+            "description": "Key down request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/KeyboardKeyDownRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/Empty"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
     "/computeruse/keyboard/hotkey": {
       "post": {
         "description": "Press a hotkey combination (e.g., ctrl+c, cmd+v)",
@@ -454,6 +495,47 @@
         }
       }
     },
+    "/computeruse/keyboard/up": {
+      "post": {
+        "description": "Release a key or modifier that is currently held down",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["computer-use"],
+        "summary": "Release a held keyboard key",
+        "operationId": "KeyUp",
+        "parameters": [
+          {
+            "description": "Key up request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/KeyboardKeyUpRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/Empty"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
     "/computeruse/mouse/click": {
       "post": {
         "description": "Click the mouse button at the specified coordinates",
@@ -478,6 +560,47 @@
             "description": "OK",
             "schema": {
               "$ref": "#/definitions/MouseClickResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/computeruse/mouse/down": {
+      "post": {
+        "description": "Press and hold a mouse button, optionally moving to the specified coordinates first",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["computer-use"],
+        "summary": "Press mouse button",
+        "operationId": "MouseDown",
+        "parameters": [
+          {
+            "description": "Mouse button press request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MouseDownRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/MousePositionResponse"
             }
           },
           "400": {
@@ -624,6 +747,47 @@
             "description": "OK",
             "schema": {
               "$ref": "#/definitions/ScrollResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/computeruse/mouse/up": {
+      "post": {
+        "description": "Release a held mouse button, optionally moving to the specified coordinates first",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["computer-use"],
+        "summary": "Release mouse button",
+        "operationId": "MouseUp",
+        "parameters": [
+          {
+            "description": "Mouse button release request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MouseUpRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/MousePositionResponse"
             }
           },
           "400": {
@@ -821,12 +985,6 @@
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
           }
         }
       }
@@ -947,12 +1105,6 @@
           },
           "404": {
             "description": "Not Found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -1334,6 +1486,18 @@
                 "type": "string"
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -1496,12 +1660,15 @@
         "operationId": "UploadFiles",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/UploadFilesResponse"
+            }
           },
           "400": {
             "description": "Bad Request",
             "schema": {
-              "$ref": "#/definitions/ErrorResponse"
+              "$ref": "#/definitions/UploadFilesResponse"
             }
           }
         }
@@ -2484,6 +2651,36 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
           }
         }
       }
@@ -2586,36 +2783,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
           }
         }
       }
@@ -3565,7 +3732,7 @@
     },
     "/process/session/entrypoint/logs": {
       "get": {
-        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK >= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a sandbox entrypoint session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.161.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get entrypoint logs",
@@ -3786,7 +3953,7 @@
     },
     "/process/session/{sessionId}/command/{commandId}/logs": {
       "get": {
-        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK >= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
+        "description": "Get logs for a specific command within a session. Returns JSON with separated stdout/stderr for SDK \u003e= 0.167.0, plain text otherwise. Supports WebSocket streaming.",
         "produces": ["application/json", "text/plain"],
         "tags": ["process"],
         "summary": "Get session command logs",
@@ -3900,6 +4067,12 @@
           },
           "409": {
             "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "410": {
+            "description": "Gone",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -4358,6 +4531,75 @@
         }
       }
     },
+    "DaemonErrorCode": {
+      "type": "string",
+      "enum": [
+        "GIT_AUTH_FAILED",
+        "GIT_REPO_NOT_FOUND",
+        "GIT_BRANCH_NOT_FOUND",
+        "GIT_BRANCH_EXISTS",
+        "GIT_PUSH_REJECTED",
+        "GIT_DIRTY_WORKTREE",
+        "GIT_MERGE_CONFLICT",
+        "GIT_TRANSPORT_FAILED",
+        "GIT_REMOTE_REJECTED",
+        "FILE_NOT_FOUND",
+        "FILE_ACCESS_DENIED",
+        "INVALID_FILE_PATH",
+        "FILE_READ_FAILED",
+        "LSP_SERVER_NOT_INITIALIZED",
+        "PROCESS_EXECUTION_TIMEOUT",
+        "PROCESS_NOT_FOUND",
+        "SESSION_ENDED",
+        "COMMAND_ALREADY_COMPLETED",
+        "A11Y_UNAVAILABLE",
+        "RECORDING_STILL_ACTIVE",
+        "RECORDING_FFMPEG_NOT_FOUND",
+        "BAD_REQUEST",
+        "INVALID_REQUEST_BODY",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "CONFLICT",
+        "REQUEST_TIMEOUT",
+        "GONE",
+        "UNPROCESSABLE_ENTITY",
+        "INTERNAL_SERVER_ERROR"
+      ],
+      "x-enum-varnames": [
+        "CodeGitAuthFailed",
+        "CodeGitRepoNotFound",
+        "CodeGitBranchNotFound",
+        "CodeGitBranchExists",
+        "CodeGitPushRejected",
+        "CodeGitDirtyWorktree",
+        "CodeGitMergeConflict",
+        "CodeGitTransportFailed",
+        "CodeGitRemoteRejected",
+        "CodeFileNotFound",
+        "CodeFileAccessDenied",
+        "CodeInvalidFilePath",
+        "CodeFileReadFailed",
+        "CodeLspServerNotInitialized",
+        "CodeProcessExecutionTimeout",
+        "CodeProcessNotFound",
+        "CodeSessionEnded",
+        "CodeCommandAlreadyCompleted",
+        "CodeA11yUnavailable",
+        "CodeRecordingStillActive",
+        "CodeRecordingFfmpegNotFound",
+        "CodeBadRequest",
+        "CodeInvalidRequestBody",
+        "CodeUnauthorized",
+        "CodeForbidden",
+        "CodeNotFound",
+        "CodeConflict",
+        "CodeRequestTimeout",
+        "CodeGone",
+        "CodeUnprocessableEntity",
+        "CodeInternalServerError"
+      ]
+    },
     "DisplayInfo": {
       "type": "object",
       "properties": {
@@ -4394,6 +4636,45 @@
     },
     "Empty": {
       "type": "object"
+    },
+    "ErrorResponse": {
+      "description": "Error response",
+      "type": "object",
+      "required": ["message", "path", "statusCode", "timestamp"],
+      "properties": {
+        "code": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DaemonErrorCode"
+            }
+          ],
+          "example": "GIT_REPO_NOT_FOUND"
+        },
+        "message": {
+          "type": "string",
+          "example": "Bad request"
+        },
+        "method": {
+          "type": "string",
+          "example": "GET"
+        },
+        "path": {
+          "type": "string",
+          "example": "/api/resource"
+        },
+        "source": {
+          "type": "string",
+          "example": "DAYTONA_DAEMON"
+        },
+        "statusCode": {
+          "type": "integer",
+          "example": 400
+        },
+        "timestamp": {
+          "type": "string",
+          "example": "2023-01-01T12:00:00Z"
+        }
+      }
     },
     "ExecuteRequest": {
       "type": "object",
@@ -4920,7 +5201,6 @@
     },
     "InitializeRequest": {
       "type": "object",
-      "required": ["token"],
       "properties": {
         "token": {
           "type": "string"
@@ -4961,6 +5241,26 @@
       "properties": {
         "keys": {
           "description": "e.g., \"ctrl+c\", \"cmd+v\"",
+          "type": "string"
+        }
+      }
+    },
+    "KeyboardKeyDownRequest": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": {
+          "description": "e.g., \"ctrl\", \"shift\", \"a\"",
+          "type": "string"
+        }
+      }
+    },
+    "KeyboardKeyUpRequest": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": {
+          "description": "e.g., \"ctrl\", \"shift\", \"a\"",
           "type": "string"
         }
       }
@@ -5165,8 +5465,18 @@
           "description": "left, right, middle",
           "type": "string"
         },
+        "clicks": {
+          "description": "Clicks is a pointer so an omitted value is distinguishable from an\nexplicit 0, which must be rejected rather than silently defaulted.",
+          "type": "integer"
+        },
         "double": {
           "type": "boolean"
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "x": {
           "type": "integer"
@@ -5187,6 +5497,21 @@
         }
       }
     },
+    "MouseDownRequest": {
+      "type": "object",
+      "properties": {
+        "button": {
+          "description": "left, right, middle",
+          "type": "string"
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      }
+    },
     "MouseDragRequest": {
       "type": "object",
       "properties": {
@@ -5198,6 +5523,12 @@
         },
         "endY": {
           "type": "integer"
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "startX": {
           "type": "integer"
@@ -5249,7 +5580,28 @@
           "minimum": 0
         },
         "direction": {
-          "description": "up, down",
+          "description": "up, down, left, right",
+          "type": "string"
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        }
+      }
+    },
+    "MouseUpRequest": {
+      "type": "object",
+      "properties": {
+        "button": {
+          "description": "left, right, middle",
           "type": "string"
         },
         "x": {
@@ -5712,6 +6064,23 @@
         }
       }
     },
+    "UploadFilesResponse": {
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/fs.fileResult"
+          }
+        }
+      }
+    },
     "UploadedFile": {
       "type": "object",
       "required": ["name", "path", "type"],
@@ -5820,113 +6189,20 @@
         }
       }
     },
+    "fs.fileResult": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
     "gin.H": {
       "type": "object",
       "additionalProperties": {}
-    },
-    "DaemonErrorCode": {
-      "type": "string",
-      "enum": [
-        "GIT_AUTH_FAILED",
-        "GIT_REPO_NOT_FOUND",
-        "GIT_BRANCH_NOT_FOUND",
-        "GIT_BRANCH_EXISTS",
-        "GIT_PUSH_REJECTED",
-        "GIT_DIRTY_WORKTREE",
-        "GIT_MERGE_CONFLICT",
-        "GIT_TRANSPORT_FAILED",
-        "GIT_REMOTE_REJECTED",
-        "FILE_NOT_FOUND",
-        "FILE_ACCESS_DENIED",
-        "LSP_SERVER_NOT_INITIALIZED",
-        "PROCESS_EXECUTION_TIMEOUT",
-        "PROCESS_NOT_FOUND",
-        "SESSION_ENDED",
-        "COMMAND_ALREADY_COMPLETED",
-        "A11Y_UNAVAILABLE",
-        "RECORDING_STILL_ACTIVE",
-        "RECORDING_FFMPEG_NOT_FOUND",
-        "BAD_REQUEST",
-        "INVALID_REQUEST_BODY",
-        "UNAUTHORIZED",
-        "FORBIDDEN",
-        "NOT_FOUND",
-        "CONFLICT",
-        "REQUEST_TIMEOUT",
-        "GONE",
-        "UNPROCESSABLE_ENTITY",
-        "INTERNAL_SERVER_ERROR"
-      ],
-      "x-enum-varnames": [
-        "CodeGitAuthFailed",
-        "CodeGitRepoNotFound",
-        "CodeGitBranchNotFound",
-        "CodeGitBranchExists",
-        "CodeGitPushRejected",
-        "CodeGitDirtyWorktree",
-        "CodeGitMergeConflict",
-        "CodeGitTransportFailed",
-        "CodeGitRemoteRejected",
-        "CodeFileNotFound",
-        "CodeFileAccessDenied",
-        "CodeLspServerNotInitialized",
-        "CodeProcessExecutionTimeout",
-        "CodeProcessNotFound",
-        "CodeSessionEnded",
-        "CodeCommandAlreadyCompleted",
-        "CodeA11yUnavailable",
-        "CodeRecordingStillActive",
-        "CodeRecordingFfmpegNotFound",
-        "CodeBadRequest",
-        "CodeInvalidRequestBody",
-        "CodeUnauthorized",
-        "CodeForbidden",
-        "CodeNotFound",
-        "CodeConflict",
-        "CodeRequestTimeout",
-        "CodeGone",
-        "CodeUnprocessableEntity",
-        "CodeInternalServerError"
-      ]
-    },
-    "ErrorResponse": {
-      "description": "Error response",
-      "type": "object",
-      "required": ["message", "path", "statusCode", "timestamp"],
-      "properties": {
-        "code": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/DaemonErrorCode"
-            }
-          ],
-          "example": "GIT_REPO_NOT_FOUND"
-        },
-        "message": {
-          "type": "string",
-          "example": "Bad request"
-        },
-        "method": {
-          "type": "string",
-          "example": "GET"
-        },
-        "path": {
-          "type": "string",
-          "example": "/api/resource"
-        },
-        "source": {
-          "type": "string",
-          "example": "DAYTONA_DAEMON"
-        },
-        "statusCode": {
-          "type": "integer",
-          "example": 400
-        },
-        "timestamp": {
-          "type": "string",
-          "example": "2023-01-01T12:00:00Z"
-        }
-      }
     }
   },
   "securityDefinitions": {

@@ -15,6 +15,6 @@
 
 
 export interface InitializeRequest {
-    'token': string;
+    'token'?: string;
 }
 

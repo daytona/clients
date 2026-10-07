@@ -18,7 +18,12 @@ module DaytonaToolboxApiClient
     # left, right, middle
     attr_accessor :button
 
+    # Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted.
+    attr_accessor :clicks
+
     attr_accessor :double
+
+    attr_accessor :modifiers
 
     attr_accessor :x
 
@@ -28,7 +33,9 @@ module DaytonaToolboxApiClient
     def self.attribute_map
       {
         :'button' => :'button',
+        :'clicks' => :'clicks',
         :'double' => :'double',
+        :'modifiers' => :'modifiers',
         :'x' => :'x',
         :'y' => :'y'
       }
@@ -48,7 +55,9 @@ module DaytonaToolboxApiClient
     def self.openapi_types
       {
         :'button' => :'String',
+        :'clicks' => :'Integer',
         :'double' => :'Boolean',
+        :'modifiers' => :'Array<String>',
         :'x' => :'Integer',
         :'y' => :'Integer'
       }
@@ -80,8 +89,18 @@ module DaytonaToolboxApiClient
         self.button = attributes[:'button']
       end
 
+      if attributes.key?(:'clicks')
+        self.clicks = attributes[:'clicks']
+      end
+
       if attributes.key?(:'double')
         self.double = attributes[:'double']
+      end
+
+      if attributes.key?(:'modifiers')
+        if (value = attributes[:'modifiers']).is_a?(Array)
+          self.modifiers = value
+        end
       end
 
       if attributes.key?(:'x')
@@ -114,7 +133,9 @@ module DaytonaToolboxApiClient
       return true if self.equal?(o)
       self.class == o.class &&
           button == o.button &&
+          clicks == o.clicks &&
           double == o.double &&
+          modifiers == o.modifiers &&
           x == o.x &&
           y == o.y
     end
@@ -128,7 +149,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [button, double, x, y].hash
+      [button, clicks, double, modifiers, x, y].hash
     end
 
     # Builds the object from hash

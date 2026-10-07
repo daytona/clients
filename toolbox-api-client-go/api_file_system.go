@@ -201,7 +201,8 @@ Parent directories are created if missing; an existing file is overwritten.
 	UploadFiles(ctx context.Context) FileSystemAPIUploadFilesRequest
 
 	// UploadFilesExecute executes the request
-	UploadFilesExecute(r FileSystemAPIUploadFilesRequest) (*http.Response, error)
+	//  @return UploadFilesResponse
+	UploadFilesExecute(r FileSystemAPIUploadFilesRequest) (*UploadFilesResponse, *http.Response, error)
 }
 
 // FileSystemAPIService FileSystemAPI service
@@ -1905,7 +1906,7 @@ type FileSystemAPIUploadFilesRequest struct {
 	ApiService FileSystemAPI
 }
 
-func (r FileSystemAPIUploadFilesRequest) Execute() (*http.Response, error) {
+func (r FileSystemAPIUploadFilesRequest) Execute() (*UploadFilesResponse, *http.Response, error) {
 	return r.ApiService.UploadFilesExecute(r)
 }
 
@@ -1925,16 +1926,18 @@ func (a *FileSystemAPIService) UploadFiles(ctx context.Context) FileSystemAPIUpl
 }
 
 // Execute executes the request
-func (a *FileSystemAPIService) UploadFilesExecute(r FileSystemAPIUploadFilesRequest) (*http.Response, error) {
+//  @return UploadFilesResponse
+func (a *FileSystemAPIService) UploadFilesExecute(r FileSystemAPIUploadFilesRequest) (*UploadFilesResponse, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
+		localVarReturnValue  *UploadFilesResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FileSystemAPIService.UploadFiles")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
 	localVarPath := localBasePath + "/files/bulk-upload"
@@ -1962,19 +1965,19 @@ func (a *FileSystemAPIService) UploadFilesExecute(r FileSystemAPIUploadFilesRequ
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -1983,17 +1986,26 @@ func (a *FileSystemAPIService) UploadFilesExecute(r FileSystemAPIUploadFilesRequ
 			error: localVarHTTPResponse.Status,
 		}
 		if localVarHTTPResponse.StatusCode == 400 {
-			var v ErrorResponse
+			var v UploadFilesResponse
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }

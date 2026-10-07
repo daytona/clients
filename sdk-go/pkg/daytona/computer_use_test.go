@@ -6,6 +6,7 @@ package daytona
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -536,4 +537,331 @@ func TestAccessibilityServiceNodeActions(t *testing.T) {
 	require.NoError(t, accessibility.InvokeNode(ctx, "node-2", &action))
 	require.NoError(t, accessibility.SetNodeValue(ctx, "node-3", "hello"))
 	assert.Equal(t, 3, requests)
+}
+
+func newMouseTestService(t *testing.T, handler http.HandlerFunc) (*MouseService, func()) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	return NewMouseService(createTestToolboxClient(server), nil), server.Close
+}
+
+func newKeyboardTestService(t *testing.T, handler http.HandlerFunc) (*KeyboardService, func()) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}))
+	return NewKeyboardService(createTestToolboxClient(server), nil), server.Close
+}
+
+// readRawJSONBody returns both the exact bytes the SDK put on the wire and the
+// decoded body, so a test can assert on literal JSON as well as parsed values.
+func readRawJSONBody(t *testing.T, r *http.Request) (string, map[string]any) {
+	t.Helper()
+	raw, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(raw, &body))
+	return string(raw), body
+}
+
+func TestMouseDown(t *testing.T) {
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/computeruse/mouse/down", r.URL.Path)
+
+		body := readJSONBody(t, r)
+		assert.Equal(t, "right", body["button"])
+		assert.Equal(t, float64(100), body["x"])
+		assert.Equal(t, float64(200), body["y"])
+
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 100, "y": 200})
+	})
+	defer cleanup()
+
+	button := "right"
+	x, y := 100, 200
+	ctx := context.Background()
+
+	pos, err := mouse.Down(ctx, &button, &x, &y)
+	require.NoError(t, err)
+	assert.Equal(t, int32(100), pos["x"])
+	assert.Equal(t, int32(200), pos["y"])
+}
+
+func TestMouseUp(t *testing.T) {
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/computeruse/mouse/up", r.URL.Path)
+
+		body := readJSONBody(t, r)
+		assert.Equal(t, "middle", body["button"])
+		assert.Equal(t, float64(300), body["x"])
+		assert.Equal(t, float64(400), body["y"])
+
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 300, "y": 400})
+	})
+	defer cleanup()
+
+	button := "middle"
+	x, y := 300, 400
+	ctx := context.Background()
+
+	pos, err := mouse.Up(ctx, &button, &x, &y)
+	require.NoError(t, err)
+	assert.Equal(t, int32(300), pos["x"])
+	assert.Equal(t, int32(400), pos["y"])
+}
+
+// TestMouseDownExplicitZeroCoordinatesAreSent guards the top-left corner of the
+// screen. (0, 0) is a legitimate target, but it is also Go's zero value for an
+// int, so a value-typed or `omitempty`-tagged field would silently drop it and
+// the press would land at the current cursor position instead. This asserts on
+// the literal bytes of the outgoing request to catch that regression.
+func TestMouseDownExplicitZeroCoordinatesAreSent(t *testing.T) {
+	var raw string
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/computeruse/mouse/down", r.URL.Path)
+		raw, body = readRawJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 0, "y": 0})
+	})
+	defer cleanup()
+
+	x, y := 0, 0
+	ctx := context.Background()
+
+	pos, err := mouse.Down(ctx, nil, &x, &y)
+	require.NoError(t, err)
+
+	assert.Contains(t, raw, `"x":0`)
+	assert.Contains(t, raw, `"y":0`)
+
+	xValue, hasX := body["x"]
+	require.True(t, hasX, "x must be present in the request body, got %s", raw)
+	assert.Equal(t, float64(0), xValue)
+
+	yValue, hasY := body["y"]
+	require.True(t, hasY, "y must be present in the request body, got %s", raw)
+	assert.Equal(t, float64(0), yValue)
+
+	assert.Equal(t, int32(0), pos["x"])
+	assert.Equal(t, int32(0), pos["y"])
+}
+
+// TestMouseDownOmitsUnsetCoordinates is the counterpart to the (0, 0) test: an
+// omitted coordinate must stay off the wire so the daemon presses at the
+// current cursor position rather than at the origin.
+func TestMouseDownOmitsUnsetCoordinates(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 10, "y": 20})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+
+	_, err := mouse.Down(ctx, nil, nil, nil)
+	require.NoError(t, err)
+
+	assert.Empty(t, body)
+	assert.NotContains(t, body, "x")
+	assert.NotContains(t, body, "y")
+	assert.NotContains(t, body, "button")
+}
+
+func TestMouseUpOmitsUnsetCoordinates(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/computeruse/mouse/up", r.URL.Path)
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 10, "y": 20})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+
+	_, err := mouse.Up(ctx, nil, nil, nil)
+	require.NoError(t, err)
+	assert.Empty(t, body)
+}
+
+func TestKeyboardKeyDown(t *testing.T) {
+	kb, cleanup := newKeyboardTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/computeruse/keyboard/down", r.URL.Path)
+
+		body := readJSONBody(t, r)
+		assert.Equal(t, "shift", body["key"])
+
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	assert.NoError(t, kb.KeyDown(ctx, "shift"))
+}
+
+func TestKeyboardKeyUp(t *testing.T) {
+	kb, cleanup := newKeyboardTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/computeruse/keyboard/up", r.URL.Path)
+
+		body := readJSONBody(t, r)
+		assert.Equal(t, "shift", body["key"])
+
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	assert.NoError(t, kb.KeyUp(ctx, "shift"))
+}
+
+func TestKeyboardKeyDownAndKeyUpRoundTrip(t *testing.T) {
+	var paths []string
+	kb, cleanup := newKeyboardTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		body := readJSONBody(t, r)
+		assert.Equal(t, "ctrl", body["key"])
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	require.NoError(t, kb.KeyDown(ctx, "ctrl"))
+	require.NoError(t, kb.KeyUp(ctx, "ctrl"))
+
+	assert.Equal(t, []string{"/computeruse/keyboard/down", "/computeruse/keyboard/up"}, paths)
+}
+
+func TestMouseClickWithClicksAndModifiers(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/computeruse/mouse/click", r.URL.Path)
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 100, "y": 200})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	pos, err := mouse.Click(ctx, 100, 200, nil, nil, WithClicks(3), WithClickModifiers("ctrl", "shift"))
+	require.NoError(t, err)
+	assert.NotNil(t, pos)
+
+	assert.Equal(t, float64(100), body["x"])
+	assert.Equal(t, float64(200), body["y"])
+	assert.Equal(t, float64(3), body["clicks"])
+	assert.Equal(t, []any{"ctrl", "shift"}, body["modifiers"])
+}
+
+// TestMouseClickExplicitZeroClicksIsSent mirrors the daemon contract, where
+// `clicks` is a pointer precisely so an explicit 0 can be rejected instead of
+// being silently defaulted to 1.
+func TestMouseClickExplicitZeroClicksIsSent(t *testing.T) {
+	var raw string
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, body = readRawJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 1, "y": 1})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	_, err := mouse.Click(ctx, 1, 1, nil, nil, WithClicks(0))
+	require.NoError(t, err)
+
+	assert.Contains(t, raw, `"clicks":0`)
+	clicks, hasClicks := body["clicks"]
+	require.True(t, hasClicks, "clicks must be present in the request body, got %s", raw)
+	assert.Equal(t, float64(0), clicks)
+}
+
+func TestMouseClickOmitsUnsetOptions(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 100, "y": 200})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	_, err := mouse.Click(ctx, 100, 200, nil, nil)
+	require.NoError(t, err)
+
+	assert.NotContains(t, body, "clicks")
+	assert.NotContains(t, body, "modifiers")
+	assert.Equal(t, float64(100), body["x"])
+	assert.Equal(t, float64(200), body["y"])
+}
+
+func TestMouseDragWithModifiers(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/computeruse/mouse/drag", r.URL.Path)
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 300, "y": 300})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil, WithDragModifiers("shift"))
+	require.NoError(t, err)
+	assert.NotNil(t, pos)
+
+	assert.Equal(t, float64(100), body["startX"])
+	assert.Equal(t, float64(100), body["startY"])
+	assert.Equal(t, float64(300), body["endX"])
+	assert.Equal(t, float64(300), body["endY"])
+	assert.Equal(t, []any{"shift"}, body["modifiers"])
+}
+
+func TestMouseDragOmitsUnsetModifiers(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"x": 300, "y": 300})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	_, err := mouse.Drag(ctx, 100, 100, 300, 300, nil)
+	require.NoError(t, err)
+	assert.NotContains(t, body, "modifiers")
+}
+
+func TestMouseScrollWithModifiers(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/computeruse/mouse/scroll", r.URL.Path)
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"success": true})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	success, err := mouse.Scroll(ctx, 500, 400, "right", nil, WithScrollModifiers("shift"))
+	require.NoError(t, err)
+	assert.True(t, success)
+
+	assert.Equal(t, float64(500), body["x"])
+	assert.Equal(t, float64(400), body["y"])
+	assert.Equal(t, "right", body["direction"])
+	assert.Equal(t, []any{"shift"}, body["modifiers"])
+}
+
+func TestMouseScrollOmitsUnsetModifiers(t *testing.T) {
+	var body map[string]any
+	mouse, cleanup := newMouseTestService(t, func(w http.ResponseWriter, r *http.Request) {
+		body = readJSONBody(t, r)
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{"success": true})
+	})
+	defer cleanup()
+
+	ctx := context.Background()
+	_, err := mouse.Scroll(ctx, 500, 400, "down", nil)
+	require.NoError(t, err)
+	assert.NotContains(t, body, "modifiers")
 }
