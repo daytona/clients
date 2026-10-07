@@ -1,0 +1,21 @@
+cli/cmd/common/ssh_test.go
+  s_9a086951f6e496::t_e4a0baeaae740c 1-186
+cli/cmd/common/ssh.go
+  s_9a086951f6e496::t_2c501dce8b2783 7-10,14-41,43-99,102-167,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "aa8456b63bbf3849322ba5c52688a73d06039720",
+  "prompts": {},
+  "sessions": {
+    "s_9a086951f6e496": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f940c4b88ffe2JfNvA2vEt0H02",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

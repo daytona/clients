@@ -1,0 +1,14 @@
+poetry.lock
+  h_e7759ddd73fa65 1,708,1645,1817,3933,3935,4759
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d27e915f8264356e967b99c1780fbcae275dc08d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

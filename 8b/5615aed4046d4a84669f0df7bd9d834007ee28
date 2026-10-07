@@ -1,0 +1,22 @@
+cli/cmd/auth/login.go
+  s_690f287646d05e::t_a8dce037db353c 113-115,117-118,124-139
+  s_690f287646d05e::t_dd3e6ac60895a6 16
+cli/cmd/common/organization.go
+  s_690f287646d05e::t_e1c8981a05820f 14-15,18,23-32,35-40,43,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8b5615aed4046d4a84669f0df7bd9d834007ee28",
+  "prompts": {},
+  "sessions": {
+    "s_690f287646d05e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f13787d67ffeoR7C2VoJZVCAMx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

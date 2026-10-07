@@ -1,0 +1,20 @@
+sdk-ruby/lib/daytona/config.rb
+  s_b697bba60c0c95::t_c6782fe78e5786 36-37
+  s_b697bba60c0c95::t_7e4a51d8bd8d75 22-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c23741da6cba437c5775779ce9b2840ccccce335",
+  "prompts": {},
+  "sessions": {
+    "s_b697bba60c0c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f9eecd38bffeTmlde40ECKP2om",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

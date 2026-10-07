@@ -1,0 +1,28 @@
+sdk-python/tests/conftest.py
+  s_1ed83f3e858439::t_856a03e38f1fcf 77
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_1ed83f3e858439::t_392d4e1150bd6e 70-71
+sdk-go/pkg/daytona/sandbox_test.go
+  s_1ed83f3e858439::t_7ffdf68ee8ad86 475-498
+sdk-go/pkg/daytona/sandbox.go
+  s_1ed83f3e858439::t_9981ee0c54621c 474,478-479,482
+  s_1ed83f3e858439::t_fee7b7adb60771 451-460
+sdk-python/tests/test_sandbox.py
+  s_1ed83f3e858439::t_51c502045edb5e 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "621cbf50a45c30a20b86849eb77e69d599fb8420",
+  "prompts": {},
+  "sessions": {
+    "s_1ed83f3e858439": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_fcd346cc2ffetaeWToz2XIn3L2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

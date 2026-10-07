@@ -1,0 +1,24 @@
+sdk-go/pkg/daytona/object_storage_test.go
+  s_f087d15b483dd5::t_533e6a5d628c54 21-22,24-26
+  s_f087d15b483dd5::t_2e67986a0497cf 425-493
+sdk-go/pkg/daytona/object_storage.go
+  s_f087d15b483dd5::t_a2b826a0e672c8 123-130
+  s_f087d15b483dd5::t_66131aa692c9e6 23
+  s_f087d15b483dd5::t_e7a70bcda501c7 32-36,41-42,46-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a4ee8e7196ed270da24f7d45d4bdaa75d80b447a",
+  "prompts": {},
+  "sessions": {
+    "s_f087d15b483dd5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_fa23d4d90ffeJ2RGjuJmpoZrwT",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

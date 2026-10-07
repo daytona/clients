@@ -1,0 +1,27 @@
+cli/toolbox/toolbox_test.go
+  s_41515f06601b5f::t_b73d54f20618d3 1-208
+cli/toolbox/toolbox.go
+  s_41515f06601b5f::t_4eb745c10e7fed 40-48,51-59,68
+cli/config/config.go
+  s_41515f06601b5f::t_d74e2f024a71ea 30
+cli/toolbox/api_client.go
+  s_41515f06601b5f::t_b7e5259bb7a540 61
+cli/config/config_test.go
+  s_41515f06601b5f::t_7949b3048d6a5a 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c2cff07782ba80ebe49d4fc1915abec293d66d28",
+  "prompts": {},
+  "sessions": {
+    "s_41515f06601b5f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f94648207ffesilaysQeisDGJR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

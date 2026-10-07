@@ -1,0 +1,54 @@
+sdk-python/src/daytona/_async/daytona.py
+  s_8d3d833a660b97::t_20a0583f93fb06 29,662-668
+  s_8d3d833a660b97::t_b90baf3ff89ded 35
+sdk-typescript/src/index.ts
+  s_8d3d833a660b97::t_e0f9c8c5bba152 122-131
+sdk-python/tests/conftest.py
+  s_8d3d833a660b97::t_46fec560932c11 90
+sdk-python/tests/test_daytona.py
+  s_8d3d833a660b97::t_46fec560932c11 12,217-230
+sdk-python/src/daytona/_async/sandbox.py
+  s_8d3d833a660b97::t_52e6aebefb08af 195
+sdk-python/src/daytona/_sync/sandbox.py
+  s_8d3d833a660b97::t_52e6aebefb08af 184
+sdk-python/tests/test_sandbox.py
+  s_8d3d833a660b97::t_46fec560932c11 82-88
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_8d3d833a660b97::t_3c173708965634 191,196,204
+sdk-python/tests/test_async_daytona.py
+  s_8d3d833a660b97::t_46fec560932c11 11,527-540
+sdk-typescript/src/Daytona.ts
+  s_8d3d833a660b97::t_4755fe2f31e942 19,202,226,731
+openapi-specs/api.json
+  s_8d3d833a660b97::t_1defe616fb3145 17272-17275,17277-17280,17294-17296,17300-17304,17306-17310
+  s_8d3d833a660b97::t_22fd7d4a0b8de6 13967-13974,14215-14222,17269-17271,17276,17281-17293,17297-17299,17305,17311-17324
+sdk-python/src/daytona/_sync/daytona.py
+  s_8d3d833a660b97::t_20a0583f93fb06 25-32,544-550
+  s_8d3d833a660b97::t_b90baf3ff89ded 34-42
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_8d3d833a660b97::t_3c173708965634 536-556
+sdk-python/tests/test_async_sandbox.py
+  s_8d3d833a660b97::t_46fec560932c11 52-59
+sdk-typescript/src/Sandbox.ts
+  s_8d3d833a660b97::t_4755fe2f31e942 30,112,179,1564
+sdk-python/src/daytona/common/daytona.py
+  s_8d3d833a660b97::t_20a0583f93fb06 49-68,203-204,231
+sdk-python/src/daytona/__init__.py
+  s_8d3d833a660b97::t_706a38c6ca754b 48-49,166-167,264-265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "23fa2e7cb896c20c42986f22966db6864de739c6",
+  "prompts": {},
+  "sessions": {
+    "s_8d3d833a660b97": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab24-ca2a-7df0-a74b-53a57fd05c61",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

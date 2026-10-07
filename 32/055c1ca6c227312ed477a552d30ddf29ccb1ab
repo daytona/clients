@@ -1,0 +1,44 @@
+sdk-python/src/daytona/_async/sandbox.py
+  s_f94c81f8bbf52e::t_e6ddd6cdca6ca3 166-167
+sdk-python/src/daytona/_sync/sandbox.py
+  s_f94c81f8bbf52e::t_3d473a044a5d15 154-155
+sdk-go/pkg/daytona/sandbox.go
+  s_f94c81f8bbf52e::t_813bd9c008155a 399-400
+  s_f94c81f8bbf52e::t_ce682274cdecc6 178-179
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  s_f94c81f8bbf52e::t_6cb275526bf458 385
+sdk-ruby/lib/daytona/sandbox.rb
+  s_f94c81f8bbf52e::t_c9acab43463176 84
+sdk-python/tests/test_async_sandbox.py
+  s_f94c81f8bbf52e::t_7e6206922afe98 56,61
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_f4d8c5154fc2d9::t_d59dad094f3c3b 65-66
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_f4d8c5154fc2d9::t_27caf371632c66 65-66
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  s_f4d8c5154fc2d9::t_3e0d1bd58cc1f3 129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32055c1ca6c227312ed477a552d30ddf29ccb1ab",
+  "prompts": {},
+  "sessions": {
+    "s_f4d8c5154fc2d9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2fd2b790ffe149W2XuOLk79i2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_f94c81f8bbf52e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f2fd2b790ffe149W2XuOLk79i2",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
