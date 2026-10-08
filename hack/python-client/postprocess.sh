@@ -43,6 +43,10 @@ done
 # Server-side already handles stale connections.
 sed -i 's/timeout = _request_timeout or 5 \* 60/timeout = _request_timeout/' "$pkg_root/rest.py"
 
+# Serialize boolean path parameters as "true"/"false", as query parameters and the
+# other generated clients already do; str(True) would send "True".
+sed -i 's/quote(str(v), safe=config.safe_chars_for_path_param)/quote(str(v).lower() if isinstance(v, bool) else str(v), safe=config.safe_chars_for_path_param)/' "$pkg_root/api_client.py"
+
 # Set dynamic User-Agent with package version
 CLIENT_NAME=$(basename "$PROJECT_ROOT")
 sed -i '/^from.*\.configuration import Configuration$/a from . import __version__ as _pkg_version' "$pkg_root/api_client.py"

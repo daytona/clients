@@ -418,3 +418,17 @@ class TestSandboxPollingSemantics:
 
         with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
             sandbox._experimental_create_snapshot("my-snapshot", timeout=0)
+
+
+@pytest.mark.parametrize("public", [True, False])
+def test_public_status_path_uses_json_booleans(public):
+    from daytona_api_client.api_client import ApiClient
+    from daytona_api_client_async.api_client import ApiClient as AsyncApiClient
+
+    for client in (ApiClient(), AsyncApiClient()):
+        _, url, *_ = client.param_serialize(
+            method="POST",
+            resource_path="/sandbox/{sandboxIdOrName}/public/{isPublic}",
+            path_params={"sandboxIdOrName": "sb-1", "isPublic": public},
+        )
+        assert url.endswith(f"/sandbox/sb-1/public/{str(public).lower()}")
