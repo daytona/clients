@@ -357,9 +357,9 @@ func TestSandboxResizeTimeoutValidation(t *testing.T) {
 }
 
 func TestSandboxSetPublic(t *testing.T) {
-	var gotMethod, gotPath string
+	requests := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotMethod, gotPath = r.Method, r.URL.Path
+		requests <- r.Method + " " + r.URL.Path
 		payload := testSandboxPayload("test-id", "test", apiclient.SANDBOXSTATE_STARTED)
 		payload["public"] = true
 		writeJSONResponse(t, w, http.StatusOK, payload)
@@ -370,8 +370,7 @@ func TestSandboxSetPublic(t *testing.T) {
 	sandbox := newSandboxForTest(client, "test-id", "test", apiclient.SANDBOXSTATE_STARTED, "us-east-1", 60, -1, false, nil)
 
 	require.NoError(t, sandbox.doSetPublic(context.Background(), true))
-	assert.Equal(t, http.MethodPost, gotMethod)
-	assert.Equal(t, "/sandbox/test-id/public/true", gotPath)
+	assert.Equal(t, "POST /sandbox/test-id/public/true", <-requests)
 	assert.True(t, sandbox.Public)
 
 	os.Clearenv()

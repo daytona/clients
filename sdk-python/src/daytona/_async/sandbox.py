@@ -774,8 +774,8 @@ class AsyncSandbox(SandboxDto):
 
         Example:
             ```python
-            sandbox.set_public(True)
-            preview = sandbox.get_preview_link(3000)
+            await sandbox.set_public(True)
+            preview = await sandbox.get_preview_link(3000)
             # preview.url can now be opened without credentials
             ```
         """

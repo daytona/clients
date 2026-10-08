@@ -370,7 +370,7 @@ module Daytona
     #
     # @param is_public [Boolean]
     # @return [Boolean]
-    # @raise [Daytona:Sdk::Error]
+    # @raise [Daytona::Sdk::Error]
     #
     # @example
     #   sandbox.public = true
@@ -966,7 +966,7 @@ module Daytona
       end
     end
 
-    with_events :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=,
+    with_events :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=, :public=,
                 :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :labels=,
                 :preview_url, :create_signed_preview_url, :expire_signed_preview_url,
                 :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,
@@ -975,7 +975,7 @@ module Daytona
                 :fork, :create_snapshot, :pause
 
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
-               :ttl_minutes=,
+               :ttl_minutes=, :public=,
                :update_network_settings, :update_secrets, :update_env,
                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :get_metrics, :get_metrics_latest,
                :labels=,
