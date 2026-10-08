@@ -101,7 +101,9 @@ class AsyncProcess:
         The call returns when the command finishes. To start a long-running process such as a
         server, run it in the background with its output redirected, e.g.
         `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
-        `run_async=True` (see `execute_session_command`).
+        `run_async=True` (see `execute_session_command`). A background process that keeps the
+        command's output open (`cmd &` without a redirect) can block the call until that process
+        exits.
 
         Tools in the sandbox may report the host's CPU count and memory (for example `nproc`
         or `os.cpu_count()`) rather than the sandbox's own limits. Size worker pools from the

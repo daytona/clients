@@ -83,7 +83,8 @@ public class Process {
      * <p>The call returns when the command finishes. To start a long-running process such as a
      * server, run it in the background with its output redirected, e.g.
      * {@code python3 -m http.server 8000 > server.log 2>&1 &}, or use a session command with
-     * {@code runAsync} set.
+     * {@code runAsync} set. A background process that keeps the command's output open
+     * ({@code cmd &} without a redirect) can block the call until that process exits.
      *
      * <p>Tools in the sandbox may report the host's CPU count and memory (for example {@code nproc}
      * or {@code Runtime.availableProcessors()}) rather than the sandbox's own limits. Size worker
