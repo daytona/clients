@@ -1,0 +1,21 @@
+analytics-api-client-python-async/project.json
+  s_fee527b899251e::t_2f6c4cfa3b4343 42
+analytics-api-client-python/project.json
+  s_fee527b899251e::t_6f576155610bcc 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69f7b6cbde5465e82c385b4ab69cd573977eb2ff",
+  "prompts": {},
+  "sessions": {
+    "s_fee527b899251e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee3f4d31effeQNby7TxCtMO9V9",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
