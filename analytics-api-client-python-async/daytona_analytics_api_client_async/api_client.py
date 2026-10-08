@@ -204,7 +204,7 @@ class ApiClient:
                 # specified safe chars, encode everything
                 resource_path = resource_path.replace(
                     '{%s}' % k,
-                    quote(str(v), safe=config.safe_chars_for_path_param)
+                    quote(str(v).lower() if isinstance(v, bool) else str(v), safe=config.safe_chars_for_path_param)
                 )
 
         # post parameters
