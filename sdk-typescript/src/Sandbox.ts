@@ -1048,6 +1048,12 @@ export class Sandbox {
    * it will be opened automatically. For private sandboxes, a token is included to grant access
    * to the URL.
    *
+   * For a private sandbox, requests to `url` must authenticate, otherwise they are answered with
+   * `401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header, or send
+   * your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works without extra
+   * headers (for example to open it in a browser or share it), use `getSignedPreviewUrl` instead.
+   * Public sandboxes need no credentials.
+   *
    * @param {number} port - The port to open the preview link on.
    * @returns {PortPreviewUrl} The response object for the preview link, which includes the `url`
    * and the `token` (to access private sandboxes).
@@ -1056,6 +1062,11 @@ export class Sandbox {
    * const previewLink = await sandbox.getPreviewLink(3000);
    * console.log(`Preview URL: ${previewLink.url}`);
    * console.log(`Token: ${previewLink.token}`);
+   *
+   * // Fetch the private preview from outside the sandbox
+   * const response = await fetch(previewLink.url, {
+   *   headers: { 'X-Daytona-Preview-Token': previewLink.token },
+   * });
    */
   @WithInstrumentation()
   @withEvents
@@ -1138,9 +1149,18 @@ export class Sandbox {
   /**
    * Retrieves a signed preview url for the sandbox at the specified port.
    *
+   * The access token is embedded in the returned URL, so it can be used without any headers, for
+   * example in a browser or by another service. The URL stops working when it expires (after 60
+   * seconds unless `expiresInSeconds` is set) or when it is expired with `expireSignedPreviewUrl`.
+   *
    * @param {number} port - The port to open the preview link on.
-   * @param {number} [expiresInSeconds] - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds.
+   * @param {number} [expiresInSeconds] - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds;
+   * set a longer value for links that need to stay usable, e.g. `3600` for one hour.
    * @returns {Promise<SignedPortPreviewUrl>} The response object for the signed preview url.
+   *
+   * @example
+   * const signed = await sandbox.getSignedPreviewUrl(3000, 3600);
+   * console.log(`Preview URL (valid for one hour): ${signed.url}`);
    */
   @withEvents
   public async getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPortPreviewUrl> {

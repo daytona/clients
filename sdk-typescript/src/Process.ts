@@ -90,6 +90,18 @@ export class Process {
   /**
    * Executes a shell command in the Sandbox.
    *
+   * The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh in the
+   * default snapshots. Quote arguments that contain glob characters, for example
+   * `pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+   *
+   * The call returns when the command finishes. To start a long-running process such as a server, run
+   * it in the background with its output redirected, e.g. `python3 -m http.server 8000 > server.log 2>&1 &`,
+   * or use a session with `runAsync: true` (see `executeSessionCommand`).
+   *
+   * Tools in the sandbox may report the host's CPU count and memory (for example `nproc` or
+   * `os.cpus()`) rather than the sandbox's own limits. Size worker pools from the sandbox's `cpu` and
+   * `memory` instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+   *
    * @param {string} command - Shell command to execute
    * @param {string} [cwd] - Working directory for command execution. If not specified, uses the sandbox working directory.
    * @param {Record<string, string>} [env] - Environment variables to set for the command
@@ -113,6 +125,10 @@ export class Process {
    * @example
    * // Command with timeout
    * const result = await process.executeCommand('sleep 10', undefined, 5);
+   *
+   * @example
+   * // Start a server in the background
+   * await process.executeCommand('python3 -m http.server 8000 > server.log 2>&1 &');
    */
   @WithInstrumentation()
   public async executeCommand(

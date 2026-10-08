@@ -555,8 +555,20 @@ module Daytona
     # it will be opened automatically. For private sandboxes, a token is included to grant access
     # to the URL.
     #
+    # For a private sandbox, requests to the URL must authenticate, otherwise they are answered
+    # with 401 Unauthorized. Send the returned token in the X-Daytona-Preview-Token header, or
+    # send your Daytona API key as "Authorization: Bearer <api key>". Public sandboxes need no
+    # credentials.
+    #
     # @param port [Integer]
     # @return [DaytonaApiClient::PortPreviewUrl]
+    #
+    # @example
+    #   preview = sandbox.preview_url(3000)
+    #   uri = URI(preview.url)
+    #   request = Net::HTTP::Get.new(uri)
+    #   request['X-Daytona-Preview-Token'] = preview.token
+    #   response = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(request) }
     def preview_url(port)
       sandbox_api.get_port_preview_url(id, port)
     end

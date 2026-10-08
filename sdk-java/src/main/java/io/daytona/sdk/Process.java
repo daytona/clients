@@ -76,6 +76,20 @@ public class Process {
     /**
      * Executes a shell command.
      *
+     * <p>The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh
+     * in the default snapshots. Quote arguments that contain glob characters, for example
+     * {@code pip install -e '.[test]'}, or wrap bash-specific scripts in {@code bash -c '...'}.
+     *
+     * <p>The call returns when the command finishes. To start a long-running process such as a
+     * server, run it in the background with its output redirected, e.g.
+     * {@code python3 -m http.server 8000 > server.log 2>&1 &}, or use a session command with
+     * {@code runAsync} set.
+     *
+     * <p>Tools in the sandbox may report the host's CPU count and memory (for example {@code nproc}
+     * or {@code Runtime.availableProcessors()}) rather than the sandbox's own limits. Size worker
+     * pools from the sandbox's CPU and memory instead, e.g. {@code pytest -n 2} rather than
+     * {@code pytest -n auto}.
+     *
      * @param command command to execute
      * @param cwd working directory, or {@code null} to use sandbox default
      * @param env environment variables to set for the command

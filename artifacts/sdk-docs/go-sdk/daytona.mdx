@@ -3599,6 +3599,12 @@ ExecuteCommand executes a shell command and returns the result.
 
 The command is executed in a shell context. For complex commands, consider using proper shell escaping or wrapping in a script.
 
+The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh in the default snapshots. Quote arguments that contain glob characters, for example \`pip install \-e '.\[test\]'\`, or wrap bash\-specific scripts in \`bash \-c '...'\`.
+
+The call returns when the command finishes. To start a long\-running process such as a server, run it in the background with its output redirected, e.g. \`python3 \-m http.server 8000 \> server.log 2\>&1 &\`, or use a session with runAsync set \(see [ProcessService.ExecuteSessionCommand](<#ProcessService.ExecuteSessionCommand>)\).
+
+Tools in the sandbox may report the host's CPU count and memory \(for example \`nproc\` or runtime.NumCPU\) rather than the sandbox's own limits. Size worker pools from the sandbox's CPU and memory instead, e.g. \`pytest \-n 2\` rather than \`pytest \-n auto\`.
+
 Optional parameters can be configured using functional options:
 
 - \[options.WithCwd\]: Set the working directory for command execution
@@ -4948,7 +4954,7 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 
 GetPreviewLink returns a preview link for accessing a port on the sandbox.
 
-The returned PreviewLink contains both the URL and an authentication token. For private sandboxes, the token must be sent via the "x\-daytona\-preview\-token" request header.
+The returned PreviewLink contains both the URL and an authentication token. For a private sandbox, requests to the URL must authenticate, otherwise they are answered with 401 Unauthorized: send the token in the "X\-Daytona\-Preview\-Token" request header, or send your Daytona API key as "Authorization: Bearer \<api key\>". To get a URL that works without extra headers \(for example to open it in a browser or share it\), use [Sandbox.GetSignedPreviewLink](<#Sandbox.GetSignedPreviewLink>) instead. Public sandboxes need no credentials.
 
 Example:
 
@@ -4958,6 +4964,11 @@ if err != nil {
     return err
 }
 fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
+
+// Fetch the private preview from outside the sandbox
+req, _ := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+req.Header.Set("X-Daytona-Preview-Token", preview.Token)
+resp, err := http.DefaultClient.Do(req)
 ```
 
 <a name="Sandbox.GetSignedPreviewLink"></a>
@@ -4968,6 +4979,8 @@ func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInS
 ```
 
 GetSignedPreviewLink retrieves a signed preview URL for the sandbox at the specified port, valid for up to expiresInSeconds seconds.
+
+The access token is embedded in the returned URL, so it can be used without any headers, for example in a browser or by another service. The URL stops working when it expires or when it is expired with [Sandbox.ExpireSignedPreviewLink](<#Sandbox.ExpireSignedPreviewLink>).
 
 Example:
 

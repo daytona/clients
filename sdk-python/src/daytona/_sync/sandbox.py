@@ -962,6 +962,12 @@ class Sandbox(SandboxDto):
         it will be opened automatically. For private sandboxes, a token is included to grant access
         to the URL.
 
+        For a private sandbox, requests to `url` must authenticate, otherwise they are answered
+        with `401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header,
+        or send your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works
+        without extra headers (for example to open it in a browser or share it), use
+        `create_signed_preview_url` instead. Public sandboxes need no credentials.
+
         Args:
             port (int): The port to open the preview link on.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
@@ -978,6 +984,12 @@ class Sandbox(SandboxDto):
             preview_link = sandbox.get_preview_link(3000)
             print(f"Preview URL: {preview_link.url}")
             print(f"Token: {preview_link.token}")
+
+            # Fetch the private preview from outside the sandbox
+            response = httpx.get(
+                preview_link.url,
+                headers={"X-Daytona-Preview-Token": preview_link.token},
+            )
             ```
         """
         return self._sandbox_api.get_port_preview_url(self.id, port, _request_timeout=http_timeout(request_timeout))
@@ -991,10 +1003,16 @@ class Sandbox(SandboxDto):
     ) -> SignedPortPreviewUrl:
         """Creates a signed preview URL for the sandbox at the specified port.
 
+        The access token is embedded in the returned URL, so it can be used without any
+        headers, for example in a browser or by another service. The URL stops working when it
+        expires (after 60 seconds unless `expires_in_seconds` is set) or when it is expired with
+        `expire_signed_preview_url`.
+
         Args:
             port (int): The port to open the preview link on.
             expires_in_seconds (int | None): The number of seconds the signed preview
-                url will be valid for. Defaults to 60 seconds.
+                url will be valid for. Defaults to 60 seconds; set a longer value for links
+                that need to stay usable, e.g. `3600` for one hour.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
                 only. It bounds how long the SDK waits for the HTTP response and does not cancel
                 the operation on the server. Positive values under 1 second are rounded up to 1
@@ -1002,6 +1020,12 @@ class Sandbox(SandboxDto):
 
         Returns:
             SignedPortPreviewUrl: The response object for the signed preview url.
+
+        Example:
+            ```python
+            signed = sandbox.create_signed_preview_url(3000, expires_in_seconds=3600)
+            print(f"Preview URL (valid for one hour): {signed.url}")
+            ```
         """
         return self._sandbox_api.get_signed_port_preview_url(
             self.id,

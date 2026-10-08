@@ -1556,8 +1556,12 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 // GetPreviewLink returns a preview link for accessing a port on the sandbox.
 //
 // The returned PreviewLink contains both the URL and an authentication token.
-// For private sandboxes, the token must be sent via the
-// "x-daytona-preview-token" request header.
+// For a private sandbox, requests to the URL must authenticate, otherwise they
+// are answered with 401 Unauthorized: send the token in the
+// "X-Daytona-Preview-Token" request header, or send your Daytona API key as
+// "Authorization: Bearer <api key>". To get a URL that works without extra
+// headers (for example to open it in a browser or share it), use
+// [Sandbox.GetSignedPreviewLink] instead. Public sandboxes need no credentials.
 //
 // Example:
 //
@@ -1566,6 +1570,11 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 //	    return err
 //	}
 //	fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
+//
+//	// Fetch the private preview from outside the sandbox
+//	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+//	req.Header.Set("X-Daytona-Preview-Token", preview.Token)
+//	resp, err := http.DefaultClient.Do(req)
 func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error) {
 	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetPreviewLink", func(ctx context.Context) (*types.PreviewLink, error) {
@@ -1588,6 +1597,11 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 
 // GetSignedPreviewLink retrieves a signed preview URL for the sandbox at the
 // specified port, valid for up to expiresInSeconds seconds.
+//
+// The access token is embedded in the returned URL, so it can be used without
+// any headers, for example in a browser or by another service. The URL stops
+// working when it expires or when it is expired with
+// [Sandbox.ExpireSignedPreviewLink].
 //
 // Example:
 //

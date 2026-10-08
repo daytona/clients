@@ -40,6 +40,19 @@ module Daytona
 
     # Execute a shell command in the Sandbox
     #
+    # The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh
+    # in the default snapshots. Quote arguments that contain glob characters, for example
+    # `pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+    #
+    # The call returns when the command finishes. To start a long-running process such as a
+    # server, run it in the background with its output redirected, e.g.
+    # `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with `run_async: true`
+    # (see #execute_session_command).
+    #
+    # Tools in the sandbox may report the host's CPU count and memory (for example `nproc` or
+    # `Etc.nprocessors`) rather than the sandbox's own limits. Size worker pools from the
+    # sandbox's cpu and memory instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+    #
     # @param command [String] Shell command to execute
     # @param cwd [String, nil] Working directory for command execution. If not specified, uses the sandbox working directory
     # @param env [Hash<String, String>, nil] Environment variables to set for the command
@@ -57,6 +70,9 @@ module Daytona
     #
     #   # Command with timeout
     #   result = sandbox.process.exec("sleep 10", timeout: 5)
+    #
+    #   # Start a server in the background
+    #   sandbox.process.exec("python3 -m http.server 8000 > server.log 2>&1 &")
     def exec(command:, cwd: nil, env: nil, timeout: nil)
       envs = env&.empty? ? nil : env
 

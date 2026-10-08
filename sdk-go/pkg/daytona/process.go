@@ -119,6 +119,21 @@ func NewProcessService(toolboxClient *toolbox.APIClient, otel *otelState, langua
 // The command is executed in a shell context. For complex commands, consider
 // using proper shell escaping or wrapping in a script.
 //
+// The command is run by the first available of zsh, bash or sh in the sandbox,
+// which is zsh in the default snapshots. Quote arguments that contain glob
+// characters, for example `pip install -e '.[test]'`, or wrap bash-specific
+// scripts in `bash -c '...'`.
+//
+// The call returns when the command finishes. To start a long-running process
+// such as a server, run it in the background with its output redirected, e.g.
+// `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
+// runAsync set (see [ProcessService.ExecuteSessionCommand]).
+//
+// Tools in the sandbox may report the host's CPU count and memory (for example
+// `nproc` or runtime.NumCPU) rather than the sandbox's own limits. Size worker
+// pools from the sandbox's CPU and memory instead, e.g. `pytest -n 2` rather
+// than `pytest -n auto`.
+//
 // Optional parameters can be configured using functional options:
 //   - [options.WithCwd]: Set the working directory for command execution
 //   - [options.WithCommandEnv]: Set environment variables
