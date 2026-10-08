@@ -845,6 +845,27 @@ export class Sandbox {
   }
 
   /**
+   * Sets whether the Sandbox's preview URLs are publicly accessible.
+   *
+   * When public, preview URLs (see `getPreviewLink`) can be opened without a preview token or API key.
+   * When private, every preview request must authenticate.
+   *
+   * @param {boolean} isPublic - `true` to make preview URLs public, `false` to make them private.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await sandbox.setPublic(true);
+   * const preview = await sandbox.getPreviewLink(3000);
+   * // preview.url can now be opened without credentials
+   */
+  @WithInstrumentation()
+  @withEvents
+  public async setPublic(isPublic: boolean): Promise<void> {
+    await this.sandboxApi.updatePublicStatus(this.id, isPublic)
+    this.public = isPublic
+  }
+
+  /**
    * Set the auto-pause interval for the Sandbox.
    *
    * The Sandbox will automatically pause after being idle (no new events) for the specified interval.

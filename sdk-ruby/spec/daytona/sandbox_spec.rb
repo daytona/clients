@@ -115,6 +115,19 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
+  describe '#public=' do
+    [true, false].each do |value|
+      it "sets public to #{value} via API" do
+        allow(sandbox_api).to receive(:update_public_status).with('sandbox-123', value)
+
+        sandbox.public = value
+
+        expect(sandbox_api).to have_received(:update_public_status).with('sandbox-123', value)
+        expect(sandbox.public).to eq(value)
+      end
+    end
+  end
+
   describe '#auto_stop_interval=' do
     it 'sets interval via API' do
       allow(sandbox_api).to receive(:set_autostop_interval).with('sandbox-123', 30)

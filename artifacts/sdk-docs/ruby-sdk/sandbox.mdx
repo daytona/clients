@@ -696,6 +696,36 @@ sandbox.update_secrets({ 'API_KEY' => 'my-vault-secret' })
 
 ```
 
+#### public=()
+
+```ruby
+def public=(is_public)
+
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+When public, preview URLs (see #preview_url) can be opened without a preview token or API key.
+When private, every preview request must authenticate.
+
+**Parameters**:
+
+- `is_public` _Boolean_ -
+
+**Returns**:
+
+- `Boolean`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` -
+
+**Examples:**
+
+```ruby
+sandbox.public = true
+
+```
+
 #### auto_stop_interval=()
 
 ```ruby

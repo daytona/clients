@@ -863,6 +863,34 @@ await sandbox.setLabels({
 });
 ```
 
+#### setPublic()
+
+```ts
+setPublic(isPublic: boolean): Promise<void>;
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs (see `getPreviewLink`) can be opened without a preview token or API key.
+When private, every preview request must authenticate.
+
+**Parameters**:
+
+- `isPublic` _boolean_ - `true` to make preview URLs public, `false` to make them private.
+
+
+**Returns**:
+
+- `Promise<void>`
+
+**Example:**
+
+```ts
+await sandbox.setPublic(true);
+const preview = await sandbox.getPreviewLink(3000);
+// preview.url can now be opened without credentials
+```
+
 #### setTtl()
 
 ```ts

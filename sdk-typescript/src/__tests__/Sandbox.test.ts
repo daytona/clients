@@ -75,6 +75,7 @@ const makeSandbox = (
     getSandbox: jest.fn(),
     replaceLabels: jest.fn(),
     setAutostopInterval: jest.fn(),
+    updatePublicStatus: jest.fn(),
     setAutoPauseInterval: jest.fn(),
     setAutoArchiveInterval: jest.fn(),
     setAutoDeleteInterval: jest.fn(),
@@ -448,6 +449,16 @@ describe('Sandbox', () => {
     await expect(sandbox.waitForResizeComplete(5)).rejects.toThrow(
       'Sandbox sb-1 resize failed with state: error, error reason: no capacity',
     )
+  })
+
+  it.each([true, false])('setPublic(%s) updates the public status', async (isPublic) => {
+    const { sandbox, sandboxApi } = makeSandbox({ public: !isPublic })
+    sandboxApi.updatePublicStatus.mockResolvedValue(createApiResponse(undefined))
+
+    await sandbox.setPublic(isPublic)
+
+    expect(sandboxApi.updatePublicStatus).toHaveBeenCalledWith(sandbox.id, isPublic)
+    expect(sandbox.public).toBe(isPublic)
   })
 
   it('updates interval properties after successful api calls', async () => {

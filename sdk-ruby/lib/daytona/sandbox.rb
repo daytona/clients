@@ -364,6 +364,21 @@ module Daytona
       process_response(data)
     end
 
+    # Sets whether the Sandbox's preview URLs are publicly accessible.
+    # When public, preview URLs (see #preview_url) can be opened without a preview token or API key.
+    # When private, every preview request must authenticate.
+    #
+    # @param is_public [Boolean]
+    # @return [Boolean]
+    # @raise [Daytona:Sdk::Error]
+    #
+    # @example
+    #   sandbox.public = true
+    def public=(is_public)
+      sandbox_api.update_public_status(id, is_public)
+      @public = is_public
+    end
+
     # Sets the auto-stop interval for the Sandbox.
     # The Sandbox will automatically stop after being idle (no new events) for the specified interval.
     # Events include any state changes or interactions with the Sandbox through the SDK.

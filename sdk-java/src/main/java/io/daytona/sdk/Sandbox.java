@@ -436,6 +436,23 @@ public class Sandbox {
     }
 
     /**
+     * Sets whether the Sandbox's preview URLs are publicly accessible.
+     *
+     * <p>When public, preview URLs can be opened without a preview token or API key. When private,
+     * every preview request must authenticate.
+     *
+     * @param isPublic {@code true} to make preview URLs public, {@code false} to make them private
+     * @throws DaytonaException if the update fails
+     */
+    public void setPublic(boolean isPublic) {
+        ensureSubscribed();
+        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.updatePublicStatus(id, isPublic, null));
+        if (response != null) {
+            populateFromDTO(response);
+        }
+    }
+
+    /**
      * Sets Sandbox auto-stop interval.
      *
      * @param minutes idle minutes before automatic stop

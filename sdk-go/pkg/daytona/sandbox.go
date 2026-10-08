@@ -1646,6 +1646,39 @@ func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token s
 	})
 }
 
+// SetPublic sets whether the sandbox's preview URLs are publicly accessible.
+//
+// When public, preview URLs (see [Sandbox.GetPreviewLink]) can be opened
+// without a preview token or API key. When private, every preview request
+// must authenticate.
+//
+// Example:
+//
+//	if err := sandbox.SetPublic(ctx, true); err != nil {
+//	    return err
+//	}
+func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error {
+	s.ensureSubscribed()
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetPublic", func(ctx context.Context) error {
+		return s.doSetPublic(ctx, isPublic)
+	})
+}
+
+func (s *Sandbox) doSetPublic(ctx context.Context, isPublic bool) error {
+	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.UpdatePublicStatus(
+		s.client.getAuthContext(ctx),
+		s.ID,
+		isPublic,
+	).Execute()
+
+	if err != nil {
+		return errors.ConvertAPIError(err, httpResp)
+	}
+
+	s.updateFromAPIResponse(sandboxResp)
+	return nil
+}
+
 // SetAutoArchiveInterval sets the auto-archive interval in minutes.
 //
 // The sandbox will be automatically archived after being stopped for this

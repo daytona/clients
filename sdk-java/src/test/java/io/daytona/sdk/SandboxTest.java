@@ -342,6 +342,18 @@ class SandboxTest {
     }
 
     @Test
+    void setPublicUpdatesPublicStatus() throws Exception {
+        io.daytona.api.client.model.Sandbox updated = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        updated.setPublic(true);
+        when(sandboxApi.updatePublicStatus("sb-1", true, null)).thenReturn(updated);
+
+        sandbox.setPublic(true);
+
+        org.mockito.Mockito.verify(sandboxApi).updatePublicStatus("sb-1", true, null);
+        assertThat(sandbox.getPublic()).isTrue();
+    }
+
+    @Test
     void setTtlCallsApiAndRejectsNegative() {
         sandbox.setTtl(60);
 

@@ -737,6 +737,31 @@ class Sandbox(SandboxDto):
         _ = self._sandbox_api.set_autostop_interval(self.id, interval, _request_timeout=http_timeout(request_timeout))
         self.auto_stop_interval = interval
 
+    @intercept_errors(message_prefix="Failed to set public status: ")
+    @with_instrumentation()
+    def set_public(self, public: bool, request_timeout: float | None = None) -> None:
+        """Sets whether the Sandbox's preview URLs are publicly accessible.
+
+        When public, preview URLs (see `get_preview_link`) can be opened without a preview
+        token or API key. When private, every preview request must authenticate.
+
+        Args:
+            public (bool): `True` to make preview URLs public, `False` to make them private.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
+
+        Example:
+            ```python
+            sandbox.set_public(True)
+            preview = sandbox.get_preview_link(3000)
+            # preview.url can now be opened without credentials
+            ```
+        """
+        _ = self._sandbox_api.update_public_status(self.id, public, _request_timeout=http_timeout(request_timeout))
+        self.public = public
+
     @intercept_errors(message_prefix="Failed to set auto-pause interval: ")
     @with_instrumentation()
     def set_auto_pause_interval(self, interval: int) -> None:

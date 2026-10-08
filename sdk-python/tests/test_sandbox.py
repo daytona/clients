@@ -89,6 +89,13 @@ class TestSandboxLifecycleSettings:
         assert sandbox.auto_stop_interval == 30
         mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30, _request_timeout=None)
 
+    @pytest.mark.parametrize("public", [True, False])
+    def test_set_public(self, public, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        sandbox.set_public(public)
+        assert sandbox.public is public
+        mock_sandbox_api.update_public_status.assert_called_once_with(sandbox.id, public, _request_timeout=None)
+
     def test_negative_autopause_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
         with pytest.raises(DaytonaValidationError, match="Auto-pause interval must be a non-negative"):

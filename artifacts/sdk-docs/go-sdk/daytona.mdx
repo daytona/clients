@@ -290,6 +290,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*Sandbox\) SetAutoArchiveInterval\(ctx context.Context, intervalMinutes \*int\) error](<#Sandbox.SetAutoArchiveInterval>)
   - [func \(s \*Sandbox\) SetAutoDeleteInterval\(ctx context.Context, intervalMinutes \*int\) error](<#Sandbox.SetAutoDeleteInterval>)
   - [func \(s \*Sandbox\) SetLabels\(ctx context.Context, labels map\[string\]string\) error](<#Sandbox.SetLabels>)
+  - [func \(s \*Sandbox\) SetPublic\(ctx context.Context, isPublic bool\) error](<#Sandbox.SetPublic>)
   - [func \(s \*Sandbox\) Start\(ctx context.Context\) error](<#Sandbox.Start>)
   - [func \(s \*Sandbox\) StartWithTimeout\(ctx context.Context, timeout time.Duration\) error](<#Sandbox.StartWithTimeout>)
   - [func \(s \*Sandbox\) Stop\(ctx context.Context\) error](<#Sandbox.Stop>)
@@ -5197,6 +5198,25 @@ err := sandbox.SetLabels(ctx, map[string]string{
     "team": "backend",
     "project": "api-server",
 })
+```
+
+<a name="Sandbox.SetPublic"></a>
+### func \(\*Sandbox\) SetPublic
+
+```go
+func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error
+```
+
+SetPublic sets whether the sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs \(see [Sandbox.GetPreviewLink](<#Sandbox.GetPreviewLink>)\) can be opened without a preview token or API key. When private, every preview request must authenticate.
+
+Example:
+
+```
+if err := sandbox.SetPublic(ctx, true); err != nil {
+    return err
+}
 ```
 
 <a name="Sandbox.Start"></a>

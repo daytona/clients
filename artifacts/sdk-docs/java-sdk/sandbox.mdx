@@ -172,6 +172,24 @@ Replaces Sandbox labels.
 
 - `DaytonaException` - if label update fails
 
+#### setPublic()
+```java
+public void setPublic(boolean isPublic)
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs can be opened without a preview token or API key. When private,
+every preview request must authenticate.
+
+**Parameters**:
+
+- `isPublic` _boolean_ - `true` to make preview URLs public, `false` to make them private
+
+**Throws**:
+
+- `DaytonaException` - if the update fails
+
 #### setAutostopInterval()
 ```java
 public void setAutostopInterval(int minutes)
