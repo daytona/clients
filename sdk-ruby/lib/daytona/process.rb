@@ -47,7 +47,7 @@ module Daytona
     # The call returns when the command finishes. To start a long-running process such as a
     # server, run it in the background with its output redirected, e.g.
     # `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with `run_async: true`
-    # (see #execute_session_command).
+    # (see {#execute_session_command}).
     #
     # Tools in the sandbox may report the host's CPU count and memory (for example `nproc` or
     # `Etc.nprocessors`) rather than the sandbox's own limits. Size worker pools from the
@@ -61,18 +61,18 @@ module Daytona
     #
     # @example
     #   # Simple command
-    #   response = sandbox.process.exec("echo 'Hello'")
+    #   response = sandbox.process.exec(command: "echo 'Hello'")
     #   puts response.artifacts.stdout
     #   => "Hello\n"
     #
     #   # Command with working directory
-    #   result = sandbox.process.exec("ls", cwd: "workspace/src")
+    #   result = sandbox.process.exec(command: "ls", cwd: "workspace/src")
     #
     #   # Command with timeout
-    #   result = sandbox.process.exec("sleep 10", timeout: 5)
+    #   result = sandbox.process.exec(command: "sleep 10", timeout: 5)
     #
     #   # Start a server in the background
-    #   sandbox.process.exec("python3 -m http.server 8000 > server.log 2>&1 &")
+    #   sandbox.process.exec(command: "python3 -m http.server 8000 > server.log 2>&1 &")
     def exec(command:, cwd: nil, env: nil, timeout: nil)
       envs = env&.empty? ? nil : env
 

@@ -981,6 +981,8 @@ class Sandbox(SandboxDto):
 
         Example:
             ```python
+            import httpx
+
             preview_link = sandbox.get_preview_link(3000)
             print(f"Preview URL: {preview_link.url}")
             print(f"Token: {preview_link.token}")

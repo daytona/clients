@@ -1572,9 +1572,16 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 //	fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
 //
 //	// Fetch the private preview from outside the sandbox
-//	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+//	req, err := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+//	if err != nil {
+//	    return err
+//	}
 //	req.Header.Set("X-Daytona-Preview-Token", preview.Token)
 //	resp, err := http.DefaultClient.Do(req)
+//	if err != nil {
+//	    return err
+//	}
+//	defer resp.Body.Close()
 func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error) {
 	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetPreviewLink", func(ctx context.Context) (*types.PreviewLink, error) {

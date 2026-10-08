@@ -1001,15 +1001,18 @@ class AsyncSandbox(SandboxDto):
 
         Example:
             ```python
-            preview_link = sandbox.get_preview_link(3000)
+            import httpx
+
+            preview_link = await sandbox.get_preview_link(3000)
             print(f"Preview URL: {preview_link.url}")
             print(f"Token: {preview_link.token}")
 
             # Fetch the private preview from outside the sandbox
-            response = httpx.get(
-                preview_link.url,
-                headers={"X-Daytona-Preview-Token": preview_link.token},
-            )
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    preview_link.url,
+                    headers={"X-Daytona-Preview-Token": preview_link.token},
+                )
             ```
         """
         return await self._sandbox_api.get_port_preview_url(
