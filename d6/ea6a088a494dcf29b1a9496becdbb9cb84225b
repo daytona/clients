@@ -1,0 +1,25 @@
+.github/workflows/sdk_publish.yaml
+  s_1a59d756d7b71f::t_52693a0932f0ba 109-114,144-148
+PUBLISHING.md
+  s_1a59d756d7b71f::t_72e15c9cc46b4d 121
+hack/npm-latest-guard.sh
+  s_1a59d756d7b71f::t_ecd1cd96502b54 1-11,13-15,18-49,51,53-77
+  s_1a59d756d7b71f::t_52693a0932f0ba 52
+  s_1a59d756d7b71f::t_eea15427327cc1 12,16-17,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6ea6a088a494dcf29b1a9496becdbb9cb84225b",
+  "prompts": {},
+  "sessions": {
+    "s_1a59d756d7b71f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55147ffepoNf4OrF6YCmBS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
