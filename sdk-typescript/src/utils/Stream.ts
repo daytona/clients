@@ -255,10 +255,11 @@ export function stdDemuxStream(
           break
         }
 
-        // Find earliest next marker within the safe region
-        const safeRegion = bufArray.subarray(0, safeLen)
-        const stdoutIndex = findSubarray(safeRegion, STDOUT_PREFIX_BYTES)
-        const stderrIndex = findSubarray(safeRegion, STDERR_PREFIX_BYTES)
+        // Find earliest next marker in the whole buffer: a complete marker can end exactly at the
+        // end of a message, inside the held-back tail. safeLen only bounds how much marker-free
+        // payload may be flushed.
+        const stdoutIndex = findSubarray(bufArray, STDOUT_PREFIX_BYTES)
+        const stderrIndex = findSubarray(bufArray, STDERR_PREFIX_BYTES)
 
         let nextIdx = -1
         let nextKind: 'stdout' | 'stderr' | null = null
