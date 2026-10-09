@@ -109,9 +109,7 @@ export interface DaytonaConfig {
    * Default target (region) for created Sandboxes and Snapshots. Can also be set via the
    * `DAYTONA_TARGET` environment variable.
    *
-   * @deprecated Pass `target` in the Sandbox create params (and `regionId` in the Snapshot
-   * create params) instead. This property and the `DAYTONA_TARGET` environment variable will
-   * be removed in a future version.
+   * @deprecated Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead. This property and the `DAYTONA_TARGET` environment variable will be removed in a future version.
    */
   target?: string
   /** Enable OpenTelemetry tracing for SDK operations. */
@@ -393,7 +391,7 @@ export class Daytona implements AsyncDisposable {
           this.target = reader.get('DAYTONA_TARGET')
           if (this.target) {
             console.warn(
-              '[Deprecation Warning] Environment variable `DAYTONA_TARGET` is deprecated and will be removed in a future version. Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead.',
+              '[Deprecation Warning] `DAYTONA_TARGET` (from the environment or a .env file) is deprecated and will be removed in a future version. Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead.',
             )
           }
         }

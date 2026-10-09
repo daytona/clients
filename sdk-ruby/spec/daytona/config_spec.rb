@@ -67,7 +67,7 @@ RSpec.describe Daytona::Config do
 
       config = nil
       expect { config = described_class.new(api_key: 'k') }
-        .to output(/`DAYTONA_TARGET` is deprecated/).to_stderr
+        .to output(/`DAYTONA_TARGET` \(from the environment or a .env file\) is deprecated/).to_stderr
       expect(config.target).to eq('eu')
     end
 

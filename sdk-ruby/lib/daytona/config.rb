@@ -169,7 +169,7 @@ module Daytona
     private_constant :TARGET_DEPRECATION_HINT
 
     def resolve_target(target)
-      source = target ? '`target` in Daytona::Config' : 'Environment variable `DAYTONA_TARGET`'
+      source = target ? '`target` in Daytona::Config' : '`DAYTONA_TARGET` (from the environment or a .env file)'
       target ||= @env_reader.call('DAYTONA_TARGET')
       warn_target_deprecated(source, uplevel: 3) if target
       target

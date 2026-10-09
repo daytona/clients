@@ -48,9 +48,10 @@ def test_v1_attribute_resolves_lazily_in_a_fresh_interpreter():
         "assert 'v1' in dir(daytona)\n"
         "assert daytona.v1.Daytona is daytona.Daytona\n"
     )
-    subprocess.run(
+    _ = subprocess.check_output(
         [sys.executable, "-c", script],
-        check=True,
+        stderr=subprocess.STDOUT,
+        timeout=60,
         env={**os.environ, "PYTHONPATH": os.pathsep.join([SDK_SRC, os.environ.get("PYTHONPATH", "")])},
     )
 

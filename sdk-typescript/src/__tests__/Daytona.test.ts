@@ -966,7 +966,7 @@ describe('Daytona', () => {
       new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
 
       expect(warnSpy).toHaveBeenCalledTimes(1)
-      expect(warnSpy.mock.calls[0][0]).toContain('`DAYTONA_TARGET` is deprecated')
+      expect(warnSpy.mock.calls[0][0]).toContain('`DAYTONA_TARGET` (from the environment or a .env file) is deprecated')
       warnSpy.mockRestore()
     })
 

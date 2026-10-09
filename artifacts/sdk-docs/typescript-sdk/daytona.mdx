@@ -542,9 +542,7 @@ Configuration options for initializing the Daytona client.
 - ~~`target?`~~ _string_ - Default target (region) for created Sandboxes and Snapshots. Can also be set via the
     `DAYTONA_TARGET` environment variable.
     
-    create params) instead. This property and the `DAYTONA_TARGET` environment variable will
-    be removed in a future version.
-    - **_Deprecated_** - Pass `target` in the Sandbox create params (and `regionId` in the Snapshot
+    - **_Deprecated_** - Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead. This property and the `DAYTONA_TARGET` environment variable will be removed in a future version.
 - ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
     Defaults to `false`, where state changes are streamed over WebSocket. Can also
     be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.

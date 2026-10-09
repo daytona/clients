@@ -50,7 +50,7 @@ TARGET_CONFIG_DEPRECATION_MESSAGE = (
     + "Pass 'target' in the Sandbox create params (and 'region_id' in CreateSnapshotParams) instead."
 )
 TARGET_ENV_DEPRECATION_MESSAGE = (
-    "Environment variable `DAYTONA_TARGET` is deprecated and will be removed in a future version. "
+    "`DAYTONA_TARGET` (from the environment or a .env file) is deprecated and will be removed in a future version. "
     + "Pass 'target' in the Sandbox create params (and 'region_id' in CreateSnapshotParams) instead."
 )
 
