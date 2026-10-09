@@ -12,6 +12,9 @@ permissions: {}
 
 env:
   VERSION: ${{ inputs.version }}
+  # On a release/vN maintenance branch, automated PRs target that branch;
+  # from any other ref they target main.
+  BASE_BRANCH: ${{ startsWith(github.ref, 'refs/heads/release/') && github.ref_name || 'main' }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
   GONOSUMDB: github.com/daytona/clients
 
@@ -32,6 +35,18 @@ jobs:
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
+      - name: Validate release branch version line
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          if [[ "$VERSION" != "$line".* ]]; then
+            echo "::error::$GITHUB_REF_NAME only releases $line.x versions (got $VERSION)"
             exit 1
           fi
       - name: Checkout code
@@ -68,6 +83,21 @@ jobs:
           printf '{ "name": "clients", "version": "0.0.0" }\n' > dist/package.json
       - name: Create release
         run: yarn nx release "$VERSION" --skip-publish --verbose
+      - name: Keep the highest version as the latest GitHub release
+        # nx creates the GitHub release with make_latest=legacy, which can mark a
+        # maintenance release as "Latest" even when a higher version exists. The
+        # CLI update check reads releases/latest, so re-pin it to the highest
+        # stable vX.Y.Z release. Releases from main are left untouched.
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          highest=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ -z "$highest" ]; then
+            echo "::error::Could not determine the highest stable release"
+            exit 1
+          fi
+          echo "Marking $highest as the latest release"
+          gh release edit "$highest" --repo "$GITHUB_REPOSITORY" --latest
       - name: Build CLI
         env:
           DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL }}
@@ -161,7 +191,7 @@ jobs:
             gh pr create \
               --title "chore: sync go.sum for $VERSION" \
               --body "Automated PR to sync go.sum after release $VERSION" \
-              --base main \
+              --base "$BASE_BRANCH" \
               --head "sync-gosum-$VERSION"
           fi
       - name: Cleanup credentials
