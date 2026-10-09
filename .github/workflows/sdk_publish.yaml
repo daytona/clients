@@ -19,9 +19,11 @@ on:
         description: 'NPM package version (empty: skip TypeScript SDK publish)'
         required: false
       npm_tag:
-        description: 'NPM tag (default: latest)'
+        # 0.x is a maintenance line: publish under v0-latest so `latest` keeps
+        # pointing at the newest release line.
+        description: 'NPM tag (default: v0-latest)'
         required: false
-        default: latest
+        default: v0-latest
       rubygems_pkg_version:
         description: 'RubyGems package version (empty: skip Ruby SDK publish)'
         required: false
