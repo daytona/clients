@@ -125,6 +125,31 @@ def snapshot()
 
 - `Daytona:SnapshotService`
 
+#### v1()
+
+```ruby
+def v1()
+
+```
+
+Versioned alias of this client's API.
+
+`v1` is a versioned alias of the current client API, for code that wants to pin the API
+version explicitly. It returns this same client, so `daytona.v1.create` and `daytona.create`
+are identical.
+
+**Returns**:
+
+- `Daytona:Daytona` - This client instance
+
+**Examples:**
+
+```ruby
+daytona = Daytona::Daytona.new
+sandbox = daytona.v1.create
+
+```
+
 #### close()
 
 ```ruby

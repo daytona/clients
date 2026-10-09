@@ -26,6 +26,8 @@ public Daytona()
 Creates a client using environment variables.
 
 Reads `DAYTONA_API_KEY`, `DAYTONA_API_URL`, and `DAYTONA_TARGET`.
+`DAYTONA_TARGET` is deprecated; set the target on each create call with
+`io.daytona.sdk.model.CreateSandboxParams#setTarget(String)` instead.
 
 **Throws**:
 
@@ -259,6 +261,21 @@ stream.filter(sb -> "started".equals(sb.getState()))
 **Returns**:
 
 - `Stream\<Sandbox\>` - stream of Sandboxes
+
+#### v1()
+```java
+public Daytona v1()
+```
+
+Returns this client.
+
+`v1()` is a versioned alias of the current client API, for code that wants to pin
+the API version explicitly: `daytona.v1().create()` is identical to
+`daytona.create()`.
+
+**Returns**:
+
+- `Daytona` - this client instance
 
 #### snapshot()
 ```java

@@ -21,7 +21,7 @@
 //   - DAYTONA_JWT_TOKEN: JWT token for authentication (alternative to API key)
 //   - DAYTONA_ORGANIZATION_ID: Organization ID (required when using JWT token)
 //   - DAYTONA_API_URL: API URL (defaults to https://app.daytona.io/api)
-//   - DAYTONA_TARGET: Target environment
+//   - DAYTONA_TARGET: Deprecated default target (region); set the Target create param instead
 //
 // Or provide configuration explicitly:
 //
@@ -138,13 +138,24 @@ type Client struct {
 	WarmPool *WarmPoolService
 }
 
+// V1 returns c itself.
+//
+// V1 is a versioned alias of the current client API, for code that wants to pin the API
+// version explicitly: client.V1().Create(ctx, nil) is identical to client.Create(ctx, nil).
+// It is a method rather than a field so that it always refers to the receiver and cannot be
+// reassigned.
+func (c *Client) V1() *Client {
+	return c
+}
+
 // NewClient creates a new Daytona client with default configuration.
 //
 // NewClient reads configuration from environment variables:
 //   - DAYTONA_API_KEY or DAYTONA_JWT_TOKEN for authentication (one is required)
 //   - DAYTONA_ORGANIZATION_ID (required when using JWT token)
 //   - DAYTONA_API_URL for custom API endpoint
-//   - DAYTONA_TARGET for target environment
+//   - DAYTONA_TARGET for the default target (region). Deprecated: set
+//     [types.SandboxBaseParams.Target] on each create call instead.
 //
 // For explicit configuration, use [NewClientWithConfig] instead.
 func NewClient() (*Client, error) {
@@ -190,8 +201,8 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 		if config.APIUrl != "" {
 			client.apiURL = config.APIUrl
 		}
-		if config.Target != "" {
-			client.region = config.Target
+		if config.Target != "" { //nolint:staticcheck // deprecated field must keep working
+			client.region = config.Target //nolint:staticcheck // deprecated field must keep working
 		}
 	}
 
@@ -405,7 +416,7 @@ func (c *Client) createToolboxClient(proxyURL string, sandboxID string) (*toolbo
 // Create creates a new sandbox with the specified parameters.
 //
 // The params argument accepts either [types.SnapshotParams] to create from a snapshot,
-// or [types.ImageParams] to create from a Docker image:
+// or [types.ImageParams] to create from a Docker image (a pointer to either is also accepted):
 //
 //	// Create from a snapshot
 //	sandbox, err := client.Create(ctx, types.SnapshotParams{
@@ -463,6 +474,17 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	var snapshot string
 	var image any
 	var resources *types.Resources
+
+	switch p := params.(type) {
+	case *types.SnapshotParams:
+		if p != nil {
+			params = *p
+		}
+	case *types.ImageParams:
+		if p != nil {
+			params = *p
+		}
+	}
 
 	switch p := params.(type) {
 	case types.SnapshotParams:
@@ -547,8 +569,12 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if len(baseParams.Labels) > 0 {
 		createReq.SetLabels(baseParams.Labels)
 	}
-	if c.region != "" {
-		createReq.SetTarget(c.region)
+	target := baseParams.Target
+	if target == "" {
+		target = c.region
+	}
+	if target != "" {
+		createReq.SetTarget(target)
 	}
 	if baseParams.AutoStopInterval != nil {
 		createReq.SetAutoStopInterval(int32(*baseParams.AutoStopInterval))

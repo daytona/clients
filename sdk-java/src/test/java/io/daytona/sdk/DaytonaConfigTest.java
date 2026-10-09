@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DaytonaConfigTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     void builderStoresExplicitValues() {
         DaytonaConfig config = new DaytonaConfig.Builder()

@@ -30,7 +30,7 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Your target [region](https://www.daytona.io/docs/en/regions/) environment (e.g. `us`, `eu`)
+- `DAYTONA_TARGET`: Deprecated. Default target [region](https://www.daytona.io/docs/en/regions/) for new sandboxes and snapshots (e.g. `us`, `eu`). Set `target:` on each sandbox create call (and `region_id:` on each snapshot create call) instead
 
 ```ruby
 require 'daytona'
@@ -41,8 +41,7 @@ daytona = Daytona::Daytona.new
 # Initialize with configuration object
 config = Daytona::Config.new(
   api_key: 'YOUR_API_KEY',
-  api_url: 'YOUR_API_URL',
-  target: 'us'
+  api_url: 'YOUR_API_URL'
 )
 ```
 
@@ -61,6 +60,28 @@ sandbox = daytona.create
 ## Examples and guides
 
 Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#examples) and [guides](https://www.daytona.io/docs/en/guides/) for common sandbox operations, best practices, and a wide range of topics, from basic usage to advanced topics, showcasing various types of integrations between Daytona and other tools.
+
+### Create a sandbox in a specific region
+
+Pass `target:` in the create params to choose the [region](https://www.daytona.io/docs/en/regions/) for a single sandbox. It overrides the deprecated client-level `target`.
+
+```ruby
+require 'daytona'
+
+daytona = Daytona::Daytona.new
+sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(target: 'eu'))
+```
+
+### Pin the API version
+
+`v1` is a versioned alias of the current client API, for code that wants to pin the API version explicitly. `daytona.v1` returns the same client, and `Daytona::V1` is the same module as `Daytona`:
+
+```ruby
+require 'daytona'
+
+daytona = Daytona::V1::Daytona.new
+sandbox = daytona.v1.create
+```
 
 ### Create a sandbox with custom resources
 

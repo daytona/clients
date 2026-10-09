@@ -60,4 +60,9 @@ module Daytona
 
     def self.logger = @logger ||= Logger.new($stdout, level: Logger::INFO)
   end
+
+  # Versioned alias of the SDK namespace, for code that wants to pin the API version
+  # explicitly: `Daytona::V1::Daytona` and `Daytona::V1::Config` are the same constants as
+  # `Daytona::Daytona` and `Daytona::Config`.
+  V1 = self
 end

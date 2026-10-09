@@ -13,6 +13,16 @@
         "default": "./cjs/index.js"
       }
     },
+    "./v1": {
+      "import": {
+        "types": "./esm/v1.d.ts",
+        "default": "./esm/v1.js"
+      },
+      "require": {
+        "types": "./cjs/v1.d.ts",
+        "default": "./cjs/v1.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./cjs/index.js",
@@ -43,6 +53,7 @@
   "files": [
     "esm",
     "cjs",
+    "v1",
     "!**/__tests__",
     "!**/*.d.ts.map"
   ],

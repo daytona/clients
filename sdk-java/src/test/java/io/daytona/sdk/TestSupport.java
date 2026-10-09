@@ -78,6 +78,7 @@ final class TestSupport {
         return sandbox;
     }
 
+    @SuppressWarnings("deprecation")
     static DaytonaConfig config() {
         return new DaytonaConfig.Builder()
                 .apiKey("test-key")

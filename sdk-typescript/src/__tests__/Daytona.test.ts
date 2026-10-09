@@ -343,7 +343,6 @@ describe('Daytona', () => {
   it('reads deprecated server url from env and warns once', async () => {
     process.env.DAYTONA_API_KEY = 'env-key'
     process.env.DAYTONA_SERVER_URL = 'https://server.daytona/api'
-    process.env.DAYTONA_TARGET = 'us'
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const { Daytona } = await import('../Daytona')
@@ -886,6 +885,100 @@ describe('Daytona', () => {
     expect(sandboxFromGet.start).toHaveBeenCalled()
     expect(sandboxFromGet.stop).toHaveBeenCalled()
     expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
+  })
+
+  describe('v1 alias and per-create target', () => {
+    const startedSandbox = () =>
+      createApiResponse({ id: 'sb-target', state: 'started', labels: { 'code-toolbox-language': 'python' } })
+
+    it('returns the same instance from v1', async () => {
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+
+      expect(instance.v1).toBe(instance)
+    })
+
+    it('creates through v1 with the same client', async () => {
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.v1.create()
+
+      expect(mockSandboxApi.createSandbox).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets a snapshot create target override the client target', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ snapshot: 'snap-1', target: 'eu' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ snapshot: 'snap-1', target: 'eu' }),
+      )
+      warnSpy.mockRestore()
+    })
+
+    it('lets an image create target override the client target', async () => {
+      process.env.DAYTONA_TARGET = 'us'
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ image: 'python:3.12', target: 'eu' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(expect.objectContaining({ target: 'eu' }))
+      warnSpy.mockRestore()
+    })
+
+    it('falls back to the client target when create omits it', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ language: 'python' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(expect.objectContaining({ target: 'us' }))
+      warnSpy.mockRestore()
+    })
+
+    it('warns that config target is deprecated', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+
+      new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy.mock.calls[0][0]).toContain('`target` in DaytonaConfig is deprecated')
+      warnSpy.mockRestore()
+    })
+
+    it('warns that DAYTONA_TARGET is deprecated', async () => {
+      process.env.DAYTONA_TARGET = 'us'
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+
+      new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy.mock.calls[0][0]).toContain('`DAYTONA_TARGET` (from the environment or a .env file) is deprecated')
+      warnSpy.mockRestore()
+    })
+
+    it('does not warn when no target is configured', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { Daytona } = await import('../Daytona')
+
+      new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+
+      expect(warnSpy).not.toHaveBeenCalled()
+      warnSpy.mockRestore()
+    })
   })
 
   describe('cwd dotenv endpoint trust', () => {

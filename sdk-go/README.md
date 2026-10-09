@@ -95,6 +95,24 @@ config := &types.DaytonaConfig{
 client, err := daytona.NewClientWithConfig(config)
 ```
 
+`DaytonaConfig.Target` and the `DAYTONA_TARGET` environment variable are deprecated. To choose the
+[region](https://www.daytona.io/docs/en/regions/) of a sandbox, set `Target` on the create params instead:
+
+```go
+sandbox, err := client.Create(ctx, types.SnapshotParams{
+    SandboxBaseParams: types.SandboxBaseParams{Target: "eu"},
+})
+```
+
+### Pin the API version
+
+`V1()` is a versioned alias of the current client API, for code that wants to pin the API version
+explicitly. It returns the same client:
+
+```go
+sandbox, err := client.V1().Create(ctx, nil)
+```
+
 ## Usage Examples
 
 All of the usage examples are maintained in the `/examples` folder. Please check it out for latest patterns of SDK usage.
@@ -194,6 +212,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "long-running-command")
 
 - `NewClient() (*Client, error)` - Create a new Daytona client with default configuration
 - `NewClientWithConfig(config *types.DaytonaConfig) (*Client, error)` - Create a new Daytona client with custom configuration
+- `V1() *Client` - Return the same client; a versioned alias of the current client API
 - `Create(ctx, params, options...) (*Sandbox, <-chan string, error)` - Create a sandbox and returns a channel for streaming build logs
   - Options: `WithTimeout(time.Duration)`
 - `Get(ctx, sandboxIDOrName) (*Sandbox, error)` - Get a sandbox by ID or name

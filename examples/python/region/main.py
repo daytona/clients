@@ -1,10 +1,10 @@
 import time
 
-from daytona import CreateSandboxFromSnapshotParams, CreateSnapshotParams, Daytona, DaytonaConfig, Image
+from daytona import CreateSandboxFromSnapshotParams, CreateSnapshotParams, Daytona, Image
 
 
 def main():
-    daytona = Daytona(DaytonaConfig(target="us"))
+    daytona = Daytona()
 
     snapshot1 = f"us-{int(time.time() * 1000)}"
     print(f"Creating snapshot {snapshot1}")
@@ -36,7 +36,7 @@ def main():
 
     print(f"Creating sandbox from snapshot {snapshot1}")
     try:
-        sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot1))
+        sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot1, target="us"))
         daytona.delete(sandbox)
     except Exception as e:
         print(e)
@@ -44,7 +44,7 @@ def main():
 
     print(f"Creating sandbox from snapshot {snapshot2}")
     try:
-        sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot2))
+        sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot2, target="eu"))
         daytona.delete(sandbox)
     except Exception as e:
         print("error", e)

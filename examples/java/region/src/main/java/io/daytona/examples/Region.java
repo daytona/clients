@@ -6,6 +6,7 @@ package io.daytona.examples;
 import io.daytona.sdk.Daytona;
 import io.daytona.sdk.DaytonaConfig;
 import io.daytona.sdk.Sandbox;
+import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 
 public class Region {
     public static void main(String[] args) {
@@ -14,12 +15,13 @@ public class Region {
                 .apiUrl(System.getenv("DAYTONA_API_URL") != null
                         ? System.getenv("DAYTONA_API_URL")
                         : "https://app.daytona.io/api")
-                .target("us")
                 .build();
 
         try (Daytona daytona = new Daytona(config)) {
             System.out.println("Creating sandbox with target: us");
-            Sandbox sandbox = daytona.create();
+            CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+            params.setTarget("us");
+            Sandbox sandbox = daytona.create(params);
             try {
                 System.out.println("Sandbox created: " + sandbox.getId());
                 System.out.println("target: " + sandbox.getTarget());
