@@ -85,6 +85,41 @@ jobs:
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
+      - name: Validate release branch version line
+        if: matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/')
+        env:
+          PKG_VERSION: ${{ matrix.pkg_version }}
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          if [[ "$VERSION" != "$line".* || "$PKG_VERSION" != "${line#v}".* ]]; then
+            echo "::error::$GITHUB_REF_NAME only publishes $line.x versions (got $VERSION, package version $PKG_VERSION)"
+            exit 1
+          fi
+      - name: Keep the npm latest dist-tag on the highest version
+        # `npm publish --tag latest` moves the tag even to a lower version, so a
+        # maintenance branch may only take `latest` with a version above the
+        # current one. Otherwise publish under a line tag such as v0-latest.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$NPM_PKG_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Only stable X.Y.Z versions may take the npm latest tag from $GITHUB_REF_NAME (got $NPM_PKG_VERSION)"
+            exit 1
+          fi
+          current=$(npm view @daytona/sdk dist-tags.latest --registry https://registry.npmjs.org/)
+          if [ -z "$current" ]; then
+            echo "::error::Could not read the current npm latest version of @daytona/sdk"
+            exit 1
+          fi
+          highest=$(printf '%s\n%s\n' "$current" "$NPM_PKG_VERSION" | sort -V | tail -n 1)
+          if [ "$current" = "$NPM_PKG_VERSION" ] || [ "$highest" != "$NPM_PKG_VERSION" ]; then
+            echo "::error::npm latest is $current; publishing $NPM_PKG_VERSION with --tag latest would move it backwards. Use npm_tag ${line}-latest."
+            exit 1
+          fi
       - name: Checkout code
         if: matrix.pkg_version != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -126,7 +161,8 @@ jobs:
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' }}
+    # The Homebrew formula tracks the main release line only.
+    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' && !startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     environment: release
     permissions: {}
