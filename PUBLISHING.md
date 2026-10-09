@@ -90,7 +90,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
    - **pypi_pkg_version**: (Optional) Override PyPI version
    - **npm_pkg_version**: (Optional) Override npm version
    - **rubygems_pkg_version**: (Optional) Override RubyGems version
-   - **npm_tag**: npm dist-tag (default: `latest`)
+   - **npm_tag**: npm dist-tag (default: `latest`; see [Release Branches](#release-branches) for maintenance releases)
 
 #### Required Secrets
 
@@ -108,6 +108,20 @@ Ensure these secrets are configured in GitHub repository settings:
 4. Configures credentials for all package registries
 5. Runs `yarn publish` which uses Nx to publish all SDKs in the correct order
 6. Updates the Homebrew tap (for the CLI)
+
+### Release Branches
+
+`main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on the oldest affected branch first and is cherry-picked forward to newer branches and `main`. Releases are tags (`v0.223.2`, `sdk-go/v0.223.2`), never branches.
+
+To ship a patch from a maintenance branch, run **Prepare Release**, **Release** and **SDK and CLI Publish** with the branch selected in **Use workflow from**, exactly as for `main`. On a `release/vN` branch the workflows:
+
+- refuse versions outside the branch's line (`release/v0` only releases `v0.x.y`);
+- open the prepare-release and `go.sum` sync PRs against that branch instead of `main`;
+- re-mark the highest stable release as **Latest** on GitHub after creating the release, because the CLI update check reads it;
+- refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead;
+- never update the Homebrew tap.
+
+PyPI, RubyGems, Maven Central and the Go module proxy all resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. The Go vanity site deploys from `main` only.
 
 ## Version Management
 

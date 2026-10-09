@@ -85,6 +85,20 @@ jobs:
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
+      - name: Validate release branch version line
+        if: matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/')
+        env:
+          PKG_VERSION: ${{ matrix.pkg_version }}
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          if [[ "$VERSION" != "$line".* || "$PKG_VERSION" != "${line#v}".* ]]; then
+            echo "::error::$GITHUB_REF_NAME only publishes $line.x versions (got $VERSION, package version $PKG_VERSION)"
+            exit 1
+          fi
       - name: Checkout code
         if: matrix.pkg_version != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -92,6 +106,12 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Keep the npm latest dist-tag on the highest version
+        # `npm publish --tag latest` moves the tag even to a lower version, so a
+        # maintenance branch may only take `latest` with a version above every
+        # published stable one. Otherwise publish under a line tag such as v0-latest.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        run: bash hack/npm-latest-guard.sh check "$NPM_PKG_VERSION"
       - uses: ./.github/actions/setup-toolchain
         if: matrix.pkg_version != ''
         with:
@@ -121,12 +141,18 @@ jobs:
         run: |
           source "$(poetry env info --path)/bin/activate"
           yarn nx run-many --target=publish --projects=${{ matrix.projects }}
+      - name: Verify the npm latest dist-tag
+        # Catches a higher version published by an overlapping run after the
+        # check above.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        run: bash hack/npm-latest-guard.sh verify
       - name: Cleanup credentials
         if: always()
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' }}
+    # The Homebrew formula tracks the main release line only.
+    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' && !startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     environment: release
     permissions: {}
