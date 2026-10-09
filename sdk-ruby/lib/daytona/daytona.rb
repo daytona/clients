@@ -299,7 +299,7 @@ module Daytona
         env: params.env_vars || {},
         labels: labels,
         public: params.public,
-        target: params.target || config.target,
+        target: params.target.to_s.empty? ? config.target : params.target,
         auto_stop_interval: params.auto_stop_interval,
         auto_pause_interval: params.auto_pause_interval,
         auto_archive_interval: params.auto_archive_interval,

@@ -551,14 +551,26 @@ class TestCwdDotenvCannotRedirectTheEndpoint:
 
 
 class TestDaytonaV1AndTarget:
-    def test_v1_returns_same_instance(self, env_with_api_key):
-        daytona = _make_daytona()
-        assert daytona.v1 is daytona
+    @pytest.fixture(autouse=True)
+    def _no_env_target(self, monkeypatch):
+        monkeypatch.delenv("DAYTONA_TARGET", raising=False)
+        with patch("daytona._utils.env.dotenv_values", return_value={}):
+            yield
 
-    def test_create_via_v1_uses_same_client(self, env_with_api_key, sandbox_dto):
-        daytona = _make_daytona()
+    @staticmethod
+    def _client(sandbox_dto, client_target: str | None = None):
+        daytona = _make_daytona(DaytonaConfig(api_key="test-key", api_url="https://api.test.io"))
+        daytona._target = client_target
         daytona._sandbox_api = MagicMock()
         daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        return daytona
+
+    def test_v1_returns_same_instance(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
+        assert daytona.v1 is daytona
+
+    def test_create_via_v1_uses_same_client(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
         daytona.v1.create()
         daytona._sandbox_api.create_sandbox.assert_called_once()
 
@@ -566,27 +578,27 @@ class TestDaytonaV1AndTarget:
         "params_cls,extra",
         [(CreateSandboxFromSnapshotParams, {}), (CreateSandboxFromImageParams, {"image": "python:3.12"})],
     )
-    def test_create_target_overrides_client_target(self, env_with_api_key, sandbox_dto, params_cls, extra):
-        daytona = _make_daytona()
-        daytona._sandbox_api = MagicMock()
-        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+    def test_create_target_overrides_client_target(self, sandbox_dto, params_cls, extra):
+        daytona = self._client(sandbox_dto, client_target="us")
         daytona.create(params_cls(target="eu", **extra))
         assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
 
-    def test_create_without_target_uses_client_target(self, env_with_api_key, sandbox_dto):
-        daytona = _make_daytona()
-        daytona._sandbox_api = MagicMock()
-        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+    def test_create_without_target_uses_client_target(self, sandbox_dto):
+        daytona = self._client(sandbox_dto, client_target="us")
         daytona.create(CreateSandboxFromSnapshotParams())
         assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "us"
+
+    def test_create_without_any_target_omits_it(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
+        daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target is None
 
     def test_config_target_is_deprecated(self):
         with pytest.warns(DeprecationWarning, match="'target' in DaytonaConfig is deprecated"):
             config = DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us")
         assert _make_daytona(config)._target == "us"
 
-    @patch("daytona._utils.env.dotenv_values", return_value={})
-    def test_env_target_is_deprecated(self, _mock_dotenv, monkeypatch):
+    def test_env_target_is_deprecated(self, monkeypatch):
         monkeypatch.setenv("DAYTONA_API_KEY", "key")
         monkeypatch.setenv("DAYTONA_API_URL", "https://api.test.io")
         monkeypatch.setenv("DAYTONA_TARGET", "eu")
@@ -594,9 +606,7 @@ class TestDaytonaV1AndTarget:
             daytona = _make_daytona()
         assert daytona._target == "eu"
 
-    @patch("daytona._utils.env.dotenv_values", return_value={})
-    def test_no_target_warning_when_unset(self, _mock_dotenv, monkeypatch):
-        monkeypatch.delenv("DAYTONA_TARGET", raising=False)
+    def test_no_target_warning_when_unset(self):
         with warnings.catch_warnings():
             warnings.simplefilter("error", DeprecationWarning)
             daytona = _make_daytona(DaytonaConfig(api_key="test-key", api_url="https://api.test.io"))

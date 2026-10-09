@@ -205,7 +205,8 @@ class CreateSandboxBaseParams(BaseModel):
             established between them. Linked Sandboxes must be
             ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
         target (str | None): Target (region) where the Sandbox is created. Overrides the client-level
-            `target` for this call. Defaults to the organization's default region.
+            `target` for this call. If omitted, the client-level target is used when configured;
+            otherwise the organization's default region is used.
     """
 
     name: str | None = None

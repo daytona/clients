@@ -28,7 +28,7 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Deprecated. Default target [region](https://www.daytona.io/docs/en/regions/) for new sandboxes (e.g. `us`, `eu`). Set `target` on each create call instead
+- `DAYTONA_TARGET`: Deprecated. Default target [region](https://www.daytona.io/docs/en/regions/) for new sandboxes and snapshots (e.g. `us`, `eu`). Set `target` on each sandbox create call (and `regionId` on each snapshot create call) instead
 
 ```typescript
 import { Daytona } from '@daytona/sdk'

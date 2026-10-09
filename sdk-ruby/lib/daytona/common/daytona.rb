@@ -87,7 +87,8 @@ module Daytona
     attr_accessor :linked_sandbox
 
     # @return [String, nil] Target (region) where the Sandbox is created. Overrides the client-level
-    #   target for this call. Defaults to the organization's default region.
+    #   target for this call. If omitted, uses the client-level target when set; otherwise the
+    #   organization's default region.
     attr_accessor :target
 
     # Initialize CreateSandboxBaseParams

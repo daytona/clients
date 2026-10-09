@@ -65,8 +65,17 @@ RSpec.describe Daytona::Config do
     it 'warns that DAYTONA_TARGET is deprecated' do
       ENV['DAYTONA_TARGET'] = 'eu'
 
-      expect { expect(described_class.new(api_key: 'k').target).to eq('eu') }
+      config = nil
+      expect { config = described_class.new(api_key: 'k') }
         .to output(/`DAYTONA_TARGET` is deprecated/).to_stderr
+      expect(config.target).to eq('eu')
+    end
+
+    it 'warns when target is assigned through the writer' do
+      config = described_class.new(api_key: 'k')
+
+      expect { config.target = 'us' }.to output(/`target` in Daytona::Config is deprecated/).to_stderr
+      expect(config.target).to eq('us')
     end
 
     it 'does not warn about target when none is set' do

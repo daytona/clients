@@ -81,8 +81,6 @@ export interface VolumeMount extends SandboxVolume {
  * is provided, and must be set either here or in the environment variable `DAYTONA_ORGANIZATION_ID`.
  * @property {string} apiUrl - URL of the Daytona API. Defaults to 'https://app.daytona.io/api'
  * if not set here and not set in environment variable DAYTONA_API_URL.
- * @property {string} target - Deprecated. Default target (region) for Sandboxes. Pass `target` in the Sandbox
- * create params instead.
  * @property {boolean} otelEnabled - OpenTelemetry tracing enabled.
  * If set, all SDK operations will be traced.
  *
@@ -211,7 +209,7 @@ export interface Resources {
  * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
  * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
- * @property {string} [target] - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. Defaults to the organization's default region.
+ * @property {string} [target] - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
  */
 export type CreateSandboxBaseParams = {
   name?: string

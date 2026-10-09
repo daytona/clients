@@ -147,7 +147,8 @@ type SandboxBaseParams struct {
 	// linked to another sandbox.
 	LinkedSandbox string
 	// Target is the target (region) where the sandbox is created. It overrides the
-	// client-level target for this call. Empty uses the organization's default region.
+	// client-level target for this call. When empty, the client-level target is used if
+	// set; otherwise the organization's default region.
 	Target string
 }
 

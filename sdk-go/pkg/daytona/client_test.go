@@ -1279,6 +1279,18 @@ func TestClientCreateTarget(t *testing.T) {
 			wantTarget: "eu",
 		},
 		{
+			name:         "pointer snapshot params target overrides client target",
+			clientTarget: "us",
+			params:       &types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "pointer image params target overrides client target",
+			clientTarget: "us",
+			params:       &types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
 			name:       "target is omitted when neither is set",
 			params:     types.SnapshotParams{},
 			wantTarget: nil,
@@ -1289,7 +1301,7 @@ func TestClientCreateTarget(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]any
-				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, tc.wantTarget, body["target"])
 				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-target", "target", apiclient.SANDBOXSTATE_STARTED))
 			}))

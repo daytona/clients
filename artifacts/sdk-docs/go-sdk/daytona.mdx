@@ -616,7 +616,7 @@ func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.C
 
 Create creates a new sandbox with the specified parameters.
 
-The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image:
+The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image \(a pointer to either is also accepted\):
 
 ```
 // Create from a snapshot

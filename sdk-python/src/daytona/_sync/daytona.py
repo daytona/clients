@@ -121,8 +121,8 @@ class Daytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Deprecated. Optional default target (region) for created Sandboxes. Pass `target`
-          in the Sandbox create params instead.
+        - `DAYTONA_TARGET`: Deprecated. Optional default target (region) for created Sandboxes and Snapshots.
+          Pass `target` in the Sandbox create params and `region_id` in `CreateSnapshotParams` instead.
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.

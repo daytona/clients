@@ -215,6 +215,12 @@ RSpec.describe Daytona::Daytona do
       expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to eq('us') }
     end
 
+    it 'falls back to the client target when create passes a blank target' do
+      described_class.new(build_config(target: 'us')).create(Daytona::CreateSandboxFromSnapshotParams.new(target: ''))
+
+      expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to eq('us') }
+    end
+
     it 'omits target when neither the client nor create sets it' do
       described_class.new(build_config(target: nil)).create(Daytona::CreateSandboxFromSnapshotParams.new)
 

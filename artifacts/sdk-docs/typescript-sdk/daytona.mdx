@@ -443,7 +443,7 @@ Base parameters for creating a new Sandbox.
 - `queueTimeout?` _number_ - Minutes to wait for runner assignment before the API destroys an unassigned sandbox. Omit to use the organization default.
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
 - `spot?` _boolean_ - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
-- `target?` _string_ - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. Defaults to the organization's default region.
+- `target?` _string_ - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
 - `ttlMinutes?` _number_ - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
 - `user?` _string_ - Optional os user to use for the Sandbox
 - `volumes?` _VolumeMount\[\]_ - Optional array of volumes to mount to the Sandbox
@@ -539,8 +539,12 @@ Configuration options for initializing the Daytona client.
     `process.codeRun`) are not capped by this value; their HTTP wait is
     bounded by that per-call timeout instead.
 - ~~`serverUrl?`~~ _string_ - **_Deprecated_** - Use `apiUrl` instead. This property will be removed in future versions.
-- `target?` _string_ - Deprecated. Default target (region) for Sandboxes. Pass `target` in the Sandbox
-    create params instead.
+- ~~`target?`~~ _string_ - Default target (region) for created Sandboxes and Snapshots. Can also be set via the
+    `DAYTONA_TARGET` environment variable.
+    
+    create params) instead. This property and the `DAYTONA_TARGET` environment variable will
+    be removed in a future version.
+    - **_Deprecated_** - Pass `target` in the Sandbox create params (and `regionId` in the Snapshot
 - ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
     Defaults to `false`, where state changes are streamed over WebSocket. Can also
     be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.

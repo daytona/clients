@@ -914,9 +914,11 @@ describe('Daytona', () => {
       const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
       mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
 
-      await instance.create({ language: 'python', target: 'eu' })
+      await instance.create({ snapshot: 'snap-1', target: 'eu' })
 
-      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(expect.objectContaining({ target: 'eu' }))
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ snapshot: 'snap-1', target: 'eu' }),
+      )
       warnSpy.mockRestore()
     })
 

@@ -63,8 +63,8 @@ Initializes Daytona instance with optional configuration.
 If no config is provided, reads from environment variables:
 - `DAYTONA_API_KEY`: Required API key for authentication
 - `DAYTONA_API_URL`: Required api URL
-- `DAYTONA_TARGET`: Deprecated. Optional default target (region) for created Sandboxes. Pass `target`
-in the Sandbox create params instead.
+- `DAYTONA_TARGET`: Deprecated. Optional default target (region) for created Sandboxes and Snapshots.
+Pass `target` in the Sandbox create params and `region_id` in `CreateSnapshotParams` instead.
 
 **Arguments**:
 
@@ -507,7 +507,8 @@ Base parameters for creating a new Sandbox.
   established between them. Linked Sandboxes must be
   ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
 - `target` _str | None_ - Target (region) where the Sandbox is created. Overrides the client-level
-  `target` for this call. Defaults to the organization's default region.
+  `target` for this call. If omitted, the client-level target is used when configured;
+  otherwise the organization's default region is used.
 
 ## CreateSandboxFromImageParams
 
