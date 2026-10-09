@@ -87,6 +87,19 @@ module Daytona
       @subscription_manager = EventSubscriptionManager.new(@event_dispatcher)
     end
 
+    # Versioned alias of this client's API.
+    #
+    # `v1` is a versioned alias of the current client API, for code that wants to pin the API
+    # version explicitly. It returns this same client, so `daytona.v1.create` and `daytona.create`
+    # are identical.
+    #
+    # @return [Daytona::Daytona] This client instance
+    #
+    # @example
+    #   daytona = Daytona::Daytona.new
+    #   sandbox = daytona.v1.create
+    def v1 = self
+
     # Shuts down OTel providers, flushing any pending telemetry data.
     #
     # @return [void]
@@ -286,7 +299,7 @@ module Daytona
         env: params.env_vars || {},
         labels: labels,
         public: params.public,
-        target: config.target,
+        target: params.target || config.target,
         auto_stop_interval: params.auto_stop_interval,
         auto_pause_interval: params.auto_pause_interval,
         auto_archive_interval: params.auto_archive_interval,

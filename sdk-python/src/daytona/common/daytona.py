@@ -45,6 +45,15 @@ class CodeLanguage(str, Enum):
 
 CodeLanguageLiteral = Literal["python", "typescript", "javascript"]
 
+TARGET_CONFIG_DEPRECATION_MESSAGE = (
+    "'target' in DaytonaConfig is deprecated and will be removed in a future version. "
+    + "Pass 'target' in the Sandbox create params (and 'region_id' in CreateSnapshotParams) instead."
+)
+TARGET_ENV_DEPRECATION_MESSAGE = (
+    "Environment variable `DAYTONA_TARGET` is deprecated and will be removed in a future version. "
+    + "Pass 'target' in the Sandbox create params (and 'region_id' in CreateSnapshotParams) instead."
+)
+
 
 class DaytonaConfig(BaseModel):
     """Configuration options for initializing the Daytona client.
@@ -60,8 +69,13 @@ class DaytonaConfig(BaseModel):
             here or in the environment variable `DAYTONA_API_URL`.
         server_url (str | None): Deprecated. Use `api_url` instead. This property will be removed
             in a future version.
-        target (str | None): Target runner location for the Sandbox. Default region for the organization is used
-            if not set here or in the environment variable `DAYTONA_TARGET`.
+        target (str | None): Deprecated. Default target (region) for created Sandboxes and Snapshots.
+            Default region for the organization is used if not set here or in the deprecated
+            environment variable `DAYTONA_TARGET`. Pass `target` in the Sandbox create params
+            (and `region_id` in `CreateSnapshotParams`) instead.
+
+            .. deprecated::
+                `target` and `DAYTONA_TARGET` will be removed in a future version.
         connection_pool_maxsize (int | None): Maximum number of simultaneous HTTP connections
             the SDK will open. Defaults to 250. Set to `None` to remove the limit, which is
             recommended when running many concurrent long-lived operations like `process.exec`.
@@ -119,6 +133,8 @@ class DaytonaConfig(BaseModel):
             )
             if "api_url" not in values or not values["api_url"]:
                 values["api_url"] = values["server_url"]
+        if "target" in values and values.get("target"):
+            warnings.warn(TARGET_CONFIG_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=3)
         return values
 
 
@@ -188,6 +204,8 @@ class CreateSandboxBaseParams(BaseModel):
             Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
             established between them. Linked Sandboxes must be
             ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
+        target (str | None): Target (region) where the Sandbox is created. Overrides the client-level
+            `target` for this call. Defaults to the organization's default region.
     """
 
     name: str | None = None
@@ -213,6 +231,7 @@ class CreateSandboxBaseParams(BaseModel):
     ephemeral: bool | None = None
     spot: bool | None = None
     linked_sandbox: str | None = None
+    target: str | None = None
 
     @model_validator(mode="before")
     @classmethod

@@ -124,6 +124,15 @@ if (fs.existsSync(runtimeJsPath)) {
   }
 }
 
+// Resolvers that ignore the `exports` map (TypeScript `moduleResolution: node`, older bundlers)
+// find `@daytona/sdk/v1` through this directory instead.
+fs.mkdirSync(path.join(distDir, 'v1'), { recursive: true })
+writeJson(path.join(distDir, 'v1', 'package.json'), {
+  main: '../cjs/v1.js',
+  module: '../esm/v1.js',
+  types: '../cjs/v1.d.ts',
+})
+
 writeJson(path.join(distDir, 'package.json'), pkg)
 for (const file of ['README.md', 'LICENSE']) {
   const src = path.join(sourceDir, file)

@@ -86,6 +86,10 @@ module Daytona
     #   ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
     attr_accessor :linked_sandbox
 
+    # @return [String, nil] Target (region) where the Sandbox is created. Overrides the client-level
+    #   target for this call. Defaults to the organization's default region.
+    attr_accessor :target
+
     # Initialize CreateSandboxBaseParams
     #
     # @param language [Symbol, nil] Programming language for the Sandbox
@@ -118,6 +122,8 @@ module Daytona
     # @param spot [Boolean, nil] GPU-only. Whether the Sandbox may be instantly terminated to free GPU
     #   capacity for an on-demand GPU Sandbox
     # @param linked_sandbox [String, nil] ID or name of an existing Sandbox to link the new Sandbox to
+    # @param target [String, nil] Target (region) where the Sandbox is created. Overrides the client-level
+    #   target for this call.
     def initialize( # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
       language: nil,
       os_user: nil,
@@ -141,7 +147,8 @@ module Daytona
       otel_endpoint_override: nil,
       ephemeral: nil,
       spot: nil,
-      linked_sandbox: nil
+      linked_sandbox: nil,
+      target: nil
     )
       @language = language
       @os_user = os_user
@@ -166,6 +173,7 @@ module Daytona
       @ephemeral = ephemeral
       @spot = spot
       @linked_sandbox = linked_sandbox
+      @target = target
 
       # Handle ephemeral and auto_delete_interval conflict
       handle_ephemeral_auto_delete_conflict
@@ -198,7 +206,8 @@ module Daytona
         otel_endpoint_override:,
         ephemeral:,
         spot:,
-        linked_sandbox:
+        linked_sandbox:,
+        target:
       }.compact
     end
 

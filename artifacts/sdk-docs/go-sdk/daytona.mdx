@@ -31,7 +31,7 @@ The client reads configuration from environment variables:
 - DAYTONA\_JWT\_TOKEN: JWT token for authentication \(alternative to API key\)
 - DAYTONA\_ORGANIZATION\_ID: Organization ID \(required when using JWT token\)
 - DAYTONA\_API\_URL: API URL \(defaults to https://app.daytona.io/api\)
-- DAYTONA\_TARGET: Target environment
+- DAYTONA\_TARGET: Deprecated default target \(region\); set the Target create param instead
 
 Or provide configuration explicitly:
 
@@ -95,6 +95,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(c \*Client\) Get\(ctx context.Context, sandboxIDOrName string\) \(\*Sandbox, error\)](<#Client.Get>)
   - [func \(c \*Client\) List\(ctx context.Context, query \*ListSandboxesQuery\) \*SandboxIterator](<#Client.List>)
   - [func \(c \*Client\) ListSeq\(ctx context.Context, query \*ListSandboxesQuery\) iter.Seq2\[\*Sandbox, error\]](<#Client.ListSeq>)
+  - [func \(c \*Client\) V1\(\) \*Client](<#Client.V1>)
 - [type CodeInterpreterService](<#CodeInterpreterService>)
   - [func NewCodeInterpreterService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*CodeInterpreterService](<#NewCodeInterpreterService>)
   - [func \(c \*CodeInterpreterService\) CreateContext\(ctx context.Context, cwd \*string\) \(map\[string\]any, error\)](<#CodeInterpreterService.CreateContext>)
@@ -567,7 +568,7 @@ NewClient reads configuration from environment variables:
 - DAYTONA\_API\_KEY or DAYTONA\_JWT\_TOKEN for authentication \(one is required\)
 - DAYTONA\_ORGANIZATION\_ID \(required when using JWT token\)
 - DAYTONA\_API\_URL for custom API endpoint
-- DAYTONA\_TARGET for target environment
+- DAYTONA\_TARGET for the default target \(region\). Deprecated: set \[types.SandboxBaseParams.Target\] on each create call instead.
 
 For explicit configuration, use [NewClientWithConfig](<#NewClientWithConfig>) instead.
 
@@ -712,12 +713,23 @@ for sandbox, err := range client.ListSeq(ctx, &ListSandboxesQuery{...}) {
 }
 ```
 
+<a name="Client.V1"></a>
+### func \(\*Client\) V1
+
+```go
+func (c *Client) V1() *Client
+```
+
+V1 returns c itself.
+
+V1 is a versioned alias of the current client API, for code that wants to pin the API version explicitly: client.V1\(\).Create\(ctx, nil\) is identical to client.Create\(ctx, nil\). It is a method rather than a field so that it always refers to the receiver and cannot be reassigned.
+
 <a name="CodeInterpreterService"></a>
 ## type CodeInterpreterService
 
 CodeInterpreterService provides Python code execution capabilities for a sandbox.
 
-CodeInterpreterService enables running Python code in isolated execution contexts with support for streaming output, persistent state, and environment variables. It uses WebSockets for real\-time output streaming. Access through \[Sandbox.CodeInterpreter\].
+CodeInterpreterService enables running Python code in isolated execution contexts with support for streaming output, persistent state, and environment variables. It uses WebSockets for real\-time output streaming. Access through [Sandbox.CodeInterpreter](<#Sandbox>).
 
 Example:
 

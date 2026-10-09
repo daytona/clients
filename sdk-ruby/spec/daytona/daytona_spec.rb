@@ -178,6 +178,50 @@ RSpec.describe Daytona::Daytona do
     end
   end
 
+  describe '#v1' do
+    it 'returns the same client instance' do
+      daytona = described_class.new(config)
+
+      expect(daytona.v1).to be(daytona)
+    end
+
+    it 'creates sandboxes through the same client' do
+      allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)
+
+      expect(described_class.new(config).v1.create).to eq(sandbox)
+      expect(sandbox_api).to have_received(:create_sandbox).once
+    end
+  end
+
+  describe '#create target' do
+    before { allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto) }
+
+    it 'lets a snapshot create target override the client target' do
+      described_class.new(build_config(target: 'us')).create(Daytona::CreateSandboxFromSnapshotParams.new(target: 'eu'))
+
+      expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to eq('eu') }
+    end
+
+    it 'lets an image create target override the client target' do
+      params = Daytona::CreateSandboxFromImageParams.new(image: 'python:3.12', target: 'eu')
+      described_class.new(build_config(target: 'us')).create(params)
+
+      expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to eq('eu') }
+    end
+
+    it 'falls back to the client target when create omits it' do
+      described_class.new(build_config(target: 'us')).create(Daytona::CreateSandboxFromSnapshotParams.new)
+
+      expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to eq('us') }
+    end
+
+    it 'omits target when neither the client nor create sets it' do
+      described_class.new(build_config(target: nil)).create(Daytona::CreateSandboxFromSnapshotParams.new)
+
+      expect(sandbox_api).to have_received(:create_sandbox) { |request| expect(request.target).to be_nil }
+    end
+  end
+
   describe '#create' do
     it 'creates a sandbox with default snapshot params and python language when params are nil' do
       allow(sandbox_api).to receive(:create_sandbox).and_return(sandbox_dto)

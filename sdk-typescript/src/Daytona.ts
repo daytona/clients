@@ -81,15 +81,15 @@ export interface VolumeMount extends SandboxVolume {
  * is provided, and must be set either here or in the environment variable `DAYTONA_ORGANIZATION_ID`.
  * @property {string} apiUrl - URL of the Daytona API. Defaults to 'https://app.daytona.io/api'
  * if not set here and not set in environment variable DAYTONA_API_URL.
- * @property {string} target - Target location for Sandboxes
+ * @property {string} target - Deprecated. Default target (region) for Sandboxes. Pass `target` in the Sandbox
+ * create params instead.
  * @property {boolean} otelEnabled - OpenTelemetry tracing enabled.
  * If set, all SDK operations will be traced.
  *
  * @example
  * const config: DaytonaConfig = {
  *     apiKey: "your-api-key",
- *     apiUrl: "https://your-api.com",
- *     target: "us"
+ *     apiUrl: "https://your-api.com"
  * };
  * const daytona = new Daytona(config);
  */
@@ -107,7 +107,14 @@ export interface DaytonaConfig {
    * @deprecated Use `apiUrl` instead. This property will be removed in future versions.
    */
   serverUrl?: string
-  /** Target environment for sandboxes */
+  /**
+   * Default target (region) for created Sandboxes and Snapshots. Can also be set via the
+   * `DAYTONA_TARGET` environment variable.
+   *
+   * @deprecated Pass `target` in the Sandbox create params (and `regionId` in the Snapshot
+   * create params) instead. This property and the `DAYTONA_TARGET` environment variable will
+   * be removed in a future version.
+   */
   target?: string
   /** Enable OpenTelemetry tracing for SDK operations. */
   otelEnabled?: boolean
@@ -204,6 +211,7 @@ export interface Resources {
  * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
  * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
+ * @property {string} [target] - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. Defaults to the organization's default region.
  */
 export type CreateSandboxBaseParams = {
   name?: string
@@ -229,6 +237,7 @@ export type CreateSandboxBaseParams = {
   spot?: boolean
   linkedSandbox?: string
   secrets?: Record<string, string>
+  target?: string
 }
 
 /**
@@ -285,8 +294,7 @@ export type ForkSandboxParams = {
  * // Using explicit configuration
  * const config: DaytonaConfig = {
  *     apiKey: "your-api-key",
- *     apiUrl: "https://your-api.com",
- *     target: "us"
+ *     apiUrl: "https://your-api.com"
  * };
  * const daytona = new Daytona(config);
  *
@@ -349,6 +357,11 @@ export class Daytona implements AsyncDisposable {
       this.organizationId = config?.organizationId
       apiUrl = config?.apiUrl || config?.serverUrl
       this.target = config?.target
+      if (config?.target) {
+        console.warn(
+          '[Deprecation Warning] `target` in DaytonaConfig is deprecated and will be removed in a future version. Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead.',
+        )
+      }
       if (
         config?.requestTimeoutMs !== undefined &&
         (!Number.isFinite(config.requestTimeoutMs) || config.requestTimeoutMs < 0)
@@ -378,7 +391,14 @@ export class Daytona implements AsyncDisposable {
         // Resolved from the process environment only, never from .env / .env.local:
         // the endpoint decides where the credential above is sent.
         apiUrl = apiUrl || reader.getFromProcessEnv('DAYTONA_API_URL') || reader.getFromProcessEnv('DAYTONA_SERVER_URL')
-        this.target = this.target || reader.get('DAYTONA_TARGET')
+        if (!this.target) {
+          this.target = reader.get('DAYTONA_TARGET')
+          if (this.target) {
+            console.warn(
+              '[Deprecation Warning] Environment variable `DAYTONA_TARGET` is deprecated and will be removed in a future version. Pass `target` in the Sandbox create params (and `regionId` in the Snapshot create params) instead.',
+            )
+          }
+        }
 
         if (reader.getFromProcessEnv('DAYTONA_SERVER_URL') && !reader.getFromProcessEnv('DAYTONA_API_URL')) {
           console.warn(
@@ -527,6 +547,23 @@ export class Daytona implements AsyncDisposable {
     process.on('SIGTERM', async () => {
       await this.otelSdk?.shutdown()
     })
+  }
+
+  /**
+   * Versioned alias of this client's API.
+   *
+   * `v1` is a versioned alias of the current client API, for code that wants to pin the API
+   * version explicitly. It returns this same `Daytona` instance, so `daytona.v1.create()` and
+   * `daytona.create()` are identical.
+   *
+   * @returns {this} This client instance
+   *
+   * @example
+   * const daytona = new Daytona()
+   * const sandbox = await daytona.v1.create()
+   */
+  get v1(): this {
+    return this
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
@@ -726,7 +763,7 @@ export class Daytona implements AsyncDisposable {
           env: params.envVars || {},
           labels: labels,
           public: params.public,
-          target: this.target,
+          target: params.target || this.target,
           cpu: resources?.cpu,
           gpu: resources?.gpu,
           gpuType:

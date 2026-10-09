@@ -1,9 +1,7 @@
 import { Daytona, Image } from '@daytona/sdk'
 
 async function main() {
-  const daytona = new Daytona({
-    target: 'us',
-  })
+  const daytona = new Daytona()
 
   const snapshot1 = `us-${Date.now()}`
   console.log(`Creating snapshot ${snapshot1}`)
@@ -35,6 +33,7 @@ async function main() {
   try {
     const sandbox = await daytona.create({
       snapshot: snapshot1,
+      target: 'us',
     })
     await daytona.delete(sandbox)
   } catch (error: any) {
@@ -46,6 +45,7 @@ async function main() {
   try {
     const sandbox = await daytona.create({
       snapshot: snapshot2,
+      target: 'eu',
     })
     await daytona.delete(sandbox)
   } catch (error: any) {

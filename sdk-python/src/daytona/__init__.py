@@ -355,6 +355,10 @@ def __getattr__(attr_name: str) -> object:
         globals()[attr_name] = value
         return value
 
+    # `daytona.v1` is a submodule; resolve it lazily so `import daytona; daytona.v1` works.
+    if attr_name == "v1":
+        return importlib.import_module(".v1", __name__)
+
     raise AttributeError(f"module {__name__!r} has no attribute {attr_name!r}")
 
 

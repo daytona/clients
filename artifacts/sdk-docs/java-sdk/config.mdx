@@ -41,6 +41,8 @@ public String getTarget()
 
 Returns the default target location for newly created Sandboxes.
 
+**Deprecated**: Set the target on each create call with `io.daytona.sdk.model.CreateSandboxParams#setTarget(String)` instead. The client-level target and the `DAYTONA_TARGET` environment variable will be removed in a future version.
+
 **Returns**:
 
 - `String` - target region identifier, or `null` if not configured
@@ -115,6 +117,8 @@ public Builder target(String target)
 ```
 
 Sets the default target region for new Sandboxes.
+
+**Deprecated**: Set the target on each create call with `io.daytona.sdk.model.CreateSandboxParams#setTarget(String)` instead. The client-level target and the `DAYTONA_TARGET` environment variable will be removed in a future version.
 
 **Parameters**:
 

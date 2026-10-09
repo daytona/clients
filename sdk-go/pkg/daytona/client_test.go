@@ -204,7 +204,7 @@ func TestNewClientWithConfig(t *testing.T) {
 			name: "custom target in config",
 			config: &types.DaytonaConfig{
 				APIKey: "test-api-key",
-				Target: "custom-target",
+				Target: "custom-target", //nolint:staticcheck // deprecated field must keep working
 			},
 			expectedError: false,
 			validateClient: func(t *testing.T, c *Client) {
@@ -1237,4 +1237,68 @@ func TestClientGetAndListSuccess(t *testing.T) {
 		assert.Equal(t, "0.42.0", *collected[0].DaemonVersion)
 		assert.Nil(t, collected[0].OtelEndpointOverride)
 	})
+}
+
+func TestClientV1ReturnsSameClient(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	assert.Same(t, client, client.V1())
+	assert.Same(t, client.Volume, client.V1().Volume)
+}
+
+func TestClientCreateTarget(t *testing.T) {
+	cases := []struct {
+		name         string
+		clientTarget string
+		params       any
+		wantTarget   any
+	}{
+		{
+			name:         "snapshot create target overrides client target",
+			clientTarget: "us",
+			params:       types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "image create target overrides client target",
+			clientTarget: "us",
+			params:       types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "client target is used when create omits it",
+			clientTarget: "us",
+			params:       types.SnapshotParams{},
+			wantTarget:   "us",
+		},
+		{
+			name:       "create target is used without a client target",
+			params:     types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget: "eu",
+		},
+		{
+			name:       "target is omitted when neither is set",
+			params:     types.SnapshotParams{},
+			wantTarget: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, tc.wantTarget, body["target"])
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-target", "target", apiclient.SANDBOXSTATE_STARTED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			client.region = tc.clientTarget
+			_, err := client.V1().Create(context.Background(), tc.params, options.WithWaitForStart(false))
+			require.NoError(t, err)
+		})
+	}
 }

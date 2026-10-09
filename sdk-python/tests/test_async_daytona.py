@@ -783,3 +783,43 @@ class TestResolveHappyEyeballsDelay:
             match="DAYTONA_HAPPY_EYEBALLS_DELAY must be a finite non-negative float or 'none'",
         ):
             _resolve_happy_eyeballs_delay(raw)
+
+
+class TestAsyncDaytonaV1AndTarget:
+    def test_v1_returns_same_instance(self, env_with_api_key):
+        daytona = _make_async_daytona()
+        assert daytona.v1 is daytona
+
+    @pytest.mark.asyncio
+    async def test_create_via_v1_uses_same_client(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        await daytona.v1.create()
+        daytona._sandbox_api.create_sandbox.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "params_cls,extra",
+        [(CreateSandboxFromSnapshotParams, {}), (CreateSandboxFromImageParams, {"image": "python:3.12"})],
+    )
+    async def test_create_target_overrides_client_target(self, env_with_api_key, sandbox_dto, params_cls, extra):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        await daytona.create(params_cls(target="eu", **extra))
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
+
+    @pytest.mark.asyncio
+    async def test_create_without_target_uses_client_target(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        await daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "us"
+
+    @patch("daytona._utils.env.dotenv_values", return_value={})
+    def test_env_target_is_deprecated(self, _mock_dotenv, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_KEY", "key")
+        monkeypatch.setenv("DAYTONA_API_URL", "https://api.test.io")
+        monkeypatch.setenv("DAYTONA_TARGET", "eu")
+        with pytest.warns(DeprecationWarning, match="DAYTONA_TARGET"):
+            daytona = _make_async_daytona()
+        assert daytona._target == "eu"

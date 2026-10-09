@@ -50,7 +50,11 @@ public final class DaytonaConfig {
      * Returns the default target location for newly created Sandboxes.
      *
      * @return target region identifier, or {@code null} if not configured
+     * @deprecated Set the target on each create call with
+     *     {@link io.daytona.sdk.model.CreateSandboxParams#setTarget(String)} instead. The client-level
+     *     target and the {@code DAYTONA_TARGET} environment variable will be removed in a future version.
      */
+    @Deprecated
     public String getTarget() {
         return target;
     }
@@ -117,7 +121,12 @@ public final class DaytonaConfig {
          *
          * @param target target location identifier
          * @return this builder instance
+         * @deprecated Set the target on each create call with
+         *     {@link io.daytona.sdk.model.CreateSandboxParams#setTarget(String)} instead. The
+         *     client-level target and the {@code DAYTONA_TARGET} environment variable will be removed
+         *     in a future version.
          */
+        @Deprecated
         public Builder target(String target) {
             this.target = target;
             return this;

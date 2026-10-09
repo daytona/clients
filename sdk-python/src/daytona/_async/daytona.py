@@ -19,6 +19,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.attributes import service_attributes
+from typing_extensions import Self
 
 from daytona_api_client_async import (
     ApiClient,
@@ -51,6 +52,7 @@ from .._utils.stream import process_streaming_response
 from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import (
     CODE_TOOLBOX_LANGUAGE_LABEL,
+    TARGET_ENV_DEPRECATION_MESSAGE,
     CodeLanguage,
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
@@ -131,8 +133,7 @@ class AsyncDaytona:
         ```python
         config = DaytonaConfig(
             api_key="your-api-key",
-            api_url="https://your-api.com",
-            target="us"
+            api_url="https://your-api.com"
         )
         try:
             daytona = AsyncDaytona(config)
@@ -168,7 +169,8 @@ class AsyncDaytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional target environment (if not provided, default region for the organization is used)
+        - `DAYTONA_TARGET`: Deprecated. Optional default target (region) for created Sandboxes. Pass `target`
+          in the Sandbox create params instead.
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -185,8 +187,7 @@ class AsyncDaytona:
             # Using explicit configuration
             config = DaytonaConfig(
                 api_key="your-api-key",
-                api_url="https://your-api.com",
-                target="us"
+                api_url="https://your-api.com"
             )
             daytona2 = AsyncDaytona(config)
             await daytona2.close()
@@ -228,7 +229,10 @@ class AsyncDaytona:
                 or env_reader.get_from_process_env("DAYTONA_API_URL")
                 or env_reader.get_from_process_env("DAYTONA_SERVER_URL")
             )
-            self._target = self._target or env_reader.get("DAYTONA_TARGET")
+            if not self._target:
+                self._target = env_reader.get("DAYTONA_TARGET")
+                if self._target:
+                    warnings.warn(TARGET_ENV_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
 
             if env_reader.get_from_process_env("DAYTONA_SERVER_URL") and not env_reader.get_from_process_env(
                 "DAYTONA_API_URL"
@@ -371,6 +375,24 @@ class AsyncDaytona:
         )
         if otel_enabled:
             self._init_otel(sdk_version)
+
+    @property
+    def v1(self) -> Self:
+        """Versioned alias of this client's API.
+
+        `v1` is a versioned alias of the current client API, for code that wants to pin the API
+        version explicitly. It returns this same `AsyncDaytona` instance, so `daytona.v1.create()` and
+        `daytona.create()` are identical.
+
+        Returns:
+            AsyncDaytona: This client instance.
+
+        Example:
+            ```python
+            sandbox = await daytona.v1.create()
+            ```
+        """
+        return self
 
     def _init_otel(self, sdk_version: str):
         """Initialize OpenTelemetry tracing.
@@ -631,7 +653,7 @@ class AsyncDaytona:
         if params.queue_timeout is not None and (isinstance(params.queue_timeout, bool) or params.queue_timeout < 1):
             raise DaytonaValidationError("queue_timeout must be a positive integer")
 
-        target = self._target
+        target = params.target or self._target
 
         volumes = []
         if params.volumes:

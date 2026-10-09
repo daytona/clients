@@ -77,8 +77,11 @@ module Daytona
     # @return [String, nil] Daytona API URL
     attr_accessor :organization_id
 
-    # Target environment for sandboxes
+    # Default target (region) for created Sandboxes and Snapshots
     #
+    # @deprecated Pass `target:` to the Sandbox create params (and `region_id:` to the Snapshot
+    #   create params) instead. `target` and the `DAYTONA_TARGET` environment variable will be
+    #   removed in a future version.
     # @return [String, nil] Daytona target
     attr_accessor :target
 
@@ -108,7 +111,8 @@ module Daytona
     # @param jwt_token [String, nil] Daytona JWT token. Defaults to ENV['DAYTONA_JWT_TOKEN'].
     # @param api_url [String, nil] Daytona API URL. Defaults to ENV['DAYTONA_API_URL'] or Daytona::Config::API_URL.
     # @param organization_id [String, nil] Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
-    # @param target [String, nil] Daytona target. Defaults to ENV['DAYTONA_TARGET'].
+    # @param target [String, nil] Deprecated. Default target (region) for created Sandboxes. Defaults to
+    #   ENV['DAYTONA_TARGET'] (also deprecated). Pass `target:` to the Sandbox create params instead.
     # @param otel_enabled [Boolean, nil] Enable OpenTelemetry tracing for SDK operations.
     # @param use_deprecated_polling [Boolean, nil] Observe sandbox state by legacy polling instead of
     #   WebSocket event streaming. Defaults to false (event streaming). Can also be enabled via the
@@ -131,7 +135,7 @@ module Daytona
       # Resolved from the process environment only, never from .env / .env.local:
       # the endpoint decides where the credential above is sent.
       @api_url = resolve_api_url(api_url)
-      @target = target || @env_reader.call('DAYTONA_TARGET')
+      @target = resolve_target(target)
       @organization_id = organization_id || @env_reader.call('DAYTONA_ORGANIZATION_ID')
       @otel_enabled = otel_enabled
       @_experimental = _experimental
@@ -150,6 +154,20 @@ module Daytona
     end
 
     private
+
+    TARGET_DEPRECATION_HINT = 'Pass `target:` to the Sandbox create params (and `region_id:` to the ' \
+                              'Snapshot create params) instead.'
+    private_constant :TARGET_DEPRECATION_HINT
+
+    def resolve_target(target)
+      source = target ? '`target` in Daytona::Config' : 'Environment variable `DAYTONA_TARGET`'
+      target ||= @env_reader.call('DAYTONA_TARGET')
+      if target
+        warn("[DEPRECATION] #{source} is deprecated and will be removed in a future version. " \
+             "#{TARGET_DEPRECATION_HINT}", uplevel: 2)
+      end
+      target
+    end
 
     # Resolves the API endpoint without consulting the working directory, then reports a
     # dotenv value that was passed over. Staying silent when the file value matches the

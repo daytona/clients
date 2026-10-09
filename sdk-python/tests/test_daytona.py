@@ -548,3 +548,56 @@ class TestCwdDotenvCannotRedirectTheEndpoint:
         assert daytona._api_key == "victim-key"
         assert daytona._target == "us"
         assert self._ignored_endpoint_warnings(messages) == []
+
+
+class TestDaytonaV1AndTarget:
+    def test_v1_returns_same_instance(self, env_with_api_key):
+        daytona = _make_daytona()
+        assert daytona.v1 is daytona
+
+    def test_create_via_v1_uses_same_client(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        daytona.v1.create()
+        daytona._sandbox_api.create_sandbox.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "params_cls,extra",
+        [(CreateSandboxFromSnapshotParams, {}), (CreateSandboxFromImageParams, {"image": "python:3.12"})],
+    )
+    def test_create_target_overrides_client_target(self, env_with_api_key, sandbox_dto, params_cls, extra):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        daytona.create(params_cls(target="eu", **extra))
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
+
+    def test_create_without_target_uses_client_target(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "us"
+
+    def test_config_target_is_deprecated(self):
+        with pytest.warns(DeprecationWarning, match="'target' in DaytonaConfig is deprecated"):
+            config = DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target="us")
+        assert _make_daytona(config)._target == "us"
+
+    @patch("daytona._utils.env.dotenv_values", return_value={})
+    def test_env_target_is_deprecated(self, _mock_dotenv, monkeypatch):
+        monkeypatch.setenv("DAYTONA_API_KEY", "key")
+        monkeypatch.setenv("DAYTONA_API_URL", "https://api.test.io")
+        monkeypatch.setenv("DAYTONA_TARGET", "eu")
+        with pytest.warns(DeprecationWarning, match="DAYTONA_TARGET"):
+            daytona = _make_daytona()
+        assert daytona._target == "eu"
+
+    @patch("daytona._utils.env.dotenv_values", return_value={})
+    def test_no_target_warning_when_unset(self, _mock_dotenv, monkeypatch):
+        monkeypatch.delenv("DAYTONA_TARGET", raising=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            daytona = _make_daytona(DaytonaConfig(api_key="test-key", api_url="https://api.test.io"))
+        assert daytona._target is None

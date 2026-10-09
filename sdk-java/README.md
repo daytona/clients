@@ -38,7 +38,7 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Your target [region](https://www.daytona.io/docs/en/regions/) environment (e.g. `us`, `eu`)
+- `DAYTONA_TARGET`: Deprecated. Default target [region](https://www.daytona.io/docs/en/regions/) for new sandboxes (e.g. `us`, `eu`). Set `target` on each create call instead
 
 ```java
 import io.daytona.sdk.Daytona;
@@ -51,7 +51,6 @@ Daytona daytona = new Daytona();
 DaytonaConfig config = new DaytonaConfig.Builder()
     .apiKey("YOUR_API_KEY")
     .apiUrl("YOUR_API_URL")
-    .target("us")
     .build();
 Daytona daytona = new Daytona(config);
 ```
@@ -81,6 +80,24 @@ try (Daytona daytona = new Daytona()) {
 ## Examples and guides
 
 Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#examples) and [guides](https://www.daytona.io/docs/en/guides/) for common sandbox operations, best practices, and a wide range of topics, from basic usage to advanced topics, showcasing various types of integrations between Daytona and other tools.
+
+### Create a sandbox in a specific region
+
+Set `target` on the create params to choose the [region](https://www.daytona.io/docs/en/regions/) for a single sandbox. It overrides the deprecated client-level `target`.
+
+```java
+CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+params.setTarget("eu");
+Sandbox sandbox = daytona.create(params);
+```
+
+### Pin the API version
+
+`v1()` is a versioned alias of the current client API, for code that wants to pin the API version explicitly. It returns the same client:
+
+```java
+Sandbox sandbox = daytona.v1().create();
+```
 
 ### Create a sandbox with custom resources
 

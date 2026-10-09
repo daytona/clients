@@ -67,9 +67,12 @@ public class Daytona implements AutoCloseable {
      * Creates a client using environment variables.
      *
      * <p>Reads {@code DAYTONA_API_KEY}, {@code DAYTONA_API_URL}, and {@code DAYTONA_TARGET}.
+     * {@code DAYTONA_TARGET} is deprecated; set the target on each create call with
+     * {@link io.daytona.sdk.model.CreateSandboxParams#setTarget(String)} instead.
      *
      * @throws DaytonaException if required authentication is missing
      */
+    @SuppressWarnings("deprecation")
     public Daytona() {
         this(new DaytonaConfig.Builder()
                 .apiKey(System.getenv("DAYTONA_API_KEY"))
@@ -530,6 +533,19 @@ public class Daytona implements AutoCloseable {
     }
 
     /**
+     * Returns this client.
+     *
+     * <p>{@code v1()} is a versioned alias of the current client API, for code that wants to pin
+     * the API version explicitly: {@code daytona.v1().create()} is identical to
+     * {@code daytona.create()}.
+     *
+     * @return this client instance
+     */
+    public Daytona v1() {
+        return this;
+    }
+
+    /**
      * Returns Snapshot management service.
      *
      * @return snapshot service instance
@@ -579,12 +595,22 @@ public class Daytona implements AutoCloseable {
         shutdownHttpClient(apiClient.getHttpClient());
     }
 
+    @SuppressWarnings("deprecation")
+    private String resolveTarget(io.daytona.sdk.model.CreateSandboxParams params) {
+        if (params != null && params.getTarget() != null && !params.getTarget().isEmpty()) {
+            return params.getTarget();
+        }
+        String configTarget = config.getTarget();
+        return configTarget != null && !configTarget.isEmpty() ? configTarget : null;
+    }
+
     private CreateSandbox baseSandboxBody(io.daytona.sdk.model.CreateSandboxParams params) {
         CreateSandbox body = new CreateSandbox();
+        String target = resolveTarget(params);
+        if (target != null) {
+            body.setTarget(target);
+        }
         if (params == null) {
-            if (config.getTarget() != null && !config.getTarget().isEmpty()) {
-                body.setTarget(config.getTarget());
-            }
             return body;
         }
 
@@ -652,10 +678,6 @@ public class Daytona implements AutoCloseable {
         labels.put(CODE_TOOLBOX_LANGUAGE_LABEL, language);
         if (!labels.isEmpty()) {
             body.setLabels(labels);
-        }
-
-        if (config.getTarget() != null && !config.getTarget().isEmpty()) {
-            body.setTarget(config.getTarget());
         }
 
         return body;

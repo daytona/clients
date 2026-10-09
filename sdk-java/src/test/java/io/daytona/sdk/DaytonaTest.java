@@ -167,6 +167,58 @@ class DaytonaTest {
     }
 
     @Test
+    void v1ReturnsSameClient() {
+        assertThat(daytona.v1()).isSameAs(daytona);
+        assertThat(daytona.v1().snapshot()).isSameAs(daytona.snapshot());
+    }
+
+    @Test
+    void createSnapshotTargetOverridesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setTarget("us");
+        daytona.v1().create(params);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("us");
+    }
+
+    @Test
+    void createImageTargetOverridesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        params.setTarget("us");
+        daytona.create(params);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("us");
+    }
+
+    @Test
+    void createWithoutTargetUsesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        daytona.create(new CreateSandboxFromSnapshotParams());
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("eu");
+    }
+
+    @Test
+    void configTargetIsDeprecated() throws Exception {
+        assertThat(DaytonaConfig.class.getMethod("getTarget").isAnnotationPresent(Deprecated.class)).isTrue();
+        assertThat(DaytonaConfig.Builder.class.getMethod("target", String.class).isAnnotationPresent(Deprecated.class))
+                .isTrue();
+    }
+
+    @Test
     void createFromImageStringBuildsDockerfile() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
