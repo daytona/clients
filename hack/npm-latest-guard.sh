@@ -14,18 +14,19 @@
 #                                        is the highest published stable version
 #
 # Versions are ordered by SemVer precedence of X.Y.Z. Prereleases never block,
-# since `latest` tracks stable versions only. PACKAGE defaults to
-# @daytona/sdk; every npm package of the repository shares its version.
+# since `latest` tracks stable versions only. Every package that the
+# sdk-typescript publish target releases is checked: set PACKAGES (space
+# separated) to override the list.
 
 set -euo pipefail
 
 mode="${1:?usage: npm-latest-guard.sh check <version> | verify}"
 version="${2:-}"
-pkg="${PACKAGE:-@daytona/sdk}"
+read -r -a packages <<<"${PACKAGES:-@daytona/sdk @daytona/api-client @daytona/toolbox-api-client @daytona/analytics-api-client @daytonaio/sdk @daytonaio/api-client @daytonaio/toolbox-api-client}"
 registry=https://registry.npmjs.org/
 
 run_guard() {
-  local versions latest
+  local pkg="$1" versions latest
   versions=$(npm view "$pkg" versions --json --registry "$registry")
   latest=$(npm view "$pkg" dist-tags.latest --registry "$registry")
   node - "$mode" "$version" "$latest" "$versions" "$pkg" <<'EOF'
@@ -53,7 +54,7 @@ if (mode === 'check') {
 } else if (mode === 'verify') {
   const highest = parsed.filter((x) => !x.p.pre).sort((a, b) => compare(b.p, a.p))[0];
   if (highest && highest.v !== latest) {
-    fail(`npm latest of ${pkg} is ${latest} but ${highest.v} is published. Run 'npm dist-tag add <package>@${highest.v} latest' for every npm package of this repository.`);
+    fail(`npm latest of ${pkg} is ${latest} but ${highest.v} is published. Run 'npm dist-tag add ${pkg}@${highest.v} latest'.`);
   }
   console.log(`npm latest of ${pkg} is ${latest}, the highest stable version.`);
 } else {
@@ -62,16 +63,22 @@ if (mode === 'check') {
 EOF
 }
 
-if [ "$mode" != verify ]; then
-  run_guard
-  exit
-fi
-
-# The registry can take a few seconds to show a fresh publish.
-for attempt in 1 2 3 4 5 6; do
-  if run_guard; then
-    exit 0
+status=0
+for pkg in "${packages[@]}"; do
+  if [ "$mode" != verify ]; then
+    run_guard "$pkg" || status=1
+    continue
   fi
-  [ "$attempt" -lt 6 ] && sleep 10
+  # The registry can take a few seconds to show a fresh publish.
+  for attempt in 1 2 3 4 5 6; do
+    if run_guard "$pkg"; then
+      break
+    fi
+    if [ "$attempt" -eq 6 ]; then
+      status=1
+    else
+      sleep 10
+    fi
+  done
 done
-exit 1
+exit "$status"
