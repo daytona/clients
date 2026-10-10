@@ -44,6 +44,39 @@ const daytona = new Daytona({
 });
 ```
 
+### Customer-owned build-context storage
+
+Set `getBuildContextUploadAccess` to supply your own upload access for local files
+in an `Image`, instead of calling Daytona's hosted push-access endpoint:
+
+```typescript
+const target = 'YOUR_CUSTOM_REGION_ID'
+const daytona = new Daytona({
+  apiKey: 'YOUR_DAYTONA_API_KEY',
+  target,
+  getBuildContextUploadAccess: async (regionId) => {
+    if (regionId !== target) throw new Error('Unexpected build region')
+    return {
+      storageUrl: 'https://s3.us-east-1.amazonaws.com',
+      bucket: 'your-build-context-bucket',
+      region: 'us-east-1',
+      organizationId: 'YOUR_ORGANIZATION_ID',
+      accessKey: process.env.AWS_ACCESS_KEY_ID!,
+      secret: process.env.AWS_SECRET_ACCESS_KEY!,
+      sessionToken: process.env.AWS_SESSION_TOKEN || '',
+    }
+  },
+})
+```
+
+This applies to both `daytona.snapshot.create` and `daytona.create` with an `Image`.
+An explicit target is required when uploading local contexts. The provider must
+return the bucket and organization prefix that the selected region's runners
+read; SDK upload credentials are independent of runner IRSA. Supply scoped
+credentials valid for the upload and retain contexts for pending builds/rebuilds.
+Provider or upload failures never fall back to hosted storage. Daytona still
+receives Dockerfile content and context hashes; image/registry storage is separate.
+
 ## Create a sandbox
 
 Create a sandbox to run your code securely in an isolated environment.

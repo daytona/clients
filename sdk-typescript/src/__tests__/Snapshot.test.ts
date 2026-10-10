@@ -50,6 +50,20 @@ describe('SnapshotService', () => {
   }
 
   const service = new SnapshotService(cfg, snapshotsApi as unknown as never, objectStorageApi as unknown as never, 'eu')
+  const access = {
+    storageUrl: 'https://s3.us-east-1.amazonaws.com',
+    bucket: 'customer-contexts',
+    region: 'us-east-1',
+    organizationId: 'org-1',
+    accessKey: 'key',
+    secret: 'secret',
+    sessionToken: 'session',
+  }
+  const contextImage = () => {
+    const image = Image.base('node:24-bookworm-slim')
+    image.contextList.push({ sourcePath: '/tmp/file.txt', archivePath: 'file.txt' })
+    return image
+  }
 
   beforeEach(() => {
     jest.restoreAllMocks()
@@ -217,6 +231,88 @@ describe('SnapshotService', () => {
     expect(objectStorageApi.getPushAccess).toHaveBeenCalledTimes(1)
     expect(ObjectStorage).toHaveBeenCalledWith(expect.objectContaining({ region: 'us-east-2' }))
     expect(upload).toHaveBeenCalledWith('/tmp/context', 'org-1', '.')
+  })
+
+  it('skips custom and hosted upload access for an image without context files', async () => {
+    const getAccess = jest.fn()
+    await expect(
+      SnapshotService.processImageContext(objectStorageApi as never, Image.base('python:3.12'), getAccess),
+    ).resolves.toEqual([])
+    expect(getAccess).not.toHaveBeenCalled()
+    expect(objectStorageApi.getPushAccess).not.toHaveBeenCalled()
+  })
+
+  it('uses custom upload access for the snapshot region without changing its metadata contract', async () => {
+    const upload = jest.fn().mockResolvedValue('ctx-hash')
+    const ObjectStorage = jest.fn(() => ({ upload }))
+    mockDynamicImport.mockResolvedValue({ ObjectStorage })
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's1', name: 'snapshot', state: 'active' }))
+    const params = { name: 'snapshot', image: contextImage(), regionId: 'customer-region' }
+    const getAccess = jest.fn(async () => {
+      params.regionId = 'changed-during-upload'
+      return access
+    })
+    const customer = new SnapshotService(cfg, snapshotsApi as never, objectStorageApi as never, 'eu', getAccess)
+
+    await customer.create(params)
+
+    expect(getAccess).toHaveBeenCalledWith('customer-region')
+    expect(objectStorageApi.getPushAccess).not.toHaveBeenCalled()
+    expect(ObjectStorage).toHaveBeenCalledWith({
+      endpointUrl: access.storageUrl,
+      bucketName: access.bucket,
+      region: access.region,
+      accessKeyId: access.accessKey,
+      secretAccessKey: access.secret,
+      sessionToken: access.sessionToken,
+    })
+    expect(upload).toHaveBeenCalledWith('/tmp/file.txt', access.organizationId, 'file.txt')
+    expect(snapshotsApi.createSnapshot).toHaveBeenCalledWith(
+      {
+        name: 'snapshot',
+        regionId: 'customer-region',
+        sandboxClass: undefined,
+        buildInfo: { dockerfileContent: params.image.dockerfile, contextHashes: ['ctx-hash'] },
+      },
+      undefined,
+      { timeout: 0 },
+    )
+  })
+
+  it.each(['access', 'upload'])('never falls back or creates metadata after custom %s fails', async (failure) => {
+    const upload = jest.fn().mockRejectedValue(new Error('Upload denied'))
+    mockDynamicImport.mockResolvedValue({ ObjectStorage: jest.fn(() => ({ upload })) })
+    const getAccess = jest.fn().mockResolvedValue(access)
+    if (failure === 'access') getAccess.mockRejectedValue(new Error('Access denied'))
+    const customer = new SnapshotService(
+      cfg,
+      snapshotsApi as never,
+      objectStorageApi as never,
+      'customer-region',
+      getAccess,
+    )
+
+    await expect(customer.create({ name: 'snapshot', image: contextImage() })).rejects.toThrow(/denied/)
+
+    expect(objectStorageApi.getPushAccess).not.toHaveBeenCalled()
+    expect(snapshotsApi.createSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('requires an explicit region and bucket for custom upload access', async () => {
+    const getAccess = jest.fn().mockResolvedValue({ ...access, bucket: '' })
+    const ObjectStorage = jest.fn()
+    mockDynamicImport.mockResolvedValue({ ObjectStorage })
+    const image = contextImage()
+
+    await expect(SnapshotService.processImageContext(objectStorageApi as never, image, getAccess)).rejects.toThrow(
+      'An explicit target region is required',
+    )
+    expect(getAccess).not.toHaveBeenCalled()
+    await expect(
+      SnapshotService.processImageContext(objectStorageApi as never, image, getAccess, 'customer-region'),
+    ).rejects.toThrow('must specify a bucket')
+    expect(ObjectStorage).not.toHaveBeenCalled()
+    expect(objectStorageApi.getPushAccess).not.toHaveBeenCalled()
   })
 
   it('streams build logs when onLogs is provided for build snapshots', async () => {
