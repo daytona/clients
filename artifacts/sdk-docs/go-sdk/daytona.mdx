@@ -31,7 +31,7 @@ The client reads configuration from environment variables:
 - DAYTONA\_JWT\_TOKEN: JWT token for authentication \(alternative to API key\)
 - DAYTONA\_ORGANIZATION\_ID: Organization ID \(required when using JWT token\)
 - DAYTONA\_API\_URL: API URL \(defaults to https://app.daytona.io/api\)
-- DAYTONA\_TARGET: Target environment
+- DAYTONA\_TARGET: Default region for sandboxes and snapshots \(a per\-call Target / RegionID overrides it\)
 
 Or provide configuration explicitly:
 
@@ -567,7 +567,7 @@ NewClient reads configuration from environment variables:
 - DAYTONA\_API\_KEY or DAYTONA\_JWT\_TOKEN for authentication \(one is required\)
 - DAYTONA\_ORGANIZATION\_ID \(required when using JWT token\)
 - DAYTONA\_API\_URL for custom API endpoint
-- DAYTONA\_TARGET for target environment
+- DAYTONA\_TARGET for the default region of sandboxes and snapshots
 
 For explicit configuration, use [NewClientWithConfig](<#NewClientWithConfig>) instead.
 
@@ -615,7 +615,7 @@ func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.C
 
 Create creates a new sandbox with the specified parameters.
 
-The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image:
+The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image \(a pointer to either is also accepted\):
 
 ```
 // Create from a snapshot

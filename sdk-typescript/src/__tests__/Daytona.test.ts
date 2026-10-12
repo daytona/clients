@@ -888,6 +888,54 @@ describe('Daytona', () => {
     expect(sandboxFromGet.delete).toHaveBeenCalledWith(33, false)
   })
 
+  describe('per-create target', () => {
+    const startedSandbox = () =>
+      createApiResponse({ id: 'sb-target', state: 'started', labels: { 'code-toolbox-language': 'python' } })
+
+    it('lets a snapshot create target override the client target', async () => {
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ snapshot: 'snap-1', target: 'eu' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ snapshot: 'snap-1', target: 'eu' }),
+      )
+    })
+
+    it('lets an image create target override the DAYTONA_TARGET target', async () => {
+      process.env.DAYTONA_TARGET = 'us'
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ image: 'python:3.12', target: 'eu' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(expect.objectContaining({ target: 'eu' }))
+    })
+
+    it('falls back to the client target when create omits it', async () => {
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ language: 'python' })
+
+      expect(mockSandboxApi.createSandbox.mock.calls[0][0]).toEqual(expect.objectContaining({ target: 'us' }))
+    })
+
+    it('omits target when neither the client nor create sets it', async () => {
+      const { Daytona } = await import('../Daytona')
+      const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api' })
+      mockSandboxApi.createSandbox.mockResolvedValue(startedSandbox())
+
+      await instance.create({ language: 'python' })
+
+      expect((mockSandboxApi.createSandbox.mock.calls[0][0] as { target?: string }).target).toBeUndefined()
+    })
+  })
+
   describe('cwd dotenv endpoint trust', () => {
     // A .env in the working directory must not decide where the credential is sent: the
     // working directory is frequently a cloned repository, authored by a third party.

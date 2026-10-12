@@ -405,3 +405,44 @@ class TestAsyncSnapshotService:
 
             assert await service.process_image_context(object_storage_api, image) == ["ctx-hash"]
             assert mock_storage_cls.call_args.kwargs["region"] == "us-east-2"
+
+
+class TestSnapshotCreateRegion:
+    @staticmethod
+    def _dto():
+        from daytona_api_client import SnapshotState
+
+        dto = TestSyncSnapshotService()._make_snapshot_dto()
+        dto.state = SnapshotState.ACTIVE
+        return dto
+
+    @staticmethod
+    def _sync_service(default_region_id):
+        from daytona._sync.snapshot import SnapshotService
+
+        api = MagicMock()
+        api.create_snapshot.return_value = TestSnapshotCreateRegion._dto()
+        return SnapshotService(api, MagicMock(), default_region_id), api
+
+    @pytest.mark.parametrize(
+        "default_region,region_id,expected",
+        [("us", "eu", "eu"), (None, "eu", "eu"), ("us", None, "us"), ("us", "", "us"), (None, None, None)],
+    )
+    def test_sync_region_fallback(self, default_region, region_id, expected):
+        from daytona.common.snapshot import CreateSnapshotParams
+
+        service, api = self._sync_service(default_region)
+        service.create(CreateSnapshotParams(name="snap", image="python:3.12", region_id=region_id))
+        assert api.create_snapshot.call_args.args[0].region_id == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("region_id,expected", [("eu", "eu"), (None, "us")])
+    async def test_async_region_fallback(self, region_id, expected):
+        from daytona._async.snapshot import AsyncSnapshotService
+        from daytona.common.snapshot import CreateSnapshotParams
+
+        api = MagicMock()
+        api.create_snapshot = AsyncMock(return_value=self._dto())
+        service = AsyncSnapshotService(api, MagicMock(), "us")
+        await service.create(CreateSnapshotParams(name="snap", image="python:3.12", region_id=region_id))
+        assert api.create_snapshot.call_args.args[0].region_id == expected

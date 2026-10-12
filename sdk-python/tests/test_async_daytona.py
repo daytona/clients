@@ -783,3 +783,41 @@ class TestResolveHappyEyeballsDelay:
             match="DAYTONA_HAPPY_EYEBALLS_DELAY must be a finite non-negative float or 'none'",
         ):
             _resolve_happy_eyeballs_delay(raw)
+
+
+class TestAsyncDaytonaCreateTarget:
+    @pytest.fixture(autouse=True)
+    def _no_env_target(self, monkeypatch):
+        monkeypatch.delenv("DAYTONA_TARGET", raising=False)
+        with patch("daytona._utils.env.dotenv_values", return_value={}):
+            yield
+
+    @staticmethod
+    def _client(sandbox_dto, client_target: str | None = None):
+        daytona = _make_async_daytona(
+            DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target=client_target)
+        )
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        return daytona
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "params_cls,extra",
+        [(CreateSandboxFromSnapshotParams, {}), (CreateSandboxFromImageParams, {"image": "python:3.12"})],
+    )
+    async def test_create_target_overrides_client_target(self, sandbox_dto, params_cls, extra):
+        daytona = self._client(sandbox_dto, client_target="us")
+        await daytona.create(params_cls(target="eu", **extra))
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
+
+    @pytest.mark.asyncio
+    async def test_create_without_target_uses_client_target(self, sandbox_dto):
+        daytona = self._client(sandbox_dto, client_target="us")
+        await daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "us"
+
+    @pytest.mark.asyncio
+    async def test_create_without_any_target_omits_it(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
+        await daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target is None

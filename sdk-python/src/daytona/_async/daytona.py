@@ -168,7 +168,8 @@ class AsyncDaytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional target environment (if not provided, default region for the organization is used)
+        - `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
+          for the organization is used). A per-call `target` / `region_id` overrides it
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -631,7 +632,7 @@ class AsyncDaytona:
         if params.queue_timeout is not None and (isinstance(params.queue_timeout, bool) or params.queue_timeout < 1):
             raise DaytonaValidationError("queue_timeout must be a positive integer")
 
-        target = self._target
+        target = params.target or self._target
 
         volumes = []
         if params.volumes:

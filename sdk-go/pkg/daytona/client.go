@@ -21,7 +21,7 @@
 //   - DAYTONA_JWT_TOKEN: JWT token for authentication (alternative to API key)
 //   - DAYTONA_ORGANIZATION_ID: Organization ID (required when using JWT token)
 //   - DAYTONA_API_URL: API URL (defaults to https://app.daytona.io/api)
-//   - DAYTONA_TARGET: Target environment
+//   - DAYTONA_TARGET: Default region for sandboxes and snapshots (a per-call Target / RegionID overrides it)
 //
 // Or provide configuration explicitly:
 //
@@ -144,7 +144,7 @@ type Client struct {
 //   - DAYTONA_API_KEY or DAYTONA_JWT_TOKEN for authentication (one is required)
 //   - DAYTONA_ORGANIZATION_ID (required when using JWT token)
 //   - DAYTONA_API_URL for custom API endpoint
-//   - DAYTONA_TARGET for target environment
+//   - DAYTONA_TARGET for the default region of sandboxes and snapshots
 //
 // For explicit configuration, use [NewClientWithConfig] instead.
 func NewClient() (*Client, error) {
@@ -405,7 +405,7 @@ func (c *Client) createToolboxClient(proxyURL string, sandboxID string) (*toolbo
 // Create creates a new sandbox with the specified parameters.
 //
 // The params argument accepts either [types.SnapshotParams] to create from a snapshot,
-// or [types.ImageParams] to create from a Docker image:
+// or [types.ImageParams] to create from a Docker image (a pointer to either is also accepted):
 //
 //	// Create from a snapshot
 //	sandbox, err := client.Create(ctx, types.SnapshotParams{
@@ -463,6 +463,17 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	var snapshot string
 	var image any
 	var resources *types.Resources
+
+	switch p := params.(type) {
+	case *types.SnapshotParams:
+		if p != nil {
+			params = *p
+		}
+	case *types.ImageParams:
+		if p != nil {
+			params = *p
+		}
+	}
 
 	switch p := params.(type) {
 	case types.SnapshotParams:
@@ -547,8 +558,12 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if len(baseParams.Labels) > 0 {
 		createReq.SetLabels(baseParams.Labels)
 	}
-	if c.region != "" {
-		createReq.SetTarget(c.region)
+	target := baseParams.Target
+	if target == "" {
+		target = c.region
+	}
+	if target != "" {
+		createReq.SetTarget(target)
 	}
 	if baseParams.AutoStopInterval != nil {
 		createReq.SetAutoStopInterval(int32(*baseParams.AutoStopInterval))

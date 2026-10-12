@@ -1238,3 +1238,75 @@ func TestClientGetAndListSuccess(t *testing.T) {
 		assert.Nil(t, collected[0].OtelEndpointOverride)
 	})
 }
+
+func TestClientCreateTarget(t *testing.T) {
+	cases := []struct {
+		name         string
+		clientTarget string
+		params       any
+		wantTarget   any
+	}{
+		{
+			name:         "snapshot create target overrides client target",
+			clientTarget: "us",
+			params:       types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "image create target overrides client target",
+			clientTarget: "us",
+			params:       types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "pointer snapshot params target overrides client target",
+			clientTarget: "us",
+			params:       &types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "pointer image params target overrides client target",
+			clientTarget: "us",
+			params:       &types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "client target is used when create omits it",
+			clientTarget: "us",
+			params:       types.SnapshotParams{},
+			wantTarget:   "us",
+		},
+		{
+			name:       "create target is used without a client target",
+			params:     types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget: "eu",
+		},
+		{
+			name:       "target is omitted when neither is set",
+			params:     types.SnapshotParams{},
+			wantTarget: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				target, sent := body["target"]
+				if tc.wantTarget == nil {
+					assert.False(t, sent, "target must be omitted from the request")
+				} else {
+					assert.Equal(t, tc.wantTarget, target)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-target", "target", apiclient.SANDBOXSTATE_STARTED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			client.region = tc.clientTarget
+			_, err := client.Create(context.Background(), tc.params, options.WithWaitForStart(false))
+			require.NoError(t, err)
+		})
+	}
+}

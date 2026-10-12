@@ -548,3 +548,42 @@ class TestCwdDotenvCannotRedirectTheEndpoint:
         assert daytona._api_key == "victim-key"
         assert daytona._target == "us"
         assert self._ignored_endpoint_warnings(messages) == []
+
+
+class TestDaytonaCreateTarget:
+    @pytest.fixture(autouse=True)
+    def _no_env_target(self, monkeypatch):
+        monkeypatch.delenv("DAYTONA_TARGET", raising=False)
+        with patch("daytona._utils.env.dotenv_values", return_value={}):
+            yield
+
+    @staticmethod
+    def _client(sandbox_dto, client_target: str | None = None):
+        daytona = _make_daytona(DaytonaConfig(api_key="test-key", api_url="https://api.test.io", target=client_target))
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.create_sandbox.return_value = sandbox_dto
+        return daytona
+
+    @pytest.mark.parametrize(
+        "params_cls,extra",
+        [(CreateSandboxFromSnapshotParams, {}), (CreateSandboxFromImageParams, {"image": "python:3.12"})],
+    )
+    def test_create_target_overrides_client_target(self, sandbox_dto, params_cls, extra):
+        daytona = self._client(sandbox_dto, client_target="us")
+        daytona.create(params_cls(target="eu", **extra))
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
+
+    def test_create_target_without_client_target(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
+        daytona.create(CreateSandboxFromSnapshotParams(target="eu"))
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "eu"
+
+    def test_create_without_target_uses_client_target(self, sandbox_dto):
+        daytona = self._client(sandbox_dto, client_target="us")
+        daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target == "us"
+
+    def test_create_without_any_target_omits_it(self, sandbox_dto):
+        daytona = self._client(sandbox_dto)
+        daytona.create(CreateSandboxFromSnapshotParams())
+        assert daytona._sandbox_api.create_sandbox.call_args.args[0].target is None
