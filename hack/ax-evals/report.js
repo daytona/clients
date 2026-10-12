@@ -53,6 +53,7 @@ function checksCell(report) {
 function oneLine(text) {
   return String(text || '')
     .replace(/\s+/g, ' ')
+    .replace(/\\/g, '\\\\')
     .replace(/\|/g, '\\|')
     .trim()
 }
