@@ -22,7 +22,8 @@ async function upsertComment(github, repo, prNumber, runId, lines) {
   )
   const [existing, ...duplicates] = ours
   for (const duplicate of duplicates) {
-    await github.rest.issues.deleteComment({ ...repo, comment_id: duplicate.id })
+    // A concurrent run may have deleted it already; a leftover duplicate is cosmetic.
+    await github.rest.issues.deleteComment({ ...repo, comment_id: duplicate.id }).catch(() => undefined)
   }
   if (!existing) {
     await github.rest.issues.createComment({ ...repo, issue_number: prNumber, body })

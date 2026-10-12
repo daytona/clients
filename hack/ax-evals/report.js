@@ -37,10 +37,12 @@ function isClean(result) {
 }
 
 function resultLabel(result) {
-  if (result.finalStatus === 'completed' && result.outcome === 'succeeded') if (isClean(result)) return '✅ Succeeded'
-  return Object.keys(checklistOf(parseReport(result.reportJson))).length > 0
-    ? '⚠️ Succeeded, checks failed'
-    : '⚠️ Succeeded, checks missing'
+  if (result.finalStatus === 'completed' && result.outcome === 'succeeded') {
+    if (isClean(result)) return '✅ Succeeded'
+    return Object.keys(checklistOf(parseReport(result.reportJson))).length > 0
+      ? '⚠️ Succeeded, checks failed'
+      : '⚠️ Succeeded, checks missing'
+  }
   if (result.finalStatus === 'completed') return `❌ ${result.outcome || 'no report'}`
   if (result.finalStatus === 'failed') return '💥 Failed'
   if (result.finalStatus === 'superseded') return '↪️ Superseded'
