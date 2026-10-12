@@ -62,18 +62,36 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: hack/ax-evals
-      - id: eval
-        uses: team2027/evals-action@18bd0381b4a80ba7357de0330762d7cfb6e5e670 # v0.8.0
-        continue-on-error: true
+      # team2027/evals-action is a composite wrapper around `actions/github-script@v9`
+      # (a tag, which this repo's SHA-pinning policy rejects), so run its script
+      # through our own pinned github-script with the same inputs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          api-key: ${{ secrets.EVALS_API_KEY }}
-          prompt-id: ${{ matrix.eval.promptId }}
+          repository: team2027/evals-action
+          ref: 18bd0381b4a80ba7357de0330762d7cfb6e5e670 # v0.8.0
+          path: .evals-action
+          persist-credentials: false
+      - id: eval
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        continue-on-error: true
+        env:
+          EVALS_API_KEY: ${{ secrets.EVALS_API_KEY }}
+          EVALS_API_BASE_URL: https://2027.dev/evals
+          EVALS_PROMPT_ID: ${{ matrix.eval.promptId }}
           # 2027 does not pass template vars to setup scripts, but exposes urlMap as
           # URL_MAP; hack/ax-evals/setup/_common.sh reads the commit under test from it.
-          url-map: '{"git-ref.invalid": "https://${{ needs.plan.outputs.sha }}.invalid"}'
-          wait-timeout-minutes: '30'
-          skip-comment: 'true'
-          skip-status: 'true'
+          EVALS_URL_MAP: '{"git-ref.invalid": "https://${{ needs.plan.outputs.sha }}.invalid"}'
+          EVALS_TEMPLATE_VARS: ''
+          EVALS_DEPLOYMENT_URL: ''
+          EVALS_WAIT_TIMEOUT_MINUTES: '30'
+          EVALS_POLL_INTERVAL_SECONDS: '20'
+          EVALS_TIMEOUT_FAILS: 'false'
+          EVALS_SKIP_COMMENT: 'true'
+          EVALS_SKIP_STATUS: 'true'
+        with:
+          script: |
+            const run = require(`${process.env.GITHUB_WORKSPACE}/.evals-action/scripts/run.js`)
+            await run({ core, github, context })
       - name: Save result
         if: always()
         env:
