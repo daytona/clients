@@ -8,6 +8,8 @@
 const fs = require('fs')
 const path = require('path')
 
+const API_ORIGIN = 'https://2027.dev'
+
 function truncate(text, max) {
   const value = String(text || '').trim()
   return value.length > max ? `${value.slice(0, max - 1)}…` : value
@@ -16,7 +18,12 @@ function truncate(text, max) {
 async function fetchReport(apiUrl, apiKey) {
   if (!apiUrl || !apiKey) return null
   try {
-    const response = await fetch(apiUrl, { headers: { Authorization: `Bearer ${apiKey}` } })
+    const url = new URL(apiUrl)
+    if (url.origin !== API_ORIGIN) return null
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(15_000),
+    })
     return response.ok ? await response.json() : null
   } catch {
     return null

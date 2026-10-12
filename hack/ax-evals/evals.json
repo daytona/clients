@@ -37,7 +37,14 @@
     "go": {
       "name": "Go SDK",
       "promptId": "a6cd6ec9-bfa1-4766-9f80-fd1e04fe7640",
-      "paths": ["sdk-go/", "api-client-go/", "toolbox-api-client-go/", "analytics-api-client-go/"],
+      "paths": [
+        "sdk-go/",
+        "api-client-go/",
+        "toolbox-api-client-go/",
+        "analytics-api-client-go/",
+        "go.work",
+        "go.work.sum"
+      ],
       "text": "Using the Daytona Go SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nA Go module at /app/goeval is already set up with the Daytona Go SDK (github.com/daytona/clients/sdk-go) wired to the build under test. Write your program inside that module and do not change its go.mod replace directives. Docs: https://www.daytona.io/docs/en/go-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
     },
     "ruby": {
@@ -55,7 +62,7 @@
     "cli": {
       "name": "CLI",
       "promptId": "1844e89f-be2b-49b8-98e1-053bda60cc2d",
-      "paths": ["cli/", "api-client-go/", "toolbox-api-client-go/"],
+      "paths": ["cli/", "api-client-go/", "toolbox-api-client-go/", "go.work", "go.work.sum"],
       "text": "Using the Daytona CLI, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nThe `daytona` CLI is already installed on PATH from the build under test. Do not reinstall it. Docs: https://www.daytona.io/docs/en/tools/cli/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
     }
   }

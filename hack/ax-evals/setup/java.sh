@@ -1,6 +1,6 @@
 # Publish the Java SDK and its generated clients from the checked-out source to the
 # local Maven repository as 0.0.0-ci.
-command -v java >/dev/null || {
+command -v javac >/dev/null && javac -version 2>&1 | grep -Eq 'javac (1[1-9]|[2-9][0-9])' || {
   t "install jdk"
   apt-get update -qq
   apt-get install -y -qq openjdk-17-jdk-headless >/dev/null

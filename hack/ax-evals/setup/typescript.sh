@@ -1,7 +1,7 @@
 # Build the TypeScript SDK and its generated clients, then install the packed
 # tarballs into /app/tseval.
 cd /opt/clients
-corepack enable >/dev/null 2>&1 || npm install --global corepack >/dev/null
+corepack enable >/dev/null 2>&1 || { npm install --global corepack >/dev/null && corepack enable; }
 t "yarn install"
 retry yarn install --immutable >/tmp/yarn.log 2>&1 || { tail -n 30 /tmp/yarn.log; exit 1; }
 t "nx build sdk-typescript"

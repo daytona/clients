@@ -49,10 +49,17 @@ async function run({ github, context, core }) {
     requested = tokens
   }
 
-  const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({ ...repo, username: actor })
-  if (!WRITE_ROLES.has(permission.role_name)) {
+  let role = 'none'
+  try {
+    const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({ ...repo, username: actor })
+    role = permission.role_name
+  } catch (error) {
+    // 404 for users who are not collaborators at all.
+    core.info(`Could not read @${actor}'s permission: ${error.message}`)
+  }
+  if (!WRITE_ROLES.has(role)) {
     await react('-1')
-    return core.notice(`@${actor} has '${permission.role_name}' access; AX evals need write access`)
+    return core.notice(`@${actor} has '${role}' access; AX evals need write access`)
   }
 
   const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: prNumber })
@@ -78,7 +85,7 @@ async function run({ github, context, core }) {
     const files = await github.paginate(github.rest.pulls.listFiles, { ...repo, pull_number: prNumber, per_page: 100 })
     selected = selectByPaths(
       config,
-      files.map((file) => file.filename),
+      files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean)),
     )
   }
 

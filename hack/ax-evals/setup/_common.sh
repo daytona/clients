@@ -28,10 +28,14 @@ REF=$(printf '%s\n' "${URL_MAP:-}" | tr ', ;' '\n\n\n' |
 REF=${REF:-main}
 
 t "clone daytona/clients at ${REF}"
-git clone --quiet --filter=blob:none https://github.com/daytona/clients.git /opt/clients
+clone() {
+  rm -rf /opt/clients
+  git clone --quiet --filter=blob:none https://github.com/daytona/clients.git /opt/clients &&
+    git -C /opt/clients fetch --quiet origin "$REF" &&
+    git -C /opt/clients checkout --quiet --detach FETCH_HEAD
+}
+retry clone
 cd /opt/clients
-git fetch --quiet origin "$REF"
-git checkout --quiet --detach FETCH_HEAD
 echo "build under test: $(git log --oneline -1)"
 
 install_go() {

@@ -15,7 +15,7 @@ GEM_DIRS="api-client-ruby toolbox-api-client-ruby analytics-api-client-ruby sdk-
 # Prerelease versions (0.0.0.pre.dev) are skipped by a plain `require`, so stamp a
 # release version the same way the release pipeline does.
 # shellcheck disable=SC2086
-grep -rl "0.0.0.pre.dev" $GEM_DIRS --include=*.rb --include=*.gemspec | xargs sed -i 's/0\.0\.0\.pre\.dev/0.0.1/g'
+{ grep -rl "0.0.0.pre.dev" $GEM_DIRS --include=*.rb --include=*.gemspec || true; } | xargs -r sed -i 's/0\.0\.0\.pre\.dev/0.0.1/g'
 t "build gems"
 for d in $GEM_DIRS; do (cd "$d" && rm -f ./*.gem && gem build ./*.gemspec | grep -E 'File:'); done
 t "install third-party dependencies"

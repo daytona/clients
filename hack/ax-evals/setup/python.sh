@@ -16,7 +16,7 @@ print("\n".join(sorted(deps)))
 PY
 retry $PIP -r /tmp/deps.txt
 t "install daytona packages from source"
-$PIP --no-deps ./api-client-python ./api-client-python-async ./toolbox-api-client-python \
+retry $PIP --no-deps ./api-client-python ./api-client-python-async ./toolbox-api-client-python \
   ./toolbox-api-client-python-async ./analytics-api-client-python ./analytics-api-client-python-async ./sdk-python
 python3 -c "import daytona, importlib.metadata as m; print('daytona', m.version('daytona'))"
 t done

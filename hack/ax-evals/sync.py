@@ -38,6 +38,19 @@ class McpError(RuntimeError):
     pass
 
 
+def _jsonrpc_response(raw: str) -> JsonObject:
+    """Return the JSON-RPC response, skipping any notifications sent before it."""
+    payloads = [line[len("data: ") :] for line in raw.splitlines() if line.startswith("data: ")] or [raw]
+    for payload in payloads:
+        try:
+            candidate = cast(JsonObject, json.loads(payload))
+        except json.JSONDecodeError:
+            continue
+        if "result" in candidate or "error" in candidate:
+            return candidate
+    raise McpError(f"no JSON-RPC response in {raw[:200]!r}")
+
+
 def call_tool(api_key: str, tool: str, arguments: JsonObject) -> JsonObject:
     body = json.dumps(
         {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": arguments}}
@@ -54,8 +67,7 @@ def call_tool(api_key: str, tool: str, arguments: JsonObject) -> JsonObject:
     with urllib.request.urlopen(request, timeout=60) as response:
         raw = cast(bytes, response.read()).decode()
     # Streamable HTTP transport: the JSON-RPC response arrives as an SSE "data:" line.
-    payload = next((line[len("data: ") :] for line in raw.splitlines() if line.startswith("data: ")), raw)
-    message = cast(JsonObject, json.loads(payload))
+    message = _jsonrpc_response(raw)
     if "error" in message:
         raise McpError(f"{tool}: {message['error']}")
     result = cast(JsonObject, message["result"])

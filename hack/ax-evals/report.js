@@ -16,24 +16,31 @@ function parseReport(raw) {
   }
 }
 
+function checklistOf(report) {
+  return (report && report.reward && report.reward.checklist) || {}
+}
+
 function failedChecks(report) {
-  const checklist = (report && report.reward && report.reward.checklist) || {}
-  return Object.entries(checklist)
+  return Object.entries(checklistOf(report))
     .filter(([, score]) => score !== 1)
     .map(([slug]) => slug)
 }
 
 function isClean(result) {
+  const report = parseReport(result.reportJson)
   return (
     result.finalStatus === 'completed' &&
     result.outcome === 'succeeded' &&
-    failedChecks(parseReport(result.reportJson)).length === 0
+    Object.keys(checklistOf(report)).length > 0 &&
+    failedChecks(report).length === 0
   )
 }
 
 function resultLabel(result) {
-  if (result.finalStatus === 'completed' && result.outcome === 'succeeded')
-    return isClean(result) ? '✅ Succeeded' : '⚠️ Succeeded, checks failed'
+  if (result.finalStatus === 'completed' && result.outcome === 'succeeded') if (isClean(result)) return '✅ Succeeded'
+  return Object.keys(checklistOf(parseReport(result.reportJson))).length > 0
+    ? '⚠️ Succeeded, checks failed'
+    : '⚠️ Succeeded, checks missing'
   if (result.finalStatus === 'completed') return `❌ ${result.outcome || 'no report'}`
   if (result.finalStatus === 'failed') return '💥 Failed'
   if (result.finalStatus === 'superseded') return '↪️ Superseded'

@@ -116,6 +116,9 @@ jobs:
     needs: [plan, eval]
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
+    # Serialize comment writes per PR; comment.js still lets the newest run win.
+    concurrency:
+      group: ax-evals-report-${{ needs.plan.outputs.pr }}
     timeout-minutes: 5
     permissions:
       contents: read
