@@ -6,6 +6,8 @@ command -v javac >/dev/null && javac -version 2>&1 | grep -Eq 'javac (1[1-9]|[2-
   apt-get install -y -qq openjdk-17-jdk-headless >/dev/null
 }
 java -version 2>&1 | head -n 1
+# The sandbox locale is POSIX; the sources contain UTF-8 (e.g. em dashes in comments).
+export LC_ALL=C.UTF-8 JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
 cd /opt/clients
 sed -i -E "s/^version = .*/version = '0.0.0-ci'/" api-client-java/build.gradle toolbox-api-client-java/build.gradle \
   analytics-api-client-java/build.gradle
