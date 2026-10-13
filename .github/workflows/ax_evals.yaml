@@ -108,12 +108,12 @@ jobs:
           REPORT_URL: ${{ steps.eval.outputs.report-url }}
           REPORT_JSON: ${{ steps.eval.outputs.report-json }}
           FAILURE_REASON: ${{ steps.eval.outputs.failure-reason }}
-        run: node hack/ax-evals/save-result.js result/result.json
+        run: node hack/ax-evals/save-result.js "result/${NAME}.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: ax-eval-${{ matrix.eval.name }}
-          path: result/result.json
+          path: result/${{ matrix.eval.name }}.json
           retention-days: 7
 
   report:
@@ -137,6 +137,9 @@ jobs:
         with:
           pattern: ax-eval-*
           path: ${{ runner.temp }}/ax-results
+          # One flat directory of <eval>.json files: download-artifact skips the
+          # per-artifact subdirectory when only one artifact matches.
+          merge-multiple: true
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           AX_MATRIX: ${{ needs.plan.outputs.matrix }}

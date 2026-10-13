@@ -1,8 +1,8 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Merges the per-eval result files written by the eval matrix into one sticky PR
-// comment and the job summary.
+// Merges the per-eval result files (<eval>.json, downloaded into one directory) written
+// by the eval matrix into one sticky PR comment and the job summary.
 
 const fs = require('fs')
 const path = require('path')
@@ -105,7 +105,7 @@ function render({ results, sha, runUrl }) {
 
 function loadResults(dir, matrix) {
   return matrix.map((entry) => {
-    const file = path.join(dir, `ax-eval-${entry.name}`, 'result.json')
+    const file = path.join(dir, `${entry.name}.json`)
     if (!fs.existsSync(file)) return { name: entry.name, title: entry.title, finalStatus: '' }
     return { ...JSON.parse(fs.readFileSync(file, 'utf8')), title: entry.title }
   })
