@@ -50,7 +50,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.matrix != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 65
     permissions:
       contents: read
       pull-requests: read
@@ -84,7 +84,7 @@ jobs:
           EVALS_URL_MAP: '{"git-ref.invalid": "https://${{ needs.plan.outputs.sha }}.invalid"}'
           EVALS_TEMPLATE_VARS: ''
           EVALS_DEPLOYMENT_URL: ''
-          EVALS_WAIT_TIMEOUT_MINUTES: '30'
+          EVALS_WAIT_TIMEOUT_MINUTES: '60' # 2027 can queue runs for 25+ minutes
           EVALS_POLL_INTERVAL_SECONDS: '20'
           EVALS_TIMEOUT_FAILS: 'false'
           EVALS_SKIP_COMMENT: 'true'

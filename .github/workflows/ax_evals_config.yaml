@@ -19,7 +19,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || 'sync' }}
+  # Per ref: PRs cancel stale runs; main syncs queue in order and can't be displaced
+  # by runs from other refs.
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

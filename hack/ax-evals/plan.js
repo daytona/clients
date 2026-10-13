@@ -114,7 +114,7 @@ async function run({ github, context, core }) {
   await upsertComment(github, repo, prNumber, context.runId, [
     '### AX evals (2027.dev)',
     '',
-    `⏳ Running ${matrix.map((m) => m.title).join(', ')} on commit \`${sha.slice(0, 7)}\`. Results usually take 7–10 minutes ([workflow run](${runUrl})).`,
+    `⏳ Running ${matrix.map((m) => m.title).join(', ')} on commit \`${sha.slice(0, 7)}\`. Results usually take 7–10 minutes, longer when the 2027 queue is busy ([workflow run](${runUrl})).`,
   ])
 }
 
