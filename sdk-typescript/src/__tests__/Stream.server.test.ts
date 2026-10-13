@@ -69,3 +69,41 @@ describe('stdDemuxStream against a real WebSocket', () => {
     expect(await demux(frames)).toEqual(expected)
   })
 })
+
+describe('stdDemuxStream buffering (#357)', () => {
+  it.each([128 * 1024, 1024 * 1024, 4 * 1024 * 1024])('accepts a %d byte message', async (size) => {
+    const [stdout, stderr] = await demux([frame(STDOUT, Buffer.alloc(size, 0x61))])
+    expect(stdout.length).toBe(size)
+    expect(stderr).toBe('')
+  })
+
+  it('demuxes marker-heavy output split into large messages', async () => {
+    const records = 50_000
+    let expectedOut = ''
+    let expectedErr = ''
+    const parts: Buffer[] = []
+    for (let i = 0; i < records; i++) {
+      const line = `line ${i}\n`
+      if (i % 3 === 0) {
+        expectedErr += line
+        parts.push(STDERR, Buffer.from(line))
+      } else {
+        expectedOut += line
+        parts.push(STDOUT, Buffer.from(line))
+      }
+    }
+    const stream = Buffer.concat(parts)
+    const frames: Buffer[] = []
+    for (let offset = 0; offset < stream.length; offset += 64 * 1024) {
+      frames.push(stream.subarray(offset, offset + 64 * 1024))
+    }
+    expect(await demux(frames)).toEqual([expectedOut, expectedErr])
+  })
+
+  it('gives the same output for every split of a stream into two messages', async () => {
+    const stream = frame(STDOUT, 'hello\n', STDERR, 'oops\n', STDOUT, 'bye\n')
+    for (let offset = 1; offset < stream.length; offset++) {
+      expect(await demux([stream.subarray(0, offset), stream.subarray(offset)])).toEqual(['hello\nbye\n', 'oops\n'])
+    }
+  })
+})

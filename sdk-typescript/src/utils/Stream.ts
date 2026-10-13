@@ -127,7 +127,11 @@ export function stdDemuxStream(
     // Separate decoders for stdout and stderr to maintain independent UTF-8 decoding state
     const stdoutDecoder = new TextDecoder('utf-8')
     const stderrDecoder = new TextDecoder('utf-8')
-    const buf: number[] = [] // Buffer to accumulate incoming chunks
+    // Pending bytes live in buf[start, end). Appends grow the array geometrically and the read
+    // offset only moves forward, so cost stays linear in the bytes received.
+    let buf = new Uint8Array(0)
+    let start = 0
+    let end = 0
     let currentDataType: 'stdout' | 'stderr' | null = null // Track current stream type
 
     // Helper function to emit payload data
@@ -144,22 +148,38 @@ export function stdDemuxStream(
       // If currentDataType is null, drop unlabeled bytes (shouldn't happen with proper labeling)
     }
 
-    // Helper function to find a subarray within a larger array
-    const findSubarray = (haystack: Uint8Array, needle: Uint8Array): number => {
-      if (needle.length === 0) return 0
-      if (haystack.length < needle.length) return -1
-
-      for (let i = 0; i <= haystack.length - needle.length; i++) {
-        let found = true
-        for (let j = 0; j < needle.length; j++) {
-          if (haystack[i + j] !== needle[j]) {
-            found = false
-            break
-          }
+    const append = (chunk: Uint8Array) => {
+      const pending = end - start
+      if (end + chunk.length > buf.length) {
+        if (pending + chunk.length <= buf.length) {
+          buf.copyWithin(0, start, end)
+        } else {
+          const grown = new Uint8Array(Math.max(buf.length * 2, pending + chunk.length, 1024))
+          grown.set(buf.subarray(start, end))
+          buf = grown
         }
-        if (found) return i
+        start = 0
+        end = pending
       }
-      return -1
+      buf.set(chunk, end)
+      end += chunk.length
+    }
+
+    const markerAt = (i: number, marker: Uint8Array): boolean => {
+      if (i + marker.length > end) return false
+      for (let j = 0; j < marker.length; j++) {
+        if (buf[i + j] !== marker[j]) return false
+      }
+      return true
+    }
+
+    // Earliest complete marker of either kind at or after `from`, in a single pass.
+    const findMarker = (from: number): { index: number; kind: 'stdout' | 'stderr'; length: number } | null => {
+      for (let i = from; i < end; i++) {
+        if (markerAt(i, STDOUT_PREFIX_BYTES)) return { index: i, kind: 'stdout', length: STDOUT_PREFIX_BYTES.length }
+        if (markerAt(i, STDERR_PREFIX_BYTES)) return { index: i, kind: 'stderr', length: STDERR_PREFIX_BYTES.length }
+      }
+      return null
     }
 
     // Event handler for incoming messages (Node: Buffer/ArrayBuffer/String; Browser: event.data etc.)
@@ -214,41 +234,40 @@ export function stdDemuxStream(
     const processChunk = (chunk: Uint8Array) => {
       if (chunk.length === 0) return
 
-      // Add chunk to buffer
-      buf.push(...chunk)
+      append(chunk)
 
       // Process as much as we can, preserving only bytes that could be part of a prefix
       while (true) {
-        const bufArray = new Uint8Array(buf)
+        const pending = end - start
 
         // Calculate how many bytes we can safely process
         // We need to keep bytes that could potentially be the start of a prefix marker
         let safeLen: number
 
         // Check if the last few bytes could be part of a prefix marker
-        if (buf.length >= MAX_PREFIX_LEN) {
+        if (pending >= MAX_PREFIX_LEN) {
           // Check if the last byte could be part of a prefix (must be 0x01 or 0x02)
-          const lastByte = buf[buf.length - 1]
+          const lastByte = buf[end - 1]
           if (lastByte !== 0x01 && lastByte !== 0x02) {
             // Last byte can't be part of any prefix, safe to process everything
-            safeLen = buf.length
-          } else if (buf.length >= MAX_PREFIX_LEN + 1) {
+            safeLen = pending
+          } else if (pending >= MAX_PREFIX_LEN + 1) {
             // Check second-to-last byte if buffer is long enough
-            const secondLastByte = buf[buf.length - 2]
+            const secondLastByte = buf[end - 2]
             if (secondLastByte !== 0x01 && secondLastByte !== 0x02) {
               // Second-to-last byte can't be part of any prefix, safe to process all but last byte
-              safeLen = buf.length - 1
+              safeLen = pending - 1
             } else {
               // Both last bytes could be part of prefix, keep MAX_PREFIX_LEN - 1 bytes
-              safeLen = buf.length - (MAX_PREFIX_LEN - 1)
+              safeLen = pending - (MAX_PREFIX_LEN - 1)
             }
           } else {
             // Buffer is exactly MAX_PREFIX_LEN, keep MAX_PREFIX_LEN - 1 bytes
-            safeLen = buf.length - (MAX_PREFIX_LEN - 1)
+            safeLen = pending - (MAX_PREFIX_LEN - 1)
           }
         } else {
           // Buffer shorter than MAX_PREFIX_LEN, keep MAX_PREFIX_LEN - 1 bytes
-          safeLen = buf.length - (MAX_PREFIX_LEN - 1)
+          safeLen = pending - (MAX_PREFIX_LEN - 1)
         }
 
         if (safeLen <= 0) {
@@ -258,40 +277,23 @@ export function stdDemuxStream(
         // Find earliest next marker in the whole buffer: a complete marker can end exactly at the
         // end of a message, inside the held-back tail. safeLen only bounds how much marker-free
         // payload may be flushed.
-        const stdoutIndex = findSubarray(bufArray, STDOUT_PREFIX_BYTES)
-        const stderrIndex = findSubarray(bufArray, STDERR_PREFIX_BYTES)
+        const next = findMarker(start)
 
-        let nextIdx = -1
-        let nextKind: 'stdout' | 'stderr' | null = null
-        let nextLen = 0
-
-        if (stdoutIndex !== -1 && (stderrIndex === -1 || stdoutIndex < stderrIndex)) {
-          nextIdx = stdoutIndex
-          nextKind = 'stdout'
-          nextLen = STDOUT_PREFIX_BYTES.length
-        } else if (stderrIndex !== -1) {
-          nextIdx = stderrIndex
-          nextKind = 'stderr'
-          nextLen = STDERR_PREFIX_BYTES.length
-        }
-
-        if (nextIdx === -1) {
+        if (!next) {
           // No full marker in safe region: emit everything we safely can as payload
-          const toEmit = bufArray.subarray(0, safeLen)
-          emit(toEmit)
-          buf.splice(0, safeLen)
+          emit(buf.subarray(start, start + safeLen))
+          start += safeLen
           break // wait for more data to resolve any partial marker at the end
         }
 
         // We found a marker. Emit preceding bytes (if any) under the current stream.
-        if (nextIdx > 0) {
-          const toEmit = bufArray.subarray(0, nextIdx)
-          emit(toEmit)
+        if (next.index > start) {
+          emit(buf.subarray(start, next.index))
         }
 
         // Advance past the marker and switch current stream
-        buf.splice(0, nextIdx + nextLen)
-        currentDataType = nextKind
+        start = next.index + next.length
+        currentDataType = next.kind
       }
     }
 
@@ -311,8 +313,8 @@ export function stdDemuxStream(
     // Event handler for socket closure
     const handleClose = () => {
       // Flush any remaining buffered payload on clean close
-      if (buf.length > 0 && currentDataType) {
-        const remainingBytes = new Uint8Array(buf)
+      if (end > start && currentDataType) {
+        const remainingBytes = buf.subarray(start, end)
         // Use {stream: false} or omit to flush any buffered incomplete UTF-8 sequences
         if (currentDataType === 'stdout') {
           const text = stdoutDecoder.decode(remainingBytes, { stream: false })
