@@ -19,8 +19,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Per ref: PRs cancel stale runs; main syncs queue in order and can't be displaced
-  # by runs from other refs.
+  # Per ref, so other refs can't displace a main sync. On main a running sync is never
+  # cancelled and only the newest pending one is kept, which already contains every
+  # earlier change.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
