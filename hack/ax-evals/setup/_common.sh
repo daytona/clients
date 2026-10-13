@@ -44,10 +44,12 @@ retry clone
 cd /opt/clients
 echo "build under test: $(git log --oneline -1)"
 
-# Install exactly the Go version go.work asks for, so go never downloads a toolchain.
-GO_VERSION=$(awk '/^go /{print $2; exit}' /opt/clients/go.work)
+# Install the Go version go.work asks for. GOTOOLCHAIN=local makes the check report
+# the installed Go instead of auto-switching (and downloading) inside /opt/clients.
+# Only Go/CLI setups call this, so other languages don't depend on go.work.
 install_go() {
-  if [ "$(go env GOVERSION 2>/dev/null)" != "go${GO_VERSION}" ]; then
+  GO_VERSION=$(awk '/^go /{print $2; exit}' /opt/clients/go.work)
+  if [ "$(GOTOOLCHAIN=local go env GOVERSION 2>/dev/null)" != "go${GO_VERSION}" ]; then
     t "install go ${GO_VERSION}"
     rm -rf /usr/local/go
     curl -fsSL --retry 3 "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
