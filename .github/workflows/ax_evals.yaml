@@ -6,7 +6,8 @@ name: '[PR] AX evals (2027.dev)'
 # Trigger (requires write access to the repo):
 #   - add the `ax-eval` label to a PR
 #   - comment `/ax-eval` (changed SDKs), `/ax-eval all`, or `/ax-eval python go ...`
-# Prompts and setup scripts live in hack/ax-evals (see sync.py).
+# Prompts and setup scripts live in hack/ax-evals and are stored on 2027; they are
+# synced from main by ax_evals_config.yaml, so a PR is evaluated with main's prompts.
 
 on:
   pull_request:

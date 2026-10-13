@@ -4,10 +4,10 @@ install_go
 t "prepare /app/goeval"
 mkdir -p /app/goeval
 cd /app/goeval
-cat >go.mod <<'GOMOD'
+cat >go.mod <<GOMOD
 module goeval
 
-go 1.25.4
+go ${GO_VERSION}
 
 require github.com/daytona/clients/sdk-go v0.0.0
 

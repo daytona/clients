@@ -17,4 +17,48 @@ for d in api-client-java toolbox-api-client-java analytics-api-client-java sdk-j
   (cd "$d" && chmod +x gradlew && retry ./gradlew -q --no-daemon publishToMavenLocal -x test -x javadoc)
 done
 find ~/.m2/repository/io/daytona -name '*0.0.0-ci.jar'
+
+# A ready Gradle project with every dependency already resolved, so the eval measures
+# the SDK rather than the agent's Gradle setup and dependency downloads.
+t "prepare /app/javaeval"
+mkdir -p /app/javaeval/src/main/java/eval
+cp -r /opt/clients/sdk-java/gradle /opt/clients/sdk-java/gradlew /app/javaeval/
+cd /app/javaeval
+cat >settings.gradle.kts <<'KTS'
+rootProject.name = "javaeval"
+KTS
+cat >build.gradle.kts <<'KTS'
+plugins {
+    application
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.daytona:sdk:0.0.0-ci")
+}
+
+application {
+    mainClass.set("eval.Main")
+}
+KTS
+cat >src/main/java/eval/Main.java <<'JAVA'
+package eval;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("replace me");
+    }
+}
+JAVA
+retry ./gradlew -q --no-daemon build
+./gradlew -q --no-daemon dependencies --configuration runtimeClasspath | grep 'io.daytona'
 t done

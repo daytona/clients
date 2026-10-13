@@ -23,9 +23,15 @@ retry() {
   return 1
 }
 
-REF=$(printf '%s\n' "${URL_MAP:-}" | tr ', ;' '\n\n\n' |
+REF=$(printf '%s\n' "${URL_MAP:-}" | tr ', ;' '\n\n\n' | tr 'A-F' 'a-f' |
   sed -n 's#^git-ref\.invalid=https\{0,1\}://\([0-9a-f]\{7,40\}\)\.invalid/\{0,1\}$#\1#p' | head -n 1)
-REF=${REF:-main}
+case "${URL_MAP:-}" in
+*git-ref.invalid*)
+  # Never fall back to main when the workflow asked for a commit: the result would
+  # be reported against a PR it never tested.
+  [ -n "$REF" ] || { echo "cannot parse the commit under test from URL_MAP: ${URL_MAP}" >&2; exit 1; } ;;
+*) REF=main ;; # started from the 2027 dashboard without a mapping
+esac
 
 t "clone daytona/clients at ${REF}"
 clone() {
@@ -38,10 +44,13 @@ retry clone
 cd /opt/clients
 echo "build under test: $(git log --oneline -1)"
 
+# Install exactly the Go version go.work asks for, so go never downloads a toolchain.
+GO_VERSION=$(awk '/^go /{print $2; exit}' /opt/clients/go.work)
 install_go() {
-  if ! command -v go >/dev/null || ! go version | grep -q 'go1\.2[5-9]'; then
-    t "install go"
-    curl -fsSL --retry 3 https://go.dev/dl/go1.25.5.linux-amd64.tar.gz | tar -C /usr/local -xz
+  if [ "$(go env GOVERSION 2>/dev/null)" != "go${GO_VERSION}" ]; then
+    t "install go ${GO_VERSION}"
+    rm -rf /usr/local/go
+    curl -fsSL --retry 3 "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
     ln -sf /usr/local/go/bin/go /usr/local/bin/go
   fi
   go version

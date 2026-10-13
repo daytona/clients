@@ -60,11 +60,15 @@ function checksCell(report) {
 }
 
 function oneLine(text) {
-  return String(text || '')
-    .replace(/\s+/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/\|/g, '\\|')
-    .trim()
+  return (
+    String(text || '')
+      .replace(/\s+/g, ' ')
+      .replace(/\\/g, '\\\\')
+      // Agent-written text must not notify users or teams.
+      .replace(/@(?=[\w-])/g, '@\u200b')
+      .replace(/\|/g, '\\|')
+      .trim()
+  )
 }
 
 function render({ results, sha, runUrl }) {
