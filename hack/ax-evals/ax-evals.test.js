@@ -169,6 +169,15 @@ test('loadResults: reads <eval>.json from one directory, missing ones as not sta
   )
 })
 
+test('workflow: results are written and downloaded as <eval>.json in one directory', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ax_evals.yaml'), 'utf8')
+  const evalJob = workflow.slice(workflow.indexOf('  eval:'), workflow.indexOf('  report:'))
+  const reportJob = workflow.slice(workflow.indexOf('  report:'))
+  assert.match(evalJob, /save-result\.js "result\/\$\{NAME\}\.json"/)
+  assert.match(evalJob, /path: result\/\$\{\{ matrix\.eval\.name \}\}\.json/)
+  assert.match(reportJob, /merge-multiple: true/)
+})
+
 test('render: every status label', () => {
   const checklist = (values) => JSON.stringify({ reward: { checklist: values } })
   const out = render({
