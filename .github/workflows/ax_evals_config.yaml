@@ -34,7 +34,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          sparse-checkout: hack/ax-evals
+          sparse-checkout: |
+            hack/ax-evals
+            .github/workflows
       - run: node --test hack/ax-evals/ax-evals.test.js
       - run: python3 hack/ax-evals/sync.py --dry-run > /dev/null
 

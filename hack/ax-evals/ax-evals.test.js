@@ -192,6 +192,14 @@ test('render: escapes agent text', () => {
   assert.ok(line.includes('a\\\\\\|b \\| c'))
 })
 
+test('workflow: fork PRs never run PR-controlled code on label events', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ax_evals.yaml'), 'utf8')
+  const plan = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('    steps:'))
+  const labelClause = /github\.event_name == 'pull_request'[^|]*\)/.exec(plan)
+  assert.ok(labelClause, 'plan job has a pull_request clause')
+  assert.match(labelClause[0], /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/)
+})
+
 test('setup: commit under test is parsed from URL_MAP, never silently main', () => {
   const common = fs.readFileSync(path.join(__dirname, 'setup', '_common.sh'), 'utf8')
   const snippet = common.slice(common.indexOf('REF=$('), common.indexOf('esac') + 'esac'.length)

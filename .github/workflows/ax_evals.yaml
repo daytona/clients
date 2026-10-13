@@ -20,8 +20,12 @@ permissions: {}
 jobs:
   plan:
     name: Plan
+    # Label events check out and run the PR's hack/ax-evals code, so only same-repo
+    # PRs (whose authors already have write access) may get that far; fork PRs never
+    # reach the checkout. Comment events always run main's code.
     if: >-
-      (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
         github.event.comment.user.type != 'Bot' && startsWith(github.event.comment.body, '/ax-eval'))
     runs-on: ubuntu-latest
