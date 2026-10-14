@@ -17,7 +17,8 @@ new SnapshotService(
    clientConfig: Configuration, 
    snapshotsApi: SnapshotsApi, 
    objectStorageApi: ObjectStorageApi, 
-   defaultRegionId?: string
+   defaultRegionId?: string, 
+   getBuildContextUploadAccess?: BuildContextUploadAccessProvider
 ): SnapshotService;
 ```
 
@@ -27,6 +28,7 @@ new SnapshotService(
 - `snapshotsApi` _SnapshotsApi_
 - `objectStorageApi` _ObjectStorageApi_
 - `defaultRegionId?` _string_
+- `getBuildContextUploadAccess?` _BuildContextUploadAccessProvider_
 
 
 **Returns**:
@@ -219,6 +221,26 @@ Represents a paginated list of Daytona Snapshots.
 **Extends:**
 
 - `Omit`\<`PaginatedSnapshotsDto`, `"items"`\>
+## BuildContextUploadAccessProvider
+
+```ts
+type BuildContextUploadAccessProvider = (regionId: string) => Promise<StorageAccessDto>;
+```
+
+Supplies upload access for the selected Daytona region instead of hosted push-access.
+
+**Parameters**:
+
+- `regionId` _string_
+
+
+**Returns**:
+
+- `Promise<StorageAccessDto>`
+
+***
+
+
 ## CreateSnapshotParams
 
 ```ts

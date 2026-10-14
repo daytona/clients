@@ -644,6 +644,36 @@ describe('Daytona', () => {
     )
   })
 
+  it('passes custom upload access to snapshot and sandbox image builds, not API requests', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { Image } = await import('../Image')
+    const getAccess = jest.fn()
+    const instance = new Daytona({
+      apiKey: 'k',
+      apiUrl: 'http://api',
+      target: 'customer-region',
+      getBuildContextUploadAccess: getAccess,
+    })
+    mockProcessImageContext.mockResolvedValue(['ctx-hash'])
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-1', state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+    const image = Image.base('node:24-bookworm-slim')
+
+    await instance.create({ image })
+
+    expect(mockSnapshotServiceCtor).toHaveBeenCalledWith(
+      expect.anything(),
+      mockSnapshotsApi,
+      mockObjectStorageApi,
+      'customer-region',
+      getAccess,
+    )
+    expect(mockProcessImageContext).toHaveBeenCalledWith(mockObjectStorageApi, image, getAccess, 'customer-region')
+    expect(mockConfigurationCtor.mock.calls[0][0]).not.toHaveProperty('getBuildContextUploadAccess')
+    expect(mockSandboxApi.createSandbox.mock.calls[0][0]).not.toHaveProperty('getBuildContextUploadAccess')
+  })
+
   it('waits for non-started sandboxes returned by create', async () => {
     const { Daytona } = await import('../Daytona')
     const { Sandbox } = await import('../Sandbox')

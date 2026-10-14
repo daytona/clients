@@ -4,8 +4,13 @@
  */
 
 import { ObjectStorageApi, SnapshotsApi, SnapshotState, SandboxClass, Configuration } from '@daytona/api-client'
-import type { SnapshotDto, CreateSnapshot, PaginatedSnapshots as PaginatedSnapshotsDto } from '@daytona/api-client'
-import { DaytonaError, DaytonaNotFoundError } from './errors/DaytonaError'
+import type {
+  SnapshotDto,
+  CreateSnapshot,
+  PaginatedSnapshots as PaginatedSnapshotsDto,
+  StorageAccessDto,
+} from '@daytona/api-client'
+import { DaytonaError, DaytonaInvalidArgumentError, DaytonaNotFoundError } from './errors/DaytonaError'
 import { Image } from './Image'
 import type { Resources } from './Daytona'
 import { processStreamingResponse } from './utils/Stream'
@@ -66,6 +71,9 @@ export type CreateSnapshotParams = {
   sandboxClass?: SandboxClass
 }
 
+/** Supplies upload access for the selected Daytona region instead of hosted push-access. */
+export type BuildContextUploadAccessProvider = (regionId: string) => Promise<StorageAccessDto>
+
 export interface ListSnapshotsQuery {
   /**
    * Page number for pagination (starting from 1)
@@ -101,6 +109,7 @@ export class SnapshotService {
     private snapshotsApi: SnapshotsApi,
     private objectStorageApi: ObjectStorageApi,
     private defaultRegionId?: string,
+    private getBuildContextUploadAccess?: BuildContextUploadAccessProvider,
   ) {}
 
   /**
@@ -197,6 +206,7 @@ export class SnapshotService {
     params: CreateSnapshotParams,
     options: { onLogs?: (chunk: string) => void; timeout?: number } = {},
   ): Promise<Snapshot> {
+    const regionId = params.regionId || this.defaultRegionId
     const createSnapshotReq: CreateSnapshot = {
       name: params.name,
     }
@@ -205,7 +215,14 @@ export class SnapshotService {
       createSnapshotReq.imageName = params.image
       createSnapshotReq.entrypoint = params.entrypoint
     } else {
-      const contextHashes = await SnapshotService.processImageContext(this.objectStorageApi, params.image)
+      const contextHashes = this.getBuildContextUploadAccess
+        ? await SnapshotService.processImageContext(
+            this.objectStorageApi,
+            params.image,
+            this.getBuildContextUploadAccess,
+            regionId,
+          )
+        : await SnapshotService.processImageContext(this.objectStorageApi, params.image)
       createSnapshotReq.buildInfo = {
         contextHashes,
         dockerfileContent: params.entrypoint
@@ -226,7 +243,7 @@ export class SnapshotService {
       createSnapshotReq.disk = params.resources.disk
     }
 
-    createSnapshotReq.regionId = params.regionId || this.defaultRegionId
+    createSnapshotReq.regionId = regionId
     createSnapshotReq.sandboxClass = params.sandboxClass
 
     let createdSnapshot = (
@@ -353,13 +370,29 @@ export class SnapshotService {
    * @returns {Promise<string[]>} The list of context hashes stored in object storage.
    */
   @WithInstrumentation()
-  static async processImageContext(objectStorageApi: ObjectStorageApi, image: Image): Promise<string[]> {
+  static async processImageContext(
+    objectStorageApi: ObjectStorageApi,
+    image: Image,
+    getBuildContextUploadAccess?: BuildContextUploadAccessProvider,
+    regionId?: string,
+  ): Promise<string[]> {
     if (!image.contextList || !image.contextList.length) {
       return []
     }
 
+    if (getBuildContextUploadAccess && !regionId) {
+      throw new DaytonaInvalidArgumentError(
+        'An explicit target region is required for custom build-context upload access',
+      )
+    }
     const ObjectStorageModule = await dynamicImport('ObjectStorage', '"processImageContext" is not supported: ')
-    const pushAccessCreds = (await objectStorageApi.getPushAccess()).data
+    const pushAccessCreds =
+      getBuildContextUploadAccess && regionId
+        ? await getBuildContextUploadAccess(regionId)
+        : (await objectStorageApi.getPushAccess()).data
+    if (getBuildContextUploadAccess && !pushAccessCreds.bucket?.trim()) {
+      throw new DaytonaInvalidArgumentError('Custom build-context upload access must specify a bucket')
+    }
     const objectStorage = new ObjectStorageModule.ObjectStorage({
       endpointUrl: pushAccessCreds.storageUrl,
       accessKeyId: pushAccessCreds.accessKey,
