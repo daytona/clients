@@ -329,3 +329,47 @@ func TestPtyHandleStoredErrorCauseIsUnwrappable(t *testing.T) {
 		require.Nil(t, stderrors.Unwrap(err))
 	})
 }
+
+// A caller's own Disconnect is not a dropped connection: Wait keeps returning a
+// PtyResult, not an error.
+func TestPtyHandleWaitAfterLocalDisconnectReturnsResult(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		_ = conn.WriteJSON(controlMessage{Type: "control", Status: "connected"})
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	handle := newPtyHandle(conn, "pty-disconnect", nil, nil)
+	require.NoError(t, handle.WaitForConnection(context.Background()))
+
+	type waitResult struct {
+		result *types.PtyResult
+		err    error
+	}
+	waited := make(chan waitResult, 1)
+	go func() {
+		result, err := handle.Wait(context.Background())
+		waited <- waitResult{result, err}
+	}()
+
+	require.NoError(t, handle.Disconnect())
+	select {
+	case got := <-waited:
+		require.NoError(t, got.err)
+		require.NotNil(t, got.result)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Wait did not return after Disconnect")
+	}
+}

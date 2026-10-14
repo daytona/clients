@@ -450,7 +450,11 @@ func (h *PtyHandle) handleMessages() {
 			} else {
 				errMsg := err.Error()
 				h.err = &errMsg
-				h.errCause = err
+				// Disconnect closes the socket and clears h.ws under this lock, so a nil
+				// h.ws means the read failed because of a local Disconnect, not a drop.
+				if h.ws != nil {
+					h.errCause = err
+				}
 			}
 			h.connected = false
 			h.mu.Unlock()
