@@ -23,7 +23,11 @@ func newDroppingServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, _, err := w.(http.Hijacker).Hijack()
-		require.NoError(t, err)
+		if err != nil {
+			// Handler goroutine: t.Errorf, not require (FailNow must run on the test goroutine).
+			t.Errorf("hijack failed: %v", err)
+			return
+		}
 		_ = conn.Close()
 	}))
 	t.Cleanup(server.Close)

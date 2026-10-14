@@ -32,11 +32,13 @@
 // When an SDK error was caused by an underlying Go error — most usefully a
 // transport failure with no HTTP response (connection reset, timeout,
 // dropped stream) — that error is kept in `Err` and exposed through
-// `Unwrap`, so the standard matchers see through the `*DaytonaError`:
+// `Unwrap`, so the standard matchers see through the `*DaytonaError`.
+// Whether such a failure is worth retrying is the caller's decision; retry
+// only operations that are safe to repeat:
 //
 //	var netErr net.Error
-//	if errors.As(err, &netErr) || errors.Is(err, context.DeadlineExceeded) {
-//	    // retryable transport failure
+//	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
+//	    // transport timeout: retry if the operation is idempotent
 //	}
 package errors
 
