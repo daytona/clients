@@ -121,7 +121,7 @@ To ship a patch from a maintenance branch, run **Prepare Release**, **Release** 
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead;
 - never update the Homebrew tap.
 
-PyPI, RubyGems, Maven Central and the Go module proxy all resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. The Go vanity site deploys from `main` only.
+PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site deploys from `main` only.
 
 ## Version Management
 

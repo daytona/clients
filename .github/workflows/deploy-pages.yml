@@ -11,8 +11,10 @@ permissions:
   pages: write
   id-token: write
 
+# Runs from other branches deploy nothing; give them their own group so they
+# cannot cancel an in-progress deploy from main.
 concurrency:
-  group: pages
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || format('pages-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
