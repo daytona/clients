@@ -61,13 +61,13 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 
 	requestBody, err := json.Marshal(toolbox.NewFilesDownloadRequest([]string{remotePath}))
 	if err != nil {
-		return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to encode download request: %v", err), 0, nil)
+		return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to encode download request: %v", err), 0, nil)
 	}
 
 	endpoint := strings.TrimRight(cfg.Servers[0].URL, "/") + "/files/bulk-download"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to create download request: %v", err), 0, nil)
+		return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to create download request: %v", err), 0, nil)
 	}
 
 	for key, value := range cfg.DefaultHeader {
@@ -83,7 +83,7 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to download file stream: %v", err), 0, nil)
+		return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to download file stream: %v", err), 0, nil)
 	}
 
 	if resp.StatusCode >= http.StatusMultipleChoices {
@@ -91,7 +91,7 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 
 		body, readErr := io.ReadAll(resp.Body)
 		if readErr != nil {
-			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to read download error response: %v", readErr), resp.StatusCode, resp.Header)
+			return nil, errors.WrapDaytonaError(readErr, fmt.Sprintf("Failed to read download error response: %v", readErr), resp.StatusCode, resp.Header)
 		}
 
 		return nil, errors.NewDaytonaErrorFromBody(body, resp.StatusCode, resp.Header)
@@ -100,7 +100,7 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 	_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if err != nil {
 		_ = resp.Body.Close()
-		return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to parse multipart response: %v", err), resp.StatusCode, resp.Header)
+		return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to parse multipart response: %v", err), resp.StatusCode, resp.Header)
 	}
 
 	boundary := params["boundary"]
@@ -118,7 +118,7 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 		}
 		if err != nil {
 			_ = resp.Body.Close()
-			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to read multipart download response: %v", err), resp.StatusCode, resp.Header)
+			return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to read multipart download response: %v", err), resp.StatusCode, resp.Header)
 		}
 
 		switch part.FormName() {
@@ -139,7 +139,7 @@ func streamDownloadFile(cfg *toolbox.Configuration, remotePath string, ctx conte
 			body, readErr := io.ReadAll(part)
 			_ = resp.Body.Close()
 			if readErr != nil {
-				return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to read download error part: %v", readErr), resp.StatusCode, resp.Header)
+				return nil, errors.WrapDaytonaError(readErr, fmt.Sprintf("Failed to read download error part: %v", readErr), resp.StatusCode, resp.Header)
 			}
 			return nil, errors.NewDaytonaErrorFromBody(body, resp.StatusCode, resp.Header)
 		}
@@ -210,7 +210,7 @@ func streamUploadFile(cfg *toolbox.Configuration, remotePath string, source io.R
 	if err != nil {
 		_ = pw.CloseWithError(err)
 		<-errCh
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to create upload request: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to create upload request: %v", err), 0, nil)
 	}
 	for key, value := range cfg.DefaultHeader {
 		req.Header.Set(key, value)
@@ -226,7 +226,7 @@ func streamUploadFile(cfg *toolbox.Configuration, remotePath string, source io.R
 	if err != nil {
 		_ = pw.CloseWithError(err)
 		<-errCh
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload file: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to upload file: %v", err), 0, nil)
 	}
 	defer resp.Body.Close()
 

@@ -38,6 +38,15 @@ if errors.As(err, &de) {
 }
 ```
 
+When an SDK error was caused by an underlying Go error — most usefully a transport failure with no HTTP response \(connection reset, timeout, dropped stream\) — that error is kept in \`Err\` and exposed through \`Unwrap\`, so the standard matchers see through the \`\*DaytonaError\`:
+
+```
+var netErr net.Error
+if errors.As(err, &netErr) || errors.Is(err, context.DeadlineExceeded) {
+    // retryable transport failure
+}
+```
+
 ## Index
 
 - [Constants](<#constants>)
@@ -58,9 +67,11 @@ if errors.As(err, &de) {
   - [func NewDaytonaValidationError\(message string, headers http.Header\) \*DaytonaError](<#NewDaytonaValidationError>)
   - [func NewQueueTimeoutError\(message string\) \*DaytonaError](<#NewQueueTimeoutError>)
   - [func NewSpotEvictedError\(message string\) \*DaytonaError](<#NewSpotEvictedError>)
+  - [func WrapDaytonaError\(err error, message string, statusCode int, headers http.Header\) \*DaytonaError](<#WrapDaytonaError>)
   - [func \(e \*DaytonaError\) As\(target any\) bool](<#DaytonaError.As>)
   - [func \(e \*DaytonaError\) Error\(\) string](<#DaytonaError.Error>)
   - [func \(e \*DaytonaError\) Is\(target error\) bool](<#DaytonaError.Is>)
+  - [func \(e \*DaytonaError\) Unwrap\(\) error](<#DaytonaError.Unwrap>)
 - [type DaytonaForbiddenError](<#DaytonaForbiddenError>)
   - [func NewDaytonaForbiddenError\(message string, headers http.Header\) \*DaytonaForbiddenError](<#NewDaytonaForbiddenError>)
   - [func \(e \*DaytonaForbiddenError\) Unwrap\(\) error](<#DaytonaForbiddenError.Unwrap>)
@@ -246,6 +257,10 @@ type DaytonaError struct {
     Code       string
     Source     string
     Headers    http.Header
+    // Err is the underlying error, if any (for example the *url.Error of a
+    // request that never got a response). It is returned by Unwrap and is
+    // not part of Error().
+    Err error
 }
 ```
 
@@ -312,6 +327,15 @@ func NewSpotEvictedError(message string) *DaytonaError
 
 NewSpotEvictedError is a convenience constructor for SDK\-detected spot preemption destruction.
 
+<a name="WrapDaytonaError"></a>
+### func WrapDaytonaError
+
+```go
+func WrapDaytonaError(err error, message string, statusCode int, headers http.Header) *DaytonaError
+```
+
+WrapDaytonaError builds a DaytonaError like NewDaytonaError and keeps err as its cause, reachable through Unwrap. The message is used verbatim; err is not appended to it.
+
 <a name="DaytonaError.As"></a>
 ### func \(\*DaytonaError\) As
 
@@ -343,6 +367,15 @@ Is implements the \`errors.Is\` contract. A target matches when it is one of the
 - the target carries a non\-zero \`StatusCode\`, in which case the receiver's \`StatusCode\` must match \(status\-class sentinel\).
 
 Because the SDK always stamps the HTTP status alongside the domain code, \`errors.Is\(err, ErrGitAuthFailed\)\` and \`errors.Is\(err, ErrAuthentication\)\` both match the same underlying error — mirroring the inheritance hierarchy used by the Python/TypeScript/Java SDKs.
+
+<a name="DaytonaError.Unwrap"></a>
+### func \(\*DaytonaError\) Unwrap
+
+```go
+func (e *DaytonaError) Unwrap() error
+```
+
+Unwrap returns the underlying error, so \`errors.Is\` / \`errors.As\` can match the cause \(for example \`context.DeadlineExceeded\`, \`io.ErrUnexpectedEOF\`, \`syscall.ECONNRESET\`, or a \`net.Error\`\). It returns nil when the error has no cause.
 
 <a name="DaytonaForbiddenError"></a>
 ## type DaytonaForbiddenError

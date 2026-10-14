@@ -260,7 +260,7 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	if otelEnabled {
 		otelState, err := initOtel(context.Background())
 		if err != nil {
-			return nil, errors.NewDaytonaError(fmt.Sprintf("failed to initialize OpenTelemetry: %v", err), 0, nil)
+			return nil, errors.WrapDaytonaError(err, fmt.Sprintf("failed to initialize OpenTelemetry: %v", err), 0, nil)
 		}
 		client.Otel = otelState
 

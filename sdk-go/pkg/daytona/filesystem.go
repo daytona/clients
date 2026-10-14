@@ -248,7 +248,7 @@ func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string,
 
 		if localPath != nil {
 			if err := os.WriteFile(*localPath, data, 0644); err != nil {
-				return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to write file: %v", err), 0, nil)
+				return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to write file: %v", err), 0, nil)
 			}
 		}
 
@@ -411,7 +411,7 @@ func (f *FileSystemService) UploadFile(ctx context.Context, source any, destinat
 		case string:
 			data, err = os.ReadFile(src)
 			if err != nil {
-				return errors.NewDaytonaError(fmt.Sprintf("Failed to read file: %v", err), 0, nil)
+				return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to read file: %v", err), 0, nil)
 			}
 		default:
 			return errors.NewDaytonaError("Invalid source type", 0, nil)
@@ -420,18 +420,18 @@ func (f *FileSystemService) UploadFile(ctx context.Context, source any, destinat
 		// Create a temporary file for the toolbox API
 		tmpFile, err := os.CreateTemp("", "daytona-upload-*")
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to create temp file: %v", err), 0, nil)
 		}
 		defer os.Remove(tmpFile.Name())
 		defer tmpFile.Close()
 
 		if _, err := tmpFile.Write(data); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to write temp file: %v", err), 0, nil)
 		}
 
 		// Seek to the beginning for reading
 		if _, err := tmpFile.Seek(0, 0); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to seek temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to seek temp file: %v", err), 0, nil)
 		}
 
 		_, httpResp, err := f.toolboxClient.FileSystemAPI.UploadFile(ctx).Path(destination).File(tmpFile).Execute()

@@ -4,9 +4,12 @@
 package errors_test
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"testing"
 
 	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
@@ -341,5 +344,69 @@ func TestSentinels_HaveDescriptiveErrorString(t *testing.T) {
 	got := fmt.Sprintf("%v", sdkerrors.ErrNotFound)
 	if got == "" {
 		t.Fatalf("ErrNotFound has empty Error()")
+	}
+}
+
+// ----- Cause preservation (Unwrap) -----
+
+func TestDaytonaError_UnwrapExposesCause(t *testing.T) {
+	cause := fmt.Errorf("read tcp: %w", io.ErrUnexpectedEOF)
+	err := sdkerrors.WrapDaytonaError(cause, "Failed to download file stream: "+cause.Error(), 0, nil)
+
+	if err.Error() != "Daytona error: Failed to download file stream: read tcp: unexpected EOF" {
+		t.Fatalf("Error() = %q", err.Error())
+	}
+	if !stderrors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("errors.Is should see the cause through *DaytonaError")
+	}
+	if stderrors.Unwrap(err) != cause {
+		t.Fatalf("Unwrap() = %v, want the original cause", stderrors.Unwrap(err))
+	}
+	var de *sdkerrors.DaytonaError
+	if !stderrors.As(err, &de) || de != err {
+		t.Fatalf("errors.As(*DaytonaError) should still return the outer error")
+	}
+}
+
+func TestDaytonaError_UnwrapNilWithoutCause(t *testing.T) {
+	if stderrors.Unwrap(sdkerrors.NewDaytonaError("boom", 0, nil)) != nil {
+		t.Fatalf("an error without a cause should unwrap to nil")
+	}
+}
+
+func TestWrapDaytonaError_KeepsSentinelMatching(t *testing.T) {
+	err := sdkerrors.WrapDaytonaError(io.EOF, "gone", http.StatusNotFound, nil)
+	if !stderrors.Is(err, sdkerrors.ErrNotFound) {
+		t.Fatalf("status sentinel should still match a wrapped error")
+	}
+	if !stderrors.Is(err, io.EOF) {
+		t.Fatalf("cause should match too")
+	}
+}
+
+func TestConvertErrors_TransportFailureKeepsCause(t *testing.T) {
+	cause := &url.Error{Op: "Get", URL: "http://toolbox.test/files", Err: context.DeadlineExceeded}
+	for name, convert := range map[string]func(error, *http.Response) error{
+		"api":     sdkerrors.ConvertAPIError,
+		"toolbox": sdkerrors.ConvertToolboxError,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := convert(cause, nil)
+
+			var de *sdkerrors.DaytonaError
+			if !stderrors.As(err, &de) {
+				t.Fatalf("want *DaytonaError, got %T", err)
+			}
+			if de.Message != cause.Error() || de.StatusCode != 0 {
+				t.Fatalf("message/status changed: %q / %d", de.Message, de.StatusCode)
+			}
+			var urlErr *url.Error
+			if !stderrors.As(err, &urlErr) || urlErr != cause {
+				t.Fatalf("errors.As(*url.Error) should reach the original error")
+			}
+			if !stderrors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("errors.Is(context.DeadlineExceeded) should match through the chain")
+			}
+		})
 	}
 }

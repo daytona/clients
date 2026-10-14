@@ -246,7 +246,7 @@ func (h *PtyHandle) SendInput(data []byte) error {
 	h.mu.RUnlock()
 
 	if err := ws.WriteMessage(websocket.BinaryMessage, data); err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to send input to PTY: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to send input to PTY: %v", err), 0, nil)
 	}
 
 	return nil

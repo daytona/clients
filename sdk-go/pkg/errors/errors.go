@@ -28,6 +28,16 @@
 //	if errors.As(err, &de) {
 //	    log.Printf("status=%d code=%s source=%s", de.StatusCode, de.Code, de.Source)
 //	}
+//
+// When an SDK error was caused by an underlying Go error — most usefully a
+// transport failure with no HTTP response (connection reset, timeout,
+// dropped stream) — that error is kept in `Err` and exposed through
+// `Unwrap`, so the standard matchers see through the `*DaytonaError`:
+//
+//	var netErr net.Error
+//	if errors.As(err, &netErr) || errors.Is(err, context.DeadlineExceeded) {
+//	    // retryable transport failure
+//	}
 package errors
 
 import (
@@ -65,6 +75,10 @@ type DaytonaError struct {
 	Code       string
 	Source     string
 	Headers    http.Header
+	// Err is the underlying error, if any (for example the *url.Error of a
+	// request that never got a response). It is returned by Unwrap and is
+	// not part of Error().
+	Err error
 }
 
 func (e *DaytonaError) Error() string {
@@ -72,6 +86,14 @@ func (e *DaytonaError) Error() string {
 		return fmt.Sprintf("Daytona error (status %d): %s", e.StatusCode, e.Message)
 	}
 	return fmt.Sprintf("Daytona error: %s", e.Message)
+}
+
+// Unwrap returns the underlying error, so `errors.Is` / `errors.As` can match
+// the cause (for example `context.DeadlineExceeded`, `io.ErrUnexpectedEOF`,
+// `syscall.ECONNRESET`, or a `net.Error`). It returns nil when the error has
+// no cause.
+func (e *DaytonaError) Unwrap() error {
+	return e.Err
 }
 
 // Is implements the `errors.Is` contract. A target matches when it is one
@@ -107,6 +129,13 @@ func (e *DaytonaError) Is(target error) bool {
 // `errors.Is`, not for constructing errors.
 func NewDaytonaError(message string, statusCode int, headers http.Header) *DaytonaError {
 	return &DaytonaError{Message: message, StatusCode: statusCode, Headers: headers}
+}
+
+// WrapDaytonaError builds a DaytonaError like NewDaytonaError and keeps err
+// as its cause, reachable through Unwrap. The message is used verbatim; err
+// is not appended to it.
+func WrapDaytonaError(err error, message string, statusCode int, headers http.Header) *DaytonaError {
+	return &DaytonaError{Message: message, StatusCode: statusCode, Headers: headers, Err: err}
 }
 
 // NewDaytonaTimeoutError is a convenience constructor for client-side
@@ -298,8 +327,10 @@ func fromGenericError(err error, httpResp *http.Response, extractBody func(error
 
 	body, hasBody := extractBody(err)
 	if hasBody && len(body) > 0 {
-		return NewDaytonaErrorFromBody(body, statusCode, headers)
+		de := NewDaytonaErrorFromBody(body, statusCode, headers)
+		de.Err = err
+		return de
 	}
 
-	return &DaytonaError{Message: err.Error(), StatusCode: statusCode, Headers: headers}
+	return WrapDaytonaError(err, err.Error(), statusCode, headers)
 }

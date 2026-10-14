@@ -194,14 +194,14 @@ func (objStorage *objectStorage) statPath(path string) (os.FileInfo, error) {
 func (objStorage *objectStorage) computeHashForPath(pathStr, archiveBasePath string) (string, error) {
 	absPath, err := filepath.Abs(pathStr)
 	if err != nil {
-		return "", errors.NewDaytonaError(fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
+		return "", errors.WrapDaytonaError(err, fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
 	}
 
 	hasher := md5.New()
 
 	fileInfo, err := os.Stat(absPath)
 	if err != nil {
-		return "", errors.NewDaytonaError(fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
+		return "", errors.WrapDaytonaError(err, fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
 	}
 
 	if fileInfo.IsDir() {
@@ -242,19 +242,19 @@ func (objStorage *objectStorage) computeHashForPath(pathStr, archiveBasePath str
 			return nil
 		})
 		if err != nil {
-			return "", errors.NewDaytonaError(fmt.Sprintf("Failed to hash directory: %v", err), 0, nil)
+			return "", errors.WrapDaytonaError(err, fmt.Sprintf("Failed to hash directory: %v", err), 0, nil)
 		}
 	} else {
 		// Hash single file
 		hasher.Write([]byte(archiveBasePath + "\n"))
 		f, err := os.Open(absPath)
 		if err != nil {
-			return "", errors.NewDaytonaError(fmt.Sprintf("Failed to open file: %v", err), 0, nil)
+			return "", errors.WrapDaytonaError(err, fmt.Sprintf("Failed to open file: %v", err), 0, nil)
 		}
 		defer f.Close()
 
 		if _, err := io.Copy(hasher, f); err != nil {
-			return "", errors.NewDaytonaError(fmt.Sprintf("Failed to hash file: %v", err), 0, nil)
+			return "", errors.WrapDaytonaError(err, fmt.Sprintf("Failed to hash file: %v", err), 0, nil)
 		}
 	}
 
@@ -269,7 +269,7 @@ func (objStorage *objectStorage) folderExistsInS3(ctx context.Context, prefix st
 		MaxKeys: aws.Int32(1),
 	})
 	if err != nil {
-		return false, errors.NewDaytonaError(fmt.Sprintf("Failed to check S3 folder: %v", err), 0, nil)
+		return false, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to check S3 folder: %v", err), 0, nil)
 	}
 
 	return len(result.Contents) > 0, nil
@@ -282,12 +282,12 @@ func (objStorage *objectStorage) folderExistsInS3(ctx context.Context, prefix st
 func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourcePath, archiveBasePath string) error {
 	absPath, err := filepath.Abs(sourcePath)
 	if err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to get absolute path: %v", err), 0, nil)
 	}
 
 	fileInfo, err := os.Stat(absPath)
 	if err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to stat path: %v", err), 0, nil)
 	}
 
 	reader, writer := io.Pipe()
@@ -319,10 +319,10 @@ func (objStorage *objectStorage) uploadAsTar(ctx context.Context, s3Key, sourceP
 	// A tar error that is just the pipe reporting this closure back to the writer says
 	// nothing about why the upload stopped, so the upload error stays the reported one.
 	if tarErr != nil && !stderrors.Is(tarErr, errUploadFinished) {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to create tar archive: %v", tarErr), 0, nil)
+		return errors.WrapDaytonaError(tarErr, fmt.Sprintf("Failed to create tar archive: %v", tarErr), 0, nil)
 	}
 	if uploadErr != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to upload to S3: %v", uploadErr), 0, nil)
+		return errors.WrapDaytonaError(uploadErr, fmt.Sprintf("Failed to upload to S3: %v", uploadErr), 0, nil)
 	}
 
 	return nil
