@@ -7,10 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1307,4 +1310,75 @@ func TestPauseDeadlineDuringRefreshIsTimeout(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, errors.ErrTimeout)
 	require.Contains(t, err.Error(), "Sandbox pause did not complete within 300ms")
+}
+
+// newFailingGetServer answers POSTs and the first answeredGets GETs with a
+// sandbox in state, then fails every later GET with fail.
+func newFailingGetServer(t *testing.T, state apiclient.SandboxState, answeredGets int32, fail http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	var gets int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || atomic.AddInt32(&gets, 1) <= answeredGets {
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+			return
+		}
+		fail(w, r)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func resetConnection(w http.ResponseWriter, _ *http.Request) {
+	conn, _, err := w.(http.Hijacker).Hijack()
+	if err != nil {
+		panic(err) // httptest's ResponseWriter always supports hijacking
+	}
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		_ = tcp.SetLinger(0) // close with RST, not FIN
+	}
+	_ = conn.Close()
+}
+
+// A transport failure while Pause / snapshot is waiting stays reachable through
+// the "<operation> failed" wrapper, so callers can classify it for a retry.
+func TestPauseAndSnapshotWaitTransportFailureIsUnwrappable(t *testing.T) {
+	for name, tc := range map[string]struct {
+		state  apiclient.SandboxState
+		run    func(*Sandbox) error
+		prefix string
+	}{
+		"pause": {apiclient.SANDBOXSTATE_PAUSING, func(s *Sandbox) error {
+			return s.doPauseWithTimeout(context.Background(), 5*time.Second)
+		}, "Sandbox pause failed: "},
+		"snapshot": {apiclient.SANDBOXSTATE_SNAPSHOTTING, func(s *Sandbox) error {
+			return s.doCreateSnapshotWithTimeout(context.Background(), "snap", 5*time.Second)
+		}, "Sandbox snapshot failed: "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client := createTestClientWithServer(t, newFailingGetServer(t, tc.state, 1, resetConnection))
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+			err := tc.run(sandbox)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.prefix)
+			require.ErrorIs(t, err, syscall.ECONNRESET)
+			var urlErr *url.Error
+			require.True(t, stderrors.As(err, &urlErr), "*url.Error must be reachable, got %v", err)
+		})
+	}
+}
+
+// An API error during the Pause wait keeps its pre-existing classification: the
+// wrapper exposes no cause, so it does not newly match the inner sentinel.
+func TestPauseWaitAPIErrorDoesNotLeakInnerSentinel(t *testing.T) {
+	client := createTestClientWithServer(t, newFailingGetServer(t, apiclient.SANDBOXSTATE_PAUSING, 1, func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusInternalServerError, map[string]any{"message": "boom", "statusCode": 500})
+	}))
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	err := sandbox.doPauseWithTimeout(context.Background(), 5*time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Sandbox pause failed: ")
+	require.False(t, stderrors.Is(err, errors.ErrInternalServer), "inner sentinel must stay hidden, got %v", err)
+	require.Nil(t, stderrors.Unwrap(err), "an API error exposes no cause")
 }

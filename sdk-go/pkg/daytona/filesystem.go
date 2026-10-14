@@ -243,7 +243,7 @@ func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string,
 
 		data, err := io.ReadAll(file)
 		if err != nil {
-			return nil, errors.NewDaytonaError("Failed to read file", 0, nil)
+			return nil, errors.WrapDaytonaError(err, "Failed to read file", 0, nil)
 		}
 
 		if localPath != nil {

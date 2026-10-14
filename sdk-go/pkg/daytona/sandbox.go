@@ -800,6 +800,22 @@ func (s *Sandbox) refreshDataSafe(ctx context.Context) error {
 	return refreshErr
 }
 
+// waitFailureCause picks the error a "<operation> failed" wrapper should expose
+// through Unwrap. When the wait failed with a *DaytonaError, only the transport
+// cause of a refresh that got no HTTP response (StatusCode 0) is exposed; API
+// errors expose nothing. So errors.Is on the wrapper never newly matches the
+// inner error's sentinels (ErrNotFound, ErrInternalServer, ...).
+func waitFailureCause(err error) error {
+	var de *errors.DaytonaError
+	if !stderrors.As(err, &de) {
+		return err
+	}
+	if de.StatusCode != 0 {
+		return nil
+	}
+	return de.Err
+}
+
 func minutesLabel(minutes int) string {
 	if minutes == 1 {
 		return "minute"
@@ -2042,7 +2058,7 @@ func (s *Sandbox) doCreateSnapshotWithTimeout(ctx context.Context, name string, 
 		if stderrors.Is(err, context.Canceled) {
 			return err
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
+		return errors.WrapDaytonaError(waitFailureCause(err), fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
 	}
 	return nil
 }
@@ -2137,7 +2153,7 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		if stderrors.Is(err, context.Canceled) {
 			return err
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
+		return errors.WrapDaytonaError(waitFailureCause(err), fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
 	}
 	return nil
 }
