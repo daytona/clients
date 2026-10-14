@@ -5,11 +5,13 @@ package errors_test
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
@@ -408,5 +410,16 @@ func TestConvertErrors_TransportFailureKeepsCause(t *testing.T) {
 				t.Fatalf("errors.Is(context.DeadlineExceeded) should match through the chain")
 			}
 		})
+	}
+}
+
+func TestDaytonaError_CauseIsNotSerialized(t *testing.T) {
+	err := sdkerrors.WrapDaytonaError(io.EOF, "boom", 0, nil)
+	b, jerr := json.Marshal(err)
+	if jerr != nil {
+		t.Fatalf("marshal: %v", jerr)
+	}
+	if strings.Contains(string(b), "Err") {
+		t.Fatalf("cause leaked into JSON: %s", b)
 	}
 }

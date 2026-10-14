@@ -1250,3 +1250,61 @@ func TestWaitForStateFinalRefreshWithFreshContext(t *testing.T) {
 	require.NoError(t, err, "final refresh on fresh context must observe target state")
 	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
 }
+
+// newHangingGetServer answers POSTs and the first answeredGets GETs with a
+// sandbox in state, then holds every later GET open until the client gives up,
+// so the wait loop's deadline or cancellation fires while a refresh request is
+// in flight.
+func newHangingGetServer(t *testing.T, state apiclient.SandboxState, answeredGets int32) *httptest.Server {
+	t.Helper()
+	done := make(chan struct{})
+	var gets int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || atomic.AddInt32(&gets, 1) <= answeredGets {
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", state))
+			return
+		}
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
+	}))
+	t.Cleanup(server.Close)
+	t.Cleanup(func() { close(done) })
+	return server
+}
+
+// A deadline that fires during an in-flight refresh is classified as a timeout,
+// the same as one that fires between polls (it used to surface as a raw
+// status-0 transport error because the cause was not unwrappable).
+func TestWaitForStartDeadlineDuringRefreshIsTimeout(t *testing.T) {
+	client := createTestClientWithServer(t, newHangingGetServer(t, apiclient.SANDBOXSTATE_STARTING, 0))
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	err := sandbox.doWaitForStart(context.Background(), 300*time.Millisecond)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errors.ErrTimeout)
+	require.Contains(t, err.Error(), "Sandbox did not start within 300ms")
+}
+
+func TestWaitForStartCancellationDuringRefreshIsCanceled(t *testing.T) {
+	client := createTestClientWithServer(t, newHangingGetServer(t, apiclient.SANDBOXSTATE_STARTING, 0))
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(150*time.Millisecond, cancel)
+	err := sandbox.doWaitForStart(ctx, 30*time.Second)
+	require.Error(t, err)
+	require.False(t, stderrors.Is(err, errors.ErrTimeout), "cancellation must not match ErrTimeout, got %v", err)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestPauseDeadlineDuringRefreshIsTimeout(t *testing.T) {
+	client := createTestClientWithServer(t, newHangingGetServer(t, apiclient.SANDBOXSTATE_PAUSING, 1))
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	err := sandbox.doPauseWithTimeout(context.Background(), 300*time.Millisecond)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errors.ErrTimeout)
+	require.Contains(t, err.Error(), "Sandbox pause did not complete within 300ms")
+}

@@ -77,8 +77,8 @@ type DaytonaError struct {
 	Headers    http.Header
 	// Err is the underlying error, if any (for example the *url.Error of a
 	// request that never got a response). It is returned by Unwrap and is
-	// not part of Error().
-	Err error
+	// not part of Error() and is not serialized to JSON.
+	Err error `json:"-"`
 }
 
 func (e *DaytonaError) Error() string {
