@@ -5,9 +5,12 @@ package daytona
 
 import (
 	"context"
+	stderrors "errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"syscall"
 	"testing"
 	"time"
 
@@ -251,4 +254,56 @@ func TestPtyHandleHandleMessagesEndToEnd(t *testing.T) {
 	assert.Equal(t, 4, *result.ExitCode)
 	require.NotNil(t, result.Error)
 	assert.Equal(t, "boom", *result.Error)
+}
+
+// A dropped PTY WebSocket surfaces from WaitForConnection with the read error
+// still reachable, so callers can classify it for a retry.
+func TestPtyHandleDroppedConnectionKeepsCause(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		if tcp, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
+			_ = tcp.SetLinger(0) // close with RST, no close frame
+		}
+		_ = conn.UnderlyingConn().Close()
+	}))
+	defer server.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	handle := newPtyHandle(conn, "pty-drop", nil, nil)
+
+	err = handle.WaitForConnection(context.Background())
+	require.Error(t, err)
+	require.True(t, stderrors.Is(err, syscall.ECONNRESET) || stderrors.Is(err, io.ErrUnexpectedEOF), "cause must be reachable, got %v", err)
+}
+
+func TestPtyHandleStoredErrorCauseIsUnwrappable(t *testing.T) {
+	cause := io.ErrUnexpectedEOF
+	msg := cause.Error()
+
+	t.Run("WaitForConnection", func(t *testing.T) {
+		handle := &PtyHandle{err: &msg, errCause: cause}
+		err := handle.WaitForConnection(context.Background())
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, "Daytona error: "+msg, err.Error())
+	})
+
+	t.Run("Wait", func(t *testing.T) {
+		handle := &PtyHandle{err: &msg, errCause: cause, done: make(chan struct{})}
+		_, err := handle.Wait(context.Background())
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, "Daytona error: "+msg, err.Error())
+	})
+
+	t.Run("server-reported error exposes no cause", func(t *testing.T) {
+		serverMsg := "Unknown connection error"
+		handle := &PtyHandle{err: &serverMsg}
+		err := handle.WaitForConnection(context.Background())
+		require.Error(t, err)
+		require.Nil(t, stderrors.Unwrap(err))
+	})
 }

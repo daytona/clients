@@ -56,6 +56,7 @@ type PtyHandle struct {
 	handleKill            func(context.Context) error
 	exitCode              *int
 	err                   *string
+	errCause              error // the WebSocket read error behind err, if that is where err came from
 	connected             bool
 	connectionEstablished bool
 	mu                    sync.RWMutex
@@ -213,9 +214,9 @@ func (h *PtyHandle) WaitForConnection(ctx context.Context) error {
 				return nil
 			}
 			if h.err != nil {
-				err := h.err
+				err, cause := h.err, h.errCause
 				h.mu.RUnlock()
-				return errors.NewDaytonaError(*err, 0, nil)
+				return errors.WrapDaytonaError(cause, *err, 0, nil)
 			}
 			h.mu.RUnlock()
 		}
@@ -349,9 +350,9 @@ func (h *PtyHandle) Wait(ctx context.Context) (*types.PtyResult, error) {
 				return result, nil
 			}
 			if h.err != nil {
-				err := *h.err
+				err, cause := *h.err, h.errCause
 				h.mu.RUnlock()
-				return nil, errors.NewDaytonaError(err, 0, nil)
+				return nil, errors.WrapDaytonaError(cause, err, 0, nil)
 			}
 			h.mu.RUnlock()
 		}
@@ -441,6 +442,7 @@ func (h *PtyHandle) handleMessages() {
 			} else {
 				errMsg := err.Error()
 				h.err = &errMsg
+				h.errCause = err
 			}
 			h.connected = false
 			h.mu.Unlock()
