@@ -333,6 +333,14 @@ func (h *PtyHandle) Wait(ctx context.Context) (*types.PtyResult, error) {
 			return nil, ctx.Err()
 		case <-h.done:
 			h.mu.RLock()
+			if h.exitCode == nil && h.errCause != nil {
+				// The connection dropped before the process exited: report it as an
+				// error with its cause, as the ticker branch below does, instead of
+				// depending on which branch wins the race with done.
+				err, cause := *h.err, h.errCause
+				h.mu.RUnlock()
+				return nil, errors.WrapDaytonaError(cause, err, 0, nil)
+			}
 			result := &types.PtyResult{
 				ExitCode: h.exitCode,
 				Error:    h.err,

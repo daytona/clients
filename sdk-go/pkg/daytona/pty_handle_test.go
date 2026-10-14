@@ -265,6 +265,11 @@ func TestPtyHandleDroppedConnectionKeepsCause(t *testing.T) {
 			t.Errorf("upgrade: %v", err)
 			return
 		}
+		// Wait for a client frame so the handshake is complete before the reset.
+		if _, _, err := conn.ReadMessage(); err != nil {
+			t.Errorf("read client frame: %v", err)
+			return
+		}
 		if tcp, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
 			_ = tcp.SetLinger(0) // close with RST, no close frame
 		}
@@ -272,13 +277,30 @@ func TestPtyHandleDroppedConnectionKeepsCause(t *testing.T) {
 	}))
 	defer server.Close()
 
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
-	require.NoError(t, err)
-	handle := newPtyHandle(conn, "pty-drop", nil, nil)
+	dial := func(t *testing.T) *PtyHandle {
+		t.Helper()
+		conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+		require.NoError(t, err)
+		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte("hello")))
+		return newPtyHandle(conn, "pty-drop", nil, nil)
+	}
+	requireCause := func(t *testing.T, err error) {
+		t.Helper()
+		require.Error(t, err)
+		require.True(t, stderrors.Is(err, syscall.ECONNRESET) || stderrors.Is(err, io.ErrUnexpectedEOF), "cause must be reachable, got %v", err)
+	}
 
-	err = handle.WaitForConnection(context.Background())
-	require.Error(t, err)
-	require.True(t, stderrors.Is(err, syscall.ECONNRESET) || stderrors.Is(err, io.ErrUnexpectedEOF), "cause must be reachable, got %v", err)
+	t.Run("WaitForConnection", func(t *testing.T) {
+		requireCause(t, dial(t).WaitForConnection(context.Background()))
+	})
+
+	// handleMessages closes done right after storing the read error, so this
+	// exercises Wait's done branch, not only the ticker branch.
+	t.Run("Wait", func(t *testing.T) {
+		result, err := dial(t).Wait(context.Background())
+		require.Nil(t, result)
+		requireCause(t, err)
+	})
 }
 
 func TestPtyHandleStoredErrorCauseIsUnwrappable(t *testing.T) {
