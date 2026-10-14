@@ -1382,3 +1382,16 @@ func TestPauseWaitAPIErrorDoesNotLeakInnerSentinel(t *testing.T) {
 	require.False(t, stderrors.Is(err, errors.ErrInternalServer), "inner sentinel must stay hidden, got %v", err)
 	require.Nil(t, stderrors.Unwrap(err), "an API error exposes no cause")
 }
+
+// A local wait failure (the sandbox reaching an error state) exposes no cause.
+func TestPauseWaitErrorStateExposesNoCause(t *testing.T) {
+	client := createTestClientWithServer(t, newFailingGetServer(t, apiclient.SANDBOXSTATE_PAUSING, 1, func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_ERROR))
+	}))
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	err := sandbox.doPauseWithTimeout(context.Background(), 5*time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Sandbox pause failed: sandbox entered error state")
+	require.Nil(t, stderrors.Unwrap(err), "a local wait error exposes no cause")
+}
