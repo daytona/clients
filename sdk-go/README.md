@@ -95,6 +95,36 @@ config := &types.DaytonaConfig{
 client, err := daytona.NewClientWithConfig(config)
 ```
 
+### Create a sandbox or snapshot in a specific region
+
+Set `Target` on the sandbox create params, or `RegionID` on `types.CreateSnapshotParams`, to choose the
+[region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call
+value, then `DaytonaConfig.Target` (or `DAYTONA_TARGET`), then the organization's default region.
+
+```go
+sandbox, err := client.Create(ctx, types.SnapshotParams{
+    SandboxBaseParams: types.SandboxBaseParams{Target: "eu"},
+})
+if err != nil {
+    return err
+}
+fmt.Println("sandbox target:", sandbox.Target)
+
+region := "eu"
+snapshot, logs, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:     "my-snapshot",
+    Image:    "python:3.12",
+    RegionID: &region,
+})
+if err != nil {
+    return err
+}
+for line := range logs {
+    fmt.Println(line)
+}
+fmt.Println("snapshot:", snapshot.Name)
+```
+
 ## Usage Examples
 
 All of the usage examples are maintained in the `/examples` folder. Please check it out for latest patterns of SDK usage.

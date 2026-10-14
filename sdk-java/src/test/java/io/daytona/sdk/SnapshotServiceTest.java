@@ -86,6 +86,65 @@ class SnapshotServiceTest {
     }
 
     @Test
+    void createFromImageNameSendsPerCallRegion() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+        SnapshotService regional = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts, "us");
+
+        regional.create("snapshot", "python:3.12", null, "eu");
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionId()).isEqualTo("eu");
+    }
+
+    @Test
+    void createFromImageNameFallsBackToClientTarget() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+        SnapshotService regional = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts, "us");
+
+        regional.create("snapshot", "python:3.12");
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionId()).isEqualTo("us");
+    }
+
+    @Test
+    void createFromImageNameOmitsRegionWhenNoneConfigured() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+
+        snapshotService.create("snapshot", "python:3.12", null, "");
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionId()).isNull();
+    }
+
+    @Test
+    void createFromDeclarativeImageSendsPerCallRegion() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+        SnapshotService regional = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts, "us");
+
+        regional.create("snapshot", Image.base("python:3.12"), null, null, "eu", null);
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionId()).isEqualTo("eu");
+    }
+
+    @Test
+    void createFromDeclarativeImageFallsBackToClientTarget() {
+        when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE));
+        SnapshotService regional = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts, "us");
+
+        regional.create("snapshot", Image.base("python:3.12"), null);
+
+        ArgumentCaptor<CreateSnapshot> captor = ArgumentCaptor.forClass(CreateSnapshot.class);
+        verify(snapshotsApi).createSnapshot(captor.capture(), isNull());
+        assertThat(captor.getValue().getRegionId()).isEqualTo("us");
+    }
+
+    @Test
     void createFromDeclarativeImageBuildsDockerfileAndResources() {
         SnapshotDto snapshotDto = snapshotDto("snap-1", "snapshot", SnapshotState.ACTIVE);
         when(snapshotsApi.createSnapshot(any(), isNull())).thenReturn(snapshotDto);

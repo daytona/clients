@@ -35,6 +35,7 @@ async function main() {
   try {
     const sandbox = await daytona.create({
       snapshot: snapshot1,
+      target: 'us',
     })
     await daytona.delete(sandbox)
   } catch (error: any) {
@@ -46,6 +47,7 @@ async function main() {
   try {
     const sandbox = await daytona.create({
       snapshot: snapshot2,
+      target: 'eu',
     })
     await daytona.delete(sandbox)
   } catch (error: any) {

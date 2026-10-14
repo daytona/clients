@@ -22,7 +22,7 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Your target [region](https://www.daytona.io/docs/en/regions/) environment (e.g. `us`, `eu`)
+- `DAYTONA_TARGET`: Default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots (e.g. `us`, `eu`); a per-call `target` / `region_id` overrides it
 
 ```python
 from daytona import Daytona, DaytonaConfig
@@ -54,6 +54,18 @@ response = sandbox.process.code_run('print("Hello World")')
 ## Examples and guides
 
 Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#examples) and [guides](https://www.daytona.io/docs/en/guides/) for common sandbox operations, best practices, and a wide range of topics, from basic usage to advanced topics, showcasing various types of integrations between Daytona and other tools.
+
+### Create a sandbox or snapshot in a specific region
+
+Pass `target` in the sandbox create params, or `region_id` in `CreateSnapshotParams`, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the client-level `target` (or `DAYTONA_TARGET`), then the organization's default region.
+
+```python
+from daytona import CreateSandboxFromSnapshotParams, CreateSnapshotParams, Daytona
+
+daytona = Daytona()
+sandbox = daytona.create(CreateSandboxFromSnapshotParams(target="eu"))
+snapshot = daytona.snapshot.create(CreateSnapshotParams(name="my-snapshot", image="python:3.12", region_id="eu"))
+```
 
 ### Create a sandbox with custom resources
 

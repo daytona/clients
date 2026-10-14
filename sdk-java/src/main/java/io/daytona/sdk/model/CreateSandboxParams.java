@@ -37,6 +37,7 @@ public class CreateSandboxParams {
     private String otelEndpointOverride;
     private String linkedSandbox;
     private Boolean spot;
+    private String target;
 
     /**
      * Returns Sandbox name.
@@ -366,4 +367,20 @@ public class CreateSandboxParams {
      * @param spot whether the Sandbox may be preempted
      */
     public void setSpot(Boolean spot) { this.spot = spot; }
+
+    /**
+     * Returns the target (region) where the Sandbox is created.
+     *
+     * @return target region identifier, or {@code null} to use the client-level target or the
+     *     organization's default region
+     */
+    public String getTarget() { return target; }
+
+    /**
+     * Sets the target (region) where the Sandbox is created. Overrides the client-level target
+     * for this call.
+     *
+     * @param target target region identifier
+     */
+    public void setTarget(String target) { this.target = target; }
 }

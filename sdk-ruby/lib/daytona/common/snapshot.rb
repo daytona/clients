@@ -30,7 +30,8 @@ module Daytona
     # @param image [String, Daytona::Image] Image of the snapshot
     # @param resources [Daytona::Resources, nil] Resources of the snapshot
     # @param entrypoint [Array<String>, nil] Entrypoint of the snapshot
-    # @param region_id [String, nil] ID of the region where the snapshot will be available
+    # @param region_id [String, nil] ID of the region where the snapshot will be available. If omitted, uses
+    #   the client-level target when set; otherwise the organization's default region.
     # @param sandbox_class [DaytonaApiClient::SandboxClass, nil] Target sandbox class
     def initialize(name:, image:, resources: nil, entrypoint: nil, region_id: nil, sandbox_class: nil)
       @name = name

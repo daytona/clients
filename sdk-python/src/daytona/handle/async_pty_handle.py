@@ -145,10 +145,15 @@ class AsyncPtyHandle:
         """
         Wait for the PTY process to exit and return the result.
 
+        Cancelling this call (for example when `asyncio.wait_for` times out) only stops
+        waiting; the PTY session stays connected.
+
         Returns:
             PtyResult: Result containing exit code and error (if any)
         """
-        await self._wait
+        # Shield the reader task: cancelling a caller's wait() must not cancel the task that
+        # owns the WebSocket. disconnect() cancels it directly.
+        await asyncio.shield(self._wait)
 
         return PtyResult(
             exit_code=self._exit_code,

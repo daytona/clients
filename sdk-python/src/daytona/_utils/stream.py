@@ -312,8 +312,11 @@ async def _std_demux_loop(
                 if safe_len <= 0:
                     break
 
-                si = buf.find(STDOUT_PREFIX, 0, safe_len)
-                ei = buf.find(STDERR_PREFIX, 0, safe_len)
+                # Search the whole buffer: a complete marker can end exactly at the end of a
+                # message, inside the held-back tail. safe_len only bounds how much
+                # marker-free payload may be flushed.
+                si = buf.find(STDOUT_PREFIX)
+                ei = buf.find(STDERR_PREFIX)
 
                 next_idx = -1
                 next_kind: str | None = None

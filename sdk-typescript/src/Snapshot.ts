@@ -54,7 +54,7 @@ export interface PaginatedSnapshots extends Omit<PaginatedSnapshotsDto, 'items'>
  * If an Image instance is provided, it will be used to create a new image in Daytona.
  * @property {Resources} resources - Resources of the snapshot.
  * @property {string[]} entrypoint - Entrypoint of the snapshot.
- * @property {string} regionId - ID of the region where the snapshot will be available. Defaults to organization default region if not specified.
+ * @property {string} regionId - ID of the region where the snapshot will be available. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
  * @property {SandboxClass} sandboxClass - Target sandbox class. Determines which runners can host sandboxes created from this snapshot.
  */
 export type CreateSnapshotParams = {

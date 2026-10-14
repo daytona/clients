@@ -167,6 +167,45 @@ class DaytonaTest {
     }
 
     @Test
+    void createSnapshotTargetOverridesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+        params.setTarget("us");
+        daytona.create(params);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("us");
+    }
+
+    @Test
+    void createImageTargetOverridesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        params.setTarget("us");
+        daytona.create(params);
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("us");
+    }
+
+    @Test
+    void createWithoutTargetUsesClientTarget() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        daytona.create(new CreateSandboxFromSnapshotParams());
+
+        ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
+        assertThat(captor.getValue().getTarget()).isEqualTo("eu");
+    }
+
+    @Test
     void createFromImageStringBuildsDockerfile() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));

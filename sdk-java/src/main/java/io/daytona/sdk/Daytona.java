@@ -94,7 +94,7 @@ public class Daytona implements AutoCloseable {
         this.sandboxApi = new SandboxApi(apiClient);
         this.objectStorageApi = new io.daytona.api.client.api.ObjectStorageApi(apiClient);
         this.snapshot = new SnapshotService(new io.daytona.api.client.api.SnapshotsApi(apiClient), apiClient.getHttpClient(), config.getApiKey(),
-                image -> ObjectStorage.processImageContext(objectStorageApi, image));
+                image -> ObjectStorage.processImageContext(objectStorageApi, image), config.getTarget());
         this.volume = new VolumeService(new io.daytona.api.client.api.VolumesApi(apiClient));
         this.secret = new SecretService(new io.daytona.api.client.api.SecretApi(apiClient));
         this.warmPool = new WarmPoolService(new io.daytona.api.client.api.WarmPoolsApi(apiClient));
@@ -579,12 +579,21 @@ public class Daytona implements AutoCloseable {
         shutdownHttpClient(apiClient.getHttpClient());
     }
 
+    private String resolveTarget(io.daytona.sdk.model.CreateSandboxParams params) {
+        if (params != null && params.getTarget() != null && !params.getTarget().isEmpty()) {
+            return params.getTarget();
+        }
+        String configTarget = config.getTarget();
+        return configTarget != null && !configTarget.isEmpty() ? configTarget : null;
+    }
+
     private CreateSandbox baseSandboxBody(io.daytona.sdk.model.CreateSandboxParams params) {
         CreateSandbox body = new CreateSandbox();
+        String target = resolveTarget(params);
+        if (target != null) {
+            body.setTarget(target);
+        }
         if (params == null) {
-            if (config.getTarget() != null && !config.getTarget().isEmpty()) {
-                body.setTarget(config.getTarget());
-            }
             return body;
         }
 
@@ -652,10 +661,6 @@ public class Daytona implements AutoCloseable {
         labels.put(CODE_TOOLBOX_LANGUAGE_LABEL, language);
         if (!labels.isEmpty()) {
             body.setLabels(labels);
-        }
-
-        if (config.getTarget() != null && !config.getTarget().isEmpty()) {
-            body.setTarget(config.getTarget());
         }
 
         return body;

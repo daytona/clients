@@ -1,0 +1,69 @@
+{
+  "$comment": "2027.dev AX evals. 2027 stores the prompt text, checks and setup scripts: the workflow only sends promptId and the commit. Merging changes under hack/ax-evals to main syncs them (ax_evals_config.yaml); a PR that edits prompts or setup/*.sh is still evaluated with the version on main. Changes under sharedPaths run every eval.",
+  "sharedPaths": ["hack/ax-evals/", ".github/workflows/ax_evals.yaml", "openapi-specs/"],
+  "defaults": {
+    "endGoal": "A sandbox was created using the pre-installed build under test (no registry reinstall), `hello-from-ax` was printed, and the sandbox was deleted.",
+    "checks": {
+      "used-preinstalled-build": "The agent used the Daytona SDK/CLI build that was pre-installed in the environment and did NOT install or upgrade it from a public registry (PyPI, npm, rubygems, Maven Central, Go proxy, or a release download).",
+      "sandbox-cleaned-up": "The sandbox created during the run was deleted at the end."
+    },
+    "harnessModel": {
+      "harness": "claude-code",
+      "model": "claude-fable-5-1"
+    },
+    "tags": ["ci", "clients"]
+  },
+  "evals": {
+    "python": {
+      "name": "Python SDK",
+      "promptId": "4001604c-50b5-4e55-8510-de014e445c2a",
+      "paths": [
+        "sdk-python/",
+        "api-client-python/",
+        "api-client-python-async/",
+        "toolbox-api-client-python/",
+        "toolbox-api-client-python-async/",
+        "analytics-api-client-python/",
+        "analytics-api-client-python-async/"
+      ],
+      "text": "Using the Daytona Python SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nThe `daytona` Python package is already installed from the build under test. Do not install or upgrade it from PyPI. Docs: https://www.daytona.io/docs/en/python-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    },
+    "typescript": {
+      "name": "TypeScript SDK",
+      "promptId": "3e32e2a6-a90f-40bd-8fdb-c83f6cae609d",
+      "paths": ["sdk-typescript/", "api-client/", "toolbox-api-client/", "analytics-api-client/"],
+      "text": "Using the Daytona TypeScript SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nA Node project at /app/tseval already has the Daytona TypeScript SDK installed from the build under test. Write your script inside that project and do not install the SDK from npm. Docs: https://www.daytona.io/docs/en/typescript-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    },
+    "go": {
+      "name": "Go SDK",
+      "promptId": "a6cd6ec9-bfa1-4766-9f80-fd1e04fe7640",
+      "paths": [
+        "sdk-go/",
+        "api-client-go/",
+        "toolbox-api-client-go/",
+        "analytics-api-client-go/",
+        "go.work",
+        "go.work.sum"
+      ],
+      "text": "Using the Daytona Go SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nA Go module at /app/goeval is already set up with the Daytona Go SDK (github.com/daytona/clients/sdk-go) wired to the build under test. Write your program inside that module and do not change its go.mod replace directives. Docs: https://www.daytona.io/docs/en/go-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    },
+    "ruby": {
+      "name": "Ruby SDK",
+      "promptId": "ac5efdf5-bf21-47ad-864d-90242aacf50b",
+      "paths": ["sdk-ruby/", "api-client-ruby/", "toolbox-api-client-ruby/", "analytics-api-client-ruby/"],
+      "text": "Using the Daytona Ruby SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nThe `daytona` gem is already installed from the build under test. Do not install or update it from rubygems. Docs: https://www.daytona.io/docs/en/ruby-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    },
+    "java": {
+      "name": "Java SDK",
+      "promptId": "20b80761-ee29-4a4a-a9ee-c20c15af10ed",
+      "paths": ["sdk-java/", "api-client-java/", "toolbox-api-client-java/", "analytics-api-client-java/"],
+      "text": "Using the Daytona Java SDK, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nA Gradle project at /app/javaeval already depends on the Daytona Java SDK under test (io.daytona:sdk:0.0.0-ci from the local Maven repository) with all dependencies resolved. Write your program in its src/main/java/eval/Main.java and run it with `./gradlew run`; do not change the SDK dependency. Docs: https://www.daytona.io/docs/en/java-sdk/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    },
+    "cli": {
+      "name": "CLI",
+      "promptId": "1844e89f-be2b-49b8-98e1-053bda60cc2d",
+      "paths": ["cli/", "api-client-go/", "toolbox-api-client-go/", "go.work", "go.work.sum"],
+      "text": "Using the Daytona CLI, create a sandbox, run `echo hello-from-ax` inside it, print the output, then delete the sandbox.\n\nThe `daytona` CLI is already installed on PATH from the build under test. Do not reinstall it. Docs: https://www.daytona.io/docs/en/tools/cli/\nCredentials are in the environment variables DAYTONA_API_KEY and DAYTONA_API_URL. When done, print the command output and confirm the sandbox was deleted."
+    }
+  }
+}

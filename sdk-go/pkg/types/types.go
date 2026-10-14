@@ -57,8 +57,12 @@ type DaytonaConfig struct {
 	JWTToken       string
 	OrganizationID string
 	APIUrl         string
-	Target         string
-	OtelEnabled    bool // Enable OpenTelemetry tracing for SDK operations.
+	// Target is the default region for sandboxes and snapshots. When empty, the DAYTONA_TARGET
+	// environment variable is used. A per-call [SandboxBaseParams.Target] or
+	// [CreateSnapshotParams.RegionID] overrides it; when neither is set, the organization's
+	// default region is used.
+	Target      string
+	OtelEnabled bool // Enable OpenTelemetry tracing for SDK operations.
 	// UseDeprecatedPolling observes sandbox state by legacy polling instead of
 	// WebSocket event streaming. Defaults to false (event streaming). Can also be
 	// enabled via the DAYTONA_USE_DEPRECATED_POLLING environment variable.
@@ -141,6 +145,10 @@ type SandboxBaseParams struct {
 	// Linked sandboxes must be ephemeral (AutoDeleteInterval=0) and cannot themselves be
 	// linked to another sandbox.
 	LinkedSandbox string
+	// Target is the target (region) where the sandbox is created. It overrides the
+	// client-level target for this call. When empty, the client-level target is used if
+	// set; otherwise the organization's default region.
+	Target string
 }
 
 // SnapshotParams represents parameters for creating a sandbox from a snapshot
@@ -164,6 +172,9 @@ type CreateSnapshotParams struct {
 	Entrypoint     []string
 	SkipValidation *bool
 	SandboxClass   *SandboxClass
+	// RegionID is the region where the snapshot is created. When nil or empty, the
+	// client-level target is used if set; otherwise the organization's default region.
+	RegionID *string
 }
 
 // PaginatedSnapshots represents a paginated list of snapshots

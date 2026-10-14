@@ -414,3 +414,50 @@ func TestSnapshotDeleteByNameOrIDNonexistentNameErrNotFound(t *testing.T) {
 		{Method: http.MethodGet, Path: "/snapshots/ghost-snapshot"},
 	}, calls)
 }
+
+func TestSnapshotCreateRegion(t *testing.T) {
+	eu := "eu"
+	empty := ""
+	cases := []struct {
+		name         string
+		clientRegion string
+		regionID     *string
+		wantRegion   any
+	}{
+		{name: "per-call region overrides client target", clientRegion: "us", regionID: &eu, wantRegion: "eu"},
+		{name: "per-call region without client target", regionID: &eu, wantRegion: "eu"},
+		{name: "client target is used when region is nil", clientRegion: "us", wantRegion: "us"},
+		{name: "client target is used when region is empty", clientRegion: "us", regionID: &empty, wantRegion: "us"},
+		{name: "region is omitted when neither is set", wantRegion: nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost {
+					var body map[string]any
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					region, sent := body["regionId"]
+					if tc.wantRegion == nil {
+						assert.False(t, sent, "regionId must be omitted from the request")
+					} else {
+						assert.Equal(t, tc.wantRegion, region)
+					}
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSnapshotPayload("snap-r", "regional", apiclient.SNAPSHOTSTATE_ACTIVE))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			client.region = tc.clientRegion
+			_, logChan, err := client.Snapshot.Create(context.Background(), &types.CreateSnapshotParams{
+				Name:     "regional",
+				Image:    "python:3.12",
+				RegionID: tc.regionID,
+			})
+			require.NoError(t, err)
+			for range logChan { //nolint:revive // drain until the stream closes
+			}
+		})
+	}
+}

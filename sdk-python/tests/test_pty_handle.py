@@ -3,14 +3,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
+from aiohttp import web
 from httpx_ws import WebSocketDisconnect
 from wsproto.events import BytesMessage, CloseConnection, TextMessage
 
 from daytona.common.errors import DaytonaConnectionError, DaytonaError, DaytonaTimeoutError
-from daytona.common.pty import PtySize
+from daytona.common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
 
 
 def _text(data: str) -> TextMessage:
@@ -341,3 +344,54 @@ class TestAsyncPtyHandle:
 
         assert handle.exit_code == 0
         await handle.disconnect()
+
+
+async def _echo_pty(request: web.Request) -> web.WebSocketResponse:
+    """Local PTY endpoint: reports connected, answers ``ping`` with ``pong`` and exits on ``exit``."""
+    ws = web.WebSocketResponse(protocols=(PTY_EXIT_CONTROL_SUBPROTOCOL,))
+    await ws.prepare(request)
+    await ws.send_str('{"type":"control","status":"connected"}')
+    async for msg in ws:
+        if msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"ping\n":
+            await ws.send_bytes(b"pong\n")
+        elif msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"exit\n":
+            await ws.close(code=1000, message=b'{"exitCode":0}')
+    return ws
+
+
+class TestAsyncPtyHandleWaitCancellation:
+    @pytest.mark.asyncio
+    async def test_cancelling_wait_keeps_the_session_connected(self):
+        from daytona._async.process import AsyncProcess
+
+        app = web.Application()
+        app.router.add_get("/{tail:.*}", _echo_pty)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        await web.TCPSite(runner, "127.0.0.1", 0).start()
+        url = f"http://127.0.0.1:{runner.addresses[0][1]}/process/pty/pty-1/connect"
+        try:
+            api_client = MagicMock()
+            api_client._connect_pty_session_serialize.return_value = ("GET", url, {}, None)
+            async with aiohttp.ClientSession() as session:
+                api_client.api_client.http_session = session
+                pong = asyncio.Event()
+                handle = await AsyncProcess("python", api_client).connect_pty_session(
+                    "pty-1", lambda data: pong.set() if data == b"pong\n" else None
+                )
+                try:
+                    # The server stays silent until the client writes, so this can only time out.
+                    with pytest.raises(asyncio.TimeoutError):
+                        _ = await asyncio.wait_for(handle.wait(), timeout=0.05)
+
+                    assert handle.is_connected()
+                    await handle.send_input("ping\n")
+                    _ = await asyncio.wait_for(pong.wait(), timeout=5)
+
+                    await handle.send_input("exit\n")
+                    result = await asyncio.wait_for(handle.wait(), timeout=5)
+                    assert result.exit_code == 0
+                finally:
+                    await handle.disconnect()
+        finally:
+            await runner.cleanup()

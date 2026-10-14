@@ -320,6 +320,14 @@ func (s *SnapshotService) doCreate(ctx context.Context, params *types.CreateSnap
 		createReq.SandboxClass = params.SandboxClass
 	}
 
+	regionID := s.client.region
+	if params.RegionID != nil && *params.RegionID != "" {
+		regionID = *params.RegionID
+	}
+	if regionID != "" {
+		createReq.SetRegionId(regionID)
+	}
+
 	result, httpResp, err := req.CreateSnapshot(createReq).Execute()
 	if err != nil {
 		return nil, nil, s.client.handleAPIError(err, httpResp)

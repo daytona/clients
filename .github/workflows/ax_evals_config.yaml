@@ -1,0 +1,58 @@
+name: '[CI] AX evals config'
+
+# 2027.dev stores the AX eval prompts, checks and setup scripts; the ax_evals workflow
+# only sends a prompt id and the commit under test. This keeps 2027 in sync with main:
+# PRs touching hack/ax-evals run its tests, and merges to main push the definitions
+# with hack/ax-evals/sync.py. A PR's own prompt/setup edits are therefore only live
+# after merge.
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['hack/ax-evals/**', '.github/workflows/ax_evals*.yaml']
+  push:
+    branches: [main]
+    paths: ['hack/ax-evals/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Per ref, so other refs can't displace a main sync. On main a running sync is never
+  # cancelled and only the newest pending one is kept, which already contains every
+  # earlier change.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            hack/ax-evals
+            .github/workflows
+      - run: node --test hack/ax-evals/ax-evals.test.js
+      - run: python3 hack/ax-evals/sync.py --dry-run > /dev/null
+
+  sync:
+    name: Sync prompts to 2027.dev
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: hack/ax-evals
+      # Updates existing prompts only; new evals need DAYTONA_API_KEY and are
+      # created locally with sync.py so the generated promptId lands in a PR.
+      - run: python3 hack/ax-evals/sync.py
+        env:
+          EVALS_API_KEY: ${{ secrets.EVALS_API_KEY }}
