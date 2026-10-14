@@ -37,7 +37,7 @@
         '';
 
         # Go — cli, sdk-go, api-client-go, toolbox-api-client-go (see go.work).
-        goPkgs = with pkgs; [ go_1_25 golangci-lint gopls libgit2 ] ++ darwinDeps;
+        goPkgs = with pkgs; [ go_1_26 golangci-lint gopls libgit2 ] ++ darwinDeps;
         goShellHook = ''
           unset GOROOT
           export GOPATH="''${GOPATH:-$HOME/go}"
