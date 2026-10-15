@@ -1,0 +1,18 @@
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  h_e7759ddd73fa65 427-428
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 22,68-88,255-264
+sdk-ruby/lib/daytona/daytona.rb
+  h_e7759ddd73fa65 112-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c3daa2f1b19286a48c38bb6bac7da4c5e6f4181",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
