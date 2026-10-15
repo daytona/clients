@@ -16,7 +16,9 @@
 # Versions are ordered by SemVer precedence of X.Y.Z. Prereleases never block,
 # since `latest` tracks stable versions only. Every package that the
 # sdk-typescript publish target releases is checked: set PACKAGES (space
-# separated) to override the list.
+# separated) to override the list. A package that has never been published
+# to npm fails `check`: publish it once (from main, or with a line tag) before
+# a release branch may publish it with `latest`.
 
 set -euo pipefail
 
@@ -30,8 +32,14 @@ run_guard() {
   # `|| return 1` is required: callers invoke run_guard in a condition, which
   # turns off `set -e` here, so a registry error would otherwise read as
   # "nothing published" and let the publish through.
-  versions=$(npm view "$pkg" versions --json --registry "$registry") || return 1
-  latest=$(npm view "$pkg" dist-tags.latest --registry "$registry") || return 1
+  if ! versions=$(npm view "$pkg" versions --json --registry "$registry"); then
+    echo "::error::Could not read the published versions of $pkg from the npm registry (npm view failed)"
+    return 1
+  fi
+  if ! latest=$(npm view "$pkg" dist-tags.latest --registry "$registry"); then
+    echo "::error::Could not read the npm latest tag of $pkg (npm view failed)"
+    return 1
+  fi
   node - "$mode" "$version" "$latest" "$versions" "$pkg" <<'EOF'
 const [mode, version, latest, versionsJson, pkg] = process.argv.slice(2);
 const parse = (v) => {
@@ -58,7 +66,7 @@ if (typeof published !== 'string' && !Array.isArray(published)) {
   fail(`Could not read the published versions of ${pkg} from the npm registry`);
 }
 const parsed = [].concat(published).map((v) => ({ v, p: parse(v) })).filter((x) => x.p);
-if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}`);
+if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}; publish it to npm once before a release branch publishes it with the latest tag`);
 
 if (mode === 'check') {
   const next = parse(version);
