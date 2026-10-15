@@ -111,7 +111,7 @@ Ensure these secrets are configured in GitHub repository settings:
 
 ### Release Branches
 
-`main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on the oldest affected branch first and is cherry-picked forward to newer branches and `main`. Releases are tags (`v0.223.2`, `sdk-go/v0.223.2`), never branches.
+`main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on `main` first and is cherry-picked (`git cherry-pick -x`) to the maintenance branches it applies to, through a PR against each branch. Releases are tags (`v0.224.2`, `sdk-go/v0.224.2`), never branches.
 
 To ship a patch from a maintenance branch, run **Prepare Release**, **Release** and **SDK and CLI Publish** with the branch selected in **Use workflow from**, exactly as for `main`. On a `release/vN` branch the workflows:
 

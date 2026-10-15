@@ -27,8 +27,11 @@ registry=https://registry.npmjs.org/
 
 run_guard() {
   local pkg="$1" versions latest
-  versions=$(npm view "$pkg" versions --json --registry "$registry")
-  latest=$(npm view "$pkg" dist-tags.latest --registry "$registry")
+  # `|| return 1` is required: callers invoke run_guard in a condition, which
+  # turns off `set -e` here, so a registry error would otherwise read as
+  # "nothing published" and let the publish through.
+  versions=$(npm view "$pkg" versions --json --registry "$registry") || return 1
+  latest=$(npm view "$pkg" dist-tags.latest --registry "$registry") || return 1
   node - "$mode" "$version" "$latest" "$versions" "$pkg" <<'EOF'
 const [mode, version, latest, versionsJson, pkg] = process.argv.slice(2);
 const parse = (v) => {
@@ -39,11 +42,23 @@ const compare = (a, b) => {
   for (let i = 0; i < 3; i++) if (a.core[i] !== b.core[i]) return a.core[i] - b.core[i];
   return Number(!a.pre) - Number(!b.pre);
 };
-const parsed = [].concat(JSON.parse(versionsJson)).map((v) => ({ v, p: parse(v) })).filter((x) => x.p);
 const fail = (msg) => {
   console.log(`::error::${msg}`);
   process.exit(1);
 };
+let published;
+try {
+  published = JSON.parse(versionsJson);
+} catch {
+  fail(`Could not parse the published versions of ${pkg} from the npm registry`);
+}
+// npm prints a single version as a string and several as an array; anything
+// else (e.g. {"error": ...} on a registry failure) means the lookup failed.
+if (typeof published !== 'string' && !Array.isArray(published)) {
+  fail(`Could not read the published versions of ${pkg} from the npm registry`);
+}
+const parsed = [].concat(published).map((v) => ({ v, p: parse(v) })).filter((x) => x.p);
+if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}`);
 
 if (mode === 'check') {
   const next = parse(version);
@@ -52,6 +67,7 @@ if (mode === 'check') {
   if (blocker) fail(`${pkg}@${blocker.v} is already published; ${version} with --tag latest would move latest backwards. Use a line tag such as v${next.core[0]}-latest.`);
   console.log(`${version} is above every published stable version of ${pkg}; latest may move to it.`);
 } else if (mode === 'verify') {
+  if (!latest) fail(`Could not read the npm latest tag of ${pkg}`);
   const highest = parsed.filter((x) => !x.p.pre).sort((a, b) => compare(b.p, a.p))[0];
   if (highest && highest.v !== latest) {
     fail(`npm latest of ${pkg} is ${latest} but ${highest.v} is published. Run 'npm dist-tag add ${pkg}@${highest.v} latest'.`);
