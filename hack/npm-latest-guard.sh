@@ -33,7 +33,7 @@ run_guard() {
   # turns off `set -e` here, so a registry error would otherwise read as
   # "nothing published" and let the publish through.
   if ! versions=$(npm view "$pkg" versions --json --registry "$registry"); then
-    echo "::error::Could not read the published versions of $pkg from the npm registry (npm view failed)"
+    echo "::error::Could not read the published versions of $pkg from the npm registry (npm view failed). If $pkg was never published, publish it to npm once before a release branch publishes it with the latest tag."
     return 1
   fi
   if ! latest=$(npm view "$pkg" dist-tags.latest --registry "$registry"); then
@@ -66,7 +66,7 @@ if (typeof published !== 'string' && !Array.isArray(published)) {
   fail(`Could not read the published versions of ${pkg} from the npm registry`);
 }
 const parsed = [].concat(published).map((v) => ({ v, p: parse(v) })).filter((x) => x.p);
-if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}; publish it to npm once before a release branch publishes it with the latest tag`);
+if (parsed.length === 0) fail(`The npm registry returned no versions for ${pkg}`);
 
 if (mode === 'check') {
   const next = parse(version);
