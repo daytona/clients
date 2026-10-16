@@ -1,0 +1,29 @@
+analytics-api-client-ruby/project.json
+  s_cb08514c72375e::t_e1c8764836febe 54
+sdk-ruby/project.json
+  s_cb08514c72375e::t_e1c8764836febe 87
+.github/workflows/sdk_publish.yaml
+  s_cb08514c72375e::t_e1c8764836febe 105-108
+PUBLISHING.md
+  s_cb08514c72375e::t_5b77dfc1500aa2 22,65-67,71
+api-client-ruby/project.json
+  s_cb08514c72375e::t_6a6f023ccb8710 54
+toolbox-api-client-ruby/project.json
+  s_cb08514c72375e::t_b260171fbe143e 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a77b9780bea5c9235cd5249b14ccd0c327da0769",
+  "prompts": {},
+  "sessions": {
+    "s_cb08514c72375e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f0e9459f5ffePFlvjl5kK6K0c5",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+toolbox-api-client-go/project.json
+  ai_agent 93-97
+examples/go/go.mod
+  ai_agent 27-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "480bba36637ebf60bb2c44f71a48a5304b64b0de",
+  "prompts": {}
+}

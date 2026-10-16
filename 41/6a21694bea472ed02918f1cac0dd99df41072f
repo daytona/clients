@@ -1,0 +1,18 @@
+sdk-go/pkg/daytona/client_test.go
+  h_e7759ddd73fa65 1341,1360,1485
+sdk-python/README.md
+  h_e7759ddd73fa65 37-40
+sdk-typescript/README.md
+  h_e7759ddd73fa65 44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "416a21694bea472ed02918f1cac0dd99df41072f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

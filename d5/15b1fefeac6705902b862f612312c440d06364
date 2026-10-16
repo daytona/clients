@@ -1,0 +1,19 @@
+hack/npm-latest-guard.sh
+  s_1a59d756d7b71f::t_2e11a78ca47243 17-19,25,29,57,66-70,72-82,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d515b1fefeac6705902b862f612312c440d06364",
+  "prompts": {},
+  "sessions": {
+    "s_1a59d756d7b71f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55147ffepoNf4OrF6YCmBS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

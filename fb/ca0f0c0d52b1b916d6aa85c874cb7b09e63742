@@ -1,0 +1,23 @@
+cli/auth/auth_test.go
+  s_7927d7aeddcf0f::t_d6474aea3eaa9d 117,123-124,128-129,133
+cli/config/config.go
+  s_7927d7aeddcf0f::t_56234c3db920ed 135-160
+cli/config/config_test.go
+  s_7927d7aeddcf0f::t_7bcf5b5b7d404f 9,11,80-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fbca0f0c0d52b1b916d6aa85c874cb7b09e63742",
+  "prompts": {},
+  "sessions": {
+    "s_7927d7aeddcf0f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "95ff542d-924e-4b57-97e7-dec87bbb8ce2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}
