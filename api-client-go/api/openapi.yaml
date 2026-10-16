@@ -7396,6 +7396,7 @@ components:
       enum:
       - H100
       - H200
+      - B200
       - B300
       - RTX-PRO-6000
       - RTX-4090
@@ -7405,6 +7406,7 @@ components:
       x-enum-varnames:
       - H100
       - H200
+      - B200
       - B300
       - RTX_PRO_6000
       - RTX_4090
