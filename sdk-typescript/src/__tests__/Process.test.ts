@@ -92,6 +92,26 @@ describe('Process', () => {
     )
   })
 
+  it('executeCommand returns split stdout and stderr when the daemon provides them', async () => {
+    const { process, apiClient } = await makeProcess()
+
+    apiClient.executeCommand.mockResolvedValue(
+      createApiResponse({ exitCode: 0, result: 'out\nerr\n', stdout: 'out\n', stderr: 'err\n' }),
+    )
+    const result = await process.executeCommand('echo out; echo err >&2')
+    expect(result).toMatchObject({ exitCode: 0, result: 'out\nerr\n', stdout: 'out\n', stderr: 'err\n' })
+  })
+
+  it('executeCommand leaves split streams undefined for daemons that predate them', async () => {
+    const { process, apiClient } = await makeProcess()
+
+    apiClient.executeCommand.mockResolvedValue(createApiResponse({ exitCode: 0, result: 'combined' }))
+    const result = await process.executeCommand('echo combined')
+    expect(result.result).toBe('combined')
+    expect(result.stdout).toBeUndefined()
+    expect(result.stderr).toBeUndefined()
+  })
+
   it('executeCommand with exec timeout does not override the HTTP deadline when requestTimeoutMs is not configured', async () => {
     const { process, apiClient } = await makeProcess()
 

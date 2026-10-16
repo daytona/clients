@@ -108,7 +108,8 @@ sandbox's cpu and memory instead, e.g. `pytest -n 2` rather than `pytest -n auto
 
 **Returns**:
 
-- `ExecuteResponse` - Command execution results containing exit_code, result, and artifacts
+- `ExecuteResponse` - Command execution results containing exit_code, combined stdout and stderr (interleaved) as result,
+split stdout/stderr (nil when the sandbox daemon predates split streams), and artifacts
 
 **Examples:**
 
