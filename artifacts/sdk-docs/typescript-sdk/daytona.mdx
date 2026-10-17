@@ -6,8 +6,9 @@ hideTitleOnPage: true
 
 ## Daytona
 
-Main class for interacting with the Daytona API.
-Provides methods for creating, managing, and interacting with Daytona Sandboxes.
+The v1 client: creates, manages and interacts with Daytona Sandboxes.
+Get it from the root client as `new Daytona().v1` (`Daytona` from `@daytona/sdk`), or import it
+directly as `Daytona` from `@daytona/sdk/v1`. The examples below use the direct import.
 Can be initialized either with explicit configuration or using environment variables.
 
 **Properties**:
@@ -25,19 +26,19 @@ Can be initialized either with explicit configuration or using environment varia
 
 ```ts
 // Using environment variables
-// Uses DAYTONA_API_KEY, DAYTONA_API_URL, DAYTONA_TARGET
+// Uses DAYTONA_API_KEY, DAYTONA_API_URL
 const daytona = new Daytona();
 const sandbox = await daytona.create();
 ```
 
 ```ts
-// Using explicit configuration
+// Using explicit configuration; the region is chosen per create
 const config: DaytonaConfig = {
     apiKey: "your-api-key",
     apiUrl: "https://your-api.com",
-    target: "us"
 };
 const daytona = new Daytona(config);
+const sandbox = await daytona.create({ target: 'us' });
 ```
 
 ```ts
@@ -123,6 +124,18 @@ asyncDispose: Promise<void>;
 ```ts
 AsyncDisposable.[asyncDispose]
 ```
+
+#### close()
+
+```ts
+close(): Promise<void>;
+```
+
+Closes the client: stops event streaming and flushes OpenTelemetry traces. Same as `await using`.
+
+**Returns**:
+
+- `Promise<void>`
 
 #### create()
 
@@ -513,7 +526,8 @@ Configuration options for initializing the Daytona client.
     `process.codeRun`) are not capped by this value; their HTTP wait is
     bounded by that per-call timeout instead.
 - ~~`serverUrl?`~~ _string_ - **_Deprecated_** - Use `apiUrl` instead. This property will be removed in future versions.
-- `target?` _string_ - Default region for Sandboxes and Snapshots. A per-call `target` / `regionId` overrides it
+- `target?` _string_ - Deprecated: pass `target` per Sandbox create and `regionId` per Snapshot create
+    instead. Default region for Sandboxes and Snapshots. A per-call `target` / `regionId` overrides it
 - ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
     Defaults to `false`, where state changes are streamed over WebSocket. Can also
     be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
@@ -532,7 +546,6 @@ Configuration options for initializing the Daytona client.
 const config: DaytonaConfig = {
     apiKey: "your-api-key",
     apiUrl: "https://your-api.com",
-    target: "us"
 };
 const daytona = new Daytona(config);
 ```
@@ -601,4 +614,13 @@ Parameters for forking a Sandbox.
 
 ```ts
 const CODE_TOOLBOX_LANGUAGE_LABEL: "code-toolbox-language" = 'code-toolbox-language';
+```
+
+***
+
+
+## V1\_API\_URL
+
+```ts
+const V1_API_URL: "https://app.daytona.io/api" = 'https://app.daytona.io/api';
 ```

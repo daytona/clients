@@ -3,7 +3,7 @@
 
 # frozen_string_literal: true
 
-RSpec.describe Daytona::Daytona do
+RSpec.describe Daytona::V1::Daytona do
   let(:config) { build_config }
   let(:api_client) do
     double('ApiClient', default_headers: {}).tap do |client|

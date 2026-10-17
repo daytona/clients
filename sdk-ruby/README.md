@@ -30,20 +30,35 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots (e.g. `us`, `eu`); a per-call `target:` / `region_id:` overrides it
+- `DAYTONA_TARGET`: Deprecated default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots; prefer per-call `target:` / `region_id:`
 
 ```ruby
 require 'daytona'
 
 # Initialize with environment variables
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 # Initialize with configuration object
 config = Daytona::Config.new(
   api_key: 'YOUR_API_KEY',
-  api_url: 'YOUR_API_URL',
-  target: 'us'
+  api_url: 'YOUR_API_URL'
 )
+
+daytona = Daytona::Daytona.new(config).v1
+```
+
+## Versioned namespace
+
+Use `Daytona::Daytona.new.v1` and `Daytona::V1::*` for 2.x-compatible code. The root client's resource
+methods and service readers, such as `daytona.create` and `daytona.snapshot`, are deprecated in 1.x and
+removed in 2.x; `close` is not deprecated.
+
+```ruby
+require 'daytona'
+
+client = Daytona::Daytona.new
+daytona = client.v1
+image = Daytona::V1::Image.debian_slim('3.12')
 ```
 
 ## Create a sandbox
@@ -54,7 +69,7 @@ Create a sandbox to run your code securely in an isolated environment.
 require 'daytona'
 
 config = Daytona::Config.new(api_key: 'YOUR_API_KEY')
-daytona = Daytona::Daytona.new(config)
+daytona = Daytona::Daytona.new(config).v1
 sandbox = daytona.create
 ```
 
@@ -64,15 +79,15 @@ Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#exam
 
 ### Create a sandbox or snapshot in a specific region
 
-Pass `target:` in the sandbox create params, or `region_id:` in the snapshot create params, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the client-level `target` (or `DAYTONA_TARGET`), then the organization's default region.
+Pass `target:` in the sandbox create params, or `region_id:` in the snapshot create params, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the deprecated client-level `target` (or `DAYTONA_TARGET`, which prints a one-time deprecation warning), then the organization's default region.
 
 ```ruby
 require 'daytona'
 
-daytona = Daytona::Daytona.new
-sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(target: 'eu'))
+daytona = Daytona::Daytona.new.v1
+sandbox = daytona.create(Daytona::V1::CreateSandboxFromSnapshotParams.new(target: 'eu'))
 snapshot = daytona.snapshot.create(
-  Daytona::CreateSnapshotParams.new(name: 'my-snapshot', image: 'python:3.12', region_id: 'eu')
+  Daytona::V1::CreateSnapshotParams.new(name: 'my-snapshot', image: 'python:3.12', region_id: 'eu')
 )
 ```
 
@@ -83,11 +98,11 @@ Create a sandbox with [custom resources](https://www.daytona.io/docs/en/sandboxe
 ```ruby
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 sandbox = daytona.create(
-    Daytona::CreateSandboxFromImageParams.new(
-        image: Daytona::Image.debian_slim('3.12'),
-        resources: Daytona::Resources.new(cpu: 2, memory: 4, disk: 8)
+    Daytona::V1::CreateSandboxFromImageParams.new(
+        image: Daytona::V1::Image.debian_slim('3.12'),
+        resources: Daytona::V1::Resources.new(cpu: 2, memory: 4, disk: 8)
     )
 )
 ```
@@ -99,9 +114,9 @@ Create an [ephemeral sandbox](https://www.daytona.io/docs/en/sandboxes/#ephemera
 ```ruby
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 sandbox = daytona.create(
-    Daytona::CreateSandboxFromSnapshotParams.new(ephemeral: true, auto_stop_interval: 5)
+    Daytona::V1::CreateSandboxFromSnapshotParams.new(ephemeral: true, auto_stop_interval: 5)
 )
 ```
 
@@ -112,9 +127,9 @@ Create a sandbox from a [snapshot](https://www.daytona.io/docs/en/snapshots/).
 ```ruby
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 sandbox = daytona.create(
-    Daytona::CreateSandboxFromSnapshotParams.new(
+    Daytona::V1::CreateSandboxFromSnapshotParams.new(
         snapshot: 'my-snapshot-name'
     )
 )
@@ -187,7 +202,7 @@ Create and start a language server to get code completions, document symbols, an
 ```ruby
 # Create a language server
 lsp_server = sandbox.create_lsp_server(
-  language_id: Daytona::LspServer::Language::PYTHON,
+  language_id: Daytona::V1::LspServer::Language::PYTHON,
   path_to_project: 'workspace/project'
 )
 lsp_server.start
@@ -201,7 +216,7 @@ symbols = lsp_server.document_symbols('workspace/project/main.py')
 # Get completions
 completions = lsp_server.completions(
   path: 'workspace/project/main.py',
-  position: Daytona::LspServer::Position.new(line: 10, character: 15)
+  position: Daytona::V1::LspServer::Position.new(line: 10, character: 15)
 )
 ```
 
@@ -211,17 +226,17 @@ Each `list` method returns a different shape depending on the resource. The tabl
 
 | Method | Return type | Shape | Access elements |
 | --- | --- | --- | --- |
-| `daytona.snapshot.list(page:, limit:)` | `Daytona::PaginatedResource` | Paginated wrapper | `result.items.each` |
-| `daytona.secret.list(cursor:, limit:, ...)` | `Daytona::ListSecretsResponse` | Cursor-paginated wrapper | `page.items.each` |
-| `daytona.volume.list` | `Array<Daytona::Volume>` | Bare array | iterate directly |
-| `daytona.list(query)` | `Enumerator<Daytona::Sandbox>` | Lazy enumerator | `.each { \|s\| ... }` |
+| `daytona.snapshot.list(page:, limit:)` | `Daytona::V1::PaginatedResource` | Paginated wrapper | `result.items.each` |
+| `daytona.secret.list(cursor:, limit:, ...)` | `Daytona::V1::ListSecretsResponse` | Cursor-paginated wrapper | `page.items.each` |
+| `daytona.volume.list` | `Array<Daytona::V1::Volume>` | Bare array | iterate directly |
+| `daytona.list(query)` | `Enumerator<Daytona::V1::Sandbox>` | Lazy enumerator | `.each { \|s\| ... }` |
 
 `PaginatedResource` and `ListSecretsResponse` are **wrapper objects**, not arrays. Calling `.each` or `.map` directly on them raises `NoMethodError`. Always go through `.items`:
 
 ```ruby
 # snapshots — page-number pagination
 result = daytona.snapshot.list(page: 1, limit: 20)
-# result.items       => Array<Daytona::Snapshot>
+# result.items       => Array<Daytona::V1::Snapshot>
 # result.total       => Float (total across all pages)
 # result.page        => Float (current page, 1-indexed)
 # result.total_pages => Float
@@ -231,7 +246,7 @@ result.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" 
 cursor = nil
 loop do
   page = daytona.secret.list(cursor: cursor, limit: 100)
-  # page.items       => Array<Daytona::Secret>
+  # page.items       => Array<Daytona::V1::Secret>
   # page.total       => Float
   # page.next_cursor => String | nil (nil = no more pages)
   page.items.each { |secret| puts secret.name }
@@ -243,6 +258,6 @@ end
 daytona.volume.list.each { |vol| puts vol.name }
 
 # sandboxes — lazy enumerator, fetches pages on demand
-query = Daytona::ListSandboxesQuery.new(labels: { 'env' => 'dev' })
+query = Daytona::V1::ListSandboxesQuery.new(labels: { 'env' => 'dev' })
 daytona.list(query).each { |sandbox| puts sandbox.id }
 ```

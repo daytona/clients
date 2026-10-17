@@ -300,3 +300,22 @@ module Daytona
     private_class_method :error_class_for, :parse_error_body, :parsed_message, :string_or_nil
   end
 end
+
+module Daytona
+  # Error names shared with SDK 2.x, at the top level and (as `...V1`) in `Daytona::V1`.
+  Error = Sdk::Error
+  BadRequestError = Sdk::BadRequestError
+  AuthenticationError = Sdk::AuthenticationError
+  ForbiddenError = Sdk::ForbiddenError
+  AuthorizationError = ForbiddenError
+  NotFoundError = Sdk::NotFoundError
+  TimeoutError = Sdk::TimeoutError
+  ConflictError = Sdk::ConflictError
+  GoneError = Sdk::GoneError
+  UnprocessableEntityError = Sdk::UnprocessableEntityError
+  RateLimitError = Sdk::RateLimitError
+  InternalServerError = Sdk::InternalServerError
+  ServiceUnavailableError = Sdk::ServiceUnavailableError
+  ConnectionError = Sdk::ConnectionError
+  ValidationError = BadRequestError
+end

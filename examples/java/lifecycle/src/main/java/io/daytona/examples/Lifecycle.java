@@ -18,7 +18,7 @@ public class Lifecycle {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
             System.out.println("Creating sandbox");
-            Sandbox sandbox = daytona.create();
+            Sandbox sandbox = daytona.v1().create();
             System.out.println("Sandbox created: " + sandbox.getId() + " (state: " + sandbox.getState() + ")");
 
             try {
@@ -36,7 +36,7 @@ public class Lifecycle {
                 System.out.println("Sandbox started");
 
                 System.out.println("Getting existing sandbox");
-                Sandbox fetched = daytona.get(sandbox.getId());
+                Sandbox fetched = daytona.v1().get(sandbox.getId());
                 System.out.println("Got sandbox: " + fetched.getId() + " (state: " + fetched.getState() + ")");
 
                 ListSandboxesQuery query = new ListSandboxesQuery();
@@ -45,7 +45,7 @@ public class Lifecycle {
                 query.setStates(List.of(SandboxState.STARTED));
                 query.setSort(SandboxListSortField.CREATED_AT);
                 query.setOrder(SandboxListSortDirection.DESC);
-                for (Sandbox sb : daytona.list(query)) {
+                for (Sandbox sb : daytona.v1().list(query)) {
                     System.out.println(sb.getId());
                 }
             } finally {

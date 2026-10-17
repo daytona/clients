@@ -1,4 +1,5 @@
-import { Daytona, Sandbox, Image, DaytonaTimeoutError, ExecutionError, OutputMessage } from '@daytona/sdk'
+import { Daytona, DaytonaTimeoutError } from '@daytona/sdk'
+import { Sandbox, Image, ExecutionError, OutputMessage } from '@daytona/sdk/v1'
 
 async function basicExec(sandbox: Sandbox) {
   //  run some typescript code directly
@@ -170,7 +171,7 @@ async function main() {
   const daytona = new Daytona()
 
   //  first, create a sandbox
-  const sandbox = await daytona.create(
+  const sandbox = await daytona.v1.create(
     {
       image: Image.base('ubuntu:22.04').runCommands(
         'apt-get update',
@@ -199,7 +200,7 @@ async function main() {
     console.error('Error executing commands:', error)
   } finally {
     //  cleanup
-    await daytona.delete(sandbox)
+    await daytona.v1.delete(sandbox)
   }
 }
 

@@ -62,10 +62,23 @@ func createTestClientWithServer(t *testing.T, server *httptest.Server) *Client {
 	}}
 
 	client.apiClient = apiclient.NewAPIClient(apiCfg)
-	client.Volume = NewVolumeService(client)
-	client.Snapshot = NewSnapshotService(client)
-	client.Secret = NewSecretService(client)
-	client.WarmPool = NewWarmPoolService(client)
+	volumeService := NewVolumeService(client)
+	snapshotService := NewSnapshotService(client)
+	secretService := NewSecretService(client)
+	warmPoolService := NewWarmPoolService(client)
+	// Mirror NewClientWithConfig: the deprecated root fields share the v1 services.
+	client.Volume = volumeService     //nolint:staticcheck // test helper sets the deprecated root fields.
+	client.Snapshot = snapshotService //nolint:staticcheck // test helper sets the deprecated root fields.
+	client.Secret = secretService     //nolint:staticcheck // test helper sets the deprecated root fields.
+	client.WarmPool = warmPoolService //nolint:staticcheck // test helper sets the deprecated root fields.
+	client.v1 = &V1Client{
+		client:   client,
+		Otel:     nil,
+		Volume:   volumeService,
+		Snapshot: snapshotService,
+		Secret:   secretService,
+		WarmPool: warmPoolService,
+	}
 
 	return client
 }
@@ -81,7 +94,7 @@ func TestVolumeListError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Volume.List(ctx)
+	_, err := client.V1().Volume.List(ctx)
 	require.Error(t, err)
 }
 
@@ -96,7 +109,7 @@ func TestVolumeGetError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Volume.Get(ctx, "nonexistent")
+	_, err := client.V1().Volume.Get(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -112,7 +125,7 @@ func TestVolumeDeleteError(t *testing.T) {
 
 	vol := &types.Volume{ID: "vol-1", Name: "my-volume"}
 	ctx := context.Background()
-	err := client.Volume.Delete(ctx, vol)
+	err := client.V1().Volume.Delete(ctx, vol)
 	require.Error(t, err)
 }
 
@@ -127,7 +140,7 @@ func TestVolumeErrorHandling(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Volume.Get(ctx, "nonexistent")
+	_, err := client.V1().Volume.Get(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -166,16 +179,16 @@ func TestVolumeSuccessOperations(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		volumes, err := client.Volume.List(context.Background())
+		volumes, err := client.V1().Volume.List(context.Background())
 		require.NoError(t, err)
 		assert.Len(t, volumes, 1)
-		volume, err := client.Volume.Get(context.Background(), "my-volume")
+		volume, err := client.V1().Volume.Get(context.Background(), "my-volume")
 		require.NoError(t, err)
 		assert.Equal(t, "my-volume", volume.Name)
-		created, err := client.Volume.Create(context.Background(), "my-volume")
+		created, err := client.V1().Volume.Create(context.Background(), "my-volume")
 		require.NoError(t, err)
 		assert.Equal(t, "pending_create", created.State)
-		require.NoError(t, client.Volume.Delete(context.Background(), &types.Volume{ID: "vol-1", Name: "my-volume"}))
+		require.NoError(t, client.V1().Volume.Delete(context.Background(), &types.Volume{ID: "vol-1", Name: "my-volume"}))
 	})
 }
 
@@ -193,7 +206,7 @@ func TestVolumeWaitForReadyBehaviors(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		volume, err := client.Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, 1500*time.Millisecond)
+		volume, err := client.V1().Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, 1500*time.Millisecond)
 		require.NoError(t, err)
 		assert.Equal(t, "ready", volume.State)
 	})
@@ -207,7 +220,7 @@ func TestVolumeWaitForReadyBehaviors(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		_, err := client.Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, time.Second)
+		_, err := client.V1().Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, time.Second)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "quota exceeded")
 	})
@@ -219,7 +232,7 @@ func TestVolumeWaitForReadyBehaviors(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		_, err := client.Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, 10*time.Millisecond)
+		_, err := client.V1().Volume.WaitForReady(context.Background(), &types.Volume{Name: "my-volume"}, 10*time.Millisecond)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "volume did not become ready")
 	})

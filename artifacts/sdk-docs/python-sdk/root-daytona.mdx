@@ -1,0 +1,99 @@
+---
+title: "RootDaytona"
+hideTitleOnPage: true
+---
+
+## Daytona
+
+```python
+class Daytona()
+```
+
+The SDK 1.x root client.
+
+It owns one v1 client, returned by `v1` (the same instance on every access); use
+`daytona.v1.<member>`, the form SDK 2.x keeps. `close()` and the context manager are not
+deprecated. Every other member forwards to `v1` and is deprecated: the first use in a process
+emits one `DeprecationWarning`.
+
+**Example**:
+
+```python
+from daytona import Daytona
+
+with Daytona() as daytona:
+    sandbox = daytona.v1.create()
+```
+
+#### Daytona.\_\_init\_\_
+
+```python
+def __init__(config: DaytonaConfig | None = None)
+```
+
+Create the root client and its v1 client from `config` (or the environment).
+
+#### Daytona.v1
+
+```python
+@property
+def v1() -> _DaytonaV1
+```
+
+The v1 client (`daytona.v1.Daytona`); the same instance on every access.
+
+#### Daytona.close
+
+```python
+def close() -> None
+```
+
+Close the v1 client. Not deprecated.
+
+## AsyncDaytona
+
+```python
+class AsyncDaytona()
+```
+
+The SDK 1.x async root client.
+
+It owns one async v1 client, returned by `v1` (the same instance on every access); use
+`daytona.v1.<member>`, the form SDK 2.x keeps. `close()` and the async context manager are not
+deprecated. Every other member forwards to `v1` and is deprecated: the first use in a process
+emits one `DeprecationWarning`.
+
+**Example**:
+
+```python
+from daytona import AsyncDaytona
+
+async with AsyncDaytona() as daytona:
+    sandbox = await daytona.v1.create()
+```
+
+#### AsyncDaytona.\_\_init\_\_
+
+```python
+def __init__(config: DaytonaConfig | None = None)
+```
+
+Create the root client and its async v1 client from `config` (or the environment).
+
+#### AsyncDaytona.v1
+
+```python
+@property
+def v1() -> _AsyncDaytonaV1
+```
+
+The async v1 client (`daytona.v1.AsyncDaytona`); the same instance on every access.
+
+#### AsyncDaytona.close
+
+```python
+async def close() -> None
+```
+
+Close the async v1 client. Not deprecated.
+

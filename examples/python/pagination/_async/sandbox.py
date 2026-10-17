@@ -1,10 +1,12 @@
 import asyncio
 
-from daytona import AsyncDaytona, ListSandboxesQuery, SandboxListSortDirection, SandboxListSortField, SandboxState
+from daytona import AsyncDaytona
+from daytona.v1 import ListSandboxesQuery, SandboxListSortDirection, SandboxListSortField, SandboxState
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         async for sandbox in daytona.list(
             ListSandboxesQuery(
                 limit=10,

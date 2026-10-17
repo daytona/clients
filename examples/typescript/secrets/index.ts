@@ -6,7 +6,7 @@ async function main() {
   // Create an organization secret. The plaintext value is stored encrypted and is
   // never returned by the API again. Use `hosts` to restrict where the value may be sent.
   const secretName = `example-api-key-${Date.now()}`
-  const secret = await daytona.secret.create({
+  const secret = await daytona.v1.secret.create({
     name: secretName,
     value: 'sk-ant-example-secret-value',
     description: 'Example secret created by the Daytona SDK',
@@ -20,7 +20,7 @@ async function main() {
   const secrets = []
   let cursor: string | undefined = undefined
   do {
-    const page = await daytona.secret.list({ cursor, limit: 100 })
+    const page = await daytona.v1.secret.list({ cursor, limit: 100 })
     secrets.push(...page.items)
     cursor = page.nextCursor ?? undefined
   } while (cursor)
@@ -28,7 +28,7 @@ async function main() {
 
   // Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.
   // The `secrets` map is { envVarName: existingSecretName }.
-  const sandbox = await daytona.create({
+  const sandbox = await daytona.v1.create({
     language: 'typescript',
     secrets: { ANTHROPIC_API_KEY: secretName },
   })
@@ -40,15 +40,15 @@ async function main() {
   console.log(`ANTHROPIC_API_KEY inside sandbox: ${result.result.trim()}`)
 
   // Rotate the secret value and narrow its allowed hosts. Omitted fields are unchanged.
-  const updated = await daytona.secret.update(secret.id, {
+  const updated = await daytona.v1.secret.update(secret.id, {
     value: 'sk-ant-rotated-value',
     hosts: ['api.anthropic.com'],
   })
   console.log(`Updated secret '${updated.name}'; allowed hosts: ${updated.hosts.join(', ')}`)
 
   // Cleanup
-  await daytona.delete(sandbox)
-  await daytona.secret.delete(secret.id)
+  await daytona.v1.delete(sandbox)
+  await daytona.v1.secret.delete(secret.id)
   console.log('Deleted sandbox and secret')
 }
 

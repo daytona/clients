@@ -22,21 +22,29 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots (e.g. `us`, `eu`); a per-call `target` / `region_id` overrides it
 
 ```python
 from daytona import Daytona, DaytonaConfig
 
 # Initialize with environment variables
-daytona = Daytona()
+daytona = Daytona().v1
 
 # Initialize with configuration object
-config = DaytonaConfig(
-    api_key="YOUR_API_KEY",
-    api_url="YOUR_API_URL",
-    target="us"
-)
+config = DaytonaConfig(api_key="YOUR_API_KEY")
+daytona = Daytona(config).v1
 ```
+
+To keep code portable to SDK 2.x, pass only `api_key`, `jwt_token`, `organization_id`, the
+deprecated `target`, `connection_pool_maxsize` and `otel_enabled` to the root `DaytonaConfig`. The
+2.x root `DaytonaConfig` has no `api_url`, `server_url`, `use_deprecated_polling` or `_experimental`
+(passing one raises `TypeError`). The 2.x root client's
+`.v1` always uses `V1_API_URL` and does not read `DAYTONA_API_URL`. If you need a custom endpoint, build the v1 client directly with
+`from daytona.v1 import Daytona, DaytonaConfig`.
+
+## Versioned namespace
+
+Use `daytona.v1` directly, or access the client through `Daytona().v1` / `AsyncDaytona().v1`.
+The root resource methods are deprecated in 1.x and removed in 2.x.
 
 ## Create a sandbox
 
@@ -46,7 +54,7 @@ Create a sandbox to run your code securely in an isolated environment.
 from daytona import Daytona, DaytonaConfig
 
 config = DaytonaConfig(api_key="YOUR_API_KEY")
-daytona = Daytona(config)
+daytona = Daytona(config).v1
 sandbox = daytona.create()
 response = sandbox.process.code_run('print("Hello World")')
 ```
@@ -57,12 +65,13 @@ Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#exam
 
 ### Create a sandbox or snapshot in a specific region
 
-Pass `target` in the sandbox create params, or `region_id` in `CreateSnapshotParams`, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the client-level `target` (or `DAYTONA_TARGET`), then the organization's default region.
+Pass `target` in the sandbox create params, or `region_id` in `CreateSnapshotParams`, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the deprecated client-level `target` (or `DAYTONA_TARGET`, which emits a one-time deprecation warning), then the organization's default region.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, CreateSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromSnapshotParams, CreateSnapshotParams
 
-daytona = Daytona()
+daytona = Daytona().v1
 sandbox = daytona.create(CreateSandboxFromSnapshotParams(target="eu"))
 snapshot = daytona.snapshot.create(CreateSnapshotParams(name="my-snapshot", image="python:3.12", region_id="eu"))
 ```
@@ -72,9 +81,10 @@ snapshot = daytona.snapshot.create(CreateSnapshotParams(name="my-snapshot", imag
 Create a sandbox with [custom resources](https://www.daytona.io/docs/en/sandboxes/#resources) (CPU, memory, disk).
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Image, Resources
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromImageParams, Image, Resources
 
-daytona = Daytona()
+daytona = Daytona().v1
 sandbox = daytona.create(
     CreateSandboxFromImageParams(
         image=Image.debian_slim("3.12"),
@@ -88,9 +98,10 @@ sandbox = daytona.create(
 Create an [ephemeral sandbox](https://www.daytona.io/docs/en/sandboxes/#ephemeral-sandboxes) that is automatically deleted when stopped.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromSnapshotParams
 
-daytona = Daytona()
+daytona = Daytona().v1
 sandbox = daytona.create(
     CreateSandboxFromSnapshotParams(ephemeral=True, auto_stop_interval=5)
 )
@@ -101,9 +112,10 @@ sandbox = daytona.create(
 Create a sandbox from a [snapshot](https://www.daytona.io/docs/en/snapshots/).
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromSnapshotParams
 
-daytona = Daytona()
+daytona = Daytona().v1
 sandbox = daytona.create(
     CreateSandboxFromSnapshotParams(
         snapshot="my-snapshot-name",
@@ -223,7 +235,7 @@ for vol in volumes:
     print(vol.name)
 
 # sandboxes — lazy iterator, fetches pages on demand
-from daytona import ListSandboxesQuery
+from daytona.v1 import ListSandboxesQuery
 
 for sandbox in daytona.list(ListSandboxesQuery(labels={"env": "dev"})):
     print(sandbox.id)

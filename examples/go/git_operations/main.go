@@ -25,7 +25,7 @@ func main() {
 	ctx := context.Background()
 
 	// The default snapshot already ships with git, so no custom image is needed.
-	sandbox, err := client.Create(ctx, types.SnapshotParams{}, options.WithTimeout(180*time.Second))
+	sandbox, err := client.V1().Create(ctx, types.SnapshotParams{}, options.WithTimeout(180*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

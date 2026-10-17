@@ -27,7 +27,7 @@ func main() {
 	// never returned by the API again. Use Hosts to restrict where the value may be sent.
 	secretName := fmt.Sprintf("example-api-key-%d", time.Now().Unix())
 	description := "Example secret created by the Daytona SDK"
-	secret, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+	secret, err := client.V1().Secret.Create(ctx, &types.CreateSecretParams{
 		Name:        secretName,
 		Value:       "sk-ant-example-secret-value",
 		Description: &description,
@@ -45,7 +45,7 @@ func main() {
 	query := &types.ListSecretsQuery{}
 	var secrets []*types.Secret
 	for {
-		page, err := client.Secret.List(ctx, query)
+		page, err := client.V1().Secret.List(ctx, query)
 		if err != nil {
 			log.Fatalf("Failed to list secrets: %v", err)
 		}
@@ -65,7 +65,7 @@ func main() {
 			Secrets:  map[string]string{"ANTHROPIC_API_KEY": secretName},
 		},
 	}
-	sandbox, err := client.Create(ctx, params)
+	sandbox, err := client.V1().Create(ctx, params)
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -82,7 +82,7 @@ func main() {
 
 	// Rotate the secret value and narrow its allowed hosts. Nil fields are left unchanged.
 	newValue := "sk-ant-rotated-value"
-	updated, err := client.Secret.Update(ctx, secret.ID, &types.UpdateSecretParams{
+	updated, err := client.V1().Secret.Update(ctx, secret.ID, &types.UpdateSecretParams{
 		Value: &newValue,
 		Hosts: []string{"api.anthropic.com"},
 	})
@@ -95,7 +95,7 @@ func main() {
 	if err := sandbox.Delete(ctx); err != nil {
 		log.Printf("Failed to delete sandbox: %v", err)
 	}
-	if err := client.Secret.Delete(ctx, secret.ID); err != nil {
+	if err := client.V1().Secret.Delete(ctx, secret.ID); err != nil {
 		log.Printf("Failed to delete secret: %v", err)
 	}
 	log.Println("✓ Deleted sandbox and secret")

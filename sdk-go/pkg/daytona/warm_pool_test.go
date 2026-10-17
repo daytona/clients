@@ -52,7 +52,7 @@ func TestWarmPoolList(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	pools, err := client.WarmPool.List(context.Background())
+	pools, err := client.V1().WarmPool.List(context.Background())
 	require.NoError(t, err)
 	require.Len(t, pools, 1)
 	assert.Equal(t, "wp-1", pools[0].ID)
@@ -89,7 +89,7 @@ func TestWarmPoolUpdate(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	updated, err := client.WarmPool.Update(context.Background(), "wp-1", 7)
+	updated, err := client.V1().WarmPool.Update(context.Background(), "wp-1", 7)
 	require.NoError(t, err)
 	assert.Equal(t, 7, updated.Pool)
 	assert.Equal(t, "wp-1", updated.ID)
@@ -105,7 +105,7 @@ func TestWarmPoolListError(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	_, err := client.WarmPool.List(context.Background())
+	_, err := client.V1().WarmPool.List(context.Background())
 	require.Error(t, err)
 }
 
@@ -119,7 +119,7 @@ func TestWarmPoolCreateError(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	_, err := client.WarmPool.Create(context.Background(), &types.CreateWarmPoolParams{
+	_, err := client.V1().WarmPool.Create(context.Background(), &types.CreateWarmPoolParams{
 		Snapshot: "my-snapshot",
 		Pool:     5,
 	})
@@ -136,7 +136,7 @@ func TestWarmPoolDeleteError(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	err := client.WarmPool.Delete(context.Background(), "wp-1")
+	err := client.V1().WarmPool.Delete(context.Background(), "wp-1")
 	require.Error(t, err)
 }
 

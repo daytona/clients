@@ -60,7 +60,7 @@ func simpleLogStreaming(ctx context.Context, client *daytona.Client) {
 		}
 	}()
 
-	sandbox, err := client.Create(ctx, params, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan))
+	sandbox, err := client.V1().Create(ctx, params, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

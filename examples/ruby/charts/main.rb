@@ -63,11 +63,11 @@ CODE = <<~PYTHON
 PYTHON
 
 def main
-  daytona = Daytona::Daytona.new
+  daytona = Daytona::Daytona.new.v1
 
   sandbox = daytona.create(
-    Daytona::CreateSandboxFromImageParams.new(
-      image: Daytona::Image.debian_slim('3.13').pip_install('matplotlib')
+    Daytona::V1::CreateSandboxFromImageParams.new(
+      image: Daytona::V1::Image.debian_slim('3.13').pip_install('matplotlib')
     ),
     on_snapshot_create_logs: proc { print _1 }
   )
@@ -97,7 +97,7 @@ def print_chart(chart)
   puts "Title: #{chart.title}"
 
   case chart.type
-  when Daytona::Charts::ChartType::LINE
+  when Daytona::V1::Charts::ChartType::LINE
     puts "X Label: #{chart.x_label}"
     puts "Y Label: #{chart.y_label}"
     puts "X Ticks: #{chart.x_ticks}"
@@ -111,7 +111,7 @@ def print_chart(chart)
       puts "\n  Label: #{element.label}"
       puts "  Points: #{element.points}"
     end
-  when Daytona::Charts::ChartType::SCATTER
+  when Daytona::V1::Charts::ChartType::SCATTER
     puts "X Label: #{chart.x_label}"
     puts "Y Label: #{chart.y_label}"
     puts "X Ticks: #{chart.x_ticks}"
@@ -125,7 +125,7 @@ def print_chart(chart)
       puts "\n  Label: #{element.label}"
       puts "  Points: #{element.points}"
     end
-  when Daytona::Charts::ChartType::BAR
+  when Daytona::V1::Charts::ChartType::BAR
     puts "X Label: #{chart.x_label}"
     puts "Y Label: #{chart.y_label}"
     puts 'Elements:'
@@ -134,14 +134,14 @@ def print_chart(chart)
       puts "  Group: #{element.group}"
       puts "  Value: #{element.value}"
     end
-  when Daytona::Charts::ChartType::PIE
+  when Daytona::V1::Charts::ChartType::PIE
     puts 'Elements:'
     chart.elements.each do |element|
       puts "\n  Label: #{element.label}"
       puts "  Angle: #{element.angle}"
       puts "  Radius: #{element.radius}"
     end
-  when Daytona::Charts::ChartType::BOX_AND_WHISKER
+  when Daytona::V1::Charts::ChartType::BOX_AND_WHISKER
     puts "X Label: #{chart.x_label}"
     puts "Y Label: #{chart.y_label}"
     puts 'Elements:'
@@ -154,7 +154,7 @@ def print_chart(chart)
       puts "  Max: #{element.max}"
       puts "  Outliers: #{element.outliers}"
     end
-  when Daytona::Charts::ChartType::COMPOSITE_CHART
+  when Daytona::V1::Charts::ChartType::COMPOSITE_CHART
     puts "Elements:\n"
     chart.elements.each { print_chart(_1) }
   else

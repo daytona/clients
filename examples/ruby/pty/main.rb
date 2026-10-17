@@ -2,14 +2,14 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 sandbox = daytona.create
 
 puts '=== First PTY Session: Interactive Command with Exit ==='
 pty_session_id = 'interactive-pty-session'
 
 # Create PTY session
-handle = sandbox.process.create_pty_session(id: pty_session_id, pty_size: Daytona::PtySize.new(cols: 120, rows: 30))
+handle = sandbox.process.create_pty_session(id: pty_session_id, pty_size: Daytona::V1::PtySize.new(cols: 120, rows: 30))
 
 thread = Thread.new do
   # Using iterator to handle PTY data
@@ -24,7 +24,7 @@ handle.send_input("printf 'Enter your name: ' && read name && printf 'Hello %s\n
 sleep(1)
 handle.send_input("Alice\n")
 
-handle.resize(Daytona::PtySize.new(cols: 80, rows: 25))
+handle.resize(Daytona::V1::PtySize.new(cols: 80, rows: 25))
 
 # Send another command
 sleep(1)
@@ -44,7 +44,7 @@ puts '=== Second PTY Session: Kill PTY Session ==='
 pty_session_id = 'kill-pty-session'
 
 # Create PTY session
-handle = sandbox.process.create_pty_session(id: pty_session_id, pty_size: Daytona::PtySize.new(cols: 120, rows: 30))
+handle = sandbox.process.create_pty_session(id: pty_session_id, pty_size: Daytona::V1::PtySize.new(cols: 120, rows: 30))
 
 # Send a long-running command
 handle.send_input("while true; do echo \"Running... $(date)\"; sleep 1; done\n")

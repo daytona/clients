@@ -617,7 +617,7 @@ go func() {
         fmt.Println(log)
     }
 }()
-sandbox, err := client.Create(ctx, params,
+sandbox, err := client.V1().Create(ctx, params,
     options.WithLogChannel(logChan),
 )
 ```
@@ -954,7 +954,7 @@ If the timeout is exceeded before the sandbox is ready, Create returns an error.
 Example:
 
 ```
-sandbox, err := client.Create(ctx, params,
+sandbox, err := client.V1().Create(ctx, params,
     options.WithTimeout(5*time.Minute),
 )
 ```
@@ -994,7 +994,7 @@ Example:
 
 ```
 // Return immediately without waiting for the sandbox to start
-sandbox, err := client.Create(ctx, params,
+sandbox, err := client.V1().Create(ctx, params,
     options.WithWaitForStart(false),
 )
 ```

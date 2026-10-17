@@ -31,7 +31,7 @@ func main() {
 		},
 	}
 
-	sandbox1, err := client.Create(ctx, params1, options.WithTimeout(90*time.Second))
+	sandbox1, err := client.V1().Create(ctx, params1, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Refresh sandbox info
-	sandbox1, err = client.Get(ctx, sandbox1.ID)
+	sandbox1, err = client.V1().Get(ctx, sandbox1.ID)
 	if err != nil {
 		log.Fatalf("Failed to get sandbox: %v", err)
 	}
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// Refresh sandbox info
-	sandbox1, err = client.Get(ctx, sandbox1.ID)
+	sandbox1, err = client.V1().Get(ctx, sandbox1.ID)
 	if err != nil {
 		log.Fatalf("Failed to get sandbox: %v", err)
 	}
@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// Refresh sandbox info
-	sandbox1, err = client.Get(ctx, sandbox1.ID)
+	sandbox1, err = client.V1().Get(ctx, sandbox1.ID)
 	if err != nil {
 		log.Fatalf("Failed to get sandbox: %v", err)
 	}
@@ -94,7 +94,7 @@ func main() {
 		},
 	}
 
-	sandbox2, err := client.Create(ctx, params2, options.WithTimeout(90*time.Second))
+	sandbox2, err := client.V1().Create(ctx, params2, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

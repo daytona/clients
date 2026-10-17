@@ -1,10 +1,12 @@
 import asyncio
 
-from daytona import AsyncDaytona, SessionExecuteRequest
+from daytona import AsyncDaytona
+from daytona.v1 import SessionExecuteRequest
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         sandbox = await daytona.create()
 
         exec_session_id = "exec-session-1"

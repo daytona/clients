@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 puts 'Creating sandbox'
 sandbox = daytona.create

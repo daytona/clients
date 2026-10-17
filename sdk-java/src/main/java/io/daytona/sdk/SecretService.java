@@ -59,7 +59,7 @@ public class SecretService {
      *
      * <pre>{@code
      * try (Daytona daytona = new Daytona()) {
-     *     ListSecretsResponse page = daytona.secret().list();
+     *     ListSecretsResponse page = daytona.v1().secret().list();
      *     System.out.printf("Fetched %d of %d secrets%n", page.getItems().size(), page.getTotal());
      *     for (var secret : page.getItems()) {
      *         System.out.println(secret.getName() + " (" + secret.getId() + ")");
@@ -84,7 +84,7 @@ public class SecretService {
      *     query.setLimit(50);
      *
      *     while (true) {
-     *         ListSecretsResponse page = daytona.secret().list(query);
+     *         ListSecretsResponse page = daytona.v1().secret().list(query);
      *         System.out.printf("Fetched %d of %d secrets%n", page.getItems().size(), page.getTotal());
      *         for (var secret : page.getItems()) {
      *             System.out.println(secret.getName() + " (" + secret.getId() + ")");

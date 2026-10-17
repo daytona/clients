@@ -2,7 +2,8 @@ import sys
 import threading
 import time
 
-from daytona import Daytona, PtySize, Sandbox
+from daytona import Daytona
+from daytona.v1 import PtySize, Sandbox
 
 
 def interactive_pty_session(sandbox: Sandbox):
@@ -83,7 +84,7 @@ def kill_pty_session(sandbox: Sandbox):
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
     sandbox = daytona.create()
 
     try:

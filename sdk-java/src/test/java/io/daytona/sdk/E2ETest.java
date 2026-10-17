@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class E2ETest {
 
-    private Daytona daytona;
+    private DaytonaV1 daytona;
     private Sandbox sandbox;
     private SandboxApi sandboxApi;
     private FileSystemApi toolboxFileSystemApi;
@@ -80,6 +80,7 @@ class E2ETest {
     private String createdVolumeId;
     private String createdVolumeName;
 
+    @SuppressWarnings("deprecation")
     @BeforeAll
     void setUp() {
         String apiKey = System.getenv("DAYTONA_API_KEY");
@@ -89,11 +90,11 @@ class E2ETest {
 
         DaytonaConfig config = new DaytonaConfig.Builder()
                 .apiKey(apiKey)
-                .apiUrl(envOrDefault("DAYTONA_API_URL", "https://app.daytona.io/api"))
+                .apiUrl(envOrDefault("DAYTONA_API_URL", DaytonaV1.V1_API_URL))
                 .target(System.getenv("DAYTONA_TARGET"))
                 .build();
 
-        daytona = new Daytona(config);
+        daytona = new DaytonaV1(config);
         io.daytona.api.client.ApiClient apiClient = TestSupport.getField(daytona, "apiClient", io.daytona.api.client.ApiClient.class);
         sandboxApi = new SandboxApi(apiClient);
 

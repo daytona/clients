@@ -27,7 +27,7 @@ public class Charts {
             params.setLanguage("python");
 
             System.out.println("Creating Python sandbox with matplotlib");
-            Sandbox sandbox = daytona.create(params, 300);
+            Sandbox sandbox = daytona.v1().create(params, 300);
 
             try {
                 System.out.println("\n=== CodeInterpreter.runCode (with streaming callbacks) ===");

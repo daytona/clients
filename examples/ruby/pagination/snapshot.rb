@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 result = daytona.snapshot.list(page: 2, limit: 10)
 result.items.each do |snapshot|

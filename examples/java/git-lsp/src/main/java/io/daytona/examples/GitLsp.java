@@ -37,7 +37,7 @@ public class GitLsp {
             params.setLanguage("typescript");
 
             System.out.println("Creating TypeScript sandbox from custom image");
-            Sandbox sandbox = daytona.create(params, 300);
+            Sandbox sandbox = daytona.v1().create(params, 300);
 
             String repo = "demo-repo";
             try {

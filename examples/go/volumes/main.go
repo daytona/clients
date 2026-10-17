@@ -22,7 +22,7 @@ func main() {
 
 	// Volume operations example
 	log.Println("Volume operations example...")
-	volumes, err := client.Volume.List(ctx)
+	volumes, err := client.V1().Volume.List(ctx)
 	if err != nil {
 		log.Fatalf("Failed to list volumes: %v", err)
 	}

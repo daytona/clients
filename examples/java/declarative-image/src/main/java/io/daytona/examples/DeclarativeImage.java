@@ -37,12 +37,12 @@ public class DeclarativeImage {
                     .addLocalFile(localFile.toString(), "/home/daytona/workspace/file_example.txt");
 
             System.out.println("\n=== Creating Snapshot: " + snapshotName + " ===");
-            daytona.snapshot().create(snapshotName, image, System.out::println);
+            daytona.v1().snapshot().create(snapshotName, image, System.out::println);
 
             System.out.println("\n=== Creating Sandbox from Pre-built Snapshot ===");
             CreateSandboxFromSnapshotParams snapshotParams = new CreateSandboxFromSnapshotParams();
             snapshotParams.setSnapshot(snapshotName);
-            Sandbox sandbox1 = daytona.create(snapshotParams);
+            Sandbox sandbox1 = daytona.v1().create(snapshotParams);
 
             try {
                 System.out.println("Verifying sandbox from pre-built image:");
@@ -68,7 +68,7 @@ public class DeclarativeImage {
             CreateSandboxFromImageParams imageParams = new CreateSandboxFromImageParams();
             imageParams.setImage(dynamicImage);
 
-            Sandbox sandbox2 = daytona.create(imageParams, 300, System.out::println);
+            Sandbox sandbox2 = daytona.v1().create(imageParams, 300, System.out::println);
 
             try {
                 System.out.println("Verifying sandbox with dynamic image:");

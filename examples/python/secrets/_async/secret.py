@@ -1,11 +1,13 @@
 import asyncio
 import time
 
-from daytona import AsyncDaytona, CreateSandboxFromSnapshotParams, CreateSecretParams, UpdateSecretParams
+from daytona import AsyncDaytona
+from daytona.v1 import CreateSandboxFromSnapshotParams, CreateSecretParams, UpdateSecretParams
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         # Create an organization secret. The plaintext value is stored encrypted and is
         # never returned by the API again. Use `hosts` to restrict where the value may be sent.
         secret_name = f"example-api-key-{int(time.time())}"

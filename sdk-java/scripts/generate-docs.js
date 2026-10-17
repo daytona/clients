@@ -10,7 +10,14 @@ const SDK_SOURCE_DIR = path.resolve(__dirname, '../src/main/java/io/daytona/sdk'
 const DOCS_OUTPUT_DIR = path.resolve(__dirname, '../../artifacts/sdk-docs/java-sdk')
 
 const DOC_TARGETS = [
-  { outputFile: 'daytona.mdx', logName: 'Daytona', classes: [{ file: 'Daytona.java', className: 'Daytona' }] },
+  {
+    outputFile: 'daytona.mdx',
+    logName: 'Daytona, DaytonaV1',
+    classes: [
+      { file: 'Daytona.java', className: 'Daytona' },
+      { file: 'DaytonaV1.java', className: 'DaytonaV1' },
+    ],
+  },
   {
     outputFile: 'config.mdx',
     logName: 'DaytonaConfig',

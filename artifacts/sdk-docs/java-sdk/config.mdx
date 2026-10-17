@@ -43,6 +43,8 @@ Returns the default region for Sandboxes and Snapshots. A per-call target
 (`io.daytona.sdk.model.CreateSandboxParams#setTarget(String)`) or snapshot `regionId`
 overrides it.
 
+**Deprecated**: `getTarget()` (and `DAYTONA_TARGET`) is deprecated and will be removed in a future version. Pass target per sandbox create or regionId per snapshot create instead.
+
 **Returns**:
 
 - `String` - target region identifier, or `null` if not configured
@@ -105,7 +107,7 @@ Sets the Daytona API base URL.
 
 **Parameters**:
 
-- `apiUrl` _String_ - API URL to use; defaults to `https://app.daytona.io/api` when omitted
+- `apiUrl` _String_ - API URL to use; defaults to `DaytonaV1#V1_API_URL` when omitted
 
 **Returns**:
 
@@ -119,6 +121,8 @@ public Builder target(String target)
 Sets the default region for Sandboxes and Snapshots. A per-call target
 (`io.daytona.sdk.model.CreateSandboxParams#setTarget(String)`) or snapshot `regionId`
 overrides it.
+
+**Deprecated**: `Builder.target(String)` (and `DAYTONA_TARGET`) is deprecated and will be removed in a future version. Pass target per sandbox create or regionId per snapshot create instead.
 
 **Parameters**:
 

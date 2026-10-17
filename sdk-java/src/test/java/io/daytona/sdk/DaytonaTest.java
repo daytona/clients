@@ -60,21 +60,21 @@ class DaytonaTest {
     @Mock
     private SandboxApi sandboxApi;
 
-    private Daytona daytona;
+    private DaytonaV1 daytona;
 
     @BeforeEach
     void setUp() {
-        daytona = new Daytona(TestSupport.config());
+        daytona = new DaytonaV1(TestSupport.config());
         TestSupport.setField(daytona, "sandboxApi", sandboxApi);
     }
 
     @Test
     void constructorValidatesConfiguration() {
-        assertThatThrownBy(() -> new Daytona((DaytonaConfig) null))
+        assertThatThrownBy(() -> new DaytonaV1((DaytonaConfig) null))
                 .isInstanceOf(DaytonaException.class)
                 .hasMessage("Authentication required: set DAYTONA_API_KEY environment variable or pass apiKey in DaytonaConfig");
 
-        assertThatThrownBy(() -> new Daytona(new DaytonaConfig.Builder().apiKey("").build()))
+        assertThatThrownBy(() -> new DaytonaV1(new DaytonaConfig.Builder().apiKey("").build()))
                 .isInstanceOf(DaytonaException.class)
                 .hasMessage("Authentication required: set DAYTONA_API_KEY environment variable or pass apiKey in DaytonaConfig");
     }
@@ -99,7 +99,7 @@ class DaytonaTest {
     @SuppressWarnings("deprecation")
     @Test
     void constructorSkipsEventDispatcherWhenDeprecatedPollingEnabled() {
-        try (Daytona pollingDaytona = new Daytona(new DaytonaConfig.Builder()
+        try (DaytonaV1 pollingDaytona = new DaytonaV1(new DaytonaConfig.Builder()
                 .apiKey("test-key")
                 .apiUrl("https://example.com/api/")
                 .target("eu")
@@ -120,7 +120,7 @@ class DaytonaTest {
         env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona pollingDaytona = new Daytona()) {
+            try (DaytonaV1 pollingDaytona = new DaytonaV1()) {
                 EventDispatcher dispatcher = TestSupport.getField(pollingDaytona, "eventDispatcher", EventDispatcher.class);
                 EventSubscriptionManager manager = TestSupport.getField(pollingDaytona, "subscriptionManager", EventSubscriptionManager.class);
 
@@ -137,7 +137,7 @@ class DaytonaTest {
         env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona streamingDaytona = new Daytona(new DaytonaConfig.Builder()
+            try (DaytonaV1 streamingDaytona = new DaytonaV1(new DaytonaConfig.Builder()
                     .apiKey("test-key")
                     .apiUrl("https://example.com/api/")
                     .target("eu")
@@ -162,7 +162,7 @@ class DaytonaTest {
         assertThat(sandbox.getId()).isEqualTo("sb-1");
         ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
-        assertThat(captor.getValue().getLabels()).containsEntry(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL, "python");
+        assertThat(captor.getValue().getLabels()).containsEntry(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL, "python");
         assertThat(captor.getValue().getTarget()).isEqualTo("eu");
     }
 
@@ -276,7 +276,7 @@ class DaytonaTest {
         assertThat(body.getEnv()).containsEntry("A", "1");
         assertThat(body.getLabels())
                 .containsEntry("team", "sdk")
-                .containsEntry(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL, "typescript");
+                .containsEntry(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL, "typescript");
         assertThat(body.getPublic()).isTrue();
         assertThat(body.getAutoStopInterval()).isEqualTo(7);
         assertThat(body.getAutoArchiveInterval()).isEqualTo(8);
@@ -506,7 +506,7 @@ class DaytonaTest {
         ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi).createSandbox(captor.capture(), isNull());
         assertThat(captor.getValue().getBuildInfo()).isNull();
-        assertThat(captor.getValue().getLabels()).containsEntry(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL, "python");
+        assertThat(captor.getValue().getLabels()).containsEntry(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL, "python");
     }
 
     @Test
@@ -662,10 +662,10 @@ class DaytonaTest {
 
     @Test
     void closeHandlesNullHttpClientCacheAndUtilityHelpers() {
-        assertThat(Daytona.urlEncodePathSegment("a b/c")).isEqualTo("a+b%2Fc".replace("+", "%20"));
-        assertThat(Daytona.urlEncodeQuery("a b")).isEqualTo("a+b");
-        assertThat(Daytona.castStringMap(Collections.singletonMap(1, null))).containsEntry("1", "");
-        Daytona.shutdownHttpClient(null);
+        assertThat(DaytonaV1.urlEncodePathSegment("a b/c")).isEqualTo("a+b%2Fc".replace("+", "%20"));
+        assertThat(DaytonaV1.urlEncodeQuery("a b")).isEqualTo("a+b");
+        assertThat(DaytonaV1.castStringMap(Collections.singletonMap(1, null))).containsEntry("1", "");
+        DaytonaV1.shutdownHttpClient(null);
 
         io.daytona.api.client.ApiClient apiClient = TestSupport.getField(daytona, "apiClient", io.daytona.api.client.ApiClient.class);
         daytona.close();

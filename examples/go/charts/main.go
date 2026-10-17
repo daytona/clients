@@ -57,7 +57,7 @@ func main() {
 	}
 
 	pyVersion := "3.13"
-	sandbox, err := client.Create(ctx, types.ImageParams{
+	sandbox, err := client.V1().Create(ctx, types.ImageParams{
 		Image: daytona.DebianSlim(&pyVersion).PipInstall([]string{"matplotlib", "numpy"}),
 		SandboxBaseParams: types.SandboxBaseParams{
 			Language: types.CodeLanguagePython,

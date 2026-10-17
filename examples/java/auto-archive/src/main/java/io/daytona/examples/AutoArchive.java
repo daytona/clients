@@ -9,7 +9,7 @@ import io.daytona.sdk.Sandbox;
 public class AutoArchive {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
-            Sandbox sandbox = daytona.create();
+            Sandbox sandbox = daytona.v1().create();
             try {
                 System.out.println("autoArchiveInterval: " + sandbox.getAutoArchiveInterval());
 

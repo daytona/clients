@@ -12,7 +12,7 @@ import io.daytona.sdk.Sandbox;
 public class Pty {
     public static void main(String[] args) throws Exception {
         try (Daytona daytona = new Daytona()) {
-            Sandbox sandbox = daytona.create();
+            Sandbox sandbox = daytona.v1().create();
             try {
                 System.out.println("=== First PTY Session: Interactive Command with Exit ===");
                 PtyHandle handle = sandbox.process.createPty(new PtyCreateOptions(

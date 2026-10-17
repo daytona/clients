@@ -8,12 +8,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("deprecation")
 class DaytonaConfigTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     void builderStoresExplicitValues() {
         DaytonaConfig config = new DaytonaConfig.Builder()
@@ -34,7 +37,7 @@ class DaytonaConfigTest {
                 .apiUrl(null)
                 .build();
 
-        assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+        assertThat(config.getApiUrl()).isEqualTo(DaytonaV1.V1_API_URL);
     }
 
     @Test
@@ -44,7 +47,7 @@ class DaytonaConfigTest {
                 .apiUrl("")
                 .build();
 
-        assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+        assertThat(config.getApiUrl()).isEqualTo(DaytonaV1.V1_API_URL);
     }
 
     @Test
@@ -53,7 +56,7 @@ class DaytonaConfigTest {
 
         assertThat(config.getApiKey()).isNull();
         assertThat(config.getTarget()).isNull();
-        assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+        assertThat(config.getApiUrl()).isEqualTo(DaytonaV1.V1_API_URL);
         assertThat(config.isUseDeprecatedPolling()).isFalse();
     }
 
@@ -104,6 +107,22 @@ class DaytonaConfigTest {
 
     @SuppressWarnings("deprecation")
     @Test
+    void rootDaytonaConstructorReadsEnvironmentVariables() throws Exception {
+        Map<String, String> env = new HashMap<String, String>();
+        env.put("DAYTONA_API_KEY", "env-key");
+        env.put("DAYTONA_API_URL", "https://env.example/api/");
+
+        TestSupport.withEnvironment(env, () -> {
+            try (Daytona daytona = new Daytona()) {
+                DaytonaConfig config = TestSupport.getField(daytona.v1(), "config", DaytonaConfig.class);
+                assertThat(config.getApiKey()).isEqualTo("env-key");
+                assertThat(config.getApiUrl()).isEqualTo("https://env.example/api/");
+            }
+        });
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
     void defaultDaytonaConstructorReadsEnvironmentVariables() throws Exception {
         Map<String, String> env = new HashMap<String, String>();
         env.put("DAYTONA_API_KEY", "env-key");
@@ -112,7 +131,7 @@ class DaytonaConfigTest {
         env.put("DAYTONA_USE_DEPRECATED_POLLING", "true");
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona daytona = new Daytona()) {
+            try (DaytonaV1 daytona = new DaytonaV1()) {
                 DaytonaConfig config = TestSupport.getField(daytona, "config", DaytonaConfig.class);
                 assertThat(config.getApiKey()).isEqualTo("env-key");
                 assertThat(config.getApiUrl()).isEqualTo("https://env.example/api/");
@@ -130,9 +149,9 @@ class DaytonaConfigTest {
         env.put("DAYTONA_TARGET", null);
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona daytona = new Daytona()) {
+            try (DaytonaV1 daytona = new DaytonaV1()) {
                 DaytonaConfig config = TestSupport.getField(daytona, "config", DaytonaConfig.class);
-                assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+                assertThat(config.getApiUrl()).isEqualTo(DaytonaV1.V1_API_URL);
                 assertThat(config.getTarget()).isNull();
             }
         });
@@ -145,9 +164,9 @@ class DaytonaConfigTest {
         env.put("DAYTONA_API_URL", "");
 
         TestSupport.withEnvironment(env, () -> {
-            try (Daytona daytona = new Daytona()) {
+            try (DaytonaV1 daytona = new DaytonaV1()) {
                 DaytonaConfig config = TestSupport.getField(daytona, "config", DaytonaConfig.class);
-                assertThat(config.getApiUrl()).isEqualTo("https://app.daytona.io/api");
+                assertThat(config.getApiUrl()).isEqualTo(DaytonaV1.V1_API_URL);
             }
         });
     }
@@ -159,8 +178,23 @@ class DaytonaConfigTest {
         env.put("DAYTONA_API_URL", null);
         env.put("DAYTONA_TARGET", null);
 
-        TestSupport.withEnvironment(env, () -> assertThatThrownBy(Daytona::new)
+        TestSupport.withEnvironment(env, () -> assertThatThrownBy(DaytonaV1::new)
                 .isInstanceOf(DaytonaException.class)
                 .hasMessage("Authentication required: set DAYTONA_API_KEY environment variable or pass apiKey in DaytonaConfig"));
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void targetDeprecationWarningIsLoggedOncePerProcess() {
+        TestSupport.withLogCapture(Logger.getLogger(DaytonaConfig.class.getName()), records -> {
+            DaytonaConfig.resetTargetDeprecationWarningForTests();
+
+            new DaytonaConfig.Builder().target("us");
+            new DaytonaConfig.Builder().target("eu");
+
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getMessage()).contains("DaytonaConfig.target");
+            DaytonaConfig.resetTargetDeprecationWarningForTests();
+        });
     }
 }

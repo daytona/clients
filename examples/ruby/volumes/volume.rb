@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 # Create a new volume or get an existing one
 volume = daytona.volume.get('my-volume', create: true)
@@ -11,8 +11,8 @@ volume = daytona.volume.get('my-volume', create: true)
 mount_dir = '/home/daytona/volume'
 
 sandbox = daytona.create(
-  Daytona::CreateSandboxFromSnapshotParams.new(
-    language: Daytona::CodeLanguage::PYTHON,
+  Daytona::V1::CreateSandboxFromSnapshotParams.new(
+    language: Daytona::V1::CodeLanguage::PYTHON,
     volumes: [DaytonaApiClient::SandboxVolume.new(volume_id: volume.id, mount_path: mount_dir)]
   )
 )
@@ -33,8 +33,8 @@ puts "Files: #{files}"
 # and mount it to the different path
 other_dir = '/home/daytona/my-files'
 other_sandbox = daytona.create(
-  Daytona::CreateSandboxFromSnapshotParams.new(
-    language: Daytona::CodeLanguage::PYTHON,
+  Daytona::V1::CreateSandboxFromSnapshotParams.new(
+    language: Daytona::V1::CodeLanguage::PYTHON,
     volumes: [DaytonaApiClient::SandboxVolume.new(volume_id: volume.id, mount_path: other_dir)]
   )
 )

@@ -5,10 +5,11 @@
   },
   "scripts": {
     "build": "python -m build",
-    "docs": "bash -O extglob -c 'rm -rf $npm_package_config_docsDir/!(index.mdx)' && npm run docs:common && npm run docs:sync && npm run docs:async",
+    "docs": "bash -O extglob -c 'rm -rf $npm_package_config_docsDir/!(index.mdx)' && npm run docs:common && npm run docs:sync && npm run docs:async && npm run docs:root",
     "docs:common": "bash -O extglob -c 'rm -rf $npm_package_config_docsDir/common' && npm run docs:errors && npm run docs:charts && npm run docs:image",
     "docs:sync": "bash -O extglob -c 'rm -rf $npm_package_config_docsDir/sync' && npm run docs:daytona && npm run docs:sandbox && npm run docs:filesystem && npm run docs:git && npm run docs:process && npm run docs:lsp && npm run docs:volume && npm run docs:secret && npm run docs:object_storage && npm run docs:snapshot && npm run docs:computer_use && npm run docs:code_interpreter",
     "docs:async": "bash -O extglob -c 'rm -rf $npm_package_config_docsDir/async' && npm run docs:async-daytona && npm run docs:async-sandbox && npm run docs:async-filesystem && npm run docs:async-git && npm run docs:async-process && npm run docs:async-lsp && npm run docs:async-volume && npm run docs:async-secret && npm run docs:async-object_storage && npm run docs:async-snapshot && npm run docs:async-computer_use && npm run docs:async-code_interpreter",
+    "docs:root": "FIRST_SECTION='Daytona' OUTPUT_FILE=\"$npm_package_config_docsDir/root-daytona.mdx\" pydoc-markdown -m daytona._root_sync -m daytona._root_async pydoc-markdown.yml",
     "docs:errors": "FIRST_SECTION='DaytonaError' OUTPUT_FILE=\"$npm_package_config_docsDir/common/errors.mdx\" pydoc-markdown -m daytona.common.errors pydoc-markdown.yml",
     "docs:charts": "FIRST_SECTION='Chart' OUTPUT_FILE=\"$npm_package_config_docsDir/common/charts.mdx\" pydoc-markdown -m daytona.common.charts pydoc-markdown.yml",
     "docs:image": "FIRST_SECTION='Image' OUTPUT_FILE=\"$npm_package_config_docsDir/common/image.mdx\" pydoc-markdown -m daytona.common.image pydoc-markdown.yml",

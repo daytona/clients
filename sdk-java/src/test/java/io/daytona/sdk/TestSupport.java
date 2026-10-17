@@ -11,8 +11,15 @@ import okhttp3.OkHttpClient;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 final class TestSupport {
     private TestSupport() {
@@ -78,6 +85,7 @@ final class TestSupport {
         return sandbox;
     }
 
+    @SuppressWarnings("deprecation")
     static DaytonaConfig config() {
         return new DaytonaConfig.Builder()
                 .apiKey("test-key")
@@ -150,6 +158,37 @@ final class TestSupport {
         Mockito.lenient().when(sandbox.getApiKey()).thenReturn(apiKey);
         Mockito.lenient().when(sandbox.getToolboxApiClient()).thenReturn(apiClient);
         return sandbox;
+    }
+
+    static void withLogCapture(Logger logger, Consumer<List<LogRecord>> assertion) {
+        Level originalLevel = logger.getLevel();
+        boolean originalUseParentHandlers = logger.getUseParentHandlers();
+        List<LogRecord> records = new ArrayList<LogRecord>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        logger.setUseParentHandlers(false);
+        logger.setLevel(Level.ALL);
+        handler.setLevel(Level.ALL);
+        logger.addHandler(handler);
+        try {
+            assertion.accept(records);
+        } finally {
+            logger.removeHandler(handler);
+            logger.setLevel(originalLevel);
+            logger.setUseParentHandlers(originalUseParentHandlers);
+        }
     }
 
     private static Field findField(Class<?> type, String fieldName) throws NoSuchFieldException {

@@ -240,7 +240,7 @@ public class SnapshotService {
      *
      * <pre>{@code
      * try (Daytona daytona = new Daytona()) {
-     *     PaginatedSnapshots page = daytona.snapshot().list(2, 10);
+     *     PaginatedSnapshots page = daytona.v1().snapshot().list(2, 10);
      *     System.out.printf("Page %d of %d (%d snapshots total)%n",
      *             page.getPage(), page.getTotalPages(), page.getTotal());
      *     for (var snapshot : page.getItems()) {

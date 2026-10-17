@@ -1,7 +1,8 @@
 import asyncio
 import sys
 
-from daytona import AsyncDaytona, AsyncSandbox, PtySize
+from daytona import AsyncDaytona
+from daytona.v1 import AsyncSandbox, PtySize
 
 
 async def interactive_pty_session(sandbox: AsyncSandbox):
@@ -82,7 +83,8 @@ async def kill_pty_session(sandbox: AsyncSandbox):
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         sandbox = await daytona.create()
 
         try:

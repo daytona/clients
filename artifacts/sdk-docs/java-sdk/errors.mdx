@@ -482,7 +482,7 @@ Common causes: creating a resource with a name that already exists,
 or performing an operation incompatible with the resource's current state.
 ```java
 try {
-daytona.snapshot().create(params);
+daytona.v1().snapshot().create(params);
 } catch (DaytonaConflictException e) {
 System.err.println("A snapshot with this name already exists");
 }

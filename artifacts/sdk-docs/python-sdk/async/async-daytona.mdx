@@ -9,10 +9,12 @@ hideTitleOnPage: true
 class AsyncDaytona()
 ```
 
-Main class for interacting with the Daytona API.
+The async v1 client: creates, manages and interacts with Daytona Sandboxes.
 
-This class provides asynchronous methods to create, manage, and interact with Daytona Sandboxes.
-It can be initialized either with explicit configuration or using environment variables.
+Get it from the root client as `AsyncDaytona().v1` (`from daytona import AsyncDaytona`), or
+import it directly with `from daytona.v1 import AsyncDaytona`; the examples below use the
+direct import. It can be initialized either with explicit configuration or using environment
+variables.
 
 **Attributes**:
 
@@ -26,20 +28,23 @@ It can be initialized either with explicit configuration or using environment va
 
   Using environment variables:
 ```python
+from daytona.v1 import AsyncDaytona, CreateSandboxFromSnapshotParams, DaytonaConfig
+
 async with AsyncDaytona() as daytona:  # Uses DAYTONA_API_KEY, DAYTONA_API_URL
     sandbox = await daytona.create()
 ```
   
   Using explicit configuration:
 ```python
+from daytona.v1 import AsyncDaytona, CreateSandboxFromSnapshotParams, DaytonaConfig
+
 config = DaytonaConfig(
     api_key="your-api-key",
     api_url="https://your-api.com",
-    target="us"
 )
 try:
     daytona = AsyncDaytona(config)
-    sandbox = await daytona.create()
+    sandbox = await daytona.create(CreateSandboxFromSnapshotParams(target="us"))
 finally:
     await daytona.close()
 ```
@@ -67,8 +72,9 @@ Initializes Daytona instance with optional configuration.
 If no config is provided, reads from environment variables:
 - `DAYTONA_API_KEY`: Required API key for authentication
 - `DAYTONA_API_URL`: Required api URL
-- `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
-for the organization is used). A per-call `target` / `region_id` overrides it
+- `DAYTONA_TARGET`: Deprecated; pass `target` / `region_id` per call instead. Optional default
+region for Sandboxes and Snapshots (if not provided, default region for the organization is
+used). A per-call `target` / `region_id` overrides it
 
 **Arguments**:
 
@@ -83,7 +89,7 @@ for the organization is used). A per-call `target` / `region_id` overrides it
 **Example**:
 
 ```python
-from daytona import Daytona, DaytonaConfig
+from daytona.v1 import AsyncDaytona, DaytonaConfig
 # Using environment variables
 daytona1 = AsyncDaytona()
 await daytona1.close()
@@ -91,7 +97,6 @@ await daytona1.close()
 config = DaytonaConfig(
     api_key="your-api-key",
     api_url="https://your-api.com",
-    target="us"
 )
 daytona2 = AsyncDaytona(config)
 await daytona2.close()
@@ -442,8 +447,9 @@ Configuration options for initializing the Daytona client.
   here or in the environment variable `DAYTONA_API_URL`.
 - `server_url` _str | None_ - Deprecated. Use `api_url` instead. This property will be removed
   in a future version.
-- `target` _str | None_ - Default region for Sandboxes and Snapshots. Can also be set via the
-  environment variable `DAYTONA_TARGET`. A per-call `target` (Sandbox create params) or
+- `target` _str | None_ - Deprecated: pass `target` per Sandbox create and `region_id` per
+  Snapshot create instead. Default region for Sandboxes and Snapshots. Can also be set via the
+  environment variable `DAYTONA_TARGET` (also deprecated). A per-call `target` (Sandbox create params) or
   `region_id` (`CreateSnapshotParams`) overrides it; when neither is set, the
   organization's default region is used.
 - `connection_pool_maxsize` _int | None_ - Maximum number of simultaneous HTTP connections

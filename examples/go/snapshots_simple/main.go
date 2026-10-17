@@ -24,7 +24,7 @@ func main() {
 	page := 1
 	limit := 5
 	log.Println("Snapshot operations example...")
-	snapshots, err := client.Snapshot.List(ctx, &page, &limit)
+	snapshots, err := client.V1().Snapshot.List(ctx, &page, &limit)
 	if err != nil {
 		log.Fatalf("Failed to list snapshots: %v", err)
 	}

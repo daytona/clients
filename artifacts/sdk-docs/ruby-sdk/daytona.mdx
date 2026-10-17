@@ -5,7 +5,9 @@ hideTitleOnPage: true
 
 ## Daytona
 
-Daytona class for Daytona SDK.
+The SDK 1.x root client. It owns one `Daytona::V1::Daytona` instance, returned by `v1`. Its other
+members forward to that instance and are deprecated: use `daytona.v1` instead, which is
+the form SDK 2.x keeps. `close` is not deprecated.
 
 ### Constructors
 
@@ -23,6 +25,278 @@ def initialize(config = Config.new)
 **Returns**:
 
 - `Daytona` - a new instance of Daytona
+
+### Methods
+
+#### v1()
+
+```ruby
+def v1()
+
+```
+
+**Returns**:
+
+- `Daytona:V1:Daytona`
+
+#### config()
+
+```ruby
+def config()
+
+```
+
+**Deprecated**: Use `daytona.v1.config` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `Daytona:Config`
+
+#### api_client()
+
+```ruby
+def api_client()
+
+```
+
+**Deprecated**: Use `daytona.v1.api_client` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `DaytonaApiClient`
+
+#### sandbox_api()
+
+```ruby
+def sandbox_api()
+
+```
+
+**Deprecated**: Use `daytona.v1.sandbox_api` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `DaytonaApiClient:SandboxApi`
+
+#### volume()
+
+```ruby
+def volume()
+
+```
+
+**Deprecated**: Use `daytona.v1.volume` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `Daytona:VolumeService`
+
+#### secret()
+
+```ruby
+def secret()
+
+```
+
+**Deprecated**: Use `daytona.v1.secret` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `Daytona:SecretService`
+
+#### warm_pool()
+
+```ruby
+def warm_pool()
+
+```
+
+**Deprecated**: Use `daytona.v1.warm_pool` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `Daytona:WarmPoolService`
+
+#### object_storage_api()
+
+```ruby
+def object_storage_api()
+
+```
+
+**Deprecated**: Use `daytona.v1.object_storage_api` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `DaytonaApiClient:ObjectStorageApi`
+
+#### snapshots_api()
+
+```ruby
+def snapshots_api()
+
+```
+
+**Deprecated**: Use `daytona.v1.snapshots_api` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `DaytonaApiClient:SnapshotsApi`
+
+#### snapshot()
+
+```ruby
+def snapshot()
+
+```
+
+**Deprecated**: Use `daytona.v1.snapshot` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `Daytona:SnapshotService`
+
+#### close()
+
+```ruby
+def close()
+
+```
+
+Shuts down OTel providers, flushing any pending telemetry data.
+
+**Returns**:
+
+- `void`
+
+#### create()
+
+```ruby
+def create(params = nil, on_snapshot_create_logs: nil)
+
+```
+
+**Deprecated**: Use `daytona.v1.create` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `params` _Daytona:CreateSandboxFromSnapshotParams, Daytona:CreateSandboxFromImageParams, Nil_ -
+- `on_snapshot_create_logs` _Proc, nil_ -
+
+**Returns**:
+
+- `Daytona:Sandbox`
+
+#### delete()
+
+```ruby
+def delete(sandbox, wait: false)
+
+```
+
+**Deprecated**: Use `daytona.v1.delete` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `sandbox` _Daytona:Sandbox_ -
+- `wait` _Boolean_ -
+
+**Returns**:
+
+- `void`
+
+#### get()
+
+```ruby
+def get(id)
+
+```
+
+**Deprecated**: Use `daytona.v1.get` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `id` _String_ -
+
+**Returns**:
+
+- `Daytona:Sandbox`
+
+#### list()
+
+```ruby
+def list(query = nil)
+
+```
+
+**Deprecated**: Use `daytona.v1.list` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `query` _Daytona:ListSandboxesQuery, nil_ -
+
+**Returns**:
+
+- `Enumerator\<Daytona:Sandbox\>`
+
+#### start()
+
+```ruby
+def start(sandbox, timeout = Sandbox::DEFAULT_TIMEOUT)
+
+```
+
+**Deprecated**: Use `daytona.v1.start` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `sandbox` _Daytona:Sandbox_ -
+- `timeout` _Numeric_ -
+
+**Returns**:
+
+- `void`
+
+#### stop()
+
+```ruby
+def stop(sandbox, timeout = Sandbox::DEFAULT_TIMEOUT)
+
+```
+
+**Deprecated**: Use `daytona.v1.stop` instead. The root form is removed in SDK 2.x.
+
+**Parameters**:
+
+- `sandbox` _Daytona:Sandbox_ -
+- `timeout` _Numeric_ -
+
+**Returns**:
+
+- `void`
+
+## V1::Daytona
+
+The v1 client: creates, retrieves, lists and manages sandboxes and gives access to the
+volume, snapshot, secret and warm pool services. Obtain it from `daytona.v1` or create it
+directly with `Daytona::V1::Daytona.new(config)`. This is the form that SDK 2.x keeps.
+
+### Constructors
+
+#### new V1::Daytona()
+
+```ruby
+def initialize(config = Config.new)
+
+```
+
+**Parameters**:
+
+- `config` _Daytona:Config_ - Configuration options. Defaults to Daytona::Config.new
+
+**Returns**:
+
+- `Daytona::V1::Daytona` - a new instance of Daytona::V1::Daytona
 
 ### Methods
 
@@ -150,6 +424,9 @@ Creates a sandbox with the specified parameters
 **Parameters**:
 
 - `params` _Daytona:CreateSandboxFromSnapshotParams, Daytona:CreateSandboxFromImageParams, Nil_ - Sandbox creation parameters
+- `on_snapshot_create_logs` _Proc, nil_ - Called with each streamed chunk of snapshot build logs
+when the sandbox is created from an image that has to be built. A chunk can hold several lines
+or part of one.
 
 **Returns**:
 

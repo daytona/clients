@@ -18,12 +18,12 @@ import (
 // by the API. Secrets can be referenced when creating a sandbox (see the
 // Secrets field on [types.SandboxBaseParams]); the env var injected into the
 // sandbox holds the secret's opaque placeholder, which is resolved to the real
-// value only for the secret's allowed hosts. Access through [Client.Secret].
+// value only for the secret's allowed hosts. Access through [V1Client.Secret].
 //
 // Example:
 //
 //	// Create a new secret
-//	secret, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+//	secret, err := client.V1().Secret.Create(ctx, &types.CreateSecretParams{
 //	    Name:  "anthropic-prod",
 //	    Value: "sk-ant-...",
 //	    Hosts: []string{"api.anthropic.com"},
@@ -33,7 +33,7 @@ import (
 //	}
 //
 //	// List secrets page by page
-//	page, err := client.Secret.List(ctx, nil)
+//	page, err := client.V1().Secret.List(ctx, nil)
 type SecretService struct {
 	client *Client
 	otel   *otelState
@@ -42,7 +42,7 @@ type SecretService struct {
 // NewSecretService creates a new SecretService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access SecretService through [Client.Secret] rather than
+// Users should access SecretService through [V1Client.Secret] rather than
 // creating it directly.
 func NewSecretService(client *Client) *SecretService {
 	return &SecretService{
@@ -68,7 +68,7 @@ func NewSecretService(client *Client) *SecretService {
 //	limit := 50
 //	query := &types.ListSecretsQuery{Limit: &limit}
 //	for {
-//	    page, err := client.Secret.List(ctx, query)
+//	    page, err := client.V1().Secret.List(ctx, query)
 //	    if err != nil {
 //	        return err
 //	    }
@@ -137,7 +137,7 @@ func (s *SecretService) List(ctx context.Context, query *types.ListSecretsQuery)
 //
 // Example:
 //
-//	secret, err := client.Secret.Get(ctx, secretID)
+//	secret, err := client.V1().Secret.Get(ctx, secretID)
 //	if err != nil {
 //	    var notFound *errors.DaytonaNotFoundError
 //	    if errors.As(err, &notFound) {
@@ -172,7 +172,7 @@ func (s *SecretService) Get(ctx context.Context, secretID string) (*types.Secret
 //
 // Example:
 //
-//	secret, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+//	secret, err := client.V1().Secret.Create(ctx, &types.CreateSecretParams{
 //	    Name:  "anthropic-prod",
 //	    Value: "sk-ant-...",
 //	    Hosts: []string{"api.anthropic.com"},
@@ -215,7 +215,7 @@ func (s *SecretService) Create(ctx context.Context, params *types.CreateSecretPa
 // Example:
 //
 //	newValue := "sk-ant-rotated-..."
-//	secret, err := client.Secret.Update(ctx, secretID, &types.UpdateSecretParams{
+//	secret, err := client.V1().Secret.Update(ctx, secretID, &types.UpdateSecretParams{
 //	    Value: &newValue,
 //	    Hosts: []string{"api.anthropic.com", "*.anthropic.com"},
 //	})
@@ -257,7 +257,7 @@ func (s *SecretService) Update(ctx context.Context, secretID string, params *typ
 //
 // Example:
 //
-//	err := client.Secret.Delete(ctx, secretID)
+//	err := client.V1().Secret.Delete(ctx, secretID)
 //	if err != nil {
 //	    return err
 //	}

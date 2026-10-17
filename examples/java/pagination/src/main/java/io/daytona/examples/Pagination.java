@@ -23,7 +23,7 @@ public class Pagination {
             query.setSort(SandboxListSortField.CREATED_AT);
             query.setOrder(SandboxListSortDirection.DESC);
 
-            for (Sandbox sandbox : daytona.list(query)) {
+            for (Sandbox sandbox : daytona.v1().list(query)) {
                 System.out.println(sandbox.getId());
             }
         }

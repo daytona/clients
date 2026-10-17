@@ -38,7 +38,6 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots (e.g. `us`, `eu`); a per-call `target` / `regionId` overrides it
 
 ```java
 import io.daytona.sdk.Daytona;
@@ -51,9 +50,22 @@ Daytona daytona = new Daytona();
 DaytonaConfig config = new DaytonaConfig.Builder()
     .apiKey("YOUR_API_KEY")
     .apiUrl("YOUR_API_URL")
-    .target("us")
     .build();
 Daytona daytona = new Daytona(config);
+```
+
+## Versioned namespace
+
+Use `daytona.v1()` for Daytona 2.x-compatible call sites. The root resource methods remain in SDK
+1.x as deprecated forwards and are removed in SDK 2.x.
+
+```java
+import io.daytona.sdk.Daytona;
+
+try (Daytona daytona = new Daytona()) {
+    var sandbox = daytona.v1().create();
+    sandbox.delete();
+}
 ```
 
 ## Create a sandbox
@@ -69,7 +81,7 @@ import io.daytona.sdk.model.ExecuteResponse;
 try (Daytona daytona = new Daytona()) {
     CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
     params.setLanguage("python");
-    Sandbox sandbox = daytona.create(params);
+    Sandbox sandbox = daytona.v1().create(params);
 
     ExecuteResponse response = sandbox.process.codeRun("print('Hello World!')");
     System.out.println(response.getResult());
@@ -84,7 +96,7 @@ Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#exam
 
 ### Create a sandbox or snapshot in a specific region
 
-Set `target` on the sandbox create params, or pass `regionId` to `snapshot().create(...)`, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the client-level `target` (or `DAYTONA_TARGET`), then the organization's default region.
+Set `target` on the sandbox create params, or pass `regionId` to `daytona.v1().snapshot().create(...)`, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the deprecated client-level `target` (or `DAYTONA_TARGET`, which logs a one-time deprecation warning), then the organization's default region.
 
 ```java
 import io.daytona.sdk.Daytona;
@@ -95,9 +107,9 @@ import io.daytona.sdk.model.Snapshot;
 try (Daytona daytona = new Daytona()) {
     CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
     params.setTarget("eu");
-    Sandbox sandbox = daytona.create(params);
+    Sandbox sandbox = daytona.v1().create(params);
 
-    Snapshot snapshot = daytona.snapshot().create("my-snapshot", "python:3.12", null, "eu");
+    Snapshot snapshot = daytona.v1().snapshot().create("my-snapshot", "python:3.12", null, "eu");
 }
 ```
 
@@ -115,7 +127,7 @@ try (Daytona daytona = new Daytona()) {
     CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
     params.setImage(Image.debianSlim("3.12"));
     params.setResources(new Resources(2, null, 4, 8));
-    Sandbox sandbox = daytona.create(params);
+    Sandbox sandbox = daytona.v1().create(params);
 }
 ```
 
@@ -131,7 +143,7 @@ try (Daytona daytona = new Daytona()) {
     CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
     params.setSnapshot("my-snapshot-name");
     params.setLanguage("python");
-    Sandbox sandbox = daytona.create(params);
+    Sandbox sandbox = daytona.v1().create(params);
 }
 ```
 
@@ -204,11 +216,11 @@ Each `list` method returns a different shape depending on the resource. The tabl
 
 | Method | Return type | Shape | Access elements |
 | --- | --- | --- | --- |
-| `daytona.snapshot().list(page, limit)` | `PaginatedSnapshots` | Paginated wrapper | `result.getItems()` |
-| `daytona.secret().list()` / `list(query)` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.getItems()` |
-| `daytona.volume().list()` | `List<Volume>` | Bare list | iterate directly |
-| `daytona.list()` / `list(query)` | `Iterable<Sandbox>` | Lazy iterable | `for (Sandbox s : daytona.list(...))` |
-| `daytona.listStream()` / `listStream(query)` | `Stream<Sandbox>` | Java Stream | `.forEach(...)` / `.filter(...)` |
+| `daytona.v1().snapshot().list(page, limit)` | `PaginatedSnapshots` | Paginated wrapper | `result.getItems()` |
+| `daytona.v1().secret().list()` / `list(query)` | `ListSecretsResponse` | Cursor-paginated wrapper | `page.getItems()` |
+| `daytona.v1().volume().list()` | `List<Volume>` | Bare list | iterate directly |
+| `daytona.v1().list()` / `list(query)` | `Iterable<Sandbox>` | Lazy iterable | `for (Sandbox s : daytona.v1().list(...))` |
+| `daytona.v1().listStream()` / `listStream(query)` | `Stream<Sandbox>` | Java Stream | `.forEach(...)` / `.filter(...)` |
 
 `PaginatedSnapshots` and `ListSecretsResponse` are **wrapper objects**, not lists. Calling stream or iteration methods directly on them does not compile. Always use the getter:
 
@@ -222,7 +234,7 @@ import io.daytona.sdk.model.ListSandboxesQuery;
 try (Daytona daytona = new Daytona()) {
 
     // snapshots — page-number pagination
-    PaginatedSnapshots result = daytona.snapshot().list(1, 20);
+    PaginatedSnapshots result = daytona.v1().snapshot().list(1, 20);
     // result.getItems()      → List<Snapshot>
     // result.getTotal()      → int (total across all pages)
     // result.getPage()       → int (current page, 1-indexed)
@@ -235,7 +247,7 @@ try (Daytona daytona = new Daytona()) {
     ListSecretsQuery query = new ListSecretsQuery();
     query.setLimit(50);
     while (true) {
-        ListSecretsResponse page = daytona.secret().list(query);
+        ListSecretsResponse page = daytona.v1().secret().list(query);
         // page.getItems()      → List<Secret>
         // page.getTotal()      → int
         // page.getNextCursor() → String | null (null = no more pages)
@@ -247,18 +259,18 @@ try (Daytona daytona = new Daytona()) {
     }
 
     // volumes — bare list, iterate directly
-    for (var vol : daytona.volume().list()) {
+    for (var vol : daytona.v1().volume().list()) {
         System.out.println(vol.getName());
     }
 
     // sandboxes — lazy iterable, fetches pages on demand
     ListSandboxesQuery sbQuery = new ListSandboxesQuery();
-    for (var sandbox : daytona.list(sbQuery)) {
+    for (var sandbox : daytona.v1().list(sbQuery)) {
         System.out.println(sandbox.getId());
     }
 
     // sandboxes — Stream variant (auto-closes on terminal operation)
-    try (var stream = daytona.listStream()) {
+    try (var stream = daytona.v1().listStream()) {
         stream.forEach(sb -> System.out.println(sb.getId()));
     }
 }

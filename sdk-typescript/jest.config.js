@@ -20,6 +20,7 @@ module.exports = {
     '^@daytona/api-client$': '<rootDir>/../api-client/src/index.ts',
     '^@daytona/toolbox-api-client$': '<rootDir>/../toolbox-api-client/src/index.ts',
     '^@daytona/sdk$': '<rootDir>/src/index.ts',
+    '^@daytona/sdk/v1$': '<rootDir>/src/v1.ts',
   },
   coverageDirectory: '../coverage/sdk-typescript',
 }

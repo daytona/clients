@@ -13,11 +13,28 @@
         "default": "./cjs/index.js"
       }
     },
+    "./v1": {
+      "import": {
+        "types": "./esm/v1.d.ts",
+        "default": "./esm/v1.js"
+      },
+      "require": {
+        "types": "./cjs/v1.d.ts",
+        "default": "./cjs/v1.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./cjs/index.js",
   "module": "./esm/index.js",
   "types": "./cjs/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "v1": [
+        "cjs/v1.d.ts"
+      ]
+    }
+  },
   "browser": {
     "module": false,
     "fs": false,
@@ -43,6 +60,7 @@
   "files": [
     "esm",
     "cjs",
+    "v1",
     "!**/__tests__",
     "!**/*.d.ts.map"
   ],

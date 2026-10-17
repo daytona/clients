@@ -31,7 +31,7 @@ module Daytona
     # @raise [Daytona::Sdk::Error]
     #
     # @example
-    #   daytona = Daytona::Daytona.new
+    #   daytona = Daytona::Daytona.new.v1
     #   page = daytona.snapshot.list(page: 2, limit: 10)
     #   puts "Page #{page.page} of #{page.total_pages} (#{page.total} snapshots total)"
     #   page.items.each { |snapshot| puts "#{snapshot.name} (#{snapshot.image_name})" }
@@ -58,7 +58,7 @@ module Daytona
     # @return [void]
     #
     # @example
-    #   daytona = Daytona::Daytona.new
+    #   daytona = Daytona::Daytona.new.v1
     #   snapshot = daytona.snapshot.get("demo")
     #   daytona.snapshot.delete(snapshot)
     #   puts "Snapshot deleted"
@@ -72,7 +72,7 @@ module Daytona
     # @return [Daytona::Snapshot] The Snapshot object
     #
     # @example
-    #   daytona = Daytona::Daytona.new
+    #   daytona = Daytona::Daytona.new.v1
     #   snapshot = daytona.snapshot.get("demo")
     #   puts "#{snapshot.name} (#{snapshot.image_name})"
     def get(name) = Snapshot.from_dto(snapshots_api.get_snapshot(name))

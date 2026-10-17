@@ -6,11 +6,11 @@ def section(title)
   puts "\n=== #{title} ==="
 end
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 # Custom image with a TypeScript language server (for the LSP showcase) and git.
 sandbox = daytona.create(
-  Daytona::CreateSandboxFromImageParams.new(
-    image: Daytona::Image.base('ubuntu:25.10').run_commands(
+  Daytona::V1::CreateSandboxFromImageParams.new(
+    image: Daytona::V1::Image.base('ubuntu:25.10').run_commands(
       'apt-get update && apt-get install -y --no-install-recommends nodejs npm coreutils git',
       'curl -fsSL https://deb.nodesource.com/setup_20.x | bash -',
       'apt-get install -y nodejs',
@@ -124,7 +124,10 @@ begin
 
   section('LSP: document symbols + completions')
   # Start the language server
-  lsp = sandbox.create_lsp_server(language_id: Daytona::LspServer::Language::TYPESCRIPT, path_to_project: project_dir)
+  lsp = sandbox.create_lsp_server(
+    language_id: Daytona::V1::LspServer::Language::TYPESCRIPT,
+    path_to_project: project_dir
+  )
   lsp.start
 
   # Notify the language server of the document we want to work on
@@ -148,7 +151,7 @@ begin
   # Get completions at a specific position
   completions = lsp.completions(
     path: matches.first.file,
-    position: Daytona::LspServer::Position.new(line: 12, character: 18)
+    position: Daytona::V1::LspServer::Position.new(line: 12, character: 18)
   )
   print("Completions: #{completions}")
 ensure

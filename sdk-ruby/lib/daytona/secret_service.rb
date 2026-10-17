@@ -62,7 +62,7 @@ module Daytona
     # @raise [Daytona::Sdk::Error]
     #
     # @example
-    #   daytona = Daytona::Daytona.new
+    #   daytona = Daytona::Daytona.new.v1
     #   cursor = nil
     #   loop do
     #     page = daytona.secret.list(cursor:, limit: 100)

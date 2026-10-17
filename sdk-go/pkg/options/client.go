@@ -19,7 +19,7 @@ type CreateSandbox struct {
 //
 // Example:
 //
-//	sandbox, err := client.Create(ctx, params,
+//	sandbox, err := client.V1().Create(ctx, params,
 //	    options.WithTimeout(5*time.Minute),
 //	)
 func WithTimeout(timeout time.Duration) func(*CreateSandbox) {
@@ -38,7 +38,7 @@ func WithTimeout(timeout time.Duration) func(*CreateSandbox) {
 // Example:
 //
 //	// Return immediately without waiting for the sandbox to start
-//	sandbox, err := client.Create(ctx, params,
+//	sandbox, err := client.V1().Create(ctx, params,
 //	    options.WithWaitForStart(false),
 //	)
 func WithWaitForStart(waitForStart bool) func(*CreateSandbox) {
@@ -61,7 +61,7 @@ func WithWaitForStart(waitForStart bool) func(*CreateSandbox) {
 //	        fmt.Println(log)
 //	    }
 //	}()
-//	sandbox, err := client.Create(ctx, params,
+//	sandbox, err := client.V1().Create(ctx, params,
 //	    options.WithLogChannel(logChan),
 //	)
 func WithLogChannel(logChannel chan string) func(*CreateSandbox) {

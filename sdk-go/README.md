@@ -13,6 +13,7 @@ import (
     "time"
 
     "github.com/daytona/clients/sdk-go/pkg/daytona"
+    "github.com/daytona/clients/sdk-go/pkg/options"
     "github.com/daytona/clients/sdk-go/pkg/types"
 )
 
@@ -22,6 +23,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+    v1 := client.V1()
 
     ctx := context.Background()
 
@@ -35,20 +37,11 @@ func main() {
         },
     }
 
-    buildLogs := make(chan string, 100)
-    go func() {
-  for logLine := range logChan {
-   fmt.Printf("[BUILD] %s\n", logLine)
-  }
- }()
-  
-    // Default WaitForStart is true, but can be overriden for more async behavior
-    sandbox, buildLogs, err := client.Create(ctx, params,
-  daytona.WithTimeout(90*time.Second),
- )
- if err != nil {
-  log.Fatal(err)
- }
+    // Create waits for the sandbox to start by default; pass options.WithWaitForStart(false) to return earlier.
+    sandbox, err := v1.Create(ctx, params, options.WithTimeout(90*time.Second))
+    if err != nil {
+        log.Fatal(err)
+    }
 
     log.Printf("✓ Created sandbox: %s (ID: %s)\n", sandbox.Name, sandbox.ID)
 
@@ -95,14 +88,24 @@ config := &types.DaytonaConfig{
 client, err := daytona.NewClientWithConfig(config)
 ```
 
+## Versioned namespace
+
+`client.V1()` is the 2.x-compatible SDK 1.x surface. New code should call resource APIs through `client.V1()`.
+The root shortcuts remain for backwards compatibility, are deprecated, and will be removed in SDK 2.x.
+The first call to a deprecated root method prints one deprecation warning to stderr per process. The
+root service fields (`Volume`, `Snapshot`, `Secret`, `WarmPool`, `Otel`) cannot warn at runtime, since
+Go fields have no accessor; they carry a `Deprecated:` comment that `staticcheck` and `gopls` report.
+Call `daytona.SetDeprecationWarningWriter(io.Discard)` to silence the runtime warnings.
+
 ### Create a sandbox or snapshot in a specific region
 
 Set `Target` on the sandbox create params, or `RegionID` on `types.CreateSnapshotParams`, to choose the
 [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call
-value, then `DaytonaConfig.Target` (or `DAYTONA_TARGET`), then the organization's default region.
+value, then the deprecated `DaytonaConfig.Target` (or `DAYTONA_TARGET`, which prints a one-time deprecation
+warning), then the organization's default region.
 
 ```go
-sandbox, err := client.Create(ctx, types.SnapshotParams{
+sandbox, err := client.V1().Create(ctx, types.SnapshotParams{
     SandboxBaseParams: types.SandboxBaseParams{Target: "eu"},
 })
 if err != nil {
@@ -111,7 +114,7 @@ if err != nil {
 fmt.Println("sandbox target:", sandbox.Target)
 
 region := "eu"
-snapshot, logs, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+snapshot, logs, err := client.V1().Snapshot.Create(ctx, &types.CreateSnapshotParams{
     Name:     "my-snapshot",
     Image:    "python:3.12",
     RegionID: &region,
@@ -161,7 +164,7 @@ go run examples/snapshots/withlogstreaming/snapshot_with_logs.go
 Always clean up sandboxes when done:
 
 ```go
-sandbox, err := client.Create(ctx, params)
+sandbox, err := client.V1().Create(ctx, params)
 if err != nil {
     log.Fatal(err)
 }
@@ -203,7 +206,7 @@ ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 defer cancel()
 
 // Use the context for all operations
-sandbox, err := client.Create(ctx, params)
+sandbox, err := client.V1().Create(ctx, params)
 if err != nil {
     log.Fatal(err)
 }
@@ -215,19 +218,27 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "long-running-command")
 
 ### Client Methods and Properties
 
-**Properties:**
-
-- `Volume *VolumeService` - Access volume management operations
-- `Snapshot *SnapshotService` - Access snapshot management operations
-
-**Methods:**
+**Client** (root; resource members are deprecated, use `client.V1()`):
 
 - `NewClient() (*Client, error)` - Create a new Daytona client with default configuration
 - `NewClientWithConfig(config *types.DaytonaConfig) (*Client, error)` - Create a new Daytona client with custom configuration
-- `Create(ctx, params, options...) (*Sandbox, <-chan string, error)` - Create a sandbox and returns a channel for streaming build logs
-  - Options: `WithTimeout(time.Duration)`
+- `V1() *V1Client` - The v1 client; returns the same instance on every call
+- `Close(ctx) error` - Release client resources
+
+**V1Client properties:**
+
+- `Volume *VolumeService` - Access volume management operations
+- `Snapshot *SnapshotService` - Access snapshot management operations
+- `Secret *SecretService` - Access organization secret operations
+- `WarmPool *WarmPoolService` - Access warm pool operations
+
+**V1Client methods:**
+
+- `Create(ctx, params, options...) (*Sandbox, error)` - Create a sandbox from `types.SnapshotParams` or `types.ImageParams` (`nil` uses defaults)
+  - Options: `options.WithTimeout(time.Duration)`, `options.WithWaitForStart(bool)`, `options.WithLogChannel(chan string)`
 - `Get(ctx, sandboxIDOrName) (*Sandbox, error)` - Get a sandbox by ID or name
-- `List(ctx, query) *SandboxIterator` - Returns an iterator over Sandboxes matching the given query. Pages are fetched on demand. Defer `iter.Close()` to release resources.
+- `List(ctx, query) *SandboxIterator` - Returns an iterator over Sandboxes matching the given query. Pages are fetched on demand; check `iter.Err()` after the loop.
+- `ListSeq(ctx, query) iter.Seq2[*Sandbox, error]` - Go 1.23+ range-over-func iterator over the same results
 
 ### Sandbox Properties and Methods
 
@@ -282,18 +293,18 @@ Each `List` method returns a different shape depending on the resource. The tabl
 
 | Method | Return type | Shape | Access elements |
 | --- | --- | --- | --- |
-| `client.Snapshot.List(ctx, page, limit)` | `(*types.PaginatedSnapshots, error)` | Paginated wrapper | `result.Items` |
-| `client.Secret.List(ctx, query)` | `(*types.ListSecretsResponse, error)` | Cursor-paginated wrapper | `page.Items` |
-| `client.Volume.List(ctx)` | `([]*types.Volume, error)` | Bare slice | iterate directly |
-| `client.List(ctx, query)` | `*SandboxIterator` | Lazy pull iterator | `iter.Next()` / `iter.Value()` |
-| `client.ListSeq(ctx, query)` | `iter.Seq2[*Sandbox, error]` | Go 1.23 range-over-func | `for s, err := range client.ListSeq(...)` |
+| `client.V1().Snapshot.List(ctx, page, limit)` | `(*types.PaginatedSnapshots, error)` | Paginated wrapper | `result.Items` |
+| `client.V1().Secret.List(ctx, query)` | `(*types.ListSecretsResponse, error)` | Cursor-paginated wrapper | `page.Items` |
+| `client.V1().Volume.List(ctx)` | `([]*types.Volume, error)` | Bare slice | iterate directly |
+| `client.V1().List(ctx, query)` | `*SandboxIterator` | Lazy pull iterator | `iter.Next()` / `iter.Value()` |
+| `client.V1().ListSeq(ctx, query)` | `iter.Seq2[*Sandbox, error]` | Go 1.23 range-over-func | `for s, err := range client.V1().ListSeq(...)` |
 
 `types.PaginatedSnapshots` and `types.ListSecretsResponse` are **wrapper structs**, not slices. Ranging over them directly does not compile. Always use the `.Items` field:
 
 ```go
 // snapshots — page-number pagination
 page, limit := 1, 20
-result, err := client.Snapshot.List(ctx, &page, &limit)
+result, err := client.V1().Snapshot.List(ctx, &page, &limit)
 if err != nil {
     log.Fatal(err)
 }
@@ -308,7 +319,7 @@ for _, snap := range result.Items {
 // secrets — cursor pagination
 query := &types.ListSecretsQuery{}
 for {
-    page, err := client.Secret.List(ctx, query)
+    page, err := client.V1().Secret.List(ctx, query)
     if err != nil {
         log.Fatal(err)
     }
@@ -325,7 +336,7 @@ for {
 }
 
 // volumes — bare slice, iterate directly
-volumes, err := client.Volume.List(ctx)
+volumes, err := client.V1().Volume.List(ctx)
 if err != nil {
     log.Fatal(err)
 }
@@ -334,8 +345,7 @@ for _, vol := range volumes {
 }
 
 // sandboxes — pull iterator (all Go versions)
-iter := client.List(ctx, nil)
-defer iter.Close()
+iter := client.V1().List(ctx, nil)
 for iter.Next() {
     fmt.Println(iter.Value().ID)
 }
@@ -344,7 +354,7 @@ if err := iter.Err(); err != nil {
 }
 
 // sandboxes — range-over-func (Go 1.23+)
-for sandbox, err := range client.ListSeq(ctx, nil) {
+for sandbox, err := range client.V1().ListSeq(ctx, nil) {
     if err != nil {
         log.Fatal(err)
     }

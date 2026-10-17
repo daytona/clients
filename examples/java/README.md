@@ -9,7 +9,6 @@ This directory contains example projects demonstrating how to use the Daytona Ja
    ```bash
    export DAYTONA_API_KEY="your-api-key"
    export DAYTONA_API_URL="https://app.daytona.io/api"  # optional, this is the default
-   export DAYTONA_TARGET="us"  # optional
    ```
 
 2. **Java** - Ensure JDK 11+ is installed (the Nix dev shell `nix develop .#java` includes JDK 21)
@@ -33,3 +32,5 @@ examples/java/gradlew -p examples/java/file-operations run
 Each example is a standalone Gradle project. The shared Gradle wrapper (`gradlew`) in this directory handles downloading Gradle and building examples.
 
 Examples resolve the SDK from source via Gradle composite builds (`includeBuild("../../../sdk-java")`) — any changes you make to the SDK at the repo root (`sdk-java`) are reflected immediately without any install or publish step.
+
+Use `daytona.v1()` in example call sites. The root resource methods are deprecated in SDK 1.x and removed in SDK 2.x.

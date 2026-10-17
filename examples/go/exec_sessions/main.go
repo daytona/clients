@@ -29,7 +29,7 @@ func main() {
 		},
 	}
 
-	sandbox, err := client.Create(ctx, params)
+	sandbox, err := client.V1().Create(ctx, params)
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

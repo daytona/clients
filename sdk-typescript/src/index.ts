@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { CodeLanguage, Daytona } from './Daytona'
+export { Daytona } from './RootDaytona'
+export { CodeLanguage, V1_API_URL } from './Daytona'
 export type {
   CreateSandboxBaseParams,
   CreateSandboxFromImageParams,

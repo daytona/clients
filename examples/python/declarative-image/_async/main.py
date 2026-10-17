@@ -1,8 +1,8 @@
 import asyncio
 import time
 
-from daytona import (
-    AsyncDaytona,
+from daytona import AsyncDaytona
+from daytona.v1 import (
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
     CreateSnapshotParams,
@@ -12,7 +12,7 @@ from daytona import (
 
 
 async def main():
-    daytona = AsyncDaytona()
+    daytona = AsyncDaytona().v1
 
     try:
         # Generate unique name for the snapshot to avoid conflicts

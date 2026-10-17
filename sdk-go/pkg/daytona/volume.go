@@ -16,24 +16,24 @@ import (
 //
 // VolumeService enables creating, managing, and deleting persistent storage volumes
 // that can be attached to sandboxes. Volumes persist data independently of sandbox
-// lifecycle and can be shared between sandboxes. Access through [Client.Volume].
+// lifecycle and can be shared between sandboxes. Access through [V1Client.Volume].
 //
 // Example:
 //
 //	// Create a new volume
-//	volume, err := client.Volume.Create(ctx, "my-data-volume")
+//	volume, err := client.V1().Volume.Create(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait for volume to be ready
-//	volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
+//	volume, err = client.V1().Volume.WaitForReady(ctx, volume, 60*time.Second)
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// List all volumes
-//	volumes, err := client.Volume.List(ctx)
+//	volumes, err := client.V1().Volume.List(ctx)
 type VolumeService struct {
 	client *Client
 	otel   *otelState
@@ -42,7 +42,7 @@ type VolumeService struct {
 // NewVolumeService creates a new VolumeService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access VolumeService through [Client.Volume] rather than
+// Users should access VolumeService through [V1Client.Volume] rather than
 // creating it directly.
 func NewVolumeService(client *Client) *VolumeService {
 	return &VolumeService{
@@ -55,7 +55,7 @@ func NewVolumeService(client *Client) *VolumeService {
 //
 // Example:
 //
-//	volumes, err := client.Volume.List(ctx)
+//	volumes, err := client.V1().Volume.List(ctx)
 //	if err != nil {
 //	    return err
 //	}
@@ -89,7 +89,7 @@ func (v *VolumeService) List(ctx context.Context) ([]*types.Volume, error) {
 //
 // Example:
 //
-//	volume, err := client.Volume.Get(ctx, "my-data-volume")
+//	volume, err := client.V1().Volume.Get(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
@@ -118,13 +118,13 @@ func (v *VolumeService) Get(ctx context.Context, name string) (*types.Volume, er
 //
 // Example:
 //
-//	volume, err := client.Volume.Create(ctx, "my-data-volume")
+//	volume, err := client.V1().Volume.Create(ctx, "my-data-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait for volume to be ready
-//	volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
+//	volume, err = client.V1().Volume.WaitForReady(ctx, volume, 60*time.Second)
 //
 // Returns the created [types.Volume] or an error.
 func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume, error) {
@@ -151,7 +151,7 @@ func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume,
 //
 // Example:
 //
-//	err := client.Volume.Delete(ctx, volume)
+//	err := client.V1().Volume.Delete(ctx, volume)
 //	if err != nil {
 //	    return err
 //	}
@@ -180,13 +180,13 @@ func (v *VolumeService) Delete(ctx context.Context, volume *types.Volume) error 
 //
 // Example:
 //
-//	volume, err := client.Volume.Create(ctx, "my-volume")
+//	volume, err := client.V1().Volume.Create(ctx, "my-volume")
 //	if err != nil {
 //	    return err
 //	}
 //
 //	// Wait up to 2 minutes for the volume to be ready
-//	volume, err = client.Volume.WaitForReady(ctx, volume, 2*time.Minute)
+//	volume, err = client.V1().Volume.WaitForReady(ctx, volume, 2*time.Minute)
 //	if err != nil {
 //	    return fmt.Errorf("volume failed to become ready: %w", err)
 //	}

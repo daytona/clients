@@ -39,7 +39,7 @@ func exampleSnapshotWithLogs() {
 	}
 
 	// Create the snapshot and get the log channel
-	snapshot, logChan, err := client.Snapshot.Create(ctx, params)
+	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, params)
 	if err != nil {
 		log.Fatalf("Failed to create snapshot: %v", err)
 	}
@@ -57,7 +57,7 @@ func exampleSnapshotWithLogs() {
 
 	// Optional: Clean up - delete the snapshot
 	log.Println("\nCleaning up - deleting snapshot...")
-	if err := client.Snapshot.Delete(ctx, snapshot); err != nil {
+	if err := client.V1().Snapshot.Delete(ctx, snapshot); err != nil {
 		log.Printf("Warning: Failed to delete snapshot: %v", err)
 	} else {
 		log.Println("✓ Snapshot deleted successfully!")
@@ -93,7 +93,7 @@ func exampleSnapshotWithCustomImage() {
 	}
 
 	// Create the snapshot and get the log channel
-	snapshot, logChan, err := client.Snapshot.Create(ctx, params)
+	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, params)
 	if err != nil {
 		log.Fatalf("Failed to create snapshot: %v", err)
 	}
@@ -110,7 +110,7 @@ func exampleSnapshotWithCustomImage() {
 
 	// Optional: Clean up
 	log.Println("\nCleaning up - deleting snapshot...")
-	if err := client.Snapshot.Delete(ctx, snapshot); err != nil {
+	if err := client.V1().Snapshot.Delete(ctx, snapshot); err != nil {
 		log.Printf("Warning: Failed to delete snapshot: %v", err)
 	} else {
 		log.Println("✓ Snapshot deleted successfully!")

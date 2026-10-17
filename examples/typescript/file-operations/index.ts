@@ -6,7 +6,7 @@ async function main() {
   const daytona = new Daytona()
 
   //  first, create a sandbox
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v1.create()
 
   try {
     console.log(`Created sandbox with ID: ${sandbox.id}`)
@@ -151,7 +151,7 @@ Script: ${scriptResult.exitCode === 0 ? 'Executed successfully' : 'Failed'}
     console.error('Error:', error)
   } finally {
     //  cleanup
-    await daytona.delete(sandbox)
+    await daytona.v1.delete(sandbox)
   }
 }
 

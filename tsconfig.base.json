@@ -17,6 +17,7 @@
     "paths": {
       "@daytona/api-client": ["api-client/src/index.ts"],
       "@daytona/sdk": ["sdk-typescript/src/index.ts"],
+      "@daytona/sdk/v1": ["sdk-typescript/src/v1.ts"],
       "@daytona/toolbox-api-client": ["toolbox-api-client/src/index.ts"],
       "@daytona/analytics-api-client": ["analytics-api-client/src/index.ts"]
     }

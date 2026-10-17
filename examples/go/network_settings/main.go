@@ -31,7 +31,7 @@ func main() {
 		},
 	}
 
-	sandbox1, err := client.Create(ctx, params1, options.WithTimeout(90*time.Second))
+	sandbox1, err := client.V1().Create(ctx, params1, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -53,7 +53,7 @@ func main() {
 		},
 	}
 
-	sandbox2, err := client.Create(ctx, params2, options.WithTimeout(90*time.Second))
+	sandbox2, err := client.V1().Create(ctx, params2, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -75,7 +75,7 @@ func main() {
 		},
 	}
 
-	sandbox3, err := client.Create(ctx, params3, options.WithTimeout(90*time.Second))
+	sandbox3, err := client.V1().Create(ctx, params3, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

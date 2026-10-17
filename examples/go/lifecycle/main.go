@@ -31,7 +31,7 @@ func main() {
 		},
 	}
 
-	sandbox, err := client.Create(ctx, params, options.WithTimeout(90*time.Second))
+	sandbox, err := client.V1().Create(ctx, params, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -56,7 +56,7 @@ func main() {
 	log.Println("✓ Sandbox stopped")
 
 	// Get the sandbox info to verify state
-	sandbox, err = client.Get(ctx, sandbox.ID)
+	sandbox, err = client.V1().Get(ctx, sandbox.ID)
 	if err != nil {
 		log.Fatalf("Failed to get sandbox: %v", err)
 	}
@@ -71,7 +71,7 @@ func main() {
 
 	// Get the sandbox info again
 	log.Println("\nGetting existing sandbox...")
-	existingSandbox, err := client.Get(ctx, sandbox.ID)
+	existingSandbox, err := client.V1().Get(ctx, sandbox.ID)
 	if err != nil {
 		log.Fatalf("Failed to get sandbox: %v", err)
 	}
@@ -94,7 +94,7 @@ func main() {
 	limit := 10
 	sort := daytona.SandboxListSortFieldCreatedAt
 	order := daytona.SandboxListSortDirectionDesc
-	for sb, err := range client.ListSeq(ctx, &daytona.ListSandboxesQuery{
+	for sb, err := range client.V1().ListSeq(ctx, &daytona.ListSandboxesQuery{
 		Limit:  &limit,
 		Labels: map[string]string{"env": "dev"},
 		States: []daytona.SandboxState{daytona.SandboxStateStarted},

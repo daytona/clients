@@ -29,6 +29,7 @@ function runPostBuild(
 ): {
   read: (file: string) => string
   esmDir: string
+  distDir: string
   published: any
 } {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'daytona-post-build-'))
@@ -68,6 +69,7 @@ function runPostBuild(
   return {
     read: (file: string) => fs.readFileSync(path.join(esmDir, file), 'utf8'),
     esmDir,
+    distDir,
     published: JSON.parse(fs.readFileSync(path.join(distDir, 'package.json'), 'utf8')),
   }
 }
@@ -154,5 +156,17 @@ describe('post-build published dependencies', () => {
 
   it('fails the build when a forced dependency is absent from the workspace root', () => {
     expect(() => runPostBuild(withRequire, { ws: undefined })).toThrow()
+  })
+})
+
+describe('post-build v1 subpath', () => {
+  it('writes a v1 package.json for resolvers that ignore the exports map', () => {
+    const { distDir } = runPostBuild({ 'utils/Import.js': `export const l = () => require('fs')\n` })
+
+    expect(JSON.parse(fs.readFileSync(path.join(distDir, 'v1', 'package.json'), 'utf8'))).toEqual({
+      main: '../cjs/v1.js',
+      module: '../esm/v1.js',
+      types: '../cjs/v1.d.ts',
+    })
   })
 })

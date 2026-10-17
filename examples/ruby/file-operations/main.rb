@@ -4,8 +4,8 @@ require 'fileutils'
 require 'json'
 require 'daytona'
 
-daytona = Daytona::Daytona.new
-params = Daytona::CreateSandboxFromSnapshotParams.new(language: Daytona::CodeLanguage::PYTHON)
+daytona = Daytona::Daytona.new.v1
+params = Daytona::V1::CreateSandboxFromSnapshotParams.new(language: Daytona::V1::CodeLanguage::PYTHON)
 
 # Create a Sandbox
 sandbox = daytona.create(params)
@@ -33,9 +33,9 @@ script = <<~BASH
   exit 0
 BASH
 sandbox.fs.upload_files(
-  [Daytona::FileUpload.new(local_file_path, File.join(project_files, 'example.txt')),
-   Daytona::FileUpload.new(config_data, File.join(project_files, 'config.json')),
-   Daytona::FileUpload.new(script, File.join(project_files, 'script.sh'))]
+  [Daytona::V1::FileUpload.new(local_file_path, File.join(project_files, 'example.txt')),
+   Daytona::V1::FileUpload.new(config_data, File.join(project_files, 'config.json')),
+   Daytona::V1::FileUpload.new(script, File.join(project_files, 'script.sh'))]
 )
 
 # Execute commands on the sandbox to verify files and make them executable

@@ -1,8 +1,9 @@
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v1 import SessionExecuteRequest
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
     sandbox = daytona.create()
 
     exec_session_id = "exec-session-1"

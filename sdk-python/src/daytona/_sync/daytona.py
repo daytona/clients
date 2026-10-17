@@ -11,6 +11,7 @@ import warnings
 from collections.abc import Iterator
 from copy import deepcopy
 from importlib.metadata import version
+from types import TracebackType
 from typing import Callable, cast, overload
 
 import httpx
@@ -37,8 +38,10 @@ from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.stream import process_streaming_response
 from .._utils.timeout import http_timeout, with_timeout
+from .._versioning import user_stacklevel, warn_target_deprecation_once
 from ..common.daytona import (
     CODE_TOOLBOX_LANGUAGE_LABEL,
+    V1_API_URL,
     CodeLanguage,
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
@@ -64,9 +67,10 @@ def _destroyed_by_lifecycle(sandbox: SandboxDto) -> bool:
 
 
 class Daytona:
-    """Main class for interacting with the Daytona API.
+    """The v1 client: creates, manages and interacts with Daytona Sandboxes.
 
-    This class provides methods to create, manage, and interact with Daytona Sandboxes.
+    Get it from the root client as `Daytona().v1` (`from daytona import Daytona`), or import it
+    directly with `from daytona.v1 import Daytona`; the examples below use the direct import.
     It can be initialized either with explicit configuration or using environment variables.
 
     Attributes:
@@ -78,19 +82,22 @@ class Daytona:
     Example:
         Using environment variables:
         ```python
+        from daytona.v1 import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
+
         daytona = Daytona()  # Uses DAYTONA_API_KEY, DAYTONA_API_URL
         sandbox = daytona.create()
         ```
 
         Using explicit configuration:
         ```python
+        from daytona.v1 import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
+
         config = DaytonaConfig(
             api_key="your-api-key",
             api_url="https://your-api.com",
-            target="us"
         )
         daytona = Daytona(config)
-        sandbox = daytona.create()
+        sandbox = daytona.create(CreateSandboxFromSnapshotParams(target="us"))
         ```
 
         Using OpenTelemetry tracing:
@@ -99,7 +106,7 @@ class Daytona:
             api_key="your-api-key",
             experimental={"otelEnabled": True}  # Enable OpenTelemetry tracing through experimental config
         )
-        async with Daytona(config) as daytona:
+        with Daytona(config) as daytona:
             sandbox = daytona.create()
             # All SDK operations will be traced
         # OpenTelemetry traces are flushed on close
@@ -120,8 +127,9 @@ class Daytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
-          for the organization is used). A per-call `target` / `region_id` overrides it
+        - `DAYTONA_TARGET`: Deprecated; pass `target` / `region_id` per call instead. Optional default
+          region for Sandboxes and Snapshots (if not provided, default region for the organization is
+          used). A per-call `target` / `region_id` overrides it
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -131,7 +139,7 @@ class Daytona:
 
         Example:
             ```python
-            from daytona import Daytona, DaytonaConfig
+            from daytona.v1 import Daytona, DaytonaConfig
             # Using environment variables
             daytona1 = Daytona()
 
@@ -139,14 +147,12 @@ class Daytona:
             config = DaytonaConfig(
                 api_key="your-api-key",
                 api_url="https://your-api.com",
-                target="us"
             )
             daytona2 = Daytona(config)
 
             ```
         """
 
-        default_api_url = "https://app.daytona.io/api"
         self.default_language: CodeLanguage = CodeLanguage.PYTHON
         api_url = None
 
@@ -181,7 +187,10 @@ class Daytona:
                 or env_reader.get_from_process_env("DAYTONA_API_URL")
                 or env_reader.get_from_process_env("DAYTONA_SERVER_URL")
             )
-            self._target = self._target or env_reader.get("DAYTONA_TARGET")
+            env_target = env_reader.get("DAYTONA_TARGET")
+            if env_target and not self._target:
+                warn_target_deprecation_once()
+            self._target = self._target or env_target
 
             if env_reader.get_from_process_env("DAYTONA_SERVER_URL") and not env_reader.get_from_process_env(
                 "DAYTONA_API_URL"
@@ -190,10 +199,10 @@ class Daytona:
                     "Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. "
                     + "Use `DAYTONA_API_URL` instead.",
                     DeprecationWarning,
-                    stacklevel=2,
+                    stacklevel=user_stacklevel(),
                 )
 
-        self._api_url = api_url or default_api_url
+        self._api_url = api_url or V1_API_URL
 
         # A dotenv file that tried to redirect the endpoint is always reported, however the
         # client was configured: it tells the caller the working directory is hostile, which
@@ -282,7 +291,7 @@ class Daytona:
                 "Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING)"
                 " is deprecated and will be removed in a future release."
             )
-            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=2)
+            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=user_stacklevel())
 
         if not use_deprecated_polling:
             self._event_dispatcher = SyncEventDispatcher(
@@ -330,6 +339,38 @@ class Daytona:
 
         # Set the global tracer provider
         trace.set_tracer_provider(self._tracer_provider)
+
+    def __enter__(self) -> Daytona:
+        """Context manager entry."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        """Context manager exit; closes the client."""
+        self.close()
+
+    def close(self) -> None:
+        """Close the HTTP connections and background workers, and flush OpenTelemetry traces.
+
+        Example:
+            ```python
+            with Daytona() as daytona:
+                sandbox = daytona.create()
+            # Automatically closed
+            ```
+        """
+        if self._tracer_provider is not None:
+            self._tracer_provider.shutdown()
+        self._http_client.close()
+        self._api_client.rest_client.pool_manager.clear()
+        self._toolbox_api_client.rest_client.pool_manager.clear()
+        self._subscription_manager.shutdown()
+        if self._event_dispatcher is not None:
+            self._event_dispatcher.disconnect()
 
     def _get_analytics_api_url(self) -> str | None:
         """Resolves the deployment's Analytics API URL via ``/config``, cached for the client's lifetime."""

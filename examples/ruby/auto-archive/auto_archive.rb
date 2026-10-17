@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 # Default interval
 first_sandbox = daytona.create
@@ -13,11 +13,11 @@ first_sandbox.auto_archive_interval = 60
 puts "Auto archive interval: #{first_sandbox.auto_archive_interval}"
 
 # Max interval
-second_sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(auto_archive_interval: 0))
+second_sandbox = daytona.create(Daytona::V1::CreateSandboxFromSnapshotParams.new(auto_archive_interval: 0))
 puts "Max auto archive interval: #{second_sandbox.auto_archive_interval}"
 
 # 1 day interval
-third_sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(auto_archive_interval: 24 * 60))
+third_sandbox = daytona.create(Daytona::V1::CreateSandboxFromSnapshotParams.new(auto_archive_interval: 24 * 60))
 puts "Auto archive interval: #{third_sandbox.auto_archive_interval}"
 
 daytona.delete(first_sandbox)

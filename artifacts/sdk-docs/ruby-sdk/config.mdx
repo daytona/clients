@@ -24,10 +24,11 @@ Initializes a new Daytona::Config object.
 - `jwt_token` _String, nil_ - Daytona JWT token. Defaults to ENV['DAYTONA_JWT_TOKEN'].
 - `api_url` _String, nil_ - Daytona API URL. Defaults to ENV['DAYTONA_API_URL'] or Daytona::Config::API_URL.
 - `organization_id` _String, nil_ - Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
-- `target` _String, nil_ - Default region for Sandboxes and Snapshots; a per-call `target:` / `region_id:`
-overrides it. Defaults to ENV['DAYTONA_TARGET'].
+- `target` _String, nil_ - Deprecated: pass `target:` per sandbox create and `region_id:` per snapshot
+create instead. Default region for Sandboxes and Snapshots; a per-call `target:` / `region_id:`
+overrides it. Defaults to ENV['DAYTONA_TARGET'] (also deprecated).
 - `otel_enabled` _Boolean, nil_ - Enable OpenTelemetry tracing for SDK operations.
-- `use_deprecated_polling` _Boolean, nil_ - Observe sandbox state by legacy polling instead of
+- `use_deprecated_polling` _Boolean, nil_ - Deprecated. Observe sandbox state by legacy polling instead of
 WebSocket event streaming. Defaults to false (event streaming). Can also be enabled via the
 DAYTONA_USE_DEPRECATED_POLLING environment variable.
 - `_experimental` _Hash, nil_ - Experimental configuration options.
@@ -152,6 +153,10 @@ def target()
 Default region for Sandboxes and Snapshots. A per-call `target:` (Sandbox create params) or
 `region_id:` (Snapshot create params) overrides it.
 
+**Deprecated**: Pass `target:` per sandbox create (`Daytona::CreateSandboxFromSnapshotParams` /
+`Daytona::CreateSandboxFromImageParams`) or `region_id:` per snapshot create
+(`Daytona::CreateSnapshotParams`) instead.
+
 **Returns**:
 
 - `String, nil` - Daytona target
@@ -163,12 +168,15 @@ def target=(value)
 
 ```
 
-Default region for Sandboxes and Snapshots. A per-call `target:` (Sandbox create params) or
-`region_id:` (Snapshot create params) overrides it.
+**Deprecated**: See `target`.
+
+**Parameters**:
+
+- `value` _String, nil_ -
 
 **Returns**:
 
-- `String, nil` - Daytona target
+- `String, nil` - the assigned value
 
 #### otel_enabled()
 
@@ -207,6 +215,10 @@ Observe sandbox state by legacy polling instead of WebSocket event streaming.
 Defaults to false (event streaming). Can also be enabled via the
 DAYTONA_USE_DEPRECATED_POLLING environment variable.
 
+**Deprecated**: Polling-only mode will be removed in a future release;
+event streaming is the default and falls back to polling automatically
+when WebSockets are unavailable.
+
 **Returns**:
 
 - `Boolean`
@@ -221,6 +233,10 @@ def use_deprecated_polling=(value)
 Observe sandbox state by legacy polling instead of WebSocket event streaming.
 Defaults to false (event streaming). Can also be enabled via the
 DAYTONA_USE_DEPRECATED_POLLING environment variable.
+
+**Deprecated**: Polling-only mode will be removed in a future release;
+event streaming is the default and falls back to polling automatically
+when WebSockets are unavailable.
 
 **Returns**:
 

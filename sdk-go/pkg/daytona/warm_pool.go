@@ -18,12 +18,12 @@ import (
 // pools of ready-to-use sandboxes for a snapshot. A pool's CurrentSize versus
 // Pool is its status: CurrentSize is the number of ready warm sandboxes, Pool
 // is the desired number, and ErrorReason is set when the pool cannot be
-// filled. Access through [Client.WarmPool].
+// filled. Access through [V1Client.WarmPool].
 //
 // Example:
 //
 //	// Create a new warm pool
-//	pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+//	pool, err := client.V1().WarmPool.Create(ctx, &types.CreateWarmPoolParams{
 //	    Snapshot: "my-snapshot",
 //	    Pool:     5,
 //	})
@@ -32,7 +32,7 @@ import (
 //	}
 //
 //	// List all warm pools
-//	pools, err := client.WarmPool.List(ctx)
+//	pools, err := client.V1().WarmPool.List(ctx)
 type WarmPoolService struct {
 	client *Client
 	otel   *otelState
@@ -41,7 +41,7 @@ type WarmPoolService struct {
 // NewWarmPoolService creates a new WarmPoolService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access WarmPoolService through [Client.WarmPool] rather than
+// Users should access WarmPoolService through [V1Client.WarmPool] rather than
 // creating it directly.
 func NewWarmPoolService(client *Client) *WarmPoolService {
 	return &WarmPoolService{
@@ -54,7 +54,7 @@ func NewWarmPoolService(client *Client) *WarmPoolService {
 //
 // Example:
 //
-//	pools, err := client.WarmPool.List(ctx)
+//	pools, err := client.V1().WarmPool.List(ctx)
 //	if err != nil {
 //	    return err
 //	}
@@ -91,7 +91,7 @@ func (w *WarmPoolService) List(ctx context.Context) ([]*types.WarmPool, error) {
 //
 // Example:
 //
-//	pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+//	pool, err := client.V1().WarmPool.Create(ctx, &types.CreateWarmPoolParams{
 //	    Snapshot: "my-snapshot",
 //	    Pool:     5,
 //	})
@@ -126,7 +126,7 @@ func (w *WarmPoolService) Create(ctx context.Context, params *types.CreateWarmPo
 //
 // Example:
 //
-//	pool, err := client.WarmPool.Update(ctx, warmPoolID, 10)
+//	pool, err := client.V1().WarmPool.Update(ctx, warmPoolID, 10)
 //	if err != nil {
 //	    return err
 //	}
@@ -153,7 +153,7 @@ func (w *WarmPoolService) Update(ctx context.Context, warmPoolID string, pool in
 //
 // Example:
 //
-//	err := client.WarmPool.Delete(ctx, warmPoolID)
+//	err := client.V1().WarmPool.Delete(ctx, warmPoolID)
 //	if err != nil {
 //	    return err
 //	}

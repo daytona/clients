@@ -16,13 +16,13 @@ class DaytonaUtilitiesTest {
 
     @Test
     void urlEncodePathSegmentEscapesSpacesAndSlashes() {
-        assertThat(Daytona.urlEncodePathSegment("dir name/file.txt")).isEqualTo("dir%20name%2Ffile.txt");
+        assertThat(DaytonaV1.urlEncodePathSegment("dir name/file.txt")).isEqualTo("dir%20name%2Ffile.txt");
     }
 
     @Test
     void urlEncodeQueryTreatsNullAsEmptyString() {
-        assertThat(Daytona.urlEncodeQuery(null)).isEmpty();
-        assertThat(Daytona.urlEncodeQuery("a b")).isEqualTo("a+b");
+        assertThat(DaytonaV1.urlEncodeQuery(null)).isEmpty();
+        assertThat(DaytonaV1.urlEncodeQuery("a b")).isEqualTo("a+b");
     }
 
     @Test
@@ -31,14 +31,14 @@ class DaytonaUtilitiesTest {
         raw.put(1, null);
         raw.put("two", 2);
 
-        assertThat(Daytona.castStringMap(raw))
+        assertThat(DaytonaV1.castStringMap(raw))
                 .containsEntry("1", "")
                 .containsEntry("two", "2");
     }
 
     @Test
     void castStringMapReturnsEmptyMapForNullInput() {
-        assertThat(Daytona.castStringMap(null)).isEmpty();
+        assertThat(DaytonaV1.castStringMap(null)).isEmpty();
     }
 
     @Test
@@ -68,7 +68,7 @@ class DaytonaUtilitiesTest {
     void shutdownHttpClientAcceptsClientWithNoCache() {
         okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
 
-        Daytona.shutdownHttpClient(client);
+        DaytonaV1.shutdownHttpClient(client);
 
         assertThat(client.dispatcher().executorService().isShutdown()).isTrue();
     }

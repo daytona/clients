@@ -1,15 +1,15 @@
+import { Daytona } from '@daytona/sdk'
 import {
   BarChart,
   BoxAndWhiskerChart,
   Chart,
   ChartType,
   CompositeChart,
-  Daytona,
   LineChart,
   PieChart,
   ScatterChart,
   Image,
-} from '@daytona/sdk'
+} from '@daytona/sdk/v1'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -17,7 +17,7 @@ async function main() {
   const daytona = new Daytona()
 
   //  first, create a sandbox
-  const sandbox = await daytona.create(
+  const sandbox = await daytona.v1.create(
     {
       image: Image.debianSlim('3.13').pipInstall('matplotlib'),
     },
@@ -41,7 +41,7 @@ async function main() {
     console.error('Execution error:', error)
   } finally {
     //  cleanup
-    await daytona.delete(sandbox)
+    await daytona.v1.delete(sandbox)
   }
 }
 

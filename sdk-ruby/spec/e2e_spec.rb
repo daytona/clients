@@ -162,7 +162,7 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
         language: Daytona::CodeLanguage::PYTHON
       )
 
-      image_sandbox = @daytona.send(
+      image_sandbox = @daytona.v1.send(
         :_create,
         params,
         timeout: 300,

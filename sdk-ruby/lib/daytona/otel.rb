@@ -147,6 +147,15 @@ module Daytona
     end
 
     module ClassMethods
+      # The method as defined before {#instrument} wrapped it, or nil if it is not instrumented.
+      # The wrapper takes `*args, **kwargs, &blk`, so use this to inspect the real parameters.
+      #
+      # @param method_name [Symbol]
+      # @return [UnboundMethod, nil]
+      def uninstrumented_method(method_name)
+        (@uninstrumented_methods || {})[method_name]
+      end
+
       # Instruments the listed methods with OTel tracing/metrics.
       # Must be called after all target methods are defined.
       #
@@ -155,6 +164,7 @@ module Daytona
       def instrument(*method_names, component:) # rubocop:disable Metrics/MethodLength
         method_names.each do |method_name|
           original = instance_method(method_name)
+          (@uninstrumented_methods ||= {})[method_name] = original
 
           # Detect original visibility
           visibility = if private_method_defined?(method_name, false)

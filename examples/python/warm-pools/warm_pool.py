@@ -2,7 +2,7 @@ from daytona import Daytona
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
 
     # Create a warm pool that keeps ready-to-use sandboxes for an existing snapshot.
     # `target` is optional and defaults to the organization default region.

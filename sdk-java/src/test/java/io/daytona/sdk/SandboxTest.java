@@ -109,7 +109,7 @@ class SandboxTest {
         io.daytona.api.client.model.Sandbox model = new io.daytona.api.client.model.Sandbox();
         model.setId("sb-3");
         model.setState(SandboxState.STARTED);
-        model.setLabels(Collections.singletonMap(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL, "javascript"));
+        model.setLabels(Collections.singletonMap(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL, "javascript"));
         model.setToolboxProxyUrl("https://proxy.example/");
 
         Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());

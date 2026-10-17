@@ -1,10 +1,12 @@
 import asyncio
 
-from daytona import AsyncDaytona, CreateSandboxFromSnapshotParams
+from daytona import AsyncDaytona
+from daytona.v1 import CreateSandboxFromSnapshotParams
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         # Default settings
         sandbox1 = await daytona.create()
         print("network_block_all:", sandbox1.network_block_all)

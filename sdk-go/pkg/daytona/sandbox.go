@@ -40,7 +40,7 @@ import (
 // Example:
 //
 //	// Create and use a sandbox
-//	sandbox, err := client.Create(ctx)
+//	sandbox, err := client.V1().Create(ctx, nil)
 //	if err != nil {
 //	    return err
 //	}

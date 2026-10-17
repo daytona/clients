@@ -30,7 +30,7 @@ func TestSecretServiceCreation(t *testing.T) {
 
 	ss := NewSecretService(client)
 	require.NotNil(t, ss)
-	require.NotNil(t, client.Secret)
+	require.NotNil(t, client.V1().Secret)
 }
 
 func TestSecretGetError(t *testing.T) {
@@ -44,7 +44,7 @@ func TestSecretGetError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Secret.Get(ctx, "nonexistent")
+	_, err := client.V1().Secret.Get(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -59,7 +59,7 @@ func TestSecretDeleteError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	err := client.Secret.Delete(ctx, "nonexistent")
+	err := client.V1().Secret.Delete(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -114,18 +114,18 @@ func TestSecretSuccessOperations(t *testing.T) {
 		client := createTestClientWithServer(t, server)
 		ctx := context.Background()
 
-		page, err := client.Secret.List(ctx, nil)
+		page, err := client.V1().Secret.List(ctx, nil)
 		require.NoError(t, err)
 		require.Len(t, page.Items, 1)
 		assert.Equal(t, "anthropic-prod", page.Items[0].Name)
 
-		secret, err := client.Secret.Get(ctx, "secret-1")
+		secret, err := client.V1().Secret.Get(ctx, "secret-1")
 		require.NoError(t, err)
 		assert.Equal(t, "secret-1", secret.ID)
 		assert.Equal(t, "{{secret:secret-1}}", secret.Placeholder)
 
 		desc := "prod key"
-		created, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+		created, err := client.V1().Secret.Create(ctx, &types.CreateSecretParams{
 			Name:        "anthropic-prod",
 			Value:       "sk-ant-secret",
 			Description: &desc,
@@ -139,7 +139,7 @@ func TestSecretSuccessOperations(t *testing.T) {
 		assert.Equal(t, []string{"api.anthropic.com"}, lastCreateBody.GetHosts())
 
 		newValue := "sk-ant-rotated"
-		updated, err := client.Secret.Update(ctx, "secret-1", &types.UpdateSecretParams{
+		updated, err := client.V1().Secret.Update(ctx, "secret-1", &types.UpdateSecretParams{
 			Value: &newValue,
 			Hosts: []string{"api.anthropic.com", "*.anthropic.com"},
 		})
@@ -148,7 +148,7 @@ func TestSecretSuccessOperations(t *testing.T) {
 		assert.Equal(t, "sk-ant-rotated", lastUpdateBody.GetValue())
 		assert.Equal(t, []string{"api.anthropic.com", "*.anthropic.com"}, lastUpdateBody.GetHosts())
 
-		require.NoError(t, client.Secret.Delete(ctx, "secret-1"))
+		require.NoError(t, client.V1().Secret.Delete(ctx, "secret-1"))
 	})
 }
 
@@ -170,7 +170,7 @@ func TestSecretList(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 
-		_, err := client.Secret.List(context.Background(), &types.ListSecretsQuery{
+		_, err := client.V1().Secret.List(context.Background(), &types.ListSecretsQuery{
 			Cursor: strPtr("cursor-abc"),
 			Limit:  intPtr(50),
 			Name:   strPtr("anthropic"),
@@ -201,7 +201,7 @@ func TestSecretList(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 
-		page, err := client.Secret.List(context.Background(), nil)
+		page, err := client.V1().Secret.List(context.Background(), nil)
 		require.NoError(t, err)
 		require.Len(t, page.Items, 2)
 		assert.Equal(t, "secret-1", page.Items[0].ID)
@@ -225,7 +225,7 @@ func TestSecretList(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 
-		page, err := client.Secret.List(context.Background(), nil)
+		page, err := client.V1().Secret.List(context.Background(), nil)
 		require.NoError(t, err)
 		require.Len(t, page.Items, 1)
 		assert.Equal(t, 1, page.Total)
@@ -240,7 +240,7 @@ func TestSecretList(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 
-		_, err := client.Secret.List(context.Background(), nil)
+		_, err := client.V1().Secret.List(context.Background(), nil)
 		require.Error(t, err)
 	})
 }
@@ -264,7 +264,7 @@ func TestCreateSandboxSecretsSerialization(t *testing.T) {
 
 	client := createTestClientWithServer(t, server)
 
-	_, err := client.Create(context.Background(), types.SnapshotParams{
+	_, err := client.V1().Create(context.Background(), types.SnapshotParams{
 		Snapshot: "my-snapshot",
 		SandboxBaseParams: types.SandboxBaseParams{
 			Language: types.CodeLanguagePython,

@@ -10,19 +10,19 @@ public class Volumes {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
             String volumeName = "test-vol-" + System.currentTimeMillis();
-            Volume volume = daytona.volume().create(volumeName);
+            Volume volume = daytona.v1().volume().create(volumeName);
             try {
                 System.out.println("id: " + volume.getId());
                 System.out.println("name: " + volume.getName());
                 System.out.println("state: " + volume.getState());
 
-                Volume fetched = daytona.volume().getByName(volumeName);
+                Volume fetched = daytona.v1().volume().getByName(volumeName);
                 System.out.println("Fetched volume: " + fetched.getId());
             } finally {
                 System.out.println("Deleting volume");
                 try {
                     waitUntilDeletable(daytona, volumeName);
-                    daytona.volume().delete(volume.getId());
+                    daytona.v1().volume().delete(volume.getId());
                 } catch (Exception e) {
                     System.out.println("Volume cleanup: " + e.getMessage());
                 }
@@ -33,7 +33,7 @@ public class Volumes {
     private static void waitUntilDeletable(Daytona daytona, String volumeName) throws InterruptedException {
         long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < 60_000) {
-            Volume v = daytona.volume().getByName(volumeName);
+            Volume v = daytona.v1().volume().getByName(volumeName);
             if ("ready".equalsIgnoreCase(v.getState()) || "error".equalsIgnoreCase(v.getState())) {
                 return;
             }

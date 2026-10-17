@@ -35,9 +35,10 @@ func TestE2E(t *testing.T) {
 	defer func() {
 		_ = client.Close(context.Background())
 	}()
+	v1 := client.V1()
 
 	ctx := context.Background()
-	sandbox, err := client.Create(ctx, types.SnapshotParams{
+	sandbox, err := v1.Create(ctx, types.SnapshotParams{
 		SandboxBaseParams: types.SandboxBaseParams{
 			Language: types.CodeLanguagePython,
 			Labels: map[string]string{
@@ -146,7 +147,7 @@ func TestE2E(t *testing.T) {
 			PipInstall([]string{"numpy"}).
 			Env("CACHE_BUSTER", cacheKey)
 
-		imageSandbox, createErr := client.Create(ctx, types.ImageParams{
+		imageSandbox, createErr := v1.Create(ctx, types.ImageParams{
 			SandboxBaseParams: types.SandboxBaseParams{
 				Language: types.CodeLanguagePython,
 				Name:     fmt.Sprintf("sdk-go-e2e-build-%d", time.Now().UnixNano()),
@@ -984,7 +985,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	})
 
 	t.Run("Volume/Create", func(t *testing.T) {
-		vol, volErr := client.Volume.Create(ctx, volumeName)
+		vol, volErr := v1.Volume.Create(ctx, volumeName)
 		require.NoError(t, volErr)
 		require.NotNil(t, vol)
 		createdVolume = vol
@@ -992,7 +993,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	})
 
 	t.Run("Volume/List", func(t *testing.T) {
-		vols, listErr := client.Volume.List(ctx)
+		vols, listErr := v1.Volume.List(ctx)
 		require.NoError(t, listErr)
 
 		names := make([]string, 0, len(vols))
@@ -1003,7 +1004,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	})
 
 	t.Run("Volume/Get", func(t *testing.T) {
-		vol, getErr := client.Volume.Get(ctx, volumeName)
+		vol, getErr := v1.Volume.Get(ctx, volumeName)
 		require.NoError(t, getErr)
 		require.NotNil(t, vol)
 		assert.Equal(t, volumeName, vol.Name)
@@ -1012,18 +1013,18 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	t.Run("Volume/Delete", func(t *testing.T) {
 		require.NotNil(t, createdVolume)
 		for i := 0; i < 15; i++ {
-			vol, err := client.Volume.Get(ctx, volumeName)
+			vol, err := v1.Volume.Get(ctx, volumeName)
 			if err == nil && (vol.State == "ready" || vol.State == "error") {
 				break
 			}
 			time.Sleep(1 * time.Second)
 		}
-		require.NoError(t, client.Volume.Delete(ctx, createdVolume))
+		require.NoError(t, v1.Volume.Delete(ctx, createdVolume))
 		createdVolume = nil
 	})
 
 	t.Run("Snapshot/List", func(t *testing.T) {
-		snapshots, listErr := client.Snapshot.List(ctx, nil, nil)
+		snapshots, listErr := v1.Snapshot.List(ctx, nil, nil)
 		require.NoError(t, listErr)
 		require.NotNil(t, snapshots)
 
@@ -1034,7 +1035,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 
 	t.Run("Snapshot/ListWithPagination", func(t *testing.T) {
 		page, limit := 1, 5
-		snapshots, listErr := client.Snapshot.List(ctx, &page, &limit)
+		snapshots, listErr := v1.Snapshot.List(ctx, &page, &limit)
 		require.NoError(t, listErr)
 		require.NotNil(t, snapshots)
 		assert.Equal(t, 1, snapshots.Page)
@@ -1043,14 +1044,14 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	t.Run("Snapshot/GetByName", func(t *testing.T) {
 		require.NotEmpty(t, snapshotName, "snapshot list should have returned at least the default snapshot")
 
-		snapshot, getErr := client.Snapshot.Get(ctx, snapshotName)
+		snapshot, getErr := v1.Snapshot.Get(ctx, snapshotName)
 		require.NoError(t, getErr)
 		require.NotNil(t, snapshot)
 		assert.Equal(t, snapshotName, snapshot.Name)
 	})
 
 	t.Run("ClientOps/ListSandboxes", func(t *testing.T) {
-		iter := client.List(ctx, nil)
+		iter := v1.List(ctx, nil)
 		count := 0
 		for iter.Next() {
 			require.NotNil(t, iter.Value())
@@ -1062,7 +1063,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 
 	t.Run("ClientOps/ListWithPaginationLimit", func(t *testing.T) {
 		limit := 10
-		iter := client.List(ctx, &ListSandboxesQuery{Limit: &limit})
+		iter := v1.List(ctx, &ListSandboxesQuery{Limit: &limit})
 		count := 0
 		for iter.Next() {
 			require.NotNil(t, iter.Value())
@@ -1073,14 +1074,14 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 	})
 
 	t.Run("ClientOps/GetByID", func(t *testing.T) {
-		got, getErr := client.Get(ctx, sandbox.ID)
+		got, getErr := v1.Get(ctx, sandbox.ID)
 		require.NoError(t, getErr)
 		require.NotNil(t, got)
 		assert.Equal(t, sandbox.ID, got.ID)
 	})
 
 	t.Run("ClientOps/GetByName", func(t *testing.T) {
-		got, getErr := client.Get(ctx, sandbox.Name)
+		got, getErr := v1.Get(ctx, sandbox.Name)
 		require.NoError(t, getErr)
 		require.NotNil(t, got)
 		assert.Equal(t, sandbox.Name, got.Name)
@@ -1093,7 +1094,7 @@ PY`, options.WithExecuteTimeout(10*time.Second))
 		_ = lspServer.Stop(ctx)
 	}
 	if createdVolume != nil {
-		_ = client.Volume.Delete(ctx, createdVolume)
+		_ = v1.Volume.Delete(ctx, createdVolume)
 	}
 	_ = sandbox.FileSystem.DeleteFile(ctx, baseDir, true)
 	_ = sandbox.Process.DeleteSession(ctx, sessionID)

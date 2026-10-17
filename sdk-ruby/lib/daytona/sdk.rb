@@ -60,4 +60,34 @@ module Daytona
 
     def self.logger = @logger ||= Logger.new($stdout, level: Logger::INFO)
   end
+
+  module V1
+    def self.const_missing(name)
+      const = ::Daytona.const_get(name, false)
+      const_set(name, const)
+    end
+
+    DaytonaV1 = Daytona
+    SandboxV1 = Sandbox
+    ImageV1 = Image
+    ConfigV1 = Config
+    ResourcesV1 = Resources
+    ListSandboxesQueryV1 = ListSandboxesQuery
+
+    ErrorV1 = Error
+    BadRequestErrorV1 = BadRequestError
+    AuthenticationErrorV1 = AuthenticationError
+    ForbiddenErrorV1 = ForbiddenError
+    AuthorizationErrorV1 = AuthorizationError
+    NotFoundErrorV1 = NotFoundError
+    TimeoutErrorV1 = TimeoutError
+    ConflictErrorV1 = ConflictError
+    GoneErrorV1 = GoneError
+    UnprocessableEntityErrorV1 = UnprocessableEntityError
+    RateLimitErrorV1 = RateLimitError
+    InternalServerErrorV1 = InternalServerError
+    ServiceUnavailableErrorV1 = ServiceUnavailableError
+    ConnectionErrorV1 = ConnectionError
+    ValidationErrorV1 = ValidationError
+  end
 end

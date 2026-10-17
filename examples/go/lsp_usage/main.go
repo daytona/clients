@@ -24,7 +24,7 @@ func main() {
 
 	// Create a sandbox with Python
 	log.Println("Creating sandbox...")
-	sandbox, err := client.Create(ctx, &types.ImageParams{
+	sandbox, err := client.V1().Create(ctx, &types.ImageParams{
 		SandboxBaseParams: types.SandboxBaseParams{
 			Language: types.CodeLanguagePython,
 		},
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 	// Create LSP server for Python
 	log.Println("\nCreating LSP server for Python...")
-	lsp := daytona.NewLspServerService(sandbox.ToolboxClient, types.LspLanguagePython, workDir, client.Otel)
+	lsp := daytona.NewLspServerService(sandbox.ToolboxClient, types.LspLanguagePython, workDir, client.V1().Otel)
 
 	// Start the LSP server
 	log.Println("Starting LSP server...")

@@ -21,7 +21,7 @@ public class ExecCommand {
             System.out.println("Creating sandbox with Python language");
             CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
             params.setLanguage("python");
-            Sandbox sandbox = daytona.create(params);
+            Sandbox sandbox = daytona.v1().create(params);
             System.out.println("Sandbox created: " + sandbox.getId());
 
             try {

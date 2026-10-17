@@ -33,7 +33,7 @@ func main() {
 		},
 	}
 
-	sandbox, err := client.Create(ctx, params, options.WithTimeout(90*time.Second))
+	sandbox, err := client.V1().Create(ctx, params, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}

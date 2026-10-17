@@ -13,13 +13,15 @@ public class Region {
                 .apiKey(System.getenv("DAYTONA_API_KEY"))
                 .apiUrl(System.getenv("DAYTONA_API_URL") != null
                         ? System.getenv("DAYTONA_API_URL")
-                        : "https://app.daytona.io/api")
-                .target("us")
+                        : Daytona.V1_API_URL)
                 .build();
 
         try (Daytona daytona = new Daytona(config)) {
+            var v1 = daytona.v1();
             System.out.println("Creating sandbox with target: us");
-            Sandbox sandbox = daytona.create();
+            var params = new io.daytona.sdk.model.CreateSandboxFromSnapshotParams();
+            params.setTarget("us");
+            Sandbox sandbox = v1.create(params);
             try {
                 System.out.println("Sandbox created: " + sandbox.getId());
                 System.out.println("target: " + sandbox.getTarget());

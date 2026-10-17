@@ -4,7 +4,8 @@ from daytona import AsyncDaytona
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         # Create a warm pool that keeps ready-to-use sandboxes for an existing snapshot.
         # `target` is optional and defaults to the organization default region.
         pool = await daytona.warm_pool.create("my-snapshot", pool=3)

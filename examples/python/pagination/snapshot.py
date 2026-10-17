@@ -2,7 +2,7 @@ from daytona import Daytona
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
 
     result = daytona.snapshot.list(page=2, limit=10)
     for snapshot in result.items:

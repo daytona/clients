@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 # Create an organization secret. The plaintext value is stored encrypted and is
 # never returned by the API again. Use `hosts` to restrict where the value may be sent.
@@ -31,8 +31,8 @@ puts "Organization has #{secrets.length} secret(s)"
 # Create a sandbox that mounts the secret as the env var ANTHROPIC_API_KEY.
 # The `secrets` map is { env_var_name => existing_secret_name }.
 sandbox = daytona.create(
-  Daytona::CreateSandboxFromSnapshotParams.new(
-    language: Daytona::CodeLanguage::PYTHON,
+  Daytona::V1::CreateSandboxFromSnapshotParams.new(
+    language: Daytona::V1::CodeLanguage::PYTHON,
     secrets: { 'ANTHROPIC_API_KEY' => secret_name }
   )
 )

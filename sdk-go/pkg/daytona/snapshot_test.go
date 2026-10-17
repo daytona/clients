@@ -45,7 +45,7 @@ func TestSnapshotListError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Snapshot.List(ctx, nil, nil)
+	_, err := client.V1().Snapshot.List(ctx, nil, nil)
 	require.Error(t, err)
 }
 
@@ -60,7 +60,7 @@ func TestSnapshotGetError(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Snapshot.Get(ctx, "nonexistent")
+	_, err := client.V1().Snapshot.Get(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -76,7 +76,7 @@ func TestSnapshotDeleteError(t *testing.T) {
 
 	snap := &types.Snapshot{ID: "snap-1", Name: "my-snapshot"}
 	ctx := context.Background()
-	err := client.Snapshot.Delete(ctx, snap)
+	err := client.V1().Snapshot.Delete(ctx, snap)
 	require.Error(t, err)
 }
 
@@ -91,7 +91,7 @@ func TestSnapshotErrorHandling(t *testing.T) {
 	client := createTestClientWithServer(t, server)
 
 	ctx := context.Background()
-	_, err := client.Snapshot.Get(ctx, "nonexistent")
+	_, err := client.V1().Snapshot.Get(ctx, "nonexistent")
 	require.Error(t, err)
 }
 
@@ -132,10 +132,10 @@ func TestSnapshotSuccessOperations(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		page, limit := 1, 10
-		list, err := client.Snapshot.List(context.Background(), &page, &limit)
+		list, err := client.V1().Snapshot.List(context.Background(), &page, &limit)
 		require.NoError(t, err)
 		assert.Len(t, list.Items, 1)
-		snapshot, err := client.Snapshot.Get(context.Background(), "snap-1")
+		snapshot, err := client.V1().Snapshot.Get(context.Background(), "snap-1")
 		require.NoError(t, err)
 		assert.Equal(t, "snap-1", snapshot.ID)
 	})
@@ -150,7 +150,7 @@ func TestSnapshotSuccessOperations(t *testing.T) {
 
 		client := createTestClientWithServer(t, server)
 		sourceSandboxID := "sandbox-1"
-		list, err := client.Snapshot.ListWithQuery(context.Background(), &ListSnapshotsQuery{SourceSandboxID: &sourceSandboxID})
+		list, err := client.V1().Snapshot.ListWithQuery(context.Background(), &ListSnapshotsQuery{SourceSandboxID: &sourceSandboxID})
 		require.NoError(t, err)
 		assert.Len(t, list.Items, 1)
 		assert.Equal(t, "sandbox-1", gotSourceSandboxID)
@@ -170,7 +170,7 @@ func TestSnapshotSuccessOperations(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		snapshot, logChan, err := client.Snapshot.Create(context.Background(), &types.CreateSnapshotParams{Name: "created", Image: "python:3.12"})
+		snapshot, logChan, err := client.V1().Snapshot.Create(context.Background(), &types.CreateSnapshotParams{Name: "created", Image: "python:3.12"})
 		require.NoError(t, err)
 		assert.Equal(t, "snap-2", snapshot.ID)
 		logs := make([]string, 0, 4)
@@ -189,7 +189,7 @@ func TestSnapshotLogStreamingHelpers(t *testing.T) {
 		defer server.Close()
 
 		client := createTestClientWithServer(t, server)
-		service := client.Snapshot
+		service := client.V1().Snapshot
 		err := service.streamLogsHTTP(context.Background(), "snap-1", make(chan string, 1))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected status code")
@@ -200,7 +200,7 @@ func TestSnapshotLogStreamingHelpers(t *testing.T) {
 		defer server.Close()
 		client := createTestClientWithServer(t, server)
 		img := Base("python:3.12")
-		ctxHashes, err := client.Snapshot.processImageContext(context.Background(), img)
+		ctxHashes, err := client.V1().Snapshot.processImageContext(context.Background(), img)
 		require.NoError(t, err)
 		assert.Empty(t, ctxHashes)
 	})
@@ -277,7 +277,7 @@ func TestSnapshotDeleteByNameOrIDNonUUIDName(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	require.NoError(t, client.Snapshot.DeleteByNameOrID(context.Background(), "my-python-env"))
+	require.NoError(t, client.V1().Snapshot.DeleteByNameOrID(context.Background(), "my-python-env"))
 
 	require.Equal(t, []httpCall{
 		{Method: http.MethodGet, Path: "/snapshots/my-python-env"},
@@ -299,7 +299,7 @@ func TestSnapshotDeleteByNameOrIDPlainUUIDSingleCall(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	require.NoError(t, client.Snapshot.DeleteByNameOrID(context.Background(), snapshotUUID))
+	require.NoError(t, client.V1().Snapshot.DeleteByNameOrID(context.Background(), snapshotUUID))
 
 	require.Equal(t, []httpCall{
 		{Method: http.MethodDelete, Path: "/snapshots/" + snapshotUUID},
@@ -332,7 +332,7 @@ func TestSnapshotDeleteByNameOrIDUUIDFormattedNameFallback(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	require.NoError(t, client.Snapshot.DeleteByNameOrID(context.Background(), snapshotNameUUID))
+	require.NoError(t, client.V1().Snapshot.DeleteByNameOrID(context.Background(), snapshotNameUUID))
 
 	require.Equal(t, []httpCall{
 		{Method: http.MethodDelete, Path: "/snapshots/" + snapshotNameUUID},
@@ -357,7 +357,7 @@ func TestSnapshotDeleteByNameOrIDUUIDNon404NoFallback(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	err := client.Snapshot.DeleteByNameOrID(context.Background(), snapshotUUID)
+	err := client.V1().Snapshot.DeleteByNameOrID(context.Background(), snapshotUUID)
 	require.Error(t, err)
 	assert.True(t, stderrors.Is(err, sdkerrors.ErrForbidden), "expected 403 to satisfy ErrForbidden, got %v", err)
 	require.Equal(t, []httpCall{
@@ -382,7 +382,7 @@ func TestSnapshotActivateByName(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	snap, err := client.Snapshot.Activate(context.Background(), "my-python-env")
+	snap, err := client.V1().Snapshot.Activate(context.Background(), "my-python-env")
 	require.NoError(t, err)
 	require.NotNil(t, snap)
 	assert.Equal(t, snapshotUUID, snap.ID)
@@ -407,7 +407,7 @@ func TestSnapshotDeleteByNameOrIDNonexistentNameErrNotFound(t *testing.T) {
 	defer server.Close()
 
 	client := createTestClientWithServer(t, server)
-	err := client.Snapshot.DeleteByNameOrID(context.Background(), "ghost-snapshot")
+	err := client.V1().Snapshot.DeleteByNameOrID(context.Background(), "ghost-snapshot")
 	require.Error(t, err)
 	assert.True(t, stderrors.Is(err, sdkerrors.ErrNotFound), "expected error to satisfy sdkerrors.ErrNotFound, got %v", err)
 	require.Equal(t, []httpCall{
@@ -450,7 +450,7 @@ func TestSnapshotCreateRegion(t *testing.T) {
 
 			client := createTestClientWithServer(t, server)
 			client.region = tc.clientRegion
-			_, logChan, err := client.Snapshot.Create(context.Background(), &types.CreateSnapshotParams{
+			_, logChan, err := client.V1().Snapshot.Create(context.Background(), &types.CreateSnapshotParams{
 				Name:     "regional",
 				Image:    "python:3.12",
 				RegionID: tc.regionID,

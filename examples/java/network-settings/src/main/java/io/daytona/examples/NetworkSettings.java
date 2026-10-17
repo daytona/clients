@@ -10,7 +10,7 @@ public class NetworkSettings {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
             System.out.println("Creating sandbox");
-            Sandbox sandbox = daytona.create();
+            Sandbox sandbox = daytona.v1().create();
             System.out.println("Sandbox created: " + sandbox.getId());
 
             try {

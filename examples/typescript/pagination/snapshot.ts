@@ -3,7 +3,7 @@ import { Daytona } from '@daytona/sdk'
 async function main() {
   const daytona = new Daytona()
 
-  const result = await daytona.snapshot.list(2, 10)
+  const result = await daytona.v1.snapshot.list(2, 10)
   console.log(`Found ${result.total} snapshots`)
   result.items.forEach((snapshot) => console.log(`${snapshot.name} (${snapshot.imageName})`))
 }

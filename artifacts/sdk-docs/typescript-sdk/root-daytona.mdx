@@ -1,0 +1,357 @@
+---
+title: "RootDaytona"
+hideTitleOnPage: true
+---
+
+
+## Daytona
+
+The SDK 1.x root client.
+
+It owns one v1 client, returned by `v1` (the same instance on every access); use
+`daytona.v1.<member>`, the form SDK 2.x keeps. `close()` and `await using` are not deprecated
+(the SDK 2.x root has both).
+Every other member forwards to `v1` and is deprecated: the first use in a process emits one
+`DeprecationWarning` (code `DAYTONA_ROOT_NAMESPACE`).
+
+**Example:**
+
+```ts
+import { Daytona } from '@daytona/sdk'
+
+const daytona = new Daytona()
+const sandbox = await daytona.v1.create()
+```
+
+### Implements
+
+- `AsyncDisposable`
+
+### Accessors
+
+#### secret
+
+##### Get Signature
+
+```ts
+get secret(): SecretService;
+```
+
+###### Deprecated
+
+Use `daytona.v1.secret` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `SecretService`
+
+#### snapshot
+
+##### Get Signature
+
+```ts
+get snapshot(): SnapshotService;
+```
+
+###### Deprecated
+
+Use `daytona.v1.snapshot` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `SnapshotService`
+
+#### v1
+
+##### Get Signature
+
+```ts
+get v1(): Daytona;
+```
+
+The v1 client (`Daytona` from `@daytona/sdk/v1`); the same instance on every access.
+
+**Returns**:
+
+- `Daytona`
+
+#### volume
+
+##### Get Signature
+
+```ts
+get volume(): VolumeService;
+```
+
+###### Deprecated
+
+Use `daytona.v1.volume` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `VolumeService`
+
+#### warmPool
+
+##### Get Signature
+
+```ts
+get warmPool(): WarmPoolService;
+```
+
+###### Deprecated
+
+Use `daytona.v1.warmPool` instead. The root form is removed in SDK 2.x.
+
+**Returns**:
+
+- `WarmPoolService`
+
+### Constructors
+
+#### Constructor
+
+```ts
+new Daytona(config?: DaytonaConfig): Daytona;
+```
+
+Creates the root client and its v1 client from `config` (or the environment).
+
+**Parameters**:
+
+- `config?` _DaytonaConfig_
+
+
+**Returns**:
+
+- `Daytona`
+
+### Methods
+
+#### ~~createAxiosInstance()~~
+
+```ts
+static createAxiosInstance(...args: [number]): AxiosInstance;
+```
+
+**Parameters**:
+
+- `args` _...\[number\]_
+
+
+**Returns**:
+
+- `AxiosInstance`
+
+##### Deprecated
+
+Use `Daytona.createAxiosInstance` from `@daytona/sdk/v1` instead. The root form is removed in SDK 2.x.
+
+#### ~~\_experimental\_fork()~~
+
+```ts
+_experimental_fork(...args: [Sandbox, ForkSandboxParams, number]): Promise<Sandbox>;
+```
+
+**Parameters**:
+
+- `args` _...\[Sandbox, ForkSandboxParams, number\]_
+
+
+**Returns**:
+
+- `Promise<Sandbox>`
+
+##### Deprecated
+
+Use `daytona.v1.fork` instead. The root form is removed in SDK 2.x.
+
+#### \[asyncDispose\]()
+
+```ts
+asyncDispose: Promise<void>;
+```
+
+Closes the v1 client, for `await using`. Not deprecated.
+
+**Returns**:
+
+- `Promise<void>`
+
+##### Implementation of
+
+```ts
+AsyncDisposable.[asyncDispose]
+```
+
+#### close()
+
+```ts
+close(): Promise<void>;
+```
+
+Closes the v1 client. Not deprecated.
+
+**Returns**:
+
+- `Promise<void>`
+
+#### ~~create()~~
+
+##### Call Signature
+
+```ts
+create(params?: CreateSandboxFromSnapshotParams, options?: {
+  timeout?: number;
+}): Promise<Sandbox>;
+```
+
+**Parameters**:
+
+- `params?` _CreateSandboxFromSnapshotParams_
+- `options?` _###### timeout?_ - `number`
+
+**Returns**:
+
+- `Promise<Sandbox>`
+
+###### Deprecated
+
+Use `daytona.v1.create` instead. The root form is removed in SDK 2.x.
+
+##### Call Signature
+
+```ts
+create(params?: CreateSandboxFromImageParams, options?: {
+  onSnapshotCreateLogs?: (chunk: string) => void;
+  timeout?: number;
+}): Promise<Sandbox>;
+```
+
+**Parameters**:
+
+- `params?` _CreateSandboxFromImageParams_
+- `options?` _###### onSnapshotCreateLogs?_ - (`chunk`: `string`) => `void`
+- `timeout?` _number_
+
+**Returns**:
+
+- `Promise<Sandbox>`
+
+###### Deprecated
+
+Use `daytona.v1.create` instead. The root form is removed in SDK 2.x.
+
+#### ~~delete()~~
+
+```ts
+delete(...args: [Sandbox, number, boolean]): Promise<void>;
+```
+
+**Parameters**:
+
+- `args` _...\[Sandbox, number, boolean\]_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+##### Deprecated
+
+Use `daytona.v1.delete` instead. The root form is removed in SDK 2.x.
+
+#### ~~fork()~~
+
+```ts
+fork(...args: [Sandbox, ForkSandboxParams, number]): Promise<Sandbox>;
+```
+
+**Parameters**:
+
+- `args` _...\[Sandbox, ForkSandboxParams, number\]_
+
+
+**Returns**:
+
+- `Promise<Sandbox>`
+
+##### Deprecated
+
+Use `daytona.v1.fork` instead. The root form is removed in SDK 2.x.
+
+#### ~~get()~~
+
+```ts
+get(...args: [string]): Promise<Sandbox>;
+```
+
+**Parameters**:
+
+- `args` _...\[string\]_
+
+
+**Returns**:
+
+- `Promise<Sandbox>`
+
+##### Deprecated
+
+Use `daytona.v1.get` instead. The root form is removed in SDK 2.x.
+
+#### ~~list()~~
+
+```ts
+list(...args: [ListSandboxesQuery]): AsyncIterableIterator<Sandbox>;
+```
+
+**Parameters**:
+
+- `args` _...\[ListSandboxesQuery\]_
+
+
+##### Returns
+
+`AsyncIterableIterator`\<`Sandbox`\>
+
+##### Deprecated
+
+Use `daytona.v1.list` instead. The root form is removed in SDK 2.x.
+
+#### ~~start()~~
+
+```ts
+start(...args: [Sandbox, number]): Promise<void>;
+```
+
+**Parameters**:
+
+- `args` _...\[Sandbox, number\]_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+##### Deprecated
+
+Use `daytona.v1.start` instead. The root form is removed in SDK 2.x.
+
+#### ~~stop()~~
+
+```ts
+stop(...args: [Sandbox]): Promise<void>;
+```
+
+**Parameters**:
+
+- `args` _...\[Sandbox\]_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+##### Deprecated
+
+Use `daytona.v1.stop` instead. The root form is removed in SDK 2.x.

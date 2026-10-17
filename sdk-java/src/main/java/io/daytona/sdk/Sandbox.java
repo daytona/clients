@@ -275,8 +275,8 @@ public class Sandbox {
 
     String getLanguage() {
         String lang = "python";
-        if (labels != null && labels.containsKey(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL)) {
-            lang = labels.get(Daytona.CODE_TOOLBOX_LANGUAGE_LABEL);
+        if (labels != null && labels.containsKey(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL)) {
+            lang = labels.get(DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL);
         }
         return lang;
     }

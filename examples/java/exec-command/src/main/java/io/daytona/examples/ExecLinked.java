@@ -11,14 +11,14 @@ import io.daytona.sdk.model.ExecuteResponse;
 public class ExecLinked {
     public static void main(String[] args) {
         try (Daytona daytona = new Daytona()) {
-            Sandbox owner = daytona.create();
+            Sandbox owner = daytona.v1().create();
             System.out.println("Owner sandbox ready: id=" + owner.getId() + " name=" + owner.getName());
 
             // Linked sandboxes must be ephemeral (autoDeleteInterval=0).
             CreateSandboxFromSnapshotParams followerParams = new CreateSandboxFromSnapshotParams();
             followerParams.setLinkedSandbox(owner.getId());
             followerParams.setAutoDeleteInterval(0);
-            Sandbox follower = daytona.create(followerParams);
+            Sandbox follower = daytona.v1().create(followerParams);
             System.out.println("Follower sandbox ready: id=" + follower.getId() + " name=" + follower.getName());
 
             try {

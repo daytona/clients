@@ -42,12 +42,12 @@ func isSnapshotID(s string) bool {
 //
 // SnapshotService enables creating, managing, and deleting snapshots that serve as
 // templates for sandboxes. Snapshots can be built from Docker images or custom
-// [DockerImage] definitions with build contexts. Access through [Client.Snapshot].
+// [DockerImage] definitions with build contexts. Access through [V1Client.Snapshot].
 //
 // Example:
 //
 //	// Create a snapshot from an existing image
-//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "my-python-env",
 //	    Image: "python:3.11-slim",
 //	})
@@ -64,7 +64,7 @@ func isSnapshotID(s string) bool {
 //	image := daytona.Base("python:3.11-slim").
 //	    PipInstall([]string{"numpy", "pandas"}).
 //	    Workdir("/app")
-//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "custom-python-env",
 //	    Image: image,
 //	})
@@ -76,7 +76,7 @@ type SnapshotService struct {
 // NewSnapshotService creates a new SnapshotService.
 //
 // This is typically called internally by the SDK when creating a [Client].
-// Users should access SnapshotService through [Client.Snapshot] rather than
+// Users should access SnapshotService through [V1Client.Snapshot] rather than
 // creating it directly.
 func NewSnapshotService(client *Client) *SnapshotService {
 	return &SnapshotService{
@@ -94,7 +94,7 @@ func NewSnapshotService(client *Client) *SnapshotService {
 // Example:
 //
 //	pageNumber, pageSize := 2, 10
-//	page, err := client.Snapshot.List(ctx, &pageNumber, &pageSize)
+//	page, err := client.V1().Snapshot.List(ctx, &pageNumber, &pageSize)
 //	if err != nil {
 //	    return err
 //	}
@@ -124,7 +124,7 @@ type ListSnapshotsQuery struct {
 // Example:
 //
 //	sandboxID := "b8f6e2d0-1234-5678-9abc-def012345678"
-//	page, err := client.Snapshot.ListWithQuery(ctx, &daytona.ListSnapshotsQuery{SourceSandboxID: &sandboxID})
+//	page, err := client.V1().Snapshot.ListWithQuery(ctx, &daytona.ListSnapshotsQuery{SourceSandboxID: &sandboxID})
 //	if err != nil {
 //	    return err
 //	}
@@ -174,7 +174,7 @@ func (s *SnapshotService) ListWithQuery(ctx context.Context, query *ListSnapshot
 //
 // Example:
 //
-//	snapshot, err := client.Snapshot.Get(ctx, "my-python-env")
+//	snapshot, err := client.V1().Snapshot.Get(ctx, "my-python-env")
 //	if err != nil {
 //	    return err
 //	}
@@ -207,7 +207,7 @@ func (s *SnapshotService) Get(ctx context.Context, nameOrID string) (*types.Snap
 // Example:
 //
 //	// Create from Docker Hub image
-//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "my-env",
 //	    Image: "python:3.11-slim",
 //	})
@@ -222,7 +222,7 @@ func (s *SnapshotService) Get(ctx context.Context, nameOrID string) (*types.Snap
 //
 //	// Create with custom image and resources
 //	image := daytona.Base("python:3.11").PipInstall([]string{"numpy"})
-//	snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+//	snapshot, logChan, err := client.V1().Snapshot.Create(ctx, &types.CreateSnapshotParams{
 //	    Name:  "custom-env",
 //	    Image: image,
 //	    Resources: &types.Resources{CPU: 2, Memory: 4096},
@@ -397,7 +397,7 @@ func (s *SnapshotService) processImageContext(ctx context.Context, image *Docker
 //
 // Example:
 //
-//	err := client.Snapshot.Delete(ctx, snapshot)
+//	err := client.V1().Snapshot.Delete(ctx, snapshot)
 //	if err != nil {
 //	    return err
 //	}
@@ -480,7 +480,7 @@ func (s *SnapshotService) resolveSnapshotIDForIDOnlyOp(
 //
 // Example:
 //
-//	err := client.Snapshot.DeleteByNameOrID(ctx, "my-python-env")
+//	err := client.V1().Snapshot.DeleteByNameOrID(ctx, "my-python-env")
 //	if err != nil {
 //	    return err
 //	}
@@ -530,7 +530,7 @@ func (s *SnapshotService) DeleteByNameOrID(ctx context.Context, nameOrID string)
 //
 // Example:
 //
-//	snapshot, err := client.Snapshot.Activate(ctx, "my-python-env")
+//	snapshot, err := client.V1().Snapshot.Activate(ctx, "my-python-env")
 //	if err != nil {
 //	    return err
 //	}

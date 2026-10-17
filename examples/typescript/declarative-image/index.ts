@@ -1,4 +1,5 @@
-import { Daytona, Image } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v1'
 import fs from 'fs'
 
 async function main() {
@@ -25,7 +26,7 @@ async function main() {
 
   // Create the snapshot
   console.log(`=== Creating Snapshot: ${snapshotName} ===`)
-  await daytona.snapshot.create(
+  await daytona.v1.snapshot.create(
     {
       name: snapshotName,
       image,
@@ -42,7 +43,7 @@ async function main() {
 
   // Create first sandbox using the pre-built image
   console.log('\n=== Creating Sandbox from Pre-built Snapshot ===')
-  const sandbox1 = await daytona.create({
+  const sandbox1 = await daytona.v1.create({
     snapshot: snapshotName,
   })
 
@@ -59,7 +60,7 @@ async function main() {
     console.log(fileContent.result)
   } finally {
     // Clean up first sandbox
-    await daytona.delete(sandbox1)
+    await daytona.v1.delete(sandbox1)
   }
 
   // Create second sandbox with a new dynamic image
@@ -75,7 +76,7 @@ async function main() {
     })
 
   // Create sandbox with the dynamic image
-  const sandbox2 = await daytona.create(
+  const sandbox2 = await daytona.v1.create(
     {
       image: dynamicImage,
     },
@@ -93,7 +94,7 @@ async function main() {
     console.log(toolsResponse.result)
   } finally {
     // Clean up second sandbox
-    await daytona.delete(sandbox2)
+    await daytona.v1.delete(sandbox2)
   }
 }
 

@@ -2,7 +2,7 @@
 
 require 'daytona'
 
-daytona = Daytona::Daytona.new
+daytona = Daytona::Daytona.new.v1
 
 # Generate unique name for the snapshot to avoid conflicts
 snapshot_name = "python-example:#{Time.now.to_i}"
@@ -11,7 +11,7 @@ File.write('file_example.txt', 'Hello, World!')
 
 # Create a Python image with common data science packages
 image =
-  Daytona::Image
+  Daytona::V1::Image
   .debian_slim('3.12')
   .pip_install(%w[numpy pandas matplotlib scipy scikit-learn jupyter])
   .run_commands(
@@ -24,16 +24,16 @@ image =
   .add_local_file('file_example.txt', '/home/daytona/workspace/file_example.txt')
 
 daytona.snapshot.create(
-  Daytona::CreateSnapshotParams.new(
+  Daytona::V1::CreateSnapshotParams.new(
     name: snapshot_name,
     image:,
-    resources: Daytona::Resources.new(cpu: 1, memory: 1, disk: 3)
+    resources: Daytona::V1::Resources.new(cpu: 1, memory: 1, disk: 3)
   ),
   on_logs: proc { |chunk| puts chunk }
 )
 
 # Create first sandbox using the pre-built image
-sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(snapshot: snapshot_name))
+sandbox = daytona.create(Daytona::V1::CreateSandboxFromSnapshotParams.new(snapshot: snapshot_name))
 
 # Verify the first sandbox environment
 response = sandbox.process.exec(command: 'python --version && pip list')
@@ -45,7 +45,7 @@ puts "File content: #{response.result}"
 
 # Create sandbox with the dynamic image
 dynamic_image =
-  Daytona::Image
+  Daytona::V1::Image
   .debian_slim('3.11')
   .pip_install(%w[pytest pytest-cov black isort mypy ruff])
   .run_commands('apt-get update && apt-get install -y git', 'mkdir -p /home/daytona/project')
@@ -53,7 +53,7 @@ dynamic_image =
   .env(ENV_VAR: 'My Environment Variable')
 
 other_sandbox = daytona.create(
-  Daytona::CreateSandboxFromImageParams.new(image: dynamic_image),
+  Daytona::V1::CreateSandboxFromImageParams.new(image: dynamic_image),
   on_snapshot_create_logs: proc { |chunk| puts chunk }
 )
 

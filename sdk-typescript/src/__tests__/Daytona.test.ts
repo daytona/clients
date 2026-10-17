@@ -30,6 +30,7 @@ const mockDotenvFileVars: Record<string, string> = {}
 const mockPreload: { fileDefiningEndpoint: string | undefined } = {
   fileDefiningEndpoint: undefined,
 }
+let emitWarningSpy: jest.SpyInstance
 
 const mockConfigurationCtor = jest.fn().mockImplementation((args: Record<string, unknown>) => ({
   ...args,
@@ -171,6 +172,7 @@ describe('Daytona', () => {
   beforeEach(() => {
     jest.resetModules()
     jest.clearAllMocks()
+    emitWarningSpy = jest.spyOn(process, 'emitWarning').mockImplementation(() => undefined)
 
     delete process.env.DAYTONA_API_KEY
     delete process.env.DAYTONA_JWT_TOKEN
@@ -178,6 +180,7 @@ describe('Daytona', () => {
     delete process.env.DAYTONA_API_URL
     delete process.env.DAYTONA_SERVER_URL
     delete process.env.DAYTONA_TARGET
+    delete process.env.DAYTONA_USE_DEPRECATED_POLLING
 
     for (const key of Object.keys(mockDotenvFileVars)) delete mockDotenvFileVars[key]
     mockPreload.fileDefiningEndpoint = undefined
@@ -190,6 +193,10 @@ describe('Daytona', () => {
       },
     })
     mockSandboxApi.getToolboxProxyUrl.mockResolvedValue(createApiResponse({ url: 'http://sandbox-proxy/' }))
+  })
+
+  afterEach(() => {
+    emitWarningSpy.mockRestore()
   })
 
   it('uses explicit api key config and builds dependent services', async () => {
@@ -317,7 +324,7 @@ describe('Daytona', () => {
     process.env.DAYTONA_API_KEY = 'env-key'
     process.env.DAYTONA_TARGET = 'us'
 
-    const { Daytona } = await import('../Daytona')
+    const { Daytona, V1_API_URL } = await import('../Daytona')
 
     new Daytona()
 
@@ -325,7 +332,55 @@ describe('Daytona', () => {
       basePath: string
     }
 
-    expect(firstConfigArg.basePath).toBe('https://app.daytona.io/api')
+    expect(firstConfigArg.basePath).toBe(V1_API_URL)
+  })
+
+  it('exports V1_API_URL as the default api url constant', async () => {
+    const { V1_API_URL } = await import('../Daytona')
+
+    expect(V1_API_URL).toBe('https://app.daytona.io/api')
+  })
+
+  it('warns once when DaytonaConfig.target is configured and the reset seam re-arms it', async () => {
+    const { Daytona, V1_API_URL } = await import('../Daytona')
+    const { resetTargetDeprecationWarningForTests } = await import('../deprecation')
+
+    new Daytona({ apiKey: 'api-key', apiUrl: V1_API_URL, target: 'us' })
+    new Daytona({ apiKey: 'api-key', apiUrl: V1_API_URL, target: 'eu' })
+
+    expect(emitWarningSpy).toHaveBeenCalledTimes(1)
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('DaytonaConfig.target (and DAYTONA_TARGET) is deprecated'),
+      expect.objectContaining({
+        code: 'DAYTONA_CONFIG_TARGET',
+        type: 'DeprecationWarning',
+      }),
+    )
+
+    resetTargetDeprecationWarningForTests()
+
+    new Daytona({ apiKey: 'api-key', apiUrl: V1_API_URL, target: 'ap-south-1' })
+
+    expect(emitWarningSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('warns once when DAYTONA_TARGET is configured from the environment', async () => {
+    process.env.DAYTONA_API_KEY = 'env-key'
+    process.env.DAYTONA_TARGET = 'us'
+
+    const { Daytona } = await import('../Daytona')
+
+    new Daytona()
+    new Daytona()
+
+    expect(emitWarningSpy).toHaveBeenCalledTimes(1)
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('DaytonaConfig.target (and DAYTONA_TARGET) is deprecated'),
+      expect.objectContaining({
+        code: 'DAYTONA_CONFIG_TARGET',
+        type: 'DeprecationWarning',
+      }),
+    )
   })
 
   it('supports deprecated serverUrl config', async () => {

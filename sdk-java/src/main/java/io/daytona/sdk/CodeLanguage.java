@@ -37,6 +37,6 @@ public enum CodeLanguage {
                 return lang;
             }
         }
-        throw new DaytonaException("Invalid " + Daytona.CODE_TOOLBOX_LANGUAGE_LABEL + ": " + value + ". Supported languages: python, javascript, typescript");
+        throw new DaytonaException("Invalid " + DaytonaV1.CODE_TOOLBOX_LANGUAGE_LABEL + ": " + value + ". Supported languages: python, javascript, typescript");
     }
 }

@@ -23,7 +23,7 @@ func main() {
 	limit := 10
 	sort := daytona.SandboxListSortFieldCreatedAt
 	order := daytona.SandboxListSortDirectionDesc
-	for sandbox, err := range client.ListSeq(ctx, &daytona.ListSandboxesQuery{
+	for sandbox, err := range client.V1().ListSeq(ctx, &daytona.ListSandboxesQuery{
 		Limit:  &limit,
 		Labels: map[string]string{"env": "dev"},
 		States: []daytona.SandboxState{daytona.SandboxStateStarted},
@@ -41,7 +41,7 @@ func main() {
 	snapshotPage := 2
 	snapshotLimit := 10
 
-	snapshotList, err := client.Snapshot.List(ctx, &snapshotPage, &snapshotLimit)
+	snapshotList, err := client.V1().Snapshot.List(ctx, &snapshotPage, &snapshotLimit)
 	if err != nil {
 		log.Fatalf("Failed to list snapshots: %v", err)
 	}

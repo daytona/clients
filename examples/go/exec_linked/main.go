@@ -22,7 +22,7 @@ func main() {
 
 	ctx := context.Background()
 
-	owner, err := client.Create(ctx, types.SnapshotParams{})
+	owner, err := client.V1().Create(ctx, types.SnapshotParams{})
 	if err != nil {
 		log.Fatalf("Failed to create owner sandbox: %v", err)
 	}
@@ -36,7 +36,7 @@ func main() {
 
 	// Linked sandboxes must be ephemeral — `Ephemeral: true` sets
 	// `AutoDeleteInterval=0` automatically.
-	follower, err := client.Create(ctx, types.SnapshotParams{
+	follower, err := client.V1().Create(ctx, types.SnapshotParams{
 		SandboxBaseParams: types.SandboxBaseParams{
 			LinkedSandbox: owner.ID,
 			Ephemeral:     true,

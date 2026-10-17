@@ -46,6 +46,11 @@ RSpec.configure do |config|
 
   config.before do |example|
     allow(Daytona::EnvFile).to receive(:parse).and_return({}) unless example.metadata[:real_dotenv]
+    Daytona::Sdk::Deprecation.reset_for_tests!
+    next if example.metadata[:deprecation_warning]
+
+    allow(Daytona::Sdk::Deprecation).to receive(:warn_root_namespace_once)
+    allow(Daytona::Sdk::Deprecation).to receive(:warn_target_once)
   end
 
   config.around do |example|

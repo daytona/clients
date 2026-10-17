@@ -11,7 +11,7 @@ package io.daytona.sdk.exception;
  *
  * <pre>{@code
  * try {
- *     daytona.snapshot().create(params);
+ *     daytona.v1().snapshot().create(params);
  * } catch (DaytonaConflictException e) {
  *     System.err.println("A snapshot with this name already exists");
  * }

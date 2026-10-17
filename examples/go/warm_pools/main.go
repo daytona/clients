@@ -23,7 +23,7 @@ func main() {
 
 	// Create a warm pool that keeps ready-to-use sandboxes for an existing snapshot.
 	// Target is optional and defaults to the organization default region.
-	pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+	pool, err := client.V1().WarmPool.Create(ctx, &types.CreateWarmPoolParams{
 		Snapshot: "my-snapshot",
 		Pool:     3,
 	})
@@ -34,7 +34,7 @@ func main() {
 
 	// List warm pools. CurrentSize vs Pool is the status check: CurrentSize is the
 	// number of ready sandboxes; ErrorReason is set when the pool cannot be filled.
-	pools, err := client.WarmPool.List(ctx)
+	pools, err := client.V1().WarmPool.List(ctx)
 	if err != nil {
 		log.Fatalf("Failed to list warm pools: %v", err)
 	}
@@ -47,14 +47,14 @@ func main() {
 	}
 
 	// Grow the pool. Setting the size to 0 drains it without deleting the pool.
-	updated, err := client.WarmPool.Update(ctx, pool.ID, 5)
+	updated, err := client.V1().WarmPool.Update(ctx, pool.ID, 5)
 	if err != nil {
 		log.Fatalf("Failed to update warm pool: %v", err)
 	}
 	log.Printf("✓ Updated desired size to %d\n", updated.Pool)
 
 	// Cleanup
-	if err := client.WarmPool.Delete(ctx, pool.ID); err != nil {
+	if err := client.V1().WarmPool.Delete(ctx, pool.ID); err != nil {
 		log.Fatalf("Failed to delete warm pool: %v", err)
 	}
 	log.Println("✓ Deleted warm pool")

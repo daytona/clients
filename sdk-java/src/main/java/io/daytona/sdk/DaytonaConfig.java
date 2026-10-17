@@ -3,6 +3,9 @@
 
 package io.daytona.sdk;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
+
 /**
  * Configuration used to initialize a {@link Daytona} client.
  *
@@ -10,6 +13,9 @@ package io.daytona.sdk;
  * when creating new Sandboxes.
  */
 public final class DaytonaConfig {
+    private static final Logger LOG = Logger.getLogger(DaytonaConfig.class.getName());
+    private static final AtomicBoolean TARGET_WARNING_EMITTED = new AtomicBoolean(false);
+
     private final String apiKey;
     private final String apiUrl;
     private final String target;
@@ -19,7 +25,7 @@ public final class DaytonaConfig {
     private DaytonaConfig(Builder builder) {
         this.apiKey = builder.apiKey;
         this.apiUrl = builder.apiUrl == null || builder.apiUrl.isEmpty()
-                ? "https://app.daytona.io/api"
+                ? DaytonaV1.V1_API_URL
                 : builder.apiUrl;
         this.target = builder.target;
         this.otelEnabled = builder.otelEnabled;
@@ -52,7 +58,10 @@ public final class DaytonaConfig {
      * overrides it.
      *
      * @return target region identifier, or {@code null} if not configured
+     * @deprecated {@code getTarget()} (and {@code DAYTONA_TARGET}) is deprecated and will be removed
+     *     in a future version. Pass target per sandbox create or regionId per snapshot create instead.
      */
+    @Deprecated(since = "1.0")
     public String getTarget() {
         return target;
     }
@@ -106,7 +115,7 @@ public final class DaytonaConfig {
         /**
          * Sets the Daytona API base URL.
          *
-         * @param apiUrl API URL to use; defaults to {@code https://app.daytona.io/api} when omitted
+         * @param apiUrl API URL to use; defaults to {@link DaytonaV1#V1_API_URL} when omitted
          * @return this builder instance
          */
         public Builder apiUrl(String apiUrl) {
@@ -121,8 +130,13 @@ public final class DaytonaConfig {
          *
          * @param target target location identifier
          * @return this builder instance
+         * @deprecated {@code Builder.target(String)} (and {@code DAYTONA_TARGET}) is deprecated and
+         *     will be removed in a future version. Pass target per sandbox create or regionId per
+         *     snapshot create instead.
          */
+        @Deprecated(since = "1.0")
         public Builder target(String target) {
+            warnTargetDeprecation(target);
             this.target = target;
             return this;
         }
@@ -165,6 +179,20 @@ public final class DaytonaConfig {
          */
         public DaytonaConfig build() {
             return new DaytonaConfig(this);
+        }
+    }
+
+    static void resetTargetDeprecationWarningForTests() {
+        TARGET_WARNING_EMITTED.set(false);
+    }
+
+    private static void warnTargetDeprecation(String target) {
+        if (target == null || target.isEmpty()) {
+            return;
+        }
+        if (TARGET_WARNING_EMITTED.compareAndSet(false, true)) {
+            LOG.warning("DaytonaConfig.target (and DAYTONA_TARGET) is deprecated and will be removed in a future version. "
+                    + "Pass target per sandbox create or regionId per snapshot create instead.");
         }
     }
 }

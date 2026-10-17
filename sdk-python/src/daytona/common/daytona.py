@@ -5,16 +5,18 @@ from __future__ import annotations
 
 import warnings
 from enum import Enum
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import override
 
+from .._versioning import TARGET_DEPRECATION_MESSAGE, warn_target_deprecation_once
 from .image import Image
 from .sandbox import Resources
 from .volume import VolumeMount
 
 CODE_TOOLBOX_LANGUAGE_LABEL = "code-toolbox-language"
+V1_API_URL: Final = "https://app.daytona.io/api"
 
 
 class CodeLanguage(str, Enum):
@@ -60,8 +62,9 @@ class DaytonaConfig(BaseModel):
             here or in the environment variable `DAYTONA_API_URL`.
         server_url (str | None): Deprecated. Use `api_url` instead. This property will be removed
             in a future version.
-        target (str | None): Default region for Sandboxes and Snapshots. Can also be set via the
-            environment variable `DAYTONA_TARGET`. A per-call `target` (Sandbox create params) or
+        target (str | None): Deprecated: pass `target` per Sandbox create and `region_id` per
+            Snapshot create instead. Default region for Sandboxes and Snapshots. Can also be set via the
+            environment variable `DAYTONA_TARGET` (also deprecated). A per-call `target` (Sandbox create params) or
             `region_id` (`CreateSnapshotParams`) overrides it; when neither is set, the
             organization's default region is used.
         connection_pool_maxsize (int | None): Maximum number of simultaneous HTTP connections
@@ -96,7 +99,9 @@ class DaytonaConfig(BaseModel):
             deprecated="`server_url` is deprecated and will be removed in a future version. Use `api_url` instead.",
         ),
     ] = None
-    target: str | None = None
+    # Deprecated: the validator warns once per process when it is set. Not marked
+    # with Field(deprecated=...), which would also warn on every attribute read.
+    target: Annotated[str | None, Field(default=None, description=TARGET_DEPRECATION_MESSAGE)] = None
     jwt_token: str | None = None
     organization_id: str | None = None
     connection_pool_maxsize: int | None = 250
@@ -121,7 +126,16 @@ class DaytonaConfig(BaseModel):
             )
             if "api_url" not in values or not values["api_url"]:
                 values["api_url"] = values["server_url"]
+        if "target" in values and values.get("target"):
+            warn_target_deprecation_once()
         return values
+
+    @override
+    def __setattr__(self, name: str, value: object) -> None:
+        # The validator above only runs on construction; warn on a later `config.target = ...` too.
+        if name == "target" and value:
+            warn_target_deprecation_once()
+        super().__setattr__(name, value)
 
 
 def resolve_bool_flag(explicit_value: bool | None, env_value: str | None) -> bool:

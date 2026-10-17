@@ -5,12 +5,12 @@ async function main() {
   const daytona = new Daytona()
 
   //  Create a new volume or get an existing one
-  const volume = await daytona.volume.get('my-volume', true)
+  const volume = await daytona.v1.volume.get('my-volume', true)
 
   // Mount the volume to the sandbox
   const mountDir1 = '/home/daytona/volume'
 
-  const sandbox1 = await daytona.create({
+  const sandbox1 = await daytona.v1.create({
     language: 'typescript',
     volumes: [{ volumeId: volume.id, mountPath: mountDir1 }],
   })
@@ -27,7 +27,7 @@ async function main() {
   // and mount it to the different path
   const mountDir2 = '/home/daytona/my-files'
 
-  const sandbox2 = await daytona.create({
+  const sandbox2 = await daytona.v1.create({
     language: 'typescript',
     volumes: [{ volumeId: volume.id, mountPath: mountDir2 }],
   })
@@ -44,7 +44,7 @@ async function main() {
   // This is useful for isolating data or implementing multi-tenancy
   const mountDir3 = '/home/daytona/subpath'
 
-  const sandbox3 = await daytona.create({
+  const sandbox3 = await daytona.v1.create({
     language: 'typescript',
     volumes: [{ volumeId: volume.id, mountPath: mountDir3, subpath: 'users/alice' }],
   })
@@ -58,10 +58,9 @@ async function main() {
   // but appears at: /home/daytona/subpath/alice-file.txt in the sandbox
 
   // Cleanup
-  await daytona.delete(sandbox1)
-  await daytona.delete(sandbox2)
-  await daytona.delete(sandbox3)
-  // await daytona.volume.delete(volume)
+  await daytona.v1.delete(sandbox1)
+  await daytona.v1.delete(sandbox2)
+  await daytona.v1.delete(sandbox3)
 }
 
 main()

@@ -9,9 +9,10 @@ hideTitleOnPage: true
 class Daytona()
 ```
 
-Main class for interacting with the Daytona API.
+The v1 client: creates, manages and interacts with Daytona Sandboxes.
 
-This class provides methods to create, manage, and interact with Daytona Sandboxes.
+Get it from the root client as `Daytona().v1` (`from daytona import Daytona`), or import it
+directly with `from daytona.v1 import Daytona`; the examples below use the direct import.
 It can be initialized either with explicit configuration or using environment variables.
 
 **Attributes**:
@@ -26,19 +27,22 @@ It can be initialized either with explicit configuration or using environment va
 
   Using environment variables:
 ```python
+from daytona.v1 import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
+
 daytona = Daytona()  # Uses DAYTONA_API_KEY, DAYTONA_API_URL
 sandbox = daytona.create()
 ```
   
   Using explicit configuration:
 ```python
+from daytona.v1 import CreateSandboxFromSnapshotParams, Daytona, DaytonaConfig
+
 config = DaytonaConfig(
     api_key="your-api-key",
     api_url="https://your-api.com",
-    target="us"
 )
 daytona = Daytona(config)
-sandbox = daytona.create()
+sandbox = daytona.create(CreateSandboxFromSnapshotParams(target="us"))
 ```
   
   Using OpenTelemetry tracing:
@@ -47,7 +51,7 @@ config = DaytonaConfig(
     api_key="your-api-key",
     experimental={"otelEnabled": True}  # Enable OpenTelemetry tracing through experimental config
 )
-async with Daytona(config) as daytona:
+with Daytona(config) as daytona:
     sandbox = daytona.create()
     # All SDK operations will be traced
 # OpenTelemetry traces are flushed on close
@@ -64,8 +68,9 @@ Initializes Daytona instance with optional configuration.
 If no config is provided, reads from environment variables:
 - `DAYTONA_API_KEY`: Required API key for authentication
 - `DAYTONA_API_URL`: Required api URL
-- `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
-for the organization is used). A per-call `target` / `region_id` overrides it
+- `DAYTONA_TARGET`: Deprecated; pass `target` / `region_id` per call instead. Optional default
+region for Sandboxes and Snapshots (if not provided, default region for the organization is
+used). A per-call `target` / `region_id` overrides it
 
 **Arguments**:
 
@@ -80,7 +85,7 @@ for the organization is used). A per-call `target` / `region_id` overrides it
 **Example**:
 
 ```python
-from daytona import Daytona, DaytonaConfig
+from daytona.v1 import Daytona, DaytonaConfig
 # Using environment variables
 daytona1 = Daytona()
 
@@ -88,10 +93,43 @@ daytona1 = Daytona()
 config = DaytonaConfig(
     api_key="your-api-key",
     api_url="https://your-api.com",
-    target="us"
 )
 daytona2 = Daytona(config)
 
+```
+
+#### Daytona.\_\_enter\_\_
+
+```python
+def __enter__() -> Daytona
+```
+
+Context manager entry.
+
+#### Daytona.\_\_exit\_\_
+
+```python
+def __exit__(exc_type: type[BaseException] | None = None,
+             exc_value: BaseException | None = None,
+             traceback: TracebackType | None = None) -> None
+```
+
+Context manager exit; closes the client.
+
+#### Daytona.close
+
+```python
+def close() -> None
+```
+
+Close the HTTP connections and background workers, and flush OpenTelemetry traces.
+
+**Example**:
+
+```python
+with Daytona() as daytona:
+    sandbox = daytona.create()
+# Automatically closed
 ```
 
 #### Daytona.create
@@ -388,8 +426,9 @@ Configuration options for initializing the Daytona client.
   here or in the environment variable `DAYTONA_API_URL`.
 - `server_url` _str | None_ - Deprecated. Use `api_url` instead. This property will be removed
   in a future version.
-- `target` _str | None_ - Default region for Sandboxes and Snapshots. Can also be set via the
-  environment variable `DAYTONA_TARGET`. A per-call `target` (Sandbox create params) or
+- `target` _str | None_ - Deprecated: pass `target` per Sandbox create and `region_id` per
+  Snapshot create instead. Default region for Sandboxes and Snapshots. Can also be set via the
+  environment variable `DAYTONA_TARGET` (also deprecated). A per-call `target` (Sandbox create params) or
   `region_id` (`CreateSnapshotParams`) overrides it; when neither is set, the
   organization's default region is used.
 - `connection_pool_maxsize` _int | None_ - Maximum number of simultaneous HTTP connections

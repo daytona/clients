@@ -2,14 +2,14 @@ import base64
 import os
 import time
 
-from daytona import (
+from daytona import Daytona
+from daytona.v1 import (
     BarChart,
     BoxAndWhiskerChart,
     Chart,
     ChartType,
     CompositeChart,
     CreateSandboxFromImageParams,
-    Daytona,
     Image,
     LineChart,
     PieChart,
@@ -76,7 +76,7 @@ plt.show()
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
     sandbox = daytona.create(
         CreateSandboxFromImageParams(
             image=Image.debian_slim("3.13").pip_install("matplotlib"),

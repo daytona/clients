@@ -47,7 +47,7 @@ func main() {
 		}
 	}()
 
-	sandbox1, err := client.Create(ctx, params1, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan))
+	sandbox1, err := client.V1().Create(ctx, params1, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox from image string: %v", err)
 	}
@@ -88,7 +88,7 @@ func main() {
 			log.Printf("[BUILD] %s\n", logLine)
 		}
 	}()
-	sandbox2, err := client.Create(ctx, params2, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan2))
+	sandbox2, err := client.V1().Create(ctx, params2, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan2))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox with custom image: %v", err)
 	}
@@ -179,7 +179,7 @@ if __name__ == '__main__':
 				log.Printf("[BUILD] %s\n", logLine)
 			}
 		}()
-		sandbox3, err := client.Create(ctx, params3, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan3))
+		sandbox3, err := client.V1().Create(ctx, params3, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan3))
 		if err != nil {
 			log.Fatalf("Failed to create sandbox with local files: %v", err)
 		}
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 			log.Printf("[BUILD] %s\n", logLine)
 		}
 	}()
-	sandbox4, err := client.Create(ctx, params4, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan4))
+	sandbox4, err := client.V1().Create(ctx, params4, options.WithTimeout(120*time.Second), options.WithLogChannel(logChan4))
 	if err != nil {
 		log.Fatalf("Failed to create DebianSlim sandbox: %v", err)
 	}

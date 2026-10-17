@@ -15,6 +15,7 @@ LIB_DIR = File.expand_path('../lib/daytona', __dir__)
 CLASSES_TO_DOCUMENT = [
   ['config.rb', 'config.mdx', 'Daytona::Config'],
   ['daytona.rb', 'daytona.mdx', 'Daytona::Daytona'],
+  ['daytona.rb', 'daytona.mdx', 'Daytona::V1::Daytona'],
   ['sandbox.rb', 'sandbox.mdx', 'Daytona::Sandbox'],
   ['file_system.rb', 'file-system.mdx', 'Daytona::FileSystem'],
   ['git.rb', 'git.mdx', 'Daytona::Git'],
@@ -132,11 +133,35 @@ def extract_attributes(obj)
   attributes
 end
 
+# YARD infers the constructor return type from the short class name, which is
+# ambiguous for versioned classes; use the full path for those.
+def constructor_return(obj, return_tag)
+  text = return_tag.text.to_s.strip
+  return [format_type(return_tag.types), text] unless obj.namespace.name == :V1
+
+  text = "a new instance of #{obj.path}" if text.start_with?('a new instance of')
+  [obj.path, text]
+end
+
+def deprecation_lines(method)
+  deprecated = method.tag(:deprecated)
+  return [] unless deprecated
+
+  ["**Deprecated**: #{deprecated.text.to_s.strip}".strip, '']
+end
+
+# Versioned classes keep their namespace so they do not collide with the root
+# class of the same name on one page.
+def display_name(obj)
+  obj.namespace.name == :V1 ? "V1::#{obj.name}" : extract_class_name_from_path(obj.path)
+end
+
 def generate_markdown_for_object(obj)
   content = []
 
   # Add main heading
-  content << "## #{obj.name}"
+  heading = display_name(obj)
+  content << "## #{heading}"
   content << ''
 
   # Add class description
@@ -179,7 +204,7 @@ def generate_markdown_for_object(obj)
     if constructor
       content << '### Constructors'
       content << ''
-      content << "#### new #{extract_class_name_from_path(obj.path)}()"
+      content << "#### new #{display_name(obj)}()"
       content << ''
 
       # Method signature
@@ -212,8 +237,7 @@ def generate_markdown_for_object(obj)
       # Returns
       return_tag = constructor.tag(:return)
       if return_tag
-        types = format_type(return_tag.types)
-        text = return_tag.text.to_s.strip
+        types, text = constructor_return(obj, return_tag)
         content << '**Returns**:'
         content << ''
         content << if text.empty?
@@ -264,6 +288,8 @@ def generate_markdown_for_object(obj)
             content << ''
           end
         end
+
+        content.concat(deprecation_lines(method))
 
         # Parameters
         params = method.tags(:param)

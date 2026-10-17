@@ -1,10 +1,11 @@
 import time
 
-from daytona import CreateSandboxFromSnapshotParams, CreateSecretParams, Daytona, UpdateSecretParams
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromSnapshotParams, CreateSecretParams, UpdateSecretParams
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
 
     # Create an organization secret. The plaintext value is stored encrypted and is
     # never returned by the API again. Use `hosts` to restrict where the value may be sent.

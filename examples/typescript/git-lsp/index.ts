@@ -1,4 +1,5 @@
-import { Daytona, Image } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v1'
 
 function section(title: string) {
   console.log(`\n=== ${title} ===`)
@@ -8,7 +9,7 @@ async function main() {
   const daytona = new Daytona()
 
   // Custom image with a TypeScript language server (for the LSP showcase) and git.
-  const sandbox = await daytona.create(
+  const sandbox = await daytona.v1.create(
     {
       image: Image.base('ubuntu:25.10').runCommands(
         'apt-get update && apt-get install -y --no-install-recommends nodejs npm coreutils git',
@@ -170,7 +171,7 @@ async function main() {
     console.error('Error executing example:', error)
     throw error
   } finally {
-    await daytona.delete(sandbox)
+    await daytona.v1.delete(sandbox)
   }
 }
 

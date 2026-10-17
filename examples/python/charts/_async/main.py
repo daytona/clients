@@ -3,8 +3,8 @@ import base64
 import os
 import time
 
-from daytona import (
-    AsyncDaytona,
+from daytona import AsyncDaytona
+from daytona.v1 import (
     BarChart,
     BoxAndWhiskerChart,
     Chart,
@@ -78,7 +78,8 @@ plt.show()
 
 
 async def main():
-    async with AsyncDaytona() as daytona:
+    async with AsyncDaytona() as daytona_root:
+        daytona = daytona_root.v1
         sandbox = await daytona.create(
             CreateSandboxFromImageParams(
                 image=Image.debian_slim("3.13").pip_install("matplotlib"),

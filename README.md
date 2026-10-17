@@ -46,7 +46,7 @@ dependencies {
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
-const sandbox = await daytona.create()
+const sandbox = await daytona.v1.create()
 const response = await sandbox.process.codeRun('print("Hello Daytona")')
 
 console.log(response.result)

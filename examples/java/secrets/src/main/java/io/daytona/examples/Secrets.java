@@ -27,7 +27,7 @@ public class Secrets {
             createParams.setValue("sk-ant-example-secret-value");
             createParams.setDescription("Example secret created by the Daytona SDK");
             createParams.setHosts(List.of("api.anthropic.com", "*.anthropic.com"));
-            Secret secret = daytona.secret().create(createParams);
+            Secret secret = daytona.v1().secret().create(createParams);
             System.out.println("Created secret '" + secret.getName() + "' (id: " + secret.getId() + ")");
             // The injected env var holds this opaque placeholder, never the plaintext value.
             System.out.println("Injected placeholder: " + secret.getPlaceholder());
@@ -37,7 +37,7 @@ public class Secrets {
             int count = 0;
             ListSecretsQuery listQuery = new ListSecretsQuery();
             while (true) {
-                ListSecretsResponse page = daytona.secret().list(listQuery);
+                ListSecretsResponse page = daytona.v1().secret().list(listQuery);
                 count += page.getItems().size();
                 if (page.getNextCursor() == null) {
                     System.out.println("Organization has " + page.getTotal() + " secret(s); listed " + count);
@@ -51,7 +51,7 @@ public class Secrets {
             CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
             params.setLanguage("python");
             params.setSecrets(Map.of("ANTHROPIC_API_KEY", secretName));
-            Sandbox sandbox = daytona.create(params);
+            Sandbox sandbox = daytona.v1().create(params);
 
             try {
                 // Inside the sandbox the env var holds the opaque placeholder, never the plaintext.
@@ -64,12 +64,12 @@ public class Secrets {
                 UpdateSecretParams updateParams = new UpdateSecretParams();
                 updateParams.setValue("sk-ant-rotated-value");
                 updateParams.setHosts(List.of("api.anthropic.com"));
-                Secret updated = daytona.secret().update(secret.getId(), updateParams);
+                Secret updated = daytona.v1().secret().update(secret.getId(), updateParams);
                 System.out.println("Updated secret '" + updated.getName() + "'; allowed hosts: " + updated.getHosts());
             } finally {
                 // Cleanup
                 sandbox.delete();
-                daytona.secret().delete(secret.getId());
+                daytona.v1().secret().delete(secret.getId());
                 System.out.println("Deleted sandbox and secret");
             }
         }

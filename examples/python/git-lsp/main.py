@@ -1,4 +1,5 @@
-from daytona import CreateSandboxFromImageParams, Daytona, Image, LspCompletionPosition
+from daytona import Daytona
+from daytona.v1 import CreateSandboxFromImageParams, Image, LspCompletionPosition
 
 
 def section(title: str) -> None:
@@ -6,7 +7,7 @@ def section(title: str) -> None:
 
 
 def main():
-    daytona = Daytona()
+    daytona = Daytona().v1
 
     # Custom image with a TypeScript language server (for the LSP showcase) and git.
     sandbox = daytona.create(

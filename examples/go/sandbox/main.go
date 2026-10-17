@@ -34,7 +34,7 @@ func main() {
 		},
 	}
 
-	sandbox, err := client.Create(ctx, params, options.WithTimeout(90*time.Second))
+	sandbox, err := client.V1().Create(ctx, params, options.WithTimeout(90*time.Second))
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -58,7 +58,7 @@ func main() {
 	limit := 10
 	sort := daytona.SandboxListSortFieldCreatedAt
 	order := daytona.SandboxListSortDirectionDesc
-	for sandbox, err := range client.ListSeq(ctx, &daytona.ListSandboxesQuery{
+	for sandbox, err := range client.V1().ListSeq(ctx, &daytona.ListSandboxesQuery{
 		Limit:  &limit,
 		Labels: map[string]string{"env": "dev"},
 		States: []daytona.SandboxState{daytona.SandboxStateStarted},

@@ -49,8 +49,10 @@ from .._utils.errors import intercept_errors
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.stream import process_streaming_response
 from .._utils.timeout import http_timeout, with_timeout
+from .._versioning import user_stacklevel, warn_target_deprecation_once
 from ..common.daytona import (
     CODE_TOOLBOX_LANGUAGE_LABEL,
+    V1_API_URL,
     CodeLanguage,
     CreateSandboxFromImageParams,
     CreateSandboxFromSnapshotParams,
@@ -109,10 +111,12 @@ def _resolve_happy_eyeballs_delay(raw: str | None) -> object:
 
 
 class AsyncDaytona:
-    """Main class for interacting with the Daytona API.
+    """The async v1 client: creates, manages and interacts with Daytona Sandboxes.
 
-    This class provides asynchronous methods to create, manage, and interact with Daytona Sandboxes.
-    It can be initialized either with explicit configuration or using environment variables.
+    Get it from the root client as `AsyncDaytona().v1` (`from daytona import AsyncDaytona`), or
+    import it directly with `from daytona.v1 import AsyncDaytona`; the examples below use the
+    direct import. It can be initialized either with explicit configuration or using environment
+    variables.
 
     Attributes:
         volume (AsyncVolumeService): Service for managing volumes.
@@ -123,20 +127,23 @@ class AsyncDaytona:
     Example:
         Using environment variables:
         ```python
+        from daytona.v1 import AsyncDaytona, CreateSandboxFromSnapshotParams, DaytonaConfig
+
         async with AsyncDaytona() as daytona:  # Uses DAYTONA_API_KEY, DAYTONA_API_URL
             sandbox = await daytona.create()
         ```
 
         Using explicit configuration:
         ```python
+        from daytona.v1 import AsyncDaytona, CreateSandboxFromSnapshotParams, DaytonaConfig
+
         config = DaytonaConfig(
             api_key="your-api-key",
             api_url="https://your-api.com",
-            target="us"
         )
         try:
             daytona = AsyncDaytona(config)
-            sandbox = await daytona.create()
+            sandbox = await daytona.create(CreateSandboxFromSnapshotParams(target="us"))
         finally:
             await daytona.close()
         ```
@@ -168,8 +175,9 @@ class AsyncDaytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
-          for the organization is used). A per-call `target` / `region_id` overrides it
+        - `DAYTONA_TARGET`: Deprecated; pass `target` / `region_id` per call instead. Optional default
+          region for Sandboxes and Snapshots (if not provided, default region for the organization is
+          used). A per-call `target` / `region_id` overrides it
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -179,7 +187,7 @@ class AsyncDaytona:
 
         Example:
             ```python
-            from daytona import Daytona, DaytonaConfig
+            from daytona.v1 import AsyncDaytona, DaytonaConfig
             # Using environment variables
             daytona1 = AsyncDaytona()
             await daytona1.close()
@@ -187,14 +195,12 @@ class AsyncDaytona:
             config = DaytonaConfig(
                 api_key="your-api-key",
                 api_url="https://your-api.com",
-                target="us"
             )
             daytona2 = AsyncDaytona(config)
             await daytona2.close()
             ```
         """
 
-        default_api_url = "https://app.daytona.io/api"
         self.default_language: CodeLanguage = CodeLanguage.PYTHON
         api_url = None
 
@@ -229,7 +235,10 @@ class AsyncDaytona:
                 or env_reader.get_from_process_env("DAYTONA_API_URL")
                 or env_reader.get_from_process_env("DAYTONA_SERVER_URL")
             )
-            self._target = self._target or env_reader.get("DAYTONA_TARGET")
+            env_target = env_reader.get("DAYTONA_TARGET")
+            if env_target and not self._target:
+                warn_target_deprecation_once()
+            self._target = self._target or env_target
 
             if env_reader.get_from_process_env("DAYTONA_SERVER_URL") and not env_reader.get_from_process_env(
                 "DAYTONA_API_URL"
@@ -238,10 +247,10 @@ class AsyncDaytona:
                     "Environment variable `DAYTONA_SERVER_URL` is deprecated and will be removed in future versions. "
                     + "Use `DAYTONA_API_URL` instead.",
                     DeprecationWarning,
-                    stacklevel=2,
+                    stacklevel=user_stacklevel(),
                 )
 
-        self._api_url = api_url or default_api_url
+        self._api_url = api_url or V1_API_URL
 
         # A dotenv file that tried to redirect the endpoint is always reported, however the
         # client was configured: it tells the caller the working directory is hostile, which
@@ -347,7 +356,7 @@ class AsyncDaytona:
                 "Polling-only mode (use_deprecated_polling / DAYTONA_USE_DEPRECATED_POLLING)"
                 " is deprecated and will be removed in a future release."
             )
-            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=2)
+            warnings.warn(_polling_msg, DeprecationWarning, stacklevel=user_stacklevel())
 
         if not use_deprecated_polling:
             self._event_dispatcher = AsyncEventDispatcher(

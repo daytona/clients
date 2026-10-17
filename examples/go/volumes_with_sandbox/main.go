@@ -26,7 +26,7 @@ func main() {
 	// Create a volume with a unique name
 	volumeName := fmt.Sprintf("data-volume-%d", time.Now().Unix())
 	log.Printf("Creating volume: %s\n", volumeName)
-	volume, err := client.Volume.Create(ctx, volumeName)
+	volume, err := client.V1().Volume.Create(ctx, volumeName)
 	if err != nil {
 		log.Fatalf("Failed to create volume: %v", err)
 	}
@@ -34,7 +34,7 @@ func main() {
 
 	// Wait for volume to be ready
 	log.Println("Waiting for volume to become ready...")
-	volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
+	volume, err = client.V1().Volume.WaitForReady(ctx, volume, 60*time.Second)
 	if err != nil {
 		log.Fatalf("Failed waiting for volume: %v", err)
 	}
@@ -63,11 +63,11 @@ func main() {
 			log.Printf("[BUILD] %s\n", logLine)
 		}
 	}()
-	sandbox, err := client.Create(ctx, params, options.WithLogChannel(logChan))
+	sandbox, err := client.V1().Create(ctx, params, options.WithLogChannel(logChan))
 	if err != nil {
 		log.Printf("Failed to create sandbox with volume: %v", err)
 		// Clean up volume and exit
-		_ = client.Volume.Delete(ctx, volume)
+		_ = client.V1().Volume.Delete(ctx, volume)
 		log.Fatalf("Exiting due to error")
 	}
 
@@ -103,7 +103,7 @@ func main() {
 	}
 
 	// Delete volume (should still be in active state)
-	if err := client.Volume.Delete(ctx, volume); err != nil {
+	if err := client.V1().Volume.Delete(ctx, volume); err != nil {
 		log.Printf("Failed to delete volume: %v", err)
 	} else {
 		log.Println("✓ Deleted volume")

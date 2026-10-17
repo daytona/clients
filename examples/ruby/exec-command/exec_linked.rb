@@ -4,7 +4,7 @@
 require 'daytona'
 
 def main
-  daytona = Daytona::Daytona.new
+  daytona = Daytona::Daytona.new.v1
 
   owner = daytona.create
   puts "Owner sandbox ready: id=#{owner.id}"
@@ -12,7 +12,7 @@ def main
   # Linked sandboxes must be ephemeral — `ephemeral: true` sets
   # `auto_delete_interval=0` automatically.
   follower = daytona.create(
-    Daytona::CreateSandboxFromSnapshotParams.new(
+    Daytona::V1::CreateSandboxFromSnapshotParams.new(
       linked_sandbox: owner.id,
       ephemeral: true
     )

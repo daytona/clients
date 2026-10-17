@@ -15,13 +15,14 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
+//	v1 := client.V1()
 //
 // The client reads configuration from environment variables:
 //   - DAYTONA_API_KEY: API key for authentication
 //   - DAYTONA_JWT_TOKEN: JWT token for authentication (alternative to API key)
 //   - DAYTONA_ORGANIZATION_ID: Organization ID (required when using JWT token)
-//   - DAYTONA_API_URL: API URL (defaults to https://app.daytona.io/api)
-//   - DAYTONA_TARGET: Default region for sandboxes and snapshots (a per-call Target / RegionID overrides it)
+//   - DAYTONA_API_URL: API URL (defaults to https://app.daytona.io/api, [V1APIURL])
+//   - DAYTONA_TARGET: Deprecated default region for sandboxes and snapshots (a per-call Target / RegionID overrides it)
 //
 // Or provide configuration explicitly:
 //
@@ -29,18 +30,22 @@
 //	    APIKey: "your-api-key",
 //	    APIUrl: "https://your-instance.daytona.io/api",
 //	})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	v1 := client.V1()
 //
 // # Creating Sandboxes
 //
 // Create a sandbox from a snapshot:
 //
-//	sandbox, err := client.Create(ctx, types.SnapshotParams{
+//	sandbox, err := v1.Create(ctx, types.SnapshotParams{
 //	    Snapshot: "my-snapshot",
 //	})
 //
 // Create a sandbox from a Docker image:
 //
-//	sandbox, err := client.Create(ctx, types.ImageParams{
+//	sandbox, err := v1.Create(ctx, types.ImageParams{
 //	    Image: "python:3.11",
 //	})
 //
@@ -78,8 +83,11 @@ import (
 )
 
 const (
+	// V1APIURL is the default Daytona API endpoint used when no custom URL is configured.
+	V1APIURL = "https://app.daytona.io/api"
+
 	// defaultAPIURL is the default Daytona API endpoint used when no custom URL is configured.
-	defaultAPIURL = "https://app.daytona.io/api"
+	defaultAPIURL = V1APIURL
 
 	// sdkSource identifies requests as originating from the Go SDK for telemetry purposes.
 	sdkSource = "sdk-go"
@@ -88,11 +96,12 @@ const (
 	defaultTimeout = 60 * time.Second
 )
 
-// Client is the main entry point for interacting with the Daytona platform.
+// Client is the SDK 1.x root client.
 //
-// Client provides methods to create, retrieve, list, and manage sandboxes. It handles
-// authentication, API communication, and provides access to services like Volume and Snapshot
-// management.
+// It owns one [V1Client], returned by [Client.V1] (the same instance on every call); use
+// client.V1() for sandbox and service operations, the form SDK 2.x keeps. The root resource
+// methods and service fields forward to the V1Client and are deprecated; the first call to a
+// deprecated method prints one deprecation warning per process. [Client.Close] is not deprecated.
 //
 // Create a Client using [NewClient] or [NewClientWithConfig]:
 //
@@ -110,8 +119,12 @@ type Client struct {
 	region          string             // Region for sandbox creation
 	httpClient      *http.Client       // HTTP client for API requests
 	defaultLanguage types.CodeLanguage // Default programming language for code execution
+	v1              *V1Client
+	v1Once          sync.Once
 
-	// Otel holds OpenTelemetry state; nil when OTel is disabled.
+	// Deprecated: Use client.V1().Otel instead. The root form is removed in SDK 2.x.
+	// It points at the same service as client.V1().Otel when the client is created; assigning
+	// one of the two fields later does not update the other.
 	Otel *otelState
 
 	// apiClient is the underlying OpenAPI-generated client
@@ -125,16 +138,24 @@ type Client struct {
 
 	subscriptionManager *common.EventSubscriptionManager
 
-	// Volume provides methods for managing persistent volumes.
+	// Deprecated: Use client.V1().Volume instead. The root form is removed in SDK 2.x.
+	// It points at the same service as client.V1().Volume when the client is created; assigning
+	// one of the two fields later does not update the other.
 	Volume *VolumeService
 
-	// Snapshot provides methods for managing sandbox snapshots.
+	// Deprecated: Use client.V1().Snapshot instead. The root form is removed in SDK 2.x.
+	// It points at the same service as client.V1().Snapshot when the client is created; assigning
+	// one of the two fields later does not update the other.
 	Snapshot *SnapshotService
 
-	// Secret provides methods for managing organization secrets.
+	// Deprecated: Use client.V1().Secret instead. The root form is removed in SDK 2.x.
+	// It points at the same service as client.V1().Secret when the client is created; assigning
+	// one of the two fields later does not update the other.
 	Secret *SecretService
 
-	// WarmPool provides methods for managing warm pools of ready sandboxes.
+	// Deprecated: Use client.V1().WarmPool instead. The root form is removed in SDK 2.x.
+	// It points at the same service as client.V1().WarmPool when the client is created; assigning
+	// one of the two fields later does not update the other.
 	WarmPool *WarmPoolService
 }
 
@@ -144,7 +165,7 @@ type Client struct {
 //   - DAYTONA_API_KEY or DAYTONA_JWT_TOKEN for authentication (one is required)
 //   - DAYTONA_ORGANIZATION_ID (required when using JWT token)
 //   - DAYTONA_API_URL for custom API endpoint
-//   - DAYTONA_TARGET for the default region of sandboxes and snapshots
+//   - DAYTONA_TARGET for the deprecated default region of sandboxes and snapshots
 //
 // For explicit configuration, use [NewClientWithConfig] instead.
 func NewClient() (*Client, error) {
@@ -190,8 +211,9 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 		if config.APIUrl != "" {
 			client.apiURL = config.APIUrl
 		}
-		if config.Target != "" {
-			client.region = config.Target
+		if config.Target != "" { //nolint:staticcheck // deprecated field must keep working until removal.
+			warnDeprecatedTargetUsage()
+			client.region = config.Target //nolint:staticcheck // deprecated field must keep working until removal.
 		}
 	}
 
@@ -218,7 +240,7 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	}
 
 	if client.apiURL == "" {
-		client.apiURL = defaultAPIURL
+		client.apiURL = V1APIURL
 		if apiURL := os.Getenv("DAYTONA_API_URL"); apiURL != "" {
 			client.apiURL = apiURL
 		} else if serverURL := os.Getenv("DAYTONA_SERVER_URL"); serverURL != "" {
@@ -227,7 +249,10 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	}
 
 	if client.region == "" {
-		client.region = os.Getenv("DAYTONA_TARGET")
+		if target := os.Getenv("DAYTONA_TARGET"); target != "" {
+			warnDeprecatedTargetUsage()
+			client.region = target
+		}
 	}
 
 	// Initialize api-client-go
@@ -273,10 +298,14 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	}
 
 	// Initialize services
-	client.Volume = NewVolumeService(client)
-	client.Snapshot = NewSnapshotService(client)
-	client.Secret = NewSecretService(client)
-	client.WarmPool = NewWarmPoolService(client)
+	volumeService := NewVolumeService(client)
+	snapshotService := NewSnapshotService(client)
+	secretService := NewSecretService(client)
+	warmPoolService := NewWarmPoolService(client)
+	client.Volume = volumeService
+	client.Snapshot = snapshotService
+	client.Secret = secretService
+	client.WarmPool = warmPoolService
 	client.subscriptionManager = common.NewEventSubscriptionManager(nil)
 
 	token := client.apiKey
@@ -288,6 +317,8 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 		client.subscriptionManager = common.NewEventSubscriptionManager(client.eventDispatcher)
 		client.eventDispatcher.EnsureConnected()
 	}
+
+	client.v1 = newV1Client(client)
 
 	return client, nil
 }
@@ -302,10 +333,7 @@ func useDeprecatedPolling(config *types.DaytonaConfig) bool {
 	return envPolling
 }
 
-// Close shuts down the client and releases resources.
-// When OpenTelemetry is enabled, Close flushes and shuts down the OTel providers.
-// It is safe to call Close even when OTel is not enabled.
-func (c *Client) Close(ctx context.Context) error {
+func (c *Client) close(ctx context.Context) error {
 	if c.subscriptionManager != nil {
 		c.subscriptionManager.Shutdown()
 	}
@@ -402,41 +430,13 @@ func (c *Client) createToolboxClient(proxyURL string, sandboxID string) (*toolbo
 	return toolbox.NewAPIClient(cfg), nil
 }
 
-// Create creates a new sandbox with the specified parameters.
+// Create creates a new sandbox. It forwards to [V1Client.Create]; see there for the
+// parameters, options and examples.
 //
-// The params argument accepts either [types.SnapshotParams] to create from a snapshot,
-// or [types.ImageParams] to create from a Docker image (a pointer to either is also accepted):
-//
-//	// Create from a snapshot
-//	sandbox, err := client.Create(ctx, types.SnapshotParams{
-//	    Snapshot: "my-snapshot",
-//	    SandboxBaseParams: types.SandboxBaseParams{
-//	        Name: "my-sandbox",
-//	    },
-//	})
-//
-//	// Create from a Docker image
-//	sandbox, err := client.Create(ctx, types.ImageParams{
-//	    Image: "python:3.11",
-//	    Resources: &types.Resources{
-//	        CPU:    2,
-//	        Memory: 4096,
-//	    },
-//	})
-//
-// By default, Create waits for the sandbox to reach the started state before returning.
-// Use [options.WithWaitForStart](false) to return immediately after creation.
-//
-// Optional parameters can be configured using functional options:
-//   - [options.WithTimeout]: Set maximum wait time for creation
-//   - [options.WithWaitForStart]: Control whether to wait for started state
-//   - [options.WithLogChannel]: Receive build logs during image builds
-//
-// Returns the created [Sandbox] or an error if creation fails.
+// Deprecated: Use client.V1().Create instead. The root form is removed in SDK 2.x.
 func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.CreateSandbox)) (*Sandbox, error) {
-	return withInstrumentation(ctx, c.Otel, "Client", "Create", func(ctx context.Context) (*Sandbox, error) {
-		return c.doCreate(ctx, params, opts...)
-	})
+	warnDeprecatedRootMember("Create")
+	return c.V1().Create(ctx, params, opts...)
 }
 
 func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options.CreateSandbox)) (*Sandbox, error) {
@@ -735,25 +735,13 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	return sandbox, nil
 }
 
-// Get retrieves an existing sandbox by its ID or name.
+// Get retrieves a sandbox by ID or name. It forwards to [V1Client.Get]; see there for the
+// error behaviour and an example.
 //
-// The sandboxIDOrName parameter accepts either the sandbox's unique ID or its
-// human-readable name. If a sandbox with the given identifier is not found,
-// a [*errors.DaytonaError] matching [errors.ErrNotFound] is returned.
-//
-// Example:
-//
-//	sandbox, err := client.Get(ctx, "my-sandbox")
-//	if err != nil {
-//	    if errors.Is(err, sdkerrors.ErrNotFound) {
-//	        log.Println("Sandbox not found")
-//	    }
-//	    return err
-//	}
+// Deprecated: Use client.V1().Get instead. The root form is removed in SDK 2.x.
 func (c *Client) Get(ctx context.Context, sandboxIDOrName string) (*Sandbox, error) {
-	return withInstrumentation(ctx, c.Otel, "Client", "Get", func(ctx context.Context) (*Sandbox, error) {
-		return c.doGet(ctx, sandboxIDOrName)
-	})
+	warnDeprecatedRootMember("Get")
+	return c.V1().Get(ctx, sandboxIDOrName)
 }
 
 func (c *Client) doGet(ctx context.Context, sandboxIDOrName string) (*Sandbox, error) {
@@ -776,21 +764,8 @@ func (c *Client) doGet(ctx context.Context, sandboxIDOrName string) (*Sandbox, e
 	return NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager), nil
 }
 
-// List returns an iterator over Sandboxes matching the given query, following
-// the [database/sql.Rows] / [bufio.Scanner] iterator pattern.
-//
-// For Go 1.23+ range-over-func consumers, see [Client.ListSeq].
-//
-// Example:
-//
-//	iter := client.List(ctx, &ListSandboxesQuery{Labels: map[string]string{"env": "dev"}})
-//	for iter.Next() {
-//	    fmt.Println(iter.Value().ID)
-//	}
-//	if err := iter.Err(); err != nil {
-//	    log.Fatal(err)
-//	}
-func (c *Client) List(ctx context.Context, query *ListSandboxesQuery) *SandboxIterator {
+// list implements [V1Client.List].
+func (c *Client) list(ctx context.Context, query *ListSandboxesQuery) *SandboxIterator {
 	return &SandboxIterator{
 		client: c,
 		ctx:    ctx,
@@ -798,21 +773,10 @@ func (c *Client) List(ctx context.Context, query *ListSandboxesQuery) *SandboxIt
 	}
 }
 
-// ListSeq returns a Go 1.23+ range-over-func iterator over Sandboxes matching
-// the given query. Each yielded pair is (sandbox, error); a non-nil error
-// terminates iteration and the consumer should break out of the range.
-//
-// Example:
-//
-//	for sandbox, err := range client.ListSeq(ctx, &ListSandboxesQuery{...}) {
-//	    if err != nil {
-//	        log.Fatal(err)
-//	    }
-//	    fmt.Println(sandbox.ID)
-//	}
-func (c *Client) ListSeq(ctx context.Context, query *ListSandboxesQuery) iter.Seq2[*Sandbox, error] {
+// listSeq implements [V1Client.ListSeq].
+func (c *Client) listSeq(ctx context.Context, query *ListSandboxesQuery) iter.Seq2[*Sandbox, error] {
 	return func(yield func(*Sandbox, error) bool) {
-		it := c.List(ctx, query)
+		it := c.list(ctx, query)
 		for it.Next() {
 			if !yield(it.Value(), nil) {
 				return
