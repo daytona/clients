@@ -11,9 +11,9 @@ requires-python = ">=3.10"
 
 dependencies = [
   "python-dateutil (>=2.9.0.post0)",
-  "aiohttp (>=3.14.4)",
+  "aiohttp (>=3.14.5)",
   "aiohttp-retry (>=2.9.1)",
-  "pydantic (>=2.14.0)",
+  "pydantic (>=2.14.1)",
   "typing-extensions (>=4.16.0)",
 ]
 
