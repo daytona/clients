@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 
@@ -404,6 +405,25 @@ class TestImageChaining:
 
 
 class TestImageAddLocal:
+    @pytest.mark.parametrize("remote_path", ["/app/files with spaces", '/app/files with "quotes"'])
+    @pytest.mark.parametrize("is_directory", [False, True])
+    def test_add_local_preserves_copy_paths(self, tmp_path, remote_path, is_directory):
+        local_path = tmp_path / "files with spaces"
+        archive_path = str(local_path.relative_to(local_path.anchor))
+        img = Image.base("python:3.12")
+        if is_directory:
+            local_path.mkdir()
+            img.add_local_dir(local_path, remote_path)
+        else:
+            local_path.write_text("test content")
+            img.add_local_file(local_path, remote_path)
+
+        copy_line = img.dockerfile().splitlines()[-1]
+        assert copy_line.startswith("COPY ")
+        assert json.loads(copy_line.removeprefix("COPY ")) == [archive_path, remote_path]
+        assert img._context_list[0].source_path == str(local_path)
+        assert img._context_list[0].archive_path == archive_path
+
     def test_add_local_file(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("test content")

@@ -243,7 +243,7 @@ class Image(BaseModel):
 
         archive_path = ObjectStorage.compute_archive_base_path(local_path)
         self._context_list.append(Context(source_path=local_path, archive_path=archive_path))
-        self._dockerfile += f"COPY {archive_path} {remote_path}\n"
+        self._dockerfile += f"COPY {json.dumps([archive_path, remote_path])}\n"
 
         return self
 
@@ -271,7 +271,7 @@ class Image(BaseModel):
 
         archive_path = ObjectStorage.compute_archive_base_path(local_path)
         self._context_list.append(Context(source_path=local_path, archive_path=archive_path))
-        self._dockerfile += f"COPY {archive_path} {remote_path}\n"
+        self._dockerfile += f"COPY {json.dumps([archive_path, remote_path])}\n"
 
         return self
 
