@@ -7,9 +7,9 @@ type WebpackGlobals = typeof globalThis & { __webpack_require__?: unknown; __non
 
 const notFound = (message: string) => Object.assign(new Error(message), { code: 'MODULE_NOT_FOUND' })
 
-// Models a node_modules tree: `installs` maps a directory to the packages resolvable from it.
-// The bundle's own require resolves from `/app`.
-const fakeWebpack = (installs: Record<string, string[]>) => {
+// Models a node_modules tree: `installs` maps a directory to the packages resolvable from it,
+// or to the error resolving them throws. The bundle's own require resolves from `/app`.
+const fakeWebpack = (installs: Record<string, Array<string | [string, Error]>>) => {
   const fastGlob = Object.assign(() => [], { sync: () => [] })
   const load = jest.fn((path: string) => {
     if (path.endsWith('/fast-glob/out/index.js')) return fastGlob
@@ -17,7 +17,9 @@ const fakeWebpack = (installs: Record<string, string[]>) => {
   })
   const requireFrom = (dir: string) => {
     const resolve = jest.fn((id: string) => {
-      if (!(installs[dir] ?? []).includes(id)) throw notFound(`Cannot find module '${id}'\nRequire stack:\n- ${dir}`)
+      const entry = (installs[dir] ?? []).find((e) => (typeof e === 'string' ? e : e[0]) === id)
+      if (Array.isArray(entry)) throw entry[1]
+      if (!entry) throw notFound(`Cannot find module '${id}'\nRequire stack:\n- ${dir}`)
       return id.endsWith('/package.json') ? `${dir}/node_modules/${id}` : `${dir}/node_modules/${id}/out/index.js`
     })
     return Object.assign(
@@ -38,7 +40,7 @@ const fakeWebpack = (installs: Record<string, string[]>) => {
   const g = globalThis as WebpackGlobals
   g.__webpack_require__ = () => undefined
   g.__non_webpack_require__ = runtimeRequire
-  return { fastGlob, load, createRequire, sdkRequires }
+  return { fastGlob, load, createRequire, sdkRequires, bundleResolve: bundleRequire.resolve }
 }
 
 describe('fast-glob loading', () => {
@@ -109,5 +111,43 @@ describe('fast-glob loading', () => {
 
     expect(() => dynamicRequire('fast-glob')).toThrow(loadError.message)
     expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls through when an SDK install does not export its package.json', () => {
+    const { fastGlob, load } = fakeWebpack({
+      '/app': [
+        [
+          '@daytona/sdk/package.json',
+          Object.assign(new Error('not exported'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }),
+        ],
+        '@daytonaio/sdk/package.json',
+      ],
+      '/app/node_modules/@daytonaio/sdk': ['fast-glob'],
+    })
+
+    expect(dynamicRequire('fast-glob')).toBe(fastGlob)
+    expect(load).toHaveBeenCalledWith('/app/node_modules/@daytonaio/sdk/node_modules/fast-glob/out/index.js')
+  })
+
+  it('propagates an SDK install resolution error that is not a miss', () => {
+    const { bundleResolve } = fakeWebpack({
+      '/app': ['@daytona/sdk/package.json', 'fast-glob'],
+      '/app/node_modules/@daytona/sdk': [
+        ['fast-glob', Object.assign(new Error('invalid package config'), { code: 'ERR_INVALID_PACKAGE_CONFIG' })],
+      ],
+    })
+
+    expect(() => dynamicRequire('fast-glob')).toThrow(/invalid package config$/)
+    expect(bundleResolve).not.toHaveBeenCalledWith('fast-glob')
+  })
+
+  it('propagates a bundle resolution error that is not a miss, without the install hint', () => {
+    fakeWebpack({
+      '/app': [
+        ['fast-glob', Object.assign(new Error('invalid package config'), { code: 'ERR_INVALID_PACKAGE_CONFIG' })],
+      ],
+    })
+
+    expect(() => dynamicRequire('fast-glob')).toThrow(/invalid package config$/)
   })
 })
