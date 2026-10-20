@@ -28,7 +28,16 @@ const requireFastGlob = () => {
       continue
     }
   }
-  return __non_webpack_require__('fast-glob')
+  try {
+    return __non_webpack_require__('fast-glob')
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `${msg}. This app was bundled with webpack or Rspack, which load fast-glob from node_modules at runtime: ` +
+        'deploy the bundle with @daytona/sdk installed',
+      { cause: err },
+    )
+  }
 }
 
 const loaderMap = {

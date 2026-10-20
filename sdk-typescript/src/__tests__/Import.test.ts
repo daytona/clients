@@ -59,6 +59,20 @@ describe('fast-glob loading', () => {
     expect(unresolvable.runtimeRequire).toHaveBeenCalledWith('fast-glob')
   })
 
+  it('tells a bundled app to install the SDK when fast-glob is missing', () => {
+    const { runtimeRequire, createRequire } = fakeWebpack(() => {
+      throw new Error('not found')
+    })
+    runtimeRequire.mockImplementation((id: string) => {
+      if (id === 'module') return { createRequire }
+      throw new Error(`Cannot find module '${id}'`)
+    })
+
+    expect(() => dynamicRequire('fast-glob')).toThrow(
+      /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk installed/,
+    )
+  })
+
   it('falls back to the bundle require when the SDK install cannot load fast-glob', () => {
     const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
     sdkRequire.mockImplementation(() => {
