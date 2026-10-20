@@ -65,12 +65,13 @@ describe('fast-glob loading', () => {
     })
     runtimeRequire.mockImplementation((id: string) => {
       if (id === 'module') return { createRequire }
-      throw new Error(`Cannot find module '${id}'`)
+      throw new Error(`Cannot find module '${id}'\nRequire stack:\n- /app/main.js`)
     })
 
     expect(() => dynamicRequire('fast-glob')).toThrow(
-      /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk installed/,
+      /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk installed$/,
     )
+    expect(() => dynamicRequire('fast-glob')).not.toThrow(/Require stack/)
   })
 
   it('falls back to the bundle require when the SDK install cannot load fast-glob', () => {
