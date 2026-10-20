@@ -685,6 +685,7 @@ describe('Image', () => {
     expect(split('ctx/{sub/c.txt,a.txt}')).toEqual(['ctx', '{sub/c.txt,a.txt}'])
     expect(split('a/@(x/y|z)/c')).toEqual(['a', '@(x/y|z)', 'c'])
     expect(split('proj(old/sub/*.txt')).toEqual(['proj(old', 'sub', '*.txt'])
+    expect(split('{app/(marketing)/page.tsx,a.txt}')).toEqual(['{app/(marketing)/page.tsx,a.txt}'])
     expect(split('/a\\{b/c')).toEqual(['', 'a\\{b', 'c'])
   })
 })

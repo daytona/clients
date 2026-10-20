@@ -838,8 +838,8 @@ export class Image {
 
   /**
    * Expands a COPY source glob. Only the source is parsed as a glob; the context directory is
-   * taken literally, as Docker does. Matches keep the context prefix as written, which callers
-   * slice to get archive paths.
+   * taken literally, as Docker does. Matches are prefixed with the joined context directory, which
+   * callers slice to get archive paths.
    *
    * @param {any} tinyglobby - The tinyglobby module.
    * @param {string} pathPrefix - The context directory prefix.
@@ -871,14 +871,17 @@ export class Image {
    */
   private static splitGlobSegments(pattern: string): string[] {
     const segments: string[] = []
-    let depth = 0
+    let braces = 0
+    let parens = 0
     let start = 0
     for (let i = 0; i < pattern.length; i++) {
       const char = pattern[i]
       if (char === '\\') i++
-      else if (char === '{' || (char === '(' && i > 0 && '@!?+*'.includes(pattern[i - 1]))) depth++
-      else if ((char === '}' || char === ')') && depth > 0) depth--
-      else if (char === '/' && depth === 0) {
+      else if (char === '{') braces++
+      else if (char === '}' && braces > 0) braces--
+      else if (char === '(' && i > 0 && '@!?+*'.includes(pattern[i - 1])) parens++
+      else if (char === ')' && parens > 0) parens--
+      else if (char === '/' && braces === 0 && parens === 0) {
         segments.push(pattern.slice(start, i))
         start = i + 1
       }
