@@ -13,5 +13,5 @@ node dist/esm/main.js
 # The CommonJS bundle is self-contained: it must also run with no node_modules in reach.
 isolated="$(mktemp -d)"
 cp -r dist/cjs/. "$isolated/"
-(cd "$isolated" && node main.js)
+(cd "$isolated" && env -u NODE_PATH node main.js)
 rm -rf "$isolated"
