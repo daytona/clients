@@ -8,6 +8,7 @@ type WebpackGlobals = typeof globalThis & { __webpack_require__?: unknown; __non
 describe('fast-glob loading', () => {
   const g = globalThis as WebpackGlobals
   const fastGlob = Object.assign(() => [], { sync: () => [] })
+  const notFound = (message = 'not found') => Object.assign(new Error(message), { code: 'MODULE_NOT_FOUND' })
 
   afterEach(() => {
     delete g.__webpack_require__
@@ -44,7 +45,7 @@ describe('fast-glob loading', () => {
   it('falls back to the legacy package name, then to the bundle require', () => {
     const legacy = fakeWebpack((id) => {
       if (id.startsWith('@daytonaio/sdk/')) return `/app/node_modules/${id}`
-      throw new Error('not found')
+      throw notFound()
     })
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
     expect(legacy.createRequire).toHaveBeenCalledWith('/app/node_modules/@daytonaio/sdk/package.json')
@@ -52,7 +53,7 @@ describe('fast-glob loading', () => {
     expect(legacy.runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
 
     const unresolvable = fakeWebpack(() => {
-      throw new Error('not found')
+      throw notFound()
     })
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
     expect(unresolvable.createRequire).not.toHaveBeenCalled()
@@ -61,15 +62,15 @@ describe('fast-glob loading', () => {
 
   it('tells a bundled app to install the SDK when fast-glob is missing', () => {
     const { runtimeRequire, createRequire } = fakeWebpack(() => {
-      throw new Error('not found')
+      throw notFound()
     })
     runtimeRequire.mockImplementation((id: string) => {
       if (id === 'module') return { createRequire }
-      throw new Error(`Cannot find module '${id}'\nRequire stack:\n- /app/main.js`)
+      throw notFound(`Cannot find module '${id}'\nRequire stack:\n- /app/main.js`)
     })
 
     expect(() => dynamicRequire('fast-glob')).toThrow(
-      /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk installed$/,
+      /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk \(or @daytonaio\/sdk\) installed$/,
     )
     expect(() => dynamicRequire('fast-glob')).not.toThrow(/Require stack/)
   })
@@ -77,11 +78,21 @@ describe('fast-glob loading', () => {
   it('falls back to the bundle require when the SDK install cannot load fast-glob', () => {
     const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
     sdkRequire.mockImplementation(() => {
-      throw new Error('not found')
+      throw notFound()
     })
 
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
     expect(sdkRequire).toHaveBeenCalledTimes(2)
     expect(runtimeRequire).toHaveBeenCalledWith('fast-glob')
+  })
+
+  it('surfaces a fast-glob that is installed but fails to load', () => {
+    const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
+    sdkRequire.mockImplementation(() => {
+      throw new Error('fast-glob init failure')
+    })
+
+    expect(() => dynamicRequire('fast-glob')).toThrow(/fast-glob init failure$/)
+    expect(runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
   })
 })

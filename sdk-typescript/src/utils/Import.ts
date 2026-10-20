@@ -18,23 +18,29 @@ declare const __non_webpack_require__: NodeRequire
 // braces/picomatch dependencies. Inside such a bundle, fast-glob is resolved from the SDK's own
 // install first, so layouts that do not hoist it next to the app (pnpm, Yarn PnP) still find it.
 // Plain Node and other bundlers take the literal require.
+const isNotFound = (err: unknown) => {
+  const code = (err as { code?: unknown } | null)?.code
+  return code === 'MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+}
+
 const requireFastGlob = () => {
   if (typeof __webpack_require__ !== 'function') return require('fast-glob')
   const { createRequire } = __non_webpack_require__('module') as typeof import('module')
   for (const sdkName of ['@daytona/sdk', '@daytonaio/sdk']) {
     try {
       return createRequire(__non_webpack_require__.resolve(`${sdkName}/package.json`))('fast-glob')
-    } catch {
-      continue
+    } catch (err) {
+      if (!isNotFound(err)) throw err
     }
   }
   try {
     return __non_webpack_require__('fast-glob')
   } catch (err) {
+    if (!isNotFound(err)) throw err
     const msg = (err instanceof Error ? err.message : String(err)).split('\n')[0]
     throw new Error(
       `${msg}. This app was bundled with webpack or Rspack, which load fast-glob from node_modules at runtime: ` +
-        'deploy the bundle with @daytona/sdk installed',
+        'deploy the bundle with @daytona/sdk (or @daytonaio/sdk) installed',
       { cause: err },
     )
   }
