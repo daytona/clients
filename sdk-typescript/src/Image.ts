@@ -696,7 +696,7 @@ export class Image {
 
             // Glob from the pattern's static base and keep that base as written, so matches start
             // with `pathPrefix` the way callers slice archive paths (tinyglobby would shorten them).
-            const segments = fullPathPattern.split('/')
+            const segments = Image.splitGlobSegments(fullPathPattern)
             let baseLength = segments.findIndex((segment) => isDynamicPattern(segment))
             if (baseLength === -1) baseLength = segments.length - 1
             const base = segments.slice(0, baseLength).join('/') || (pathe.isAbsolute(fullPathPattern) ? '/' : '')
@@ -799,6 +799,31 @@ export class Image {
    * @param {string} line - The line to parse.
    * @returns {Object} The parsed sources and destination.
    */
+  /**
+   * Splits a glob pattern on the `/` separators outside brace and extglob groups, so a group
+   * such as `{sub/a.txt,b.txt}` stays one segment.
+   *
+   * @param {string} pattern - The glob pattern.
+   * @returns {string[]} The pattern's path segments.
+   */
+  private static splitGlobSegments(pattern: string): string[] {
+    const segments: string[] = []
+    let depth = 0
+    let start = 0
+    for (let i = 0; i < pattern.length; i++) {
+      const char = pattern[i]
+      if (char === '\\') i++
+      else if (char === '{' || char === '(') depth++
+      else if ((char === '}' || char === ')') && depth > 0) depth--
+      else if (char === '/' && depth === 0) {
+        segments.push(pattern.slice(start, i))
+        start = i + 1
+      }
+    }
+    segments.push(pattern.slice(start))
+    return segments
+  }
+
   private static parseCopyCommand(line: string): { sources: string[]; dest: string } | null {
     // Remove initial "COPY" and strip whitespace
     let parts = line.trim().substring(4).trim()

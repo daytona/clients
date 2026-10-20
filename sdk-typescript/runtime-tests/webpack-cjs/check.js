@@ -30,9 +30,17 @@ module.exports = async function check({ Daytona, Image }) {
     fs.writeFileSync(path.join(dir, 'src', 'b.txt'), 'b')
     fs.writeFileSync(path.join(dir, 'Dockerfile'), 'FROM alpine\nCOPY ["src/*.txt", "/app/"]\n')
     const fromDockerfile = Image.fromDockerfile(path.join(dir, 'Dockerfile'))
-    const copied = fromDockerfile.contextList.map((c) => path.basename(c.sourcePath)).sort()
-    if (copied.join(',') !== 'a.txt,b.txt') {
-      throw new Error(`fromDockerfile resolved COPY glob to [${copied}], expected [a.txt,b.txt]`)
+    const copied = JSON.stringify(
+      fromDockerfile.contextList
+        .map((c) => [path.relative(dir, c.sourcePath), c.archivePath])
+        .sort(([a], [b]) => a.localeCompare(b)),
+    )
+    const expected = JSON.stringify([
+      [path.join('src', 'a.txt'), 'src/a.txt'],
+      [path.join('src', 'b.txt'), 'src/b.txt'],
+    ])
+    if (copied !== expected) {
+      throw new Error(`fromDockerfile resolved COPY glob to ${copied}, expected ${expected}`)
     }
 
     const withDir = Image.debianSlim('3.12').addLocalDir(path.join(dir, 'src'), '/app/src')

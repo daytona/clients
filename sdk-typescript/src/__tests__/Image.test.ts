@@ -632,14 +632,13 @@ describe('Image', () => {
       // The second form leaves the working directory and re-enters it.
       for (const contextDir of ['ctx', `../${path.basename(dir)}/ctx`]) {
         const image = Image.base('alpine').dockerfileCommands(
-          ['COPY ["*.txt", "/app/"]', 'COPY ["sub/**", "/app/sub/"]'],
+          ['COPY ["*.txt", "/app/"]', 'COPY ["sub/**", "/app/sub/"]', 'COPY ["{sub/c.txt,a.txt}", "/app/"]'],
           contextDir,
         )
 
-        expect(image.contextList).toEqual([
-          { sourcePath: `${contextDir}/a.txt`, archivePath: 'a.txt' },
-          { sourcePath: `${contextDir}/sub/c.txt`, archivePath: 'sub/c.txt' },
-        ])
+        const a = { sourcePath: `${contextDir}/a.txt`, archivePath: 'a.txt' }
+        const c = { sourcePath: `${contextDir}/sub/c.txt`, archivePath: 'sub/c.txt' }
+        expect(image.contextList).toEqual([a, c, ...[a, c].sort((x, y) => x.sourcePath.localeCompare(y.sourcePath))])
       }
     } finally {
       process.chdir(originalCwd)
