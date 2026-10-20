@@ -5,27 +5,48 @@ import { dynamicImport, dynamicRequire } from '../utils/Import'
 
 type WebpackGlobals = typeof globalThis & { __webpack_require__?: unknown; __non_webpack_require__?: unknown }
 
-describe('fast-glob loading', () => {
-  const g = globalThis as WebpackGlobals
-  const fastGlob = Object.assign(() => [], { sync: () => [] })
-  const notFound = (message = 'not found') => Object.assign(new Error(message), { code: 'MODULE_NOT_FOUND' })
+const notFound = (message: string) => Object.assign(new Error(message), { code: 'MODULE_NOT_FOUND' })
 
+// Models a node_modules tree: `installs` maps a directory to the packages resolvable from it.
+// The bundle's own require resolves from `/app`.
+const fakeWebpack = (installs: Record<string, string[]>) => {
+  const fastGlob = Object.assign(() => [], { sync: () => [] })
+  const load = jest.fn((path: string) => {
+    if (path.endsWith('/fast-glob/out/index.js')) return fastGlob
+    throw new Error(`unexpected load ${path}`)
+  })
+  const requireFrom = (dir: string) => {
+    const resolve = jest.fn((id: string) => {
+      if (!(installs[dir] ?? []).includes(id)) throw notFound(`Cannot find module '${id}'\nRequire stack:\n- ${dir}`)
+      return id.endsWith('/package.json') ? `${dir}/node_modules/${id}` : `${dir}/node_modules/${id}/out/index.js`
+    })
+    return Object.assign(
+      jest.fn((id: string) => load(id.startsWith('/') ? id : resolve(id))),
+      { resolve },
+    )
+  }
+  const sdkRequires: Record<string, ReturnType<typeof requireFrom>> = {}
+  const createRequire = jest.fn((manifest: string) => {
+    const dir = manifest.replace(/\/package\.json$/, '')
+    return (sdkRequires[dir] ??= requireFrom(dir))
+  })
+  const bundleRequire = requireFrom('/app')
+  const runtimeRequire = Object.assign(
+    jest.fn((id: string) => (id === 'module' ? { createRequire } : bundleRequire(id))),
+    { resolve: bundleRequire.resolve },
+  )
+  const g = globalThis as WebpackGlobals
+  g.__webpack_require__ = () => undefined
+  g.__non_webpack_require__ = runtimeRequire
+  return { fastGlob, load, createRequire, sdkRequires }
+}
+
+describe('fast-glob loading', () => {
   afterEach(() => {
+    const g = globalThis as WebpackGlobals
     delete g.__webpack_require__
     delete g.__non_webpack_require__
   })
-
-  const fakeWebpack = (resolveSdkManifest: (id: string) => string) => {
-    const sdkRequire = jest.fn(() => fastGlob)
-    const createRequire = jest.fn(() => sdkRequire)
-    const runtimeRequire = Object.assign(
-      jest.fn((id: string) => (id === 'module' ? { createRequire } : fastGlob)),
-      { resolve: jest.fn(resolveSdkManifest) },
-    )
-    g.__webpack_require__ = () => undefined
-    g.__non_webpack_require__ = runtimeRequire
-    return { runtimeRequire, createRequire, sdkRequire }
-  }
 
   it('loads the real fast-glob outside webpack', async () => {
     expect(typeof dynamicRequire('fast-glob').sync).toBe('function')
@@ -33,41 +54,40 @@ describe('fast-glob loading', () => {
   })
 
   it('resolves fast-glob from the SDK install inside a webpack bundle', async () => {
-    const { runtimeRequire, createRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
+    const { fastGlob, load } = fakeWebpack({
+      '/app': ['@daytona/sdk/package.json'],
+      '/app/node_modules/@daytona/sdk': ['fast-glob'],
+    })
 
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
     expect(await dynamicImport('fast-glob')).toBe(fastGlob)
-    expect(createRequire).toHaveBeenCalledWith('/app/node_modules/@daytona/sdk/package.json')
-    expect(sdkRequire).toHaveBeenCalledWith('fast-glob')
-    expect(runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
+    expect(load).toHaveBeenCalledWith('/app/node_modules/@daytona/sdk/node_modules/fast-glob/out/index.js')
   })
 
-  it('falls back to the legacy package name, then to the bundle require', () => {
-    const legacy = fakeWebpack((id) => {
-      if (id.startsWith('@daytonaio/sdk/')) return `/app/node_modules/${id}`
-      throw notFound()
+  it('falls back to the legacy SDK install', () => {
+    const { fastGlob, load } = fakeWebpack({
+      '/app': ['@daytonaio/sdk/package.json'],
+      '/app/node_modules/@daytonaio/sdk': ['fast-glob'],
     })
-    expect(dynamicRequire('fast-glob')).toBe(fastGlob)
-    expect(legacy.createRequire).toHaveBeenCalledWith('/app/node_modules/@daytonaio/sdk/package.json')
-    expect(legacy.sdkRequire).toHaveBeenCalledWith('fast-glob')
-    expect(legacy.runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
 
-    const unresolvable = fakeWebpack(() => {
-      throw notFound()
-    })
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
-    expect(unresolvable.createRequire).not.toHaveBeenCalled()
-    expect(unresolvable.runtimeRequire).toHaveBeenCalledWith('fast-glob')
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(load).toHaveBeenCalledWith('/app/node_modules/@daytonaio/sdk/node_modules/fast-glob/out/index.js')
+  })
+
+  it('falls back to the bundle require when no SDK install resolves fast-glob', () => {
+    const { fastGlob, load } = fakeWebpack({
+      '/app': ['@daytona/sdk/package.json', 'fast-glob'],
+      '/app/node_modules/@daytona/sdk': [],
+    })
+
+    expect(dynamicRequire('fast-glob')).toBe(fastGlob)
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(load).toHaveBeenCalledWith('/app/node_modules/fast-glob/out/index.js')
   })
 
   it('tells a bundled app to install the SDK when fast-glob is missing', () => {
-    const { runtimeRequire, createRequire } = fakeWebpack(() => {
-      throw notFound()
-    })
-    runtimeRequire.mockImplementation((id: string) => {
-      if (id === 'module') return { createRequire }
-      throw notFound(`Cannot find module '${id}'\nRequire stack:\n- /app/main.js`)
-    })
+    fakeWebpack({ '/app': [] })
 
     expect(() => dynamicRequire('fast-glob')).toThrow(
       /Cannot find module 'fast-glob'\. This app was bundled with webpack or Rspack.*@daytona\/sdk \(or @daytonaio\/sdk\) installed$/,
@@ -75,24 +95,19 @@ describe('fast-glob loading', () => {
     expect(() => dynamicRequire('fast-glob')).not.toThrow(/Require stack/)
   })
 
-  it('falls back to the bundle require when the SDK install cannot load fast-glob', () => {
-    const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
-    sdkRequire.mockImplementation(() => {
-      throw notFound()
+  it.each([
+    ['fails to initialize', new Error('fast-glob init failure')],
+    ['misses a dependency', notFound("Cannot find module '@nodelib/fs.stat'")],
+  ])('surfaces a resolved fast-glob that %s', (_, loadError) => {
+    const { load } = fakeWebpack({
+      '/app': ['@daytona/sdk/package.json', 'fast-glob'],
+      '/app/node_modules/@daytona/sdk': ['fast-glob'],
+    })
+    load.mockImplementation(() => {
+      throw loadError
     })
 
-    expect(dynamicRequire('fast-glob')).toBe(fastGlob)
-    expect(sdkRequire).toHaveBeenCalledTimes(2)
-    expect(runtimeRequire).toHaveBeenCalledWith('fast-glob')
-  })
-
-  it('surfaces a fast-glob that is installed but fails to load', () => {
-    const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
-    sdkRequire.mockImplementation(() => {
-      throw new Error('fast-glob init failure')
-    })
-
-    expect(() => dynamicRequire('fast-glob')).toThrow(/fast-glob init failure$/)
-    expect(runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
+    expect(() => dynamicRequire('fast-glob')).toThrow(loadError.message)
+    expect(load).toHaveBeenCalledTimes(1)
   })
 })
