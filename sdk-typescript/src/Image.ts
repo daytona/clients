@@ -679,7 +679,7 @@ export class Image {
         }
 
         const importErrorPrefix = '"extractCopySources" is not supported: '
-        const { globSync } = dynamicRequire('tinyglobby', importErrorPrefix)
+        const { globSync, isDynamicPattern } = dynamicRequire('tinyglobby', importErrorPrefix)
         const fs = dynamicRequire('fs', importErrorPrefix)
         const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
 
@@ -694,11 +694,17 @@ export class Image {
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
-            const matchingFiles: string[] = globSync([fullPathPattern], {
+            // Glob from the pattern's static base and keep that base as written, so matches start
+            // with `pathPrefix` the way callers slice archive paths (tinyglobby would shorten them).
+            const segments = fullPathPattern.split('/')
+            let baseLength = segments.findIndex((segment) => isDynamicPattern(segment))
+            if (baseLength === -1) baseLength = segments.length - 1
+            const base = segments.slice(0, baseLength).join('/') || (pathe.isAbsolute(fullPathPattern) ? '/' : '')
+            const matchingFiles: string[] = globSync([segments.slice(baseLength).join('/')], {
+              cwd: base || '.',
               dot: true,
               expandDirectories: false,
-              absolute: pathe.isAbsolute(fullPathPattern),
-            })
+            }).map((match: string) => pathe.join(base, match))
             if (matchingFiles.length > 0) {
               for (const matchingFile of matchingFiles) {
                 Image.ensureWithinBuildContext(fs, realRoot, matchingFile)

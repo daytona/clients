@@ -10,6 +10,7 @@ jest.mock('../utils/Import', () => ({
 describe('Image', () => {
   // extractCopySources resolves candidates through fs, so every dynamicRequire mock supplies it
   const fsStub = { realpathSync: (target: string) => target, lstatSync: () => undefined }
+  const { isDynamicPattern } = jest.requireActual<typeof import('tinyglobby')>('tinyglobby')
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -120,12 +121,12 @@ describe('Image', () => {
       lstatSync: jest.fn(() => undefined),
     }
     const expandTilde = (value: string) => value
-    const fastGlob = { globSync: jest.fn(() => ['/repo/src']) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn(() => ['src']) }
 
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fs') return fsModule
       if (moduleName === 'expand-tilde') return expandTilde
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       return {}
     })
 
@@ -195,7 +196,7 @@ describe('Image', () => {
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fs') return fsModule
       if (moduleName === 'expand-tilde') return (value: string) => value
-      if (moduleName === 'tinyglobby') return { globSync: jest.fn(() => []) }
+      if (moduleName === 'tinyglobby') return { isDynamicPattern, globSync: jest.fn(() => []) }
       return {}
     })
 
@@ -318,9 +319,9 @@ describe('Image', () => {
 
   it('extractCopySources and parseCopyCommand handle copy variants', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn(() => ['/repo/a.txt']) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn(() => ['a.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -340,9 +341,9 @@ describe('Image', () => {
 
   it('extractCopySources reads escaping sources by default and rejects them when strict', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -365,9 +366,9 @@ describe('Image', () => {
 
   it('extractCopySources rejects a source reached through a symlinked directory when strict', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn(() => ['/repo/dirlink/secret.txt']) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn(() => ['secret.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') {
         return {
           realpathSync: (target: string) => (target === '/repo/dirlink/secret.txt' ? '/outside/secret.txt' : target),
@@ -400,12 +401,12 @@ describe('Image', () => {
       realpathSync: jest.fn((target: string) => target),
       lstatSync: jest.fn(() => undefined),
     }
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
 
     mockDynamicRequire.mockImplementation((moduleName: string) => {
       if (moduleName === 'fs') return fsModule
       if (moduleName === 'expand-tilde') return (value: string) => value
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       return {}
     })
 
@@ -431,7 +432,7 @@ describe('Image', () => {
 
   it('dockerfileCommands resolves strict sources against the expanded context directory', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => [patterns[0]]) }
     const fsModule = {
       existsSync: jest.fn(() => true),
       statSync: jest.fn(() => ({ isDirectory: () => true, isFile: () => true })),
@@ -439,7 +440,7 @@ describe('Image', () => {
       lstatSync: jest.fn(() => undefined),
     }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsModule
       if (moduleName === 'expand-tilde') return (value: string) => value.replace('~', '/home/user')
       return {}
@@ -466,9 +467,9 @@ describe('Image', () => {
 
   it('extractCopySources joins backslash-continued COPY instructions', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => patterns) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -487,9 +488,9 @@ describe('Image', () => {
 
   it('extractCopySources ignores comment lines inside a continued COPY instruction', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => patterns) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -505,9 +506,9 @@ describe('Image', () => {
 
   it('extractCopySources ignores blank lines inside a continued COPY instruction', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => patterns) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -522,9 +523,9 @@ describe('Image', () => {
 
   it('extractCopySources does not continue a comment line that ends with a backslash', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn((patterns: string[]) => patterns) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn((patterns: string[]) => patterns) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -539,9 +540,9 @@ describe('Image', () => {
 
   it('extractCopySources ignores heredoc and stage copy commands', async () => {
     const { Image } = await import('../Image')
-    const fastGlob = { globSync: jest.fn(() => ['/repo/a.txt']) }
+    const tinyglobby = { isDynamicPattern, globSync: jest.fn(() => ['b.txt']) }
     mockDynamicRequire.mockImplementation((moduleName: string) => {
-      if (moduleName === 'tinyglobby') return fastGlob
+      if (moduleName === 'tinyglobby') return tinyglobby
       if (moduleName === 'fs') return fsStub
       return {}
     })
@@ -552,7 +553,7 @@ describe('Image', () => {
       '/repo',
     ) as Array<[string, string]>
 
-    expect(sources).toEqual([['/repo/a.txt', './b.txt']])
+    expect(sources).toEqual([['/repo/b.txt', './b.txt']])
   })
 
   it('parseCopyCommand keeps the sources after a boolean flag such as --link', async () => {
@@ -586,21 +587,63 @@ describe('Image', () => {
     mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
 
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
-    for (const file of ['src/a.txt', 'src/b.txt', 'src/.env', 'src/nested/c.txt', 'conf/app.json']) {
-      fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
-      fs.writeFileSync(path.join(dir, file), '')
+    try {
+      for (const file of ['src/a.txt', 'src/b.txt', 'src/.env', 'src/nested/c.txt', 'conf/app.json']) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      const absoluteConf = path.join(dir, 'conf', '*.json')
+      fs.writeFileSync(
+        path.join(dir, 'Dockerfile'),
+        `FROM alpine\nCOPY ["src/*", "/app/"]\nCOPY ["src", "/src/"]\nCOPY ["${absoluteConf}", "/conf/"]\n`,
+      )
+
+      const image = Image.fromDockerfile(path.join(dir, 'Dockerfile'))
+
+      expect(image.contextList.map((c) => c.sourcePath).sort()).toEqual(
+        ['conf/app.json', 'src', 'src/.env', 'src/a.txt', 'src/b.txt'].map((f) => path.join(dir, f)),
+      )
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
     }
-    const absoluteConf = path.join(dir, 'conf', '*.json')
-    fs.writeFileSync(
-      path.join(dir, 'Dockerfile'),
-      `FROM alpine\nCOPY ["src/*", "/app/"]\nCOPY ["src", "/src/"]\nCOPY ["${absoluteConf}", "/conf/"]\n`,
-    )
+  })
 
-    const image = Image.fromDockerfile(path.join(dir, 'Dockerfile'))
+  it('dockerfileCommands archives glob matches relative to a relative context directory', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
 
-    expect(image.contextList.map((c) => c.sourcePath).sort()).toEqual(
-      ['conf/app.json', 'src', 'src/.env', 'src/a.txt', 'src/b.txt'].map((f) => path.join(dir, f)),
-    )
-    fs.rmSync(dir, { recursive: true, force: true })
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    const originalCwd = process.cwd()
+    try {
+      for (const file of ['ctx/a.txt', 'ctx/sub/c.txt']) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      process.chdir(dir)
+
+      // The second form leaves the working directory and re-enters it.
+      for (const contextDir of ['ctx', `../${path.basename(dir)}/ctx`]) {
+        const image = Image.base('alpine').dockerfileCommands(
+          ['COPY ["*.txt", "/app/"]', 'COPY ["sub/**", "/app/sub/"]'],
+          contextDir,
+        )
+
+        expect(image.contextList).toEqual([
+          { sourcePath: `${contextDir}/a.txt`, archivePath: 'a.txt' },
+          { sourcePath: `${contextDir}/sub/c.txt`, archivePath: 'sub/c.txt' },
+        ])
+      }
+    } finally {
+      process.chdir(originalCwd)
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
