@@ -48,7 +48,7 @@ const requireMap = {
 }
 
 const validateMap: Record<string, (mod: any) => boolean> = {
-  tinyglobby: (mod: any) => typeof mod?.globSync === 'function',
+  tinyglobby: (mod: any) => typeof mod?.globSync === 'function' && typeof mod?.isDynamicPattern === 'function',
   '@iarna/toml': (mod: any) => typeof mod.parse === 'function' && typeof mod.stringify === 'function',
   stream: (mod: any) => typeof mod.Readable === 'function' && typeof mod.Writable === 'function',
   tar: (mod: any) => typeof mod.extract === 'function' && typeof mod.create === 'function',

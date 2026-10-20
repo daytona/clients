@@ -848,18 +848,53 @@ export class Image {
    */
   private static expandCopySource(tinyglobby: any, pathPrefix: string, source: string): string[] {
     const absolute = pathe.isAbsolute(source)
-    const segments = Image.splitGlobSegments(absolute ? source : pathe.normalize(source))
-    const baseLength = segments.findIndex((segment) => tinyglobby.isDynamicPattern(segment))
+    const normalized = absolute ? source : pathe.normalize(source)
+    // Like `main`, a glob with a trailing separator is kept as a literal path that fails upload
+    // loudly, rather than silently matching only the files below it.
+    if (normalized.endsWith('/')) return []
+    const segments = Image.splitGlobSegments(normalized)
+    const globSegments = segments.map((segment) => Image.escapeLiteralParens(segment))
+    const baseLength = globSegments.findIndex((segment) => tinyglobby.isDynamicPattern(segment))
     if (baseLength === -1) return []
 
     const staticPart = segments.slice(0, baseLength).join('/')
     const base = absolute ? staticPart || '/' : pathe.join(pathPrefix, staticPart)
-    let pattern = segments.slice(baseLength).join('/')
+    let pattern = globSegments.slice(baseLength).join('/')
     // A leading `!` would make tinyglobby read the pattern as a negation; Docker reads it literally
     if (pattern.startsWith('!') && !pattern.startsWith('!(')) pattern = `\\${pattern}`
 
     const matches: string[] = tinyglobby.globSync([pattern], { cwd: base, dot: true, expandDirectories: false })
     return matches.map((match) => pathe.join(base, match))
+  }
+
+  /**
+   * Escapes parentheses that do not open an extglob group (`@(`, `!(`, `?(`, `+(`, `*(`), so a
+   * directory such as Next.js's `(marketing)` matches literally, as Docker reads it.
+   *
+   * @param {string} segment - A glob path segment.
+   * @returns {string} The segment with its literal parentheses escaped.
+   */
+  private static escapeLiteralParens(segment: string): string {
+    let escaped = ''
+    const groups: boolean[] = []
+    for (let i = 0; i < segment.length; i++) {
+      const char = segment[i]
+      if (char === '\\') {
+        escaped += char + (segment[i + 1] ?? '')
+        i++
+      } else if (char === '(') {
+        const extglob = i > 0 && '@!?+*'.includes(segment[i - 1])
+        groups.push(extglob)
+        escaped += extglob ? char : '\\('
+      } else if (char === ')' && groups.length > 0) {
+        escaped += groups.pop() ? char : '\\)'
+      } else if (char === ')') {
+        escaped += '\\)'
+      } else {
+        escaped += char
+      }
+    }
+    return escaped
   }
 
   /**

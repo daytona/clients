@@ -646,7 +646,7 @@ describe('Image', () => {
     }
   })
 
-  it('dockerfileCommands reads a leading ! and the context directory literally', async () => {
+  it('dockerfileCommands reads a leading !, bare parentheses and the context directory literally', async () => {
     const { Image } = await import('../Image')
     const fs = jest.requireActual<typeof import('fs')>('fs')
     const os = jest.requireActual<typeof import('os')>('os')
@@ -662,23 +662,43 @@ describe('Image', () => {
     try {
       // An unbalanced parenthesis in the context path must not swallow the source's separators
       const contextDir = path.join(dir, 'proj(old', 'ctx')
-      for (const file of ['a.txt', 'sub/c.txt', 'sub/!n.txt']) {
+      for (const file of [
+        'a.txt',
+        'sub/c.txt',
+        'sub/!n.txt',
+        '!d/x.txt',
+        'app/(marketing)/page.tsx',
+        'app/marketing/other.tsx',
+      ]) {
         fs.mkdirSync(path.dirname(path.join(contextDir, file)), { recursive: true })
         fs.writeFileSync(path.join(contextDir, file), '')
       }
 
       const image = Image.base('alpine').dockerfileCommands(
-        ['COPY ["sub/!*.txt", "/app/"]', 'COPY ["{sub/c.txt,a.txt}", "/app/"]'],
+        [
+          'COPY ["sub/!*.txt", "/app/"]',
+          'COPY ["!d/*.txt", "/app/"]',
+          'COPY ["{sub/c.txt,a.txt}", "/app/"]',
+          'COPY ["app/(marketing)/*", "/app/"]',
+          'COPY ["sub/*/", "/app/"]',
+        ],
         contextDir,
       )
 
-      expect(image.contextList.map((c) => c.archivePath).sort()).toEqual(['a.txt', 'sub/!n.txt', 'sub/c.txt'])
+      expect(image.contextList.map((c) => c.archivePath).sort()).toEqual([
+        '!d/x.txt',
+        'a.txt',
+        'app/(marketing)/page.tsx',
+        'sub/!n.txt',
+        'sub/*/',
+        'sub/c.txt',
+      ])
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('splitGlobSegments splits only on separators outside groups and escapes', async () => {
+  it('splitGlobSegments and escapeLiteralParens tell glob groups from literal characters', async () => {
     const { Image } = await import('../Image')
     const split = (Image as unknown as Record<string, (pattern: string) => string[]>).splitGlobSegments
 
@@ -686,6 +706,12 @@ describe('Image', () => {
     expect(split('a/@(x/y|z)/c')).toEqual(['a', '@(x/y|z)', 'c'])
     expect(split('proj(old/sub/*.txt')).toEqual(['proj(old', 'sub', '*.txt'])
     expect(split('{app/(marketing)/page.tsx,a.txt}')).toEqual(['{app/(marketing)/page.tsx,a.txt}'])
+
+    const escape = (Image as unknown as Record<string, (segment: string) => string>).escapeLiteralParens
+    expect(escape('(marketing)')).toBe('\\(marketing\\)')
+    expect(escape('@(a|b).txt')).toBe('@(a|b).txt')
+    expect(escape('+(x(y))')).toBe('+(x\\(y\\))')
+    expect(escape('a\\(b')).toBe('a\\(b')
     expect(split('/a\\{b/c')).toEqual(['', 'a\\{b', 'c'])
   })
 })

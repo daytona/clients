@@ -8691,7 +8691,7 @@ __metadata:
     shell-quote: "npm:^1.12.0"
     socket.io-client: "npm:^4.8.4"
     tar: "npm:^7.5.22"
-    tinyglobby: "npm:^0.2.15"
+    tinyglobby: "npm:^0.2.16"
     ts-jest: "npm:29.4.14"
     ts-node: "npm:10.9.2"
     tslib: "npm:^2.8.1"
@@ -17590,7 +17590,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinyglobby@npm:^0.2.15":
+"tinyglobby@npm:^0.2.15, tinyglobby@npm:^0.2.16":
   version: 0.2.17
   resolution: "tinyglobby@npm:0.2.17"
   dependencies:
