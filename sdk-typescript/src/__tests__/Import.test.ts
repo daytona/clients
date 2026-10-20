@@ -48,6 +48,8 @@ describe('fast-glob loading', () => {
     })
     expect(dynamicRequire('fast-glob')).toBe(fastGlob)
     expect(legacy.createRequire).toHaveBeenCalledWith('/app/node_modules/@daytonaio/sdk/package.json')
+    expect(legacy.sdkRequire).toHaveBeenCalledWith('fast-glob')
+    expect(legacy.runtimeRequire).not.toHaveBeenCalledWith('fast-glob')
 
     const unresolvable = fakeWebpack(() => {
       throw new Error('not found')
