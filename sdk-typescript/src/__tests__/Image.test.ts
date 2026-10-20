@@ -588,7 +588,7 @@ describe('Image', () => {
 
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
     try {
-      for (const file of ['src/a.txt', 'src/b.txt', 'src/.env', 'src/nested/c.txt', 'conf/app.json']) {
+      for (const file of ['src/a.txt', 'src/b.txt', 'src/.env', 'conf/app.json']) {
         fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
         fs.writeFileSync(path.join(dir, file), '')
       }

@@ -849,8 +849,8 @@ export class Image {
   private static expandCopySource(tinyglobby: any, pathPrefix: string, source: string): string[] {
     const absolute = pathe.isAbsolute(source)
     const normalized = absolute ? source : pathe.normalize(source)
-    // Like `main`, a glob with a trailing separator is kept as a literal path that fails upload
-    // loudly, rather than silently matching only the files below it.
+    // A glob with a trailing separator is kept as a literal path so that upload fails loudly,
+    // instead of silently matching only the files below it.
     if (normalized.endsWith('/')) return []
     const segments = Image.splitGlobSegments(normalized)
     const globSegments = segments.map((segment) => Image.escapeLiteralParens(segment))
