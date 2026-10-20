@@ -679,7 +679,7 @@ export class Image {
         }
 
         const importErrorPrefix = '"extractCopySources" is not supported: '
-        const fg = dynamicRequire('fast-glob', importErrorPrefix)
+        const { globSync } = dynamicRequire('tinyglobby', importErrorPrefix)
         const fs = dynamicRequire('fs', importErrorPrefix)
         const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
 
@@ -694,7 +694,11 @@ export class Image {
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
-            const matchingFiles = fg.sync([fullPathPattern], { dot: true })
+            const matchingFiles: string[] = globSync([fullPathPattern], {
+              dot: true,
+              expandDirectories: false,
+              absolute: pathe.isAbsolute(fullPathPattern),
+            })
             if (matchingFiles.length > 0) {
               for (const matchingFile of matchingFiles) {
                 Image.ensureWithinBuildContext(fs, realRoot, matchingFile)

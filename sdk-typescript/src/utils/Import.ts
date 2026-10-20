@@ -9,54 +9,8 @@
 import { DaytonaError } from '../errors/DaytonaError'
 import { RUNTIME } from './Runtime'
 
-declare const __webpack_require__: unknown
-declare const __non_webpack_require__: NodeRequire
-
-// Webpack and webpack-compatible bundlers (Rspack) fold `typeof __webpack_require__` to a
-// constant and drop the literal require, so fast-glob stays out of the bundle graph and loads
-// from node_modules at runtime: webpack production builds of CommonJS apps fail in fast-glob's
-// braces/picomatch dependencies. Inside such a bundle, fast-glob is resolved from the SDK's own
-// install first, so layouts that do not hoist it next to the app (pnpm, Yarn PnP) still find it.
-// Plain Node and other bundlers take the literal require.
-// Only a failure to resolve fast-glob falls through to the next location; load errors (a broken
-// install, a missing transitive dependency) propagate unchanged.
-const isNotFound = (err: unknown) => {
-  const code = (err as { code?: unknown } | null)?.code
-  return code === 'MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
-}
-
-const requireFastGlob = () => {
-  if (typeof __webpack_require__ !== 'function') return require('fast-glob')
-  const { createRequire } = __non_webpack_require__('module') as typeof import('module')
-  for (const sdkName of ['@daytona/sdk', '@daytonaio/sdk']) {
-    let sdkRequire: NodeRequire
-    let fastGlobPath: string
-    try {
-      sdkRequire = createRequire(__non_webpack_require__.resolve(`${sdkName}/package.json`))
-      fastGlobPath = sdkRequire.resolve('fast-glob')
-    } catch (err) {
-      if (isNotFound(err)) continue
-      throw err
-    }
-    return sdkRequire(fastGlobPath)
-  }
-  let fastGlobPath: string
-  try {
-    fastGlobPath = __non_webpack_require__.resolve('fast-glob')
-  } catch (err) {
-    if (!isNotFound(err)) throw err
-    const msg = (err instanceof Error ? err.message : String(err)).split('\n')[0]
-    throw new Error(
-      `${msg}. This app was bundled with webpack or Rspack, which load fast-glob from node_modules at runtime: ` +
-        'deploy the bundle with @daytona/sdk (or @daytonaio/sdk) installed',
-      { cause: err },
-    )
-  }
-  return __non_webpack_require__(fastGlobPath)
-}
-
 const loaderMap = {
-  'fast-glob': async () => requireFastGlob(),
+  tinyglobby: async () => require('tinyglobby'),
   '@iarna/toml': async () => require('@iarna/toml'),
   stream: async () => require('stream'),
   tar: async () => require('tar'),
@@ -74,7 +28,7 @@ const loaderMap = {
 }
 
 const requireMap = {
-  'fast-glob': requireFastGlob,
+  tinyglobby: () => require('tinyglobby'),
   '@iarna/toml': () => require('@iarna/toml'),
   stream: () => require('stream'),
   tar: () => require('tar'),
@@ -94,7 +48,7 @@ const requireMap = {
 }
 
 const validateMap: Record<string, (mod: any) => boolean> = {
-  'fast-glob': (mod: any) => typeof mod === 'function' && typeof mod?.sync === 'function',
+  tinyglobby: (mod: any) => typeof mod?.globSync === 'function',
   '@iarna/toml': (mod: any) => typeof mod.parse === 'function' && typeof mod.stringify === 'function',
   stream: (mod: any) => typeof mod.Readable === 'function' && typeof mod.Writable === 'function',
   tar: (mod: any) => typeof mod.extract === 'function' && typeof mod.create === 'function',

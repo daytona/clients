@@ -1,8 +1,8 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Shared by the CommonJS (test.js) and ESM (test.mjs) entries, so webpack bundles each
-// SDK build's copy of the fast-glob loader (cjs/ and esm/utils/Import.js).
+// Shared by the CommonJS (test.js) and ESM (test.mjs) entries, so webpack bundles both the
+// cjs/ and esm/ builds of the SDK.
 
 const fs = require('node:fs')
 const os = require('node:os')

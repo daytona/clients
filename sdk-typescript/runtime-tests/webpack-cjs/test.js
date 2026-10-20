@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Verifies a CommonJS app that requires the SDK builds with webpack in production
-// mode and that the bundle runs, including the fast-glob path that the SDK loads
-// at runtime instead of bundling (Image.fromDockerfile resolving a COPY glob).
+// mode and that the bundle runs, including Image.fromDockerfile resolving a COPY glob.
 
 const sdk = require('@daytona/sdk')
 const check = require('./check')
