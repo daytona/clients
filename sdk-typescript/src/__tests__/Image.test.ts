@@ -645,4 +645,46 @@ describe('Image', () => {
       fs.rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('dockerfileCommands reads a leading ! and the context directory literally', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    try {
+      // An unbalanced parenthesis in the context path must not swallow the source's separators
+      const contextDir = path.join(dir, 'proj(old', 'ctx')
+      for (const file of ['a.txt', 'sub/c.txt', 'sub/!n.txt']) {
+        fs.mkdirSync(path.dirname(path.join(contextDir, file)), { recursive: true })
+        fs.writeFileSync(path.join(contextDir, file), '')
+      }
+
+      const image = Image.base('alpine').dockerfileCommands(
+        ['COPY ["sub/!*.txt", "/app/"]', 'COPY ["{sub/c.txt,a.txt}", "/app/"]'],
+        contextDir,
+      )
+
+      expect(image.contextList.map((c) => c.archivePath).sort()).toEqual(['a.txt', 'sub/!n.txt', 'sub/c.txt'])
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('splitGlobSegments splits only on separators outside groups and escapes', async () => {
+    const { Image } = await import('../Image')
+    const split = (Image as unknown as Record<string, (pattern: string) => string[]>).splitGlobSegments
+
+    expect(split('ctx/{sub/c.txt,a.txt}')).toEqual(['ctx', '{sub/c.txt,a.txt}'])
+    expect(split('a/@(x/y|z)/c')).toEqual(['a', '@(x/y|z)', 'c'])
+    expect(split('proj(old/sub/*.txt')).toEqual(['proj(old', 'sub', '*.txt'])
+    expect(split('/a\\{b/c')).toEqual(['', 'a\\{b', 'c'])
+  })
 })
