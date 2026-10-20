@@ -58,7 +58,7 @@ Most runtimes ship as npm devDeps. These external binaries are required for spec
 
 Playwright auto-installs Chromium on first run for `vite-browser`. On Linux CI, system libs may be needed: `npx playwright install --with-deps chromium`.
 
-Everything else (`wrangler`, `lambda-local`, `vite`, `next`, `nuxt`, `remix`, `esbuild`, `webpack`, `typescript`, `playwright`, `@azure/functions`) is an npm devDep installed automatically per-runtime.
+Everything else (`wrangler`, `lambda-local`, `vite`, `next`, `nuxt`, `remix`, `esbuild`, `webpack`, `webpack-cli`, `typescript`, `playwright`, `@azure/functions`) is an npm devDep installed automatically per-runtime.
 
 ## Adding a new runtime
 
