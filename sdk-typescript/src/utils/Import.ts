@@ -9,8 +9,18 @@
 import { DaytonaError } from '../errors/DaytonaError'
 import { RUNTIME } from './Runtime'
 
+declare const __webpack_require__: unknown
+declare const __non_webpack_require__: NodeRequire
+
+// Webpack folds `typeof __webpack_require__` to a constant and drops the literal require, so
+// fast-glob stays out of the bundle graph and loads from node_modules at runtime: webpack
+// production builds of CommonJS apps fail in fast-glob's braces/picomatch dependencies.
+// Other bundlers and plain Node take the literal require, unchanged.
+const requireFastGlob = () =>
+  typeof __webpack_require__ === 'function' ? __non_webpack_require__('fast-glob') : require('fast-glob')
+
 const loaderMap = {
-  'fast-glob': async () => require('fast-glob'),
+  'fast-glob': async () => requireFastGlob(),
   '@iarna/toml': async () => require('@iarna/toml'),
   stream: async () => require('stream'),
   tar: async () => require('tar'),
@@ -28,7 +38,7 @@ const loaderMap = {
 }
 
 const requireMap = {
-  'fast-glob': () => require('fast-glob'),
+  'fast-glob': requireFastGlob,
   '@iarna/toml': () => require('@iarna/toml'),
   stream: () => require('stream'),
   tar: () => require('tar'),
