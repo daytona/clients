@@ -18,6 +18,8 @@ or using **yarn**:
 yarn add @daytona/sdk
 ```
 
+When you bundle the SDK with webpack or Rspack, `fast-glob` is not bundled. `Image.fromDockerfile` and `Image.dockerfileCommands` with COPY sources load it at runtime, so deploy the bundle with `@daytona/sdk` installed in `node_modules`.
+
 ## Get API key
 
 Generate an API key from the [Daytona Dashboard ↗](https://app.daytona.io/dashboard/keys) to authenticate SDK requests and access Daytona services. For more information, see the [API keys](https://www.daytona.io/docs/en/api-keys/) documentation.

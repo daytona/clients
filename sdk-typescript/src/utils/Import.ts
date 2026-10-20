@@ -12,23 +12,21 @@ import { RUNTIME } from './Runtime'
 declare const __webpack_require__: unknown
 declare const __non_webpack_require__: NodeRequire
 
-// Webpack folds `typeof __webpack_require__` to a constant and drops the literal require, so
-// fast-glob stays out of the bundle graph and loads from node_modules at runtime: webpack
-// production builds of CommonJS apps fail in fast-glob's braces/picomatch dependencies.
-// Inside a bundle, fast-glob is resolved from the SDK's own install, so layouts that do not
-// hoist it next to the app (pnpm, Yarn PnP) still find it. Other bundlers and plain Node take
-// the literal require, unchanged.
+// Webpack and webpack-compatible bundlers (Rspack) fold `typeof __webpack_require__` to a
+// constant and drop the literal require, so fast-glob stays out of the bundle graph and loads
+// from node_modules at runtime: webpack production builds of CommonJS apps fail in fast-glob's
+// braces/picomatch dependencies. Inside such a bundle, fast-glob is resolved from the SDK's own
+// install first, so layouts that do not hoist it next to the app (pnpm, Yarn PnP) still find it.
+// Plain Node and other bundlers take the literal require.
 const requireFastGlob = () => {
   if (typeof __webpack_require__ !== 'function') return require('fast-glob')
   const { createRequire } = __non_webpack_require__('module') as typeof import('module')
   for (const sdkName of ['@daytona/sdk', '@daytonaio/sdk']) {
-    let sdkManifest: string
     try {
-      sdkManifest = __non_webpack_require__.resolve(`${sdkName}/package.json`)
+      return createRequire(__non_webpack_require__.resolve(`${sdkName}/package.json`))('fast-glob')
     } catch {
       continue
     }
-    return createRequire(sdkManifest)('fast-glob')
   }
   return __non_webpack_require__('fast-glob')
 }

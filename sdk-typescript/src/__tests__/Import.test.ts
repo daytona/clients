@@ -56,4 +56,15 @@ describe('fast-glob loading', () => {
     expect(unresolvable.createRequire).not.toHaveBeenCalled()
     expect(unresolvable.runtimeRequire).toHaveBeenCalledWith('fast-glob')
   })
+
+  it('falls back to the bundle require when the SDK install cannot load fast-glob', () => {
+    const { runtimeRequire, sdkRequire } = fakeWebpack((id) => `/app/node_modules/${id}`)
+    sdkRequire.mockImplementation(() => {
+      throw new Error('not found')
+    })
+
+    expect(dynamicRequire('fast-glob')).toBe(fastGlob)
+    expect(sdkRequire).toHaveBeenCalledTimes(2)
+    expect(runtimeRequire).toHaveBeenCalledWith('fast-glob')
+  })
 })
