@@ -1,6 +1,6 @@
 module github.com/daytona/clients/examples/go
 
-go 1.26.0
+go 1.26.10
 
 require (
 	github.com/daytona/clients/sdk-go v0.0.0
