@@ -683,12 +683,80 @@ describe('Daytona', () => {
       _experimental_fork: jest.fn(),
     }))
 
-    await expect(instance.create({ language: 'python' }, { timeout: 7 })).rejects.toMatchObject({
+    const error = await instance
+      .create({ language: 'python' }, { timeout: 7 })
+      .then(() => {
+        throw new Error('create() should have timed out')
+      })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(DaytonaTimeoutError)
+    expect(error).toMatchObject({
       code: 'PROCESS_EXECUTION_TIMEOUT',
-      message: 'Failed to create and start sandbox within 7 seconds. Operation timed out.',
       source: 'DAYTONA_DAEMON',
       statusCode: 504,
+      sandboxId: 'sb-timeout',
     })
+    expect((error as { message: string }).message).toContain(
+      'Failed to create and start sandbox within 7 seconds. Operation timed out.',
+    )
+    expect((error as { message: string }).message).toContain(
+      "Sandbox sb-timeout was created before the timeout and may still be starting. Use get('sb-timeout') to check on it, and pass the returned Sandbox to delete() to remove it.",
+    )
+  })
+
+  it('does not name a sandbox when create times out before the sandbox exists', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { DaytonaTimeoutError } = await import('../errors/DaytonaError')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockRejectedValue(new DaytonaTimeoutError('post timed out'))
+
+    const error = await instance
+      .create({ language: 'python' }, { timeout: 7 })
+      .then(() => {
+        throw new Error('create() should have timed out')
+      })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(DaytonaTimeoutError)
+    expect((error as { sandboxId?: string; message: string }).sandboxId).toBeUndefined()
+    expect((error as { sandboxId?: string; message: string }).message).toBe(
+      'Failed to create and start sandbox within 7 seconds. Operation timed out.',
+    )
+    expect((error as { sandboxId?: string; message: string }).message).not.toContain('was created')
+  })
+
+  it('names the sandbox when a connection timeout happens after create', async () => {
+    const { Daytona } = await import('../Daytona')
+    const { Sandbox } = await import('../Sandbox')
+    const { DaytonaConnectionTimeoutError, DaytonaTimeoutError } = await import('../errors/DaytonaError')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'sb-conn', state: 'starting', labels: { 'code-toolbox-language': 'python' } }),
+    )
+    ;(Sandbox as jest.Mock).mockImplementationOnce((dto: { id: string; state?: string }, ..._args: unknown[]) => ({
+      ...dto,
+      start: jest.fn(),
+      stop: jest.fn(),
+      delete: jest.fn(),
+      waitUntilStarted: jest.fn().mockRejectedValue(new DaytonaConnectionTimeoutError('socket timed out')),
+      fork: jest.fn(),
+      _experimental_fork: jest.fn(),
+    }))
+
+    const error = await instance
+      .create({ language: 'python' }, { timeout: 7 })
+      .then(() => {
+        throw new Error('create() should have timed out')
+      })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(DaytonaTimeoutError)
+    expect((error as { sandboxId?: string; message: string }).sandboxId).toBe('sb-conn')
+    expect((error as { sandboxId?: string; message: string }).message).toContain('may still be starting')
+    expect((error as { sandboxId?: string; message: string }).message).not.toContain('has not started')
   })
 
   it('raises DaytonaQueueTimeoutError when the build log stream fails on a queue timed out sandbox', async () => {
@@ -778,6 +846,7 @@ describe('Daytona', () => {
     }))
 
     await expect(instance.create({ language: 'python' }, { timeout: 7 })).rejects.toBe(queueError)
+    expect(queueError.sandboxId).toBeUndefined()
   })
 
   it('gives each listed sandbox its own Configuration instance', async () => {

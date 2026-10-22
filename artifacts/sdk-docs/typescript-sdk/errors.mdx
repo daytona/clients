@@ -2242,6 +2242,12 @@ Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`).
     - _Inherited from_: `DaytonaTimeoutError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaTimeoutError.headers`
+- `sandboxId?` _string_ - Set when `create()` timed out after the Sandbox was created.
+    That Sandbox may still be starting: pass this id to `get()`, and the
+    returned Sandbox to `delete()` to remove it. Absent when the timeout
+    happened before a Sandbox existed, and on queue timeouts, where the
+    API has already destroyed the Sandbox.
+    - _Inherited from_: `DaytonaTimeoutError.sandboxId`
 - `source?` _string_
     - _Inherited from_: `DaytonaTimeoutError.source`
 - `statusCode?` _number_
@@ -2411,6 +2417,12 @@ Raised when a sandbox was destroyed by the API because it waited longer than its
     - _Inherited from_: `DaytonaTimeoutError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaTimeoutError.headers`
+- `sandboxId?` _string_ - Set when `create()` timed out after the Sandbox was created.
+    That Sandbox may still be starting: pass this id to `get()`, and the
+    returned Sandbox to `delete()` to remove it. Absent when the timeout
+    happened before a Sandbox existed, and on queue timeouts, where the
+    API has already destroyed the Sandbox.
+    - _Inherited from_: `DaytonaTimeoutError.sandboxId`
 - `source?` _string_
     - _Inherited from_: `DaytonaTimeoutError.source`
 - `statusCode?` _number_
@@ -2955,6 +2967,11 @@ The operation timed out (HTTP 408, or 504 when a gateway timed out).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `sandboxId?` _string_ - Set when `create()` timed out after the Sandbox was created.
+    That Sandbox may still be starting: pass this id to `get()`, and the
+    returned Sandbox to `delete()` to remove it. Absent when the timeout
+    happened before a Sandbox existed, and on queue timeouts, where the
+    API has already destroyed the Sandbox.
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
