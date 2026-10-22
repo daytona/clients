@@ -35,7 +35,7 @@ class SystemApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_system_metrics(
         self,
         _request_timeout: Union[
@@ -98,7 +98,7 @@ class SystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_system_metrics_with_http_info(
         self,
         _request_timeout: Union[
@@ -161,7 +161,7 @@ class SystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_system_metrics_without_preload_content(
         self,
         _request_timeout: Union[

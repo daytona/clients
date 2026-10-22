@@ -53,7 +53,7 @@ class ProcessApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def code_run(
         self,
         request: Annotated[CodeRunRequest, Field(description="Code execution request")],
@@ -123,7 +123,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def code_run_with_http_info(
         self,
         request: Annotated[CodeRunRequest, Field(description="Code execution request")],
@@ -193,7 +193,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def code_run_without_preload_content(
         self,
         request: Annotated[CodeRunRequest, Field(description="Code execution request")],
@@ -335,7 +335,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def connect_pty_session(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -403,7 +403,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def connect_pty_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -471,7 +471,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def connect_pty_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -598,7 +598,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_pty_session(
         self,
         request: Annotated[PtyCreateRequest, Field(description="PTY session creation request")],
@@ -668,7 +668,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_pty_session_with_http_info(
         self,
         request: Annotated[PtyCreateRequest, Field(description="PTY session creation request")],
@@ -738,7 +738,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_pty_session_without_preload_content(
         self,
         request: Annotated[PtyCreateRequest, Field(description="PTY session creation request")],
@@ -880,7 +880,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_session(
         self,
         request: Annotated[CreateSessionRequest, Field(description="Session creation request")],
@@ -950,7 +950,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_session_with_http_info(
         self,
         request: Annotated[CreateSessionRequest, Field(description="Session creation request")],
@@ -1020,7 +1020,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_session_without_preload_content(
         self,
         request: Annotated[CreateSessionRequest, Field(description="Session creation request")],
@@ -1162,7 +1162,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_pty_session(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -1231,7 +1231,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_pty_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -1300,7 +1300,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_pty_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -1428,7 +1428,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_session(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -1498,7 +1498,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -1568,7 +1568,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -1697,7 +1697,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_command(
         self,
         request: Annotated[ExecuteRequest, Field(description="Command execution request")],
@@ -1766,7 +1766,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_command_with_http_info(
         self,
         request: Annotated[ExecuteRequest, Field(description="Command execution request")],
@@ -1835,7 +1835,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_command_without_preload_content(
         self,
         request: Annotated[ExecuteRequest, Field(description="Command execution request")],
@@ -1976,7 +1976,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_logs(
         self,
         follow: Annotated[Optional[StrictBool], Field(description="Follow logs in real-time (WebSocket only)")] = None,
@@ -2045,7 +2045,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_logs_with_http_info(
         self,
         follow: Annotated[Optional[StrictBool], Field(description="Follow logs in real-time (WebSocket only)")] = None,
@@ -2114,7 +2114,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_logs_without_preload_content(
         self,
         follow: Annotated[Optional[StrictBool], Field(description="Follow logs in real-time (WebSocket only)")] = None,
@@ -2245,7 +2245,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_session(
         self,
         _request_timeout: Union[
@@ -2310,7 +2310,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_session_with_http_info(
         self,
         _request_timeout: Union[
@@ -2375,7 +2375,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_entrypoint_session_without_preload_content(
         self,
         _request_timeout: Union[
@@ -2496,7 +2496,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_pty_session(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -2565,7 +2565,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_pty_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -2634,7 +2634,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_pty_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -2762,7 +2762,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -2831,7 +2831,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -2900,7 +2900,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3028,7 +3028,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3101,7 +3101,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3174,7 +3174,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3309,7 +3309,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command_logs(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3388,7 +3388,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command_logs_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3467,7 +3467,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_session_command_logs_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -3614,7 +3614,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pty_sessions(
         self,
         _request_timeout: Union[
@@ -3678,7 +3678,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pty_sessions_with_http_info(
         self,
         _request_timeout: Union[
@@ -3742,7 +3742,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pty_sessions_without_preload_content(
         self,
         _request_timeout: Union[
@@ -3862,7 +3862,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_sessions(
         self,
         _request_timeout: Union[
@@ -3926,7 +3926,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_sessions_with_http_info(
         self,
         _request_timeout: Union[
@@ -3990,7 +3990,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_sessions_without_preload_content(
         self,
         _request_timeout: Union[
@@ -4110,7 +4110,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def resize_pty_session(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -4184,7 +4184,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def resize_pty_session_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -4258,7 +4258,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def resize_pty_session_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="PTY session ID")],
@@ -4407,7 +4407,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def send_input(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -4486,7 +4486,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def send_input_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -4565,7 +4565,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def send_input_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -4722,7 +4722,7 @@ class ProcessApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def session_execute_command(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -4799,7 +4799,7 @@ class ProcessApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def session_execute_command_with_http_info(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],
@@ -4876,7 +4876,7 @@ class ProcessApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def session_execute_command_without_preload_content(
         self,
         session_id: Annotated[StrictStr, Field(description="Session ID")],

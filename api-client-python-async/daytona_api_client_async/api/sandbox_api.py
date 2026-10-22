@@ -67,7 +67,7 @@ class SandboxApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def archive_sandbox(
         self,
         sandbox_id_or_name: StrictStr,
@@ -137,7 +137,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def archive_sandbox_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -207,7 +207,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def archive_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -341,7 +341,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_backup(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -413,7 +413,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_backup_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -485,7 +485,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_backup_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -621,7 +621,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox(
         self,
         create_sandbox: CreateSandbox,
@@ -691,7 +691,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox_with_http_info(
         self,
         create_sandbox: CreateSandbox,
@@ -761,7 +761,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox_without_preload_content(
         self,
         create_sandbox: CreateSandbox,
@@ -908,7 +908,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox_snapshot(
         self,
         sandbox_id_or_name: StrictStr,
@@ -982,7 +982,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox_snapshot_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -1056,7 +1056,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_sandbox_snapshot_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -1210,7 +1210,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_ssh_access(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1284,7 +1284,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_ssh_access_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1358,7 +1358,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_ssh_access_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1501,7 +1501,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1571,7 +1571,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1641,7 +1641,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1775,7 +1775,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def expire_signed_port_preview_url(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1853,7 +1853,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def expire_signed_port_preview_url_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -1931,7 +1931,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def expire_signed_port_preview_url_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2072,7 +2072,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def fork_sandbox(
         self,
         sandbox_id_or_name: StrictStr,
@@ -2146,7 +2146,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def fork_sandbox_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -2220,7 +2220,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def fork_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -2374,7 +2374,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2450,7 +2450,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2526,7 +2526,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2664,7 +2664,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs_url(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2734,7 +2734,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs_url_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2804,7 +2804,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_build_logs_url_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -2938,7 +2938,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_by_sandbox_id(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3008,7 +3008,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_by_sandbox_id_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3078,7 +3078,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_by_sandbox_id_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3212,7 +3212,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_port_preview_url(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -3286,7 +3286,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_port_preview_url_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -3360,7 +3360,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_port_preview_url_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -3501,7 +3501,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_region_quota_by_sandbox_id(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3571,7 +3571,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_region_quota_by_sandbox_id_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3641,7 +3641,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_region_quota_by_sandbox_id_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -3775,7 +3775,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -3850,7 +3850,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -3925,7 +3925,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -4069,7 +4069,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_ancestors(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4139,7 +4139,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_ancestors_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4209,7 +4209,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_ancestors_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4343,7 +4343,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_forks(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4417,7 +4417,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_forks_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4491,7 +4491,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_forks_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -4634,7 +4634,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_logs(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -4729,7 +4729,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_logs_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -4824,7 +4824,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_logs_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5032,7 +5032,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_metrics(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5115,7 +5115,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_metrics_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5198,7 +5198,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_metrics_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5379,7 +5379,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_parent(
         self,
         sandbox_id_or_name: StrictStr,
@@ -5449,7 +5449,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_parent_with_http_info(
         self,
         sandbox_id_or_name: StrictStr,
@@ -5519,7 +5519,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_parent_without_preload_content(
         self,
         sandbox_id_or_name: StrictStr,
@@ -5653,7 +5653,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_signing_key(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5723,7 +5723,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_signing_key_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5793,7 +5793,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_signing_key_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -5927,7 +5927,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_trace_spans(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6002,7 +6002,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_trace_spans_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6077,7 +6077,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_trace_spans_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6219,7 +6219,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_traces(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6306,7 +6306,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_traces_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6393,7 +6393,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_traces_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -6582,7 +6582,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandboxes_for_runner(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6656,7 +6656,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandboxes_for_runner_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6730,7 +6730,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandboxes_for_runner_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6875,7 +6875,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signed_port_preview_url(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -6953,7 +6953,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signed_port_preview_url_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -7031,7 +7031,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signed_port_preview_url_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -7181,7 +7181,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_toolbox_proxy_url(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -7251,7 +7251,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_toolbox_proxy_url_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -7321,7 +7321,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_toolbox_proxy_url_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -7455,7 +7455,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_sandboxes(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -7638,7 +7638,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_sandboxes_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -7821,7 +7821,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_sandboxes_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -8268,7 +8268,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pause_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8338,7 +8338,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pause_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8408,7 +8408,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pause_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8542,7 +8542,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def recover_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8616,7 +8616,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def recover_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8690,7 +8690,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def recover_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8833,7 +8833,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def replace_labels(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8907,7 +8907,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def replace_labels_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -8981,7 +8981,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def replace_labels_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9135,7 +9135,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resize_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9209,7 +9209,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resize_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9283,7 +9283,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resize_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9437,7 +9437,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resolve_sandbox_secrets(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
@@ -9507,7 +9507,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resolve_sandbox_secrets_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
@@ -9577,7 +9577,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def resolve_sandbox_secrets_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="Sandbox ID")],
@@ -9711,7 +9711,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def revoke_ssh_access(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9785,7 +9785,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def revoke_ssh_access_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -9859,7 +9859,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def revoke_ssh_access_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10002,7 +10002,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def rotate_signing_key(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -10072,7 +10072,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def rotate_signing_key_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -10142,7 +10142,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def rotate_signing_key_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -10276,7 +10276,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_archive_interval(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10350,7 +10350,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_archive_interval_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10424,7 +10424,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_archive_interval_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10565,7 +10565,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_delete_interval(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10639,7 +10639,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_delete_interval_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10713,7 +10713,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_delete_interval_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10854,7 +10854,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_pause_interval(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -10928,7 +10928,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_pause_interval_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11002,7 +11002,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_auto_pause_interval_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11143,7 +11143,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_autostop_interval(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11217,7 +11217,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_autostop_interval_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11291,7 +11291,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_autostop_interval_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11432,7 +11432,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_ttl(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11506,7 +11506,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_ttl_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11580,7 +11580,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_ttl_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11721,7 +11721,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def start_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11792,7 +11792,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def start_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11863,7 +11863,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def start_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -11998,7 +11998,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def stop_sandbox(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12072,7 +12072,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def stop_sandbox_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12146,7 +12146,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def stop_sandbox_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12289,7 +12289,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_last_activity(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -12363,7 +12363,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_last_activity_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -12437,7 +12437,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_last_activity_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -12584,7 +12584,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_network_settings(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12659,7 +12659,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_network_settings_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12734,7 +12734,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_network_settings_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12889,7 +12889,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_public_status(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -12963,7 +12963,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_public_status_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -13037,7 +13037,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_public_status_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -13178,7 +13178,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_secrets(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -13253,7 +13253,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_secrets_with_http_info(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -13328,7 +13328,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_secrets_without_preload_content(
         self,
         sandbox_id_or_name: Annotated[StrictStr, Field(description="ID or name of the sandbox")],
@@ -13483,7 +13483,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_state(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -13557,7 +13557,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_state_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -13631,7 +13631,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_sandbox_state_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -13778,7 +13778,7 @@ class SandboxApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def validate_ssh_access(
         self,
         token: Annotated[StrictStr, Field(description="SSH access token to validate")],
@@ -13848,7 +13848,7 @@ class SandboxApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def validate_ssh_access_with_http_info(
         self,
         token: Annotated[StrictStr, Field(description="SSH access token to validate")],
@@ -13918,7 +13918,7 @@ class SandboxApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def validate_ssh_access_without_preload_content(
         self,
         token: Annotated[StrictStr, Field(description="SSH access token to validate")],

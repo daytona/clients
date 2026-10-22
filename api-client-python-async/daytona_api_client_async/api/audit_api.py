@@ -44,7 +44,7 @@ class AuditApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_audit_scenarios(
         self,
         _request_timeout: Union[
@@ -107,7 +107,7 @@ class AuditApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_audit_scenarios_with_http_info(
         self,
         _request_timeout: Union[
@@ -170,7 +170,7 @@ class AuditApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_audit_scenarios_without_preload_content(
         self,
         _request_timeout: Union[
@@ -289,7 +289,7 @@ class AuditApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_audit_logs(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -415,7 +415,7 @@ class AuditApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_audit_logs_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -541,7 +541,7 @@ class AuditApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_organization_audit_logs_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],

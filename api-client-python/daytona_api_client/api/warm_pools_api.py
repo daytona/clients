@@ -41,7 +41,7 @@ class WarmPoolsApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_warm_pool(
         self,
         create_warm_pool: CreateWarmPool,
@@ -111,7 +111,7 @@ class WarmPoolsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_warm_pool_with_http_info(
         self,
         create_warm_pool: CreateWarmPool,
@@ -181,7 +181,7 @@ class WarmPoolsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_warm_pool_without_preload_content(
         self,
         create_warm_pool: CreateWarmPool,
@@ -328,7 +328,7 @@ class WarmPoolsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_warm_pool(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],
@@ -398,7 +398,7 @@ class WarmPoolsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_warm_pool_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],
@@ -468,7 +468,7 @@ class WarmPoolsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_warm_pool_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],
@@ -595,7 +595,7 @@ class WarmPoolsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_warm_pools(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -661,7 +661,7 @@ class WarmPoolsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_warm_pools_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -727,7 +727,7 @@ class WarmPoolsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_warm_pools_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -854,7 +854,7 @@ class WarmPoolsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_warm_pool(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],
@@ -928,7 +928,7 @@ class WarmPoolsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_warm_pool_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],
@@ -1002,7 +1002,7 @@ class WarmPoolsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_warm_pool_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Warm pool ID")],

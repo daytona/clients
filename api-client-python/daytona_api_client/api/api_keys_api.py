@@ -41,7 +41,7 @@ class ApiKeysApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_api_key(
         self,
         create_api_key: CreateApiKey,
@@ -111,7 +111,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_api_key_with_http_info(
         self,
         create_api_key: CreateApiKey,
@@ -181,7 +181,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_api_key_without_preload_content(
         self,
         create_api_key: CreateApiKey,
@@ -328,7 +328,7 @@ class ApiKeysApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key(
         self,
         name: StrictStr,
@@ -398,7 +398,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key_with_http_info(
         self,
         name: StrictStr,
@@ -468,7 +468,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key_without_preload_content(
         self,
         name: StrictStr,
@@ -595,7 +595,7 @@ class ApiKeysApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key_for_user(
         self,
         user_id: StrictStr,
@@ -669,7 +669,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key_for_user_with_http_info(
         self,
         user_id: StrictStr,
@@ -743,7 +743,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_api_key_for_user_without_preload_content(
         self,
         user_id: StrictStr,
@@ -877,7 +877,7 @@ class ApiKeysApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_api_key(
         self,
         name: StrictStr,
@@ -947,7 +947,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_api_key_with_http_info(
         self,
         name: StrictStr,
@@ -1017,7 +1017,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_api_key_without_preload_content(
         self,
         name: StrictStr,
@@ -1151,7 +1151,7 @@ class ApiKeysApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_current_api_key(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1217,7 +1217,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_current_api_key_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1283,7 +1283,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_current_api_key_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1410,7 +1410,7 @@ class ApiKeysApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_api_keys(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1477,7 +1477,7 @@ class ApiKeysApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_api_keys_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1544,7 +1544,7 @@ class ApiKeysApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_api_keys_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,

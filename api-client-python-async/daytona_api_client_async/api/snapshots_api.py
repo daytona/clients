@@ -42,7 +42,7 @@ class SnapshotsApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def activate_snapshot(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -114,7 +114,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def activate_snapshot_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -186,7 +186,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def activate_snapshot_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -322,7 +322,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_snapshot(
         self,
         create_snapshot: CreateSnapshot,
@@ -393,7 +393,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_snapshot_with_http_info(
         self,
         create_snapshot: CreateSnapshot,
@@ -464,7 +464,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_snapshot_without_preload_content(
         self,
         create_snapshot: CreateSnapshot,
@@ -612,7 +612,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def deactivate_snapshot(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -682,7 +682,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def deactivate_snapshot_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -752,7 +752,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def deactivate_snapshot_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -879,7 +879,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_all_snapshots(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -969,7 +969,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_all_snapshots_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1059,7 +1059,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_all_snapshots_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1240,7 +1240,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID or name")],
@@ -1311,7 +1311,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID or name")],
@@ -1382,7 +1382,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID or name")],
@@ -1517,7 +1517,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -1593,7 +1593,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -1669,7 +1669,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -1807,7 +1807,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs_url(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -1877,7 +1877,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs_url_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -1947,7 +1947,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_build_logs_url_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -2081,7 +2081,7 @@ class SnapshotsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def remove_snapshot(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -2151,7 +2151,7 @@ class SnapshotsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def remove_snapshot_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],
@@ -2221,7 +2221,7 @@ class SnapshotsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def remove_snapshot_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Snapshot ID")],

@@ -40,7 +40,7 @@ class VolumesApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_volume(
         self,
         create_volume: CreateVolume,
@@ -110,7 +110,7 @@ class VolumesApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_volume_with_http_info(
         self,
         create_volume: CreateVolume,
@@ -180,7 +180,7 @@ class VolumesApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_volume_without_preload_content(
         self,
         create_volume: CreateVolume,
@@ -327,7 +327,7 @@ class VolumesApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_volume(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -398,7 +398,7 @@ class VolumesApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_volume_with_http_info(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -469,7 +469,7 @@ class VolumesApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_volume_without_preload_content(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -597,7 +597,7 @@ class VolumesApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -667,7 +667,7 @@ class VolumesApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume_with_http_info(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -737,7 +737,7 @@ class VolumesApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume_without_preload_content(
         self,
         volume_id: Annotated[StrictStr, Field(description="ID of the volume")],
@@ -871,7 +871,7 @@ class VolumesApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume_by_name(
         self,
         name: Annotated[StrictStr, Field(description="Name of the volume")],
@@ -941,7 +941,7 @@ class VolumesApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume_by_name_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Name of the volume")],
@@ -1011,7 +1011,7 @@ class VolumesApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_volume_by_name_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Name of the volume")],
@@ -1145,7 +1145,7 @@ class VolumesApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_volumes(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1215,7 +1215,7 @@ class VolumesApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_volumes_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1285,7 +1285,7 @@ class VolumesApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_volumes_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,

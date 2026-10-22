@@ -36,7 +36,7 @@ class HealthApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_check(
         self,
         _request_timeout: Union[
@@ -99,7 +99,7 @@ class HealthApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_check_with_http_info(
         self,
         _request_timeout: Union[
@@ -162,7 +162,7 @@ class HealthApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_check_without_preload_content(
         self,
         _request_timeout: Union[
@@ -282,7 +282,7 @@ class HealthApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_live(
         self,
         _request_timeout: Union[
@@ -344,7 +344,7 @@ class HealthApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_live_with_http_info(
         self,
         _request_timeout: Union[
@@ -406,7 +406,7 @@ class HealthApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def health_controller_live_without_preload_content(
         self,
         _request_timeout: Union[
