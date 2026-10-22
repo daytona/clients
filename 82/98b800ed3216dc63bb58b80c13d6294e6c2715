@@ -1,0 +1,19 @@
+sdk-go/pkg/daytona/VERSION
+  ai_agent 1
+examples/go/go.mod
+  ai_agent 27-28
+api-client-go/VERSION
+  ai_agent 1
+toolbox-api-client-go/VERSION
+  ai_agent 1
+sdk-go/go.mod
+  ai_agent 12-13
+cli/go.mod
+  ai_agent 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8298b800ed3216dc63bb58b80c13d6294e6c2715",
+  "prompts": {}
+}

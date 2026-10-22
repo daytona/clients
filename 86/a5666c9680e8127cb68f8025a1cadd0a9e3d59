@@ -1,0 +1,14 @@
+examples/ruby/README.md
+  h_e7759ddd73fa65 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86a5666c9680e8127cb68f8025a1cadd0a9e3d59",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

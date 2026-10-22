@@ -1,0 +1,51 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_80f32429a6852a::t_bddf04f5457a86 3602-3607,4957,4967-4971,4983-4984
+artifacts/sdk-docs/java-sdk/process.mdx
+  s_80f32429a6852a::t_c05f2225922434 41-54
+artifacts/sdk-docs/python-sdk/async/async-process.mdx
+  s_80f32429a6852a::t_f7106060dac507 39-51,83-85
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_80f32429a6852a::t_70e4a7e2dcd6cb 851-856,878-883,898-902,907-908,918-925
+artifacts/sdk-docs/python-sdk/sync/process.mdx
+  s_80f32429a6852a::t_37c19c5b304265 40-52,84-86
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_80f32429a6852a::t_70964d7008df6e 843-848,870-875,890-894,899-900,910-917
+artifacts/sdk-docs/ruby-sdk/process.mdx
+  s_80f32429a6852a::t_04afd1656767fc 88-100,126-128
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  s_80f32429a6852a::t_670916140282b7 960-964,973-983
+artifacts/sdk-docs/typescript-sdk/process.mdx
+  s_80f32429a6852a::t_e7c0a7d4a6180a 314-325,361-365
+artifacts/sdk-docs/typescript-sdk/sandbox.mdx
+  s_80f32429a6852a::t_0175d4dc66a281 431-436,453-457,468-471,475-476,483-489
+sdk-go/pkg/daytona/process.go
+  s_80f32429a6852a::t_a9726d3f72cd42 122-136
+sdk-go/pkg/daytona/sandbox.go
+  s_80f32429a6852a::t_8ffa1f751c1b30 1559-1564,1573-1577,1601-1605
+sdk-java/src/main/java/io/daytona/sdk/Process.java
+  s_80f32429a6852a::t_e1e637b1673fd5 79-92
+sdk-ruby/lib/daytona/process.rb
+  s_80f32429a6852a::t_cc5ce3d3552b4d 43-55,73-75
+sdk-ruby/lib/daytona/sandbox.rb
+  s_80f32429a6852a::t_39484d025451e3 558-562,565-571
+sdk-typescript/src/Process.ts
+  s_80f32429a6852a::t_3023a61a5e57a6 93-104,128-131
+sdk-typescript/src/Sandbox.ts
+  s_80f32429a6852a::t_ca15c7672eca89 1051-1056,1065-1069,1152-1155,1157-1158,1160-1163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "034126eff950cd886ebecbce70958379d8e344ac",
+  "prompts": {},
+  "sessions": {
+    "s_80f32429a6852a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f08bf1885ffenUsqMDW3sUF2OD",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

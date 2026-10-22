@@ -1,0 +1,18 @@
+sdk-typescript/src/__tests__/Daytona.test.ts
+  h_e7759ddd73fa65 175-176
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 27-37,151
+sdk-typescript/src/deprecation.ts
+  h_e7759ddd73fa65 9-17,33-34,38,46-47,51,59,63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae9b714ded4a5069fdaa2ddd46eab47248829776",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

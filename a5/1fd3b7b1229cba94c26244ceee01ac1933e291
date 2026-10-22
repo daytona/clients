@@ -1,0 +1,99 @@
+sdk-typescript/src/index.ts
+  s_72957afdfabd8c::t_6f34b07bde1607 6-7
+sdk-typescript/README.md
+  s_72957afdfabd8c::t_18e3ba97b61b17 45-56,65,84-85,96,110,124,206-209,215,225,234,238
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_72957afdfabd8c::t_6e287fc840f64b 33,175,183,198-201,327,335-383
+examples/typescript/auto-archive/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 7,15,21
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_72957afdfabd8c::t_e61fda49030259 605-613
+examples/typescript/pty/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 85,96
+examples/typescript/exec-command/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 173,202
+examples/typescript/lifecycle/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 7,23,38
+examples/typescript/network-settings/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 7,12,19
+examples/typescript/volumes/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 8,13,30,47,61-63
+examples/typescript/warm-pools/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 8,13,20,24
+sdk-typescript/src/deprecation.ts
+  s_72957afdfabd8c::t_6f34b07bde1607 1-55
+examples/typescript/pagination/sandbox.ts
+  s_72957afdfabd8c::t_537d3c766393ea 6
+sdk-typescript/jest.config.js
+  s_72957afdfabd8c::t_6f34b07bde1607 23
+sdk-typescript/src/Daytona.ts
+  s_72957afdfabd8c::t_6f34b07bde1607 41,58,112-114,358-360,390-395,420
+sdk-typescript/src/__tests__/post-build.test.ts
+  s_72957afdfabd8c::t_6e287fc840f64b 32,72,161-170
+  s_50ce3457a4767e::t_ff1177167c6676 171-172
+examples/typescript/file-operations/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 9,154
+examples/typescript/git-lsp/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 11,173
+examples/typescript/pagination/snapshot.ts
+  s_72957afdfabd8c::t_537d3c766393ea 6
+sdk-typescript/src/RootDaytona.ts
+  s_e314e80a5520d5::t_a0d2af4b28d964 80
+  s_72957afdfabd8c::t_6f34b07bde1607 1-79,81-138
+examples/typescript/charts/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 20,44
+examples/typescript/auto-delete/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 7,23
+sdk-typescript/scripts/post-build.js
+  s_72957afdfabd8c::t_6f34b07bde1607 127-133
+sdk-typescript/src/v1.ts
+  s_72957afdfabd8c::t_6f34b07bde1607 1-31
+sdk-typescript/package.json
+  s_72957afdfabd8c::t_6f34b07bde1607 16-25,31-37,63
+examples/typescript/exec-command/linked.ts
+  s_72957afdfabd8c::t_537d3c766393ea 6,11,59,61
+examples/typescript/domain-allow-list/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 24,56
+examples/typescript/declarative-image/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 28,45,62,78,96
+examples/typescript/secrets/index.ts
+  s_72957afdfabd8c::t_537d3c766393ea 9,23,31,43,50-51
+sdk-typescript/src/__tests__/v1.test.ts
+  s_72957afdfabd8c::t_6e287fc840f64b 1-8,12-193,195-205
+  s_72957afdfabd8c::t_fba8c2e6eec19a 9-11
+  s_72957afdfabd8c::t_28193bf27e683d 194
+sdk-typescript/typedoc.json
+  s_e314e80a5520d5::t_9fe5e7519ad6e0 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a51fd3b7b1229cba94c26244ceee01ac1933e291",
+  "prompts": {},
+  "sessions": {
+    "s_50ce3457a4767e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec5a34a85ffe34u20zYgx7gwKL",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_72957afdfabd8c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec5a37301ffeiuFvHCjhUEp21p",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e314e80a5520d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ec601a4c8ffexhJpN9tb4PQdtn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

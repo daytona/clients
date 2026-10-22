@@ -1,0 +1,18 @@
+sdk-typescript/runtime-tests/webpack-cjs/check.js
+  h_e7759ddd73fa65 27-36,38-42
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 682,697-704,707
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 13,124,129,199,322,324,344,346,369,371,404,409,435,443,470,472,491,493,509,511,526,528,543,545,556,590-607,609,611-621,623-647
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fcc7415f0477d4332b3d42da5621ebce3ba793e9",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

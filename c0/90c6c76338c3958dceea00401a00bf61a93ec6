@@ -1,0 +1,18 @@
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  h_e7759ddd73fa65 15
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 682,697,838-888
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 648-689
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c090c6c76338c3958dceea00401a00bf61a93ec6",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

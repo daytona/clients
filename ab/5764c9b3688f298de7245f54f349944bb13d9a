@@ -1,0 +1,21 @@
+.github/workflows/backport.yaml
+  s_e314e80a5520d5::t_5d7bb44c84b8ce 1-60
+PUBLISHING.md
+  s_e314e80a5520d5::t_ecb231ea666d4a 114-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab5764c9b3688f298de7245f54f349944bb13d9a",
+  "prompts": {},
+  "sessions": {
+    "s_e314e80a5520d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ec601a4c8ffexhJpN9tb4PQdtn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

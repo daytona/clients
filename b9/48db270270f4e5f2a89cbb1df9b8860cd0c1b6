@@ -1,0 +1,19 @@
+cli/cmd/sandbox/create_test.go
+  s_e51f56a48bf344::t_53749e5f75f4d4 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b948db270270f4e5f2a89cbb1df9b8860cd0c1b6",
+  "prompts": {},
+  "sessions": {
+    "s_e51f56a48bf344": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
