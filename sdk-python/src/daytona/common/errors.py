@@ -189,7 +189,8 @@ class DaytonaTimeoutError(DaytonaError):
 
     Attributes:
         sandbox_id (str | None): Set when `Daytona.create()` timed out after the Sandbox was
-            created. That Sandbox may still start, so get or delete it by this id.
+            created. That Sandbox may still be starting: pass this id to `get()`, and the
+            returned Sandbox to `delete()` to remove it.
 
     Example:
         ```python
@@ -205,8 +206,8 @@ class DaytonaTimeoutError(DaytonaError):
     def _attach_sandbox_id(self, sandbox_id: str) -> None:
         self.sandbox_id = sandbox_id
         self.message: str = (
-            f"{self.message} Sandbox {sandbox_id} was created but had not started; it may still start."
-            + f" Use get('{sandbox_id}') to check on it or delete it."
+            f"{self.message} Sandbox {sandbox_id} was created before the timeout and may still be starting."
+            + f" Use get('{sandbox_id}') to check on it, and pass the returned Sandbox to delete() to remove it."
         )
         self.args: tuple[object, ...] = (self.message,)
 

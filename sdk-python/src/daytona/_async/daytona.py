@@ -600,7 +600,7 @@ class AsyncDaytona:
             raise
 
     @intercept_errors(message_prefix="Failed to create sandbox: ")
-    @with_timeout()
+    @with_timeout(name="create")
     async def _create(
         self,
         params: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
@@ -718,7 +718,7 @@ class AsyncDaytona:
         response = await self._sandbox_api.create_sandbox(sandbox_data, _request_timeout=http_timeout(timeout))
         if created is not None:
             # The sandbox exists from here on, so a timeout must tell the caller which one it was.
-            created.append(cast(str, response.id))
+            created.append(response.id)
 
         if response.state == SandboxState.PENDING_BUILD and on_snapshot_create_logs:
             build_logs_url = (await self._sandbox_api.get_build_logs_url(response.id)).url

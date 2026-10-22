@@ -318,10 +318,17 @@ class TestDaytonaCreateValidation:
         daytona._sandbox_api.create_sandbox.assert_not_called()
 
 
+def _wait_up_to_five_seconds(*_args, **_kwargs):
+    import time
+
+    # Short sleeps in a Python loop, so the threading timeout (Windows, non-main threads) can interrupt it too.
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        time.sleep(0.01)
+
+
 class TestDaytonaCreateTimeout:
     def test_timeout_after_the_sandbox_was_created_names_it(self, env_with_api_key):
-        import time
-
         from daytona._sync.sandbox import Sandbox
         from daytona.common.errors import DaytonaTimeoutError
 
@@ -331,7 +338,7 @@ class TestDaytonaCreateTimeout:
             sandbox_id="sbx-created", state=SandboxState.STARTING
         )
 
-        with patch.object(Sandbox, "wait_for_sandbox_start", side_effect=lambda **_kwargs: time.sleep(5)):
+        with patch.object(Sandbox, "wait_for_sandbox_start", side_effect=_wait_up_to_five_seconds):
             with pytest.raises(DaytonaTimeoutError) as exc_info:
                 daytona.create(timeout=1)
 
@@ -340,19 +347,18 @@ class TestDaytonaCreateTimeout:
         assert "Failed to create sandbox:" in exc_info.value.message
 
     def test_timeout_before_the_sandbox_was_created_has_no_sandbox_id(self, env_with_api_key):
-        import time
-
         from daytona.common.errors import DaytonaTimeoutError
 
         daytona = _make_daytona()
         daytona._sandbox_api = MagicMock()
-        daytona._sandbox_api.create_sandbox.side_effect = lambda *_args, **_kwargs: time.sleep(5)
+        daytona._sandbox_api.create_sandbox.side_effect = _wait_up_to_five_seconds
 
         with pytest.raises(DaytonaTimeoutError) as exc_info:
             daytona.create(timeout=1)
 
         assert exc_info.value.sandbox_id is None
         assert "was created" not in str(exc_info.value)
+        assert "Function 'create' exceeded timeout" in str(exc_info.value)
 
 
 class TestDaytonaGetAndList:

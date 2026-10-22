@@ -682,6 +682,7 @@ class TestAsyncDaytonaCreateTimeout:
 
         assert exc_info.value.sandbox_id is None
         assert "was created" not in str(exc_info.value)
+        assert "Function 'create' exceeded timeout" in str(exc_info.value)
 
 
 class TestAsyncDaytonaGetAndList:
