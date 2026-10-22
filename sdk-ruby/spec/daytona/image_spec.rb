@@ -35,7 +35,7 @@ RSpec.describe Daytona::Image do
 
       image.pip_install('requests', %w[numpy pandas])
 
-      expect(image.dockerfile).to include('RUN python -m pip install numpy pandas requests')
+      expect(image.dockerfile).to include('RUN python -m pip install -- numpy pandas requests')
     end
 
     it 'formats optional pip arguments' do
@@ -55,6 +55,25 @@ RSpec.describe Daytona::Image do
       expect(image.dockerfile).to include('--extra-index-url https://extra.example.com/simple')
       expect(image.dockerfile).to include('--pre')
       expect(image.dockerfile).to include('--no-cache-dir')
+    end
+
+    it 'keeps options ahead of the terminator and packages behind it' do
+      image = described_class.base('python:3.12')
+
+      image.pip_install('requests', index_url: 'https://pypi.example.com/simple')
+
+      expect(image.dockerfile)
+        .to include('RUN python -m pip install --index-url https://pypi.example.com/simple -- requests')
+    end
+
+    it 'passes a package name beginning with a dash as a requirement' do
+      image = described_class.base('python:3.12')
+
+      image.pip_install('--extra-index-url=https://elsewhere.invalid/simple', 'requests')
+
+      line = image.dockerfile.lines.find { |l| l.start_with?('RUN python -m pip install') }
+      expect(line).to start_with('RUN python -m pip install -- ')
+      expect(line.index(' -- ')).to be < line.index('--extra-index-url')
     end
 
     it 'raises when non-string package values are provided' do
@@ -117,7 +136,7 @@ RSpec.describe Daytona::Image do
         image = described_class.base('python:3.12')
         image.pip_install_from_pyproject(pyproject, optional_dependencies: ['dev'])
 
-        expect(image.dockerfile).to include('RUN python -m pip install flask pytest requests')
+        expect(image.dockerfile).to include('RUN python -m pip install -- flask pytest requests')
       end
     end
 
