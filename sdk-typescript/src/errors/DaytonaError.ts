@@ -75,11 +75,13 @@ export class DaytonaNotFoundError extends DaytonaError {}
  */
 export class DaytonaTimeoutError extends DaytonaError {
   /**
-   * Set when `create()` timed out after the Sandbox was created.
-   * That Sandbox may still be starting: pass this id to `get()`, and the
-   * returned Sandbox to `delete()` to remove it. Absent when the timeout
-   * happened before a Sandbox existed, and on queue timeouts, where the
-   * API has already destroyed the Sandbox.
+   * Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
+   * sandbox already exists. Undefined on every other timeout, including
+   * process-execution timeouts and queue timeouts.
+   *
+   * When it is set, pass it to `get()` and pass the returned Sandbox to
+   * `delete()`. The sandbox may still be starting. `create()` does not
+   * delete it.
    */
   public sandboxId?: string
 
