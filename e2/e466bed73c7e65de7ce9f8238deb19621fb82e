@@ -1,0 +1,26 @@
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_40864550aa5d53::t_8422403b04dd8a 686-694,698,700-759
+  s_40864550aa5d53::t_7af36c72b44fe3 849
+sdk-typescript/src/errors/DaytonaError.ts
+  s_40864550aa5d53::t_ef75dfdd1bff64 77-85
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  s_40864550aa5d53::t_edbf277405bf48 2245-2250,2420-2425,2970-2974
+sdk-typescript/src/Daytona.ts
+  s_40864550aa5d53::t_2c7fee289286e0 695-698,772,840-848
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2e466bed73c7e65de7ce9f8238deb19621fb82e",
+  "prompts": {},
+  "sessions": {
+    "s_40864550aa5d53": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a2e7aae0-097c-4c98-a190-bb2ae73590a6",
+        "model": "grok-4.7"
+      },
+      "human_author": "Nikola Radisic <radisicc@yahoo.com>"
+    }
+  }
+}
