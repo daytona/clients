@@ -1,0 +1,20 @@
+README.md
+  s_728305197922d6::t_8d0d29a6c2c558 59-60
+  s_728305197922d6::t_f8e4f399e5dbbb 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f94900dc0507144436c784b916bf35de942e220",
+  "prompts": {},
+  "sessions": {
+    "s_728305197922d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e95bb81d2ffeSS0BfPQDsutpQg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
