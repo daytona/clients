@@ -109,7 +109,7 @@ Ensure these secrets are configured in GitHub repository settings:
 5. Runs `yarn publish` which uses Nx to publish all SDKs in the correct order
 6. Updates the Homebrew tap (for the CLI)
 
-The **Release** workflow builds the CLI binaries and uploads them to the GitHub release. Its `attest_cli` job then downloads them from the release and attests them (SLSA build provenance). If only `attest_cli` fails, for example during a Sigstore outage, use **Re-run failed jobs** on the same run. It does not re-run the release, and a re-run from `release.yaml` still passes `gh attestation verify --signer-workflow daytona/clients/.github/workflows/release.yaml`. Before running the Homebrew dispatch, check one binary:
+The **Release** workflow builds the CLI binaries and uploads them to the GitHub release. Its `attest_cli` job then downloads them from the release, checks they match the SHA-256 sums the `release` job recorded at build time, and attests them (SLSA build provenance). If an asset was replaced after the upload, the check fails and nothing is attested. If only `attest_cli` fails, for example during a Sigstore outage, use **Re-run failed jobs** on the same run. It does not re-run the release, and a re-run from `release.yaml` still passes `gh attestation verify --signer-workflow daytona/clients/.github/workflows/release.yaml`. Before running the Homebrew dispatch, check one binary:
 
 ```bash
 gh release download vX.Y.Z --repo daytona/clients --pattern daytona-linux-amd64
