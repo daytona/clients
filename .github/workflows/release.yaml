@@ -122,6 +122,8 @@ jobs:
           name: cli-sha256sums
           path: dist/cli-sha256sums.txt
           if-no-files-found: error
+          # Re-running this job rebuilds the binaries; replace the earlier sums.
+          overwrite: true
       - name: Upload CLI to release assets
         run: |
           gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
