@@ -6,7 +6,7 @@
     "build": "nuxt build"
   },
   "dependencies": {
-    "nuxt": "^3.13.0"
+    "nuxt": "^4.6.2"
   },
   "overrides": {
     "@vitejs/devtools": "0.3.1"
