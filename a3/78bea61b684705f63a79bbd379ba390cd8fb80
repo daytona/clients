@@ -1,0 +1,31 @@
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_c546fad56c790f::t_0bb2fed72497af 39
+sdk-python/src/daytona/_async/daytona.py
+  s_034e559365b2f9::t_a13e9b4b8ff5bc 138
+sdk-python/src/daytona/_sync/daytona.py
+  s_034e559365b2f9::t_b9ea3c36e11f21 93,109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a378bea61b684705f63a79bbd379ba390cd8fb80",
+  "prompts": {},
+  "sessions": {
+    "s_034e559365b2f9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eba763e2affeb1E0Gf9d0A4T4d",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_c546fad56c790f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eba75ed0fffePFtuOLTHStQUr3",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

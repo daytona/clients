@@ -1,0 +1,46 @@
+sdk-python/tests/test_daytona.py
+  s_f6c20557dc70dc::t_f3d1f09fcc4aca 234-252
+sdk-python/tests/test_sandbox.py
+  s_f6c20557dc70dc::t_cda9b1a4360725 63-72
+sdk-python/src/daytona/_async/daytona.py
+  s_f6c20557dc70dc::t_60331cb10d6d81 656
+sdk-python/src/daytona/_async/sandbox.py
+  s_eef04291b5a04f::t_c64461055b8049 188
+sdk-python/tests/test_async_daytona.py
+  s_f6c20557dc70dc::t_ed2d0bd9c6e5a6 544-562
+sdk-python/src/daytona/_sync/sandbox.py
+  s_eef04291b5a04f::t_90c52a96417fae 176
+sdk-python/tests/test_async_sandbox.py
+  s_f6c20557dc70dc::t_8d11e1b80583f7 55,57-60,62-64
+sdk-python/src/daytona/common/daytona.py
+  s_f6c20557dc70dc::t_894834d9002eaf 170-171
+  s_f6c20557dc70dc::t_19ba808eed910c 205
+sdk-python/tests/conftest.py
+  s_f6c20557dc70dc::t_c75daa8ed2a632 74
+sdk-python/src/daytona/_sync/daytona.py
+  s_f6c20557dc70dc::t_da330fb7695fa1 523
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bfa3a906387479262478ad692100bb71f1b917d3",
+  "prompts": {},
+  "sessions": {
+    "s_eef04291b5a04f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f302b633dffeAxk5otdcSNu60N",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_f6c20557dc70dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f305edbbfffe2Lzr4p4ovnhSsB",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

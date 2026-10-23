@@ -1,0 +1,14 @@
+sdk-ruby/scripts/generate-docs.rb
+  h_e7759ddd73fa65 136-152,240,292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d082924a50f73de2c550bc5eed4308ae8f0e481",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

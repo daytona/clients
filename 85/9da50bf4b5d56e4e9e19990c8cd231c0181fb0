@@ -1,0 +1,109 @@
+sdk-go/pkg/daytona/computer_use.go
+  s_9c929bedb47d14::t_6830c5d0b8000d 405,412-414,416-421,431-432
+  s_9c929bedb47d14::t_d797ff3fb7c384 274-333,341,356-359,361-366,379-383
+  s_9c929bedb47d14::t_5df9c9a1979138 384,433,486,711-766
+  s_9c929bedb47d14::t_d115538b78b836 497-530,532-533,535-594
+  s_9c929bedb47d14::t_f7d280d0e85c59 531,534
+  s_9c929bedb47d14::t_a4823f031a6313 453,455,466-468,470-475,484-485
+sdk-ruby/lib/daytona/computer_use.rb
+  s_2a10001ef53067::t_20a35cb2422601 176,178,188-198,205
+  s_2a10001ef53067::t_4b8f912ade4c1b 152,159-166
+  s_2a10001ef53067::t_82f97d2d022d58 63-64,77-88,94-142
+  s_2a10001ef53067::t_67a605dc5c68f7 143,274-306
+  s_2a10001ef53067::t_7f5ec00b864731 329
+  s_2a10001ef53067::t_23a378ccc0304e 144
+sdk-go/pkg/daytona/computer_use_test.go
+  s_9c929bedb47d14::t_7d7b5cbef12aed 541-867
+  s_9c929bedb47d14::t_28764dcb9442f8 9
+sdk-typescript/src/__tests__/ComputerUse.test.ts
+  s_cd66f0abb1ad5d::t_6e544a76b015bf 18-19,26-27
+  s_cd66f0abb1ad5d::t_a618109be65e91 120-231
+sdk-typescript/src/ComputerUse.ts
+  s_cd66f0abb1ad5d::t_e1336da9b3302c 126-171,179-180,193-198,202-210
+  s_cd66f0abb1ad5d::t_5befba3344235b 223,230-232,242,244
+  s_cd66f0abb1ad5d::t_1794bd16fc607d 125,365-415
+  s_cd66f0abb1ad5d::t_7e5e9ba7506ade 254,256,266-271,275-282
+  s_cd66f0abb1ad5d::t_38a7bd08e97cca 11-12,21-22
+sdk-python/src/daytona/_sync/computer_use.py
+  s_b22a9f86e31a7b::t_017a8703a6e780 23-24,30,36
+  s_b22a9f86e31a7b::t_d13fb22f40e9e3 110-187,191-199,212-217,232-237,240
+  s_b22a9f86e31a7b::t_b5decb84748e8e 473-534
+  s_b22a9f86e31a7b::t_7c191c78831cbe 254-255,269-271,280-282,285-287,293-302,308,314-316,328-333,336
+sdk-python/tests/test_computer_use.py
+  s_b22a9f86e31a7b::t_653acf5af4b422 59-156
+  s_b22a9f86e31a7b::t_4fda192afea361 175-187
+sdk-python/tests/test_async_computer_use.py
+  s_b22a9f86e31a7b::t_65fc324f44a3f7 175-187
+  s_b22a9f86e31a7b::t_c3c57cb8c22ebc 53-157,174
+sdk-java/src/main/java/io/daytona/sdk/ComputerUse.java
+  s_a728a896569067::t_211d34cebfc670 25
+  s_a728a896569067::t_ffe7a2a29ba04c 263-307,312-316,328-374,377-428
+  s_a728a896569067::t_e832625136946c 526-545,550-578,584-586
+  s_a728a896569067::t_a0ae3411f03bda 630-655
+  s_a728a896569067::t_a9db313800b0b5 462-499,505-508
+  s_a728a896569067::t_ccd8e54387363a 18-19
+  s_a728a896569067::t_a3a4719f73eab2 31
+sdk-python/src/daytona/_async/computer_use.py
+  s_b22a9f86e31a7b::t_adffd41b984ae9 255-256,270-272,281-283,286-288,295-302,309,315-317,329-334,337
+  s_b22a9f86e31a7b::t_d02016e26c8a43 111-188,192-200,213-218,233-238,241
+  s_b22a9f86e31a7b::t_1c7c1790531d59 474-534
+  s_b22a9f86e31a7b::t_8bcb5c0953cdd6 23-24,30,36
+  s_b22a9f86e31a7b::t_3eaf0f085636ad 473
+sdk-ruby/spec/daytona/computer_use_spec.rb
+  s_2a10001ef53067::t_3d8a9ce82bf5f9 345-368
+  s_2a10001ef53067::t_8855ce6e05c955 186-223,230-289
+  s_2a10001ef53067::t_c451b2e0d43824 290,417-450
+  s_2a10001ef53067::t_c18f7e6c344216 303-327
+  s_2a10001ef53067::t_2c3e4ae47c45f3 291
+sdk-java/src/test/java/io/daytona/sdk/ComputerUseTest.java
+  s_a728a896569067::t_d70c4c726721fd 231-410
+  s_a728a896569067::t_d5b80e1df9ca1d 21-22,25-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "859da50bf4b5d56e4e9e19990c8cd231c0181fb0",
+  "prompts": {},
+  "sessions": {
+    "s_2a10001ef53067": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee99cdab5ffextK83c8TVogAIu",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    },
+    "s_9c929bedb47d14": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee99d3962ffenhLtU3vRw1wWFy",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    },
+    "s_a728a896569067": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee99c8af8ffeHHU6f21S7voylR",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    },
+    "s_b22a9f86e31a7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee99de699ffeWAQ3aMHSa8eH78",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    },
+    "s_cd66f0abb1ad5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ee99d96bbfferpqPqX5UuNCt60",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    }
+  }
+}

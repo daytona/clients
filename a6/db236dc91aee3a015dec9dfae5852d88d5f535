@@ -1,0 +1,22 @@
+sdk-typescript/src/__tests__/Runtime.test.ts
+  s_b697bba60c0c95::t_5268a44f280b4a 196-201
+sdk-typescript/src/utils/Runtime.ts
+  s_b697bba60c0c95::t_bbcb14f6beeea0 350-351
+  s_b697bba60c0c95::t_15e64c10d60997 352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a6db236dc91aee3a015dec9dfae5852d88d5f535",
+  "prompts": {},
+  "sessions": {
+    "s_b697bba60c0c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f9eecd38bffeTmlde40ECKP2om",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

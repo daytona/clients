@@ -1,0 +1,101 @@
+examples/ruby/pagination/sandbox.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/spec/daytona/config_spec.rb
+  s_36de67573d6544::t_84f16daf9e4e55 61-68
+  s_36de67573d6544::t_0bec2c645264af 60
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  s_36de67573d6544::t_ac2c029a4308f0 32-41,168-169,173,187,217,233,249
+  s_36de67573d6544::t_3aeaf727adb758 10-12,42-44,56-57,175
+examples/ruby/pty/main.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_36de67573d6544::t_84f16daf9e4e55 6
+sdk-ruby/lib/daytona/daytona.rb
+  s_36de67573d6544::t_38726057160e6e 11,13,577
+  s_36de67573d6544::t_84f16daf9e4e55 10,12,448-576
+examples/ruby/auto-archive/auto_archive.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/lib/daytona/config.rb
+  s_36de67573d6544::t_84f16daf9e4e55 9-10,60,85-87,89-97,149,169-173
+  s_2a882320044229::t_c55ad0af65a1a7 174
+examples/ruby/auto-delete/auto_delete.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/lib/daytona/sdk.rb
+  s_36de67573d6544::t_84f16daf9e4e55 63-64,70-89
+  s_36de67573d6544::t_c87c2d2f3172de 65-69
+  s_36de67573d6544::t_e30edaec6e4a21 90
+sdk-ruby/README.md
+  s_36de67573d6544::t_0b36f24a5955ef 33,39,44,46-60,71,86,100,116,129
+examples/ruby/charts/main.rb
+  s_36de67573d6544::t_48e72ca03bddc0 66
+examples/ruby/volumes/volume.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+examples/ruby/warm-pools/warm_pool.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/spec/spec_helper.rb
+  s_36de67573d6544::t_84f16daf9e4e55 49
+  s_36de67573d6544::t_0bec2c645264af 50-53
+examples/ruby/exec-command/exec_linked.rb
+  s_36de67573d6544::t_48e72ca03bddc0 7
+examples/ruby/exec-command/exec.rb
+  s_36de67573d6544::t_48e72ca03bddc0 167
+examples/ruby/pagination/snapshot.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+examples/ruby/declarative-image/main.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+examples/ruby/exec-command/exec_session.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  s_36de67573d6544::t_84f16daf9e4e55 1-34,36-67,69-76
+  s_36de67573d6544::t_0bec2c645264af 35,68
+examples/ruby/secrets/secret.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+examples/ruby/file-operations/main.rb
+  s_36de67573d6544::t_0b36f24a5955ef 7
+examples/ruby/git-lsp/main.rb
+  s_36de67573d6544::t_0b36f24a5955ef 9
+examples/ruby/lifecycle/lifecycle.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+artifacts/sdk-docs/ruby-sdk/config.mdx
+  s_36de67573d6544::t_ac2c029a4308f0 171-173,177
+  s_36de67573d6544::t_3aeaf727adb758 10-12,162,178-179
+  s_72957afdfabd8c::t_a45302ba921786 163
+examples/ruby/network-settings/main.rb
+  s_36de67573d6544::t_0b36f24a5955ef 5
+sdk-ruby/lib/daytona/sdk/deprecated.rb
+  s_36de67573d6544::t_48e72ca03bddc0 16-20,28-31
+  s_36de67573d6544::t_443cef8a2efdf0 32
+  s_36de67573d6544::t_84f16daf9e4e55 14-15,21-27,33-47,51-54,56-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b3b14160df5c5c0ce77e6106ab8f3214f08bd59",
+  "prompts": {},
+  "sessions": {
+    "s_2a882320044229": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa3949cc8ffee9tW84tr3t3lcG",
+        "model": "claude-opus-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_36de67573d6544": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec5a3249fffeGXNTwH2mH7PG01",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_72957afdfabd8c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec5a37301ffeiuFvHCjhUEp21p",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

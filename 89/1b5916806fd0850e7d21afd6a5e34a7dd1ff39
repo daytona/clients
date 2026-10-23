@@ -1,0 +1,56 @@
+artifacts/sdk-docs/python-sdk/async/async-secret.mdx
+  h_e7759ddd73fa65 76-77,116-117,149-150,189-190,222-223
+artifacts/sdk-docs/python-sdk/async/async-snapshot.mdx
+  h_e7759ddd73fa65 68-69,94-95,123-124
+artifacts/sdk-docs/python-sdk/async/async-volume.mdx
+  h_e7759ddd73fa65 49-50,79-80,108-109,132-133
+artifacts/sdk-docs/python-sdk/sync/secret.mdx
+  h_e7759ddd73fa65 76,115,147,186,218
+artifacts/sdk-docs/python-sdk/sync/snapshot.mdx
+  h_e7759ddd73fa65 68,93,121
+artifacts/sdk-docs/python-sdk/sync/volume.mdx
+  h_e7759ddd73fa65 49,78,106,129
+artifacts/sdk-docs/typescript-sdk/secret.mdx
+  h_e7759ddd73fa65 59,92,121,147,182
+artifacts/sdk-docs/typescript-sdk/snapshot.mdx
+  h_e7759ddd73fa65 109,138,164
+artifacts/sdk-docs/typescript-sdk/volume.mdx
+  h_e7759ddd73fa65 60,89,120,140
+artifacts/sdk-docs/typescript-sdk/warm-pool.mdx
+  h_e7759ddd73fa65 56,85,104,134
+sdk-python/src/daytona/_async/secret.py
+  h_e7759ddd73fa65 52-53,92-93,115-116,154-155,188-189
+sdk-python/src/daytona/_async/snapshot.py
+  h_e7759ddd73fa65 64-65,98-99,119-120
+sdk-python/src/daytona/_async/volume.py
+  h_e7759ddd73fa65 29-30,55-56,81-82,99-100
+sdk-python/src/daytona/_async/warm_pool.py
+  h_e7759ddd73fa65 27-28,54-55,80-81,99-100
+sdk-python/src/daytona/_sync/secret.py
+  h_e7759ddd73fa65 52,91,113,151,184
+sdk-python/src/daytona/_sync/snapshot.py
+  h_e7759ddd73fa65 57,88,108
+sdk-python/src/daytona/_sync/volume.py
+  h_e7759ddd73fa65 29,54,79,96
+sdk-python/src/daytona/_sync/warm_pool.py
+  h_e7759ddd73fa65 27,53,78,96
+sdk-typescript/src/Secret.ts
+  h_e7759ddd73fa65 117,151,169,197,221
+sdk-typescript/src/Snapshot.ts
+  h_e7759ddd73fa65 113,155,173
+sdk-typescript/src/Volume.ts
+  h_e7759ddd73fa65 44,63,88,106
+sdk-typescript/src/WarmPool.ts
+  h_e7759ddd73fa65 50,68,87,104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "891b5916806fd0850e7d21afd6a5e34a7dd1ff39",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

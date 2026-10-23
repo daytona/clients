@@ -1,0 +1,19 @@
+sdk-typescript/src/Daytona.ts
+  s_c0faa7047dbab6::t_1df717a645b91c 1016-1019
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "35138ca71c805268a55c12f10a652a49aed0fff4",
+  "prompts": {},
+  "sessions": {
+    "s_c0faa7047dbab6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

@@ -1,0 +1,14 @@
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 306-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a5c0dc552d1b152205feee4fcc841cb989587ac",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

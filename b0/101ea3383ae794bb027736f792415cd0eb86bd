@@ -1,0 +1,45 @@
+artifacts/sdk-docs/python-sdk/async/async-process.mdx
+  s_80f32429a6852a::t_dafe7501dbc444 39-51,83-85
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_57e35983e79be0::t_9afa4ac3eb69a4 851-856,875-877,880-886,901-905,910-911,921-928
+artifacts/sdk-docs/python-sdk/sync/process.mdx
+  s_2a882320044229::t_68fc0740ae7d58 40-52,84-86
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_57e35983e79be0::t_bc282d21df54ed 843-848,867-868,872-877,892-896,901-902,912-919
+sdk-go/pkg/daytona/sandbox_test.go
+  s_80f32429a6852a::t_ac9a962755a1d8 360,362,373
+sdk-ruby/lib/daytona/sandbox.rb
+  s_80f32429a6852a::t_5bfafa1b0c53b3 373,969,978
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0101ea3383ae794bb027736f792415cd0eb86bd",
+  "prompts": {},
+  "sessions": {
+    "s_2a882320044229": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa3949cc8ffee9tW84tr3t3lcG",
+        "model": "claude-opus-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_57e35983e79be0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee524f2bdffe0ikJb6ixf1IJ7Z",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_80f32429a6852a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f08bf1885ffenUsqMDW3sUF2OD",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
