@@ -27,10 +27,6 @@ jobs:
     environment: release
     permissions:
       contents: write
-      # OIDC token and attestation write access for the CLI build provenance
-      # attestation (attest-build-provenance step below).
-      id-token: write
-      attestations: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -125,20 +121,6 @@ jobs:
           gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
           gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
           gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
-      - name: Attest CLI build provenance
-        # Runs after the upload so a signing outage cannot leave the release
-        # without CLI binaries. Attestations are keyed by SHA-256 digest, and
-        # the upload above sends these files unchanged (`#...` only sets the
-        # asset display label).
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: |
-            dist/cli/daytona-linux-amd64
-            dist/cli/daytona-linux-arm64
-            dist/cli/daytona-darwin-amd64
-            dist/cli/daytona-darwin-arm64
-            dist/cli/daytona-windows-amd64.exe
-            dist/cli/daytona-windows-arm64.exe
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"
@@ -154,6 +136,37 @@ jobs:
           git config --global --fixed-value --unset-all user.email "153830314+daytonaBot@users.noreply.github.com" 2>/dev/null || true
           git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
           git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
+
+  attest_cli:
+    # A separate job so only it can mint OIDC tokens, and so a signing outage
+    # can be fixed with "Re-run failed jobs" without re-running the release.
+    # It attests the binaries as published on the release, the exact bytes
+    # users download.
+    needs: release
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download CLI release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in daytona-linux-amd64 daytona-linux-arm64 daytona-darwin-amd64 daytona-darwin-arm64 daytona-windows-amd64.exe daytona-windows-arm64.exe; do
+            gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist/cli
+          done
+      - name: Attest CLI build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/cli/daytona-linux-amd64
+            dist/cli/daytona-linux-arm64
+            dist/cli/daytona-darwin-amd64
+            dist/cli/daytona-darwin-arm64
+            dist/cli/daytona-windows-amd64.exe
+            dist/cli/daytona-windows-arm64.exe
 
   sync_gosum:
     needs: release
