@@ -117,10 +117,19 @@ jobs:
           GOOS=darwin GOARCH=arm64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
+      - name: Upload CLI to release assets
+        run: |
+          gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
+          gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
       - name: Attest CLI build provenance
-        # Attestations are keyed by SHA-256 digest; the upload below sends these
-        # exact files unchanged (`#...` only sets the asset display label).
-        # Verify with: gh attestation verify <file> --repo daytona/clients
+        # Runs after the upload so a signing outage cannot leave the release
+        # without CLI binaries. Attestations are keyed by SHA-256 digest, and
+        # the upload above sends these files unchanged (`#...` only sets the
+        # asset display label).
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
@@ -130,14 +139,6 @@ jobs:
             dist/cli/daytona-darwin-arm64
             dist/cli/daytona-windows-amd64.exe
             dist/cli/daytona-windows-arm64.exe
-      - name: Upload CLI to release assets
-        run: |
-          gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"

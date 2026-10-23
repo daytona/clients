@@ -53,7 +53,8 @@ Or download the binary for your platform from [GitHub Releases](https://github.c
 Release binaries carry a [GitHub artifact attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) (SLSA build provenance). Verify a downloaded binary with the [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify ./daytona-linux-amd64 --repo daytona/clients
+gh attestation verify ./daytona-linux-amd64 --repo daytona/clients \
+  --signer-workflow daytona/clients/.github/workflows/release.yaml
 ```
 
 Verification matches the file's SHA-256 digest, so it works whatever the local file is named.
