@@ -411,17 +411,23 @@ export class Image {
       }
     }
 
+    // Source paths are joined onto contextDir, which normalises it ('./ctx' becomes 'ctx' and '.'
+    // disappears), so archive paths are cut by the normalised directory, not the raw argument
+    const normalizedContextDir = contextDir ? pathe.join(contextDir, '.') : ''
+    const contextPrefixLength = normalizedContextDir === '.' ? 0 : normalizedContextDir.length
+
     for (const [contextPath, originalPath] of Image.extractCopySources(
       dockerfileCommands.join('\n'),
       contextDir || '',
       strictContext,
     )) {
       let archiveBasePath = contextPath
-      if (contextDir && !originalPath.startsWith(contextDir)) {
-        archiveBasePath = contextPath.substring(contextDir.length)
-        // Remove leading separators
+      // An absolute source inside the context keeps its full path, which is where COPY looks for it
+      if (contextDir && !(pathe.isAbsolute(originalPath) && originalPath.startsWith(contextDir))) {
+        archiveBasePath = contextPath.substring(contextPrefixLength)
+        // Remove leading separators, and give the context root ('.' or './' once joined) an empty path
         // eslint-disable-next-line no-useless-escape
-        archiveBasePath = archiveBasePath.replace(/^[\/\\]+/, '')
+        archiveBasePath = archiveBasePath.replace(/^[\/\\]+/, '').replace(/^\.\/?$/, '')
       }
       this._contextList.push({ sourcePath: contextPath, archivePath: archiveBasePath })
     }

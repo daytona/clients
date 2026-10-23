@@ -646,6 +646,63 @@ describe('Image', () => {
     }
   })
 
+  it('dockerfileCommands gives the same archive paths however the context directory is written', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    const originalCwd = process.cwd()
+    try {
+      for (const file of ['ctx/a.txt', 'ctx/b.txt', 'ctx/.env', 'ctx/sub/c.txt', 'ctx/ctx/d.txt']) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      // Sources that start with '.' or with the context directory's own name are included on purpose
+      const commands = [
+        'COPY ["*.txt", "/app/"]',
+        'COPY sub/c.txt /app/',
+        'COPY sub/ /app/sub/',
+        'COPY . /app/',
+        'COPY ./ /app/',
+        'COPY .env /app/',
+        'COPY ctx/d.txt /app/',
+      ]
+      const archivePaths = ['', '', '.env', 'a.txt', 'b.txt', 'ctx/d.txt', 'sub/', 'sub/c.txt']
+
+      // Each working directory is paired with the spellings of ctx that are relative to it
+      const spellings: Array<[string, string[]]> = [
+        [dir, ['ctx', 'ctx/', './ctx', './ctx/', path.join(dir, 'ctx')]],
+        [path.join(dir, 'ctx'), ['.', './']],
+      ]
+      for (const [cwd, contextDirs] of spellings) {
+        process.chdir(cwd)
+        for (const contextDir of contextDirs) {
+          const image = Image.base('alpine').dockerfileCommands(commands, contextDir)
+          expect({ contextDir, archivePaths: image.contextList.map((c) => c.archivePath).sort() }).toEqual({
+            contextDir,
+            archivePaths,
+          })
+        }
+      }
+
+      // An absolute source inside an absolute context keeps its full path, where COPY looks for it
+      const absoluteSource = path.join(dir, 'ctx', 'a.txt')
+      const image = Image.base('alpine').dockerfileCommands([`COPY ${absoluteSource} /app/`], path.join(dir, 'ctx'))
+      expect(image.contextList).toEqual([{ sourcePath: absoluteSource, archivePath: absoluteSource }])
+    } finally {
+      process.chdir(originalCwd)
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('dockerfileCommands reads a leading !, bare parentheses and the context directory literally', async () => {
     const { Image } = await import('../Image')
     const fs = jest.requireActual<typeof import('fs')>('fs')
