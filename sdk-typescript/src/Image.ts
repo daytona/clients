@@ -422,7 +422,8 @@ export class Image {
       strictContext,
     )) {
       let archiveBasePath = contextPath
-      // An absolute source inside the context keeps its full path, which is where COPY looks for it
+      // Absolute sources inside the context keep their full archive path, as before; the others are
+      // cut by the context directory
       if (contextDir && !(pathe.isAbsolute(originalPath) && originalPath.startsWith(contextDir))) {
         archiveBasePath = contextPath.substring(contextPrefixLength)
         // Remove leading separators, and give the context root ('.' or './' once joined) an empty path

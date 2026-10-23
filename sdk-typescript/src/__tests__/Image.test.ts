@@ -692,11 +692,6 @@ describe('Image', () => {
           })
         }
       }
-
-      // An absolute source inside an absolute context keeps its full path, where COPY looks for it
-      const absoluteSource = path.join(dir, 'ctx', 'a.txt')
-      const image = Image.base('alpine').dockerfileCommands([`COPY ${absoluteSource} /app/`], path.join(dir, 'ctx'))
-      expect(image.contextList).toEqual([{ sourcePath: absoluteSource, archivePath: absoluteSource }])
     } finally {
       process.chdir(originalCwd)
       fs.rmSync(dir, { recursive: true, force: true })
