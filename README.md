@@ -46,7 +46,7 @@ dependencies {
 brew install daytonaio/cli/daytona
 ```
 
-Or download the binary for your platform (`daytona-<os>-<arch>`, `.exe` on Windows) from [GitHub Releases](https://github.com/daytona/clients/releases).
+Or download the binary for your platform from [GitHub Releases](https://github.com/daytona/clients/releases). The release page lists it as `daytona-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-<os>-<arch>`.
 
 #### Verify the binary
 
@@ -55,6 +55,8 @@ Release binaries carry a [GitHub artifact attestation](https://docs.github.com/e
 ```bash
 gh attestation verify ./daytona-linux-amd64 --repo daytona/clients
 ```
+
+Verification matches the file's SHA-256 digest, so it works whatever the local file is named.
 
 Releases before attestations were introduced have none, and verification fails with a 404.
 
