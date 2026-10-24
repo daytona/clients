@@ -574,6 +574,335 @@ describe('Image', () => {
     expect(parsed).toEqual({ sources: ['a.txt'], dest: '/app/' })
   })
 
+  it('parseCopyCommand keeps unquoted glob sources in a shell form copy command', async () => {
+    const { Image } = await import('../Image')
+    const imageRuntime = Image as unknown as Record<string, (...args: unknown[]) => unknown>
+
+    expect(imageRuntime.parseCopyCommand('COPY src/*.txt /app/')).toEqual({
+      sources: ['src/*.txt'],
+      dest: '/app/',
+      optionalSources: new Set([0]),
+    })
+    expect(imageRuntime.parseCopyCommand('COPY src/*.txt a.txt /app/')).toEqual({
+      sources: ['src/*.txt', 'a.txt'],
+      dest: '/app/',
+      optionalSources: new Set([0]),
+    })
+    expect(imageRuntime.parseCopyCommand('COPY --chown=1000:1000 src/?.md /app/')).toEqual({
+      sources: ['src/?.md'],
+      dest: '/app/',
+      optionalSources: new Set([0]),
+    })
+    // A line with a variable is parsed as before, so its glob tokens are dropped
+    expect(imageRuntime.parseCopyCommand('COPY $SRC/*.txt $DEST')).toBeNull()
+    expect(imageRuntime.parseCopyCommand('COPY src/*.txt $X.txt /app/')).toEqual({ sources: ['.txt'], dest: '/app/' })
+    // Unquoted parentheses split the word, so its glob piece is not kept as a source rooted at /
+    const grouped = imageRuntime.parseCopyCommand('COPY src/(group)/* /app/') as { sources: string[] }
+    expect(grouped.sources).not.toContain('/*')
+    expect(imageRuntime.parseCopyCommand('COPY "app/(marketing)/*" /app/')).toEqual({
+      sources: ['app/(marketing)/*'],
+      dest: '/app/',
+    })
+    // A glob outside the build context is dropped, so it never expands host paths
+    expect(imageRuntime.parseCopyCommand('COPY /etc/*.conf /app/')).toBeNull()
+    expect(imageRuntime.parseCopyCommand('COPY ../*.txt a.txt /app/')).toEqual({ sources: ['a.txt'], dest: '/app/' })
+    // A glob in the destination position stays the destination, and the source before it, which
+    // used to be read as the destination, is optional
+    expect(imageRuntime.parseCopyCommand('COPY a.txt src/*.txt /opt/app*/')).toEqual({
+      sources: ['a.txt', 'src/*.txt'],
+      dest: '/opt/app*/',
+      optionalSources: new Set([0, 1]),
+    })
+    expect(imageRuntime.parseCopyCommand('COPY /etc/hosts dst*')).toBeNull()
+  })
+
+  it('shell form COPY globs upload the same build context as the json array form', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    try {
+      for (const file of ['a.txt', 'src/a.txt', 'src/b.txt', 'src/c.md', 'src/sub/d.txt', 'lib/e.txt']) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+
+      const cases: Array<{ shellForm: string; jsonForm: string; archivePaths: string[] }> = [
+        {
+          shellForm: 'COPY src/*.txt /app/',
+          jsonForm: 'COPY ["src/*.txt", "/app/"]',
+          archivePaths: ['src/a.txt', 'src/b.txt'],
+        },
+        {
+          shellForm: 'COPY src/*.txt a.txt /app/',
+          jsonForm: 'COPY ["src/*.txt", "a.txt", "/app/"]',
+          archivePaths: ['a.txt', 'src/a.txt', 'src/b.txt'],
+        },
+        {
+          shellForm: 'COPY --chown=1000:1000 src/?.md /app/',
+          jsonForm: 'COPY --chown=1000:1000 ["src/?.md", "/app/"]',
+          archivePaths: ['src/c.md'],
+        },
+        {
+          // A directory matches too and is uploaded with everything below it, as Docker copies it
+          shellForm: 'COPY src/* /app/',
+          jsonForm: 'COPY ["src/*", "/app/"]',
+          archivePaths: ['src/a.txt', 'src/b.txt', 'src/c.md', 'src/sub'],
+        },
+        { shellForm: 'COPY s?c /app/', jsonForm: 'COPY ["s?c", "/app/"]', archivePaths: ['src'] },
+        { shellForm: 'COPY {src,lib} /app/', jsonForm: 'COPY ["{src,lib}", "/app/"]', archivePaths: ['lib', 'src'] },
+        {
+          // A match inside a matched directory is left out, so nothing is uploaded twice
+          shellForm: 'COPY src/** /app/',
+          jsonForm: 'COPY ["src/**", "/app/"]',
+          archivePaths: ['src/a.txt', 'src/b.txt', 'src/c.md', 'src/sub'],
+        },
+        {
+          // A glob that matches nothing is skipped in either form
+          shellForm: 'COPY src/*.cfg a.txt /app/',
+          jsonForm: 'COPY ["src/*.cfg", "a.txt", "/app/"]',
+          archivePaths: ['a.txt'],
+        },
+      ]
+
+      for (const { shellForm, jsonForm, archivePaths } of cases) {
+        const viaShell = Image.base('alpine').dockerfileCommands([shellForm], dir).contextList
+        const viaJson = Image.base('alpine').dockerfileCommands([jsonForm], dir).contextList
+        expect(viaShell.map((c) => c.archivePath).sort()).toEqual(archivePaths)
+        expect(viaShell).toEqual(viaJson)
+
+        fs.writeFileSync(path.join(dir, 'Dockerfile'), `FROM alpine\n${shellForm}\n`)
+        const fromShell = Image.fromDockerfile(path.join(dir, 'Dockerfile')).contextList
+        fs.writeFileSync(path.join(dir, 'Dockerfile'), `FROM alpine\n${jsonForm}\n`)
+        const fromJson = Image.fromDockerfile(path.join(dir, 'Dockerfile')).contextList
+        expect(fromShell.map((c) => c.archivePath).sort()).toEqual(archivePaths)
+        expect(fromShell).toEqual(fromJson)
+      }
+
+      // A plain source that does not exist keeps its literal path, so the upload fails loudly
+      expect(Image.base('alpine').dockerfileCommands(['COPY missing.txt /app/'], dir).contextList).toEqual([
+        { sourcePath: path.join(dir, 'missing.txt'), archivePath: 'missing.txt' },
+      ])
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('COPY globs outside the build context upload nothing from the host', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    try {
+      for (const file of ['ctx/a.txt', 'outside/secret.txt', 'top.txt']) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      fs.symlinkSync('../outside/secret.txt', path.join(dir, 'ctx', 'link.txt'))
+      const context = path.join(dir, 'ctx')
+
+      // Unquoted, such a glob is dropped in every mode, as it was before shell-form globs were kept
+      const outsideSources = [`${dir}/outside/*.txt`, '../*.txt', '../outside/*', 'src/../../*.txt', '..{,}/*']
+      for (const source of outsideSources) {
+        for (const options of [undefined, { strictContext: true }]) {
+          expect(
+            Image.base('alpine').dockerfileCommands([`COPY ${source} /app/`], context, options).contextList,
+          ).toEqual([])
+          expect(
+            Image.base('alpine').dockerfileCommands([`COPY ${source} a.txt /app/`], context, options).contextList,
+          ).toEqual([{ sourcePath: path.join(context, 'a.txt'), archivePath: 'a.txt' }])
+        }
+      }
+      // With strictContext an unquoted match that resolves outside the context is dropped as well
+      expect(
+        Image.base('alpine').dockerfileCommands(['COPY *.txt /app/'], context, { strictContext: true }).contextList,
+      ).toEqual([{ sourcePath: path.join(context, 'a.txt'), archivePath: 'a.txt' }])
+
+      // Brace syntax matches outside the context in the quoted and JSON forms too; strictContext rejects it
+      for (const line of ['COPY "..{,}/*" /app/', 'COPY ["..{,}/*", "/app/"]']) {
+        expect(Image.base('alpine').dockerfileCommands([line], context).contextList).toEqual([])
+        expect(() => Image.base('alpine').dockerfileCommands([line], context, { strictContext: true })).toThrow(
+          'forbidden path outside the build context',
+        )
+      }
+      for (const line of ['COPY "../*.txt" /app/', 'COPY ["link.txt", "/app/"]']) {
+        expect(() => Image.base('alpine').dockerfileCommands([line], context, { strictContext: true })).toThrow(
+          'forbidden path outside the build context',
+        )
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('COPY lines keep every build context entry they had before shell-form globs were kept', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    try {
+      for (const file of [
+        'top.txt',
+        'ctx/a.txt',
+        'ctx/package.json',
+        'ctx/requirements.txt',
+        'ctx/requirements-dev.txt',
+        'ctx/src/a.txt',
+        'ctx/src/sub/b.txt',
+        'ctx/src/sub/deep/c.txt',
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      const context = path.join(dir, 'ctx')
+
+      // before: the archive paths these lines gave before shell-form globs were kept
+      const cases: Array<{ lines: string[]; options?: { strictContext: boolean }; before: string[]; after: string[] }> =
+        [
+          { lines: ['COPY package.json yarn.lock* ./'], before: ['package.json'], after: ['package.json'] },
+          {
+            lines: ['COPY requirements*.txt optional*.cfg /app/'],
+            before: [],
+            after: ['requirements-dev.txt', 'requirements.txt'],
+          },
+          { lines: ['ARG SRC=.', 'COPY $SRC /app/'], before: [''], after: [''] },
+          {
+            lines: ['COPY ../*.txt a.txt /app/'],
+            options: { strictContext: true },
+            before: ['a.txt'],
+            after: ['a.txt'],
+          },
+          {
+            lines: ['COPY /etc/*.conf a.txt /app/'],
+            options: { strictContext: true },
+            before: ['a.txt'],
+            after: ['a.txt'],
+          },
+          {
+            lines: ['COPY ..{,}/* a.txt /app/'],
+            options: { strictContext: true },
+            before: ['a.txt'],
+            after: ['a.txt'],
+          },
+          { lines: ['COPY src/* /app/'], before: [], after: ['src/a.txt', 'src/sub'] },
+          { lines: ['COPY src/** /app/'], before: [], after: ['src/a.txt', 'src/sub'] },
+        ]
+
+      for (const { lines, options, before, after } of cases) {
+        fs.writeFileSync(path.join(context, 'Dockerfile'), `FROM alpine\n${lines.join('\n')}\n`)
+        for (const contextList of [
+          Image.base('alpine').dockerfileCommands(lines, context, options).contextList,
+          Image.fromDockerfile(path.join(context, 'Dockerfile'), options).contextList,
+        ]) {
+          const archivePaths = contextList.map((c) => c.archivePath)
+          expect(archivePaths).toEqual(expect.arrayContaining(before))
+          for (const { sourcePath } of contextList) {
+            expect(fs.existsSync(sourcePath)).toBe(true)
+          }
+          expect(archivePaths.sort()).toEqual(after)
+        }
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('COPY globs add only existing paths that resolve inside the build context', async () => {
+    const { Image } = await import('../Image')
+    const fs = jest.requireActual<typeof import('fs')>('fs')
+    const os = jest.requireActual<typeof import('os')>('os')
+    const path = jest.requireActual<typeof import('path')>('path')
+    const realModules: Record<string, unknown> = {
+      fs,
+      tinyglobby: jest.requireActual('tinyglobby'),
+      'expand-tilde': jest.requireActual('expand-tilde'),
+    }
+    mockDynamicRequire.mockImplementation((moduleName: string) => realModules[moduleName])
+
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-image-')))
+    try {
+      for (const file of [
+        'top.txt',
+        'outside/secret.txt',
+        'ctx/a.txt',
+        'ctx/src/b.txt',
+        'ctx/lit*.txt',
+        'ctx/{p,q}.txt',
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true })
+        fs.writeFileSync(path.join(dir, file), '')
+      }
+      fs.symlinkSync('../outside', path.join(dir, 'ctx', 'lnkout'))
+      const context = path.join(dir, 'ctx')
+      const archivePaths = (line: string, options?: { strictContext: boolean }): string[] =>
+        Image.base('alpine')
+          .dockerfileCommands([line], context, options)
+          .contextList.map((c) => c.archivePath)
+          .sort()
+
+      for (const options of [undefined, { strictContext: true }]) {
+        // An unquoted glob does not follow a symlink out of the context, with or without strictContext
+        expect(archivePaths('COPY **/*.txt /app/', options)).toEqual(['a.txt', 'lit*.txt', 'src/b.txt', '{p,q}.txt'])
+        expect(archivePaths('COPY lnkout/* a.txt /app/', options)).toEqual(['a.txt'])
+        // The source before a glob destination was the destination before, so it adds nothing outside
+        expect(archivePaths(`COPY ${dir}/top.txt dst*`, options)).toEqual([])
+        expect(archivePaths('COPY a.txt dst*', options)).toEqual(['a.txt'])
+        // A path below a file cannot exist, so a glob there matches nothing rather than throwing ENOTDIR
+        expect(archivePaths('COPY a.txt/x* src/b.txt /app/', options)).toEqual(['src/b.txt'])
+        expect(archivePaths('COPY "a.txt/x*" src/b.txt /app/', options)).toEqual(['src/b.txt'])
+        expect(archivePaths('COPY ["a.txt/x*", "src/b.txt", "/app/"]', options)).toEqual(['src/b.txt'])
+        expect(archivePaths('COPY a.txt/x dst*', options)).toEqual([])
+        // A glob never uploads the context root, which tinyglobby gives for `..` in a brace group
+        expect(archivePaths('COPY {a.txt,..} /app/', options)).toEqual([])
+        expect(archivePaths('COPY ["{a.txt,..}", "/app/"]', options)).toEqual([])
+      }
+
+      // `.` and `./` still name the context root
+      for (const [line, sourcePath] of [
+        ['COPY . /app/', context],
+        ['COPY ./ /app/', `${context}/`],
+      ]) {
+        expect(Image.base('alpine').dockerfileCommands([line], context).contextList).toEqual([
+          { sourcePath, archivePath: '' },
+        ])
+      }
+
+      // A file named like a glob is uploaded, in every form
+      for (const line of ['COPY lit*.txt /app/', 'COPY "lit*.txt" /app/', 'COPY ["lit*.txt", "/app/"]']) {
+        expect(archivePaths(line)).toEqual(['lit*.txt'])
+      }
+      for (const line of ['COPY {p,q}.txt /app/', 'COPY ["{p,q}.txt", "/app/"]']) {
+        expect(archivePaths(line)).toEqual(['{p,q}.txt'])
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fromDockerfile resolves COPY globs against the real filesystem', async () => {
     const { Image } = await import('../Image')
     const fs = jest.requireActual<typeof import('fs')>('fs')

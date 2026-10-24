@@ -689,11 +689,12 @@ export class Image {
         const tinyglobby = dynamicRequire('tinyglobby', importErrorPrefix)
         const fs = dynamicRequire('fs', importErrorPrefix)
         const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
+        let optionalRoot = realRoot
 
         const commandParts = this.parseCopyCommand(line)
         if (commandParts) {
           // Get source paths from the parsed command parts
-          for (const source of commandParts.sources) {
+          for (const [index, source] of commandParts.sources.entries()) {
             if (realRoot !== null) {
               Image.ensureSourceWithinContext(source)
             }
@@ -701,15 +702,41 @@ export class Image {
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
-            const matchingFiles = Image.expandCopySource(tinyglobby, pathPrefix, source)
-            if (matchingFiles.length > 0) {
-              for (const matchingFile of matchingFiles) {
-                Image.ensureWithinBuildContext(fs, realRoot, matchingFile)
-                sources.push([matchingFile, source])
-              }
+            const matches = Image.expandCopySource(tinyglobby, pathPrefix, source)
+            // An optional source only adds paths that exist and resolve inside the build context, in
+            // every mode: it never throws and never adds a literal path that does not exist
+            const optional = commandParts.optionalSources?.has(index) ?? false
+            let candidates: string[]
+            if (matches === null && !optional) {
+              candidates = [fullPathPattern]
+            } else if (matches !== null && matches.length > 0) {
+              candidates = matches
             } else {
-              Image.ensureWithinBuildContext(fs, realRoot, fullPathPattern)
-              sources.push([fullPathPattern, source])
+              // A glob that matches nothing is skipped, as BuildKit does, unless a path with its
+              // literal name exists, which is what was uploaded before
+              if (!Image.pathExists(fs, fullPathPattern)) continue
+              candidates = [fullPathPattern]
+            }
+
+            for (const candidate of candidates) {
+              const relative = pathe.relative(pathPrefix, candidate)
+              // tinyglobby gives the context root for `..` in a brace group (`{a.txt,..}`). Only a
+              // literal source such as `.` or `./` names the root, so a glob match of it is left out.
+              if (matches !== null && relative === '') continue
+              // Brace syntax, as in `..{,}/*`, lets a source inside the context match outside it
+              const escapes = !Image.isOutsideContext(source) && Image.isOutsideContext(relative)
+              if (optional) {
+                // A symlink can lead outside the context, so the resolved path is checked without
+                // strictContext too
+                optionalRoot ??= Image.resolveRealPath(fs, pathPrefix)
+                if (escapes || Image.findOutsideBuildContext(fs, optionalRoot, candidate) !== null) continue
+              } else {
+                // strictContext rejects a quoted or JSON source that resolves outside the context; without
+                // it, only the brace matches outside the context are left out
+                Image.ensureWithinBuildContext(fs, realRoot, candidate)
+                if (escapes) continue
+              }
+              sources.push([candidate, source])
             }
           }
         }
@@ -717,6 +744,22 @@ export class Image {
     }
 
     return sources
+  }
+
+  /**
+   * Tells whether a path exists, without following a final symlink. lstat also throws for a path
+   * that cannot exist, such as ENOTDIR when a parent is a file, so any error means it does not.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string} target - The path to check.
+   * @returns {boolean} True if the path exists.
+   */
+  private static pathExists(fs: any, target: string): boolean {
+    try {
+      return fs.lstatSync(target, { throwIfNoEntry: false }) !== undefined
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -736,25 +779,34 @@ export class Image {
   }
 
   /**
-   * Rejects a COPY source that names something outside the build context. This is decided on the
-   * source itself, before anything is read, so that a source is accepted or rejected the same way
-   * whether or not it happens to exist on disk. An absolute source, including a Windows drive or
-   * UNC path, and one whose normalised form climbs above the context both name something the
-   * build context cannot address.
+   * Rejects a COPY source that names something outside the build context.
    *
    * @param {string} source - The COPY-command source path.
    */
   private static ensureSourceWithinContext(source: string): void {
+    if (Image.isOutsideContext(source)) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
+    }
+  }
+
+  /**
+   * Tells whether a COPY source names something outside the build context. This is decided on the
+   * source itself, before anything is read, so that a source is judged the same way whether or not
+   * it happens to exist on disk. An absolute source, including a Windows drive or UNC path, and one
+   * whose normalised form climbs above the context both name something the build context cannot
+   * address.
+   *
+   * @param {string} source - The COPY-command source path.
+   * @returns {boolean} True if the source is outside the build context.
+   */
+  private static isOutsideContext(source: string): boolean {
     const normalized = pathe.normalize(source)
-    const outside =
+    return (
       pathe.isAbsolute(source) ||
       /^([A-Za-z]:|\\\\)/.test(source) ||
       normalized === '..' ||
       normalized.startsWith('../')
-
-    if (outside) {
-      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
-    }
+    )
   }
 
   /**
@@ -769,8 +821,24 @@ export class Image {
    * @param {string} candidate - The resolved source path to check.
    */
   private static ensureWithinBuildContext(fs: any, realRoot: string | null, candidate: string): void {
+    const outside = Image.findOutsideBuildContext(fs, realRoot, candidate)
+    if (outside !== null) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${outside}`)
+    }
+  }
+
+  /**
+   * Finds where a source resolves outside the build context, as checked by ensureWithinBuildContext.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string | null} realRoot - The resolved build context root, or null when the caller did
+   * not ask for a strict build context.
+   * @param {string} candidate - The resolved source path to check.
+   * @returns {string | null} The path outside the build context, or null if there is none.
+   */
+  private static findOutsideBuildContext(fs: any, realRoot: string | null, candidate: string): string | null {
     // realRoot is null unless the caller asked for a strict build context
-    if (realRoot === null) return
+    if (realRoot === null) return null
 
     let resolved: string
     try {
@@ -778,25 +846,23 @@ export class Image {
     } catch {
       // A path that does not exist cannot be archived. A symlink whose target is missing still
       // leaves the context, so an entry that lstat can see is rejected rather than tolerated.
-      if (fs.lstatSync(candidate, { throwIfNoEntry: false })) {
-        throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${candidate}`)
-      }
-      return
+      return fs.lstatSync(candidate, { throwIfNoEntry: false }) ? candidate : null
     }
 
     const relative = pathe.relative(realRoot, resolved)
-    if (relative === '..' || relative.startsWith('../')) {
-      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${resolved}`)
-    }
+    return relative === '..' || relative.startsWith('../') ? resolved : null
   }
 
   /**
    * Parses a COPY command to extract sources and destination.
    *
    * @param {string} line - The line to parse.
-   * @returns {Object} The parsed sources and destination.
+   * @returns {Object} The parsed sources and destination, and the indexes of the optional sources,
+   * which the shell form read only once its glob tokens were kept, if there are any.
    */
-  private static parseCopyCommand(line: string): { sources: string[]; dest: string } | null {
+  private static parseCopyCommand(
+    line: string,
+  ): { sources: string[]; dest: string; optionalSources?: Set<number> } | null {
     // Remove initial "COPY" and strip whitespace
     let parts = line.trim().substring(4).trim()
 
@@ -829,17 +895,43 @@ export class Image {
       }
     }
 
-    // Handle the whitespace-separated format
-    const elements = parseShellQuote(parts).filter((x): x is string => typeof x === 'string')
+    // Handle the whitespace-separated format. shell-quote returns an unquoted `*` or `?` source as a
+    // glob token; keep its pattern so it expands like the JSON form.
+    const tokens = parseShellQuote(parts)
+    // A variable is replaced with an empty string, so `$SRC/*` would become `/*`. Other operators,
+    // such as the parentheses in `src/(group)/*`, split a word into pieces that are not Docker's
+    // words (`/*` alone would expand from /). Glob tokens are kept only without either, and the other
+    // lines keep only the string tokens, as before.
+    const keepGlobs = !parts.includes('$') && !tokens.some((x) => typeof x === 'object' && 'op' in x && x.op !== 'glob')
+    const words = tokens.flatMap((x) => {
+      if (typeof x === 'string') return [{ word: x, glob: false }]
+      return keepGlobs && 'op' in x && x.op === 'glob' ? [{ word: x.pattern, glob: true }] : []
+    })
 
     // We need at least one source and one destination
-    if (elements.length < 2) {
+    if (words.length < 2) {
       return null
     }
 
+    // The sources that were dropped while glob tokens were dropped are optional: the glob sources, and
+    // the last string when the destination is a glob, as that string used to be the destination
+    const lastString = words.map(({ glob }) => glob).lastIndexOf(false)
+    const sourceWords = words.slice(0, -1).map(({ word, glob }, index) => ({
+      word,
+      optional: glob || (words[words.length - 1].glob && index === lastString),
+    }))
+    // An optional source outside the build context, such as `/etc/*` or `../*`, is dropped in every
+    // mode, as before, so the shell form never reads host paths outside the context
+    const kept = sourceWords.filter(({ word, optional }) => !optional || !Image.isOutsideContext(word))
+    if (kept.length === 0) {
+      return null
+    }
+
+    const optionalSources = new Set(kept.flatMap(({ optional }, index) => (optional ? [index] : [])))
     return {
-      sources: elements.slice(0, -1),
-      dest: elements[elements.length - 1],
+      sources: kept.map(({ word }) => word),
+      dest: words[words.length - 1].word,
+      ...(optionalSources.size > 0 && { optionalSources }),
     }
   }
 
@@ -851,18 +943,19 @@ export class Image {
    * @param {any} tinyglobby - The tinyglobby module.
    * @param {string} pathPrefix - The context directory prefix.
    * @param {string} source - The COPY source.
-   * @returns {string[]} The matching paths, or an empty list for a literal source or no match.
+   * @returns {string[] | null} The matching files and directories, which may be none, or null for a
+   * source that is taken literally.
    */
-  private static expandCopySource(tinyglobby: any, pathPrefix: string, source: string): string[] {
+  private static expandCopySource(tinyglobby: any, pathPrefix: string, source: string): string[] | null {
     const absolute = pathe.isAbsolute(source)
     const normalized = absolute ? source : pathe.normalize(source)
-    // A glob with a trailing separator is kept as a literal path so that upload fails loudly,
-    // instead of silently matching only the files below it.
-    if (normalized.endsWith('/')) return []
+    // A glob with a trailing separator is taken literally, as before, since tinyglobby would match the
+    // files next to the directories it names as well
+    if (normalized.endsWith('/')) return null
     const segments = Image.splitGlobSegments(normalized)
     const globSegments = segments.map((segment) => Image.escapeLiteralParens(segment))
     const baseLength = globSegments.findIndex((segment) => tinyglobby.isDynamicPattern(segment))
-    if (baseLength === -1) return []
+    if (baseLength === -1) return null
 
     const staticPart = segments.slice(0, baseLength).join('/')
     const base = absolute ? staticPart || '/' : pathe.join(pathPrefix, staticPart)
@@ -870,8 +963,27 @@ export class Image {
     // A leading `!` would make tinyglobby read the pattern as a negation; Docker reads it literally
     if (pattern.startsWith('!') && !pattern.startsWith('!(')) pattern = `\\${pattern}`
 
-    const matches: string[] = tinyglobby.globSync([pattern], { cwd: base, dot: true, expandDirectories: false })
-    return matches.map((match) => pathe.join(base, match))
+    // Directories match too, as in Docker, and tinyglobby marks them with a trailing separator. A
+    // source outside the build context still matches only files, so `/*` never reads host directories.
+    const matches: string[] = tinyglobby.globSync([pattern], {
+      cwd: base,
+      dot: true,
+      expandDirectories: false,
+      onlyFiles: Image.isOutsideContext(source),
+    })
+    const directories = new Set(matches.filter((match) => match.endsWith('/')).map((match) => match.slice(0, -1)))
+    // A directory is uploaded with everything below it, so a match inside a matched directory, as
+    // with `**`, is left out rather than uploaded twice
+    const insideMatchedDirectory = (match: string): boolean => {
+      for (let parent = pathe.dirname(match); parent !== '.' && parent !== '/'; parent = pathe.dirname(parent)) {
+        if (directories.has(parent)) return true
+      }
+      return false
+    }
+    return matches
+      .map((match) => (match.endsWith('/') ? match.slice(0, -1) : match))
+      .filter((match) => !insideMatchedDirectory(match))
+      .map((match) => pathe.join(base, match))
   }
 
   /**
