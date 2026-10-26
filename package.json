@@ -22,8 +22,8 @@
     "sdk-docs:archive": "tar -czf sdk-docs-${VERSION:-dev}.tar.gz -C artifacts sdk-docs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1149.0",
-    "@aws-sdk/lib-storage": "^3.1149.0",
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/lib-storage": "^3.1152.0",
     "@iarna/toml": "^2.2.5",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.223.0",
@@ -33,7 +33,7 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "axios": "^1.20.0",
     "busboy": "^1.0.0",
-    "dotenv": "^18.0.7",
+    "dotenv": "^18.0.8",
     "expand-tilde": "^2.0.2",
     "form-data": "^4.0.4",
     "isomorphic-ws": "^5.0.0",
@@ -64,7 +64,7 @@
     "@types/node": "^22.20.5",
     "@types/shell-quote": "^1.7.5",
     "@types/tar": "^7.0.87",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -80,15 +80,15 @@
     "markdownlint-cli2": "^0.23.3",
     "nx": "23.3.0",
     "prettier": "^3.9.10",
-    "ts-jest": "29.4.14",
+    "ts-jest": "29.4.15",
     "ts-node": "10.9.2",
     "tsx": "^4.23.15",
     "typedoc": "~0.28.20",
-    "typedoc-plugin-markdown": "~4.13.1",
+    "typedoc-plugin-markdown": "~4.14.0",
     "typedoc-plugin-merge-modules": "~7.0.0",
     "typescript": "5.8.3",
-    "typescript-eslint": "^8.71.1",
-    "verdaccio": "6.10.5"
+    "typescript-eslint": "^8.71.2",
+    "verdaccio": "6.10.6"
   },
   "dependenciesMeta": {
     "@openapitools/openapi-generator-cli": {
