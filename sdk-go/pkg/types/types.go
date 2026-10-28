@@ -420,6 +420,7 @@ type ExecutionError struct {
 	Name      string
 	Value     string
 	Traceback *string // Optional stack trace; nil when not available
+	Err       error   `json:"-"` // Underlying client-side cause; nil for server-reported execution errors and execution timeouts.
 }
 
 // OutputMessage represents an output message
