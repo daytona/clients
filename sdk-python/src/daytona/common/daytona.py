@@ -177,7 +177,7 @@ class CreateSandboxBaseParams(BaseModel):
         domain_allow_list (str | None): Comma-separated list of allowed domains for the Sandbox.
         outbound_proxy_url (str | None): Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied
             via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own);
-            combine with domain_allow_list for unbypassable network-layer enforcement.
+            combine with domain_allow_list to limit which destinations the Sandbox can reach.
         otel_endpoint_override (str | None): OTel collector endpoint override for the Sandbox. When set,
             sandbox OTel data is sent to this endpoint instead of the default collector and will not be
             available in the Daytona analytics API or dashboard.

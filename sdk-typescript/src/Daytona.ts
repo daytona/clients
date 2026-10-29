@@ -198,7 +198,7 @@ export interface Resources {
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
  * @property {string} [networkAllowList] - Comma-separated list of allowed CIDR network addresses for the Sandbox
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
- * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
+ * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList to limit which destinations the Sandbox can reach.
  * @property {string} [otelEndpointOverride] - OTel collector endpoint override for the Sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and will not be available in the Daytona analytics API or dashboard.
  * @property {boolean} [ephemeral] - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
  * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.

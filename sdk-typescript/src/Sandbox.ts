@@ -126,7 +126,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [domainAllowList] - Comma-separated list of allowed domains for the Sandbox
  * (not returned by list results; call `refreshData()` on each item to populate)
- * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
+ * @property {string} [outboundProxyUrl] - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList to limit which destinations the Sandbox can reach.
  * (not returned by list results; call `refreshData()` on each item to populate)
  * @property {string} [linkedSandboxId] - ID of the Sandbox this Sandbox is linked to. When set, the Sandbox is co-located on the same runner as the linked Sandbox.
  * (not returned by list results; call `refreshData()` on each item to populate)
@@ -980,8 +980,8 @@ export class Sandbox {
    * Updates outbound network policy for this sandbox on the runner (for example block all traffic,
    * restore general internet access, or apply a CIDR allow list) without stopping the sandbox.
    *
-   * This maps to the same mechanism as creating a sandbox with `networkBlockAll` / `networkAllowList` /
-   * `domainAllowList`: the runner applies iptables rules to the sandbox container.
+   * This maps to the same settings as creating a sandbox with `networkBlockAll` / `networkAllowList` /
+   * `domainAllowList`.
    *
    * @param {UpdateSandboxNetworkSettings} settings - At least one of `networkBlockAll`, `networkAllowList` or
    *   `domainAllowList` must be set.

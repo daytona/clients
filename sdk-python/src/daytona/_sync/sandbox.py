@@ -169,7 +169,7 @@ class Sandbox(SandboxDto):
             the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
         outbound_proxy_url (str | None): Outbound proxy URL to route the Sandbox HTTP(S) traffic through.
             Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on
-            its own); combine with domain_allow_list for unbypassable network-layer enforcement. (not returned by
+            its own); combine with domain_allow_list to limit which destinations the Sandbox can reach. (not returned by
             list results; call `refresh_data()` on each item to populate).
         sandbox_class (str | None): The class of the Sandbox.
         warm_pool_id (str | None): ID of the warm pool this Sandbox waits in; set only while it is
