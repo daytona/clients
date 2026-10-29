@@ -143,6 +143,14 @@
       "created_at": "2026-10-29T14:50:14Z",
       "repoId": 1278322564,
       "pullRequestNo": 422
+    },
+    {
+      "name": "izhanov",
+      "id": 44546917,
+      "comment_id": 6500611115,
+      "created_at": "2026-10-29T15:15:47Z",
+      "repoId": 1278322564,
+      "pullRequestNo": 428
     }
   ]
 }
