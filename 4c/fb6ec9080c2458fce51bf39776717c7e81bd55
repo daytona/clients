@@ -1,0 +1,34 @@
+examples/go/go.mod
+  h_e7759ddd73fa65 11-23
+examples/go/go.sum
+  h_e7759ddd73fa65 1-38
+analytics-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 13
+analytics-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 115
+toolbox-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+toolbox-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 114
+yarn.lock
+  h_e7759ddd73fa65 5970,6012
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4cfb6ec9080c2458fce51bf39776717c7e81bd55",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
