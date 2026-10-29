@@ -509,6 +509,22 @@ RSpec.describe Daytona::Sandbox do
         expect(request.disk).to eq(32)
       end
     end
+
+    it 'waits for the resize under the resize deadline when the Timeout.timeout exception is lost' do
+      allow(sandbox_api).to receive_messages(
+        resize_sandbox: build_sandbox_dto(state: DaytonaApiClient::SandboxState::RESIZING),
+        get_sandbox: build_sandbox_dto(state: DaytonaApiClient::SandboxState::RESIZING)
+      )
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+
+      elapsed = Benchmark.realtime do
+        expect { sandbox.resize(Daytona::Resources.new(cpu: 8), 0.2) }.to raise_error(
+          Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to resize within the 0.2 seconds timeout period'
+        )
+      end
+
+      expect(elapsed).to be < 0.9
+    end
   end
 
   describe '#create_lsp_server' do
@@ -593,6 +609,29 @@ RSpec.describe Daytona::Sandbox do
         Daytona::Sdk::SpotEvictedError,
         'Sandbox sandbox-123 was evicted by spot preemption at 2026-09-29T07:05:00Z'
       )
+    end
+
+    it 'raises at the deadline when the Timeout.timeout exception is lost' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'pending'))
+      # As when the exception arrives while a request is inside libcurl: Timeout.timeout never interrupts.
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+
+      elapsed = Benchmark.realtime do
+        expect do
+          pending_sandbox.wait_for_sandbox_start(0.2)
+        end.to raise_error(
+          Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 0.2 seconds timeout period'
+        )
+      end
+
+      # The subscribed poll interval is 1 s, so this also shows the wait is cut short at the deadline.
+      expect(elapsed).to be < 0.9
     end
 
     it 'recovers from stale cached ERROR when refresh returns started' do
@@ -854,6 +893,22 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:fork_sandbox) do |_id, request|
         expect(request.name).to eq('my-fork')
       end
+    end
+
+    it 'waits for the fork to start under the fork deadline when the Timeout.timeout exception is lost' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: 'pending')
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto)
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+
+      elapsed = Benchmark.realtime do
+        expect { sandbox.fork(timeout: 0.2) }.to raise_error(
+          Daytona::Sdk::TimeoutError,
+          'Sandbox sandbox-123 fork failed to become ready within the 0.2 seconds timeout period'
+        )
+      end
+
+      expect(elapsed).to be < 0.9
     end
   end
 
