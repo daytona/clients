@@ -595,6 +595,29 @@ RSpec.describe Daytona::Sandbox do
       )
     end
 
+    it 'raises at the deadline when the Timeout.timeout exception is lost' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'pending'))
+      # As when the exception arrives while a request is inside libcurl: Timeout.timeout never interrupts.
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+
+      elapsed = Benchmark.realtime do
+        expect do
+          pending_sandbox.wait_for_sandbox_start(0.2)
+        end.to raise_error(
+          Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 0.2 seconds timeout period'
+        )
+      end
+
+      # The subscribed poll interval is 1 s, so this also shows the wait is cut short at the deadline.
+      expect(elapsed).to be < 0.9
+    end
+
     it 'recovers from stale cached ERROR when refresh returns started' do
       errored = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'stale'),
