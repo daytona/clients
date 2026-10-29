@@ -1,0 +1,26 @@
+analytics-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 13
+analytics-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 115
+toolbox-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+toolbox-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea59c1cba5af73ec16075e49fa18dc84a33ec056",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
