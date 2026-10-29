@@ -189,6 +189,37 @@ class TestImageFromDockerfile:
             finally:
                 os.unlink(f.name)
 
+    def test_from_dockerfile_applies_dockerignore_to_context(self, tmp_path):
+        (tmp_path / ".venv/bin").mkdir(parents=True)
+        (tmp_path / ".venv/bin/python3").write_text("host interpreter")
+        (tmp_path / "app.py").write_text("print('hello')")
+        (tmp_path / ".dockerignore").write_text(".venv/\n")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY . /app\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert img._context_list[0].dockerignore_path == str(tmp_path / ".dockerignore")
+
+    def test_from_dockerfile_prefers_dockerfile_specific_dockerignore(self, tmp_path):
+        (tmp_path / ".dockerignore").write_text(".venv\n")
+        (tmp_path / "app.Dockerfile.dockerignore").write_text("*.log\n")
+        dockerfile = tmp_path / "app.Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY . /app\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert img._context_list[0].dockerignore_path == str(tmp_path / "app.Dockerfile.dockerignore")
+
+    def test_dockerfile_commands_apply_context_dir_dockerignore(self, tmp_path):
+        (tmp_path / "app.py").write_text("print('hello')")
+
+        with_context = Image.base("python:3.12").dockerfile_commands(["COPY app.py /app/"], context_dir=tmp_path)
+        without_context = Image.base("python:3.12").add_local_file(tmp_path / "app.py", "/app/app.py")
+
+        assert with_context._context_list[0].dockerignore_path == str(tmp_path / ".dockerignore")
+        assert without_context._context_list[0].dockerignore_path is None
+
     def test_missing_dockerfile_raises(self):
         with pytest.raises(DaytonaError, match="does not exist"):
             Image.from_dockerfile("/nonexistent/Dockerfile")

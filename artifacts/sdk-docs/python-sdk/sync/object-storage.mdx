@@ -26,7 +26,9 @@ ObjectStorage class for interacting with object storage services.
 @with_instrumentation()
 def upload(path: str,
            organization_id: str,
-           archive_base_path: str | None = None) -> str
+           archive_base_path: str | None = None,
+           *,
+           dockerignore_path: str | None = None) -> str
 ```
 
 Uploads a file to the object storage service.
@@ -36,6 +38,8 @@ Uploads a file to the object storage service.
 - `path` _str_ - The path to the file to upload.
 - `organization_id` _str_ - The organization ID to use.
 - `archive_base_path` _str_ - The base path to use for the archive.
+- `dockerignore_path` _str | None_ - The ``.dockerignore`` of the build context the path belongs
+  to. Entries it excludes are left out of the archive and its hash.
   
 
 **Returns**:

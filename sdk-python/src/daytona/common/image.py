@@ -31,10 +31,13 @@ class Context(BaseModel):
     Attributes:
         source_path (str): The path to the source file or directory.
         archive_path (str | None): The path inside the archive file in object storage.
+        dockerignore_path (str | None): The ``.dockerignore`` of the build context the source belongs
+            to. Entries it excludes are not uploaded.
     """
 
     source_path: str
     archive_path: str | None
+    dockerignore_path: str | None = None
 
 
 class Image(BaseModel):
@@ -390,7 +393,8 @@ class Image(BaseModel):
 
         Args:
             *dockerfile_commands: The commands to add to the Dockerfile.
-            context_dir: Path | str | None: The path to the context directory.
+            context_dir: Path | str | None: The path to the context directory. Files excluded by its
+                ``.dockerignore`` are not uploaded.
             strict_context: bool: When True, a COPY source that resolves outside context_dir is
                 rejected instead of read. Requires context_dir, so that the boundary is explicit
                 rather than taken from the working directory. Sources that legitimately live
@@ -419,13 +423,21 @@ class Image(BaseModel):
                 "strict_context requires context_dir so that the build context boundary is explicit"
             )
 
+        dockerignore_path = str(Path(context_dir) / ".dockerignore") if context_dir else None
+
         for context_path, original_path in Image.__extract_copy_sources(
             "\n".join(dockerfile_commands), context_dir or "", real_root
         ):
             archive_base_path = context_path
             if context_dir and not original_path.startswith(context_dir):
                 archive_base_path = context_path.removeprefix(context_dir)
-            self._context_list.append(Context(source_path=context_path, archive_path=archive_base_path))
+            self._context_list.append(
+                Context(
+                    source_path=context_path,
+                    archive_path=archive_base_path,
+                    dockerignore_path=dockerignore_path,
+                )
+            )
 
         self._dockerfile += "\n".join(dockerfile_commands) + "\n"
 
@@ -434,6 +446,10 @@ class Image(BaseModel):
     @staticmethod
     def from_dockerfile(path: str | Path, *, strict_context: bool = False) -> "Image":
         """Creates an Image from an existing Dockerfile.
+
+        The Dockerfile's directory is the build context. Like Docker, files excluded by
+        ``<Dockerfile name>.dockerignore`` next to the Dockerfile, or else by ``.dockerignore`` in
+        the context, are not uploaded.
 
         Args:
             path: str | Path: The path to the Dockerfile.
@@ -458,6 +474,10 @@ class Image(BaseModel):
         dockerfile = path.read_text()
         img = Image()
         img._dockerfile = dockerfile
+        # Like Docker, a Dockerfile-specific ignore file takes precedence over the context's one.
+        dockerignore_path = path.with_name(f"{path.name}.dockerignore")
+        if not dockerignore_path.is_file():
+            dockerignore_path = path.parent / ".dockerignore"
 
         # remove dockerfile filename from path
         path_prefix = str(path).removesuffix(path.name)
@@ -467,7 +487,13 @@ class Image(BaseModel):
             archive_base_path = context_path
             if not original_path.startswith(path_prefix):
                 archive_base_path = context_path.removeprefix(path_prefix)
-            img._context_list.append(Context(source_path=context_path, archive_path=archive_base_path))
+            img._context_list.append(
+                Context(
+                    source_path=context_path,
+                    archive_path=archive_base_path,
+                    dockerignore_path=str(dockerignore_path),
+                )
+            )
 
         return img
 
