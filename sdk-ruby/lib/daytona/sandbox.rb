@@ -824,7 +824,7 @@ module Daytona
           resize_request = DaytonaApiClient::ResizeSandbox.new(resize_attrs)
           process_response(sandbox_api.resize_sandbox(id, resize_request))
         }
-      ) { wait_for_resize_complete(timeout) }
+      ) { |deadline| wait_for_resize(deadline) }
     end
 
     # Waits for the Sandbox resize operation to complete.
@@ -837,13 +837,7 @@ module Daytona
         timeout:,
         message: "Sandbox #{id} resize did not complete within the #{timeout} seconds timeout period",
         setup: nil
-      ) do |deadline|
-        error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
-        exclude = [DaytonaApiClient::SandboxState::RESIZING] + error_states
-        target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
-
-        wait_for_state(target_states:, error_states:, deadline:)
-      end
+      ) { |deadline| wait_for_resize(deadline) }
     end
 
     # Creates a new Language Server Protocol (LSP) server instance.
@@ -871,18 +865,12 @@ module Daytona
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     # @return [void]
-    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT) # rubocop:disable Metrics/MethodLength
+    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT)
       with_timeout(
         timeout:,
         message: "Sandbox #{id} failed to start within the #{timeout} seconds timeout period",
         setup: nil
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::STARTED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          deadline:
-        )
-      end
+      ) { |deadline| wait_for_start(deadline) }
     end
 
     # Waits for the Sandbox to reach the 'stopped' state. Polls the Sandbox status until it
@@ -920,7 +908,7 @@ module Daytona
         setup: proc {
           forked_dto = sandbox_api.fork_sandbox(id, DaytonaApiClient::ForkSandbox.new(name:))
         }
-      ) do
+      ) do |deadline|
         forked = Sandbox.new(
           sandbox_dto: forked_dto,
           config:,
@@ -929,7 +917,7 @@ module Daytona
           otel_state:,
           analytics_api_url_provider: @analytics_api_url_provider
         )
-        forked.wait_for_sandbox_start(timeout)
+        forked.wait_for_start(deadline)
         return forked
       end
     end
@@ -1010,6 +998,21 @@ module Daytona
                :wait_for_sandbox_stop, :resize, :wait_for_resize_complete,
                :fork, :create_snapshot, :pause,
                component: 'Sandbox'
+
+    protected
+
+    # Waits for the 'started' state until +deadline+ (nil waits without a limit). Protected so that #fork
+    # can wait for the forked Sandbox under its own deadline.
+    #
+    # @param deadline [WaitDeadline, nil]
+    # @return [void]
+    def wait_for_start(deadline)
+      wait_for_state(
+        target_states: [DaytonaApiClient::SandboxState::STARTED],
+        error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
+        deadline:
+      )
+    end
 
     private
 
@@ -1453,6 +1456,14 @@ module Daytona
       def expired? = remaining <= 0
     end
     private_constant :WaitDeadline
+
+    def wait_for_resize(deadline)
+      error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
+      exclude = [DaytonaApiClient::SandboxState::RESIZING] + error_states
+      target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
+
+      wait_for_state(target_states:, error_states:, deadline:)
+    end
 
     def wait_for_snapshot_complete(deadline)
       error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
