@@ -120,6 +120,27 @@ sandbox = daytona.create(
 )
 ```
 
+### Handle sandbox creation timeouts
+
+`create` waits up to `timeout` seconds (60 by default; `Daytona::Sandbox::NO_TIMEOUT`, which is `0`, waits without a limit) for the sandbox to start. When the wait runs out, it raises `Daytona::Sdk::TimeoutError`. The sandbox may still be starting, so `sandbox_id` on the error names it for cleanup.
+
+`Daytona::Sdk::QueueTimeoutError` (no runner became free within `queue_timeout`) and `Daytona::Sdk::SpotEvictedError` (the sandbox was preempted) mean the API already destroyed the sandbox, so there is nothing to clean up. `QueueTimeoutError` leaves `sandbox_id` nil; `SpotEvictedError` is not a `TimeoutError` and has no `sandbox_id`.
+
+```ruby
+require 'daytona'
+
+daytona = Daytona::Daytona.new
+begin
+  sandbox = daytona.create(
+    Daytona::CreateSandboxFromImageParams.new(image: Daytona::Image.debian_slim('3.12')),
+    timeout: 300
+  )
+rescue Daytona::Sdk::TimeoutError => e
+  daytona.delete(daytona.get(e.sandbox_id)) if e.sandbox_id
+  raise
+end
+```
+
 ### Execute commands
 
 Execute commands in the sandbox.

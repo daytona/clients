@@ -18,6 +18,10 @@ module Daytona
     include Instrumentation
 
     DEFAULT_TIMEOUT = 60
+
+    # Pass as a timeout to wait without a limit.
+    NO_TIMEOUT = 0
+
     def self.with_events(*method_names)
       method_names.each do |method_name|
         original = instance_method(method_name)
@@ -866,11 +870,13 @@ module Daytona
     # reaches the 'started' state or encounters an error.
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
+    # @param message [String, nil] Message for the TimeoutError raised when the wait runs out
+    #   (defaults to one naming the Sandbox and the timeout).
     # @return [void]
-    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT)
+    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT, message: nil)
       with_timeout(
         timeout:,
-        message: "Sandbox #{id} failed to start within the #{timeout} seconds timeout period",
+        message: message || "Sandbox #{id} failed to start within the #{timeout} seconds timeout period",
         setup: nil
       ) do
         wait_for_state(
@@ -1307,6 +1313,8 @@ module Daytona
                 "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
         end
       rescue Sdk::TimeoutError => e
+        e.sandbox_id ||= id unless e.is_a?(Sdk::QueueTimeoutError)
+
         begin
           safe_refresh ? refresh_data_safe : refresh
         rescue StandardError
@@ -1424,9 +1432,6 @@ module Daytona
 
     POLL_BACKOFF_DELAY = 5.0
     private_constant :POLL_BACKOFF_DELAY
-
-    NO_TIMEOUT = 0
-    private_constant :NO_TIMEOUT
 
     def wait_for_snapshot_complete
       error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
