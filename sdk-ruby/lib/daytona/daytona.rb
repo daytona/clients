@@ -347,11 +347,11 @@ module Daytona
         while response.state == DaytonaApiClient::SandboxState::PENDING_BUILD
           raise_if_timed_out(timeout, start_time)
           sleep(1)
-          response = sandbox_api.get_sandbox(response.id)
+          response = sandbox_api.get_sandbox(sandbox_id)
         end
 
         begin
-          build_logs_response = sandbox_api.get_build_logs_url(response.id)
+          build_logs_response = sandbox_api.get_build_logs_url(sandbox_id)
           uri = URI.parse("#{build_logs_response.url}?follow=true")
 
           headers = {}
@@ -359,7 +359,7 @@ module Daytona
           Util.stream_async(uri:, headers:, on_chunk: on_snapshot_create_logs)
         rescue StandardError => e
           refreshed = begin
-            sandbox_api.get_sandbox(response.id)
+            sandbox_api.get_sandbox(sandbox_id)
           rescue StandardError
             raise e
           end
