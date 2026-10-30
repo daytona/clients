@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,8 +19,11 @@ import (
 	"github.com/daytona/clients/cli/internal"
 )
 
-// The GitHub release that carries the CLI binaries. Overridden in tests.
-var latestReleaseURL = "https://api.github.com/repos/daytona/clients/releases/latest"
+// The GitHub releases that carry the CLI binaries. Overridden in tests.
+//
+// releases/latest is not used: the repository releases more than one major
+// line, and its "Latest" release can belong to another line than this CLI.
+var latestReleaseURL = "https://api.github.com/repos/daytona/clients/releases?per_page=100"
 
 const (
 	latestReleaseCacheFile = "latest-cli-version.json"
@@ -32,7 +36,8 @@ type latestReleaseCache struct {
 	CheckedAt time.Time `json:"checkedAt"`
 }
 
-// latestCliVersion returns the newest published CLI version without a "v" prefix.
+// latestCliVersion returns the newest published stable CLI version of this
+// CLI's major line, without a "v" prefix.
 //
 // GitHub is consulted at most once per latestReleaseCacheTTL; the result is cached
 // in the config directory. A failed refresh keeps serving the previously cached
@@ -40,6 +45,11 @@ type latestReleaseCache struct {
 // command. An error is returned only when no version is known at all.
 func latestCliVersion() (string, error) {
 	cachePath, cached := readLatestReleaseCache()
+	// A cache written by a CLI of another major line shares the config
+	// directory but not the version line.
+	if cached != nil && cached.Version != "" && !sameMajor(cached.Version, cliVersion()) {
+		cached = nil
+	}
 	if cached != nil && isFreshCache(cached.CheckedAt) {
 		if cached.Version == "" {
 			return "", errors.New("latest CLI version unknown")
@@ -94,18 +104,45 @@ func fetchLatestCliVersion() (string, error) {
 		return "", fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
-	var release struct {
-		TagName string `json:"tag_name"`
+	var releases []struct {
+		TagName    string `json:"tag_name"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
 		return "", err
 	}
 
-	version := strings.TrimPrefix(strings.TrimSpace(release.TagName), "v")
-	if version == "" {
-		return "", errors.New("release has no tag_name")
+	current := cliVersion()
+	latest := ""
+	for _, release := range releases {
+		version := strings.TrimPrefix(strings.TrimSpace(release.TagName), "v")
+		if release.Draft || release.Prerelease || !stableVersionPattern.MatchString(version) || !sameMajor(version, current) {
+			continue
+		}
+		if latest == "" || compareVersions(version, latest) > 0 {
+			latest = version
+		}
 	}
-	return version, nil
+	if latest == "" {
+		return "", fmt.Errorf("no stable release of the %s.x line found", majorOf(current))
+	}
+	return latest, nil
+}
+
+var stableVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+
+func cliVersion() string {
+	return strings.TrimPrefix(internal.Version, "v")
+}
+
+func majorOf(version string) string {
+	major, _, _ := strings.Cut(version, ".")
+	return major
+}
+
+func sameMajor(v1, v2 string) bool {
+	return majorOf(v1) == majorOf(v2)
 }
 
 // readLatestReleaseCache returns the cache path (empty if the config dir is

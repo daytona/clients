@@ -19,7 +19,7 @@ var OrganizationCmd = &cobra.Command{
 	GroupID: internal.USER_GROUP,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if config.IsApiKeyAuth() {
-			return errors.New("organization commands are not available when using API key authentication - run `daytona login` to reauthenticate with browser")
+			return errors.New("organization commands are not available when using API key authentication - run `" + internal.BinaryName + " login` to reauthenticate with browser")
 		}
 
 		return nil

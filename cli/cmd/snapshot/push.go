@@ -16,6 +16,7 @@ import (
 	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/daytona/clients/cli/cmd/common"
 	"github.com/daytona/clients/cli/docker"
+	"github.com/daytona/clients/cli/internal"
 	views_common "github.com/daytona/clients/cli/views/common"
 	views_util "github.com/daytona/clients/cli/views/util"
 	"github.com/docker/docker/api/types/image"
@@ -28,7 +29,7 @@ import (
 var PushCmd = &cobra.Command{
 	Use:   "push [SNAPSHOT]",
 	Short: "Push local snapshot",
-	Long:  "Push a local Docker image to Daytona. To securely build it on our infrastructure, use 'daytona snapshot build'",
+	Long:  "Push a local Docker image to Daytona. To securely build it on our infrastructure, use '" + internal.BinaryName + " snapshot build'",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

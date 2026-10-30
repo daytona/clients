@@ -10,6 +10,8 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
+
+	"github.com/daytona/clients/cli/internal"
 )
 
 var ConfigCmd = &cobra.Command{
@@ -63,7 +65,7 @@ func getDayonaMcpConfig(mcpLogFilePath string) (map[string]interface{}, error) {
 
 	// Create daytona-mcp config
 	daytonaMcpConfig := map[string]interface{}{
-		"command": "daytona",
+		"command": internal.BinaryName,
 		"args":    []string{"mcp", "start"},
 		"env": map[string]string{
 			"PATH": homeDir + ":/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
