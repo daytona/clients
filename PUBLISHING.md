@@ -117,6 +117,8 @@ gh attestation verify ./daytona-linux-amd64 --repo daytona/clients \
   --signer-workflow daytona/clients/.github/workflows/release.yaml
 ```
 
+For a 0.x release cut from `release/v0` after the [cutover](#cutting-over-to-the-2x-line), the binaries are named `daytona-v0-<os>-<arch>`: check `daytona-v0-linux-amd64` instead.
+
 ### Release Branches
 
 `main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on `main` first and is cherry-picked (`git cherry-pick -x`) to the maintenance branches it applies to, through a PR against each branch. Releases are tags (`v0.224.2`, `sdk-go/v0.224.2`), never branches.
@@ -143,7 +145,7 @@ gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
 
 From then on, runs from `release/v0`:
 
-- **Release** builds the CLI as `daytona-v0` (its help, hints and `mcp config` name `daytona-v0`, and the upgrade hint names `daytonaio/cli/daytona@0`), uploads `daytona-v0-<os>-<arch>` assets, `install-v0.sh` and `SHA256SUMS`, and keeps re-marking the highest stable release, now 2.x, as **Latest**;
+- **Release** builds the CLI as `daytona-v0` (its help, hints and `mcp config` name `daytona-v0`, and the upgrade hint names `daytonaio/cli/daytona@0`), uploads `daytona-v0-<os>-<arch>` assets, `install-v0.sh` and `SHA256SUMS`, attests the `daytona-v0-*` binaries, and keeps re-marking the highest stable release, now 2.x, as **Latest**;
 - **SDK and CLI Publish** with **publish_cli** dispatches `update-version-v0` to the tap for stable `v0.X.Y` versions (prereleases fail the tap job), and refuses `npm_tag: latest` outright: publish with `v0-latest`. `hack/npm-latest-guard.sh` refuses it as well once a stable 2.x version is on npm, but not while 2.x is prerelease-only.
 
 The CLI keeps its config directory: 0.x writes `config.json`, 2.x writes `config.yaml` and `credentials.yaml`, so profiles survive the rename. The 0.x update check compares against the newest stable 0.x release, never the 2.x **Latest**. Users move to the renamed CLI with `brew install daytonaio/cli/daytona@0`, or with `install-v0.sh` from a 0.x release (Linux/macOS; on Windows, download `daytona-v0-windows-<arch>.exe`). Releases cut before the flip keep their `daytona-<os>-<arch>` assets.
