@@ -707,58 +707,8 @@ RSpec.describe Daytona::Sandbox do
       expect do
         pending_sandbox.wait_for_sandbox_start(0.15)
       end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/) { |error|
-        expect(error.sandbox_id).to eq('sandbox-123')
+        expect(error.sandbox_id).to be_nil
       }
-    end
-
-    it 'names the sandbox on a start timeout' do
-      pending_sandbox = described_class.new(
-        sandbox_dto: build_sandbox_dto(state: 'pending'),
-        config: config,
-        sandbox_api: sandbox_api,
-        subscription_manager: subscription_manager
-      )
-      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
-                                                 .and_return(build_sandbox_dto(state: 'pending'))
-
-      expect do
-        pending_sandbox.wait_for_sandbox_start(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError) { |error| expect(error.sandbox_id).to eq('sandbox-123') }
-    end
-
-    it 'raises a start timeout with the given message' do
-      pending_sandbox = described_class.new(
-        sandbox_dto: build_sandbox_dto(state: 'pending'),
-        config: config,
-        sandbox_api: sandbox_api,
-        subscription_manager: subscription_manager
-      )
-      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
-                                                 .and_return(build_sandbox_dto(state: 'pending'))
-
-      expect do
-        pending_sandbox.wait_for_sandbox_start(0.15, message: 'custom timeout message')
-      end.to raise_error(Daytona::Sdk::TimeoutError, 'custom timeout message')
-    end
-
-    it 'leaves sandbox_id unset on a queue timeout' do
-      pending_sandbox = described_class.new(
-        sandbox_dto: build_sandbox_dto(state: 'pending'),
-        config: config,
-        sandbox_api: sandbox_api,
-        subscription_manager: subscription_manager
-      )
-      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
-        build_sandbox_dto(
-          state: DaytonaApiClient::SandboxState::DESTROYED,
-          queue_timeout: 15,
-          queue_timed_out_at: '2026-09-29T07:00:00Z'
-        )
-      )
-
-      expect do
-        pending_sandbox.wait_for_sandbox_start
-      end.to raise_error(Daytona::Sdk::QueueTimeoutError) { |error| expect(error.sandbox_id).to be_nil }
     end
 
     it 'raises Sdk::Error when final refresh discovers error state' do
@@ -840,7 +790,7 @@ RSpec.describe Daytona::Sandbox do
 
       expect do
         stopping.wait_for_sandbox_stop(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError)
+      end.to raise_error(Daytona::Sdk::TimeoutError) { |error| expect(error.sandbox_id).to be_nil }
     end
   end
 

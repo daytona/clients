@@ -75,7 +75,8 @@ module Daytona
 
     # HTTP 408 / 504 / client-side timeouts.
     class TimeoutError < Error
-      # @return [String, nil] Id of the Sandbox that had not reached the awaited state when the wait timed out.
+      # @return [String, nil] Set only on the TimeoutError from Daytona#create after the Sandbox was created:
+      #   it may still be starting, so delete it. Nil on every other timeout.
       attr_accessor :sandbox_id
     end
 

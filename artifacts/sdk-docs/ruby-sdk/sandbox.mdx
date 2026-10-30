@@ -1379,7 +1379,7 @@ Validates an SSH access token for the sandbox.
 #### wait_for_sandbox_start()
 
 ```ruby
-def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT, message: nil)
+def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT)
 
 ```
 
@@ -1389,8 +1389,6 @@ reaches the 'started' state or encounters an error.
 **Parameters**:
 
 - `timeout` _Numeric_ - Maximum wait time in seconds (defaults to 60 s).
-- `message` _String, nil_ - Message for the TimeoutError raised when the wait runs out
-(defaults to one naming the Sandbox and the timeout).
 
 **Returns**:
 

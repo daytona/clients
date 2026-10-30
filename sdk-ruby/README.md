@@ -136,11 +136,15 @@ begin
     Daytona::CreateSandboxFromImageParams.new(image: Daytona::Image.debian_slim('3.12'), queue_timeout: 5),
     timeout: 300
   )
-rescue Daytona::Sdk::QueueTimeoutError
-  raise
 rescue Daytona::Sdk::TimeoutError => e
-  daytona.delete(daytona.get(e.sandbox_id)) if e.sandbox_id
-  raise
+  if e.sandbox_id
+    begin
+      daytona.delete(daytona.get(e.sandbox_id))
+    rescue Daytona::Sdk::NotFoundError
+      # Already gone, nothing to clean up
+    end
+  end
+  raise e
 end
 ```
 

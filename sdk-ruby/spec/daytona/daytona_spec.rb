@@ -482,13 +482,8 @@ RSpec.describe Daytona::Daytona do
       described_class.new(config).create(Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1'),
                                          timeout: 300)
 
-      expect(pending_sandbox).to have_received(:wait_for_sandbox_start) do |remaining, message:|
+      expect(pending_sandbox).to have_received(:wait_for_sandbox_start) do |remaining|
         expect(remaining).to be_between(299, 300)
-        expect(message).to eq(
-          'Sandbox sandbox-123 failed to start within the 300 seconds timeout period. It was created before ' \
-          "the timeout and may still be starting. Use get('sandbox-123') to check on it, and pass the " \
-          'returned Sandbox to delete() to remove it.'
-        )
       end
     end
 
@@ -502,7 +497,7 @@ RSpec.describe Daytona::Daytona do
                                          timeout: Daytona::Sandbox::NO_TIMEOUT)
 
       expect(pending_sandbox).to have_received(:wait_for_sandbox_start)
-        .with(Daytona::Sandbox::NO_TIMEOUT, message: kind_of(String))
+        .with(Daytona::Sandbox::NO_TIMEOUT)
     end
 
     it 'raises when timeout is negative' do
@@ -521,13 +516,21 @@ RSpec.describe Daytona::Daytona do
         allow(sandbox_api).to receive(:create_sandbox).and_return(build_sandbox_dto(state: 'pending'))
       end
 
-      it 'raises a start timeout unchanged' do
+      it 'raises a start timeout naming the created sandbox' do
         timeout_error = Daytona::Sdk::TimeoutError.new(
-          'Sandbox sandbox-123 failed to start within the 60 seconds timeout period'
+          'Sandbox sandbox-123 failed to start within the 59.9 seconds timeout period'
         )
         allow(pending_sandbox).to receive(:wait_for_sandbox_start).and_raise(timeout_error)
 
-        expect { described_class.new(config).create(params) }.to raise_error(timeout_error)
+        expect { described_class.new(config).create(params) }.to raise_error(Daytona::Sdk::TimeoutError) { |error|
+          expect(error.message).to eq(
+            'Failed to create and start sandbox within 60 seconds. Operation timed out. Sandbox sandbox-123 ' \
+            'was created before the timeout and may still be starting. Use daytona.get(\'sandbox-123\') to ' \
+            'check on it, and pass the returned Sandbox to daytona.delete() to remove it.'
+          )
+          expect(error.sandbox_id).to eq('sandbox-123')
+          expect(error.cause).to be(timeout_error)
+        }
       end
 
       it 'raises a queue timeout unchanged' do
@@ -552,6 +555,7 @@ RSpec.describe Daytona::Daytona do
         described_class.new(config).create(Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1'))
       end.to raise_error(Daytona::Sdk::TimeoutError, /Failed to create sandbox/) { |error|
         expect(error.status_code).to eq(504)
+        expect(error.sandbox_id).to be_nil
       }
     end
 
@@ -596,19 +600,21 @@ RSpec.describe Daytona::Daytona do
         allow(sandbox_api).to receive(:get_build_logs_url).with('sb-1').and_return(build_logs)
         allow(sandbox_api).to receive(:api_client).and_return(api_client)
         allow(Daytona::Util).to receive(:stream_async)
-        allow_any_instance_of(described_class).to receive(:sleep)
-        daytona
-        start = Time.now
-        allow(Time).to receive(:now).and_return(start, start + 61)
+        # The clock only moves while create sleeps between polls.
+        clock = 0.0
+        allow(Process).to receive(:clock_gettime).and_call_original
+        allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
+        allow_any_instance_of(described_class).to receive(:sleep) { |_daytona, seconds| clock += seconds }
       end
 
       it 'raises a TimeoutError naming the sandbox once the timeout runs out' do
         expect do
-          daytona.create(params, timeout: 60, on_snapshot_create_logs: proc { |_chunk| })
-        end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start within the 60 seconds/) { |error|
+          daytona.create(params, timeout: 1, on_snapshot_create_logs: proc { |_chunk| })
+        end.to raise_error(Daytona::Sdk::TimeoutError, /within 1 seconds/) { |error|
           expect(error.sandbox_id).to eq('sb-1')
+          expect(error.cause.message).to eq('Sandbox build has been pending for more than 1 seconds')
         }
-        expect(sandbox_api).not_to have_received(:get_sandbox)
+        expect(sandbox_api).to have_received(:get_sandbox).with('sb-1').once
       end
 
       it 'keeps waiting when timeout is NO_TIMEOUT' do
@@ -642,6 +648,27 @@ RSpec.describe Daytona::Daytona do
           on_snapshot_create_logs: proc { |_chunk| }
         )
       end.to raise_error(Daytona::Sdk::QueueTimeoutError, /waiting for a runner/)
+    end
+
+    it 'names the created sandbox when fetching build logs times out' do
+      build_response = build_sandbox_dto(id: 'sb-1', state: DaytonaApiClient::SandboxState::PENDING_BUILD)
+      building_response = build_sandbox_dto(id: 'sb-1', state: DaytonaApiClient::SandboxState::BUILDING_SNAPSHOT)
+
+      allow(sandbox_api).to receive(:create_sandbox).and_return(build_response)
+      allow(sandbox_api).to receive(:get_sandbox).with('sb-1').and_return(building_response)
+      allow(sandbox_api).to receive(:get_build_logs_url).with('sb-1')
+                                                        .and_raise(DaytonaApiClient::ApiError.new(code: 504))
+      allow_any_instance_of(described_class).to receive(:sleep)
+
+      expect do
+        described_class.new(config).create(
+          Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1', language: :python),
+          on_snapshot_create_logs: proc { |_chunk| }
+        )
+      end.to raise_error(Daytona::Sdk::TimeoutError, /Sandbox sb-1 was created before the timeout/) { |error|
+        expect(error.sandbox_id).to eq('sb-1')
+        expect(error.status_code).to eq(504)
+      }
     end
 
     it 're-raises the build logs error when the sandbox is still alive' do

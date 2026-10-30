@@ -263,7 +263,7 @@ module Daytona
     def _create(params, timeout:, on_snapshot_create_logs: nil)
       raise Sdk::Error, 'Timeout must be a non-negative number' if timeout.negative?
 
-      start_time = Time.now
+      start_time = monotonic_now
 
       raise Sdk::Error, 'auto_stop_interval must be a non-negative integer' if params.auto_stop_interval&.negative?
 
@@ -340,11 +340,12 @@ module Daytona
       end
 
       response = sandbox_api.create_sandbox(create_sandbox)
+      sandbox_id = response.id
 
       if response.state == DaytonaApiClient::SandboxState::PENDING_BUILD && on_snapshot_create_logs
         # Wait for state to change from PENDING_BUILD before fetching logs
         while response.state == DaytonaApiClient::SandboxState::PENDING_BUILD
-          raise_if_timed_out(response.id, timeout, start_time)
+          raise_if_timed_out(timeout, start_time)
           sleep(1)
           response = sandbox_api.get_sandbox(response.id)
         end
@@ -371,15 +372,14 @@ module Daytona
       sandbox = to_sandbox(sandbox_dto: response)
 
       if sandbox.state != DaytonaApiClient::SandboxState::STARTED
-        sandbox.wait_for_sandbox_start(
-          remaining_timeout(timeout, start_time),
-          message: start_timeout_message(sandbox.id, timeout)
-        )
+        sandbox.wait_for_sandbox_start(remaining_timeout(timeout, start_time))
       end
 
       sandbox
     rescue *Sdk::API_ERROR_CLASSES => e
-      raise Sdk.wrap_error(e, 'Failed to create sandbox')
+      raise name_created_sandbox(Sdk.wrap_error(e, 'Failed to create sandbox'), sandbox_id, timeout)
+    rescue Sdk::TimeoutError => e
+      raise name_created_sandbox(e, sandbox_id, timeout)
     end
 
     # @return [void]
@@ -434,34 +434,45 @@ module Daytona
     end
 
     # @param timeout [Numeric]
-    # @param start_time [Time]
+    # @param start_time [Float] Reading of #monotonic_now
     # @return [Numeric] What is left of timeout since start_time, at least 1 ms; Sandbox::NO_TIMEOUT stays as is
     def remaining_timeout(timeout, start_time)
       return Sandbox::NO_TIMEOUT if timeout.zero?
 
-      [0.001, timeout - (Time.now - start_time)].max
+      [0.001, timeout - (monotonic_now - start_time)].max
     end
 
-    # @param sandbox_id [String]
     # @param timeout [Numeric]
-    # @param start_time [Time]
+    # @param start_time [Float] Reading of #monotonic_now
     # @return [void]
     # @raise [Daytona::Sdk::TimeoutError] If timeout has run out since start_time
-    def raise_if_timed_out(sandbox_id, timeout, start_time)
-      return if timeout.zero? || Time.now - start_time < timeout
+    def raise_if_timed_out(timeout, start_time)
+      return if timeout.zero? || monotonic_now - start_time < timeout
 
-      error = Sdk::TimeoutError.new(start_timeout_message(sandbox_id, timeout))
-      error.sandbox_id = sandbox_id
-      raise error
+      raise Sdk::TimeoutError, "Sandbox build has been pending for more than #{timeout} seconds"
     end
 
-    # @param sandbox_id [String]
+    # @return [Float] Seconds on a clock that wall clock changes don't move, for measuring timeouts
+    def monotonic_now
+      ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+    end
+
+    # @param error [Daytona::Sdk::Error]
+    # @param sandbox_id [String, nil] Id of the created Sandbox, nil if creation failed
     # @param timeout [Numeric]
-    # @return [String]
-    def start_timeout_message(sandbox_id, timeout)
-      "Sandbox #{sandbox_id} failed to start within the #{timeout} seconds timeout period. " \
-        'It was created before the timeout and may still be starting. ' \
-        "Use get('#{sandbox_id}') to check on it, and pass the returned Sandbox to delete() to remove it."
+    # @return [Daytona::Sdk::Error] error as is, or a TimeoutError naming the Sandbox if it had been created
+    def name_created_sandbox(error, sandbox_id, timeout)
+      return error if sandbox_id.nil? || !error.is_a?(Sdk::TimeoutError) || error.is_a?(Sdk::QueueTimeoutError)
+
+      named = Sdk::TimeoutError.new(
+        "Failed to create and start sandbox within #{timeout} seconds. Operation timed out. " \
+        "Sandbox #{sandbox_id} was created before the timeout and may still be starting. " \
+        "Use daytona.get('#{sandbox_id}') to check on it, and pass the returned Sandbox to daytona.delete() " \
+        'to remove it.',
+        status_code: error.status_code, code: error.code, source: error.source, headers: error.headers
+      )
+      named.sandbox_id = sandbox_id
+      named
     end
 
     def to_sandbox(sandbox_dto:)

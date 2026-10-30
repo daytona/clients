@@ -870,13 +870,11 @@ module Daytona
     # reaches the 'started' state or encounters an error.
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
-    # @param message [String, nil] Message for the TimeoutError raised when the wait runs out
-    #   (defaults to one naming the Sandbox and the timeout).
     # @return [void]
-    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT, message: nil)
+    def wait_for_sandbox_start(timeout = DEFAULT_TIMEOUT)
       with_timeout(
         timeout:,
-        message: message || "Sandbox #{id} failed to start within the #{timeout} seconds timeout period",
+        message: "Sandbox #{id} failed to start within the #{timeout} seconds timeout period",
         setup: nil
       ) do
         wait_for_state(
@@ -1313,8 +1311,6 @@ module Daytona
                 "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
         end
       rescue Sdk::TimeoutError => e
-        e.sandbox_id ||= id unless e.is_a?(Sdk::QueueTimeoutError)
-
         begin
           safe_refresh ? refresh_data_safe : refresh
         rescue StandardError
