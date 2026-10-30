@@ -18,9 +18,10 @@ env:
   POETRY_VIRTUALENVS_IN_PROJECT: true
   GONOSUMDB: github.com/daytona/clients
   # Cutover switch: once the 2.x CLI takes the `daytona` name, set the repository
-  # variable DAYTONA_V0_CUTOVER to `true` and the 0.x CLI ships as `daytona-v0`
-  # (assets daytona-v0-<os>-<arch>, Homebrew formula daytona@0). See PUBLISHING.md.
-  CLI_BINARY_NAME: ${{ vars.DAYTONA_V0_CUTOVER == 'true' && 'daytona-v0' || 'daytona' }}
+  # variable DAYTONA_V0_CUTOVER to `true` and the 0.x CLI released from
+  # release/v0 ships as `daytona-v0` (assets daytona-v0-<os>-<arch>, Homebrew
+  # formula daytona@0). Runs from any other ref ignore it. See PUBLISHING.md.
+  CLI_BINARY_NAME: ${{ github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && 'daytona-v0' || 'daytona' }}
 
 jobs:
   release:

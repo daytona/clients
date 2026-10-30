@@ -15,7 +15,11 @@ The patch adds:
 - `daytona@0.rb` (class `DaytonaAT0`): downloads the `daytona-v0-<os>-<arch>`
   assets of a `v0.X.Y` release and installs them as `daytona-v0`, so it installs
   next to the `daytona` formula. Its version and checksums are placeholders until
-  the first `update-version-v0` dispatch fills them in.
+  the first `update-version-v0` dispatch fills them in. They cannot be seeded from
+  an existing release: releases cut before the cutover only carry
+  `daytona-<os>-<arch>` assets, which install as `daytona` and collide with the
+  2.x formula. Cut the first 0.x release after the cutover before telling users
+  to install `daytona@0`.
 - `.github/workflows/brew_publish_v0.yaml`: listens on `repository_dispatch`
   `update-version-v0`, accepts only `v0.X.Y`, and runs `scripts/update_sha.sh`
   on `daytona@0.rb`.

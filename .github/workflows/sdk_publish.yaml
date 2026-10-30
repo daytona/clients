@@ -109,9 +109,9 @@ jobs:
       - name: Keep 0.x off the npm latest dist-tag after the cutover
         # Once the 2.x SDK owns `latest` (DAYTONA_V0_CUTOVER), 0.x publishes use a
         # line tag even before a stable 2.x version would make the guard below refuse.
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && vars.DAYTONA_V0_CUTOVER == 'true' && inputs.npm_tag == 'latest'
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && inputs.npm_tag == 'latest'
         run: |
-          echo "::error::After the cutover the npm latest dist-tag belongs to the 2.x SDK; publish $GITHUB_REF_NAME with npm_tag ${GITHUB_REF_NAME#release/}-latest"
+          echo "::error::After the cutover the npm latest dist-tag belongs to the 2.x SDK; publish release/v0 with npm_tag v0-latest"
           exit 1
       - name: Keep the npm latest dist-tag on the highest version
         # `npm publish --tag latest` moves the tag even to a lower version, so a

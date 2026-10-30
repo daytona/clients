@@ -34,11 +34,16 @@ make_binaries() {
   done
 }
 
+# stage <name>: name `daytona` leaves CLI_BINARY_NAME unset to cover the default.
 stage() {
   local name="$1"
   make_binaries "$name" "${work}/${name}/dist"
-  CLI_BINARY_NAME="$name" CLI_DIST_DIR="${work}/${name}/dist" CLI_RELEASE_DIR="${work}/${name}/release" \
-    bash "${script_dir}/stage-release-assets.sh" v0.300.0
+  (
+    unset CLI_BINARY_NAME
+    [ "$name" = daytona ] || export CLI_BINARY_NAME="$name"
+    CLI_DIST_DIR="${work}/${name}/dist" CLI_RELEASE_DIR="${work}/${name}/release" \
+      bash "${script_dir}/stage-release-assets.sh" v0.300.0
+  )
 }
 
 # Default name: today's asset names and labels, plus checksums.
@@ -81,8 +86,10 @@ if CLI_BINARY_NAME=daytona-v0 CLI_DIST_DIR="${work}/daytona-v0/dist" CLI_RELEASE
   fail "missing binary accepted"
 fi
 
-# install-v0.sh against a stubbed GitHub: the release listing mixes 2.x, a
-# prerelease and older 0.x releases; downloads come from the staged directory.
+# install-v0.sh against a stubbed GitHub: the release listing mixes 2.x,
+# prereleases (one with a bare v0.X.Y tag), a draft and older 0.x releases, in
+# GitHub's shape (nested author and asset objects); downloads come from the
+# staged directory.
 stub="${work}/stub"
 mkdir -p "$stub"
 cat >"${stub}/curl" <<EOF
@@ -97,7 +104,8 @@ while [ \$# -gt 0 ]; do
 done
 case "\$url" in
   https://api.github.com/repos/daytona/clients/releases\?per_page=100)
-    body='[{"tag_name": "v2.0.0"},{"tag_name": "v0.300.0"},{"tag_name": "v2.1.0-alpha.1"},{"tag_name": "v0.299.1"},{"tag_name": "v0.301.0-rc.1"},{"tag_name": "v0.30.0"}]'
+    rel() { printf '{"id": 1, "author": {"login": "bot", "type": "Bot"}, "tag_name": "%s", "name": "%s", "draft": %s, "prerelease": %s, "assets": [{"name": "a", "uploader": {"login": "bot"}}]}' "\$1" "\$1" "\$2" "\$3"; }
+    body="[\$(rel v2.0.0 false false),\$(rel v0.302.0 true false),\$(rel v0.301.0 false true),\$(rel v0.300.0 false false),\$(rel v2.1.0-alpha.1 false true),\$(rel v0.299.1 false false),\$(rel v0.301.0-rc.1 false true),\$(rel v0.30.0 false false)]"
     if [ -n "\$out" ]; then echo "\$body" >"\$out"; else echo "\$body"; fi ;;
   https://github.com/daytona/clients/releases/download/v0.300.0/*)
     cp "${work}/daytona-v0/release/\${url##*/}" "\$out" 2>/dev/null || exit 22 ;;

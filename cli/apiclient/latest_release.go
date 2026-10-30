@@ -29,6 +29,8 @@ const (
 	latestReleaseCacheFile = "latest-cli-version.json"
 	latestReleaseCacheTTL  = 24 * time.Hour
 	latestReleaseTimeout   = 3 * time.Second
+	// Upper bound on release listing pages read per lookup.
+	latestReleaseMaxPages = 10
 )
 
 type latestReleaseCache struct {
@@ -83,51 +85,81 @@ func isFreshCache(checkedAt time.Time) bool {
 	return age >= 0 && age < latestReleaseCacheTTL
 }
 
+// fetchLatestCliVersion walks the release listing (newest first) page by page
+// and stops after the first page that holds a stable release of this CLI's
+// major line, so releases of other lines cannot push it out of view.
 func fetchLatestCliVersion() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), latestReleaseTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestReleaseURL, nil)
+	current := cliVersion()
+	latest := ""
+	url := latestReleaseURL
+	for page := 0; page < latestReleaseMaxPages && url != "" && latest == ""; page++ {
+		releases, next, err := fetchReleasePage(ctx, url)
+		if err != nil {
+			return "", err
+		}
+		for _, release := range releases {
+			version := strings.TrimPrefix(strings.TrimSpace(release.TagName), "v")
+			if release.Draft || release.Prerelease || !stableVersionPattern.MatchString(version) || !sameMajor(version, current) {
+				continue
+			}
+			if latest == "" || compareVersions(version, latest) > 0 {
+				latest = version
+			}
+		}
+		url = next
+	}
+	if latest == "" {
+		return "", fmt.Errorf("no stable release of the %s.x line found", majorOf(current))
+	}
+	return latest, nil
+}
+
+type githubRelease struct {
+	TagName    string `json:"tag_name"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
+}
+
+// fetchReleasePage returns one page of releases and the URL of the next page
+// (empty on the last page).
+func fetchReleasePage(ctx context.Context, url string) ([]githubRelease, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "daytona-cli/"+internal.Version)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
-	var releases []struct {
-		TagName    string `json:"tag_name"`
-		Draft      bool   `json:"draft"`
-		Prerelease bool   `json:"prerelease"`
-	}
+	var releases []githubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return "", err
+		return nil, "", err
 	}
+	return releases, nextPageURL(resp.Header.Get("Link")), nil
+}
 
-	current := cliVersion()
-	latest := ""
-	for _, release := range releases {
-		version := strings.TrimPrefix(strings.TrimSpace(release.TagName), "v")
-		if release.Draft || release.Prerelease || !stableVersionPattern.MatchString(version) || !sameMajor(version, current) {
+// nextPageURL extracts the rel="next" target of a GitHub Link header.
+func nextPageURL(link string) string {
+	for _, part := range strings.Split(link, ",") {
+		target, params, ok := strings.Cut(strings.TrimSpace(part), ";")
+		if !ok || !strings.Contains(params, `rel="next"`) {
 			continue
 		}
-		if latest == "" || compareVersions(version, latest) > 0 {
-			latest = version
-		}
+		return strings.Trim(strings.TrimSpace(target), "<>")
 	}
-	if latest == "" {
-		return "", fmt.Errorf("no stable release of the %s.x line found", majorOf(current))
-	}
-	return latest, nil
+	return ""
 }
 
 var stableVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)

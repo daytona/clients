@@ -392,3 +392,50 @@ func TestVersionCheckNamesBuildHomebrewFormula(t *testing.T) {
 		t.Errorf("warning must name the build's formula, got %q", f.logs.String())
 	}
 }
+
+// Releases of other lines can fill the first page of the listing; the lookup
+// follows the Link header until it finds the CLI's own line.
+func TestVersionCheckFollowsPaginationToOwnLine(t *testing.T) {
+	f := newVersionCheckFixture(t, "v0.215.0", "", http.StatusOK)
+
+	var pages atomic.Int32
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pages.Add(1)
+		switch r.URL.Query().Get("page") {
+		case "":
+			w.Header().Set("Link", `<`+server.URL+`/?page=2>; rel="next", <`+server.URL+`/?page=3>; rel="last"`)
+			_ = json.NewEncoder(w).Encode([]testRelease{{TagName: "v2.3.0"}, {TagName: "v2.2.0-alpha.1", Prerelease: true}})
+		case "2":
+			w.Header().Set("Link", `<`+server.URL+`/?page=3>; rel="next"`)
+			_ = json.NewEncoder(w).Encode([]testRelease{{TagName: "v2.1.0"}, {TagName: "v0.216.0"}})
+		default:
+			t.Errorf("page %s requested after the 0.x line was found", r.URL.Query().Get("page"))
+			_ = json.NewEncoder(w).Encode([]testRelease{{TagName: "v0.999.0"}})
+		}
+	}))
+	t.Cleanup(server.Close)
+	latestReleaseURL = server.URL
+
+	checkVersionsMismatch(apiResponse("0.216.0"))
+
+	if !strings.Contains(f.logs.String(), "the latest version is v0.216.0") {
+		t.Errorf("expected the 0.x release from page 2 in the warning, got %q", f.logs.String())
+	}
+	if got := pages.Load(); got != 2 {
+		t.Errorf("pages fetched = %d, want 2", got)
+	}
+}
+
+func TestNextPageURL(t *testing.T) {
+	cases := map[string]string{
+		"": "",
+		`<https://api.github.com/x?page=2>; rel="next", <https://api.github.com/x?page=5>; rel="last"`:  "https://api.github.com/x?page=2",
+		`<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first"`: "",
+	}
+	for link, want := range cases {
+		if got := nextPageURL(link); got != want {
+			t.Errorf("nextPageURL(%q) = %q, want %q", link, got, want)
+		}
+	}
+}

@@ -127,7 +127,7 @@ PyPI, RubyGems and the Go module proxy resolve the newest version by version ord
 
 When the 2.x SDK and CLI become the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
 
-Before flipping it, merge the `daytona@0` formula into the Homebrew tap ([`cli/hack/homebrew`](cli/hack/homebrew/README.md)). Then, at the cutover:
+Before flipping it, merge the `daytona@0` formula into the Homebrew tap ([`cli/hack/homebrew`](cli/hack/homebrew/README.md)). The formula has no installable version until the first 0.x release after the flip fills it in, so cut that release (Release, then SDK and CLI Publish with **publish_cli**) before pointing users at `daytona@0`. Then, at the cutover:
 
 ```bash
 gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
@@ -140,7 +140,9 @@ From then on, runs from `release/v0`:
 
 The CLI keeps its config directory: 0.x writes `config.json`, 2.x writes `config.yaml` and `credentials.yaml`, so profiles survive the rename. The 0.x update check compares against the newest stable 0.x release, never the 2.x **Latest**. Users move to the renamed CLI with `brew install daytonaio/cli/daytona@0`, or with `install-v0.sh` from a 0.x release (Linux/macOS; on Windows, download `daytona-v0-windows-<arch>.exe`). Releases cut before the flip keep their `daytona-<os>-<arch>` assets.
 
-Only the `release/v0` workflows read the variable. To undo the switch, delete it (`gh variable delete DAYTONA_V0_CUTOVER --repo daytona/clients`).
+Only runs from `release/v0` act on the variable; runs from `main` or any other ref ignore it, so the 2.x CLI keeps the `daytona` name.
+
+Deleting the variable is safe only before the first 0.x release after the flip. Once a release has shipped `daytona-v0` assets and the tap has moved `daytona@0` onto them, deleting it would bring back a 0.x `daytona` binary that collides with 2.x and would stop updating `daytona@0`. After that point, leave the variable set and fix forward with a new 0.x release.
 
 ## Version Management
 

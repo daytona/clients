@@ -43,9 +43,17 @@ esac
 
 if [ -z "$VERSION" ]; then
   # The repository releases the 2.x line too, so "Latest" is not the newest
-  # 0.x release: take the highest stable v0.X.Y tag.
+  # 0.x release: take the highest v0.X.Y tag of a release that is neither a
+  # draft nor marked prerelease. In each release object tag_name comes before
+  # draft and prerelease; the nested asset objects carry none of the three.
   VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100" \
-    | tr ',' '\n' | sed -n 's/.*"tag_name": *"v\(0\.[0-9]*\.[0-9]*\)".*/\1/p' \
+    | tr '{}' ',,' | tr ',' '\n' | awk '
+        /"tag_name":/ { tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); draft = ""; next }
+        /"draft":/ { draft = ($0 ~ /true/) ? "true" : "false"; next }
+        /"prerelease":/ {
+          if (tag ~ /^v0\.[0-9]+\.[0-9]+$/ && draft == "false" && $0 !~ /true/) print substr(tag, 2)
+          tag = ""; draft = ""
+        }' \
     | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
   [ -n "$VERSION" ] || { echo "could not determine the newest 0.x release from GitHub; pass --version 0.X.Y" >&2; exit 1; }
 fi
