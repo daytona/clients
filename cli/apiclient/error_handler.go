@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/daytona/clients/cli/internal"
 )
 
 type ApiErrorResponse struct {
@@ -59,7 +61,7 @@ func HandleErrorResponse(res *http.Response, requestErr error) error {
 	}
 
 	if res.StatusCode == http.StatusUnauthorized {
-		errMessage += " - run 'daytona login' to reauthenticate"
+		errMessage += fmt.Sprintf(" - run '%s login' to reauthenticate", internal.BinaryName)
 	}
 
 	if res.StatusCode == http.StatusForbidden {

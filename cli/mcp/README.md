@@ -15,6 +15,12 @@ Daytona MCP Server allows AI agents to utilize:
 
 ## Steps to Integrate Daytona MCP Server with an AI Agent
 
+> Once the 2.x CLI has taken the `daytona` name, the 0.x CLI installs as `daytona-v0`:
+> `brew install daytonaio/cli/daytona@0`, or the `install-v0.sh` asset of a 0.x release on Linux/macOS.
+> On Windows, download `daytona-v0-windows-<arch>.exe` from a 0.x release on
+> [GitHub](https://github.com/daytona/clients/releases) instead of using the installer below.
+> Run `daytona-v0` wherever this guide says `daytona`.
+
 1. **Install the Daytona CLI:**
 
 **Mac/Linux**

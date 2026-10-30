@@ -181,6 +181,21 @@ jobs:
           source "$(poetry env info --path)/bin/activate"
           VERSION=v0.0.0-dev yarn build --nxBail=true
 
+  release-scripts:
+    name: Release scripts
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+      - name: npm latest guard
+        run: bash hack/npm-latest-guard.test.sh
+      - name: CLI release assets and install-v0.sh
+        run: bash cli/hack/stage-release-assets.test.sh
+
   license-check:
     name: License headers
     runs-on: blacksmith-4vcpu-ubuntu-2404

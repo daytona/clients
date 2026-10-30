@@ -14,6 +14,7 @@ import (
 	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/daytona/clients/cli/cmd/common"
 	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
 	"github.com/daytona/clients/cli/util"
 	views_common "github.com/daytona/clients/cli/views/common"
 	"github.com/spf13/cobra"
@@ -207,7 +208,7 @@ var CreateCmd = &cobra.Command{
 		boldStyle := lipgloss.NewStyle().Bold(true)
 
 		views_common.RenderInfoMessageBold(fmt.Sprintf("Sandbox '%s' created successfully", sandbox.Name))
-		views_common.RenderInfoMessage(fmt.Sprintf("Connect via SSH:         %s", boldStyle.Render(fmt.Sprintf("daytona ssh %s", sandbox.Name))))
+		views_common.RenderInfoMessage(fmt.Sprintf("Connect via SSH:         %s", boldStyle.Render(fmt.Sprintf("%s ssh %s", internal.BinaryName, sandbox.Name))))
 		views_common.RenderInfoMessage(fmt.Sprintf("Open the Web Terminal:   %s\n", views_common.LinkStyle.Render(previewUrl.Url)))
 		return nil
 	},

@@ -4,6 +4,7 @@
 package util
 
 import (
+	"github.com/daytona/clients/cli/internal"
 	"github.com/daytona/clients/cli/views/common"
 )
 
@@ -17,20 +18,20 @@ func NotifyEmptySandboxList(tip bool) {
 func NotifyEmptySnapshotList(tip bool) {
 	common.RenderInfoMessageBold("No snapshots found")
 	if tip {
-		common.RenderTip("Use 'daytona snapshot push' to push a snapshot.")
+		common.RenderTip("Use '" + internal.BinaryName + " snapshot push' to push a snapshot.")
 	}
 }
 
 func NotifyEmptyOrganizationList(tip bool) {
 	common.RenderInfoMessageBold("No organizations found")
 	if tip {
-		common.RenderTip("Use 'daytona organization create' to create an organization.")
+		common.RenderTip("Use '" + internal.BinaryName + " organization create' to create an organization.")
 	}
 }
 
 func NotifyEmptyVolumeList(tip bool) {
 	common.RenderInfoMessageBold("No volumes found")
 	if tip {
-		common.RenderTip("Use 'daytona volume create' to create a volume.")
+		common.RenderTip("Use '" + internal.BinaryName + " volume create' to create a volume.")
 	}
 }
