@@ -17,6 +17,10 @@ env:
   BASE_BRANCH: ${{ startsWith(github.ref, 'refs/heads/release/') && github.ref_name || 'main' }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
   GONOSUMDB: github.com/daytona/clients
+  # Cutover switch: once the 2.x CLI takes the `daytona` name, set the repository
+  # variable DAYTONA_V0_CUTOVER to `true` and the 0.x CLI ships as `daytona-v0`
+  # (assets daytona-v0-<os>-<arch>, Homebrew formula daytona@0). See PUBLISHING.md.
+  CLI_BINARY_NAME: ${{ vars.DAYTONA_V0_CUTOVER == 'true' && 'daytona-v0' || 'daytona' }}
 
 jobs:
   release:
@@ -114,13 +118,13 @@ jobs:
           GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
       - name: Upload CLI to release assets
+        # <name>-<os>-<arch> binaries plus SHA256SUMS (and install-v0.sh for
+        # daytona-v0); see cli/hack/stage-release-assets.sh.
         run: |
-          gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
+          bash cli/hack/stage-release-assets.sh "$VERSION" > "$RUNNER_TEMP/cli-assets"
+          mapfile -t assets < "$RUNNER_TEMP/cli-assets"
+          printf 'Uploading %s\n' "${assets[@]}"
+          gh release upload "$VERSION" "${assets[@]}" --clobber
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"

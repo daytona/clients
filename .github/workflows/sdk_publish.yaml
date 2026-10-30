@@ -106,6 +106,13 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Keep 0.x off the npm latest dist-tag after the cutover
+        # Once the 2.x SDK owns `latest` (DAYTONA_V0_CUTOVER), 0.x publishes use a
+        # line tag even before a stable 2.x version would make the guard below refuse.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && vars.DAYTONA_V0_CUTOVER == 'true' && inputs.npm_tag == 'latest'
+        run: |
+          echo "::error::After the cutover the npm latest dist-tag belongs to the 2.x SDK; publish $GITHUB_REF_NAME with npm_tag ${GITHUB_REF_NAME#release/}-latest"
+          exit 1
       - name: Keep the npm latest dist-tag on the highest version
         # `npm publish --tag latest` moves the tag even to a lower version, so a
         # maintenance branch may only take `latest` with a version above every
@@ -151,12 +158,21 @@ jobs:
         run: rm -f ~/.gem/credentials 2>/dev/null || true
 
   update-homebrew-tap:
-    # The Homebrew formula tracks the main release line only.
-    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' && !startsWith(github.ref, 'refs/heads/release/') }}
+    # From main, the `daytona` formula follows the main release line. From
+    # release/v0, once the 2.x CLI has taken the `daytona` name (repository
+    # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
+    # follows the 0.x line; before that, release branches never update the tap.
+    if: >-
+      github.repository == 'daytona/clients' && inputs.publish_cli && (
+        (!startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest') ||
+        (github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true')
+      )
     runs-on: ubuntu-latest
     environment: release
     permissions: {}
     name: Update Homebrew CLI tap
+    env:
+      HOMEBREW_EVENT: ${{ github.ref == 'refs/heads/release/v0' && 'update-version-v0' || 'update-version' }}
     steps:
       - name: Validate version format
         run: |
@@ -164,11 +180,19 @@ jobs:
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
+      - name: Validate daytona@0 version
+        if: github.ref == 'refs/heads/release/v0'
+        run: |
+          if [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The daytona@0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
+            exit 1
+          fi
       - name: Update version
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
         run: |
+          echo "Dispatching $HOMEBREW_EVENT for $VERSION"
           curl -f -X POST -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
             https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+            -d "{\"event_type\": \"$HOMEBREW_EVENT\", \"client_payload\": {\"version\": \"$VERSION\"}}"

@@ -119,9 +119,28 @@ To ship a patch from a maintenance branch, run **Prepare Release**, **Release** 
 - open the prepare-release and `go.sum` sync PRs against that branch instead of `main`;
 - re-mark the highest stable release as **Latest** on GitHub after creating the release, because the CLI update check reads it;
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead. A package never published to npm must be published once before a release branch can publish it with `latest`;
-- never update the Homebrew tap.
+- never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona@0` formula.
 
 PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site deploys from `main` only.
+
+### Cutting over to the 2.x line
+
+When the 2.x SDK and CLI become the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
+
+Before flipping it, merge the `daytona@0` formula into the Homebrew tap ([`cli/hack/homebrew`](cli/hack/homebrew/README.md)). Then, at the cutover:
+
+```bash
+gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
+```
+
+From then on, runs from `release/v0`:
+
+- **Release** builds the CLI as `daytona-v0` (its help, hints and `mcp config` name `daytona-v0`, and the upgrade hint names `daytonaio/cli/daytona@0`), uploads `daytona-v0-<os>-<arch>` assets, `install-v0.sh` and `SHA256SUMS`, and keeps re-marking the highest stable release, now 2.x, as **Latest**;
+- **SDK and CLI Publish** with **publish_cli** dispatches `update-version-v0` to the tap for stable `v0.X.Y` versions (prereleases fail the tap job), and refuses `npm_tag: latest` outright: publish with `v0-latest`. `hack/npm-latest-guard.sh` refuses it as well once a stable 2.x version is on npm, but not while 2.x is prerelease-only.
+
+The CLI keeps its config directory: 0.x writes `config.json`, 2.x writes `config.yaml` and `credentials.yaml`, so profiles survive the rename. The 0.x update check compares against the newest stable 0.x release, never the 2.x **Latest**. Users move to the renamed CLI with `brew install daytonaio/cli/daytona@0`, or with `install-v0.sh` from a 0.x release (Linux/macOS; on Windows, download `daytona-v0-windows-<arch>.exe`). Releases cut before the flip keep their `daytona-<os>-<arch>` assets.
+
+Only the `release/v0` workflows read the variable. To undo the switch, delete it (`gh variable delete DAYTONA_V0_CUTOVER --repo daytona/clients`).
 
 ## Version Management
 
