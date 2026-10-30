@@ -329,7 +329,7 @@ class _SignalTimeout:
         return False  # Don't suppress exceptions
 
 
-def with_timeout() -> Callable[[F], F]:
+def with_timeout(name: str | None = None) -> Callable[[F], F]:
     """Decorator to add timeout mechanism that executes finally blocks properly.
 
     This decorator ensures that finally blocks and context managers execute properly
@@ -337,6 +337,9 @@ def with_timeout() -> Callable[[F], F]:
     raised as if it originated from within the decorated function's workflow.
 
     Wrapped method must have parameter `timeout` which is the timeout duration in seconds.
+
+    Args:
+        name: Function name used in the timeout error message. Defaults to the wrapped function's name.
 
     Platform Support:
         - **Async functions**: All platforms (uses asyncio task cancellation). The exception that can
@@ -403,6 +406,8 @@ def with_timeout() -> Callable[[F], F]:
     """
 
     def decorator(func: F) -> F:
+        func_name = name or func.__name__
+
         # Extract timeout from args/kwargs
         def _extract_timeout(args: tuple[Any, ...], kwargs: dict[str, Any]) -> float | None:
             names = func.__code__.co_varnames[: func.__code__.co_argcount]
@@ -421,7 +426,7 @@ def with_timeout() -> Callable[[F], F]:
 
                 # Add ourselves to the async timeout stack for nested timeout tracking
                 stack = _async_timeout_stack.get().copy()
-                timeout_info = {"func_name": func.__name__, "timeout": timeout, "start_time": time.time()}
+                timeout_info = {"func_name": func_name, "timeout": timeout, "start_time": time.time()}
                 _ = stack.append(timeout_info)
                 _ = _async_timeout_stack.set(stack)
 
@@ -444,7 +449,7 @@ def with_timeout() -> Callable[[F], F]:
                             )
                     # Our timeout fired (shouldn't reach here but fallback)
                     # pylint: disable=raise-missing-from
-                    raise DaytonaTimeoutError(f"Function '{func.__name__}' exceeded timeout of {timeout} seconds.")
+                    raise DaytonaTimeoutError(f"Function '{func_name}' exceeded timeout of {timeout} seconds.")
                 except asyncio.CancelledError:
                     # Task was cancelled - could be from outer timeout or external cancellation
                     # Check all timeouts on stack to determine which one expired
@@ -480,12 +485,12 @@ def with_timeout() -> Callable[[F], F]:
 
             # Strategy 1: Unix/Linux main thread - use signals with nested timeout support
             if hasattr(signal, "SIGALRM") and threading.current_thread() is threading.main_thread():
-                with _SignalTimeout(timeout, func.__name__):
+                with _SignalTimeout(timeout, func_name):
                     return func(*args, **kwargs)
 
             # Strategy 2: Windows or non-main thread - use threading timeout (cross-platform)
             else:
-                with _ThreadingTimeout(timeout, func.__name__):
+                with _ThreadingTimeout(timeout, func_name):
                     return func(*args, **kwargs)
 
         return sync_wrapper  # pyright: ignore[reportReturnType]

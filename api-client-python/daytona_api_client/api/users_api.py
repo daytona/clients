@@ -41,7 +41,7 @@ class UsersApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_privacy_policies(
         self,
         _request_timeout: Union[
@@ -103,7 +103,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_privacy_policies_with_http_info(
         self,
         _request_timeout: Union[
@@ -165,7 +165,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_privacy_policies_without_preload_content(
         self,
         _request_timeout: Union[
@@ -278,7 +278,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def confirm_pending_sso_link(
         self,
         id: StrictStr,
@@ -344,7 +344,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def confirm_pending_sso_link_with_http_info(
         self,
         id: StrictStr,
@@ -410,7 +410,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def confirm_pending_sso_link_without_preload_content(
         self,
         id: StrictStr,
@@ -530,7 +530,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def dismiss_pending_sso_link(
         self,
         id: StrictStr,
@@ -596,7 +596,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def dismiss_pending_sso_link_with_http_info(
         self,
         id: StrictStr,
@@ -662,7 +662,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def dismiss_pending_sso_link_without_preload_content(
         self,
         id: StrictStr,
@@ -782,7 +782,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_account_providers(
         self,
         _request_timeout: Union[
@@ -845,7 +845,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_account_providers_with_http_info(
         self,
         _request_timeout: Union[
@@ -908,7 +908,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_account_providers_without_preload_content(
         self,
         _request_timeout: Union[
@@ -1029,7 +1029,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_authenticated_user(
         self,
         _request_timeout: Union[
@@ -1091,7 +1091,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_authenticated_user_with_http_info(
         self,
         _request_timeout: Union[
@@ -1153,7 +1153,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_authenticated_user_without_preload_content(
         self,
         _request_timeout: Union[
@@ -1273,7 +1273,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def link_account(
         self,
         create_linked_account: CreateLinkedAccount,
@@ -1341,7 +1341,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def link_account_with_http_info(
         self,
         create_linked_account: CreateLinkedAccount,
@@ -1409,7 +1409,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def link_account_without_preload_content(
         self,
         create_linked_account: CreateLinkedAccount,
@@ -1544,7 +1544,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pending_sso_links(
         self,
         _request_timeout: Union[
@@ -1606,7 +1606,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pending_sso_links_with_http_info(
         self,
         _request_timeout: Union[
@@ -1668,7 +1668,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_pending_sso_links_without_preload_content(
         self,
         _request_timeout: Union[
@@ -1788,7 +1788,7 @@ class UsersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def record_login(
         self,
         _request_timeout: Union[
@@ -1851,7 +1851,7 @@ class UsersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def record_login_with_http_info(
         self,
         _request_timeout: Union[
@@ -1914,7 +1914,7 @@ class UsersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def record_login_without_preload_content(
         self,
         _request_timeout: Union[

@@ -109,6 +109,14 @@ Ensure these secrets are configured in GitHub repository settings:
 5. Runs `yarn publish` which uses Nx to publish all SDKs in the correct order
 6. Updates the Homebrew tap (for the CLI)
 
+The **Release** workflow builds the CLI binaries and uploads them to the GitHub release. Its `attest_cli` job then downloads them from the release, checks they match the SHA-256 sums the `release` job recorded at build time, and attests them (SLSA build provenance). If an asset was replaced after the upload, the check fails and nothing is attested. The attestation records the GitHub-hosted runner that signed the binaries, not the Blacksmith runner that built them, so `--deny-self-hosted-runners` passes even though the build ran on a self-hosted runner. If only `attest_cli` fails, for example during a Sigstore outage, use **Re-run failed jobs** on the same run. It does not re-run the release, and a re-run from `release.yaml` still passes `gh attestation verify --signer-workflow daytona/clients/.github/workflows/release.yaml`. Before running the Homebrew dispatch, check one binary:
+
+```bash
+gh release download vX.Y.Z --repo daytona/clients --pattern daytona-linux-amd64
+gh attestation verify ./daytona-linux-amd64 --repo daytona/clients \
+  --signer-workflow daytona/clients/.github/workflows/release.yaml
+```
+
 ### Release Branches
 
 `main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on `main` first and is cherry-picked (`git cherry-pick -x`) to the maintenance branches it applies to, through a PR against each branch. Releases are tags (`v0.224.2`, `sdk-go/v0.224.2`), never branches.

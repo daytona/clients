@@ -38,7 +38,7 @@ class PortApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_ports(
         self,
         _request_timeout: Union[
@@ -101,7 +101,7 @@ class PortApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_ports_with_http_info(
         self,
         _request_timeout: Union[
@@ -164,7 +164,7 @@ class PortApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_ports_without_preload_content(
         self,
         _request_timeout: Union[
@@ -283,7 +283,7 @@ class PortApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_port_in_use(
         self,
         port: Annotated[StrictInt, Field(description="Port number (3000-9999)")],
@@ -351,7 +351,7 @@ class PortApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_port_in_use_with_http_info(
         self,
         port: Annotated[StrictInt, Field(description="Port number (3000-9999)")],
@@ -419,7 +419,7 @@ class PortApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_port_in_use_without_preload_content(
         self,
         port: Annotated[StrictInt, Field(description="Port number (3000-9999)")],

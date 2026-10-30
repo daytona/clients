@@ -40,7 +40,7 @@ class WebhooksApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_app_portal_access(
         self,
         organization_id: StrictStr,
@@ -110,7 +110,7 @@ class WebhooksApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_app_portal_access_with_http_info(
         self,
         organization_id: StrictStr,
@@ -180,7 +180,7 @@ class WebhooksApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_app_portal_access_without_preload_content(
         self,
         organization_id: StrictStr,
@@ -314,7 +314,7 @@ class WebhooksApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_initialization_status(
         self,
         organization_id: StrictStr,
@@ -385,7 +385,7 @@ class WebhooksApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_initialization_status_with_http_info(
         self,
         organization_id: StrictStr,
@@ -456,7 +456,7 @@ class WebhooksApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_get_initialization_status_without_preload_content(
         self,
         organization_id: StrictStr,
@@ -591,7 +591,7 @@ class WebhooksApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_initialize_webhooks(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -661,7 +661,7 @@ class WebhooksApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_initialize_webhooks_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -731,7 +731,7 @@ class WebhooksApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_initialize_webhooks_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -865,7 +865,7 @@ class WebhooksApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_refresh_endpoints(
         self,
         organization_id: StrictStr,
@@ -936,7 +936,7 @@ class WebhooksApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_refresh_endpoints_with_http_info(
         self,
         organization_id: StrictStr,
@@ -1007,7 +1007,7 @@ class WebhooksApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def webhook_controller_refresh_endpoints_without_preload_content(
         self,
         organization_id: StrictStr,

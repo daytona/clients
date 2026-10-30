@@ -44,7 +44,7 @@ class RunnersApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_runner(
         self,
         create_runner: CreateRunner,
@@ -114,7 +114,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_runner_with_http_info(
         self,
         create_runner: CreateRunner,
@@ -184,7 +184,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_runner_without_preload_content(
         self,
         create_runner: CreateRunner,
@@ -331,7 +331,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_runner(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -405,7 +405,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_runner_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -479,7 +479,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_runner_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -615,7 +615,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_info_for_authenticated_runner(
         self,
         _request_timeout: Union[
@@ -677,7 +677,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_info_for_authenticated_runner_with_http_info(
         self,
         _request_timeout: Union[
@@ -739,7 +739,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_info_for_authenticated_runner_without_preload_content(
         self,
         _request_timeout: Union[
@@ -859,7 +859,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_id(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -929,7 +929,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_id_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -999,7 +999,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_id_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -1133,7 +1133,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_sandbox_id(
         self,
         sandbox_id: StrictStr,
@@ -1199,7 +1199,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_sandbox_id_with_http_info(
         self,
         sandbox_id: StrictStr,
@@ -1265,7 +1265,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_by_sandbox_id_without_preload_content(
         self,
         sandbox_id: StrictStr,
@@ -1392,7 +1392,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_full_by_id(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -1458,7 +1458,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_full_by_id_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -1524,7 +1524,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runner_full_by_id_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -1651,7 +1651,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runners_by_snapshot_ref(
         self,
         ref: Annotated[StrictStr, Field(description="Snapshot ref")],
@@ -1717,7 +1717,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runners_by_snapshot_ref_with_http_info(
         self,
         ref: Annotated[StrictStr, Field(description="Snapshot ref")],
@@ -1783,7 +1783,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_runners_by_snapshot_ref_without_preload_content(
         self,
         ref: Annotated[StrictStr, Field(description="Snapshot ref")],
@@ -1912,7 +1912,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_refs_for_authenticated_runner(
         self,
         _request_timeout: Union[
@@ -1974,7 +1974,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_refs_for_authenticated_runner_with_http_info(
         self,
         _request_timeout: Union[
@@ -2036,7 +2036,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_snapshot_refs_for_authenticated_runner_without_preload_content(
         self,
         _request_timeout: Union[
@@ -2156,7 +2156,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_runners(
         self,
         region_id: Annotated[Optional[StrictStr], Field(description="Filter runners by region ID")] = None,
@@ -2226,7 +2226,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_runners_with_http_info(
         self,
         region_id: Annotated[Optional[StrictStr], Field(description="Filter runners by region ID")] = None,
@@ -2296,7 +2296,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_runners_without_preload_content(
         self,
         region_id: Annotated[Optional[StrictStr], Field(description="Filter runners by region ID")] = None,
@@ -2432,7 +2432,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def runner_healthcheck(
         self,
         runner_healthcheck: RunnerHealthcheck,
@@ -2499,7 +2499,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def runner_healthcheck_with_http_info(
         self,
         runner_healthcheck: RunnerHealthcheck,
@@ -2566,7 +2566,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def runner_healthcheck_without_preload_content(
         self,
         runner_healthcheck: RunnerHealthcheck,
@@ -2700,7 +2700,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_draining(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -2770,7 +2770,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_draining_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -2840,7 +2840,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_draining_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -2974,7 +2974,7 @@ class RunnersApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_scheduling(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -3044,7 +3044,7 @@ class RunnersApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_scheduling_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],
@@ -3114,7 +3114,7 @@ class RunnersApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_runner_scheduling_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Runner ID")],

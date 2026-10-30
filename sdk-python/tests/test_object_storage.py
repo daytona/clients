@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import io
+import tarfile
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -125,8 +127,8 @@ class TestObjectStorage:
         result = storage.upload(str(file_path), "org-1", archive_base_path="custom/base")
 
         assert result == "hash123"
-        storage._compute_hash_for_path_md5.assert_called_once_with(str(file_path), "custom/base")
-        storage._upload_as_tar.assert_called_once_with("org-1/hash123/context.tar", str(file_path), "custom/base")
+        storage._compute_hash_for_path_md5.assert_called_once_with(str(file_path), "custom/base", None)
+        storage._upload_as_tar.assert_called_once_with("org-1/hash123/context.tar", str(file_path), "custom/base", None)
 
     def test_upload_as_tar_streams_content_to_store(self, tmp_path: Path):
         storage, store = _make_storage()
@@ -146,3 +148,92 @@ class TestObjectStorage:
         assert len(captured["org/hash/context.tar"]) > 0
         assert store.put.call_args.kwargs["max_concurrency"] == 4
         assert store.put.call_args.kwargs["chunk_size"] == 5 * 1024 * 1024
+
+    def test_upload_as_tar_excludes_dockerignore_matches(self, tmp_path: Path):
+        storage, store = _make_storage()
+        context = tmp_path / "env"
+        (context / ".venv/bin").mkdir(parents=True)
+        (context / ".venv/bin/python3").write_text("host interpreter", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        dockerignore = context / ".dockerignore"
+        dockerignore.write_text(".venv/\n", encoding="utf-8")
+
+        captured: dict[str, bytes] = {}
+
+        def consume_stream(key: str, chunks, **_kwargs):
+            captured[key] = b"".join(chunks)
+
+        store.put.side_effect = consume_stream
+
+        storage._upload_as_tar("org/hash/context.tar", str(context), "env", str(dockerignore))
+
+        with tarfile.open(fileobj=io.BytesIO(captured["org/hash/context.tar"])) as archive:
+            names = archive.getnames()
+        assert "env/app.py" in names
+        assert not any(".venv" in name for name in names)
+
+    def test_upload_as_tar_without_dockerignore_rules_is_unchanged(self, tmp_path: Path):
+        storage, store = _make_storage()
+        context = tmp_path / "env"
+        (context / "pkg").mkdir(parents=True)
+        (context / "pkg/mod.py").write_text("x = 1", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        (context / "empty").mkdir()
+        (context / ".dockerignore").write_text("# only a comment\n\n", encoding="utf-8")
+
+        captured: list[bytes] = []
+        store.put.side_effect = lambda _key, chunks, **_kwargs: captured.append(b"".join(chunks))
+
+        storage._upload_as_tar("org/hash/context.tar", str(context), "env")
+        storage._upload_as_tar("org/hash/context.tar", str(context), "env", str(context / ".dockerignore"))
+        storage._upload_as_tar("org/hash/context.tar", str(context), "env", str(context / "missing"))
+
+        assert captured[0] == captured[1] == captured[2]
+
+    def test_hash_without_dockerignore_rules_is_unchanged(self, tmp_path: Path):
+        storage, _store = _make_storage()
+        context = tmp_path / "env"
+        context.mkdir()
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        (context / ".dockerignore").write_text("# only a comment\n", encoding="utf-8")
+
+        legacy = storage._compute_hash_for_path_md5(str(context), "env")
+
+        assert storage._compute_hash_for_path_md5(str(context), "env", str(context / ".dockerignore")) == legacy
+        assert storage._compute_hash_for_path_md5(str(context), "env", str(context / "missing")) == legacy
+
+    def test_ignored_files_do_not_change_context_hash(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        storage, _store = _make_storage()
+        context = tmp_path / "env"
+        (context / ".venv").mkdir(parents=True)
+        ignored_file = context / ".venv/python3"
+        ignored_file.write_text("first", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        (context / ".dockerignore").write_text(".venv\n*.log\n", encoding="utf-8")
+        # Relative paths on both sides, as from_dockerfile("Dockerfile") produces them.
+        monkeypatch.chdir(tmp_path)
+
+        def context_hash() -> str:
+            return storage._compute_hash_for_path_md5("env", "env", "env/.dockerignore")
+
+        first_hash = context_hash()
+        ignored_file.write_text("second", encoding="utf-8")
+        (context / "debug.log").write_text("noise", encoding="utf-8")
+
+        assert context_hash() == first_hash
+        assert storage._compute_hash_for_path_md5(str(context), "env", str(context / ".dockerignore")) == first_hash
+
+        (context / "app.py").write_text("print('changed')", encoding="utf-8")
+        assert context_hash() != first_hash
+
+    def test_hash_follows_directories_the_archive_keeps(self, tmp_path: Path):
+        storage, _store = _make_storage()
+        context = tmp_path / "env"
+        context.mkdir()
+        (context / ".dockerignore").write_text("*.log\n", encoding="utf-8")
+        dockerignore = str(context / ".dockerignore")
+
+        first_hash = storage._compute_hash_for_path_md5(str(context), "env", dockerignore)
+        (context / "logs").mkdir()
+
+        assert storage._compute_hash_for_path_md5(str(context), "env", dockerignore) != first_hash

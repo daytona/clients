@@ -37,7 +37,7 @@ class RegionsApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_shared_regions(
         self,
         _request_timeout: Union[
@@ -99,7 +99,7 @@ class RegionsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_shared_regions_with_http_info(
         self,
         _request_timeout: Union[
@@ -161,7 +161,7 @@ class RegionsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_shared_regions_without_preload_content(
         self,
         _request_timeout: Union[

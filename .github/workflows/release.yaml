@@ -113,6 +113,17 @@ jobs:
           GOOS=darwin GOARCH=arm64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
+      - name: Record CLI binary checksums
+        run: |
+          cd dist/cli
+          sha256sum daytona-linux-amd64 daytona-linux-arm64 daytona-darwin-amd64 daytona-darwin-arm64 daytona-windows-amd64.exe daytona-windows-arm64.exe > ../cli-sha256sums.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cli-sha256sums
+          path: dist/cli-sha256sums.txt
+          if-no-files-found: error
+          # Re-running this job rebuilds the binaries; replace the earlier sums.
+          overwrite: true
       - name: Upload CLI to release assets
         run: |
           gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
@@ -136,6 +147,44 @@ jobs:
           git config --global --fixed-value --unset-all user.email "153830314+daytonaBot@users.noreply.github.com" 2>/dev/null || true
           git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
           git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
+
+  attest_cli:
+    # A separate job so only it can mint OIDC tokens, and so a signing outage
+    # can be fixed with "Re-run failed jobs" without re-running the release.
+    # It attests the binaries as published on the release, the exact bytes
+    # users download, and only if they match the checksums the release job
+    # recorded at build time, so a re-run cannot sign a replaced asset.
+    needs: release
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download CLI release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in daytona-linux-amd64 daytona-linux-arm64 daytona-darwin-amd64 daytona-darwin-arm64 daytona-windows-amd64.exe daytona-windows-arm64.exe; do
+            gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist/cli
+          done
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cli-sha256sums
+          path: dist
+      - name: Check release assets match the built binaries
+        run: cd dist/cli && sha256sum --check --strict ../cli-sha256sums.txt
+      - name: Attest CLI build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/cli/daytona-linux-amd64
+            dist/cli/daytona-linux-arm64
+            dist/cli/daytona-darwin-amd64
+            dist/cli/daytona-darwin-arm64
+            dist/cli/daytona-windows-amd64.exe
+            dist/cli/daytona-windows-arm64.exe
 
   sync_gosum:
     needs: release

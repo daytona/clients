@@ -13,6 +13,7 @@ import aiofiles
 import aiofiles.os
 from obstore.store import S3Store
 
+from .._utils.dockerignore import DockerIgnore, add_context_to_tar, hash_context_entries
 from .._utils.docs_ignore import docs_ignore
 from .._utils.environment import isolated_env
 from .._utils.otel_decorator import with_instrumentation
@@ -69,13 +70,22 @@ class AsyncObjectStorage:
             )
 
     @with_instrumentation()
-    async def upload(self, path: str, organization_id: str, archive_base_path: str | None = None) -> str:
+    async def upload(
+        self,
+        path: str,
+        organization_id: str,
+        archive_base_path: str | None = None,
+        *,
+        dockerignore_path: str | None = None,
+    ) -> str:
         """Uploads a file to the object storage service.
 
         Args:
             path (str): The path to the file to upload.
             organization_id (str): The organization ID to use.
             archive_base_path (str): The base path to use for the archive.
+            dockerignore_path (str | None): The ``.dockerignore`` of the build context the path belongs
+                to. Entries it excludes are left out of the archive and its hash.
 
         Returns:
             str: The hash of the uploaded file.
@@ -83,7 +93,7 @@ class AsyncObjectStorage:
         if not await aiofiles.os.path.exists(path):
             raise FileNotFoundError(f"Path does not exist: {path}")
 
-        path_hash = await self._compute_hash_for_path_md5(path, archive_base_path)
+        path_hash = await self._compute_hash_for_path_md5(path, archive_base_path, dockerignore_path)
         s3_key = f"{organization_id}/{path_hash}/context.tar"
 
         # Check if it already exists in S3
@@ -91,7 +101,7 @@ class AsyncObjectStorage:
             return path_hash
 
         # Upload to S3
-        await self._upload_as_tar(s3_key, path, archive_base_path)
+        await self._upload_as_tar(s3_key, path, archive_base_path, dockerignore_path)
 
         return path_hash
 
@@ -113,12 +123,15 @@ class AsyncObjectStorage:
         # Remove leading separators (both / and \)
         return path_without_drive.lstrip("/").lstrip("\\")
 
-    async def _compute_hash_for_path_md5(self, path_str: str, archive_base_path: str | None = None) -> str:
+    async def _compute_hash_for_path_md5(
+        self, path_str: str, archive_base_path: str | None = None, dockerignore_path: str | None = None
+    ) -> str:
         """Computes the MD5 hash for a given path.
 
         Args:
             path_str (str): The path to compute the hash for.
             archive_base_path (str): The base path to use for the archive.
+            dockerignore_path (str | None): The ``.dockerignore`` whose exclusions to leave out.
 
         Returns:
             str: The MD5 hash for the given path.
@@ -129,6 +142,13 @@ class AsyncObjectStorage:
         if archive_base_path is None:
             archive_base_path = self.compute_archive_base_path(path_str)
         md5_hasher.update(archive_base_path.encode("utf-8"))
+
+        dockerignore = await asyncio.to_thread(DockerIgnore.load, dockerignore_path)
+        if dockerignore is not None:
+            await asyncio.to_thread(
+                hash_context_entries, md5_hasher.update, abs_path_str, archive_base_path, dockerignore
+            )
+            return md5_hasher.hexdigest()
 
         if await aiofiles.os.path.isfile(abs_path_str):
             async with aiofiles.open(abs_path_str, "rb") as f:
@@ -169,18 +189,27 @@ class AsyncObjectStorage:
             return False
         return True
 
-    async def _upload_as_tar(self, s3_key: str, source_path: str, archive_base_path: str | None = None) -> None:
+    async def _upload_as_tar(
+        self,
+        s3_key: str,
+        source_path: str,
+        archive_base_path: str | None = None,
+        dockerignore_path: str | None = None,
+    ) -> None:
         """Uploads a file to the object storage service as a tar.
 
         Args:
             s3_key (str): The key to upload the file to.
             source_path (str): The path to the file to upload.
             archive_base_path (str | None): The base path to use for the archive.
+            dockerignore_path (str | None): The ``.dockerignore`` whose exclusions to leave out.
         """
         source_path = os.path.normpath(source_path)
 
         if archive_base_path is None:
             archive_base_path = self.compute_archive_base_path(source_path)
+
+        dockerignore = await asyncio.to_thread(DockerIgnore.load, dockerignore_path)
 
         read_fd, write_fd = os.pipe()
         read_file = os.fdopen(read_fd, "rb")
@@ -188,7 +217,10 @@ class AsyncObjectStorage:
 
         def tar_worker():
             with tarfile.open(fileobj=write_file, mode="w|") as tar:
-                tar.add(source_path, arcname=archive_base_path)
+                if dockerignore is None:
+                    tar.add(source_path, arcname=archive_base_path)
+                else:
+                    add_context_to_tar(tar, source_path, archive_base_path, dockerignore)
             write_file.close()
 
         thread = threading.Thread(target=tar_worker, daemon=True)

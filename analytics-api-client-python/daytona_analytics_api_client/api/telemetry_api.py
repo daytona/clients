@@ -41,7 +41,7 @@ class TelemetryApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_logs_get(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -136,7 +136,7 @@ class TelemetryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_logs_get_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -231,7 +231,7 @@ class TelemetryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_logs_get_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -419,7 +419,7 @@ class TelemetryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -502,7 +502,7 @@ class TelemetryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -585,7 +585,7 @@ class TelemetryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_metrics_get_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -746,7 +746,7 @@ class TelemetryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_get(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -833,7 +833,7 @@ class TelemetryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_get_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -920,7 +920,7 @@ class TelemetryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_get_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1090,7 +1090,7 @@ class TelemetryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_trace_id_get(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1165,7 +1165,7 @@ class TelemetryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_trace_id_get_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1240,7 +1240,7 @@ class TelemetryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def organization_organization_id_sandbox_sandbox_id_telemetry_traces_trace_id_get_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],

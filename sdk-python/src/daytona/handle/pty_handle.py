@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import queue
 import time
 from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager
@@ -199,9 +200,13 @@ class PtyHandle:
         """Iterator protocol for handling PTY events"""
         return self._handle_events()
 
-    def _handle_events(self) -> Generator[bytes, None, None]:
+    def _handle_events(self, deadline: float | None = None) -> Generator[bytes, None, None]:
         """
         Generator that yields PTY data events.
+
+        Args:
+            deadline: Optional ``time.monotonic()`` value. When it passes without a new event, the generator
+                stops and leaves the WebSocket open.
 
         Yields:
             bytes: PTY output data
@@ -216,7 +221,17 @@ class PtyHandle:
         try:
             while True:
                 try:
-                    event = ws.receive()
+                    if deadline is None:
+                        event = ws.receive()
+                    else:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            return
+                        event = ws.receive(timeout=remaining)
+                except queue.Empty:
+                    # Nothing arrived before the deadline (e.g. an idle PTY waiting for input). The session
+                    # stays connected, so the caller can send input or wait again.
+                    return
                 except WebSocketDisconnect as e:
                     close_code = e.code
                     close_reason = e.reason
@@ -254,19 +269,21 @@ class PtyHandle:
 
         Args:
             on_data: Optional callback for handling PTY output data
-            timeout: Optional timeout in seconds
+            timeout: Optional timeout in seconds. If the process has not exited when it elapses, whether or not
+                the PTY is producing output, returns with ``exit_code`` None and leaves the session connected.
+                A timeout of 0 or None means no timeout, consistent with the rest of the Python SDK.
 
         Returns:
             PtyResult: Result containing exit code and error (if any)
         """
-        start_time = time.time()
+        deadline = time.monotonic() + timeout if timeout else None
 
         try:
-            for data in self:
+            for data in self._handle_events(deadline):
                 if on_data:
                     on_data(data)
 
-                if timeout and (time.time() - start_time) > timeout:
+                if deadline is not None and time.monotonic() >= deadline:
                     break
 
         except StopIteration:
