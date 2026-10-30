@@ -30,9 +30,11 @@ class ExecuteResponse(BaseModel):
     ExecuteResponse
     """ # noqa: E501
     exit_code: Optional[StrictInt] = Field(default=None, serialization_alias="exitCode")
-    result: StrictStr
+    result: StrictStr = Field(description="Combined stdout and stderr in arrival order (interleaved)")
+    stderr: Optional[StrictStr] = Field(default=None, description="Standard error only; omitted by daemons that predate split streams")
+    stdout: Optional[StrictStr] = Field(default=None, description="Standard output only; omitted by daemons that predate split streams")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["exitCode", "result"]
+    __properties: ClassVar[List[str]] = ["exitCode", "result", "stderr", "stdout"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,7 +94,9 @@ class ExecuteResponse(BaseModel):
 
         _obj = cls.model_validate({
             "exit_code": obj.get("exitCode"),
-            "result": obj.get("result")
+            "result": obj.get("result"),
+            "stderr": obj.get("stderr"),
+            "stdout": obj.get("stdout")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

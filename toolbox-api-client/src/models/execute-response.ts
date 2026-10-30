@@ -16,6 +16,17 @@
 
 export interface ExecuteResponse {
     'exitCode'?: number;
+    /**
+     * Combined stdout and stderr in arrival order (interleaved)
+     */
     'result': string;
+    /**
+     * Standard error only; omitted by daemons that predate split streams
+     */
+    'stderr'?: string;
+    /**
+     * Standard output only; omitted by daemons that predate split streams
+     */
+    'stdout'?: string;
 }
 

@@ -80,12 +80,16 @@ class ExecuteResponse(BaseModel):
 
     Attributes:
         exit_code (int): The exit code from the command execution
-        result (str): The output from the command execution
+        result (str): Combined stdout and stderr from the command execution (interleaved)
+        stdout (str | None): Standard output only; None when the sandbox daemon predates split streams
+        stderr (str | None): Standard error only; None when the sandbox daemon predates split streams
         artifacts (ExecutionArtifacts | None): Artifacts from the command execution
     """
 
     exit_code: int
     result: str
+    stdout: str | None = None
+    stderr: str | None = None
     artifacts: ExecutionArtifacts | None = None
     additional_properties: dict[str, object] = Field(default_factory=dict)
 
