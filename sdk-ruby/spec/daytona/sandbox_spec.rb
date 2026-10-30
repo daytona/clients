@@ -706,7 +706,9 @@ RSpec.describe Daytona::Sandbox do
 
       expect do
         pending_sandbox.wait_for_sandbox_start(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/)
+      end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/) { |error|
+        expect(error.sandbox_id).to be_nil
+      }
     end
 
     it 'raises Sdk::Error when final refresh discovers error state' do
@@ -788,7 +790,7 @@ RSpec.describe Daytona::Sandbox do
 
       expect do
         stopping.wait_for_sandbox_stop(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError)
+      end.to raise_error(Daytona::Sdk::TimeoutError) { |error| expect(error.sandbox_id).to be_nil }
     end
   end
 
