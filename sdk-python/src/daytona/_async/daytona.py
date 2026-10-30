@@ -57,7 +57,12 @@ from ..common.daytona import (
     DaytonaConfig,
     resolve_bool_flag,
 )
-from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
+from ..common.errors import (
+    DaytonaAuthenticationError,
+    DaytonaQueueTimeoutError,
+    DaytonaTimeoutError,
+    DaytonaValidationError,
+)
 from ..common.image import Image
 from ..common.sandbox import ListSandboxesQuery
 from ..internal.event_dispatcher import AsyncEventDispatcher
@@ -569,8 +574,6 @@ class AsyncDaytona:
             ```
         """
 
-    @intercept_errors(message_prefix="Failed to create sandbox: ")
-    @with_timeout()
     @with_instrumentation()
     async def create(
         self,
@@ -585,14 +588,26 @@ class AsyncDaytona:
         elif not params.language:
             params.language = self.default_language
 
-        return await self._create(params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs)
+        created: list[str] = []
+        try:
+            return await self._create(
+                params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs, created=created
+            )
+        except DaytonaTimeoutError as e:
+            # A queue timeout means the API already destroyed the sandbox.
+            if created and not isinstance(e, DaytonaQueueTimeoutError):
+                e._attach_sandbox_id(created[0])
+            raise
 
+    @intercept_errors(message_prefix="Failed to create sandbox: ")
+    @with_timeout(name="create")
     async def _create(
         self,
         params: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
         *,
         timeout: float = 60,
         on_snapshot_create_logs: Callable[[str], None] | None = None,
+        created: list[str] | None = None,
     ) -> AsyncSandbox:
         validated_language = self._validate_language_label(str(params.language) if params.language else None)
         params.labels = params.labels or {}
@@ -701,6 +716,9 @@ class AsyncDaytona:
                     )
 
         response = await self._sandbox_api.create_sandbox(sandbox_data, _request_timeout=http_timeout(timeout))
+        if created is not None:
+            # The sandbox exists from here on, so a timeout must tell the caller which one it was.
+            created.append(response.id)
 
         if response.state == SandboxState.PENDING_BUILD and on_snapshot_create_logs:
             build_logs_url = (await self._sandbox_api.get_build_logs_url(response.id)).url

@@ -69,7 +69,7 @@ class OrganizationsApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_organization_invitation(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -135,7 +135,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_organization_invitation_with_http_info(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -201,7 +201,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def accept_organization_invitation_without_preload_content(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -328,7 +328,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def cancel_organization_invitation(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -398,7 +398,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def cancel_organization_invitation_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -468,7 +468,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def cancel_organization_invitation_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -595,7 +595,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization(
         self,
         create_organization: CreateOrganization,
@@ -661,7 +661,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_with_http_info(
         self,
         create_organization: CreateOrganization,
@@ -727,7 +727,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_without_preload_content(
         self,
         create_organization: CreateOrganization,
@@ -867,7 +867,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_identity_provider(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -937,7 +937,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_identity_provider_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1007,7 +1007,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_identity_provider_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1154,7 +1154,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_invitation(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1224,7 +1224,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_invitation_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1294,7 +1294,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_invitation_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1441,7 +1441,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_role(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1511,7 +1511,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_role_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1581,7 +1581,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_organization_role_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -1728,7 +1728,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_region(
         self,
         create_region: CreateRegion,
@@ -1798,7 +1798,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_region_with_http_info(
         self,
         create_region: CreateRegion,
@@ -1868,7 +1868,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_region_without_preload_content(
         self,
         create_region: CreateRegion,
@@ -2015,7 +2015,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def decline_organization_invitation(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -2081,7 +2081,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def decline_organization_invitation_with_http_info(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -2147,7 +2147,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def decline_organization_invitation_without_preload_content(
         self,
         invitation_id: Annotated[StrictStr, Field(description="Invitation ID")],
@@ -2267,7 +2267,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2333,7 +2333,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2399,7 +2399,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2519,7 +2519,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_identity_provider(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2589,7 +2589,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_identity_provider_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2659,7 +2659,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_identity_provider_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2786,7 +2786,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_member(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2856,7 +2856,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_member_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -2926,7 +2926,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_member_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3053,7 +3053,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_otel_config(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3119,7 +3119,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_otel_config_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3185,7 +3185,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_otel_config_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3305,7 +3305,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_role(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3375,7 +3375,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_role_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3445,7 +3445,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_organization_role_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3572,7 +3572,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_region(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -3642,7 +3642,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_region_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -3712,7 +3712,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_region_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -3839,7 +3839,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def generate_workos_admin_portal_link(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3909,7 +3909,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def generate_workos_admin_portal_link_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -3979,7 +3979,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def generate_workos_admin_portal_link_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4126,7 +4126,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_gpu_capacity(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4194,7 +4194,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_gpu_capacity_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4262,7 +4262,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_gpu_capacity_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4391,7 +4391,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4457,7 +4457,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4523,7 +4523,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4650,7 +4650,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_identity_provider(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4720,7 +4720,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_identity_provider_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4790,7 +4790,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_identity_provider_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -4924,7 +4924,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_invitations_count_for_authenticated_user(
         self,
         _request_timeout: Union[
@@ -4986,7 +4986,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_invitations_count_for_authenticated_user_with_http_info(
         self,
         _request_timeout: Union[
@@ -5048,7 +5048,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_invitations_count_for_authenticated_user_without_preload_content(
         self,
         _request_timeout: Union[
@@ -5168,7 +5168,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5234,7 +5234,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5300,7 +5300,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5427,7 +5427,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config_by_sandbox_auth_token(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -5493,7 +5493,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config_by_sandbox_auth_token_with_http_info(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -5559,7 +5559,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_otel_config_by_sandbox_auth_token_without_preload_content(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -5686,7 +5686,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_usage_overview(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5752,7 +5752,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_usage_overview_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5818,7 +5818,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_organization_usage_overview_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -5945,7 +5945,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_region_by_id(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -6015,7 +6015,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_region_by_id_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -6085,7 +6085,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_region_by_id_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -6219,7 +6219,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_sandbox_identity_by_sandbox_auth_token(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -6285,7 +6285,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_sandbox_identity_by_sandbox_auth_token_with_http_info(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -6351,7 +6351,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_sandbox_identity_by_sandbox_auth_token_without_preload_content(
         self,
         auth_token: Annotated[StrictStr, Field(description="Sandbox Auth Token")],
@@ -6478,7 +6478,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def leave_organization(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -6544,7 +6544,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def leave_organization_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -6610,7 +6610,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def leave_organization_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -6730,7 +6730,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_regions(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6796,7 +6796,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_regions_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6862,7 +6862,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_regions_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -6989,7 +6989,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_sandbox_classes(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7055,7 +7055,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_sandbox_classes_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7121,7 +7121,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_available_sandbox_classes_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7248,7 +7248,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_identity_providers(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7314,7 +7314,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_identity_providers_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7380,7 +7380,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_identity_providers_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7507,7 +7507,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7573,7 +7573,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7639,7 +7639,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -7766,7 +7766,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations_for_authenticated_user(
         self,
         _request_timeout: Union[
@@ -7828,7 +7828,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations_for_authenticated_user_with_http_info(
         self,
         _request_timeout: Union[
@@ -7890,7 +7890,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_invitations_for_authenticated_user_without_preload_content(
         self,
         _request_timeout: Union[
@@ -8010,7 +8010,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_members(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8076,7 +8076,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_members_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8142,7 +8142,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_members_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8269,7 +8269,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_roles(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8335,7 +8335,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_roles_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8401,7 +8401,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organization_roles_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8528,7 +8528,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organizations(
         self,
         _request_timeout: Union[
@@ -8590,7 +8590,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organizations_with_http_info(
         self,
         _request_timeout: Union[
@@ -8652,7 +8652,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_organizations_without_preload_content(
         self,
         _request_timeout: Union[
@@ -8772,7 +8772,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_workos_sso_connections(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8838,7 +8838,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_workos_sso_connections_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -8904,7 +8904,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_workos_sso_connections_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -9031,7 +9031,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_proxy_api_key(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9101,7 +9101,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_proxy_api_key_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9171,7 +9171,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_proxy_api_key_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9305,7 +9305,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_snapshot_manager_credentials(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9375,7 +9375,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_snapshot_manager_credentials_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9445,7 +9445,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_snapshot_manager_credentials_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9579,7 +9579,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_ssh_gateway_api_key(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9649,7 +9649,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_ssh_gateway_api_key_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9719,7 +9719,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def regenerate_ssh_gateway_api_key_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -9853,7 +9853,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_organization_default_region(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -9923,7 +9923,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_organization_default_region_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -9993,7 +9993,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_organization_default_region_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10133,7 +10133,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def test_organization_identity_provider_connection(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10203,7 +10203,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def test_organization_identity_provider_connection_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10273,7 +10273,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def test_organization_identity_provider_connection_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10420,7 +10420,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_access_for_organization_member(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10494,7 +10494,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_access_for_organization_member_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10568,7 +10568,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_access_for_organization_member_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10722,7 +10722,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_experimental_config(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10792,7 +10792,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_experimental_config_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -10862,7 +10862,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_experimental_config_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11002,7 +11002,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_default_queue_timeout(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11072,7 +11072,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_default_queue_timeout_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11142,7 +11142,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_default_queue_timeout_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11282,7 +11282,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_identity_provider(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11356,7 +11356,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_identity_provider_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11430,7 +11430,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_identity_provider_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11584,7 +11584,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_invitation(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11658,7 +11658,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_invitation_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11732,7 +11732,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_invitation_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11886,7 +11886,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_otel_config(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -11956,7 +11956,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_otel_config_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -12026,7 +12026,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_otel_config_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -12166,7 +12166,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_role(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -12240,7 +12240,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_role_with_http_info(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -12314,7 +12314,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_organization_role_without_preload_content(
         self,
         organization_id: Annotated[StrictStr, Field(description="Organization ID")],
@@ -12468,7 +12468,7 @@ class OrganizationsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_region(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -12542,7 +12542,7 @@ class OrganizationsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_region_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],
@@ -12616,7 +12616,7 @@ class OrganizationsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_region_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Region ID")],

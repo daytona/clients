@@ -72,7 +72,7 @@ class ComputerUseApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def click(
         self,
         request: Annotated[MouseClickRequest, Field(description="Mouse click request")],
@@ -141,7 +141,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def click_with_http_info(
         self,
         request: Annotated[MouseClickRequest, Field(description="Mouse click request")],
@@ -210,7 +210,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def click_without_preload_content(
         self,
         request: Annotated[MouseClickRequest, Field(description="Mouse click request")],
@@ -351,7 +351,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_recording(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -421,7 +421,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_recording_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -491,7 +491,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_recording_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -620,7 +620,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_recording(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -690,7 +690,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_recording_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -760,7 +760,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_recording_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -889,7 +889,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def drag(
         self,
         request: Annotated[MouseDragRequest, Field(description="Mouse drag request")],
@@ -958,7 +958,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def drag_with_http_info(
         self,
         request: Annotated[MouseDragRequest, Field(description="Mouse drag request")],
@@ -1027,7 +1027,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def drag_without_preload_content(
         self,
         request: Annotated[MouseDragRequest, Field(description="Mouse drag request")],
@@ -1168,7 +1168,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_accessibility_nodes(
         self,
         request: Annotated[FindAccessibilityNodesRequest, Field(description="Find request")],
@@ -1239,7 +1239,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_accessibility_nodes_with_http_info(
         self,
         request: Annotated[FindAccessibilityNodesRequest, Field(description="Find request")],
@@ -1310,7 +1310,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_accessibility_nodes_without_preload_content(
         self,
         request: Annotated[FindAccessibilityNodesRequest, Field(description="Find request")],
@@ -1453,7 +1453,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def focus_accessibility_node(
         self,
         request: Annotated[AccessibilityNodeRequest, Field(description="Node focus request")],
@@ -1524,7 +1524,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def focus_accessibility_node_with_http_info(
         self,
         request: Annotated[AccessibilityNodeRequest, Field(description="Node focus request")],
@@ -1595,7 +1595,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def focus_accessibility_node_without_preload_content(
         self,
         request: Annotated[AccessibilityNodeRequest, Field(description="Node focus request")],
@@ -1738,7 +1738,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_accessibility_tree(
         self,
         scope: Annotated[Optional[StrictStr], Field(description="Scope: focused | pid | all (default: focused)")] = None,
@@ -1817,7 +1817,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_accessibility_tree_with_http_info(
         self,
         scope: Annotated[Optional[StrictStr], Field(description="Scope: focused | pid | all (default: focused)")] = None,
@@ -1896,7 +1896,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_accessibility_tree_without_preload_content(
         self,
         scope: Annotated[Optional[StrictStr], Field(description="Scope: focused | pid | all (default: focused)")] = None,
@@ -2046,7 +2046,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_status(
         self,
         _request_timeout: Union[
@@ -2109,7 +2109,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_status_with_http_info(
         self,
         _request_timeout: Union[
@@ -2172,7 +2172,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_status_without_preload_content(
         self,
         _request_timeout: Union[
@@ -2291,7 +2291,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_system_status(
         self,
         _request_timeout: Union[
@@ -2355,7 +2355,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_system_status_with_http_info(
         self,
         _request_timeout: Union[
@@ -2419,7 +2419,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_computer_use_system_status_without_preload_content(
         self,
         _request_timeout: Union[
@@ -2539,7 +2539,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_display_info(
         self,
         _request_timeout: Union[
@@ -2603,7 +2603,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_display_info_with_http_info(
         self,
         _request_timeout: Union[
@@ -2667,7 +2667,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_display_info_without_preload_content(
         self,
         _request_timeout: Union[
@@ -2787,7 +2787,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_mouse_position(
         self,
         _request_timeout: Union[
@@ -2851,7 +2851,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_mouse_position_with_http_info(
         self,
         _request_timeout: Union[
@@ -2915,7 +2915,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_mouse_position_without_preload_content(
         self,
         _request_timeout: Union[
@@ -3035,7 +3035,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_errors(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get errors for")],
@@ -3102,7 +3102,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_errors_with_http_info(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get errors for")],
@@ -3169,7 +3169,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_errors_without_preload_content(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get errors for")],
@@ -3295,7 +3295,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_logs(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get logs for")],
@@ -3362,7 +3362,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_logs_with_http_info(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get logs for")],
@@ -3429,7 +3429,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_logs_without_preload_content(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to get logs for")],
@@ -3555,7 +3555,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_status(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to check")],
@@ -3622,7 +3622,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_status_with_http_info(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to check")],
@@ -3689,7 +3689,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_process_status_without_preload_content(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to check")],
@@ -3815,7 +3815,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_recording(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -3885,7 +3885,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_recording_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -3955,7 +3955,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_recording_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Recording ID")],
@@ -4084,7 +4084,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_windows(
         self,
         _request_timeout: Union[
@@ -4148,7 +4148,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_windows_with_http_info(
         self,
         _request_timeout: Union[
@@ -4212,7 +4212,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_windows_without_preload_content(
         self,
         _request_timeout: Union[
@@ -4332,7 +4332,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def invoke_accessibility_node(
         self,
         request: Annotated[AccessibilityInvokeRequest, Field(description="Invoke request")],
@@ -4403,7 +4403,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def invoke_accessibility_node_with_http_info(
         self,
         request: Annotated[AccessibilityInvokeRequest, Field(description="Invoke request")],
@@ -4474,7 +4474,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def invoke_accessibility_node_without_preload_content(
         self,
         request: Annotated[AccessibilityInvokeRequest, Field(description="Invoke request")],
@@ -4617,7 +4617,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_down(
         self,
         request: Annotated[KeyboardKeyDownRequest, Field(description="Key down request")],
@@ -4686,7 +4686,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_down_with_http_info(
         self,
         request: Annotated[KeyboardKeyDownRequest, Field(description="Key down request")],
@@ -4755,7 +4755,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_down_without_preload_content(
         self,
         request: Annotated[KeyboardKeyDownRequest, Field(description="Key down request")],
@@ -4896,7 +4896,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_up(
         self,
         request: Annotated[KeyboardKeyUpRequest, Field(description="Key up request")],
@@ -4965,7 +4965,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_up_with_http_info(
         self,
         request: Annotated[KeyboardKeyUpRequest, Field(description="Key up request")],
@@ -5034,7 +5034,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def key_up_without_preload_content(
         self,
         request: Annotated[KeyboardKeyUpRequest, Field(description="Key up request")],
@@ -5175,7 +5175,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_recordings(
         self,
         _request_timeout: Union[
@@ -5239,7 +5239,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_recordings_with_http_info(
         self,
         _request_timeout: Union[
@@ -5303,7 +5303,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_recordings_without_preload_content(
         self,
         _request_timeout: Union[
@@ -5423,7 +5423,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_down(
         self,
         request: Annotated[MouseDownRequest, Field(description="Mouse button press request")],
@@ -5492,7 +5492,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_down_with_http_info(
         self,
         request: Annotated[MouseDownRequest, Field(description="Mouse button press request")],
@@ -5561,7 +5561,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_down_without_preload_content(
         self,
         request: Annotated[MouseDownRequest, Field(description="Mouse button press request")],
@@ -5702,7 +5702,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_up(
         self,
         request: Annotated[MouseUpRequest, Field(description="Mouse button release request")],
@@ -5771,7 +5771,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_up_with_http_info(
         self,
         request: Annotated[MouseUpRequest, Field(description="Mouse button release request")],
@@ -5840,7 +5840,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def mouse_up_without_preload_content(
         self,
         request: Annotated[MouseUpRequest, Field(description="Mouse button release request")],
@@ -5981,7 +5981,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_mouse(
         self,
         request: Annotated[MouseMoveRequest, Field(description="Mouse move request")],
@@ -6050,7 +6050,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_mouse_with_http_info(
         self,
         request: Annotated[MouseMoveRequest, Field(description="Mouse move request")],
@@ -6119,7 +6119,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_mouse_without_preload_content(
         self,
         request: Annotated[MouseMoveRequest, Field(description="Mouse move request")],
@@ -6260,7 +6260,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_hotkey(
         self,
         request: Annotated[KeyboardHotkeyRequest, Field(description="Hotkey press request")],
@@ -6329,7 +6329,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_hotkey_with_http_info(
         self,
         request: Annotated[KeyboardHotkeyRequest, Field(description="Hotkey press request")],
@@ -6398,7 +6398,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_hotkey_without_preload_content(
         self,
         request: Annotated[KeyboardHotkeyRequest, Field(description="Hotkey press request")],
@@ -6539,7 +6539,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_key(
         self,
         request: Annotated[KeyboardPressRequest, Field(description="Key press request")],
@@ -6608,7 +6608,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_key_with_http_info(
         self,
         request: Annotated[KeyboardPressRequest, Field(description="Key press request")],
@@ -6677,7 +6677,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def press_key_without_preload_content(
         self,
         request: Annotated[KeyboardPressRequest, Field(description="Key press request")],
@@ -6818,7 +6818,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def restart_process(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to restart")],
@@ -6885,7 +6885,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def restart_process_with_http_info(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to restart")],
@@ -6952,7 +6952,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def restart_process_without_preload_content(
         self,
         process_name: Annotated[StrictStr, Field(description="Process name to restart")],
@@ -7078,7 +7078,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def scroll(
         self,
         request: Annotated[MouseScrollRequest, Field(description="Mouse scroll request")],
@@ -7147,7 +7147,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def scroll_with_http_info(
         self,
         request: Annotated[MouseScrollRequest, Field(description="Mouse scroll request")],
@@ -7216,7 +7216,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def scroll_without_preload_content(
         self,
         request: Annotated[MouseScrollRequest, Field(description="Mouse scroll request")],
@@ -7357,7 +7357,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_accessibility_node_value(
         self,
         request: Annotated[AccessibilitySetValueRequest, Field(description="Set value request")],
@@ -7428,7 +7428,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_accessibility_node_value_with_http_info(
         self,
         request: Annotated[AccessibilitySetValueRequest, Field(description="Set value request")],
@@ -7499,7 +7499,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_accessibility_node_value_without_preload_content(
         self,
         request: Annotated[AccessibilitySetValueRequest, Field(description="Set value request")],
@@ -7642,7 +7642,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_computer_use(
         self,
         _request_timeout: Union[
@@ -7705,7 +7705,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_computer_use_with_http_info(
         self,
         _request_timeout: Union[
@@ -7768,7 +7768,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_computer_use_without_preload_content(
         self,
         _request_timeout: Union[
@@ -7887,7 +7887,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_recording(
         self,
         request: Annotated[Optional[StartRecordingRequest], Field(description="Recording options")] = None,
@@ -7956,7 +7956,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_recording_with_http_info(
         self,
         request: Annotated[Optional[StartRecordingRequest], Field(description="Recording options")] = None,
@@ -8025,7 +8025,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_recording_without_preload_content(
         self,
         request: Annotated[Optional[StartRecordingRequest], Field(description="Recording options")] = None,
@@ -8166,7 +8166,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_computer_use(
         self,
         _request_timeout: Union[
@@ -8229,7 +8229,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_computer_use_with_http_info(
         self,
         _request_timeout: Union[
@@ -8292,7 +8292,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_computer_use_without_preload_content(
         self,
         _request_timeout: Union[
@@ -8411,7 +8411,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_recording(
         self,
         request: Annotated[StopRecordingRequest, Field(description="Recording ID to stop")],
@@ -8481,7 +8481,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_recording_with_http_info(
         self,
         request: Annotated[StopRecordingRequest, Field(description="Recording ID to stop")],
@@ -8551,7 +8551,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_recording_without_preload_content(
         self,
         request: Annotated[StopRecordingRequest, Field(description="Recording ID to stop")],
@@ -8693,7 +8693,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_region_screenshot(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -8790,7 +8790,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_region_screenshot_with_http_info(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -8887,7 +8887,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_region_screenshot_without_preload_content(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -9080,7 +9080,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_screenshot(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -9161,7 +9161,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_screenshot_with_http_info(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -9242,7 +9242,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_compressed_screenshot_without_preload_content(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -9399,7 +9399,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_region_screenshot(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -9484,7 +9484,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_region_screenshot_with_http_info(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -9569,7 +9569,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_region_screenshot_without_preload_content(
         self,
         x: Annotated[StrictInt, Field(description="X coordinate of the region")],
@@ -9735,7 +9735,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_screenshot(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -9804,7 +9804,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_screenshot_with_http_info(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -9873,7 +9873,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def take_screenshot_without_preload_content(
         self,
         show_cursor: Annotated[Optional[StrictBool], Field(description="Whether to show cursor in screenshot")] = None,
@@ -10003,7 +10003,7 @@ class ComputerUseApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def type_text(
         self,
         request: Annotated[KeyboardTypeRequest, Field(description="Text typing request")],
@@ -10072,7 +10072,7 @@ class ComputerUseApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def type_text_with_http_info(
         self,
         request: Annotated[KeyboardTypeRequest, Field(description="Text typing request")],
@@ -10141,7 +10141,7 @@ class ComputerUseApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def type_text_without_preload_content(
         self,
         request: Annotated[KeyboardTypeRequest, Field(description="Text typing request")],

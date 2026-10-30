@@ -692,6 +692,10 @@ export class Daytona implements AsyncDisposable {
       throw new DaytonaInvalidArgumentError('queueTimeout must be a positive integer')
     }
 
+    // Set only after POST /sandbox returns. The catch below reads it when a
+    // later timeout discards the Sandbox object the caller would have received.
+    let createdSandboxId: string | undefined
+
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
@@ -765,6 +769,7 @@ export class Daytona implements AsyncDisposable {
       )
 
       let sandboxInstance = response.data
+      createdSandboxId = sandboxInstance.id
 
       if (sandboxInstance.state === SandboxState.PENDING_BUILD && options.onSnapshotCreateLogs) {
         const terminalStates: SandboxState[] = [
@@ -832,8 +837,15 @@ export class Daytona implements AsyncDisposable {
       return sandbox
     } catch (error) {
       if (error instanceof DaytonaTimeoutError && !(error instanceof DaytonaQueueTimeoutError)) {
-        const errMsg = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
-        throw new DaytonaTimeoutError(errMsg, error.statusCode, error.headers, error.code, error.source)
+        let message = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
+        if (createdSandboxId) {
+          message +=
+            ` Sandbox ${createdSandboxId} was created before the timeout and may still be starting.` +
+            ` Use get('${createdSandboxId}') to check on it, and pass the returned Sandbox to delete() to remove it.`
+        }
+        const timeoutError = new DaytonaTimeoutError(message, error.statusCode, error.headers, error.code, error.source)
+        timeoutError.sandboxId = createdSandboxId
+        throw timeoutError
       }
 
       throw error

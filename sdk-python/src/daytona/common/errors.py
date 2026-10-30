@@ -187,6 +187,11 @@ class DaytonaBadRequestError(DaytonaError):
 class DaytonaTimeoutError(DaytonaError):
     """Error for when a timeout occurs.
 
+    Attributes:
+        sandbox_id (str | None): Set when `Daytona.create()` timed out after the Sandbox was
+            created. That Sandbox may still be starting: pass this id to `get()`, and the
+            returned Sandbox to `delete()` to remove it.
+
     Example:
         ```python
         try:
@@ -195,6 +200,16 @@ class DaytonaTimeoutError(DaytonaError):
             print(exc.message)
         ```
     """
+
+    sandbox_id: str | None = None
+
+    def _attach_sandbox_id(self, sandbox_id: str) -> None:
+        self.sandbox_id = sandbox_id
+        self.message: str = (
+            f"{self.message} Sandbox {sandbox_id} was created before the timeout and may still be starting."
+            + f" Use get('{sandbox_id}') to check on it, and pass the returned Sandbox to delete() to remove it."
+        )
+        self.args: tuple[object, ...] = (self.message,)
 
 
 class DaytonaQueueTimeoutError(DaytonaTimeoutError):

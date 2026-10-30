@@ -42,7 +42,7 @@ class DockerRegistryApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_registry(
         self,
         create_docker_registry: CreateDockerRegistry,
@@ -112,7 +112,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_registry_with_http_info(
         self,
         create_docker_registry: CreateDockerRegistry,
@@ -182,7 +182,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_registry_without_preload_content(
         self,
         create_docker_registry: CreateDockerRegistry,
@@ -329,7 +329,7 @@ class DockerRegistryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_registry(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -399,7 +399,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_registry_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -469,7 +469,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_registry_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -596,7 +596,7 @@ class DockerRegistryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_registry(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -666,7 +666,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_registry_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -736,7 +736,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_registry_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -870,7 +870,7 @@ class DockerRegistryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_transient_push_access(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -940,7 +940,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_transient_push_access_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1010,7 +1010,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_transient_push_access_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1146,7 +1146,7 @@ class DockerRegistryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_registries(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1212,7 +1212,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_registries_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1278,7 +1278,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_registries_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1405,7 +1405,7 @@ class DockerRegistryApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_registry(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -1479,7 +1479,7 @@ class DockerRegistryApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_registry_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],
@@ -1553,7 +1553,7 @@ class DockerRegistryApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_registry_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="ID of the docker registry")],

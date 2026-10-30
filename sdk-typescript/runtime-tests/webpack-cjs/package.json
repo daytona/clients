@@ -1,0 +1,12 @@
+{
+  "name": "runtime-test-webpack-cjs",
+  "private": true,
+  "scripts": {
+    "build:cjs": "webpack --mode production --target node --entry ./test.js --output-path dist/cjs --stats errors-warnings",
+    "build:esm": "webpack --mode production --target node --entry ./test.mjs --output-path dist/esm --stats errors-warnings"
+  },
+  "devDependencies": {
+    "webpack": "^5.112.0",
+    "webpack-cli": "^6.0.0"
+  }
+}

@@ -74,6 +74,17 @@ export class DaytonaNotFoundError extends DaytonaError {}
  * — the same compatibility the Python SDK gets from inheriting both classes.
  */
 export class DaytonaTimeoutError extends DaytonaError {
+  /**
+   * Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
+   * sandbox already exists. Undefined on every other timeout, including
+   * process-execution timeouts and queue timeouts.
+   *
+   * When it is set, pass it to `get()` and pass the returned Sandbox to
+   * `delete()`. The sandbox may still be starting. `create()` does not
+   * delete it.
+   */
+  public sandboxId?: string
+
   static [Symbol.hasInstance](value: unknown): boolean {
     // Only the base class widens; subclasses (e.g. ProcessExecutionTimeout)
     // must keep exact prototype-chain semantics.

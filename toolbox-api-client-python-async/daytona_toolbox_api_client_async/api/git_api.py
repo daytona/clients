@@ -58,7 +58,7 @@ class GitApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_files(
         self,
         request: Annotated[GitAddRequest, Field(description="Add files request")],
@@ -128,7 +128,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_files_with_http_info(
         self,
         request: Annotated[GitAddRequest, Field(description="Add files request")],
@@ -198,7 +198,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_files_without_preload_content(
         self,
         request: Annotated[GitAddRequest, Field(description="Add files request")],
@@ -340,7 +340,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_remote(
         self,
         request: Annotated[GitAddRemoteRequest, Field(description="Add remote request")],
@@ -407,7 +407,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_remote_with_http_info(
         self,
         request: Annotated[GitAddRemoteRequest, Field(description="Add remote request")],
@@ -474,7 +474,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def add_remote_without_preload_content(
         self,
         request: Annotated[GitAddRemoteRequest, Field(description="Add remote request")],
@@ -606,7 +606,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def authenticate(
         self,
         request: Annotated[GitAuthenticateRequest, Field(description="Authenticate request")],
@@ -673,7 +673,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def authenticate_with_http_info(
         self,
         request: Annotated[GitAuthenticateRequest, Field(description="Authenticate request")],
@@ -740,7 +740,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def authenticate_without_preload_content(
         self,
         request: Annotated[GitAuthenticateRequest, Field(description="Authenticate request")],
@@ -872,7 +872,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def checkout_branch(
         self,
         request: Annotated[GitCheckoutRequest, Field(description="Checkout request")],
@@ -943,7 +943,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def checkout_branch_with_http_info(
         self,
         request: Annotated[GitCheckoutRequest, Field(description="Checkout request")],
@@ -1014,7 +1014,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def checkout_branch_without_preload_content(
         self,
         request: Annotated[GitCheckoutRequest, Field(description="Checkout request")],
@@ -1157,7 +1157,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def clone_repository(
         self,
         request: Annotated[GitCloneRequest, Field(description="Clone repository request")],
@@ -1229,7 +1229,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def clone_repository_with_http_info(
         self,
         request: Annotated[GitCloneRequest, Field(description="Clone repository request")],
@@ -1301,7 +1301,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def clone_repository_without_preload_content(
         self,
         request: Annotated[GitCloneRequest, Field(description="Clone repository request")],
@@ -1445,7 +1445,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def commit_changes(
         self,
         request: Annotated[GitCommitRequest, Field(description="Commit request")],
@@ -1515,7 +1515,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def commit_changes_with_http_info(
         self,
         request: Annotated[GitCommitRequest, Field(description="Commit request")],
@@ -1585,7 +1585,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def commit_changes_without_preload_content(
         self,
         request: Annotated[GitCommitRequest, Field(description="Commit request")],
@@ -1727,7 +1727,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def configure_user(
         self,
         request: Annotated[GitConfigureUserRequest, Field(description="Configure user request")],
@@ -1794,7 +1794,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def configure_user_with_http_info(
         self,
         request: Annotated[GitConfigureUserRequest, Field(description="Configure user request")],
@@ -1861,7 +1861,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def configure_user_without_preload_content(
         self,
         request: Annotated[GitConfigureUserRequest, Field(description="Configure user request")],
@@ -1993,7 +1993,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_branch(
         self,
         request: Annotated[GitBranchRequest, Field(description="Create branch request")],
@@ -2063,7 +2063,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_branch_with_http_info(
         self,
         request: Annotated[GitBranchRequest, Field(description="Create branch request")],
@@ -2133,7 +2133,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_branch_without_preload_content(
         self,
         request: Annotated[GitBranchRequest, Field(description="Create branch request")],
@@ -2275,7 +2275,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_branch(
         self,
         request: Annotated[GitDeleteBranchRequest, Field(description="Delete branch request")],
@@ -2345,7 +2345,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_branch_with_http_info(
         self,
         request: Annotated[GitDeleteBranchRequest, Field(description="Delete branch request")],
@@ -2415,7 +2415,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_branch_without_preload_content(
         self,
         request: Annotated[GitDeleteBranchRequest, Field(description="Delete branch request")],
@@ -2557,7 +2557,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_commit_history(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -2626,7 +2626,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_commit_history_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -2695,7 +2695,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_commit_history_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -2825,7 +2825,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_git_config(
         self,
         key: Annotated[StrictStr, Field(description="Config key (e.g. user.name)")],
@@ -2900,7 +2900,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_git_config_with_http_info(
         self,
         key: Annotated[StrictStr, Field(description="Config key (e.g. user.name)")],
@@ -2975,7 +2975,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_git_config_without_preload_content(
         self,
         key: Annotated[StrictStr, Field(description="Config key (e.g. user.name)")],
@@ -3121,7 +3121,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_status(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3191,7 +3191,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_status_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3261,7 +3261,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_status_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3392,7 +3392,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def init_repository(
         self,
         request: Annotated[GitInitRequest, Field(description="Init repository request")],
@@ -3459,7 +3459,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def init_repository_with_http_info(
         self,
         request: Annotated[GitInitRequest, Field(description="Init repository request")],
@@ -3526,7 +3526,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def init_repository_without_preload_content(
         self,
         request: Annotated[GitInitRequest, Field(description="Init repository request")],
@@ -3658,7 +3658,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_branches(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3727,7 +3727,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_branches_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3796,7 +3796,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_branches_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3926,7 +3926,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_remotes(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -3993,7 +3993,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_remotes_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -4060,7 +4060,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_remotes_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Repository path")],
@@ -4188,7 +4188,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pull_changes(
         self,
         request: Annotated[GitPullRequest, Field(description="Pull request")],
@@ -4261,7 +4261,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pull_changes_with_http_info(
         self,
         request: Annotated[GitPullRequest, Field(description="Pull request")],
@@ -4334,7 +4334,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def pull_changes_without_preload_content(
         self,
         request: Annotated[GitPullRequest, Field(description="Pull request")],
@@ -4479,7 +4479,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def push_changes(
         self,
         request: Annotated[GitPushRequest, Field(description="Push request")],
@@ -4551,7 +4551,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def push_changes_with_http_info(
         self,
         request: Annotated[GitPushRequest, Field(description="Push request")],
@@ -4623,7 +4623,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def push_changes_without_preload_content(
         self,
         request: Annotated[GitPushRequest, Field(description="Push request")],
@@ -4767,7 +4767,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def reset_changes(
         self,
         request: Annotated[GitResetRequest, Field(description="Reset request")],
@@ -4834,7 +4834,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def reset_changes_with_http_info(
         self,
         request: Annotated[GitResetRequest, Field(description="Reset request")],
@@ -4901,7 +4901,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def reset_changes_without_preload_content(
         self,
         request: Annotated[GitResetRequest, Field(description="Reset request")],
@@ -5033,7 +5033,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def restore_files(
         self,
         request: Annotated[GitRestoreRequest, Field(description="Restore request")],
@@ -5100,7 +5100,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def restore_files_with_http_info(
         self,
         request: Annotated[GitRestoreRequest, Field(description="Restore request")],
@@ -5167,7 +5167,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def restore_files_without_preload_content(
         self,
         request: Annotated[GitRestoreRequest, Field(description="Restore request")],
@@ -5299,7 +5299,7 @@ class GitApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_git_config(
         self,
         request: Annotated[GitSetConfigRequest, Field(description="Set config request")],
@@ -5366,7 +5366,7 @@ class GitApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_git_config_with_http_info(
         self,
         request: Annotated[GitSetConfigRequest, Field(description="Set config request")],
@@ -5433,7 +5433,7 @@ class GitApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def set_git_config_without_preload_content(
         self,
         request: Annotated[GitSetConfigRequest, Field(description="Set config request")],

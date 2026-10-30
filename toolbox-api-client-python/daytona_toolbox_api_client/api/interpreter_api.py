@@ -40,7 +40,7 @@ class InterpreterApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_interpreter_context(
         self,
         request: Annotated[CreateContextRequest, Field(description="Context configuration")],
@@ -109,7 +109,7 @@ class InterpreterApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_interpreter_context_with_http_info(
         self,
         request: Annotated[CreateContextRequest, Field(description="Context configuration")],
@@ -178,7 +178,7 @@ class InterpreterApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_interpreter_context_without_preload_content(
         self,
         request: Annotated[CreateContextRequest, Field(description="Context configuration")],
@@ -319,7 +319,7 @@ class InterpreterApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_interpreter_context(
         self,
         id: Annotated[StrictStr, Field(description="Context ID")],
@@ -389,7 +389,7 @@ class InterpreterApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_interpreter_context_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Context ID")],
@@ -459,7 +459,7 @@ class InterpreterApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_interpreter_context_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Context ID")],
@@ -588,7 +588,7 @@ class InterpreterApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_interpreter_code(
         self,
         _request_timeout: Union[
@@ -651,7 +651,7 @@ class InterpreterApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_interpreter_code_with_http_info(
         self,
         _request_timeout: Union[
@@ -714,7 +714,7 @@ class InterpreterApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def execute_interpreter_code_without_preload_content(
         self,
         _request_timeout: Union[
@@ -833,7 +833,7 @@ class InterpreterApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_interpreter_contexts(
         self,
         _request_timeout: Union[
@@ -897,7 +897,7 @@ class InterpreterApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_interpreter_contexts_with_http_info(
         self,
         _request_timeout: Union[
@@ -961,7 +961,7 @@ class InterpreterApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_interpreter_contexts_without_preload_content(
         self,
         _request_timeout: Union[

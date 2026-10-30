@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import io
+import tarfile
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -124,8 +126,10 @@ class TestAsyncObjectStorage:
         result = await storage.upload(str(file_path), "org-1", archive_base_path="custom/base")
 
         assert result == "hash123"
-        storage._compute_hash_for_path_md5.assert_awaited_once_with(str(file_path), "custom/base")
-        storage._upload_as_tar.assert_awaited_once_with("org-1/hash123/context.tar", str(file_path), "custom/base")
+        storage._compute_hash_for_path_md5.assert_awaited_once_with(str(file_path), "custom/base", None)
+        storage._upload_as_tar.assert_awaited_once_with(
+            "org-1/hash123/context.tar", str(file_path), "custom/base", None
+        )
 
     @pytest.mark.asyncio
     async def test_upload_as_tar_streams_content_to_store(self, tmp_path: Path):
@@ -149,3 +153,69 @@ class TestAsyncObjectStorage:
         assert len(captured["org/hash/context.tar"]) > 0
         assert store.put_async.call_args.kwargs["max_concurrency"] == 4
         assert store.put_async.call_args.kwargs["chunk_size"] == 5 * 1024 * 1024
+
+    @pytest.mark.asyncio
+    async def test_upload_as_tar_excludes_dockerignore_matches(self, tmp_path: Path):
+        storage, store = _make_async_storage()
+        context = tmp_path / "env"
+        (context / ".venv/bin").mkdir(parents=True)
+        (context / ".venv/bin/python3").write_text("host interpreter", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        dockerignore = context / ".dockerignore"
+        dockerignore.write_text(".venv/\n", encoding="utf-8")
+
+        captured: dict[str, bytes] = {}
+
+        async def consume_stream(key: str, chunks, **_kwargs):
+            data = bytearray()
+            async for chunk in chunks:
+                data.extend(chunk)
+            captured[key] = bytes(data)
+
+        store.put_async.side_effect = consume_stream
+
+        await storage._upload_as_tar("org/hash/context.tar", str(context), "env", str(dockerignore))
+
+        with tarfile.open(fileobj=io.BytesIO(captured["org/hash/context.tar"])) as archive:
+            names = archive.getnames()
+        assert "env/app.py" in names
+        assert not any(".venv" in name for name in names)
+
+    @pytest.mark.asyncio
+    async def test_ignored_files_do_not_change_context_hash(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        storage, _store = _make_async_storage()
+        context = tmp_path / "env"
+        (context / ".venv").mkdir(parents=True)
+        ignored_file = context / ".venv/python3"
+        ignored_file.write_text("first", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        (context / ".dockerignore").write_text(".venv\n", encoding="utf-8")
+        # Relative paths on both sides, as from_dockerfile("Dockerfile") produces them.
+        monkeypatch.chdir(tmp_path)
+
+        first_hash = await storage._compute_hash_for_path_md5("env", "env", "env/.dockerignore")
+        ignored_file.write_text("second", encoding="utf-8")
+
+        assert await storage._compute_hash_for_path_md5("env", "env", "env/.dockerignore") == first_hash
+        (context / "app.py").write_text("print('changed')", encoding="utf-8")
+        assert await storage._compute_hash_for_path_md5("env", "env", "env/.dockerignore") != first_hash
+
+    @pytest.mark.asyncio
+    async def test_hash_matches_sync_storage(self, tmp_path: Path):
+        from daytona._sync.object_storage import ObjectStorage
+
+        storage, _store = _make_async_storage()
+        context = tmp_path / "env"
+        (context / ".venv").mkdir(parents=True)
+        (context / ".venv/python3").write_text("host interpreter", encoding="utf-8")
+        (context / "app.py").write_text("print('hello')", encoding="utf-8")
+        (context / ".dockerignore").write_text(".venv\n", encoding="utf-8")
+        dockerignore = str(context / ".dockerignore")
+
+        with patch("daytona._sync.object_storage.S3Store"):
+            sync_storage = ObjectStorage("https://s3.example", "key", "secret", "token", region="us-east-2")
+
+        for ignore_path in (None, dockerignore):
+            assert await storage._compute_hash_for_path_md5(
+                str(context), "env", ignore_path
+            ) == sync_storage._compute_hash_for_path_md5(str(context), "env", ignore_path)

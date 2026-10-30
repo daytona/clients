@@ -42,7 +42,7 @@ class SecretApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_secret(
         self,
         create_secret: CreateSecret,
@@ -112,7 +112,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_secret_with_http_info(
         self,
         create_secret: CreateSecret,
@@ -182,7 +182,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def create_secret_without_preload_content(
         self,
         create_secret: CreateSecret,
@@ -329,7 +329,7 @@ class SecretApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_secret(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -399,7 +399,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_secret_with_http_info(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -469,7 +469,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def delete_secret_without_preload_content(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -596,7 +596,7 @@ class SecretApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_secret(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -666,7 +666,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_secret_with_http_info(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -736,7 +736,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_secret_without_preload_content(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -870,7 +870,7 @@ class SecretApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -938,7 +938,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1006,7 +1006,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1135,7 +1135,7 @@ class SecretApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets_paginated(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1221,7 +1221,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets_paginated_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1307,7 +1307,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def list_secrets_paginated_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -1479,7 +1479,7 @@ class SecretApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_secret(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -1553,7 +1553,7 @@ class SecretApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_secret_with_http_info(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],
@@ -1627,7 +1627,7 @@ class SecretApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_secret_without_preload_content(
         self,
         secret_id: Annotated[StrictStr, Field(description="ID of the secret")],

@@ -78,8 +78,12 @@ func TestCodeInterpreterRunCodeConnectionError(t *testing.T) {
 
 	result := <-channels.Done
 	require.NotNil(t, result)
-	assert.NotNil(t, result.Error)
+	require.NotNil(t, result.Error)
 	assert.Equal(t, "ConnectionError", result.Error.Name)
+	assert.ErrorIs(t, result.Error.Err, websocket.ErrBadHandshake)
+	data, err := json.Marshal(result.Error)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"Name":"ConnectionError","Value":"Failed to connect to WebSocket: websocket: bad handshake","Traceback":null}`, string(data))
 }
 
 func TestCodeInterpreterCreateContext(t *testing.T) {
@@ -247,6 +251,37 @@ func TestCodeInterpreterErrorHandling(t *testing.T) {
 }
 
 func TestCodeInterpreterRunCodeStreamBehaviors(t *testing.T) {
+	t.Run("preserves dropped connection cause", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				t.Errorf("upgrade: %v", err)
+				return
+			}
+			defer conn.Close()
+			var req map[string]any
+			if err := conn.ReadJSON(&req); err != nil {
+				t.Errorf("read request: %v", err)
+			}
+		}))
+		defer server.Close()
+
+		ci := NewCodeInterpreterService(createTestToolboxClient(server), nil)
+		channels, err := ci.RunCode(context.Background(), "pass")
+		require.NoError(t, err)
+		select {
+		case result := <-channels.Done:
+			require.NotNil(t, result)
+			require.NotNil(t, result.Error)
+			assert.Equal(t, "ConnectionError", result.Error.Name)
+			var closeErr *websocket.CloseError
+			require.ErrorAs(t, result.Error.Err, &closeErr)
+			assert.Equal(t, websocket.CloseAbnormalClosure, closeErr.Code)
+		case <-time.After(5 * time.Second):
+			t.Fatal("RunCode did not finish after connection closed")
+		}
+	})
+
 	t.Run("captures stderr and execution error", func(t *testing.T) {
 		wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := upgrader.Upgrade(w, r, nil)
@@ -275,6 +310,7 @@ func TestCodeInterpreterRunCodeStreamBehaviors(t *testing.T) {
 		result := <-channels.Done
 		require.NotNil(t, result.Error)
 		assert.Equal(t, "ValueError", result.Error.Name)
+		assert.Nil(t, result.Error.Err)
 		assert.Equal(t, "partial out\n", result.Stdout)
 		assert.Equal(t, "partial err\n", result.Stderr)
 		require.NotNil(t, result.Error.Traceback)
@@ -306,6 +342,7 @@ func TestCodeInterpreterRunCodeStreamBehaviors(t *testing.T) {
 		result := <-channels.Done
 		require.NotNil(t, result.Error)
 		assert.Equal(t, "TimeoutError", result.Error.Name)
+		assert.Nil(t, result.Error.Err)
 	})
 }
 

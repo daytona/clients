@@ -43,7 +43,7 @@ class JobsApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_job(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],
@@ -109,7 +109,7 @@ class JobsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_job_with_http_info(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],
@@ -175,7 +175,7 @@ class JobsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_job_without_preload_content(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],
@@ -302,7 +302,7 @@ class JobsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_jobs(
         self,
         page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
@@ -381,7 +381,7 @@ class JobsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_jobs_with_http_info(
         self,
         page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
@@ -460,7 +460,7 @@ class JobsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_jobs_without_preload_content(
         self,
         page: Annotated[Optional[Annotated[int, Field(strict=True, ge=1)]], Field(description="Page number of the results")] = None,
@@ -617,7 +617,7 @@ class JobsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def poll_jobs(
         self,
         timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
@@ -688,7 +688,7 @@ class JobsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def poll_jobs_with_http_info(
         self,
         timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
@@ -759,7 +759,7 @@ class JobsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def poll_jobs_without_preload_content(
         self,
         timeout: Annotated[Optional[StrictInt], Field(description="Timeout in seconds for long polling (default: 30, max: 60)")] = None,
@@ -898,7 +898,7 @@ class JobsApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_job_status(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],
@@ -968,7 +968,7 @@ class JobsApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_job_status_with_http_info(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],
@@ -1038,7 +1038,7 @@ class JobsApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def update_job_status_without_preload_content(
         self,
         job_id: Annotated[StrictStr, Field(description="ID of the job")],

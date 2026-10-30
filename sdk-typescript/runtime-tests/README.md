@@ -43,6 +43,7 @@ The orchestrator iterates every subdirectory that contains a `run.sh`, packs the
 | `cloudflare-workers` | `wrangler dev --local` + `curl` | Real `workerd` (Cloudflare's actual Workers runtime) |
 | `aws-lambda` | `esbuild` bundle + [`lambda-local`](https://github.com/ashiina/lambda-local) (real Lambda event/context shapes, env vars, timeout) | Lambda emulator |
 | `esbuild-cjs` | `esbuild` bundle (`--platform=node --format=cjs`) + `node` runs the bundle and exercises `dynamicRequire` | Node.js |
+| `webpack-cjs` | `webpack --mode production --target node` bundles a CommonJS `require` entry and an ESM `import` entry + `node` runs both bundles (the CommonJS one also from a directory without `node_modules`) and exercises `Image.fromDockerfile` with a COPY glob | Node.js |
 | `azure-functions` | `func start` (Azure Functions Core Tools host) + `curl` | Real Functions host |
 
 ## Required external tools
@@ -57,7 +58,7 @@ Most runtimes ship as npm devDeps. These external binaries are required for spec
 
 Playwright auto-installs Chromium on first run for `vite-browser`. On Linux CI, system libs may be needed: `npx playwright install --with-deps chromium`.
 
-Everything else (`wrangler`, `lambda-local`, `vite`, `next`, `nuxt`, `remix`, `esbuild`, `typescript`, `playwright`, `@azure/functions`) is an npm devDep installed automatically per-runtime.
+Everything else (`wrangler`, `lambda-local`, `vite`, `next`, `nuxt`, `remix`, `esbuild`, `webpack`, `webpack-cli`, `typescript`, `playwright`, `@azure/functions`) is an npm devDep installed automatically per-runtime.
 
 ## Adding a new runtime
 

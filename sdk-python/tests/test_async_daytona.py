@@ -550,8 +550,9 @@ class TestAsyncDaytonaCreateValidation:
             ),
             patch(f"{ASYNC_MODULE}.asyncio.sleep", new=AsyncMock()),
         ):
-            with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minute for a runner"):
+            with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minute for a runner") as exc_info:
                 await daytona.create(params, on_snapshot_create_logs=lambda _chunk: None)
+        assert exc_info.value.sandbox_id is None
 
     @pytest.mark.asyncio
     async def test_create_rethrows_build_log_stream_error_when_sandbox_is_alive(self, env_with_api_key):
@@ -638,6 +639,50 @@ class TestAsyncDaytonaCreateValidation:
         with pytest.raises(DaytonaValidationError, match="queue_timeout must be a positive integer"):
             await daytona.create(params)
         daytona._sandbox_api.create_sandbox.assert_not_called()
+
+
+class TestAsyncDaytonaCreateTimeout:
+    @pytest.mark.asyncio
+    async def test_timeout_after_the_sandbox_was_created_names_it(self, env_with_api_key):
+        import asyncio
+
+        from daytona._async.sandbox import AsyncSandbox
+        from daytona.common.errors import DaytonaTimeoutError
+
+        async def never_starts(**_kwargs):
+            await asyncio.sleep(5)
+
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(
+            return_value=make_sandbox_dto(sandbox_id="sbx-created", state=SandboxState.STARTING)
+        )
+
+        with patch.object(AsyncSandbox, "wait_for_sandbox_start", new=AsyncMock(side_effect=never_starts)):
+            with pytest.raises(DaytonaTimeoutError) as exc_info:
+                await daytona.create(timeout=0.2)
+
+        assert exc_info.value.sandbox_id == "sbx-created"
+        assert "Sandbox sbx-created was created" in str(exc_info.value)
+        assert "Failed to create sandbox:" in exc_info.value.message
+
+    @pytest.mark.asyncio
+    async def test_timeout_before_the_sandbox_was_created_has_no_sandbox_id(self, env_with_api_key):
+        import asyncio
+
+        from daytona.common.errors import DaytonaTimeoutError
+
+        async def slow_create(*_args, **_kwargs):
+            await asyncio.sleep(5)
+
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(side_effect=slow_create)
+
+        with pytest.raises(DaytonaTimeoutError) as exc_info:
+            await daytona.create(timeout=0.2)
+
+        assert exc_info.value.sandbox_id is None
+        assert "was created" not in str(exc_info.value)
+        assert "Function 'create' exceeded timeout" in str(exc_info.value)
 
 
 class TestAsyncDaytonaGetAndList:

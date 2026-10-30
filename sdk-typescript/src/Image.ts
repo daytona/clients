@@ -411,17 +411,24 @@ export class Image {
       }
     }
 
+    // Source paths are joined onto contextDir, which normalises it ('./ctx' becomes 'ctx' and '.'
+    // disappears), so archive paths are cut by the normalised directory, not the raw argument
+    const normalizedContextDir = contextDir ? pathe.join(contextDir, '.') : ''
+    const contextPrefixLength = normalizedContextDir === '.' ? 0 : normalizedContextDir.length
+
     for (const [contextPath, originalPath] of Image.extractCopySources(
       dockerfileCommands.join('\n'),
       contextDir || '',
       strictContext,
     )) {
       let archiveBasePath = contextPath
-      if (contextDir && !originalPath.startsWith(contextDir)) {
-        archiveBasePath = contextPath.substring(contextDir.length)
-        // Remove leading separators
+      // Absolute sources inside the context keep their full archive path, as before; the others are
+      // cut by the context directory
+      if (contextDir && !(pathe.isAbsolute(originalPath) && originalPath.startsWith(contextDir))) {
+        archiveBasePath = contextPath.substring(contextPrefixLength)
+        // Remove leading separators, and give the context root ('.' or './' once joined) an empty path
         // eslint-disable-next-line no-useless-escape
-        archiveBasePath = archiveBasePath.replace(/^[\/\\]+/, '')
+        archiveBasePath = archiveBasePath.replace(/^[\/\\]+/, '').replace(/^\.\/?$/, '')
       }
       this._contextList.push({ sourcePath: contextPath, archivePath: archiveBasePath })
     }
@@ -679,14 +686,15 @@ export class Image {
         }
 
         const importErrorPrefix = '"extractCopySources" is not supported: '
-        const fg = dynamicRequire('fast-glob', importErrorPrefix)
+        const tinyglobby = dynamicRequire('tinyglobby', importErrorPrefix)
         const fs = dynamicRequire('fs', importErrorPrefix)
         const realRoot = strictContext ? Image.resolveRealPath(fs, pathPrefix) : null
+        let optionalRoot = realRoot
 
         const commandParts = this.parseCopyCommand(line)
         if (commandParts) {
           // Get source paths from the parsed command parts
-          for (const source of commandParts.sources) {
+          for (const [index, source] of commandParts.sources.entries()) {
             if (realRoot !== null) {
               Image.ensureSourceWithinContext(source)
             }
@@ -694,15 +702,41 @@ export class Image {
             // Handle absolute and relative paths differently
             const fullPathPattern = pathe.isAbsolute(source) ? source : pathe.join(pathPrefix, source)
 
-            const matchingFiles = fg.sync([fullPathPattern], { dot: true })
-            if (matchingFiles.length > 0) {
-              for (const matchingFile of matchingFiles) {
-                Image.ensureWithinBuildContext(fs, realRoot, matchingFile)
-                sources.push([matchingFile, source])
-              }
+            const matches = Image.expandCopySource(tinyglobby, pathPrefix, source)
+            // An optional source only adds paths that exist and resolve inside the build context, in
+            // every mode: it never throws and never adds a literal path that does not exist
+            const optional = commandParts.optionalSources?.has(index) ?? false
+            let candidates: string[]
+            if (matches === null && !optional) {
+              candidates = [fullPathPattern]
+            } else if (matches !== null && matches.length > 0) {
+              candidates = matches
             } else {
-              Image.ensureWithinBuildContext(fs, realRoot, fullPathPattern)
-              sources.push([fullPathPattern, source])
+              // A glob that matches nothing is skipped, as BuildKit does, unless a path with its
+              // literal name exists, which is what was uploaded before
+              if (!Image.pathExists(fs, fullPathPattern)) continue
+              candidates = [fullPathPattern]
+            }
+
+            for (const candidate of candidates) {
+              const relative = pathe.relative(pathPrefix, candidate)
+              // tinyglobby gives the context root for `..` in a brace group (`{a.txt,..}`). Only a
+              // literal source such as `.` or `./` names the root, so a glob match of it is left out.
+              if (matches !== null && relative === '') continue
+              // Brace syntax, as in `..{,}/*`, lets a source inside the context match outside it
+              const escapes = !Image.isOutsideContext(source) && Image.isOutsideContext(relative)
+              if (optional) {
+                // A symlink can lead outside the context, so the resolved path is checked without
+                // strictContext too
+                optionalRoot ??= Image.resolveRealPath(fs, pathPrefix)
+                if (escapes || Image.findOutsideBuildContext(fs, optionalRoot, candidate) !== null) continue
+              } else {
+                // strictContext rejects a quoted or JSON source that resolves outside the context; without
+                // it, only the brace matches outside the context are left out
+                Image.ensureWithinBuildContext(fs, realRoot, candidate)
+                if (escapes) continue
+              }
+              sources.push([candidate, source])
             }
           }
         }
@@ -710,6 +744,22 @@ export class Image {
     }
 
     return sources
+  }
+
+  /**
+   * Tells whether a path exists, without following a final symlink. lstat also throws for a path
+   * that cannot exist, such as ENOTDIR when a parent is a file, so any error means it does not.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string} target - The path to check.
+   * @returns {boolean} True if the path exists.
+   */
+  private static pathExists(fs: any, target: string): boolean {
+    try {
+      return fs.lstatSync(target, { throwIfNoEntry: false }) !== undefined
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -729,25 +779,34 @@ export class Image {
   }
 
   /**
-   * Rejects a COPY source that names something outside the build context. This is decided on the
-   * source itself, before anything is read, so that a source is accepted or rejected the same way
-   * whether or not it happens to exist on disk. An absolute source, including a Windows drive or
-   * UNC path, and one whose normalised form climbs above the context both name something the
-   * build context cannot address.
+   * Rejects a COPY source that names something outside the build context.
    *
    * @param {string} source - The COPY-command source path.
    */
   private static ensureSourceWithinContext(source: string): void {
+    if (Image.isOutsideContext(source)) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
+    }
+  }
+
+  /**
+   * Tells whether a COPY source names something outside the build context. This is decided on the
+   * source itself, before anything is read, so that a source is judged the same way whether or not
+   * it happens to exist on disk. An absolute source, including a Windows drive or UNC path, and one
+   * whose normalised form climbs above the context both name something the build context cannot
+   * address.
+   *
+   * @param {string} source - The COPY-command source path.
+   * @returns {boolean} True if the source is outside the build context.
+   */
+  private static isOutsideContext(source: string): boolean {
     const normalized = pathe.normalize(source)
-    const outside =
+    return (
       pathe.isAbsolute(source) ||
       /^([A-Za-z]:|\\\\)/.test(source) ||
       normalized === '..' ||
       normalized.startsWith('../')
-
-    if (outside) {
-      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${source}`)
-    }
+    )
   }
 
   /**
@@ -762,8 +821,24 @@ export class Image {
    * @param {string} candidate - The resolved source path to check.
    */
   private static ensureWithinBuildContext(fs: any, realRoot: string | null, candidate: string): void {
+    const outside = Image.findOutsideBuildContext(fs, realRoot, candidate)
+    if (outside !== null) {
+      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${outside}`)
+    }
+  }
+
+  /**
+   * Finds where a source resolves outside the build context, as checked by ensureWithinBuildContext.
+   *
+   * @param {any} fs - The filesystem module.
+   * @param {string | null} realRoot - The resolved build context root, or null when the caller did
+   * not ask for a strict build context.
+   * @param {string} candidate - The resolved source path to check.
+   * @returns {string | null} The path outside the build context, or null if there is none.
+   */
+  private static findOutsideBuildContext(fs: any, realRoot: string | null, candidate: string): string | null {
     // realRoot is null unless the caller asked for a strict build context
-    if (realRoot === null) return
+    if (realRoot === null) return null
 
     let resolved: string
     try {
@@ -771,25 +846,23 @@ export class Image {
     } catch {
       // A path that does not exist cannot be archived. A symlink whose target is missing still
       // leaves the context, so an entry that lstat can see is rejected rather than tolerated.
-      if (fs.lstatSync(candidate, { throwIfNoEntry: false })) {
-        throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${candidate}`)
-      }
-      return
+      return fs.lstatSync(candidate, { throwIfNoEntry: false }) ? candidate : null
     }
 
     const relative = pathe.relative(realRoot, resolved)
-    if (relative === '..' || relative.startsWith('../')) {
-      throw new DaytonaInvalidArgumentError(`forbidden path outside the build context: ${resolved}`)
-    }
+    return relative === '..' || relative.startsWith('../') ? resolved : null
   }
 
   /**
    * Parses a COPY command to extract sources and destination.
    *
    * @param {string} line - The line to parse.
-   * @returns {Object} The parsed sources and destination.
+   * @returns {Object} The parsed sources and destination, and the indexes of the optional sources,
+   * which the shell form read only once its glob tokens were kept, if there are any.
    */
-  private static parseCopyCommand(line: string): { sources: string[]; dest: string } | null {
+  private static parseCopyCommand(
+    line: string,
+  ): { sources: string[]; dest: string; optionalSources?: Set<number> } | null {
     // Remove initial "COPY" and strip whitespace
     let parts = line.trim().substring(4).trim()
 
@@ -822,17 +895,152 @@ export class Image {
       }
     }
 
-    // Handle the whitespace-separated format
-    const elements = parseShellQuote(parts).filter((x): x is string => typeof x === 'string')
+    // Handle the whitespace-separated format. shell-quote returns an unquoted `*` or `?` source as a
+    // glob token; keep its pattern so it expands like the JSON form.
+    const tokens = parseShellQuote(parts)
+    // A variable is replaced with an empty string, so `$SRC/*` would become `/*`. Other operators,
+    // such as the parentheses in `src/(group)/*`, split a word into pieces that are not Docker's
+    // words (`/*` alone would expand from /). Glob tokens are kept only without either, and the other
+    // lines keep only the string tokens, as before.
+    const keepGlobs = !parts.includes('$') && !tokens.some((x) => typeof x === 'object' && 'op' in x && x.op !== 'glob')
+    const words = tokens.flatMap((x) => {
+      if (typeof x === 'string') return [{ word: x, glob: false }]
+      return keepGlobs && 'op' in x && x.op === 'glob' ? [{ word: x.pattern, glob: true }] : []
+    })
 
     // We need at least one source and one destination
-    if (elements.length < 2) {
+    if (words.length < 2) {
       return null
     }
 
-    return {
-      sources: elements.slice(0, -1),
-      dest: elements[elements.length - 1],
+    // The sources that were dropped while glob tokens were dropped are optional: the glob sources, and
+    // the last string when the destination is a glob, as that string used to be the destination
+    const lastString = words.map(({ glob }) => glob).lastIndexOf(false)
+    const sourceWords = words.slice(0, -1).map(({ word, glob }, index) => ({
+      word,
+      optional: glob || (words[words.length - 1].glob && index === lastString),
+    }))
+    // An optional source outside the build context, such as `/etc/*` or `../*`, is dropped in every
+    // mode, as before, so the shell form never reads host paths outside the context
+    const kept = sourceWords.filter(({ word, optional }) => !optional || !Image.isOutsideContext(word))
+    if (kept.length === 0) {
+      return null
     }
+
+    const optionalSources = new Set(kept.flatMap(({ optional }, index) => (optional ? [index] : [])))
+    return {
+      sources: kept.map(({ word }) => word),
+      dest: words[words.length - 1].word,
+      ...(optionalSources.size > 0 && { optionalSources }),
+    }
+  }
+
+  /**
+   * Expands a COPY source glob. Only the source is parsed as a glob; the context directory is
+   * taken literally, as Docker does. Matches are prefixed with the joined context directory, which
+   * callers slice to get archive paths.
+   *
+   * @param {any} tinyglobby - The tinyglobby module.
+   * @param {string} pathPrefix - The context directory prefix.
+   * @param {string} source - The COPY source.
+   * @returns {string[] | null} The matching files and directories, which may be none, or null for a
+   * source that is taken literally.
+   */
+  private static expandCopySource(tinyglobby: any, pathPrefix: string, source: string): string[] | null {
+    const absolute = pathe.isAbsolute(source)
+    const normalized = absolute ? source : pathe.normalize(source)
+    // A glob with a trailing separator is taken literally, as before, since tinyglobby would match the
+    // files next to the directories it names as well
+    if (normalized.endsWith('/')) return null
+    const segments = Image.splitGlobSegments(normalized)
+    const globSegments = segments.map((segment) => Image.escapeLiteralParens(segment))
+    const baseLength = globSegments.findIndex((segment) => tinyglobby.isDynamicPattern(segment))
+    if (baseLength === -1) return null
+
+    const staticPart = segments.slice(0, baseLength).join('/')
+    const base = absolute ? staticPart || '/' : pathe.join(pathPrefix, staticPart)
+    let pattern = globSegments.slice(baseLength).join('/')
+    // A leading `!` would make tinyglobby read the pattern as a negation; Docker reads it literally
+    if (pattern.startsWith('!') && !pattern.startsWith('!(')) pattern = `\\${pattern}`
+
+    // Directories match too, as in Docker, and tinyglobby marks them with a trailing separator. A
+    // source outside the build context still matches only files, so `/*` never reads host directories.
+    const matches: string[] = tinyglobby.globSync([pattern], {
+      cwd: base,
+      dot: true,
+      expandDirectories: false,
+      onlyFiles: Image.isOutsideContext(source),
+    })
+    const directories = new Set(matches.filter((match) => match.endsWith('/')).map((match) => match.slice(0, -1)))
+    // A directory is uploaded with everything below it, so a match inside a matched directory, as
+    // with `**`, is left out rather than uploaded twice
+    const insideMatchedDirectory = (match: string): boolean => {
+      for (let parent = pathe.dirname(match); parent !== '.' && parent !== '/'; parent = pathe.dirname(parent)) {
+        if (directories.has(parent)) return true
+      }
+      return false
+    }
+    return matches
+      .map((match) => (match.endsWith('/') ? match.slice(0, -1) : match))
+      .filter((match) => !insideMatchedDirectory(match))
+      .map((match) => pathe.join(base, match))
+  }
+
+  /**
+   * Escapes parentheses that do not open an extglob group (`@(`, `!(`, `?(`, `+(`, `*(`), so a
+   * directory such as Next.js's `(marketing)` matches literally, as Docker reads it.
+   *
+   * @param {string} segment - A glob path segment.
+   * @returns {string} The segment with its literal parentheses escaped.
+   */
+  private static escapeLiteralParens(segment: string): string {
+    let escaped = ''
+    const groups: boolean[] = []
+    for (let i = 0; i < segment.length; i++) {
+      const char = segment[i]
+      if (char === '\\') {
+        escaped += char + (segment[i + 1] ?? '')
+        i++
+      } else if (char === '(') {
+        const extglob = i > 0 && '@!?+*'.includes(segment[i - 1])
+        groups.push(extglob)
+        escaped += extglob ? char : '\\('
+      } else if (char === ')' && groups.length > 0) {
+        escaped += groups.pop() ? char : '\\)'
+      } else if (char === ')') {
+        escaped += '\\)'
+      } else {
+        escaped += char
+      }
+    }
+    return escaped
+  }
+
+  /**
+   * Splits a glob pattern on the `/` separators outside brace and extglob groups, so a group
+   * such as `{sub/a.txt,b.txt}` stays one segment.
+   *
+   * @param {string} pattern - The glob pattern.
+   * @returns {string[]} The pattern's path segments.
+   */
+  private static splitGlobSegments(pattern: string): string[] {
+    const segments: string[] = []
+    let braces = 0
+    let parens = 0
+    let start = 0
+    for (let i = 0; i < pattern.length; i++) {
+      const char = pattern[i]
+      if (char === '\\') i++
+      else if (char === '{') braces++
+      else if (char === '}' && braces > 0) braces--
+      else if (char === '(' && i > 0 && '@!?+*'.includes(pattern[i - 1])) parens++
+      else if (char === ')' && parens > 0) parens--
+      else if (char === '/' && braces === 0 && parens === 0) {
+        segments.push(pattern.slice(start, i))
+        start = i + 1
+      }
+    }
+    segments.push(pattern.slice(start))
+    return segments
   }
 }

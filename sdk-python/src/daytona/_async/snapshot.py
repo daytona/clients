@@ -283,7 +283,10 @@ class AsyncSnapshotService:
         context_hashes: list[str] = []
         for context in image._context_list:
             context_hash = await object_storage.upload(
-                context.source_path, push_access_creds.organization_id, context.archive_path
+                context.source_path,
+                push_access_creds.organization_id,
+                context.archive_path,
+                dockerignore_path=context.dockerignore_path,
             )
             context_hashes.append(context_hash)
 

@@ -38,7 +38,7 @@ class InfoApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_user_home_dir(
         self,
         _request_timeout: Union[
@@ -101,7 +101,7 @@ class InfoApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_user_home_dir_with_http_info(
         self,
         _request_timeout: Union[
@@ -164,7 +164,7 @@ class InfoApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_user_home_dir_without_preload_content(
         self,
         _request_timeout: Union[
@@ -283,7 +283,7 @@ class InfoApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_version(
         self,
         _request_timeout: Union[
@@ -346,7 +346,7 @@ class InfoApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_version_with_http_info(
         self,
         _request_timeout: Union[
@@ -409,7 +409,7 @@ class InfoApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_version_without_preload_content(
         self,
         _request_timeout: Union[
@@ -528,7 +528,7 @@ class InfoApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_work_dir(
         self,
         _request_timeout: Union[
@@ -591,7 +591,7 @@ class InfoApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_work_dir_with_http_info(
         self,
         _request_timeout: Union[
@@ -654,7 +654,7 @@ class InfoApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_work_dir_without_preload_content(
         self,
         _request_timeout: Union[

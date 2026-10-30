@@ -10,7 +10,7 @@ import { DaytonaError } from '../errors/DaytonaError'
 import { RUNTIME } from './Runtime'
 
 const loaderMap = {
-  'fast-glob': async () => require('fast-glob'),
+  tinyglobby: async () => require('tinyglobby'),
   '@iarna/toml': async () => require('@iarna/toml'),
   stream: async () => require('stream'),
   tar: async () => require('tar'),
@@ -28,7 +28,7 @@ const loaderMap = {
 }
 
 const requireMap = {
-  'fast-glob': () => require('fast-glob'),
+  tinyglobby: () => require('tinyglobby'),
   '@iarna/toml': () => require('@iarna/toml'),
   stream: () => require('stream'),
   tar: () => require('tar'),
@@ -48,7 +48,7 @@ const requireMap = {
 }
 
 const validateMap: Record<string, (mod: any) => boolean> = {
-  'fast-glob': (mod: any) => typeof mod === 'function' && typeof mod?.sync === 'function',
+  tinyglobby: (mod: any) => typeof mod?.globSync === 'function' && typeof mod?.isDynamicPattern === 'function',
   '@iarna/toml': (mod: any) => typeof mod.parse === 'function' && typeof mod.stringify === 'function',
   stream: (mod: any) => typeof mod.Readable === 'function' && typeof mod.Writable === 'function',
   tar: (mod: any) => typeof mod.extract === 'function' && typeof mod.create === 'function',

@@ -213,6 +213,13 @@ class DaytonaTimeoutError(DaytonaError)
 
 Error for when a timeout occurs.
 
+**Attributes**:
+
+- `sandbox_id` _str | None_ - Set when `Daytona.create()` timed out after the Sandbox was
+  created. That Sandbox may still be starting: pass this id to `get()`, and the
+  returned Sandbox to `delete()` to remove it.
+  
+
 **Example**:
 
 ```python

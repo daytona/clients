@@ -25,7 +25,7 @@
     "crypto": false,
     "buffer": false,
     "tar": false,
-    "fast-glob": false,
+    "tinyglobby": false,
     "expand-tilde": false,
     "@iarna/toml": false,
     "form-data": false,
