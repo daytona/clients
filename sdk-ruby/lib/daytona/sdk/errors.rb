@@ -74,7 +74,11 @@ module Daytona
     class NotFoundError < Error; end
 
     # HTTP 408 / 504 / client-side timeouts.
-    class TimeoutError < Error; end
+    class TimeoutError < Error
+      # @return [String, nil] Set only on the TimeoutError from Daytona#create after the Sandbox was created:
+      #   it may still be starting, so delete it. Nil on every other timeout.
+      attr_accessor :sandbox_id
+    end
 
     # HTTP 409 — request conflicts with current resource state.
     class ConflictError < Error; end
@@ -112,7 +116,8 @@ module Daytona
     # ---------------------------------------------------------------------
 
     # Raised when a Sandbox was destroyed by the API because it waited longer
-    # than its queue timeout for a runner.
+    # than its queue timeout for a runner. Leaves sandbox_id unset, as there
+    # is no Sandbox left to clean up.
     class QueueTimeoutError < TimeoutError; end
 
     # Raised when a Sandbox was destroyed by spot preemption.

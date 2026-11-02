@@ -141,7 +141,7 @@ Shuts down OTel providers, flushing any pending telemetry data.
 #### create()
 
 ```ruby
-def create(params = nil, on_snapshot_create_logs: nil)
+def create(params = nil, timeout: Sandbox::DEFAULT_TIMEOUT, on_snapshot_create_logs: nil)
 
 ```
 
@@ -150,6 +150,9 @@ Creates a sandbox with the specified parameters
 **Parameters**:
 
 - `params` _Daytona:CreateSandboxFromSnapshotParams, Daytona:CreateSandboxFromImageParams, Nil_ - Sandbox creation parameters
+- `timeout` _Numeric_ - Maximum time in seconds to wait for the Sandbox to be created and started
+(defaults to 60 s). Sandbox::NO_TIMEOUT (0) means no timeout.
+- `on_snapshot_create_logs` _Proc_ -
 
 **Returns**:
 
@@ -157,8 +160,15 @@ Creates a sandbox with the specified parameters
 
 **Raises**:
 
-- `Daytona:Sdk:Error` - If auto_stop_interval, auto_pause_interval, auto_archive_interval, or ttl_minutes is negative,
-if queue_timeout is not a positive integer, or if auto_stop_interval and auto_pause_interval are both non-zero
+- `Daytona:Sdk:Error` - If timeout, auto_stop_interval, auto_pause_interval, auto_archive_interval,
+or ttl_minutes is negative, if queue_timeout is not a positive integer, or if auto_stop_interval and
+auto_pause_interval are both non-zero
+- `Daytona:Sdk:TimeoutError` - If the Sandbox is not started within timeout. When the Sandbox was
+already created, the error's sandbox_id names it: it may still be starting, so fetch it with #get
+and remove it with #delete
+- `Daytona:Sdk:QueueTimeoutError` - If the API destroyed the Sandbox because it waited longer than
+queue_timeout for a runner
+- `Daytona:Sdk:SpotEvictedError` - If the Sandbox was destroyed by spot preemption while starting
 
 #### delete()
 

@@ -186,6 +186,33 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
       end
     end
 
+    it 'names the sandbox in the TimeoutError when create runs out of time', timeout: 120 do
+      # A fresh image has to be built first, so the sandbox cannot start within the timeout.
+      image = Daytona::Image.debian_slim('3.12').env({ 'CACHE_BUSTER' => "e2e-timeout-#{SecureRandom.uuid}" })
+      params = Daytona::CreateSandboxFromImageParams.new(image: image, language: Daytona::CodeLanguage::PYTHON)
+      sandbox_id = nil
+      started_sandbox = nil
+
+      begin
+        expect do
+          started_sandbox = @daytona.create(params, timeout: 1)
+        end.to raise_error(Daytona::Sdk::TimeoutError) { |error| sandbox_id = error.sandbox_id }
+        expect(sandbox_id).not_to be_nil
+
+        timed_out_sandbox = @daytona.get(sandbox_id)
+        expect(timed_out_sandbox.id).to eq(sandbox_id)
+        expect { @daytona.delete(timed_out_sandbox) }.not_to raise_error
+        sandbox_id = nil
+      ensure
+        begin
+          @daytona.delete(started_sandbox) if started_sandbox
+          @daytona.delete(@daytona.get(sandbox_id)) if sandbox_id
+        rescue StandardError
+          nil
+        end
+      end
+    end
+
     it 'stops and starts the sandbox' do
       @sandbox.stop
       @sandbox.refresh
