@@ -112,7 +112,7 @@ module Daytona
     # @raise [Daytona::Sdk::TimeoutError] If the Sandbox is not started within timeout. When the Sandbox was
     #   already created, the error's sandbox_id names it: it may still be starting, so fetch it with #get
     #   and remove it with #delete. When the create request itself timed out, sandbox_id is nil, but the API
-    #   may still have created the Sandbox: find it by its labels with #list
+    #   may still have created the Sandbox: find it by its labels with #list (it can take a few seconds to show up)
     # @raise [Daytona::Sdk::QueueTimeoutError] If the API destroyed the Sandbox because it waited longer than
     #   queue_timeout for a runner
     # @raise [Daytona::Sdk::SpotEvictedError] If the Sandbox was destroyed by spot preemption while starting
@@ -400,11 +400,9 @@ module Daytona
             'It can also be provided via Daytona::Config.'
     end
 
-    # @param timeout [Numeric] HTTP timeout in seconds for every request made with the client.
-    #   Sandbox::NO_TIMEOUT (0) means no timeout.
     # @return [DaytonaApiClient::ApiClient]
-    def build_api_client(timeout: Sandbox::NO_TIMEOUT)
-      DaytonaApiClient::ApiClient.new(api_client_config(timeout:)).tap do |client|
+    def build_api_client
+      DaytonaApiClient::ApiClient.new(api_client_config).tap do |client|
         client.default_headers[HEADER_SOURCE] = SOURCE_RUBY
         client.default_headers[HEADER_SDK_VERSION] = Sdk::VERSION
         client.default_headers[HEADER_ORGANIZATION_ID] = config.organization_id if config.jwt_token
@@ -412,15 +410,13 @@ module Daytona
       end
     end
 
-    # @param timeout [Numeric] HTTP timeout in seconds. Sandbox::NO_TIMEOUT (0) means no timeout.
     # @return [DaytonaApiClient::Configuration]
-    def api_client_config(timeout:)
+    def api_client_config
       DaytonaApiClient::Configuration.new.configure do |api_config|
         uri = URI(config.api_url)
         api_config.scheme = uri.scheme
         api_config.host = uri.authority # Includes hostname:port
         api_config.base_path = uri.path
-        api_config.timeout = timeout
 
         api_config.access_token_getter = proc { config.api_key || config.jwt_token }
         api_config
@@ -457,8 +453,7 @@ module Daytona
       raise Sdk::TimeoutError, "Sandbox build has been pending for more than #{timeout} seconds"
     end
 
-    # Sends the create request with what is left of timeout as its HTTP timeout. The generated client
-    # takes a timeout only from its configuration, so the request goes through a client built for it.
+    # Sends the create request with what is left of timeout as its HTTP timeout.
     #
     # @param create_sandbox [DaytonaApiClient::CreateSandbox]
     # @param timeout [Numeric]
@@ -471,13 +466,22 @@ module Daytona
       # that the TimeoutError could not name.
       raise Sdk::TimeoutError, message unless timeout.zero? || monotonic_now - start_time < timeout
 
-      client = build_api_client(timeout: remaining_timeout(timeout, start_time))
+      client = api_client_with_timeout(remaining_timeout(timeout, start_time))
       DaytonaApiClient::SandboxApi.new(client).create_sandbox(create_sandbox)
     rescue DaytonaApiClient::ApiError => e
       # The generated client raises this, without a status code, when the request times out.
       raise unless e.code.nil? && e.message == 'Connection timed out'
 
       raise Sdk::TimeoutError, message
+    end
+
+    # The generated client takes a timeout only from its configuration, so this copies api_client with a
+    # configuration that differs only in the timeout. Headers and settings changed on api_client still apply.
+    #
+    # @param timeout [Numeric] HTTP timeout in seconds. Sandbox::NO_TIMEOUT (0) means no timeout.
+    # @return [DaytonaApiClient::ApiClient]
+    def api_client_with_timeout(timeout)
+      api_client.dup.tap { |client| client.config = api_client.config.dup.tap { |c| c.timeout = timeout } }
     end
 
     # @return [Float] Seconds on a clock that wall clock changes don't move, for measuring timeouts
