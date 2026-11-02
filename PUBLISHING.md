@@ -146,7 +146,7 @@ At the cutover, in this order:
    gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
    ```
 
-3. Cut a 0.x release from `release/v0`: **Release**, then **SDK and CLI Publish** with **publish_cli**. This is the first release with `daytona-v0` assets and `install-v0.sh`, and its tap update gives `daytona@0` its first installable version.
+3. Cut a stable `v0.X.Y` release from `release/v0` (not a prerelease: the `daytona@0` tap job accepts only stable versions): **Release**, then **SDK and CLI Publish** with **publish_cli**. This is the first release with `daytona-v0` assets and `install-v0.sh`, and its tap update gives `daytona@0` its first installable version.
 4. Only then point users at `daytona@0` and `install-v0.sh`.
 
 From then on, runs from `release/v0`:
