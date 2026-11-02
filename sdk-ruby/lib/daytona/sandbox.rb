@@ -18,6 +18,10 @@ module Daytona
     include Instrumentation
 
     DEFAULT_TIMEOUT = 60
+
+    # Pass as a timeout to wait without a limit.
+    NO_TIMEOUT = 0
+
     def self.with_events(*method_names)
       method_names.each do |method_name|
         original = instance_method(method_name)
@@ -1424,9 +1428,6 @@ module Daytona
 
     POLL_BACKOFF_DELAY = 5.0
     private_constant :POLL_BACKOFF_DELAY
-
-    NO_TIMEOUT = 0
-    private_constant :NO_TIMEOUT
 
     def wait_for_snapshot_complete
       error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
