@@ -137,11 +137,17 @@ PyPI, RubyGems and the Go module proxy resolve the newest version by version ord
 
 When the 2.x SDK and CLI become the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
 
-Before flipping it, merge the `daytona@0` formula into the Homebrew tap ([`cli/hack/homebrew`](cli/hack/homebrew/README.md)). The formula has no installable version until the first 0.x release after the flip fills it in, so cut that release (Release, then SDK and CLI Publish with **publish_cli**) before pointing users at `daytona@0`. Then, at the cutover:
+At the cutover, in this order:
 
-```bash
-gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
-```
+1. Merge the `daytona@0` formula into the Homebrew tap ([`cli/hack/homebrew`](cli/hack/homebrew/README.md)).
+2. Set the variable:
+
+   ```bash
+   gh variable set DAYTONA_V0_CUTOVER --body true --repo daytona/clients
+   ```
+
+3. Cut a 0.x release from `release/v0`: **Release**, then **SDK and CLI Publish** with **publish_cli**. This is the first release with `daytona-v0` assets and `install-v0.sh`, and its tap update gives `daytona@0` its first installable version.
+4. Only then point users at `daytona@0` and `install-v0.sh`.
 
 From then on, runs from `release/v0`:
 
