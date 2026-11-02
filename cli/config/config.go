@@ -84,7 +84,7 @@ func GetConfig() (*Config, error) {
 	return &c, nil
 }
 
-var ErrNoProfilesFound = errors.New("no profiles found. Run `daytona login` to authenticate")
+var ErrNoProfilesFound = errors.New("no profiles found. Run `" + internal.BinaryName + " login` to authenticate")
 
 func (c *Config) GetActiveProfile() (Profile, error) {
 	apiUrl := os.Getenv(DAYTONA_API_URL_ENV_VAR)
@@ -113,8 +113,8 @@ func (c *Config) GetActiveProfile() (Profile, error) {
 	return Profile{}, ErrNoActiveProfile
 }
 
-var ErrNoActiveProfile = errors.New("no active profile found. Run `daytona login` to authenticate")
-var ErrNoActiveOrganization = errors.New("no active organization found. Run `daytona organization use` to select an organization")
+var ErrNoActiveProfile = errors.New("no active profile found. Run `" + internal.BinaryName + " login` to authenticate")
+var ErrNoActiveOrganization = errors.New("no active organization found. Run `" + internal.BinaryName + " organization use` to select an organization")
 
 func (c *Config) Save() error {
 	configFilePath, err := getConfigPath()

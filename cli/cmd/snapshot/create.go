@@ -13,6 +13,7 @@ import (
 	apiclient_cli "github.com/daytona/clients/cli/apiclient"
 	"github.com/daytona/clients/cli/cmd/common"
 	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
 	"github.com/daytona/clients/cli/util"
 	view_common "github.com/daytona/clients/cli/views/common"
 	views_util "github.com/daytona/clients/cli/views/util"
@@ -140,7 +141,7 @@ var CreateCmd = &cobra.Command{
 		}
 
 		view_common.RenderInfoMessageBold(fmt.Sprintf("Snapshot %s successfully created", snapshotName))
-		view_common.RenderInfoMessage(fmt.Sprintf("%s Run 'daytona sandbox create --snapshot %s' to create a new sandbox using this snapshot", view_common.Checkmark, snapshotName))
+		view_common.RenderInfoMessage(fmt.Sprintf("%s Run '%s sandbox create --snapshot %s' to create a new sandbox using this snapshot", view_common.Checkmark, internal.BinaryName, snapshotName))
 		return nil
 	},
 }

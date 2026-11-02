@@ -74,7 +74,7 @@ func checkVersionsMismatch(res *http.Response) {
 			return
 		}
 
-		log.Warn(fmt.Sprintf("Daytona CLI v%s is outdated, the latest version is v%s.\nUpgrade using 'brew upgrade daytonaio/cli/daytona' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, latestVersion))
+		log.Warn(fmt.Sprintf("Daytona CLI v%s is outdated, the latest version is v%s.\nUpgrade using 'brew upgrade %s' or by downloading the latest version from https://github.com/daytona/clients/releases.", cliVersion, latestVersion, internal.HomebrewFormula))
 	})
 }
 

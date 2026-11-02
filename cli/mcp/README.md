@@ -15,6 +15,10 @@ Daytona MCP Server allows AI agents to utilize:
 
 ## Steps to Integrate Daytona MCP Server with an AI Agent
 
+> After the first 0.x release that ships the CLI as `daytona-v0` (once the 2.x CLI has taken the
+> `daytona` name), install the 0.x CLI with the `daytona-v0` commands below and run `daytona-v0`
+> wherever this guide says `daytona`, including the `"command"` of the MCP configuration below.
+
 1. **Install the Daytona CLI:**
 
 **Mac/Linux**
@@ -23,11 +27,23 @@ Daytona MCP Server allows AI agents to utilize:
 brew install daytonaio/cli/daytona
 ```
 
+From the first `daytona-v0` release on, use instead:
+
+```bash
+brew install daytonaio/cli/daytona@0
+# or, without Homebrew:
+# replace v0.X.Y with that release's tag, e.g. v0.230.0
+curl -fsSL "https://github.com/daytona/clients/releases/download/v0.X.Y/install-v0.sh" | sh
+```
+
 **Windows**
 
 ```bash
 powershell -Command "irm https://get.daytona.io/windows | iex"
 ```
+
+From the first `daytona-v0` release on, download `daytona-v0-windows-<arch>.exe` from that release on
+[GitHub](https://github.com/daytona/clients/releases) instead.
 
 2. **Log in to your Daytona account:**
 
@@ -68,6 +84,8 @@ daytona mcp config
   }
 }
 ```
+
+With the `daytona-v0` CLI, `daytona-v0 mcp config` prints `"command": "daytona-v0"`; use that.
 
 Note: if you are running Daytona MCP Server on Windows OS, add the following to the env field of the configuration:
 

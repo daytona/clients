@@ -10,4 +10,10 @@ var (
 	Auth0ClientId     = ""
 	Auth0CallbackPort = ""
 	Auth0Audience     = ""
+
+	// BinaryName is the command name users run. Release builds of the 0.x line
+	// set it to "daytona-v0" once the 2.x CLI takes over the "daytona" name.
+	BinaryName = "daytona"
+	// HomebrewFormula is the formula that installs this build.
+	HomebrewFormula = "daytonaio/cli/daytona"
 )
