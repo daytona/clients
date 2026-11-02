@@ -149,8 +149,11 @@ rescue Daytona::Sdk::TimeoutError => e
   end
   raise e
 end
+```
 
-# Later, e.g. in a cleanup job: delete what a timed out create request may have left behind
+A few seconds later (e.g. at the end of the job, or from a cleanup job that kept the labels), delete what a timed out create request may have left behind:
+
+```ruby
 daytona.list(Daytona::ListSandboxesQuery.new(labels:)).each { |s| daytona.delete(s) }
 ```
 
