@@ -6,9 +6,10 @@
 RSpec.describe Daytona::Daytona do
   let(:config) { build_config }
   let(:api_client) do
-    double('ApiClient', default_headers: {}).tap do |client|
+    double('ApiClient', default_headers: {}, config: DaytonaApiClient::Configuration.new).tap do |client|
       allow(client).to receive(:user_agent=)
       allow(client).to receive(:update_params_for_auth!)
+      allow(client).to receive(:dup) { double('ApiClient copy', 'config=': nil) }
     end
   end
   let(:sandbox_api) { instance_double(DaytonaApiClient::SandboxApi) }
@@ -557,6 +558,65 @@ RSpec.describe Daytona::Daytona do
         expect(error.status_code).to eq(504)
         expect(error.sandbox_id).to be_nil
       }
+    end
+
+    context 'when sending the create request' do
+      let(:daytona) { described_class.new(config) }
+      let(:params) { Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1') }
+
+      before do
+        allow(DaytonaApiClient::ApiClient).to receive(:new).and_call_original
+        allow(sandbox_api).to receive(:create_sandbox).and_return(build_sandbox_dto)
+      end
+
+      it 'bounds it by what is left of the timeout, keeping the settings of api_client' do
+        daytona.api_client.default_headers['X-Custom'] = 'kept'
+
+        daytona.create(params, timeout: 300)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new).with(
+          having_attributes(
+            config: having_attributes(timeout: be_between(299, 300), host: daytona.api_client.config.host),
+            default_headers: include('X-Custom' => 'kept')
+          )
+        ).once
+        expect(daytona.api_client.config.timeout).to eq(0)
+      end
+
+      it 'sends it without an HTTP timeout when timeout is NO_TIMEOUT' do
+        daytona.create(params, timeout: Daytona::Sandbox::NO_TIMEOUT)
+
+        # Once for sandbox_api, once for the create request.
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: 0))).twice
+      end
+    end
+
+    it 'raises a TimeoutError without a sandbox_id when the create request times out' do
+      request_error = DaytonaApiClient::ApiError.new('Connection timed out')
+      allow(sandbox_api).to receive(:create_sandbox).and_raise(request_error)
+
+      expect do
+        described_class.new(config).create(Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1'),
+                                           timeout: 5)
+      end.to raise_error(
+        Daytona::Sdk::TimeoutError, 'Failed to create and start sandbox within 5 seconds. Operation timed out.'
+      ) { |error|
+        expect(error.sandbox_id).to be_nil
+        expect(error.cause).to be(request_error)
+      }
+    end
+
+    it 'does not send the create request once the timeout has run out' do
+      allow(sandbox_api).to receive(:create_sandbox)
+      daytona = described_class.new(config)
+      allow(Process).to receive(:clock_gettime).and_call_original
+      allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(0.0, 5.0)
+
+      expect do
+        daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(snapshot: 'snap-1'), timeout: 5)
+      end.to raise_error(Daytona::Sdk::TimeoutError, /within 5 seconds/) { |error| expect(error.sandbox_id).to be_nil }
+      expect(sandbox_api).not_to have_received(:create_sandbox)
     end
 
     it 'streams build logs for pending builds when a callback is provided' do
