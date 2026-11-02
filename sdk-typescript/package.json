@@ -34,7 +34,7 @@
     "@aws-sdk/lib-storage": false,
     "@opentelemetry/sdk-node": false,
     "@opentelemetry/instrumentation-http": false,
-    "@opentelemetry/sdk-trace-base": false,
+    "@opentelemetry/sdk-trace": false,
     "@opentelemetry/exporter-trace-otlp-http": false,
     "@opentelemetry/otlp-exporter-base": false,
     "@opentelemetry/semantic-conventions": false,
