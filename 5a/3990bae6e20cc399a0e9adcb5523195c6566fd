@@ -1,0 +1,19 @@
+LICENSE
+  s_35670c2d316548::t_70f686e04d4187 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a3990bae6e20cc399a0e9adcb5523195c6566fd",
+  "prompts": {},
+  "sessions": {
+    "s_35670c2d316548": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e6454a388ffe15D1D38HGBYtDn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
