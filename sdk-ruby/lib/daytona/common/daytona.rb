@@ -66,6 +66,10 @@ module Daytona
     # @return [String, nil] OTel collector endpoint override for the Sandbox
     attr_accessor :otel_endpoint_override
 
+    # @return [Hash<String, String>, nil] Create-only OTel collector headers, never returned on Sandbox responses.
+    #   Credentials remain accessible to sandbox root; use narrowly scoped ingestion keys.
+    attr_accessor :otel_endpoint_headers
+
     # @return [Integer, nil] Time to live in minutes (0 to disable)
     attr_accessor :ttl_minutes
 
@@ -117,6 +121,11 @@ module Daytona
     # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
     #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
     #   available in the Daytona analytics API or dashboard.
+    # @param otel_endpoint_headers [Hash<String, String>, nil] Create-only, write-only OTel collector headers.
+    #   Nonempty headers require an explicit HTTPS otel_endpoint_override and a compatible container v2 runner.
+    #   The server rejects nonempty headers for legacy runners, VMs, Windows sandboxes, and forks.
+    #   Omitted or empty headers preserve existing behavior. Credentials remain accessible to sandbox root;
+    #   use narrowly scoped ingestion keys.
     # @param ttl_minutes [Integer, nil] Time to live in minutes (0 to disable)
     # @param queue_timeout [Integer, nil] Minutes to wait for runner assignment before the API auto-destroys the sandbox
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
@@ -146,6 +155,7 @@ module Daytona
       domain_allow_list: nil,
       outbound_proxy_url: nil,
       otel_endpoint_override: nil,
+      otel_endpoint_headers: nil,
       ephemeral: nil,
       spot: nil,
       linked_sandbox: nil,
@@ -171,6 +181,7 @@ module Daytona
       @domain_allow_list = domain_allow_list
       @outbound_proxy_url = outbound_proxy_url
       @otel_endpoint_override = otel_endpoint_override
+      @otel_endpoint_headers = otel_endpoint_headers
       @ephemeral = ephemeral
       @spot = spot
       @linked_sandbox = linked_sandbox
@@ -205,6 +216,7 @@ module Daytona
         domain_allow_list:,
         outbound_proxy_url:,
         otel_endpoint_override:,
+        otel_endpoint_headers:,
         ephemeral:,
         spot:,
         linked_sandbox:,
@@ -270,6 +282,11 @@ module Daytona
     # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
     #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
     #   available in the Daytona analytics API or dashboard.
+    # @param otel_endpoint_headers [Hash<String, String>, nil] Create-only, write-only OTel collector headers.
+    #   Nonempty headers require an explicit HTTPS otel_endpoint_override and a compatible container v2 runner.
+    #   The server rejects nonempty headers for legacy runners, VMs, Windows sandboxes, and forks.
+    #   Omitted or empty headers preserve existing behavior. Credentials remain accessible to sandbox root;
+    #   use narrowly scoped ingestion keys.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(image:, resources: nil, **args)
       @image = image
@@ -322,6 +339,11 @@ module Daytona
     # @param otel_endpoint_override [String, nil] OTel collector endpoint override for the Sandbox. When set,
     #   sandbox OTel data is sent to this endpoint instead of the default collector and will not be
     #   available in the Daytona analytics API or dashboard.
+    # @param otel_endpoint_headers [Hash<String, String>, nil] Create-only, write-only OTel collector headers.
+    #   Nonempty headers require an explicit HTTPS otel_endpoint_override and a compatible container v2 runner.
+    #   The server rejects nonempty headers for legacy runners, VMs, Windows sandboxes, and forks.
+    #   Omitted or empty headers preserve existing behavior. Credentials remain accessible to sandbox root;
+    #   use narrowly scoped ingestion keys.
     # @param ephemeral [Boolean, nil] Whether the Sandbox should be ephemeral
     def initialize(snapshot: nil, **args)
       @snapshot = snapshot

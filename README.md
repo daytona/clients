@@ -75,6 +75,29 @@ console.log(response.result)
 
 Set `DAYTONA_API_KEY` and optionally `DAYTONA_API_URL` before running examples or E2E tests.
 
+### Authenticated sandbox telemetry
+
+Use `otelEndpointHeaders` with `otelEndpointOverride` to authenticate sandbox telemetry at your HTTPS OTLP collector.
+The parameter is `otel_endpoint_headers` in Python and Ruby, and `OtelEndpointHeaders` in Go.
+Java exposes it through `CreateSandboxParams.setOtelEndpointHeaders`.
+
+```ts
+const token = process.env.OTEL_INGESTION_TOKEN
+if (!token) throw new Error('Set OTEL_INGESTION_TOKEN')
+
+const sandbox = await daytona.create({
+  otelEndpointOverride: 'https://otel.example.com:4318',
+  otelEndpointHeaders: { Authorization: `Bearer ${token}` },
+})
+```
+
+This requires the API, container runner, and daemon support from [daytona-ai#1471](https://github.com/daytona/daytona-ai/pull/1471).
+Nonempty headers require an explicit HTTPS endpoint and a compatible container v2 runner; legacy runners, VM/Windows runtimes, and forks are unsupported.
+Headers are set only at creation and are never returned in sandbox responses. Omitted or empty headers retain existing behavior.
+Sandbox root can access these credentials; use narrowly scoped ingestion keys and avoid logging create parameters.
+Use organization-level forwarding when credentials must stay outside the sandbox.
+An endpoint override sends telemetry outside Daytona analytics; it does not configure tracing of the SDK process itself.
+
 ## Development
 
 ```bash

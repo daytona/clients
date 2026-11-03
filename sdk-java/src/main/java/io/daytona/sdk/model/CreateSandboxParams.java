@@ -35,6 +35,7 @@ public class CreateSandboxParams {
     private String domainAllowList;
     private String outboundProxyUrl;
     private String otelEndpointOverride;
+    private Map<String, String> otelEndpointHeaders;
     private String linkedSandbox;
     private Boolean spot;
     private String target;
@@ -331,6 +332,27 @@ public class CreateSandboxParams {
      * @param otelEndpointOverride OTel collector endpoint override
      */
     public void setOtelEndpointOverride(String otelEndpointOverride) { this.otelEndpointOverride = otelEndpointOverride; }
+
+    /**
+     * Returns the create-only headers sent to the custom OTel collector.
+     *
+     * @return OTel collector headers, or {@code null} when omitted
+     */
+    public Map<String, String> getOtelEndpointHeaders() { return otelEndpointHeaders; }
+
+    /**
+     * Sets the create-only headers sent to the custom OTel collector.
+     *
+     * <p>Nonempty headers require an explicit HTTPS {@code otelEndpointOverride} and a compatible
+     * container v2 runner. The server rejects nonempty headers for legacy runners, VMs, Windows,
+     * and forks. Omitted or empty headers preserve existing behavior.
+     *
+     * <p>Headers are not returned on {@link io.daytona.sdk.Sandbox}. Sandbox root can read these
+     * credentials; use narrowly scoped ingestion keys.
+     *
+     * @param otelEndpointHeaders OTel collector headers
+     */
+    public void setOtelEndpointHeaders(Map<String, String> otelEndpointHeaders) { this.otelEndpointHeaders = otelEndpointHeaders; }
 
     /**
      * Returns the ID or name of an existing Sandbox to link the new Sandbox to.

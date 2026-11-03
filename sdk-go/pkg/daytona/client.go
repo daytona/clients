@@ -617,6 +617,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	if baseParams.OtelEndpointOverride != nil {
 		createReq.SetOtelEndpointOverride(*baseParams.OtelEndpointOverride)
 	}
+	if baseParams.OtelEndpointHeaders != nil {
+		createReq.SetOtelEndpointHeaders(baseParams.OtelEndpointHeaders)
+	}
 	if baseParams.LinkedSandbox != "" {
 		createReq.SetLinkedSandbox(baseParams.LinkedSandbox)
 	}

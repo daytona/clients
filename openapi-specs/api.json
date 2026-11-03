@@ -12140,6 +12140,14 @@
             "description": "OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.",
             "example": "https://otel-collector.example.com:4318"
           },
+          "otelEndpointHeaders": {
+            "type": "object",
+            "description": "Write-only OTLP authentication headers for an explicit HTTPS otelEndpointOverride. Container sandboxes only. Values are encrypted at rest and never returned in sandbox responses.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "writeOnly": true
+          },
           "target": {
             "type": "string",
             "description": "The target (region) where the sandbox will be created",

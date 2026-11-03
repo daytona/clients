@@ -117,6 +117,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private String otelEndpointOverride;
 
+  public static final String SERIALIZED_NAME_OTEL_ENDPOINT_HEADERS = "otelEndpointHeaders";
+  @SerializedName(SERIALIZED_NAME_OTEL_ENDPOINT_HEADERS)
+  @javax.annotation.Nullable
+  private Map<String, String> otelEndpointHeaders = new HashMap<>();
+
   public static final String SERIALIZED_NAME_TARGET = "target";
   @SerializedName(SERIALIZED_NAME_TARGET)
   @javax.annotation.Nullable
@@ -446,6 +451,33 @@ public class CreateSandbox {
 
   public void setOtelEndpointOverride(@javax.annotation.Nullable String otelEndpointOverride) {
     this.otelEndpointOverride = otelEndpointOverride;
+  }
+
+
+  public CreateSandbox otelEndpointHeaders(@javax.annotation.Nullable Map<String, String> otelEndpointHeaders) {
+    this.otelEndpointHeaders = otelEndpointHeaders;
+    return this;
+  }
+
+  public CreateSandbox putOtelEndpointHeadersItem(String key, String otelEndpointHeadersItem) {
+    if (this.otelEndpointHeaders == null) {
+      this.otelEndpointHeaders = new HashMap<>();
+    }
+    this.otelEndpointHeaders.put(key, otelEndpointHeadersItem);
+    return this;
+  }
+
+  /**
+   * Write-only OTLP authentication headers for an explicit HTTPS otelEndpointOverride. Container sandboxes only. Values are encrypted at rest and never returned in sandbox responses.
+   * @return otelEndpointHeaders
+   */
+  @javax.annotation.Nullable
+  public Map<String, String> getOtelEndpointHeaders() {
+    return otelEndpointHeaders;
+  }
+
+  public void setOtelEndpointHeaders(@javax.annotation.Nullable Map<String, String> otelEndpointHeaders) {
+    this.otelEndpointHeaders = otelEndpointHeaders;
   }
 
 
@@ -862,6 +894,7 @@ public class CreateSandbox {
         Objects.equals(this.domainAllowList, createSandbox.domainAllowList) &&
         Objects.equals(this.outboundProxyUrl, createSandbox.outboundProxyUrl) &&
         Objects.equals(this.otelEndpointOverride, createSandbox.otelEndpointOverride) &&
+        Objects.equals(this.otelEndpointHeaders, createSandbox.otelEndpointHeaders) &&
         Objects.equals(this.target, createSandbox.target) &&
         Objects.equals(this.cpu, createSandbox.cpu) &&
         Objects.equals(this.gpu, createSandbox.gpu) &&
@@ -884,7 +917,7 @@ public class CreateSandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, queueTimeout, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, otelEndpointHeaders, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, queueTimeout, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -903,6 +936,7 @@ public class CreateSandbox {
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
     sb.append("    otelEndpointOverride: ").append(toIndentedString(otelEndpointOverride)).append("\n");
+    sb.append("    otelEndpointHeaders: ").append(toIndentedString(otelEndpointHeaders)).append("\n");
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
@@ -939,7 +973,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "otelEndpointHeaders", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

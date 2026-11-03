@@ -9069,6 +9069,8 @@ components:
         disk: 3
         spot: false
         name: MySandbox
+        otelEndpointHeaders:
+          key: otelEndpointHeaders
         user: daytona
         autoArchiveInterval: 10080
         snapshot: ubuntu-4vcpu-8ram-100gb
@@ -9142,6 +9144,14 @@ components:
             \ will not be available in the Daytona analytics API or dashboard."
           example: https://otel-collector.example.com:4318
           type: string
+        otelEndpointHeaders:
+          additionalProperties:
+            type: string
+          description: Write-only OTLP authentication headers for an explicit HTTPS
+            otelEndpointOverride. Container sandboxes only. Values are encrypted at
+            rest and never returned in sandbox responses.
+          type: object
+          writeOnly: true
         target:
           description: The target (region) where the sandbox will be created
           example: us

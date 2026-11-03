@@ -152,6 +152,30 @@ class DaytonaTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void createWithoutTelemetryHeadersOmitsTheNewApiField() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(new MockResponse()
+                    .setHeader("Content-Type", "application/json")
+                    .setBody(TestSupport.mainSandbox("sb-compat", SandboxState.STARTED).toJson()));
+            try (Daytona client = new Daytona(new DaytonaConfig.Builder()
+                    .apiKey("test-key")
+                    .apiUrl(server.url("/api").toString())
+                    .target("eu")
+                    .otelEnabled(false)
+                    .useDeprecatedPolling(true)
+                    .build())) {
+                client.create(new CreateSandboxFromSnapshotParams(), 5);
+                com.fasterxml.jackson.databind.JsonNode request = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readTree(server.takeRequest().getBody().readUtf8());
+                assertThat(request.has("otelEndpointHeaders"))
+                        .as("headerless creates retain compatibility with APIs without this field")
+                        .isFalse();
+            }
+        }
+    }
+
     @Test
     void createUsesDefaultSnapshotParamsAndWaitsUntilStarted() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTING));

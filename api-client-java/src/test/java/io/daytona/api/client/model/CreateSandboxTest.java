@@ -141,6 +141,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'otelEndpointHeaders'
+     */
+    @Test
+    public void otelEndpointHeadersTest() {
+        // TODO: test otelEndpointHeaders
+    }
+
+    /**
      * Test the property 'target'
      */
     @Test

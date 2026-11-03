@@ -181,6 +181,10 @@ class CreateSandboxBaseParams(BaseModel):
         otel_endpoint_override (str | None): OTel collector endpoint override for the Sandbox. When set,
             sandbox OTel data is sent to this endpoint instead of the default collector and will not be
             available in the Daytona analytics API or dashboard.
+        otel_endpoint_headers (dict[str, str] | None): Write-only OTel collector headers, set at creation.
+            Nonempty headers require an explicit HTTPS otel_endpoint_override and a compatible container v2
+            runner; legacy, VM, Windows, and fork sandboxes reject them. Omitted or empty headers preserve
+            existing behavior. Credentials are accessible to sandbox root; use narrowly scoped ingestion keys.
         ephemeral (bool | None): Whether the Sandbox should be ephemeral.
             If True, auto_delete_interval will be set to 0.
         spot (bool | None): GPU-only. When True, the Sandbox may be instantly terminated without notice
@@ -215,6 +219,7 @@ class CreateSandboxBaseParams(BaseModel):
     domain_allow_list: str | None = None
     outbound_proxy_url: str | None = None
     otel_endpoint_override: str | None = None
+    otel_endpoint_headers: dict[str, str] | None = None
     ephemeral: bool | None = None
     spot: bool | None = None
     linked_sandbox: str | None = None

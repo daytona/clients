@@ -51,6 +51,9 @@ module DaytonaApiClient
     # OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
     attr_accessor :otel_endpoint_override
 
+    # Write-only OTLP authentication headers for an explicit HTTPS otelEndpointOverride. Container sandboxes only. Values are encrypted at rest and never returned in sandbox responses.
+    attr_accessor :otel_endpoint_headers
+
     # The target (region) where the sandbox will be created
     attr_accessor :target
 
@@ -117,6 +120,7 @@ module DaytonaApiClient
         :'domain_allow_list' => :'domainAllowList',
         :'outbound_proxy_url' => :'outboundProxyUrl',
         :'otel_endpoint_override' => :'otelEndpointOverride',
+        :'otel_endpoint_headers' => :'otelEndpointHeaders',
         :'target' => :'target',
         :'cpu' => :'cpu',
         :'gpu' => :'gpu',
@@ -162,6 +166,7 @@ module DaytonaApiClient
         :'domain_allow_list' => :'String',
         :'outbound_proxy_url' => :'String',
         :'otel_endpoint_override' => :'String',
+        :'otel_endpoint_headers' => :'Hash<String, String>',
         :'target' => :'String',
         :'cpu' => :'Integer',
         :'gpu' => :'Integer',
@@ -256,6 +261,12 @@ module DaytonaApiClient
 
       if attributes.key?(:'otel_endpoint_override')
         self.otel_endpoint_override = attributes[:'otel_endpoint_override']
+      end
+
+      if attributes.key?(:'otel_endpoint_headers')
+        if (value = attributes[:'otel_endpoint_headers']).is_a?(Hash)
+          self.otel_endpoint_headers = value
+        end
       end
 
       if attributes.key?(:'target')
@@ -367,6 +378,7 @@ module DaytonaApiClient
           domain_allow_list == o.domain_allow_list &&
           outbound_proxy_url == o.outbound_proxy_url &&
           otel_endpoint_override == o.otel_endpoint_override &&
+          otel_endpoint_headers == o.otel_endpoint_headers &&
           target == o.target &&
           cpu == o.cpu &&
           gpu == o.gpu &&
@@ -395,7 +407,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, queue_timeout, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, otel_endpoint_headers, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, queue_timeout, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

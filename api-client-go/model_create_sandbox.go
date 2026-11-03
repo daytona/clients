@@ -44,6 +44,8 @@ type CreateSandbox struct {
 	OutboundProxyUrl *string `json:"outboundProxyUrl,omitempty"`
 	// OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
 	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
+	// Write-only OTLP authentication headers for an explicit HTTPS otelEndpointOverride. Container sandboxes only. Values are encrypted at rest and never returned in sandbox responses.
+	OtelEndpointHeaders *map[string]string `json:"otelEndpointHeaders,omitempty"`
 	// The target (region) where the sandbox will be created
 	Target *string `json:"target,omitempty"`
 	// CPU cores allocated to the sandbox
@@ -490,6 +492,38 @@ func (o *CreateSandbox) HasOtelEndpointOverride() bool {
 // SetOtelEndpointOverride gets a reference to the given string and assigns it to the OtelEndpointOverride field.
 func (o *CreateSandbox) SetOtelEndpointOverride(v string) {
 	o.OtelEndpointOverride = &v
+}
+
+// GetOtelEndpointHeaders returns the OtelEndpointHeaders field value if set, zero value otherwise.
+func (o *CreateSandbox) GetOtelEndpointHeaders() map[string]string {
+	if o == nil || IsNil(o.OtelEndpointHeaders) {
+		var ret map[string]string
+		return ret
+	}
+	return *o.OtelEndpointHeaders
+}
+
+// GetOtelEndpointHeadersOk returns a tuple with the OtelEndpointHeaders field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateSandbox) GetOtelEndpointHeadersOk() (*map[string]string, bool) {
+	if o == nil || IsNil(o.OtelEndpointHeaders) {
+		return nil, false
+	}
+	return o.OtelEndpointHeaders, true
+}
+
+// HasOtelEndpointHeaders returns a boolean if a field has been set.
+func (o *CreateSandbox) HasOtelEndpointHeaders() bool {
+	if o != nil && !IsNil(o.OtelEndpointHeaders) {
+		return true
+	}
+
+	return false
+}
+
+// SetOtelEndpointHeaders gets a reference to the given map[string]string and assigns it to the OtelEndpointHeaders field.
+func (o *CreateSandbox) SetOtelEndpointHeaders(v map[string]string) {
+	o.OtelEndpointHeaders = &v
 }
 
 // GetTarget returns the Target field value if set, zero value otherwise.
@@ -1082,6 +1116,9 @@ func (o CreateSandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.OtelEndpointOverride) {
 		toSerialize["otelEndpointOverride"] = o.OtelEndpointOverride
 	}
+	if !IsNil(o.OtelEndpointHeaders) {
+		toSerialize["otelEndpointHeaders"] = o.OtelEndpointHeaders
+	}
 	if !IsNil(o.Target) {
 		toSerialize["target"] = o.Target
 	}
@@ -1167,6 +1204,7 @@ func (o *CreateSandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "outboundProxyUrl")
 		delete(additionalProperties, "otelEndpointOverride")
+		delete(additionalProperties, "otelEndpointHeaders")
 		delete(additionalProperties, "target")
 		delete(additionalProperties, "cpu")
 		delete(additionalProperties, "gpu")

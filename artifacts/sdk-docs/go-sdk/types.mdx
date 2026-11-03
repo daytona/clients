@@ -612,7 +612,13 @@ type SandboxBaseParams struct {
     // When set, sandbox OTel data is sent to this endpoint instead of the default
     // collector and will not be available in the Daytona analytics API or dashboard.
     OtelEndpointOverride *string
-    Ephemeral            bool
+    // OtelEndpointHeaders supplies create-only, write-only OTel collector headers.
+    // Nonempty headers require an explicit HTTPS OtelEndpointOverride and a compatible
+    // container v2 runner; legacy, VM, Windows, and fork paths reject them.
+    // Nil or empty headers preserve existing behavior. Headers are not returned on Sandbox.
+    // Sandbox root can access these credentials; use narrowly scoped ingestion keys.
+    OtelEndpointHeaders map[string]string
+    Ephemeral           bool
     // Spot marks the sandbox as a spot GPU sandbox. A spot sandbox may be instantly
     // terminated without notice to free GPU capacity for an on-demand (non-spot) GPU
     // sandbox. Rejected when the sandbox requests no GPUs.

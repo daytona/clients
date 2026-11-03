@@ -73,6 +73,10 @@ export interface CreateSandbox {
      */
     'otelEndpointOverride'?: string;
     /**
+     * Write-only OTLP authentication headers for an explicit HTTPS otelEndpointOverride. Container sandboxes only. Values are encrypted at rest and never returned in sandbox responses.
+     */
+    'otelEndpointHeaders'?: { [key: string]: string; };
+    /**
      * The target (region) where the sandbox will be created
      */
     'target'?: string;
