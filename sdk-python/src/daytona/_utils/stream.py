@@ -59,7 +59,12 @@ async def process_streaming_response(
         active_session = session
 
     try:
-        async with active_session.request(method, url, headers=headers) as response:
+        # The stream lasts as long as the build or command, so drop aiohttp's default
+        # 5-minute total/read timeout for this request. should_terminate and the caller's
+        # own timeout bound how long we keep reading.
+        async with active_session.request(
+            method, url, headers=headers, timeout=aiohttp.ClientTimeout(total=None, sock_read=None)
+        ) as response:
             response.raise_for_status()
             stream = response.content.iter_any()
             next_chunk: asyncio.Task[bytes | None] | None = None
