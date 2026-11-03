@@ -1,0 +1,26 @@
+analytics-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+analytics-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 3-6,9-10
+toolbox-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+toolbox-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d89db9021d9f5ac1250e2af77269463647e9b80b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
