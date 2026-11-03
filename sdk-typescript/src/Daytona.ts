@@ -496,7 +496,7 @@ export class Daytona implements AsyncDisposable {
     const { diag, DiagConsoleLogger, DiagLogLevel } = dynamicRequire('@opentelemetry/api', errPrefix)
     const { NodeSDK } = dynamicRequire('@opentelemetry/sdk-node', errPrefix)
     const { HttpInstrumentation } = dynamicRequire('@opentelemetry/instrumentation-http', errPrefix)
-    const { BatchSpanProcessor } = dynamicRequire('@opentelemetry/sdk-trace-base', errPrefix)
+    const { BatchSpanProcessor } = dynamicRequire('@opentelemetry/sdk-trace', errPrefix)
     const { OTLPTraceExporter } = dynamicRequire('@opentelemetry/exporter-trace-otlp-http', errPrefix)
     const { CompressionAlgorithm } = dynamicRequire('@opentelemetry/otlp-exporter-base', errPrefix)
     const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = dynamicRequire('@opentelemetry/semantic-conventions', errPrefix)
@@ -515,11 +515,11 @@ export class Daytona implements AsyncDisposable {
         }),
       ],
       spanProcessors: [
-        new BatchSpanProcessor(
-          new OTLPTraceExporter({
+        new BatchSpanProcessor({
+          exporter: new OTLPTraceExporter({
             compression: CompressionAlgorithm.GZIP,
           }),
-        ),
+        }),
       ],
     })
 
@@ -893,7 +893,7 @@ export class Daytona implements AsyncDisposable {
     const { sandboxApi, clientConfig, eventSubscriptionManager, requestTimeoutMs } = this
     const getAnalyticsApiUrl = this.getAnalyticsApiUrl
     const ensureToolboxProxyUrl = this.ensureToolboxProxyUrl.bind(this)
-    const tracer = trace.getTracer('')
+    const tracer = trace.getTracer('daytona-typescript-sdk')
 
     async function* generator(): AsyncGenerator<Sandbox> {
       let cursor: string | undefined = undefined
