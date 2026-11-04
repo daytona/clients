@@ -1,0 +1,50 @@
+# CODEOWNERS -- Daytona clients (main, the 2.x line)
+# These owners are automatically requested for review on PRs that modify the
+# listed files. Multiple owners = OR semantics (any one can approve).
+# Enforcement: classic branch protection on main requires code owner review.
+#
+# Only release, publishing, supply-chain and legal paths are owned here; the
+# SDK, CLI and upgrade-tool sources are left to the regular two-approval rule.
+# Paths are anchored to the repository root. The last matching line wins.
+
+# CI/CD pipelines: publishing workflows are bound to Trusted Publishing by file
+# name, and several job names are required status checks.
+/.github/                                  @MDzaja
+
+# Release and publish helpers called by the workflows
+/scripts/sdk-version.sh                    @MDzaja
+/scripts/sdk-version_test.sh               @MDzaja
+/scripts/resolve-v0-tag.sh                 @MDzaja
+/scripts/v0-publish-mode.sh                @MDzaja
+/scripts/bundle-v0.sh                      @MDzaja
+/scripts/bundle_v0_python.py               @MDzaja
+/scripts/check-no-bundled-v0.sh            @MDzaja
+/scripts/check_dist_artifacts.py           @MDzaja
+/scripts/changelog/                        @MDzaja
+/v0-sdk-version                            @MDzaja
+
+# Secret scanning
+/scripts/secret-scan.sh                    @MDzaja
+/scripts/secret-scan_test.sh               @MDzaja
+/.gitleaks.toml                            @MDzaja
+/.githooks/                                @MDzaja
+
+# License header enforcement
+/.licenserc.yaml                           @MDzaja
+
+# API contract (refreshed by maintainers from the platform)
+/contract/                                 @MDzaja
+
+# Legal and community files
+/LICENSE                                   @MDzaja @aprojic
+/NOTICE                                    @MDzaja @aprojic
+/COPYRIGHT                                 @MDzaja @aprojic
+/CLA.md                                    @MDzaja @aprojic
+/CODE_OF_CONDUCT.md                        @MDzaja @aprojic
+/cli/LICENSE                               @MDzaja @aprojic
+/upgrade/python/LICENSE                    @MDzaja @aprojic
+/upgrade/typescript/LICENSE                @MDzaja @aprojic
+/typescript/lint/anti-slop/LICENSE         @MDzaja @aprojic
+
+# CODEOWNERS itself (must protect itself; listed last so it always applies)
+/.github/CODEOWNERS                        @MDzaja
