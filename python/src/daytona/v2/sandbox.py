@@ -1298,8 +1298,8 @@ class AsyncSandbox:
     async def snapshot_filesystem(self, *, name: Optional[str] = None, idle: Optional[int] = None) -> Image:
         """Snapshot this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``).
 
-        The result boots new sandboxes (``daytona.create(image.id)``), like
-        Modal's ``snapshot_filesystem()``; the sandbox keeps running. A macOS
+        The result boots new sandboxes (``daytona.create(image.id)``); the
+        sandbox keeps running. A macOS
         sandbox must be persistent and stopped; it cannot start until the
         snapshot is ``ready``.
 
