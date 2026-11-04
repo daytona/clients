@@ -313,16 +313,16 @@ Python and TypeScript: v2 filesystem transfers do not accept the v0 positional t
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `sandbox.fs.create_folder(...)` | `{sandbox}.fs.mkdir(path, mode=mode)` | differs; mode becomes keyword-only; request_timeout is removed |
-| `sandbox.fs.delete_file(...)` | `{sandbox}.fs.delete(path, recursive=recursive)` | differs; recursive becomes keyword-only; request_timeout is removed |
+| `sandbox.fs.delete_file(...)` | `{sandbox}.fs.remove(path, recursive=recursive)` | differs; recursive becomes keyword-only; request_timeout is removed |
 | `sandbox.fs.download_file(...)` | `{sandbox}.fs.download_file(remote_path, local_path)` | differs; The disk-transfer form requires local_path; timeout is removed; For the bytes-returning overload use fs.read_bytes(remote_path); v2 does not create missing local parent directories; create them first |
 | `sandbox.fs.download_file_stream(...)` | None | none; No chunk-iterator download method; Use fs.download_file(remote_path, local_path) for streaming to disk; For a custom HTTP stream use fs.presigned_download_url(remote_path) |
 | `sandbox.fs.download_files(...)` | `{sandbox}.fs.read_many(paths)` | differs; Convert FileDownloadRequest objects to remote path strings; timeout is removed; Returns BulkReadResult with files and errors, buffering contents in memory; For local destinations call fs.download_file(remote_path, local_path) per file; v0 created missing local parent directories; v2 does not, so create them first |
-| `sandbox.fs.find_files(...)` | `{sandbox}.fs.find(path, pattern)` | differs; Read matches from result.items; each match is a dict with file, line and content keys, not an object with attributes; request_timeout is removed |
+| `sandbox.fs.find_files(...)` | `{sandbox}.fs.grep(path, pattern)` | differs; Read matches from result.items; each match is a dict with file, line and content keys, not an object with attributes; request_timeout is removed |
 | `sandbox.fs.get_file_info(...)` | `{sandbox}.fs.stat(path)` | differs; request_timeout is removed |
 | `sandbox.fs.list_files(...)` | `{sandbox}.fs.list(path, depth=depth)` | differs; Read entries from result.items; depth becomes keyword-only; request_timeout is removed |
 | `sandbox.fs.move_files(...)` | `{sandbox}.fs.move(source, destination)` | differs; request_timeout is removed |
 | `sandbox.fs.replace_in_files(...)` | `{sandbox}.fs.replace(files, pattern, new_value)` | differs; Read replacement results from result.items; each result is a dict, not an object with attributes; request_timeout is removed |
-| `sandbox.fs.search_files(...)` | `{sandbox}.fs.search(path, pattern)` | differs; Read matching paths from result.items; request_timeout is removed |
+| `sandbox.fs.search_files(...)` | `{sandbox}.fs.glob(path, pattern)` | differs; Read matching paths from result.items; request_timeout is removed |
 | `sandbox.fs.set_file_permissions(...)` | `{sandbox}.fs.chmod(path, mode=mode, owner=owner, group=group)` | differs; mode, owner and group become keyword-only; request_timeout is removed |
 | `sandbox.fs.upload_file(...)` | `{sandbox}.fs.upload_file(local_path, remote_path)` | differs; For the bytes overload use fs.write_bytes(remote_path, content); timeout is removed |
 | `sandbox.fs.upload_file_stream(...)` | None | none; No arbitrary file-like or AsyncIterable upload method; Use fs.upload_file(local_path, remote_path) for a streamed local file; For custom streaming use fs.presigned_upload_url(remote_path) |
@@ -333,18 +333,18 @@ Python and TypeScript: v2 filesystem transfers do not accept the v0 positional t
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `sandbox.fs.createFolder(...)` | `{sandbox}.fs.mkdir(path, { mode })` | differs; mode moves into an options object |
-| `sandbox.fs.deleteFile(...)` | `{sandbox}.fs.rm(path, { recursive })` | differs; recursive moves into an options object |
-| `sandbox.fs.downloadFile(...)` | `{sandbox}.fs.downloadFile(remotePath, localPath)` | differs; The disk-transfer form requires localPath; positional timeout is removed; For the buffer-returning overload use fs.read(remotePath), which returns Uint8Array; v2 does not create missing local parent directories; create them first |
+| `sandbox.fs.deleteFile(...)` | `{sandbox}.fs.remove(path, { recursive })` | differs; recursive moves into an options object |
+| `sandbox.fs.downloadFile(...)` | `{sandbox}.fs.downloadFile(remotePath, localPath)` | differs; The disk-transfer form requires localPath; positional timeout is removed; For the buffer-returning overload use fs.readBytes(remotePath), which returns Uint8Array; v2 does not create missing local parent directories; create them first |
 | `sandbox.fs.downloadFileStream(...)` | None | none; No Readable-returning download method; Use fs.downloadFile(remotePath, localPath) for streaming to disk; For a custom HTTP stream use fs.presignedDownloadUrl(remotePath) |
 | `sandbox.fs.downloadFiles(...)` | `{sandbox}.fs.readMany(paths)` | differs; Convert download request objects to remote path strings; positional timeout is removed; Returns BulkReadResult with files and errors, buffering contents in memory; For local destinations call fs.downloadFile(remotePath, localPath) per file; v0 created missing local parent directories; v2 does not, so create them first |
-| `sandbox.fs.findFiles(...)` | `{sandbox}.fs.find(path, pattern)` | differs; Read matches from result.items |
+| `sandbox.fs.findFiles(...)` | `{sandbox}.fs.grep(path, pattern)` | differs; Read matches from result.items |
 | `sandbox.fs.getFileDetails(...)` | `{sandbox}.fs.stat(path)` | differs; Renamed to stat; same argument, returns the v2 FileInfo type |
 | `sandbox.fs.listFiles(...)` | `{sandbox}.fs.list(path, { depth })` | differs; Read entries from result.items |
 | `sandbox.fs.moveFiles(...)` | `{sandbox}.fs.move(source, destination)` | differs; Renamed to move; same arguments |
 | `sandbox.fs.replaceInFiles(...)` | `{sandbox}.fs.replace(files, pattern, newValue)` | differs; Read replacement results from result.items |
-| `sandbox.fs.searchFiles(...)` | `{sandbox}.fs.search(path, pattern)` | differs; Read matching paths from result.items |
+| `sandbox.fs.searchFiles(...)` | `{sandbox}.fs.glob(path, pattern)` | differs; Read matching paths from result.items |
 | `sandbox.fs.setFilePermissions(...)` | `{sandbox}.fs.chmod(path, permissions)` | differs; Renamed to chmod; the permissions object becomes FilePermissionsOptions |
-| `sandbox.fs.uploadFile(...)` | `{sandbox}.fs.uploadFile(localPath, remotePath)` | differs; For the Buffer overload use fs.write(remotePath, content); Positional timeout is removed |
+| `sandbox.fs.uploadFile(...)` | `{sandbox}.fs.uploadFile(localPath, remotePath)` | differs; For the Buffer overload use fs.writeBytes(remotePath, content); Positional timeout is removed |
 | `sandbox.fs.uploadFileStream(...)` | None | none; No arbitrary Readable upload method; Use fs.uploadFile(localPath, remotePath) for a streamed local file; For custom streaming use fs.presignedUploadUrl(remotePath) |
 | `sandbox.fs.uploadFiles(...)` | `{sandbox}.fs.writeMany(filesByPath)` | differs; Convert FileUpload entries to a remote-path-to-Uint8Array record; positional timeout is removed; Returns BulkWriteResult with files and errors; For local source paths call fs.uploadFile(localPath, remotePath) per file |
 
@@ -421,7 +421,7 @@ TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `sandbox.process.code_run(...)` | `{sandbox}.interpreter.run(code, language=language, isolated=True, env=env, timeout=timeout)` | differs; Select the language explicitly rather than relying on the v0 sandbox language; CodeRunParams.env becomes env; argv has no interpreter equivalent; Returns InterpreterResult rather than ExecuteResponse and execution artifacts |
-| `sandbox.process.connect_pty_session(...)` | `handle = {sandbox}.pty.connect(pty_id)` | differs; connect returns a process handle without opening a WebSocket; Use handle.stream_logs() for output and handle.stdin(data) for input; Python v2 attach requires an external WebSocket adapter |
+| `sandbox.process.connect_pty_session(...)` | `handle = {sandbox}.pty.connect(pty_id)` | differs; connect returns a process handle without opening a WebSocket; Use handle.stream_logs() for output and handle.write_stdin(data) for input; Python v2 has no PTY attach |
 | `sandbox.process.create_pty_session(...)` | `handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, cols=cols, rows=rows)` | differs; v0 id becomes a name alias; the process receives a new generated id; Expand pty_size into cols and rows; defaults are 80 by 24; Replace on_data or handle iteration with handle.stream_logs(); On AsyncDaytona this call must be awaited |
 | `sandbox.process.create_session(...)` | `session = {sandbox}.process.create_session(name=session_id)` | differs; Returns a Session handle instead of None; request_timeout is removed; The supplied id becomes a name alias; retain session.id; Set shared cwd and env when creating the session; On AsyncDaytona this call must be awaited |
 | `sandbox.process.delete_session(...)` | `{sandbox}.process.connect_session(session_id).delete()` | differs; Ends the shell and removes its command records; request_timeout is removed; Prefer the retained Session handle's delete() |
@@ -439,7 +439,7 @@ TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and 
 | `sandbox.process.list_pty_sessions(...)` | `{sandbox}.pty.list()` | differs; Read ProcessInfo rows from result.items; request_timeout is removed |
 | `sandbox.process.list_sessions(...)` | `{sandbox}.process.list(kind="session")` | differs; Read shell process metadata from result.items; request_timeout is removed; Bind an item with process.connect_session(item.id) |
 | `sandbox.process.resize_pty_session(...)` | `{sandbox}.pty.connect(pty_id).resize(cols, rows)` | differs; Expand PtySize into cols and rows; request_timeout is removed; Returns None rather than PtySessionInfo |
-| `sandbox.process.send_session_command_input(...)` | `{sandbox}.process.connect(command_id).stdin(data)` | differs; Start the command with session.start(command, stdin="open"); Use the returned command handle's id; session_id and request_timeout are removed; Open stdin when starting the command before sending input |
+| `sandbox.process.send_session_command_input(...)` | `{sandbox}.process.connect(command_id).write_stdin(data)` | differs; Start the command with session.start(command, stdin="open"); Use the returned command handle's id; session_id and request_timeout are removed; Open stdin when starting the command before sending input |
 
 ### TypeScript
 
@@ -462,7 +462,7 @@ TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and 
 | `sandbox.process.listPtySessions(...)` | `{sandbox}.pty.list()` | differs; Read ProcessDto rows from result.items |
 | `sandbox.process.listSessions(...)` | `{sandbox}.process.list({ kind: 'session' })` | differs; Read shell process metadata from result.items; Bind an item with process.connectSession(item.id) |
 | `sandbox.process.resizePtySession(...)` | `{sandbox}.pty.connect(ptyId).resize(cols, rows)` | differs; Returns void rather than PtySessionInfo |
-| `sandbox.process.sendSessionCommandInput(...)` | `{sandbox}.process.connect(commandId).stdin(data)` | differs; Start the command with session.start(command, { stdin: 'open' }); Use the returned command handle's id, not the shell session id; Open stdin when starting the command before sending input |
+| `sandbox.process.sendSessionCommandInput(...)` | `{sandbox}.process.connect(commandId).writeStdin(data)` | differs; Start the command with session.start(command, { stdin: 'open' }); Use the returned command handle's id, not the shell session id; Open stdin when starting the command before sending input |
 
 <a id="sandbox-code-interpreter"></a>
 ## `sandbox.code_interpreter` / `sandbox.codeInterpreter`
@@ -599,19 +599,19 @@ v2 compression format is restricted to png or jpeg
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.screenshot.take_full_screen(...)` | `{sandbox}.computer_use.screen.capture(show_cursor=show_cursor)` | differs; Moves to screen.capture with keyword-only show_cursor; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_region(...)` | `{sandbox}.computer_use.screen.region(x=region.x, y=region.y, width=region.width, height=region.height, show_cursor=show_cursor)` | differs; Region fields become separate keyword-only arguments on screen.region; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_compressed(...)` | `{sandbox}.computer_use.screen.capture_compressed(format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Expand options into keyword-only arguments or omit them when options is None; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_compressed_region(...)` | `{sandbox}.computer_use.screen.region_compressed(x=region.x, y=region.y, width=region.width, height=region.height, format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Expand region and options into keyword-only arguments, omitting options fields when None; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_full_screen(...)` | `{sandbox}.computer_use.screen.screenshot(show_cursor=show_cursor)` | differs; Moves to screen.screenshot with keyword-only show_cursor; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), show_cursor=show_cursor)` | differs; The region becomes a ComputerUseRegion passed as region= to screen.screenshot; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_compressed(...)` | `{sandbox}.computer_use.screen.screenshot(format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Expand options into keyword-only arguments or omit them when options is None; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_compressed_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Pass the region as a ComputerUseRegion and expand options into keyword-only arguments, omitting options fields when None; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
 
 ### TypeScript
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computerUse.screenshot.takeFullScreen(...)` | `{sandbox}.computerUse.screen.capture({ showCursor })` | differs; Moves to screen.capture with an options object; The screenshot response field is required |
-| `sandbox.computerUse.screenshot.takeRegion(...)` | `{sandbox}.computerUse.screen.region({ ...region, showCursor })` | differs; Region and showCursor merge into one screen.region options object; The screenshot response field is required |
-| `sandbox.computerUse.screenshot.takeCompressed(...)` | `{sandbox}.computerUse.screen.captureCompressed(options)` | differs; Moves to screen.captureCompressed with format restricted to png or jpeg; The screenshot response field is required |
-| `sandbox.computerUse.screenshot.takeCompressedRegion(...)` | `{sandbox}.computerUse.screen.regionCompressed({ ...region, ...options })` | differs; Region and compression options merge into one screen.regionCompressed object; Only png and jpeg formats are supported; The screenshot response field is required |
+| `sandbox.computerUse.screenshot.takeFullScreen(...)` | `{sandbox}.computerUse.screen.screenshot({ showCursor })` | differs; Moves to screen.screenshot with an options object; The screenshot response field is required |
+| `sandbox.computerUse.screenshot.takeRegion(...)` | `{sandbox}.computerUse.screen.screenshot({ region, showCursor })` | differs; Region and showCursor merge into one screen.screenshot options object; The screenshot response field is required |
+| `sandbox.computerUse.screenshot.takeCompressed(...)` | `{sandbox}.computerUse.screen.screenshot(options)` | differs; Moves to screen.screenshot with format restricted to png or jpeg; The screenshot response field is required |
+| `sandbox.computerUse.screenshot.takeCompressedRegion(...)` | `{sandbox}.computerUse.screen.screenshot({ region, ...options })` | differs; Region and compression options merge into one screen.screenshot options object; Only png and jpeg formats are supported; The screenshot response field is required |
 
 <a id="sandbox-computer-use-display"></a>
 ## `sandbox.computer_use.display` / `sandbox.computerUse.display`
@@ -706,8 +706,8 @@ Python and TypeScript: retain the v2 handle returned by sandbox.lsp.start as lsp
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `lsp_server.completions(...)` | `lsp.completions(uri, position)` | differs; Pass a file URI; v0 added the file:// prefix to path; Pass position as a dict {"line": p.line, "character": p.character} or a v2 LspPosition; a v0 LspCompletionPosition is rejected; request_timeout is removed |
-| `lsp_server.did_close(...)` | `lsp.did_close(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
-| `lsp_server.did_open(...)` | `lsp.did_open(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
+| `lsp_server.did_close(...)` | `lsp.close_document(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
+| `lsp_server.did_open(...)` | `lsp.open_document(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
 | `lsp_server.document_symbols(...)` | `lsp.document_symbols(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
 | `lsp_server.sandbox_symbols(...)` | `lsp.workspace_symbols(query)` | differs; request_timeout is removed |
 | `lsp_server.start(...)` | `lsp = {sandbox}.lsp.start(language_id, path_to_project)` | differs; Start through sandbox.lsp and retain the returned server handle; A v2 server handle has no start() method; request_timeout is removed; On AsyncDaytona this call must be awaited |
@@ -719,8 +719,8 @@ Python and TypeScript: retain the v2 handle returned by sandbox.lsp.start as lsp
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `lspServer.completions(...)` | `lsp.completions(uri, position)` | differs; Pass a file URI; v0 added the file:// prefix to path |
-| `lspServer.didClose(...)` | `lsp.didClose(uri)` | differs; Pass a file URI rather than the v0 path argument |
-| `lspServer.didOpen(...)` | `lsp.didOpen(uri)` | differs; Pass a file URI rather than the v0 path argument |
+| `lspServer.didClose(...)` | `lsp.closeDocument(uri)` | differs; Pass a file URI rather than the v0 path argument |
+| `lspServer.didOpen(...)` | `lsp.openDocument(uri)` | differs; Pass a file URI rather than the v0 path argument |
 | `lspServer.documentSymbols(...)` | `lsp.documentSymbols(uri)` | differs; Pass a file URI rather than the v0 path argument |
 | `lspServer.sandboxSymbols(...)` | `lsp.workspaceSymbols(query)` | differs; Renamed to workspaceSymbols on the v2 LSP handle |
 | `lspServer.start(...)` | `const lsp = await {sandbox}.lsp.start(languageId, pathToProject)` | differs; Start through sandbox.lsp and retain the returned server handle; A v2 server handle has no start() method |
@@ -744,9 +744,9 @@ Python: v2 attach requires an external WebSocket adapter; TypeScript: exitCode a
 | `pty_handle.is_connected(...)` | None | none; No SDK WebSocket-connected predicate; Track custom adapter state separately from handle.get() process state |
 | `pty_handle.kill(...)` | `handle.delete()` | differs; Deletes the PTY process and retained logs, stopping it first; For signal-only behavior use handle.kill(signal="KILL") |
 | `pty_handle.resize(...)` | `handle.resize(cols, rows)` | differs; Expand PtySize into separate cols and rows arguments; Returns None rather than PtySessionInfo |
-| `pty_handle.send_input(...)` | `handle.stdin(data)` | direct |
+| `pty_handle.send_input(...)` | `handle.write_stdin(data)` | direct |
 | `pty_handle.wait(...)` | `handle.wait()` | differs; Returns WaitResult with reason rather than PtyResult with error; Output consumption is separate through handle.stream_logs(); For the v0 sync timeout argument use handle.wait(timeout=timeout) |
-| `pty_handle.wait_for_connection(...)` | None | none; No bundled Python WebSocket attachment handshake; Use HTTP handle.stdin(data) and handle.stream_logs(), or supply a custom adapter |
+| `pty_handle.wait_for_connection(...)` | None | none; No bundled Python WebSocket attachment handshake; Use HTTP handle.write_stdin(data) and handle.stream_logs(), or supply a custom adapter |
 
 ### TypeScript
 
@@ -756,6 +756,6 @@ Python: v2 attach requires an external WebSocket adapter; TypeScript: exitCode a
 | `ptyHandle.isConnected(...)` | None | none; No duplex connected predicate; Track attachment lifecycle and readable completion separately from handle.get() process state |
 | `ptyHandle.kill(...)` | `handle.delete()` | differs; Deletes the PTY process and retained logs, stopping it first; For signal-only behavior use handle.kill({ signal: 'KILL' }) |
 | `ptyHandle.resize(...)` | `handle.resize(cols, rows)` | differs; Returns void rather than PtySessionInfo |
-| `ptyHandle.sendInput(...)` | `handle.stdin(data)` | direct |
+| `ptyHandle.sendInput(...)` | `handle.writeStdin(data)` | direct |
 | `ptyHandle.wait(...)` | `handle.wait()` | differs; Returns WaitResult with reason rather than PtyResult with error; Consume connection.readable or handle.streamLogs() separately |
 | `ptyHandle.waitForConnection(...)` | `const connection = await handle.attach()` | differs; attach opens and awaits a new WebSocket connection; Retain its duplex connection for reading, writing and closing |

@@ -195,6 +195,16 @@ class ComputerUsePoint:
 
 
 @dataclass(frozen=True, slots=True)
+class ComputerUseRegion:
+    """A screen rectangle for ``screen.screenshot(region=...)``."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True, slots=True)
 class ComputerUseScreenshot:
     screenshot: str
     cursor_position: Optional[ComputerUsePoint] = None

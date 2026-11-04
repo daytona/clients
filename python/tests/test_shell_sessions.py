@@ -353,10 +353,10 @@ async def test_list_filters_sessions_when_requested(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("verb", ["resize", "stdin"])
+@pytest.mark.parametrize("verb", ["resize", "write_stdin"])
 async def test_session_process_handle_refuses_input_when_verb_is_not_applicable(
     process: AsyncProcessService,
-    verb: Literal["resize", "stdin"],
+    verb: Literal["resize", "write_stdin"],
 ) -> None:
     # Given a rehydrated session process handle.
     handle = process.connect({"sandboxId": "sandbox", "processId": "shell", "kind": "session"})
@@ -365,7 +365,7 @@ async def test_session_process_handle_refuses_input_when_verb_is_not_applicable(
         match verb:
             case "resize":
                 await handle.resize(80, 24)
-            case "stdin":
-                await handle.stdin("data")
+            case "write_stdin":
+                await handle.write_stdin("data")
             case unreachable:
                 assert_never(unreachable)

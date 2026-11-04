@@ -3987,7 +3987,7 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     const fs = new FileSystemService(transport.object)
 
-    await fs.write('/tmp/a.txt', 'hello', { atomic: true })
+    await fs.writeText('/tmp/a.txt', 'hello', { atomic: true })
     await fs.writeMany({ '/tmp/a.txt': new Uint8Array([1, 2, 3]) }, { atomic: true })
 
     expect(transport.post.mock.calls[0]?.[2]).toEqual({ params: { path: '/tmp/a.txt', atomic: true } })
@@ -4737,9 +4737,9 @@ describe('toolbox service request shaping', () => {
 
     await handle.kill({ signal: 'TERM', escalateAfter: 100, escalateTo: 'KILL' })
     expect(transport.post.mock.calls[1]).toEqual(['/processes/proc/signals', { signal: 'SIGTERM', escalateAfterMs: 100, escalateTo: 'SIGKILL' }])
-    await handle.stdin(new Uint8Array([0, 255]), { eof: true })
-    expect(transport.post.mock.calls[2]).toEqual(['/processes/proc/stdin', { data: 'AP8=', encoding: 'base64', eof: true }])
-    await handle.stdinEof()
+    await handle.writeStdin(new Uint8Array([0, 255]))
+    expect(transport.post.mock.calls[2]).toEqual(['/processes/proc/stdin', { data: 'AP8=', encoding: 'base64' }])
+    await handle.closeStdin()
     expect(transport.post.mock.calls[3]).toEqual(['/processes/proc/stdin', { data: '', eof: true }])
     await expect(handle.resize(120, 40)).rejects.toBeInstanceOf(UnsupportedOperationError)
     await handle.delete()
@@ -4814,20 +4814,20 @@ describe('toolbox service request shaping', () => {
     const codeTransport = transportStub()
     const codeHandle = new ProcessHandle(codeTransport.object, 'sbx', 'code-proc', 'code')
 
-    await expect(codeHandle.stdin('print(1)')).rejects.toBeInstanceOf(UnsupportedOperationError)
-    await expect(codeHandle.stdinEof()).rejects.toBeInstanceOf(UnsupportedOperationError)
+    await expect(codeHandle.writeStdin('print(1)')).rejects.toBeInstanceOf(UnsupportedOperationError)
+    await expect(codeHandle.closeStdin()).rejects.toBeInstanceOf(UnsupportedOperationError)
     expect(codeTransport.post).not.toHaveBeenCalled()
 
     const execTransport = transportStub()
     const execHandle = new ProcessHandle(execTransport.object, 'sbx', 'exec-proc', 'exec')
 
-    await execHandle.stdin('hello')
-    expect(execTransport.post).toHaveBeenCalledWith('/processes/exec-proc/stdin', { data: 'hello', eof: undefined })
+    await execHandle.writeStdin('hello')
+    expect(execTransport.post).toHaveBeenCalledWith('/processes/exec-proc/stdin', { data: 'hello' })
 
     const unknownTransport = transportStub()
     const unknownHandle = new ProcessService(unknownTransport.object, 'sbx').connect('unknown-proc')
 
-    await unknownHandle.stdinEof()
+    await unknownHandle.closeStdin()
     expect(unknownTransport.post).toHaveBeenCalledWith('/processes/unknown-proc/stdin', { data: '', eof: true })
   })
 
@@ -6319,7 +6319,7 @@ describe('toolbox service request shaping', () => {
   it('keeps file delete non-recursive and applies upload mode with chmod', async () => {
     const transport = transportStub()
     const fs = new FileSystemService(transport.object)
-    await fs.rm('/tmp/dir')
+    await fs.remove('/tmp/dir')
     expect(transport.delete.mock.calls[0]?.[1]).toMatchObject({ params: { path: '/tmp/dir' } })
     expect(transport.delete.mock.calls[0]?.[1].params).not.toMatchObject({ recursive: true })
     await fs.writeText('/tmp/file', 'x', { mode: '0644' })
@@ -6905,10 +6905,10 @@ describe('toolbox service request shaping', () => {
     expect(transport.post.mock.calls[0]).toEqual(['/files/folder', undefined, { params: { path: '/tmp/new', mode: '0700' } }])
     await fs.move('/tmp/a', '/tmp/b')
     expect(transport.post.mock.calls[1]).toEqual(['/files/move', undefined, { params: { source: '/tmp/a', destination: '/tmp/b' } }])
-    await expect(fs.find('/tmp', '*.txt')).resolves.toEqual({ items: [{ path: '/tmp/a' }], nextCursor: 'n' })
+    await expect(fs.grep('/tmp', 'needle')).resolves.toEqual({ items: [{ path: '/tmp/a' }], nextCursor: 'n' })
     await expect(fs.list('/tmp/plain')).resolves.toEqual({ items: [{ name: 'b', path: '/tmp/b' }] })
     expect(transport.get.mock.calls[4]).toEqual(['/files', { params: { path: '/tmp/plain' } }])
-    await expect(fs.search('/tmp', 'needle')).resolves.toEqual({ items: ['/tmp/a'] })
+    await expect(fs.glob('/tmp', '*.txt')).resolves.toEqual({ items: ['/tmp/a'] })
     await expect(fs.replace(['/tmp/a'], 'old', 'new')).resolves.toEqual({ items: [{ file: '/tmp/a', replacements: 1 }] })
   })
 
@@ -8533,7 +8533,7 @@ describe('toolbox service request shaping', () => {
     await handle.get()
     await handle.wait({ timeout: 1 })
     await handle.logs()
-    await handle.stdin('x')
+    await handle.writeStdin('x')
     await handle.kill()
     await handle.delete()
     const paths = [...transport.get.mock.calls, ...transport.post.mock.calls, ...transport.delete.mock.calls].map((call) => String(call[0]))
@@ -10401,7 +10401,7 @@ describe('sandbox access tokens', () => {
     })
 
     await expect(sandbox.fs.readText('/tmp/a')).resolves.toBe('hello')
-    await sandbox.fs.write('/tmp/a', 'x')
+    await sandbox.fs.writeText('/tmp/a', 'x')
     await sandbox.fs.writeMany({ '/tmp/b': new Uint8Array([66]) })
     // readMany interprets non-2xx bodies itself; the request must still be
     // the wrapped one (and the 400 arrives as the typed envelope error).
@@ -10890,7 +10890,7 @@ describe('toolbox endpoint e2e', () => {
     const path = `/tmp/sdkts-${Date.now()}.txt`
     await sandbox.fs.writeText(path, 'sdkts-fs')
     await expect(sandbox.fs.readText(path)).resolves.toBe('sdkts-fs')
-    await sandbox.fs.rm(path)
+    await sandbox.fs.remove(path)
   })
 
   it('performs git status against a local repo', async () => {
@@ -10902,7 +10902,7 @@ describe('toolbox endpoint e2e', () => {
       const status = await sandbox.git.status(repo)
       expect(status.currentBranch).toBeTruthy()
     } finally {
-      await sandbox.fs.rm(repo, { recursive: true }).catch(() => undefined)
+      await sandbox.fs.remove(repo, { recursive: true }).catch(() => undefined)
     }
   })
 
@@ -10927,12 +10927,31 @@ describe('toolbox endpoint e2e', () => {
 
     expect(transport.get.mock.calls[1]?.[0]).toBe('/computeruse/process/wm/status')
     expect(transport.get.mock.calls[2]?.[0]).toBe('/computeruse/screenshot')
-    expect(transport.get.mock.calls[2]?.[1]).toMatchObject({ params: { show_cursor: true } })
+    expect(transport.get.mock.calls[2]?.[1]).toMatchObject({ params: { show_cursor: 'true' } })
     expect(transport.get.mock.calls[3]?.[0]).toBe('/computeruse/display/info')
     expect(transport.get.mock.calls[4]?.[0]).toBe('/computeruse/display/windows')
     expect(transport.get.mock.calls[5]?.[0]).toBe('/computeruse/a11y/tree')
     expect(transport.get.mock.calls[5]?.[1]).toMatchObject({ params: { scope: 'pid', pid: 44, maxDepth: 2 } })
     expect(transport.getBytes).toHaveBeenCalledWith('/computeruse/recordings/rec-1/download')
+  })
+
+  it('routes screen.screenshot() by region and compression options', async () => {
+    const transport = transportStub()
+    transport.get.mockResolvedValue({ screenshot: 'abc' })
+    const screen = new ComputerUseService(transport.computerUseObject).screen
+    const region = { x: 1, y: 2, width: 30, height: 40 }
+
+    await screen.screenshot()
+    await screen.screenshot({ region, showCursor: false })
+    await screen.screenshot({ format: 'jpeg', quality: 80, scale: 0.5 })
+    await screen.screenshot({ region, quality: 60 })
+
+    expect(transport.get.mock.calls).toEqual([
+      ['/computeruse/screenshot', { params: {} }],
+      ['/computeruse/screenshot/region', { params: { x: '1', y: '2', width: '30', height: '40', show_cursor: 'false' } }],
+      ['/computeruse/screenshot/compressed', { params: { format: 'jpeg', quality: '80', scale: '0.5' } }],
+      ['/computeruse/screenshot/region/compressed', { params: { x: '1', y: '2', width: '30', height: '40', quality: '60' } }],
+    ])
   })
 
   it('shapes port and lsp requests and unwraps their payloads', async () => {
@@ -10980,8 +10999,8 @@ describe('toolbox endpoint e2e', () => {
     const lsp = new LspService(lspTransport.object)
     const server = await lsp.start('python', '/p')
 
-    await server.didOpen('file:///p/a.py')
-    await server.didClose('file:///p/a.py')
+    await server.openDocument('file:///p/a.py')
+    await server.closeDocument('file:///p/a.py')
     await expect(server.completions('file:///p/a.py', { line: 2, character: 5 })).resolves.toEqual({ isIncomplete: false, items: [{ label: 'append' }] })
     await expect(server.completions('file:///p/a.py', { line: -1, character: 5 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     await expect(server.documentSymbols('file:///p/a.py')).resolves.toHaveLength(1)

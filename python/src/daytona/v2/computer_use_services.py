@@ -56,6 +56,7 @@ from .computer_use_types import (
     ComputerUseProcessStatus,
     ComputerUseRecording,
     ComputerUseRecordingList,
+    ComputerUseRegion,
     ComputerUseScreenshot,
     ComputerUseScreenshotFormat,
     ComputerUseScrollDirection,
@@ -258,108 +259,37 @@ class AsyncScreenService:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    @staticmethod
-    def _show_cursor_params(show_cursor: bool | None) -> dict[str, JsonValue]:
+    async def screenshot(
+        self,
+        *,
+        region: ComputerUseRegion | None = None,
+        format: ComputerUseScreenshotFormat | None = None,
+        quality: int | None = None,
+        scale: float | None = None,
+        show_cursor: bool | None = None,
+    ) -> ComputerUseScreenshot:
+        """Capture the screen, or ``region`` of it.
+
+        Setting any of ``format``, ``quality`` or ``scale`` returns a compressed image.
+        """
+        compressed = format is not None or quality is not None or scale is not None
         params: dict[str, JsonValue] = {}
+        if region is not None:
+            params.update(
+                computer_use_params(x=region.x, y=region.y, width=region.width, height=region.height)
+            )
+        if compressed:
+            params.update(computer_use_params(format=format, quality=quality, scale=scale))
         if show_cursor is not None:
             params["show_cursor"] = str(show_cursor).lower()
-        return params
-
-    async def capture(self, *, show_cursor: bool | None = None) -> ComputerUseScreenshot:
-        return parse_computer_use_screenshot(
-            expect_computer_use_screenshot_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/screenshot",
-                        params=self._show_cursor_params(show_cursor),
-                    )
-                )
-            )
+        region_route = (
+            "/computeruse/screenshot/region/compressed" if compressed else "/computeruse/screenshot/region"
         )
-
-    async def region(
-        self,
-        *,
-        x: int,
-        y: int,
-        width: int,
-        height: int,
-        show_cursor: bool | None = None,
-    ) -> ComputerUseScreenshot:
+        full_route = "/computeruse/screenshot/compressed" if compressed else "/computeruse/screenshot"
+        route = full_route if region is None else region_route
         return parse_computer_use_screenshot(
             expect_computer_use_screenshot_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/screenshot/region",
-                        params=computer_use_params(
-                            x=x,
-                            y=y,
-                            width=width,
-                            height=height,
-                            **self._show_cursor_params(show_cursor),
-                        ),
-                    )
-                )
-            )
-        )
-
-    async def capture_compressed(
-        self,
-        *,
-        format: ComputerUseScreenshotFormat | None = None,
-        quality: int | None = None,
-        scale: float | None = None,
-        show_cursor: bool | None = None,
-    ) -> ComputerUseScreenshot:
-        return parse_computer_use_screenshot(
-            expect_computer_use_screenshot_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/screenshot/compressed",
-                        params=computer_use_params(
-                            format=format,
-                            quality=quality,
-                            scale=scale,
-                            **self._show_cursor_params(show_cursor),
-                        ),
-                    )
-                )
-            )
-        )
-
-    async def region_compressed(
-        self,
-        *,
-        x: int,
-        y: int,
-        width: int,
-        height: int,
-        format: ComputerUseScreenshotFormat | None = None,
-        quality: int | None = None,
-        scale: float | None = None,
-        show_cursor: bool | None = None,
-    ) -> ComputerUseScreenshot:
-        return parse_computer_use_screenshot(
-            expect_computer_use_screenshot_response(
-                await self._transport.send(
-                    RequestSpec(
-                        "GET",
-                        "/computeruse/screenshot/region/compressed",
-                        params=computer_use_params(
-                            x=x,
-                            y=y,
-                            width=width,
-                            height=height,
-                            format=format,
-                            quality=quality,
-                            scale=scale,
-                            **self._show_cursor_params(show_cursor),
-                        ),
-                    )
-                )
+                await self._transport.send(RequestSpec("GET", route, params=params))
             )
         )
 

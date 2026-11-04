@@ -90,6 +90,7 @@ from daytona.v2.computer_use_types import (
     ComputerUseA11yNameMatch,
     ComputerUseA11yScope,
     ComputerUsePoint,
+    ComputerUseRegion,
 )
 from daytona.v2.daytona import AsyncDaytona, _create_body, _create_path
 from daytona.v2.docker import DOCKER_WAIT_DEADLINE_GRACE_SECONDS, AsyncDockerService
@@ -3369,7 +3370,7 @@ async def test_computer_use_namespace_shapes_requests_and_parses_results():
     status = await namespace.service.status()
     assert status["wm"].priority == 5
     assert (await namespace.service.status("wm")).running is True
-    screenshot = await namespace.screen.capture(show_cursor=True)
+    screenshot = await namespace.screen.screenshot(show_cursor=True)
     assert screenshot.cursor_position == ComputerUsePoint(1, 2)
     assert (await namespace.display.info()).displays[0].id == 0
     assert (await namespace.display.windows()).windows[0].id == 14680067
@@ -3379,6 +3380,39 @@ async def test_computer_use_namespace_shapes_requests_and_parses_results():
     sent = namespace._transport.sent  # type: ignore[attr-defined]
     assert sent[3].params == {"show_cursor": "true"}
     assert sent[6].params == {"scope": "pid", "pid": 77, "maxDepth": 2}
+
+
+@pytest.mark.anyio
+async def test_screen_screenshot_routes_by_region_and_compression_options():
+    class Transport:
+        def __init__(self) -> None:
+            self.sent: list[RequestSpec] = []
+
+        async def send(self, spec: RequestSpec) -> dict[str, object]:
+            self.sent.append(spec)
+            return {"screenshot": "abc", "sizeBytes": 3}
+
+    transport = Transport()
+    screen = AsyncComputerUseService(transport).screen  # type: ignore[arg-type]
+    region = ComputerUseRegion(x=1, y=2, width=30, height=40)
+
+    await screen.screenshot()
+    await screen.screenshot(region=region, show_cursor=False)
+    await screen.screenshot(format="jpeg", quality=80, scale=0.5)
+    await screen.screenshot(region=region, quality=60)
+
+    assert [(spec.path, spec.params) for spec in transport.sent] == [
+        ("/computeruse/screenshot", {}),
+        (
+            "/computeruse/screenshot/region",
+            {"x": 1, "y": 2, "width": 30, "height": 40, "show_cursor": "false"},
+        ),
+        ("/computeruse/screenshot/compressed", {"format": "jpeg", "quality": 80, "scale": 0.5}),
+        (
+            "/computeruse/screenshot/region/compressed",
+            {"x": 1, "y": 2, "width": 30, "height": 40, "quality": 60},
+        ),
+    ]
 
 
 @pytest.mark.anyio
@@ -3525,8 +3559,8 @@ async def test_ports_and_lsp_namespaces_shape_requests_and_parse_results():
     lsp_transport = Transport()
     lsp = AsyncLspService(lsp_transport)  # type: ignore[arg-type]
     server = await lsp.start("python", "/p")
-    await server.did_open("file:///p/a.py")
-    await server.did_close("file:///p/a.py")
+    await server.open_document("file:///p/a.py")
+    await server.close_document("file:///p/a.py")
     assert lsp_transport.sent[0].json_body == {"languageId": "python", "pathToProject": "/p"}
     assert lsp_transport.sent[1].json_body == {
         "languageId": "python",
@@ -5638,10 +5672,10 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
     assert stat.name == "a"
     assert stat.path == "/tmp/a"
     await fs.mkdir("/tmp/new", mode="0700")
-    await fs.delete("/tmp/a", recursive=True)
+    await fs.remove("/tmp/a", recursive=True)
     await fs.move("/tmp/a", "/tmp/b")
-    assert (await fs.find("/tmp", "*.txt")).next_cursor == "fn"
-    assert (await fs.search("/tmp", "needle")).items == ["/tmp/a"]
+    assert (await fs.grep("/tmp", "needle")).next_cursor == "fn"
+    assert (await fs.glob("/tmp", "*.txt")).items == ["/tmp/a"]
     assert (await fs.replace(["/tmp/a"], "old", "new")).items == [{"file": "/tmp/a", "replacements": 1}]
     await fs.chmod("/tmp/a", mode="0644", owner="me", group="staff")
     assert transport.specs[13].path == "/files/download"
@@ -6528,7 +6562,7 @@ async def test_process_ids_are_strictly_percent_encoded_in_every_request_path() 
     await handle.get()
     await handle.wait(timeout=1)
     await handle.logs()
-    await handle.stdin("x")
+    await handle.write_stdin("x")
     await handle.kill()
     await handle.delete()
     paths = [spec.path for spec in transport.specs]
@@ -7979,11 +8013,11 @@ async def test_process_stdin_rejects_known_code_handles_without_a_wire_call() ->
     handle = AsyncProcessHandle("sbx", "proc", transport, kind="code")  # type: ignore[arg-type]
 
     with pytest.raises(UnsupportedOperationError) as stdin_exc:
-        await handle.stdin("print(1)")
+        await handle.write_stdin("print(1)")
     assert stdin_exc.value.code == codes.UNSUPPORTED_OPERATION
 
     with pytest.raises(UnsupportedOperationError) as eof_exc:
-        await handle.stdin_eof()
+        await handle.close_stdin()
     assert eof_exc.value.code == codes.UNSUPPORTED_OPERATION
     assert transport.specs == []
 
@@ -7993,7 +8027,7 @@ async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() 
     exec_transport = RecordingTransport([{}])
     exec_handle = AsyncProcessHandle("sbx", "exec-proc", exec_transport, kind="exec")  # type: ignore[arg-type]
 
-    await exec_handle.stdin("hello")
+    await exec_handle.write_stdin("hello")
     assert exec_transport.specs == [
         RequestSpec("POST", "/processes/exec-proc/stdin", json_body={"eof": False, "data": "hello"})
     ]
@@ -8001,7 +8035,7 @@ async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() 
     unknown_transport = RecordingTransport([{}])
     unknown_handle = AsyncProcessHandle("sbx", "unknown-proc", unknown_transport)  # type: ignore[arg-type]
 
-    await unknown_handle.stdin_eof()
+    await unknown_handle.close_stdin()
     assert unknown_transport.specs == [
         RequestSpec("POST", "/processes/unknown-proc/stdin", json_body={"eof": True, "data": ""})
     ]

@@ -47,8 +47,8 @@ def main() -> int:
         script_out = sandbox.process.run(f"./{d}/script.sh")
         info(f"script output: {script_out.output.strip()}")
 
-        section("search (by name pattern)")
-        found = sandbox.fs.search(d, "*.json")
+        section("glob (by name pattern)")
+        found = sandbox.fs.glob(d, "*.json")
         info(f"json files: {found.items}")
 
         section("replace (edit config in place)")

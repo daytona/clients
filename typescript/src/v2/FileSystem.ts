@@ -195,7 +195,7 @@ export class FileSystemService {
     private readonly fileUrlSigner?: FileUrlSigner,
   ) {}
 
-  public async read(path: string, _options: ReadFileOptions = {}): Promise<Uint8Array> {
+  public async readBytes(path: string, _options: ReadFileOptions = {}): Promise<Uint8Array> {
     // Through the transport's wrapped method, never the raw axios instance:
     // the wrapper carries the per-sandbox token (minting/refreshing it) and
     // retries once on a 401 — the raw instance only has the static
@@ -208,23 +208,22 @@ export class FileSystemService {
   }
 
   public async readText(path: string, options: ReadFileOptions = {}): Promise<string> {
-    return new TextDecoder().decode(await this.read(path, options))
+    return new TextDecoder().decode(await this.readBytes(path, options))
   }
 
-  public async write(path: string, data: string | Uint8Array, options: WriteFileOptions = {}): Promise<void> {
+  public async writeBytes(path: string, data: Uint8Array, options: WriteFileOptions = {}): Promise<void> {
     const form = new FormData()
     form.append('path', path)
     if (options.mode) form.append('mode', options.mode)
-    const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
-    const ab = new ArrayBuffer(bytes.byteLength)
-    new Uint8Array(ab).set(bytes)
+    const ab = new ArrayBuffer(data.byteLength)
+    new Uint8Array(ab).set(data)
     form.append('file', new Blob([ab]), path.split('/').pop() || 'file')
     await this.transport.post('/files/upload', form, { params: uploadQuery(path, options.atomic) })
     if (options.mode) await this.chmod(path, { mode: options.mode })
   }
 
   public async writeText(path: string, text: string, options: WriteFileOptions = {}): Promise<void> {
-    await this.write(path, text, options)
+    await this.writeBytes(path, new TextEncoder().encode(text), options)
   }
 
   /** Stream a local file to the sandbox without buffering the full body in memory. Progress callback errors are swallowed. Node.js only. */
@@ -298,7 +297,7 @@ export class FileSystemService {
     await this.transport.post<void>('/files/folder', undefined, { params: { path, mode: options.mode ?? '0755' } })
   }
 
-  public async rm(path: string, options: { recursive?: boolean } = {}): Promise<void> {
+  public async remove(path: string, options: { recursive?: boolean } = {}): Promise<void> {
     await this.transport.delete<void>('/files', { params: { path, recursive: options.recursive } })
   }
 
@@ -306,7 +305,8 @@ export class FileSystemService {
     await this.transport.post<void>('/files/move', undefined, { params: { source, destination } })
   }
 
-  public async find(path: string, pattern: string): Promise<ListResult<FileMatch>> {
+  /** Search file contents under `path` for the literal substring `pattern`; returns matches with one-based line numbers. */
+  public async grep(path: string, pattern: string): Promise<ListResult<FileMatch>> {
     const data = await this.transport.get<toolbox.Match[] | ListResult<toolbox.Match>>('/files/find', { params: { path, pattern } })
     return Array.isArray(data) ? { items: data } : data
   }
@@ -423,7 +423,8 @@ export class FileSystemService {
     return handle
   }
 
-  public async search(path: string, pattern: string): Promise<ListResult<string>> {
+  /** Return the paths of files under `path` whose base name matches the glob `pattern`. */
+  public async glob(path: string, pattern: string): Promise<ListResult<string>> {
     const data = await this.transport.get<toolbox.SearchResponse | string[] | ListResult<string>>('/files/search', { params: { path, pattern } })
     if (Array.isArray(data)) return { items: data }
     if ('items' in data) return data

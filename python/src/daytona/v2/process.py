@@ -252,14 +252,14 @@ class AsyncProcessHandle:
                     "DAYTONA_DAEMON",
                 )
 
-    async def stdin(self, data: Union[str, bytes], *, eof: bool = False) -> None:
-        """Write stdin to an exec or PTY process created with stdin='open'."""
-        self._require_stdin_kind("stdin")
-        await self._send(stdin_spec(self.process_id, data, eof=eof))
+    async def write_stdin(self, data: Union[str, bytes]) -> None:
+        """Write to the stdin of an exec or PTY process created with stdin='open'."""
+        self._require_stdin_kind("write_stdin")
+        await self._send(stdin_spec(self.process_id, data, eof=False))
 
-    async def stdin_eof(self) -> None:
-        """Close stdin for an exec or PTY process."""
-        self._require_stdin_kind("stdin_eof")
+    async def close_stdin(self) -> None:
+        """Close the stdin of an exec or PTY process (EOF)."""
+        self._require_stdin_kind("close_stdin")
         await self._send(stdin_spec(self.process_id, "", eof=True))
 
     async def kill(
@@ -283,16 +283,6 @@ class AsyncProcessHandle:
         """Resize a PTY process."""
         self._require_pty_kind("resize")
         await self._send(resize_spec(self.process_id, cols=cols, rows=rows))
-
-    def attach(self) -> None:
-        """Attach is optional in Python because no runtime WebSocket dependency is bundled."""
-        self._require_pty_kind("attach")
-        raise UnsupportedOperationError(
-            "PTY attach requires a WebSocket adapter; the SDK ships without an extra runtime dependency",
-            status_code=400,
-            code=codes.UNSUPPORTED_OPERATION,
-            source="SDK",
-        )
 
     async def delete(self) -> None:
         """Delete the process record and retained logs, stopping it first.

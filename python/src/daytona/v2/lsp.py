@@ -76,7 +76,8 @@ class AsyncLspServer:
     ) -> None:
         await self.stop()
 
-    async def did_open(self, uri: str) -> None:
+    async def open_document(self, uri: str) -> None:
+        """Notify the server that the document at ``uri`` was opened."""
         await self._transport.send(
             RequestSpec(
                 "POST",
@@ -89,7 +90,8 @@ class AsyncLspServer:
             )
         )
 
-    async def did_close(self, uri: str) -> None:
+    async def close_document(self, uri: str) -> None:
+        """Notify the server that the document at ``uri`` was closed."""
         await self._transport.send(
             RequestSpec(
                 "POST",

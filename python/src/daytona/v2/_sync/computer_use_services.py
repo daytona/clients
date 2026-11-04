@@ -263,51 +263,18 @@ class ScreenService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def capture(self, *, show_cursor: bool | None = None) -> ComputerUseScreenshot:
-        return self._bridge.call(lambda: self._impl.capture(show_cursor=show_cursor))
-
-    def capture_compressed(
+    def screenshot(
         self,
         *,
+        region: ComputerUseRegion | None = None,
         format: ComputerUseScreenshotFormat | None = None,
         quality: int | None = None,
         scale: float | None = None,
         show_cursor: bool | None = None,
     ) -> ComputerUseScreenshot:
+        """Capture the screen, or ``region`` of it."""
         return self._bridge.call(
-            lambda: self._impl.capture_compressed(
-                format=format, quality=quality, scale=scale, show_cursor=show_cursor
-            )
-        )
-
-    def region(
-        self, *, x: int, y: int, width: int, height: int, show_cursor: bool | None = None
-    ) -> ComputerUseScreenshot:
-        return self._bridge.call(
-            lambda: self._impl.region(x=x, y=y, width=width, height=height, show_cursor=show_cursor)
-        )
-
-    def region_compressed(
-        self,
-        *,
-        x: int,
-        y: int,
-        width: int,
-        height: int,
-        format: ComputerUseScreenshotFormat | None = None,
-        quality: int | None = None,
-        scale: float | None = None,
-        show_cursor: bool | None = None,
-    ) -> ComputerUseScreenshot:
-        return self._bridge.call(
-            lambda: self._impl.region_compressed(
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                format=format,
-                quality=quality,
-                scale=scale,
-                show_cursor=show_cursor,
+            lambda: self._impl.screenshot(
+                region=region, format=format, quality=quality, scale=scale, show_cursor=show_cursor
             )
         )

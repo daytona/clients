@@ -43,7 +43,7 @@ async function main() {
     info(`current branch=${st0.currentBranch}`)
 
     section('add + commit a new file')
-    await sandbox.fs.write(`${repo}/daytona-note.txt`, new TextEncoder().encode(`hello from ${RUN}\n`))
+    await sandbox.fs.writeBytes(`${repo}/daytona-note.txt`, new TextEncoder().encode(`hello from ${RUN}\n`))
     await git.add(repo, ['daytona-note.txt'])
     const commit = await git.commit(repo, 'add daytona-note', { author: 'Ada Lovelace', email: 'ada@example.com' })
     info(`commit hash=${commit.hash}`)

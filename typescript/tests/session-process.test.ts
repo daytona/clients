@@ -22,14 +22,14 @@ describe('session process controls', () => {
     expect(PROCESS_KINDS).toContain('session')
   })
 
-  it.each(['attach', 'resize', 'stdin', 'stdinEof'] as const)('refuses %s on a reconnected session process handle', async (verb) => {
+  it.each(['attach', 'resize', 'writeStdin', 'closeStdin'] as const)('refuses %s on a reconnected session process handle', async (verb) => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const request = jest.spyOn(transport.http, 'request')
     const handle = new ProcessService(transport, 'sandbox-1').connect({ sandboxId: 'sandbox-1', processId: 'shell-1', kind: 'session' })
     const invoke = {
       attach: () => handle.attach(), resize: () => handle.resize(80, 24),
-      stdin: () => handle.stdin('hello'), stdinEof: () => handle.stdinEof(),
+      writeStdin: () => handle.writeStdin('hello'), closeStdin: () => handle.closeStdin(),
     }
     // When / Then
     await expect(invoke[verb]()).rejects.toBeInstanceOf(UnsupportedOperationError)

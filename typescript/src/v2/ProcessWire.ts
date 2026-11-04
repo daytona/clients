@@ -96,7 +96,7 @@ export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: 
   )
 }
 
-export function invalidStdinVerbError(verb: 'stdin' | 'stdinEof', kind: ProcessKind): UnsupportedOperationError {
+export function invalidStdinVerbError(verb: 'writeStdin' | 'closeStdin', kind: ProcessKind): UnsupportedOperationError {
   return new UnsupportedOperationError(
     `process.${verb}() is only supported for exec and pty handles; handle kind is ${kind}`,
     400, 'UNSUPPORTED_OPERATION', 'SDK',
