@@ -184,7 +184,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
+          cache-dependency-path: |
+            typescript/package-lock.json
+            upgrade/typescript/package-lock.json
       - name: Build the 2.x TypeScript SDK with the pinned v0 bundle
         run: |
           set -euo pipefail
@@ -203,7 +205,10 @@ jobs:
         working-directory: upgrade/typescript
         env:
           DAYTONA_UPGRADE_V0_EXAMPLES: ${{ runner.temp }}/v0-src/examples
-        run: npx vitest run tests/examples.test.ts
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npx vitest run tests/examples.test.ts
 
   examples-python:
     name: Pinned 0.x Python examples upgraded and type-checked against 2.x
@@ -253,4 +258,4 @@ jobs:
         working-directory: upgrade/python
         env:
           DAYTONA_UPGRADE_V0_EXAMPLES: ${{ runner.temp }}/v0-src/examples
-        run: uv run pytest -q -n 3 tests/test_examples.py
+        run: uv run --locked pytest -q -n 3 tests/test_examples.py

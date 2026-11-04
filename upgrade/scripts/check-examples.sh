@@ -2,7 +2,7 @@
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Upgrade the pinned 0.x SDK's own examples with both daytona-upgrade tools and
+# Upgrade the pinned 0.x SDK's own examples with the daytona-upgrade tools and
 # type-check the result against SDK 2.x. Proves, on real 0.x code, that the tools leave nothing
 # a type checker can see as a 0.x-only call or import, and that a second run
 # changes nothing.
@@ -11,7 +11,7 @@
 #          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--work <dir>]
 # Checks each language whose SDK artifact is given (at least one). The artifacts
 # must carry the v0 bundle (scripts/bundle-v0.sh).
-# Needs node/npm, python3 with uv, and git on PATH.
+# Needs git, plus node/npm for TypeScript and python3 with uv for Python, on PATH.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -20,8 +20,8 @@ src='' wheel='' tarball='' work=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --src) src=$2; shift 2 ;;
-    --py-wheel) wheel=$2; shift 2 ;;
-    --ts-tarball) tarball=$2; shift 2 ;;
+    --py-wheel) wheel=${2:?--py-wheel needs a wheel path}; shift 2 ;;
+    --ts-tarball) tarball=${2:?--ts-tarball needs a tarball path}; shift 2 ;;
     --work) work=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -139,4 +139,4 @@ then
 fi
 [ "$fail" -eq 0 ] || { echo "FAIL: upgraded Python examples still use 0.x-only names" >&2; exit 1; }
 fi
-echo "OK: the upgraded pinned 0.x examples type-check against SDK 2.x (${tarball:+TypeScript }${wheel:+Python})"
+echo "OK: the upgraded pinned 0.x examples type-check against SDK 2.x (${tarball:+TypeScript}${tarball:+${wheel:+, }}${wheel:+Python})"

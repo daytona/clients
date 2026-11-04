@@ -17,9 +17,7 @@ const installed = mkdtempSync(join(tmpdir(), 'daytona-upgrade-pack-'));
 const shell = process.platform === 'win32';
 afterAll(() => { rmSync(installed, { recursive: true, force: true }); });
 beforeAll(() => {
-  // Given: install the actual published artifact, including npm's bin symlink.
-  const built = spawnSync('npm', ['run', 'build'], { cwd: packageRoot, encoding: 'utf8', shell });
-  expect(built.status, built.stderr + built.stdout).toBe(0);
+  // Given: install the actual published artifact, including npm's bin symlink (dist/ comes from the global setup).
   const packed = spawnSync('npm', ['pack', '--pack-destination', installed, '--json'], { cwd: packageRoot, encoding: 'utf8', shell });
   expect(packed.status, packed.stderr).toBe(0);
   // Reuse the complete lockfile so a fresh npm ci cache needs no registry metadata.
