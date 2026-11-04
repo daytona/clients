@@ -1,0 +1,14 @@
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 232-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67839d5031d2074da6e2aeb7a0688ac8adf4dc4c",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
