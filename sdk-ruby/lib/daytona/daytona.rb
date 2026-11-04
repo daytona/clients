@@ -111,7 +111,8 @@ module Daytona
     #   auto_pause_interval are both non-zero
     # @raise [Daytona::Sdk::TimeoutError] If the Sandbox is not started within timeout. When the Sandbox was
     #   already created, the error's sandbox_id names it: it may still be starting, so fetch it with #get
-    #   and remove it with #delete
+    #   and remove it with #delete. When the create request itself timed out, sandbox_id is nil, but the API
+    #   may still have created the Sandbox: find it by its labels with #list (it can take a few seconds to show up)
     # @raise [Daytona::Sdk::QueueTimeoutError] If the API destroyed the Sandbox because it waited longer than
     #   queue_timeout for a runner
     # @raise [Daytona::Sdk::SpotEvictedError] If the Sandbox was destroyed by spot preemption while starting
@@ -339,7 +340,7 @@ module Daytona
         end
       end
 
-      response = sandbox_api.create_sandbox(create_sandbox)
+      response = request_sandbox_creation(create_sandbox, timeout, start_time)
       sandbox_id = response.id
 
       if response.state == DaytonaApiClient::SandboxState::PENDING_BUILD && on_snapshot_create_logs
@@ -450,6 +451,37 @@ module Daytona
       return if timeout.zero? || monotonic_now - start_time < timeout
 
       raise Sdk::TimeoutError, "Sandbox build has been pending for more than #{timeout} seconds"
+    end
+
+    # Sends the create request with what is left of timeout as its HTTP timeout.
+    #
+    # @param create_sandbox [DaytonaApiClient::CreateSandbox]
+    # @param timeout [Numeric]
+    # @param start_time [Float] Reading of #monotonic_now
+    # @return [DaytonaApiClient::Sandbox]
+    # @raise [Daytona::Sdk::TimeoutError] If timeout runs out before or during the request
+    def request_sandbox_creation(create_sandbox, timeout, start_time)
+      message = "Failed to create and start sandbox within #{timeout} seconds. Operation timed out."
+      # Once timeout has run out (e.g. while uploading the build context), don't create a Sandbox
+      # that the TimeoutError could not name.
+      raise Sdk::TimeoutError, message unless timeout.zero? || monotonic_now - start_time < timeout
+
+      client = api_client_with_timeout(remaining_timeout(timeout, start_time))
+      DaytonaApiClient::SandboxApi.new(client).create_sandbox(create_sandbox)
+    rescue DaytonaApiClient::ApiError => e
+      # The generated client raises this, without a status code, when the request times out.
+      raise unless e.code.nil? && e.message == 'Connection timed out'
+
+      raise Sdk::TimeoutError, message
+    end
+
+    # The generated client takes a timeout only from its configuration, so this copies api_client with a
+    # configuration that differs only in the timeout. Headers and settings changed on api_client still apply.
+    #
+    # @param timeout [Numeric] HTTP timeout in seconds. Sandbox::NO_TIMEOUT (0) means no timeout.
+    # @return [DaytonaApiClient::ApiClient]
+    def api_client_with_timeout(timeout)
+      api_client.dup.tap { |client| client.config = api_client.config.dup.tap { |c| c.timeout = timeout } }
     end
 
     # @return [Float] Seconds on a clock that wall clock changes don't move, for measuring timeouts
