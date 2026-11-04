@@ -1,9 +1,9 @@
 /*
  * file-operations — upload, list, search, replace, and download files.
  *
- * Uses the single-file helpers `fs.writeBytes(path, bytes)`, `fs.writeText(path, text)` and `fs.readBytes(path)`
- * (bytes in / Uint8Array out). Paths are relative to the sandbox's working
- * directory.
+ * Uses the single-file helpers `fs.writeBytes(path, bytes)` and
+ * `fs.writeText(path, text)` to write, and `fs.readBytes(path)` (returns a
+ * Uint8Array) to read. Paths are relative to the sandbox's working directory.
  *
  * Run (from examples):
  *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
