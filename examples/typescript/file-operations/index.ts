@@ -1,7 +1,7 @@
 /*
  * file-operations — upload, list, search, replace, and download files.
  *
- * Uses the single-file helpers `fs.writeBytes(path, bytes)` and `fs.readBytes(path)`
+ * Uses the single-file helpers `fs.writeBytes(path, bytes)`, `fs.writeText(path, text)` and `fs.readBytes(path)`
  * (bytes in / Uint8Array out). Paths are relative to the sandbox's working
  * directory.
  *
@@ -26,7 +26,7 @@ async function main() {
     const before = (await sandbox.fs.list('.')).items
     info(`entries in cwd: ${before.map((f) => f.name).join(', ')}`)
 
-    section('writeBytes (from in-memory bytes)')
+    section('writeBytes / writeText (from memory)')
     const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)
     await sandbox.fs.writeBytes(`${dir}/config.json`, new TextEncoder().encode(config))
     await sandbox.fs.writeText(`${dir}/script.sh`, '#!/bin/bash\necho "Hello from script!"\n')
