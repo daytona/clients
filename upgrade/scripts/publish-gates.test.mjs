@@ -63,9 +63,9 @@ for (const ref of ['refs/heads/main', 'refs/heads/release/v2', 'refs/heads/featu
     // Given: the ref from which the workflow was dispatched.
     const env = { ...process.env, GITHUB_REF: ref };
     // When: executing the workflow's entry gate.
-    const result = spawnSync('bash', ['-c', step('Require dispatch from the 2.x line')], { encoding: 'utf8', env });
-    // Then: only the 2.x line proceeds; other refs report an explicit workflow error.
-    const allowed = ref === 'refs/heads/main' || ref === 'refs/heads/release/v2';
+    const result = spawnSync('bash', ['-c', step('Require dispatch from main')], { encoding: 'utf8', env });
+    // Then: only main proceeds; other refs report an explicit workflow error.
+    const allowed = ref === 'refs/heads/main';
     assert.equal(result.status, allowed ? 0 : 1, result.stderr);
     if (!allowed) assert.match(result.stdout, /::error::/);
   });

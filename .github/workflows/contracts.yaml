@@ -5,7 +5,7 @@ name: Contract types
 # must come with its regenerated types (and the SDK changes they force).
 on:
   push:
-    branches: [main, release/v2]
+    branches: [main]
   pull_request:
     paths:
       - 'contract/**'

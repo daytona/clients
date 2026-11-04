@@ -5,7 +5,7 @@ name: License headers
 # files are exempt. Fix locally with `license-eye -c .licenserc.yaml header fix`.
 on:
   push:
-    branches: [main, release/v2]
+    branches: [main]
   pull_request:
 
 permissions:

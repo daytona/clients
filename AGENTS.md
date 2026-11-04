@@ -42,7 +42,7 @@ husky hooks. Scans need git 2.36 or later.
 - `pre-commit` scans the staged changes; `pre-push` scans the commits the
   remote does not have yet (merge commits included), which catches commits
   made before the hooks were enabled. The `Secret scan` workflow runs the same scan on every pull request
-  and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`:
+  and on pushes to `main`. The rules are `.gitleaks.toml`:
   the gitleaks defaults plus Daytona API keys, organization keys, sandbox
   tokens and invitation tokens.
 - **Never bypass a block** (`--no-verify`, removing the hooks path, editing
