@@ -70,7 +70,7 @@ gh workflow run sdk_publish.yaml --ref main -f version=v2.1.0-alpha.2 -f source_
 
 A 0.x version is refused here. A run whose gate passes and whose builds and
 tests are green waits for **one** approval on the `release` environment,
-before any credential is used (a run that fails earlier asks for none); the
+before any publishing credential is used (a run that fails earlier asks for none); the
 run summary names both the source commit and the workflow commit. The built
 packages are kept for 7 days: approve within that, or dispatch again.
 

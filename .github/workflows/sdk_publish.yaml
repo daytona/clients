@@ -43,9 +43,9 @@ name: SDK Publish
 #   - a PRE-RELEASE (X.Y.Z-alpha.N / -beta.N / -rc.N) may publish any commit
 #     (`source_ref`), so a feature can ship an alpha before it merges;
 #   - a 0.x version is refused: the 0.x line publishes from `release/v0`.
-# Every run asks for ONE approval on the `release` environment, once the
-# builds and tests are green and before any credential is used; the summary
-# names the source commit.
+# A run asks for ONE approval on the `release` environment, once the gate
+# passed and the builds and tests are green, and before any publishing
+# credential is used; the summary names the source commit.
 #
 # ── Build / publish split ────────────────────────────────────────────────────
 # `gate` resolves the version, checks the source rule, and snapshots the
@@ -628,7 +628,7 @@ jobs:
   # ── Publish: artifacts in, registries out; never checks out source ─────────
   # The ONLY job on the `release` environment, so the run's single approval is
   # asked here, after every requested build and test is green and before any
-  # credential is used. `!cancelled()` replaces the implicit success(): a
+  # publishing credential is used. `!cancelled()` replaces the implicit success(): a
   # target disabled by its publish_* input skips its build job, and a skipped
   # need must not skip the other targets. A failed or cancelled build (or a
   # failed registry check) still skips the whole job, so nothing is published
@@ -662,7 +662,7 @@ jobs:
       # refuses an already-published version unless force_republish is set.
       RESUME: ${{ inputs.force_republish || github.run_attempt != '1' }}
     steps:
-      # Fail closed before any credential is used: every requested target
+      # Fail closed before any publishing credential is used: every requested target
       # must have a successful build (the job condition only rules out a
       # failed or cancelled one).
       - name: Every requested target was built
