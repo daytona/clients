@@ -1,0 +1,58 @@
+name: CI passed
+
+# One check that reports on every pull request, so branch protection can
+# require it even though most CI workflows are path-filtered (requiring those
+# directly would block every pull request that does not touch their paths).
+# `CI passed` waits for every other `pull_request` workflow run on the head
+# commit and succeeds only if each one that ran succeeded (skipped and neutral
+# count as passed; a workflow whose paths did not match never starts and is
+# not waited for). Logic: scripts/ci-passed.sh.
+#
+# Not counted:
+# - this workflow itself;
+# - E2E: it runs against a live deployment and is expected to fail while a
+#   pull request depends on API changes that are not deployed yet, so it stays
+#   visible but does not block merging;
+# - checks that are not `pull_request` workflow runs: third-party apps (cubic,
+#   FOSSA, DCO), CodeQL default setup, and the CLA workflow
+#   (`pull_request_target`), which is required on its own.
+#
+# A re-run of a counted workflow re-runs this check when it completes
+# (ci-passed-rerun.yaml); re-running `CI passed` by hand also works.
+#
+# Reuse on another base branch (e.g. release/v0): copy this file unchanged
+# except for `branches` (the file name must stay ci-passed.yaml; the re-run
+# helper looks it up by name), copy scripts/ci-passed.sh, add that branch's
+# workflow names to ci-passed-rerun.yaml on main, and require `CI passed` in
+# the branch's ruleset.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read # list the workflow runs on the head commit
+  contents: read
+
+concurrency:
+  group: ci-passed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci-passed.sh
+          sparse-checkout-cone-mode: false
+      - name: Wait for the other workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          CI_PASSED_IGNORE: .github/workflows/ci-passed.yaml .github/workflows/e2e.yaml
+          CI_PASSED_TIMEOUT: '3600'
+        run: scripts/ci-passed.sh "$REPO" "$SHA"

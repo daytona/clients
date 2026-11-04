@@ -533,6 +533,10 @@ Live suites, when credentials are available:
   its checks pass**, then mark it ready. Maintainers coordinate deployments;
   contributors don't need to.
 - Do not merge with failing checks; a red non-draft PR is a bug report.
+- `CI passed` is the one required check for test results: it waits for every
+  other `pull_request` workflow that ran on the PR and fails if any of them did
+  (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
+  counted automatically; add its name to `ci-passed-rerun.yaml` too.
 
 ## Design records — `docs/design/`
 
