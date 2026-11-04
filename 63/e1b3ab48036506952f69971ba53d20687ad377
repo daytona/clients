@@ -1,0 +1,32 @@
+.github/workflows/changelog.yaml
+  h_e7759ddd73fa65 20
+.github/workflows/cli-ci.yaml
+  h_e7759ddd73fa65 27,30,49
+.github/workflows/contracts.yaml
+  h_e7759ddd73fa65 37,40,45,49
+.github/workflows/e2e.yaml
+  h_e7759ddd73fa65 59,62,65-66
+.github/workflows/license-headers.yaml
+  h_e7759ddd73fa65 19
+.github/workflows/prepare-release.yaml
+  h_e7759ddd73fa65 39
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 37,49,62,65,68,106,109,137,140,171,174,316-317,353-354
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 176,184,425,502,587,623,639
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 40,43,46,75,78,90,118,121,141,144,147
+.github/workflows/upgrade-tool-publish.yaml
+  h_e7759ddd73fa65 77,94,97,203,216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "63e1b3ab48036506952f69971ba53d20687ad377",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
