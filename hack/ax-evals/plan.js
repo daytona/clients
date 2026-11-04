@@ -88,7 +88,7 @@ async function run({ github, context, core }) {
       '### AX evals (2027.dev)',
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
-      `To run evals anyway (or only some, e.g. \`evals='python go'\`): \`${DISPATCH_HINT.replace('<number>', prNumber)}\``,
+      `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with e.g. \`'python go'\` for a subset).`,
     ])
     return
   }
