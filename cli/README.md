@@ -136,7 +136,7 @@ daytona reservation create --region '<region>' --model '<model>'
 # Several Macs of one model in one request; --dry-run prints the price first:
 daytona reservation create --region '<region>' --model '<model>' --count 3 --dry-run
 daytona reservation create --region '<region>' --model '<model>' --count 3 --idempotency-key nightly-macs
-# Use the model's default sandbox size:
+# Use the Mac model's default size:
 daytona sandbox create-macos --region '<region>' --image base-macos
 # Or set this sandbox's CPU, memory, and disk sizes:
 daytona sandbox create-macos --region '<region>' --image base-macos --reservation RESERVATION_ID --cores 10 --memory 16384 --disk 163840 --persistent
@@ -145,18 +145,15 @@ daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-
 daytona reservation update RESERVATION_ID --auto-renew=false
 ```
 
-`mac-model list` shows each model's `MAX_SANDBOXES` and `DEFAULT_SIZE`.
-Each omitted `--cores`, `--memory`, or `--disk` uses half of the reserved Mac
-on a model that runs two sandboxes, or all of it on a model that runs one.
-Defaults round down, and disk rounds down to a whole GiB. For `--disk`, the
-total is the model's sandbox disk room (`SANDBOX_DISK_MIB` in `mac-model list`),
-not the Mac's whole SSD; the default disk leaves 32768 MiB of it and is at least
-81920. Sandbox sizes do not change the reservation.
-The size is fixed at creation, and `daytona
-sandbox get` shows the associated reservation as `reservation_id`. `--disk` is the
-whole sandbox disk in MiB, macOS included, at least 81920. Without `--model`, a
-reservation gets the region's default model; an unavailable model is never
-upgraded.
+Each omitted `--cores`, `--memory` or `--disk` uses the Mac model's default
+size (`DEFAULT_SIZE` in `mac-model list`). A create from a captured image gets
+the image's disk size when `--disk` is omitted, and refuses a smaller `--disk`.
+`--disk` is the whole sandbox disk in MiB, macOS included, at least 81920. The
+sizes of the sandboxes on one Mac must fit that Mac. `SANDBOX_DISK_MIB` is a
+Mac's disk space for sandbox disks and volumes. Sandbox sizes do not change the
+reservation. The size is fixed at creation, and `daytona sandbox get` shows the
+reservation as `reservation_id`. Without `--model`, a reservation gets the
+region's default model; an unavailable model is never upgraded.
 
 `reservation create --count N` reserves N Macs, all or nothing; add
 `--min-count M` to accept as few as M when fewer are free. `reservation create`
