@@ -1,0 +1,14 @@
+examples/typescript/file-operations/index.ts
+  h_e7759ddd73fa65 4,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61e207ca46113963d89925024169fa839e2e62c1",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
