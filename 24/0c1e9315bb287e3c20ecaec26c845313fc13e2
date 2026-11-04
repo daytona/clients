@@ -1,0 +1,14 @@
+python/tests/test_events.py
+  h_e7759ddd73fa65 1806-1809,1822-1826
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "240c1e9315bb287e3c20ecaec26c845313fc13e2",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
