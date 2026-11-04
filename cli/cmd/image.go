@@ -92,7 +92,7 @@ func newImageCaptureCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "capture <sandbox>",
 		Short: "Capture a sandbox filesystem as an image",
-		Long:  "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\nA macOS sandbox must be persistent and stopped; it cannot start until the snapshot is `ready`.\nExample:\n  daytona image capture <sandbox> --name saved-image",
+		Long:  "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\nA macOS sandbox must be persistent and stopped.\nExample:\n  daytona image capture <sandbox> --name saved-image",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())

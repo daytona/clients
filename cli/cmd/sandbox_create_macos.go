@@ -18,7 +18,7 @@ func newSandboxCreateMacosCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create-macos", short: "Create a macOS sandbox on a reserved Mac",
 		long: "Create a macOS sandbox on a reserved Mac (POST /sandboxes/macos). The SDK twin is create_macos(image, …).\n" +
-			"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one. The disk share leaves 32768 MiB of the sandbox disk capacity and is at least 81920 MiB.\n" +
+			"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in daytona mac-model list). A create from a captured image gets the image's disk size when --disk is omitted, and refuses a smaller --disk. The sizes of the sandboxes on one Mac must fit that Mac.\n" +
 			"Stop and pause need --persistent. Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it. Delete erases the disk.\n" +
 			"Examples:\n" +
 			"  daytona sandbox create-macos --image base-macos\n" +
@@ -50,12 +50,12 @@ func macosCreateLifecycleFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {
 }
 
 func macosCreateFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {
-	f.Int32Var(&flags.cores, "cores", 0, "CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)")
-	f.Int32Var(&flags.memory, "memory", 0, "memory in MiB, minimum 4096 (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)")
-	f.Int32Var(&flags.disk, "disk", 0, "whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac's sandbox disk capacity less 32768 MiB, halved on a model that runs two sandboxes, rounded down to a whole GiB, at least 81920)")
+	f.Int32Var(&flags.cores, "cores", 0, "CPU cores, at least 4; a Mac core is one CPU of the Mac (default: the Mac model's default size)")
+	f.Int32Var(&flags.memory, "memory", 0, "memory in MiB, at least 4096 (default: the Mac model's default size)")
+	f.Int32Var(&flags.disk, "disk", 0, "disk size in MiB, macOS included, at least 81920 (default: the Mac model's default size, or a captured image's disk size)")
 	f.StringArrayVar(&flags.env, "env", nil, "environment variable KEY=VALUE (repeatable)")
 	f.BoolVar(&flags.persistent, "persistent", false, "keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.")
-	f.StringVar(&flags.reservation, "reservation", "", "target an existing reservation by ID; new buys the cheapest fitting model; omitted may buy if none fits (confirmation required unless --yes)")
+	f.StringVar(&flags.reservation, "reservation", "", "a reservation ID, or new to buy the cheapest model that fits; omitted uses any reservation with space, and buys one under auto-reserve only when the organization has none in the region (confirmation required unless --yes)")
 	f.BoolVar(&flags.autoRenew, "auto-renew", false, autoRenewUsage)
 	flagPlaceholder(f, "cores", "N")
 	flagPlaceholder(f, "memory", "MIB")

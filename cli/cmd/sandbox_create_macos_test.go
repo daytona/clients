@@ -64,13 +64,13 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 	require.NoError(t, err)
 	text := squashSpaces(help)
 	for _, line := range []string{
-		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac's sandbox disk capacity less 32768 MiB, halved on a model that runs two sandboxes, rounded down to a whole GiB, at least 81920)",
-		"--memory MIB memory in MiB, minimum 4096 (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
+		"--cores N CPU cores, at least 4; a Mac core is one CPU of the Mac (default: the Mac model's default size)",
+		"--disk MIB disk size in MiB, macOS included, at least 81920 (default: the Mac model's default size, or a captured image's disk size)",
+		"--memory MIB memory in MiB, at least 4096 (default: the Mac model's default size)",
 		"--reservation ID|new",
-		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
+		"--auto-renew renew while a sandbox runs or is paused on the reservation; create-macos requires --reservation new",
 		"--persistent keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.",
-		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one. The disk share leaves 32768 MiB of the sandbox disk capacity and is at least 81920 MiB.",
+		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in daytona mac-model list). A create from a captured image gets the image's disk size when --disk is omitted, and refuses a smaller --disk. The sizes of the sandboxes on one Mac must fit that Mac.",
 		"--on-timeout ACTION action when --timeout elapses: stop|delete (stop needs --persistent)",
 		"--on-idle-timeout ACTION action when --idle-timeout elapses: stop|delete (stop needs --persistent)",
 		"daytona sandbox create-macos --image base-macos",
