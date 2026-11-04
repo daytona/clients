@@ -178,7 +178,7 @@ updates:
   # ---------------------------------------------------------------------------
   # 0.x line (release/v0) -- maintenance only. Same groups and ignores as the
   # config that lived on release/v0, plus the target branch. These groups take
-  # majors too, so a maintenance branch gets one PR per ecosystem a week.
+  # majors too.
   # ---------------------------------------------------------------------------
 
   - package-ecosystem: github-actions
