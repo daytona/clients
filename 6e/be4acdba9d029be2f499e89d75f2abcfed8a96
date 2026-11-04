@@ -1,0 +1,35 @@
+upgrade/typescript/tests/build-cli.ts
+  s_891914e4b96837::t_5d3df618b551f6 1-16
+upgrade/typescript/vitest.config.ts
+  s_891914e4b96837::t_bef8e921a0cecd 1-10
+upgrade/typescript/tests/bounded-environment-scan-inputs.test.ts
+  s_272a6e7cab4ddf::t_2e22544441d86d 10
+upgrade/typescript/tests/built-cli-url-preflight.test.ts
+  s_272a6e7cab4ddf::t_03c988ae4a82ee 8
+upgrade/typescript/tests/output-pipes.test.ts
+  s_272a6e7cab4ddf::t_7ade365eba6f0d 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ebe4acdba9d029be2f499e89d75f2abcfed8a96",
+  "prompts": {},
+  "sessions": {
+    "s_272a6e7cab4ddf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e590123b3ffeYMpoGORcSlpp5w",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_891914e4b96837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e59187614ffexO5T7ESso9ltAg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
