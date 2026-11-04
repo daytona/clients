@@ -93,8 +93,8 @@ Every source file starts with a license header (see [Licensing](#licensing)); th
 6. Open a pull request (a [draft PR](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
    is welcome for early feedback). A Daytona team member will review it, and once approved and
    green it will be merged. Target 2.x pull requests at `main`; 0.x fixes go to
-   `release/v0`. The `CI passed` check sums up the CI workflows that ran on your PR
-   (E2E aside); if it fails, open the failed workflow it names.
+   `release/v0`. On PRs to `main`, the `CI passed` check sums up the CI workflows that
+   ran on your PR (E2E aside); if it fails, open the failed workflow it names.
 
 ## Licensing
 

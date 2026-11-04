@@ -16,6 +16,8 @@
 #   CI_PASSED_IGNORE    workflow files not to wait for, space-separated paths
 #                       (e.g. ".github/workflows/ci-passed.yaml")
 #   CI_PASSED_TIMEOUT   seconds to wait for runs to finish (default 3600)
+#   CI_PASSED_SETTLE    seconds before a pass is accepted (default 60), so runs
+#                       created by the same event a moment later are counted
 #   CI_PASSED_INTERVAL  seconds between polls (default 20)
 #   CI_PASSED_ONCE      1: evaluate once and exit 2 if runs are still pending
 #                       instead of waiting (for local checks against old commits)
@@ -32,6 +34,8 @@ ignore=${CI_PASSED_IGNORE:-}
 timeout=${CI_PASSED_TIMEOUT:-3600}
 interval=${CI_PASSED_INTERVAL:-20}
 once=${CI_PASSED_ONCE:-0}
+settle=${CI_PASSED_SETTLE:-60}
+[ "$once" = 1 ] && settle=0
 
 # One line per counted run: <state> <workflow> (<status|conclusion>) <url>,
 # state being pending, passed or failed.
@@ -63,7 +67,7 @@ while :; do
     echo "Re-run the failed workflow; this check re-runs itself when the re-run completes." >&2
     exit 1
   fi
-  if ! grep -q '^pending ' <<<"$result"; then
+  if ! grep -q '^pending ' <<<"$result" && [ "$SECONDS" -ge "$settle" ]; then
     echo "All workflow runs on $sha passed."
     exit 0
   fi

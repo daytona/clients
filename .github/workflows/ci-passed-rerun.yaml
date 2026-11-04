@@ -23,6 +23,12 @@ on:
 
 permissions: {}
 
+# Re-runs finishing together would race to re-run the same gate run; one at a
+# time, a later one finds the gate already running and does nothing.
+concurrency:
+  group: ci-passed-rerun-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
 jobs:
   rerun:
     name: Re-run CI passed
