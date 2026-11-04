@@ -84,18 +84,18 @@ export class ProcessHandle {
     for await (const message of sseMessages(response)) yield streamEvent(message)
   }
 
-  /** Write stdin to an exec or pty process created with stdin='open'. */
-  public async stdin(data: string | Uint8Array, options: { eof?: boolean } = {}): Promise<void> {
-    if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('stdin', this.kind)
+  /** Write to the stdin of an exec or pty process created with stdin='open'. */
+  public async writeStdin(data: string | Uint8Array): Promise<void> {
+    if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('writeStdin', this.kind)
     const body: toolbox.StdinRequest = typeof data === 'string'
-      ? { data, eof: options.eof }
-      : { data: base64Encode(data), encoding: 'base64', eof: options.eof }
+      ? { data }
+      : { data: base64Encode(data), encoding: 'base64' }
     await this.transport.post<void>(`/processes/${strictUriEncode(this.id)}/stdin`, body)
   }
 
-  /** Close stdin for an exec or pty process. */
-  public async stdinEof(): Promise<void> {
-    if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('stdinEof', this.kind)
+  /** Close the stdin of an exec or pty process (EOF). */
+  public async closeStdin(): Promise<void> {
+    if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)
     await this.transport.post<void>(`/processes/${strictUriEncode(this.id)}/stdin`, { data: '', eof: true })
   }
 

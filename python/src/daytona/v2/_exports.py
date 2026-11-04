@@ -87,6 +87,7 @@ ROOT_EXPORTS = [
     "ComputerUseReadyStatus",
     "ComputerUseRecording",
     "ComputerUseRecordingsResponse",
+    "ComputerUseRegion",
     "ComputerUseRestartResponse",
     "ComputerUseScreenshotFormat",
     "ComputerUseScreenshotResponse",

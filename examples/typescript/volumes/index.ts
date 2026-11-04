@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     const s1 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol1-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount1 }], waitSeconds: 240 })
     boxes.push(s1)
     await s1.fs.mkdir(`${mount1}/new-dir`, { mode: '755' })
-    await s1.fs.write(`${mount1}/new-file.txt`, new TextEncoder().encode('Hello, World!'))
+    await s1.fs.writeText(`${mount1}/new-file.txt`, 'Hello, World!')
     info(`s1 wrote ${mount1}/new-file.txt`)
 
     section('sandbox 2: mount the same volume at a different path')
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
       waitSeconds: 240,
     })
     boxes.push(s3)
-    await s3.fs.write(`${mount3}/alice-file.txt`, new TextEncoder().encode("Hello from Alice's subpath!"))
+    await s3.fs.writeText(`${mount3}/alice-file.txt`, "Hello from Alice's subpath!")
     info(`s3 wrote ${mount3}/alice-file.txt (volume-root/users/alice/alice-file.txt)`)
   } finally {
     section('cleanup')

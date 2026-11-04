@@ -43,19 +43,21 @@ class LspServer:
     def __exit__(self, *exc: object) -> None:
         self._bridge.call(lambda: self._impl.__aexit__(*exc))
 
+    def close_document(self, uri: str) -> None:
+        """Notify the server that the document at ``uri`` was closed."""
+        return self._bridge.call(lambda: self._impl.close_document(uri))
+
     def completions(
         self, uri: str, position: LspPosition | Mapping[str, int], *, context: JsonValue | None = None
     ) -> LspCompletionList:
         return self._bridge.call(lambda: self._impl.completions(uri, position, context=context))
 
-    def did_close(self, uri: str) -> None:
-        return self._bridge.call(lambda: self._impl.did_close(uri))
-
-    def did_open(self, uri: str) -> None:
-        return self._bridge.call(lambda: self._impl.did_open(uri))
-
     def document_symbols(self, uri: str) -> list[LspSymbol]:
         return self._bridge.call(lambda: self._impl.document_symbols(uri))
+
+    def open_document(self, uri: str) -> None:
+        """Notify the server that the document at ``uri`` was opened."""
+        return self._bridge.call(lambda: self._impl.open_document(uri))
 
     def stop(self) -> None:
         return self._bridge.call(lambda: self._impl.stop())

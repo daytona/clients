@@ -1478,8 +1478,7 @@ export class Sandbox {
   /**
    * Snapshot this sandbox's filesystem as a new {@link Image}
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
-   * (`daytona.create(image.id)`), like Modal's `snapshot_filesystem()`; a
-   * Linux sandbox keeps running. A macOS sandbox must be persistent and
+   * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
    * stopped; it cannot start until the snapshot is `ready`.
    */
   public async snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image> {

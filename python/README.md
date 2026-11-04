@@ -611,8 +611,8 @@ the macOS fork is `started` or `stopped`.
 `sandbox.exec()` is the root alias of `process.run()`. `process.run()` executes
 a command and awaits the result. `process.start()` returns a detached,
 serializable `ProcessHandle(sandbox_id, process_id)` with `logs()`,
-`stream_logs()`, `wait()`, `stdin()`, `stdin_eof()`, signal-aware `kill()`,
-`delete()`, `resize()` and optional `attach()`. `stdin()` / `stdin_eof()` are for exec and
+`stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
+`delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
 PTY handles only. `timeout=` is the caller wait budget **(seconds)**, and
 `timeout=0` means wait unbounded. `execution_timeout=` is the process deadline
 **(seconds)** for server-managed runs that support one. Rehydrated `kind='code'`
@@ -655,7 +655,8 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 ### Files
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
-`download_file()`, bulk `read_many` / `write_many`, `watch_dir()` for directory
+`download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
+contents) / `glob()` (file names), `watch_dir()` for directory
 watches (`get_new_events()`, a single exit notification via `on_exit=` /
 `wait_for_exit()`), and
 `presigned_download_url` / `presigned_upload_url` for direct transfers. The
@@ -715,11 +716,13 @@ otherwise refuse it.
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`.
 `lsp.start(language_id, path_to_project)` returns an `LspServer` handle with
-`did_open(uri)`, `did_close(uri)`, `completions(uri, position)`,
+`open_document(uri)`, `close_document(uri)`, `completions(uri, position)`,
 `document_symbols(uri)`, `workspace_symbols(query)` and `stop()`.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
-`a11y` and `recording`.
+`a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
+`region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`
+returns a compressed image.
 
 ### Docker
 

@@ -599,7 +599,7 @@ def process_create_spec(
         )
     if terminal is not None and kind != "pty":
         raise create_error(
-            "terminal cols/rows are only supported for pty processes; use sandbox.pty.start() or sandbox.pty.attach()",
+            "terminal cols/rows are only supported for pty processes; use sandbox.pty.start()",
             400,
             "UNSUPPORTED_OPERATION",
             "SDK",

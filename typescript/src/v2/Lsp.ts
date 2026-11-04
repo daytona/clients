@@ -57,11 +57,13 @@ export class LspServer {
     private readonly pathToProject: string,
   ) {}
 
-  public async didOpen(uri: string): Promise<void> {
+  /** Notify the server that the document at `uri` was opened. */
+  public async openDocument(uri: string): Promise<void> {
     await this.transport.post<void>('/lsp/did-open', documentRequest(this.languageId, this.pathToProject, uri))
   }
 
-  public async didClose(uri: string): Promise<void> {
+  /** Notify the server that the document at `uri` was closed. */
+  public async closeDocument(uri: string): Promise<void> {
     await this.transport.post<void>('/lsp/did-close', documentRequest(this.languageId, this.pathToProject, uri))
   }
 

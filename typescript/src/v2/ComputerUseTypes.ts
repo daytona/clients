@@ -280,19 +280,21 @@ export interface ComputerUseRecordingsResponse {
   recordings: ComputerUseRecording[]
 }
 
-export interface ComputerUseScreenshotRegionOptions {
+export interface ComputerUseRegion {
   x: number
   y: number
   width: number
   height: number
-  showCursor?: boolean
 }
 
-export interface ComputerUseScreenshotCompressedOptions {
+/**
+ * Options for `screen.screenshot()`. `region` captures only that rectangle;
+ * any of `format` / `quality` / `scale` returns a compressed image.
+ */
+export interface ComputerUseScreenshotOptions {
+  region?: ComputerUseRegion
   format?: ComputerUseScreenshotFormat
   quality?: number
   scale?: number
   showCursor?: boolean
 }
-
-export interface ComputerUseScreenshotRegionCompressedOptions extends ComputerUseScreenshotRegionOptions, ComputerUseScreenshotCompressedOptions {}

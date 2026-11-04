@@ -41,9 +41,7 @@ import type {
   ComputerUseRecordingStartRequest,
   ComputerUseRecordingStopRequest,
   ComputerUseRestartResponse,
-  ComputerUseScreenshotCompressedOptions,
-  ComputerUseScreenshotRegionCompressedOptions,
-  ComputerUseScreenshotRegionOptions,
+  ComputerUseScreenshotOptions,
   ComputerUseScreenshotResponse,
   ComputerUseScrollResponse,
   ComputerUseStatusResponse,
@@ -126,59 +124,27 @@ export class KeyboardService {
 export class ScreenService {
   constructor(private readonly transport: ComputerUseTransport) {}
 
-  public async screenshot(options: { readonly showCursor?: boolean } = {}): Promise<ComputerUseScreenshotResponse> {
-    return this.capture(options)
-  }
-
-  public async capture(options: { readonly showCursor?: boolean } = {}): Promise<ComputerUseScreenshotResponse> {
-    return this.transport.get<toolbox.ComputerUseScreenshotResponse>('/computeruse/screenshot', { params: dropUndefined({ show_cursor: options.showCursor }) })
-  }
-
-  public async region(options: ComputerUseScreenshotRegionOptions): Promise<ComputerUseScreenshotResponse> {
+  /**
+   * Capture the screen, or `options.region` of it. Setting any of `format`,
+   * `quality` or `scale` returns a compressed image.
+   */
+  public async screenshot(options: ComputerUseScreenshotOptions = {}): Promise<ComputerUseScreenshotResponse> {
+    const { region, format, quality, scale, showCursor } = options
+    const compressed = format !== undefined || quality !== undefined || scale !== undefined
     const query = {
-      x: String(options.x),
-      y: String(options.y),
-      width: String(options.width),
-      height: String(options.height),
-      show_cursor: options.showCursor === undefined ? undefined : String(options.showCursor),
+      x: region == null ? undefined : String(region.x),
+      y: region == null ? undefined : String(region.y),
+      width: region == null ? undefined : String(region.width),
+      height: region == null ? undefined : String(region.height),
+      format,
+      quality: quality === undefined ? undefined : String(quality),
+      scale: scale === undefined ? undefined : String(scale),
+      show_cursor: showCursor === undefined ? undefined : String(showCursor),
     } satisfies toolbox.ComputerUseScreenshotQuery
-    return this.transport.get<toolbox.ComputerUseScreenshotResponse>('/computeruse/screenshot/region', { params: dropUndefined(query) })
-  }
-
-  public async screenshotRegion(options: ComputerUseScreenshotRegionOptions): Promise<ComputerUseScreenshotResponse> {
-    return this.region(options)
-  }
-
-  public async captureCompressed(options: ComputerUseScreenshotCompressedOptions = {}): Promise<ComputerUseScreenshotResponse> {
-    const query = {
-      format: options.format,
-      quality: options.quality === undefined ? undefined : String(options.quality),
-      scale: options.scale === undefined ? undefined : String(options.scale),
-      show_cursor: options.showCursor === undefined ? undefined : String(options.showCursor),
-    } satisfies toolbox.ComputerUseScreenshotQuery
-    return this.transport.get<toolbox.ComputerUseScreenshotResponse>('/computeruse/screenshot/compressed', { params: dropUndefined(query) })
-  }
-
-  public async screenshotCompressed(options: ComputerUseScreenshotCompressedOptions = {}): Promise<ComputerUseScreenshotResponse> {
-    return this.captureCompressed(options)
-  }
-
-  public async regionCompressed(options: ComputerUseScreenshotRegionCompressedOptions): Promise<ComputerUseScreenshotResponse> {
-    const query = {
-      x: String(options.x),
-      y: String(options.y),
-      width: String(options.width),
-      height: String(options.height),
-      format: options.format,
-      quality: options.quality === undefined ? undefined : String(options.quality),
-      scale: options.scale === undefined ? undefined : String(options.scale),
-      show_cursor: options.showCursor === undefined ? undefined : String(options.showCursor),
-    } satisfies toolbox.ComputerUseScreenshotQuery
-    return this.transport.get<toolbox.ComputerUseScreenshotResponse>('/computeruse/screenshot/region/compressed', { params: dropUndefined(query) })
-  }
-
-  public async screenshotRegionCompressed(options: ComputerUseScreenshotRegionCompressedOptions): Promise<ComputerUseScreenshotResponse> {
-    return this.regionCompressed(options)
+    const route = region != null
+      ? (compressed ? '/computeruse/screenshot/region/compressed' : '/computeruse/screenshot/region')
+      : (compressed ? '/computeruse/screenshot/compressed' : '/computeruse/screenshot')
+    return this.transport.get<toolbox.ComputerUseScreenshotResponse>(route, { params: dropUndefined(query) })
   }
 }
 

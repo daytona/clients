@@ -48,10 +48,6 @@ class FileSystemService:
         """Set file permissions and ownership."""
         return self._bridge.call(lambda: self._impl.chmod(path, mode=mode, owner=owner, group=group))
 
-    def delete(self, path: str, *, recursive: bool = False) -> None:
-        """Delete a file or directory."""
-        return self._bridge.call(lambda: self._impl.delete(path, recursive=recursive))
-
     def download_file(
         self,
         remote_path: str,
@@ -64,9 +60,13 @@ class FileSystemService:
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
 
-    def find(self, path: str, pattern: str) -> ListResult:
-        """Find files under a path."""
-        return self._bridge.call(lambda: self._impl.find(path, pattern))
+    def glob(self, path: str, pattern: str) -> ListResult[str]:
+        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
+        return self._bridge.call(lambda: self._impl.glob(path, pattern))
+
+    def grep(self, path: str, pattern: str) -> ListResult:
+        """Search file contents under ``path`` for the literal substring ``pattern``."""
+        return self._bridge.call(lambda: self._impl.grep(path, pattern))
 
     def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
@@ -104,13 +104,13 @@ class FileSystemService:
         """Read a UTF-8 text file."""
         return self._bridge.call(lambda: self._impl.read_text(path))
 
+    def remove(self, path: str, *, recursive: bool = False) -> None:
+        """Remove a file, or a directory with ``recursive=True``."""
+        return self._bridge.call(lambda: self._impl.remove(path, recursive=recursive))
+
     def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult:
         """Replace text in files."""
         return self._bridge.call(lambda: self._impl.replace(files, pattern, new_value))
-
-    def search(self, path: str, pattern: str) -> ListResult[str]:
-        """Search file contents."""
-        return self._bridge.call(lambda: self._impl.search(path, pattern))
 
     def stat(self, path: str) -> FileInfo:
         """Return file metadata."""

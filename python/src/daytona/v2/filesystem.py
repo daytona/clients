@@ -422,8 +422,8 @@ class AsyncFileSystemService:
         """Create a directory."""
         await self._transport.send(RequestSpec("POST", "/files/folder", params={"path": path, "mode": mode}))
 
-    async def delete(self, path: str, *, recursive: bool = False) -> None:
-        """Delete a file or directory."""
+    async def remove(self, path: str, *, recursive: bool = False) -> None:
+        """Remove a file, or a directory with ``recursive=True``."""
         await self._transport.send(
             RequestSpec("DELETE", "/files", params={"path": path, "recursive": recursive})
         )
@@ -434,8 +434,11 @@ class AsyncFileSystemService:
             RequestSpec("POST", "/files/move", params={"source": source, "destination": destination})
         )
 
-    async def find(self, path: str, pattern: str) -> ListResult:
-        """Find files under a path."""
+    async def grep(self, path: str, pattern: str) -> ListResult:
+        """Search file contents under ``path`` for the literal substring ``pattern``.
+
+        Returns matches with one-based line numbers.
+        """
         items, next_cursor = list_shape(
             await self._transport.send(
                 RequestSpec("GET", "/files/find", params={"path": path, "pattern": pattern})
@@ -443,8 +446,8 @@ class AsyncFileSystemService:
         )
         return ListResult(items=items, next_cursor=next_cursor)
 
-    async def search(self, path: str, pattern: str) -> ListResult[str]:
-        """Search file contents."""
+    async def glob(self, path: str, pattern: str) -> ListResult[str]:
+        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
         payload = await self._transport.send(
             RequestSpec("GET", "/files/search", params={"path": path, "pattern": pattern})
         )

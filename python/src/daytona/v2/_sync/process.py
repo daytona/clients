@@ -56,9 +56,9 @@ class ProcessHandle:
     def kind(self) -> Literal["exec", "pty", "code", "session"] | None:
         return self._impl.kind
 
-    def attach(self) -> None:
-        """Attach is optional in Python because no runtime WebSocket dependency is bundled."""
-        return self._bridge.call_sync(lambda: self._impl.attach())
+    def close_stdin(self) -> None:
+        """Close the stdin of an exec or PTY process (EOF)."""
+        return self._bridge.call(lambda: self._impl.close_stdin())
 
     def delete(self) -> None:
         """Delete the process record and retained logs, stopping it first."""
@@ -99,14 +99,6 @@ class ProcessHandle:
         """Resize a PTY process."""
         return self._bridge.call(lambda: self._impl.resize(cols, rows))
 
-    def stdin(self, data: Union[str, bytes], *, eof: bool = False) -> None:
-        """Write stdin to an exec or PTY process created with stdin='open'."""
-        return self._bridge.call(lambda: self._impl.stdin(data, eof=eof))
-
-    def stdin_eof(self) -> None:
-        """Close stdin for an exec or PTY process."""
-        return self._bridge.call(lambda: self._impl.stdin_eof())
-
     def stream_logs(
         self, *, cursor: Optional[str] = None, encoding: LogEncoding = "text"
     ) -> Iterator[LogFrame]:
@@ -120,6 +112,10 @@ class ProcessHandle:
     def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
         """Wait for terminal state using the process long-poll contract."""
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
+
+    def write_stdin(self, data: Union[str, bytes]) -> None:
+        """Write to the stdin of an exec or PTY process created with stdin='open'."""
+        return self._bridge.call(lambda: self._impl.write_stdin(data))
 
 
 class ProcessService:

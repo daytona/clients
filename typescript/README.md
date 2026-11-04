@@ -546,7 +546,7 @@ space; insufficient resources can produce `NO_FREE_SLOT` or `MAC_DISK_FULL`.
 command; `process.start()` returns a detached
 `ProcessHandle` you can serialize (`toJSON()`) and reconnect to
 (`process.connect()`). Handles offer cursor-replayable `logs()`, `streamLogs()`
-with resume, `wait()`, `stdin()` / `stdinEof()` for exec and pty handles,
+with resume, `wait()`, `writeStdin()` / `closeStdin()` for exec and pty handles,
 `delete()` (stopping it first if running; a running interpreter execution, or a session
 command that does not stop within 5 s, is refused: delete its context or
 session), signal-aware `kill()` with
@@ -592,8 +592,8 @@ innermost shell function or sourced file; bash and zsh leave the whole command
 
 ### Files
 
-`read` / `readText`, `write` / `writeText`, bulk `readMany` / `writeMany`,
-`watchDir()` for directory watches (sequential callback delivery, optional
+`readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
+`remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches (sequential callback delivery, optional
 overflow hook, exactly-once `onExit`, `waitForExit()` / `exitError`), and
 `presignedDownloadUrl` / `presignedUploadUrl` for direct transfers. The
 platform mints the link; `expiresInSeconds` (default 3600) must be between 1
@@ -607,8 +607,8 @@ from `list()` and can lazily drain all pages with `iter()`; `ports.listEndpoints
 uses `iterEndpoints()`, while non-pageable `ports.list()` and `listContexts()`
 stay one-shot.
 
-`write()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
-temporary file + rename when the sandbox supports it. For `write()` and
+`writeBytes()`, `writeText()` and `writeMany()` accept `atomic: true` to write via a
+temporary file + rename when the sandbox supports it. For `writeBytes()` and
 `writeText()` a filesystem that cannot do that rejects with
 `AtomicUploadUnsupportedError`; `writeMany()` keeps its partial-success
 contract instead — the affected entries appear in the returned `errors` array
@@ -662,11 +662,12 @@ the additional remote/branch controls to the sandbox.
 `expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
 `iterEndpoints(options)`.
 `lsp.start(languageId, pathToProject)` returns an `LspServer` handle with
-`didOpen()`, `didClose()`, `completions()`, `documentSymbols()`,
+`openDocument()`, `closeDocument()`, `completions()`, `documentSymbols()`,
 `workspaceSymbols()` and `stop()`.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
-`a11y` and `recording`.
+`a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
+`region`; any of `format`, `quality` or `scale` returns a compressed image.
 
 ### Docker
 

@@ -1,9 +1,9 @@
 /*
  * file-operations — upload, list, search, replace, and download files.
  *
- * Uses the single-file helpers `fs.write(path, bytes)` and `fs.read(path)`
- * (bytes in / Uint8Array out). Paths are relative to the sandbox's working
- * directory.
+ * Uses the single-file helpers `fs.writeBytes(path, bytes)` and
+ * `fs.writeText(path, text)` to write, and `fs.readBytes(path)` (returns a
+ * Uint8Array) to read. Paths are relative to the sandbox's working directory.
  *
  * Run (from examples):
  *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
@@ -26,10 +26,10 @@ async function main() {
     const before = (await sandbox.fs.list('.')).items
     info(`entries in cwd: ${before.map((f) => f.name).join(', ')}`)
 
-    section('write (from in-memory bytes)')
+    section('writeBytes / writeText (from memory)')
     const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)
-    await sandbox.fs.write(`${dir}/config.json`, new TextEncoder().encode(config))
-    await sandbox.fs.write(`${dir}/script.sh`, new TextEncoder().encode('#!/bin/bash\necho "Hello from script!"\n'))
+    await sandbox.fs.writeBytes(`${dir}/config.json`, new TextEncoder().encode(config))
+    await sandbox.fs.writeText(`${dir}/script.sh`, '#!/bin/bash\necho "Hello from script!"\n')
     info('uploaded config.json + script.sh')
 
     section('run: verify + run the uploaded script')
@@ -38,18 +38,18 @@ async function main() {
     const scriptOut = await sandbox.process.run(`./${dir}/script.sh`)
     info(`script output: ${scriptOut.output.trim()}`)
 
-    section('search (by name pattern)')
-    const found = await sandbox.fs.search(dir, '*.json')
+    section('glob (by name pattern)')
+    const found = await sandbox.fs.glob(dir, '*.json')
     info(`json files: ${JSON.stringify(found.items)}`)
 
     section('replace (edit config in place)')
     await sandbox.fs.replace([`${dir}/config.json`], '"debug": true', '"debug": false')
 
-    section('read (read bytes back)')
-    const bytes = await sandbox.fs.read(`${dir}/config.json`)
+    section('readBytes (read bytes back)')
+    const bytes = await sandbox.fs.readBytes(`${dir}/config.json`)
     const text = new TextDecoder().decode(bytes)
     info(`config.json now:\n${text}`)
-    if (text.includes('"debug": false')) pass('replace round-tripped through read')
+    if (text.includes('"debug": false')) pass('replace round-tripped through readBytes')
     else {
       fail(`expected the edited value in the downloaded file (got: ${text})`)
       ok = false
