@@ -20,8 +20,8 @@ name: SDK Publish
 # through a modified copy of this workflow on their own branch.
 # `source_ref` (an input, default: the dispatch ref) selects which commit is
 # BUILT and published — a feature branch may ship a pre-release this way. Its
-# code runs only in the tokenless build jobs; the publish jobs upload the
-# built artifact and never execute it.
+# code runs only in the tokenless build jobs; the publish job uploads the
+# built artifacts and never executes them.
 #
 # One version goes to every target; the gate derives each registry's spelling
 # with scripts/sdk-version.sh —
@@ -43,26 +43,35 @@ name: SDK Publish
 #   - a PRE-RELEASE (X.Y.Z-alpha.N / -beta.N / -rc.N) may publish any commit
 #     (`source_ref`), so a feature can ship an alpha before it merges;
 #   - a 0.x version is refused: the 0.x line publishes from `release/v0`.
-# Every run waits for a reviewer on the `release` environment before any job
-# runs, and the summary names the source commit.
+# Every run asks for ONE approval on the `release` environment, once the
+# builds and tests are green and before any credential is used; the summary
+# names the source commit.
 #
 # ── Build / publish split ────────────────────────────────────────────────────
 # `gate` resolves the version, checks the source rule, and snapshots the
 # source_ref tree into a same-run artifact; it runs only scripts from the
 # dispatch commit, never from source_ref. The tokenless build-* jobs unpack that
 # snapshot — no git checkout, no actions cache — and run its install/test/
-# build to produce the package artifact. The publish-* jobs — the only ones
-# with `id-token: write` or a write token — download the package artifact and
-# upload it, never touching source. Build jobs are kept OFF the environment so
-# no environment secret is ever visible to code under test.
+# build to produce the package artifacts. ONE `publish` job — the only job on
+# the `release` environment and the only one with `id-token: write` or a write
+# token besides record-tag (`contents: write`, no environment) — downloads the
+# package artifacts and uploads them, never touching source. Because it is the
+# only job that references the environment, a run needs exactly one approval,
+# and the environment's branch policy (`main`, `release/*`) still decides
+# whether this run's credentials can be used at all. gate and the build jobs
+# are kept OFF the environment so no environment secret is ever visible to
+# code under test. Inside the job the targets run in order — PyPI, npm, CLI
+# release, Homebrew — so a failed target stops the ones after it.
 #
 # The gate refuses a version a target registry ALREADY has (npm registry API,
 # PyPI JSON API, this repository's releases), because a second run for the
 # same version is a no-op for users. `force_republish=true` skips that check
 # to RESUME a run that half-landed: targets already on their registry are
-# skipped (PyPI `skip-existing`, an npm pre-check, the CLI job's own
+# skipped (PyPI `skip-existing`, an npm pre-check, the CLI release's own
 # identical-checksums resume) and only the missing ones are published. It
-# never overwrites — registries refuse re-uploads regardless.
+# never overwrites — registries refuse re-uploads regardless. Re-running the
+# failed publish job of the same run ("Re-run failed jobs") resumes the same
+# way: on a re-run attempt the publish job skips what is already published.
 #
 # ── ALPHA-ONLY GATE (pre-launch) ─────────────────────────────────────────────
 # Until 2.x is generally available, ONLY alpha pre-releases may be published:
@@ -88,6 +97,9 @@ name: SDK Publish
 #        GitHub Release itself is created with this run's own token.
 # Repo  Settings → Environments → `release` → required reviewers on; deployment
 #        branches: `main` and `release/*` only (the two-refs model depends on it).
+#        Only the `publish` job references the environment, so a run waits for
+#        one approval; a new job that needs an environment secret belongs in
+#        `publish` (or adds a second approval).
 
 on:
   workflow_dispatch:
@@ -139,12 +151,10 @@ jobs:
   gate:
     name: Resolve version
     runs-on: ubuntu-latest
-    # The environment gates the whole run at its entry: every later job needs
-    # this one, and the `release` environment requires a reviewer. The build-*
-    # jobs deliberately do NOT reference the environment: they execute the
-    # dispatched code, and an environment reference would hand that code any
-    # environment secrets.
-    environment: release
+    # No environment here: this job holds no credential, and only the
+    # `publish` job references `release`, so a run needs one approval. The
+    # build-* jobs must never reference it either: they execute the dispatched
+    # code, and an environment reference would hand that code its secrets.
     permissions:
       contents: read
     outputs:
@@ -159,6 +169,16 @@ jobs:
       v0_sha: ${{ steps.v0.outputs.sha }}
       v0_unverified: ${{ steps.v0.outputs.unverified }}
     steps:
+      # Fail fast only: the `release` environment's branch policy is what
+      # keeps credentials away from other refs, but without this a run from
+      # another ref would build and test everything before being refused.
+      - name: Require dispatch from main or release/*
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/heads/main|refs/heads/release/*) ;;
+            *) echo "::error::dispatch this workflow from main or a release/* branch (got '$GITHUB_REF'); the release environment admits no other ref — pick the commit to publish with source_ref"; exit 1 ;;
+          esac
       - name: Require at least one target
         env:
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
@@ -260,7 +280,7 @@ jobs:
           fi
           # The npm dist-tag follows the version's pre-release identifier
           # (VERSIONING.md "Release channels"), so widening the gate above
-          # never has to touch publish-npm: a pre-release never lands on
+          # never has to touch the npm publish step: a pre-release never lands on
           # `latest`. sdk-version.sh admits only these four shapes; the
           # fallthrough guards a future widening of that helper.
           case "$npm" in
@@ -271,7 +291,8 @@ jobs:
             *)         npm_dist_tag=latest ;;
           esac
           echo "npm dist-tag: $npm_dist_tag"
-          # Downstream jobs key on an EMPTY version to skip a target.
+          # The build jobs and the publish job's steps key on an EMPTY version to
+          # skip a target.
           [ "$PUBLISH_PYPI" = true ] || pypi=""
           [ "$PUBLISH_NPM" = true ] || npm=""
           [ "$PUBLISH_CLI" = true ] || cli=""
@@ -365,7 +386,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$FORCE" = true ]; then
-            echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by their publish job, not overwritten"
+            echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by the publish job, not overwritten"
             exit 0
           fi
           taken=0
@@ -604,39 +625,91 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # ── Publish jobs: artifact in, registry out; never check out source ─────────
-  publish-python:
-    name: Publish daytona ${{ needs.gate.outputs.pypi }} to PyPI
-    needs: [gate, build-python]
-    if: needs.gate.outputs.pypi != ''
+  # ── Publish: artifacts in, registries out; never checks out source ─────────
+  # The ONLY job on the `release` environment, so the run's single approval is
+  # asked here, after every requested build and test is green and before any
+  # credential is used. `!cancelled()` replaces the implicit success(): a
+  # target disabled by its publish_* input skips its build job, and a skipped
+  # need must not skip the other targets. A failed or cancelled build (or a
+  # failed registry check) still skips the whole job, so nothing is published
+  # and nobody is asked to approve. Each target's steps key on its version
+  # output, empty when the target is disabled. Targets run in order — PyPI,
+  # npm, CLI release, Homebrew — and a failure stops the ones after it.
+  publish:
+    name: Publish ${{ needs.gate.outputs.tag }}
+    needs: [gate, registry-check, build-python, build-npm, build-cli]
+    if: >-
+      !cancelled() && needs.gate.result == 'success' && needs.registry-check.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      id-token: write   # OIDC token for PyPI Trusted Publishing — the ONLY job perm
+      id-token: write   # OIDC token for PyPI and npm Trusted Publishing
+      contents: write   # create the CLI release (and its tag) on this repository
+    # Per-target results for the summary: a target "failure" if any of its
+    # steps failed, otherwise its last step's outcome (skipped = disabled, or
+    # not reached because an earlier target failed).
+    outputs:
+      pypi: ${{ (steps.pypi_download.outcome == 'failure' && 'failure') || steps.pypi_publish.outcome }}
+      npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
+      cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
+      homebrew: ${{ steps.homebrew.outcome }}
+    env:
+      # force_republish, or a re-run of this job ("Re-run failed jobs") after
+      # a target half-landed: targets already on their registry are skipped,
+      # never overwritten. A full re-run repeats registry-check, which still
+      # refuses an already-published version unless force_republish is set.
+      RESUME: ${{ inputs.force_republish || github.run_attempt != '1' }}
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      # Fail closed before any credential is used: every requested target
+      # must have a successful build (the job condition only rules out a
+      # failed or cancelled one).
+      - name: Every requested target was built
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
+          NPM_VERSION: ${{ needs.gate.outputs.npm }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          PY_BUILD: ${{ needs.build-python.result }}
+          NPM_BUILD: ${{ needs.build-npm.result }}
+          CLI_BUILD: ${{ needs.build-cli.result }}
+        run: |
+          set -euo pipefail
+          ok=1
+          check() { # target version build-result
+            if [ -n "$2" ] && [ "$3" != success ]; then
+              echo "::error::$1 $2 was requested but its build job ended '$3'"
+              ok=0
+            fi
+          }
+          check PyPI "$PYPI_VERSION" "$PY_BUILD"
+          check npm "$NPM_VERSION" "$NPM_BUILD"
+          check CLI "$CLI_VERSION" "$CLI_BUILD"
+          [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION" ] || { echo "::error::no target requested"; ok=0; }
+          [ "$ok" -eq 1 ]
+
+      # ── PyPI: daytona ──
+      - name: Download the PyPI distributions
+        id: pypi_download
+        if: needs.gate.outputs.pypi != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: pypi-dist
-          path: dist/
-      - run: ls -l dist
-      - name: Publish to PyPI (OIDC)
+          path: pypi-dist/
+      - name: Publish daytona ${{ needs.gate.outputs.pypi }} to PyPI (OIDC)
+        id: pypi_publish
+        if: needs.gate.outputs.pypi != ''
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          packages-dir: dist/
-          # force_republish resumes a half-landed run: files PyPI already has
-          # are skipped instead of failing the upload (never overwritten).
-          skip-existing: ${{ inputs.force_republish }}
+          packages-dir: pypi-dist/
+          # Resuming (see RESUME): files PyPI already has are skipped instead
+          # of failing the upload (never overwritten).
+          skip-existing: ${{ env.RESUME }}
 
-  publish-npm:
-    name: Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm
-    needs: [gate, build-npm]
-    if: needs.gate.outputs.npm != ''
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write   # OIDC token for npm Trusted Publishing — the ONLY job perm
-    steps:
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      # ── npm: @daytona/sdk ──
+      - name: Set up Node for npm
+        id: npm_node
+        if: needs.gate.outputs.npm != ''
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -649,16 +722,23 @@ jobs:
       # the next major). Only that line is dropped — the registry and the
       # `_authToken` placeholder it writes stay as they are.
       - name: Install a Trusted-Publishing-capable npm (pinned)
+        id: npm_tool
+        if: needs.gate.outputs.npm != ''
         run: |
           set -euo pipefail
           sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
           npm install -g npm@11.21.1
           npm --version
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Download the npm tarball
+        id: npm_download
+        if: needs.gate.outputs.npm != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: npm-pack
           path: pack/
-      - name: Publish to npm (OIDC)
+      - name: Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm (OIDC)
+        id: npm_publish
+        if: needs.gate.outputs.npm != ''
         # No NODE_AUTH_TOKEN: OIDC trusted publishing authenticates the run,
         # and npm attaches a provenance attestation automatically (public
         # repository, public package).
@@ -670,7 +750,6 @@ jobs:
         env:
           NPM_VERSION: ${{ needs.gate.outputs.npm }}
           NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
-          FORCE: ${{ inputs.force_republish }}
         run: |
           set -euo pipefail
           tgz=$(ls pack/*.tgz)
@@ -679,15 +758,15 @@ jobs:
             alpha|beta|next|latest) ;;
             *) echo "::error::gate produced no usable npm dist-tag ('${NPM_DIST_TAG}')"; exit 1 ;;
           esac
-          # force_republish resumes a half-landed run: npm refuses re-uploads,
-          # so a version that is already there is a no-op here, not a failure.
-          # Same HTTP-status check as registry-check: only a 200 skips, only a
-          # 404 publishes, and an unreachable or erroring registry fails the
-          # job rather than guessing either way.
-          if [ "$FORCE" = true ]; then
+          # Resuming (see RESUME): npm refuses re-uploads, so a version that
+          # is already there is a no-op here, not a failure. Same HTTP-status
+          # check as registry-check: only a 200 skips, only a 404 publishes,
+          # and an unreachable or erroring registry fails the job rather than
+          # guessing either way.
+          if [ "$RESUME" = true ]; then
             code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fsdk/${NPM_VERSION}") || true
             case "$code" in
-              200) echo "::notice::@daytona/sdk@${NPM_VERSION} is already on npm — skipping (force_republish)"; exit 0 ;;
+              200) echo "::notice::@daytona/sdk@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
               404) ;;
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/sdk ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
@@ -699,36 +778,33 @@ jobs:
           # shorthand (`git ls-remote ssh://git@github.com/pack/x.tgz.git`).
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
-  publish-cli:
-    name: Publish daytona CLI ${{ needs.gate.outputs.cli }} as a GitHub Release
-    needs: [gate, build-cli]
-    if: needs.gate.outputs.cli != ''
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      contents: write   # create the release (and its tag) on this repository
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      # ── CLI: GitHub Release + Homebrew daytona-alpha ──
+      - name: Download the CLI release assets
+        id: cli_download
+        if: needs.gate.outputs.cli != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: cli-dist
-          path: dist/
-      - run: ls -l dist
+          path: cli-dist/
       # Idempotent and resumable: the release is created only if the tag is
       # absent; if it exists with IDENTICAL SHA256SUMS the step is a no-op
       # (re-run after a failed Homebrew dispatch), and if it exists with
       # different content the run fails loudly — a version is published once.
-      - name: Create (or confirm) the pre-release
+      - name: Create (or confirm) the daytona CLI ${{ needs.gate.outputs.cli }} pre-release
+        id: cli_release
+        if: needs.gate.outputs.cli != ''
         env:
           GH_TOKEN: ${{ github.token }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
           SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
         run: |
           set -euo pipefail
+          ls -l cli-dist
           tag="v${CLI_VERSION}"
           repo="$GITHUB_REPOSITORY"
           notes="daytona CLI ${CLI_VERSION} — alpha pre-release. Install: \`brew install daytonaio/cli/daytona-alpha\` or the install.sh / install.ps1 assets (\`--version ${CLI_VERSION}\`)."
           if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
-            # Only an existing PRE-RELEASE (what this job creates) may be
+            # Only an existing PRE-RELEASE (what this step creates) may be
             # resumed: a draft or a stable release under the alpha tag was
             # made by someone else, and pointing the alpha formula at it is
             # not this job's call.
@@ -742,29 +818,29 @@ jobs:
             # (a run that died mid-upload must re-upload, not dispatch Homebrew
             # at a half-populated release).
             if gh release download "$tag" --repo "$repo" --pattern SHA256SUMS --output /tmp/published.SHA256SUMS; then
-              if ! cmp -s /tmp/published.SHA256SUMS dist/SHA256SUMS; then
+              if ! cmp -s /tmp/published.SHA256SUMS cli-dist/SHA256SUMS; then
                 echo "::error::release $tag already exists with DIFFERENT content — a version is published once; publish the next version"
                 exit 1
               fi
               published_assets="$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name' | sort)"
-              expected_assets="$(cd dist && ls | sort)"
+              expected_assets="$(find cli-dist -maxdepth 1 -type f -printf '%f\n' | sort)"
               missing="$(comm -23 <(echo "$expected_assets") <(echo "$published_assets"))"
               if [ -n "$missing" ]; then
                 echo "release $tag exists with identical checksums but is missing assets — uploading: $missing"
-                for a in $missing; do gh release upload "$tag" "dist/$a" --repo "$repo"; done
+                for a in $missing; do gh release upload "$tag" "cli-dist/$a" --repo "$repo"; done
               fi
             else
               # No SHA256SUMS: a run died between `gh release create` and the
               # asset uploads, so nothing on the release is trustworthy.
               # Replace EVERYTHING from this build, checksums included.
-              echo "release $tag exists without SHA256SUMS — replacing every asset from dist/"
-              gh release upload "$tag" dist/* --repo "$repo" --clobber
+              echo "release $tag exists without SHA256SUMS — replacing every asset from cli-dist/"
+              gh release upload "$tag" cli-dist/* --repo "$repo" --clobber
             fi
             # Before Homebrew is pointed at the tag, download every published
             # asset and verify it against THIS build's SHA256SUMS.
             rm -rf /tmp/verify && mkdir -p /tmp/verify
             gh release download "$tag" --repo "$repo" --dir /tmp/verify
-            (cd /tmp/verify && cp "$GITHUB_WORKSPACE/dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
+            (cd /tmp/verify && cp "$GITHUB_WORKSPACE/cli-dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
             echo "release $tag verified against this build's checksums — resuming at the Homebrew dispatch"
             exit 0
           fi
@@ -772,8 +848,10 @@ jobs:
           # --latest=false: a pre-release never becomes the repository's
           # "Latest" release.
           gh release create "$tag" --repo "$repo" --target "$SOURCE_SHA" --prerelease --latest=false \
-            --title "daytona CLI ${CLI_VERSION}" --notes "$notes" dist/*
+            --title "daytona CLI ${CLI_VERSION}" --notes "$notes" cli-dist/*
       - name: Point the daytona-alpha Homebrew formula at the release
+        id: homebrew
+        if: needs.gate.outputs.cli != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
@@ -811,16 +889,18 @@ jobs:
           echo "waiting for daytonaio/homebrew-cli run $run_id"
           gh run watch "$run_id" --repo daytonaio/homebrew-cli --exit-status --interval 15
 
-  # The version is recorded as a tag on the published commit. publish-cli's
+  # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.
+  # No environment: this job needs only `contents: write` (this run's own
+  # token), so it adds no approval. `!cancelled()` instead of the implicit
+  # success(), which would also skip this job whenever a disabled target's
+  # build job was skipped.
   record-tag:
     name: Record v${{ needs.gate.outputs.version }} as a tag
-    needs: [gate, publish-python, publish-npm, publish-cli]
+    needs: [gate, publish]
     if: >-
-      always() && needs.gate.result == 'success'
-      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+      !cancelled() && needs.gate.result == 'success' && needs.publish.result == 'success'
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
     steps:
@@ -841,7 +921,7 @@ jobs:
 
   summary:
     name: Publish summary
-    needs: [gate, registry-check, build-python, build-npm, build-cli, publish-python, publish-npm, publish-cli, record-tag]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, publish, record-tag]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -858,11 +938,13 @@ jobs:
           REGISTRY_RESULT: ${{ needs.registry-check.result }}
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
-          PY_RESULT: ${{ needs.publish-python.result }}
-          NPM_RESULT: ${{ needs.publish-npm.result }}
-          CLI_VERSION: ${{ needs.gate.outputs.cli }}
           CLI_BUILD: ${{ needs.build-cli.result }}
-          CLI_RESULT: ${{ needs.publish-cli.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          PY_PUBLISH: ${{ needs.publish.outputs.pypi }}
+          NPM_PUBLISH: ${{ needs.publish.outputs.npm }}
+          CLI_PUBLISH: ${{ needs.publish.outputs.cli }}
+          HOMEBREW_PUBLISH: ${{ needs.publish.outputs.homebrew }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
           TAG_RESULT: ${{ needs.record-tag.result }}
           SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
           SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
@@ -876,24 +958,39 @@ jobs:
           SERVER: ${{ github.server_url }}
         run: |
           set -euo pipefail
-          status() { # build-result publish-result
+          # One row per package from the build job's result, the publish
+          # job's result and that target's step outcome in the publish job.
+          status() { # version build-result target-outcome
+            if [ -z "$1" ]; then echo ":fast_forward: skipped (not requested)"; return; fi
             case "$REGISTRY_RESULT" in
-              failure|cancelled) if [ "$1" = skipped ]; then echo ":x: NOT BUILT — registry check ${REGISTRY_RESULT} (see its job log)"; return; fi ;;
+              failure|cancelled) if [ "$2" = skipped ]; then echo ":x: NOT BUILT — registry check ${REGISTRY_RESULT} (see its job log)"; return; fi ;;
             esac
-            case "$1/$2" in
-              success/success) echo ":white_check_mark: published" ;;
-              skipped/skipped) echo ":fast_forward: skipped (not requested)" ;;
-              failure/*)       echo ":x: BUILD FAILED — see build job log" ;;
-              */failure)       echo ":x: PUBLISH FAILED — see publish job log" ;;
-              */cancelled|cancelled/*) echo ":stop_sign: cancelled" ;;
-              *)               echo ":grey_question: build=$1 publish=$2" ;;
+            case "$2" in
+              success)   ;;
+              failure)   echo ":x: BUILD FAILED — see build job log"; return ;;
+              cancelled) echo ":stop_sign: cancelled"; return ;;
+              *)         echo ":grey_question: build=$2"; return ;;
+            esac
+            case "$PUBLISH_RESULT/$3" in
+              */success)          echo ":white_check_mark: published" ;;
+              */homebrew-failure) echo ":x: RELEASE PUBLISHED, HOMEBREW UPDATE FAILED — see publish job log" ;;
+              */failure)          echo ":x: PUBLISH FAILED — see publish job log" ;;
+              cancelled/*)        echo ":stop_sign: cancelled" ;;
+              skipped/*)          echo ":fast_forward: not published — the publish job did not run (another target's build failed or was cancelled)" ;;
+              failure/*)          echo ":x: NOT PUBLISHED — the publish job failed or was rejected before this target (see its log)" ;;
+              *)                  echo ":grey_question: build=$2 publish=$PUBLISH_RESULT step=${3:-none}" ;;
             esac
           }
+          # The CLI is published by two steps; the row says which one failed.
+          cli_outcome="$CLI_PUBLISH"
+          if [ "$cli_outcome" = success ] && [ "$HOMEBREW_PUBLISH" != success ]; then
+            cli_outcome="homebrew-${HOMEBREW_PUBLISH:-none}"
+          fi
           row() { printf '| %s | %s | %s | %s | %s |\n' "$1" "${2:-—}" "$3" "$4" "$5"; }
           {
             echo "## SDK Publish — \`${VERSION:-${VERSION_INPUT}}\` from \`${SOURCE_REF}\` @ \`${SOURCE_SHA:0:12}\`"
             echo
-            echo "Triggered by **@${ACTOR}**. Gate: **${GATE_RESULT}** (alpha-only, pre-launch$([ "$FORCE" = true ] && echo '; force_republish')). Registry check: **${REGISTRY_RESULT}**. Tag: **${TAG_RESULT}**."
+            echo "Triggered by **@${ACTOR}**. Gate: **${GATE_RESULT}** (alpha-only, pre-launch$([ "$FORCE" = true ] && echo '; force_republish')). Registry check: **${REGISTRY_RESULT}**. Publish: **${PUBLISH_RESULT}**. Tag: **${TAG_RESULT}**."
             echo
             echo "- **Published source:** \`${SOURCE_REF}\` → [\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})"
             echo "- **Workflow logic from:** \`${WORKFLOW_REF}\` → [\`${WORKFLOW_SHA}\`](${SERVER}/${REPO}/commit/${WORKFLOW_SHA})"
@@ -901,19 +998,19 @@ jobs:
             echo
             echo "| Package | Version | Result | Install | Registry |"
             echo "|---|---|---|---|---|"
-            row "Python \`daytona\`" "$PYPI_VERSION" "$(status "$PY_BUILD" "$PY_RESULT")" \
+            row "Python \`daytona\`" "$PYPI_VERSION" "$(status "$PYPI_VERSION" "$PY_BUILD" "$PY_PUBLISH")" \
                 "${PYPI_VERSION:+\`pip install daytona==${PYPI_VERSION}\`}" \
                 "${PYPI_VERSION:+https://pypi.org/project/daytona/${PYPI_VERSION}/}"
-            row "TypeScript \`@daytona/sdk\`" "$NPM_VERSION" "$(status "$NPM_BUILD" "$NPM_RESULT")" \
+            row "TypeScript \`@daytona/sdk\`" "$NPM_VERSION" "$(status "$NPM_VERSION" "$NPM_BUILD" "$NPM_PUBLISH")" \
                 "${NPM_VERSION:+\`npm install @daytona/sdk@${NPM_VERSION}\` (dist-tag \`${NPM_DIST_TAG}\`)}" \
                 "${NPM_VERSION:+https://www.npmjs.com/package/@daytona/sdk/v/${NPM_VERSION}}"
-            row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_BUILD" "$CLI_RESULT")" \
+            row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_VERSION" "$CLI_BUILD" "$cli_outcome")" \
                 "${CLI_VERSION:+\`brew install daytonaio/cli/daytona-alpha\` · \`install.sh --version ${CLI_VERSION}\`}" \
                 "${CLI_VERSION:+${SERVER}/${REPO}/releases/tag/v${CLI_VERSION}}"
             echo
-            echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
+            echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
           } >> "$GITHUB_STEP_SUMMARY"
-          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$PY_RESULT" "$NPM_RESULT" "$CLI_RESULT" "$TAG_RESULT"; do
+          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
             case "$r" in failure|cancelled) exit 1;; esac
           done
           exit 0

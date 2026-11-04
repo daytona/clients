@@ -5,7 +5,7 @@ name: Publish daytona-upgrade
 # set to false. Dispatched from `main` (the 2.x line), it builds, tests and packs both packages from a
 # release tag `daytona-upgrade-vX.Y.Z[-(alpha|beta|rc).N]` that must point at
 # a commit on the dispatch branch; the published version is the tag's. In a
-# dry run the publish jobs are skipped.
+# dry run the publish job is skipped.
 #
 # One-time setup before the first real publish: register this workflow
 # (`upgrade-tool-publish.yaml`) as a trusted publisher for both names — a PyPI
@@ -14,8 +14,10 @@ name: Publish daytona-upgrade
 # environment `release`.
 #
 # Same split as sdk_publish.yaml: the build job runs package scripts with a
-# read-only token and no OIDC; the publish jobs never check out source, take
-# only the built artifacts, and hold the only `id-token: write`.
+# read-only token and no OIDC; the one publish job never checks out source,
+# takes only the built artifacts, holds the only `id-token: write`, and is the
+# only job on the `release` environment, so a run needs one approval. It
+# publishes PyPI first, then npm; a PyPI failure stops the npm publish.
 on:
   workflow_dispatch:
     inputs:
@@ -184,35 +186,32 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  publish-pypi:
-    name: Publish daytona-upgrade ${{ needs.build.outputs.pypi_version }} to PyPI
+  # The ONLY job on the `release` environment, so a run asks for one
+  # approval, after the build and tests are green. A dry run skips it (no
+  # approval asked); `targets` selects which registry steps run.
+  publish:
+    name: Publish daytona-upgrade ${{ needs.build.outputs.npm_version }} (${{ inputs.targets }})
     needs: build
-    if: ${{ !inputs.dry_run && (inputs.targets == 'both' || inputs.targets == 'pypi') }}
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      id-token: write   # OIDC token for PyPI Trusted Publishing — the ONLY job perm
+      id-token: write   # OIDC token for PyPI and npm Trusted Publishing — the ONLY job perm
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Download the PyPI distributions
+        if: inputs.targets == 'both' || inputs.targets == 'pypi'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: upgrade-pypi
           path: dist/
-      - run: ls -l dist
       - name: Publish to PyPI (OIDC)
+        if: inputs.targets == 'both' || inputs.targets == 'pypi'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/
-
-  publish-npm:
-    name: Publish daytona-upgrade ${{ needs.build.outputs.npm_version }} to npm
-    needs: build
-    if: ${{ !inputs.dry_run && (inputs.targets == 'both' || inputs.targets == 'npm') }}
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write   # OIDC token for npm Trusted Publishing — the ONLY job perm
-    steps:
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - name: Set up Node for npm
+        if: inputs.targets == 'both' || inputs.targets == 'npm'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -220,16 +219,20 @@ jobs:
       # npm (Trusted Publishing needs >= 11.5.1), and setup-node's
       # `always-auth=` line dropped (npm >= 7 warns on it).
       - name: Install a Trusted-Publishing-capable npm (pinned)
+        if: inputs.targets == 'both' || inputs.targets == 'npm'
         run: |
           set -euo pipefail
           sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
           npm install -g npm@11.21.1
           npm --version
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Download the npm tarball
+        if: inputs.targets == 'both' || inputs.targets == 'npm'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: upgrade-npm
           path: pack/
       - name: Publish to npm (OIDC)
+        if: inputs.targets == 'both' || inputs.targets == 'npm'
         # No NODE_AUTH_TOKEN: OIDC trusted publishing authenticates the run.
         # The registry is pinned on the command line, not taken from the
         # tarball's package.json, because this job holds the credential.
