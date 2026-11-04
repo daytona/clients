@@ -26,5 +26,12 @@ CLA.md                     @MDzaja @aprojic
 .github/actionlint.yaml    @MDzaja
 .licenserc.yaml            @MDzaja
 
+# Secret scanning: a pull request runs its own copy of these, so changes to
+# them need an owner's review.
+.gitleaks.toml             @MDzaja
+.githooks/                 @MDzaja
+/scripts/secret-scan.sh    @MDzaja
+/scripts/secret-scan_test.sh @MDzaja
+
 # CODEOWNERS itself (must protect itself)
 .github/CODEOWNERS         @MDzaja
