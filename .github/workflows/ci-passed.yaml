@@ -20,11 +20,16 @@ name: CI passed
 # A re-run of a counted workflow re-runs this check when it completes
 # (ci-passed-rerun.yaml); re-running `CI passed` by hand also works.
 #
-# Reuse on another base branch (e.g. release/v0): copy this file unchanged
-# except for `branches` (the file name must stay ci-passed.yaml; the re-run
-# helper looks it up by name), copy scripts/ci-passed.sh, add that branch's
-# workflow names to ci-passed-rerun.yaml on main, and require `CI passed` in
-# the branch's ruleset.
+# Reuse on another base branch: copy this file (keep the name ci-passed.yaml;
+# the re-run helper looks it up by name) and scripts/ci-passed.sh, then change
+# `branches` and set CI_PASSED_IGNORE to that branch's own non-blocking
+# workflow files; add the branch's counted workflow names to
+# ci-passed-rerun.yaml on main and require `CI passed` in the branch's ruleset.
+# For release/v0 that is `branches: ['release/v0']`, CI_PASSED_IGNORE
+# `.github/workflows/ci-passed.yaml .github/workflows/e2e_pr_tests.yaml
+# .github/workflows/ax_evals.yaml` (its E2E, and the label-triggered,
+# informational AX evals), and `[PR] Validate clients` and
+# `[CI] AX evals config` in the re-run list.
 on:
   pull_request:
     branches: [main]

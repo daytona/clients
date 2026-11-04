@@ -18,7 +18,10 @@
 #   CI_PASSED_TIMEOUT   seconds to wait for runs to finish (default 3600)
 #   CI_PASSED_SETTLE    seconds before a pass is accepted (default 60), so runs
 #                       created by the same event a moment later are counted
-#   CI_PASSED_INTERVAL  seconds between polls (default 20)
+#   CI_PASSED_INTERVAL  seconds between polls (default 30)
+#
+# A failing API call is retried at the next poll; the check fails only after
+# 5 failed calls in a row, or at the timeout.
 #   CI_PASSED_ONCE      1: evaluate once and exit 2 if runs are still pending
 #                       instead of waiting (for local checks against old commits)
 
@@ -32,7 +35,8 @@ if ! [[ $sha =~ ^[0-9a-f]{40}$ ]]; then
 fi
 ignore=${CI_PASSED_IGNORE:-}
 timeout=${CI_PASSED_TIMEOUT:-3600}
-interval=${CI_PASSED_INTERVAL:-20}
+interval=${CI_PASSED_INTERVAL:-30}
+max_api_errors=5
 once=${CI_PASSED_ONCE:-0}
 settle=${CI_PASSED_SETTLE:-60}
 [ "$once" = 1 ] && settle=0
@@ -55,8 +59,19 @@ evaluate() {
 
 deadline=$((SECONDS + timeout))
 previous=
+api_errors=0
 while :; do
-  result=$(evaluate)
+  if ! result=$(evaluate); then
+    api_errors=$((api_errors + 1))
+    if [ "$api_errors" -ge "$max_api_errors" ] || [ "$once" = 1 ] || [ "$SECONDS" -ge "$deadline" ]; then
+      echo "::error::could not list the workflow runs on $sha ($api_errors failed API calls in a row)"
+      exit 1
+    fi
+    echo "::warning::listing the workflow runs failed ($api_errors/$max_api_errors); retrying"
+    sleep "$interval"
+    continue
+  fi
+  api_errors=0
   if [ "$result" != "$previous" ]; then
     printf '%s\n%s\n\n' "--- $(date -u +%H:%M:%S)" "${result:-no other workflow runs on this commit}"
     previous=$result
