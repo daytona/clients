@@ -524,8 +524,8 @@ Live suites, when credentials are available:
 
 ## Pull requests
 
-- Until 2.x is generally available, the 2.x line lives on `release/v2`: branch
-  from it and target pull requests at it. `main` still holds the 0.x SDKs.
+- The 2.x line lives on `main`: branch from it and target pull requests at it.
+  The 0.x SDKs and CLI live on `release/v0`.
 - Sign off every commit (`git commit -s`); sign the CLA once (the CLA check runs on every PR). See [CONTRIBUTING.md](CONTRIBUTING.md).
 - E2E runs against the hosted deployment and skips when its secrets are not
   available (pull requests from forks). A PR that depends on API surface that

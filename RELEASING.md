@@ -38,7 +38,7 @@ See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](CHANGELOG.md) ·
 
 | Line | Branch | Workflows |
 |---|---|---|
-| 2.x (this SDK) | `release/v2` until 2.x is generally available, then `main` | `prepare-release.yaml`, `sdk_publish.yaml`, `upgrade-tool-publish.yaml` |
+| 2.x (this SDK) | `main` | `prepare-release.yaml`, `sdk_publish.yaml`, `upgrade-tool-publish.yaml` |
 | 0.x | `release/v0` | that branch's own `prepare-release.yaml`, `release.yaml`, `sdk_publish.yaml` |
 
 Each line keeps its own copy of the workflows under the **same file names**:
@@ -47,7 +47,7 @@ PyPI and npm Trusted Publishing are bound to repository + workflow file name
 line with the dispatch ref:
 
 ```bash
-gh workflow run sdk_publish.yaml --ref release/v2 -f version=v2.0.0-alpha.4
+gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.4
 gh workflow run release.yaml     --ref release/v0 -f version=v0.228.0
 ```
 
@@ -65,14 +65,16 @@ not before 2.x moves there); a
 early users before it merges:
 
 ```bash
-gh workflow run sdk_publish.yaml --ref release/v2 -f version=v2.1.0-alpha.2 -f source_ref=feat/my-feature
+gh workflow run sdk_publish.yaml --ref main -f version=v2.1.0-alpha.2 -f source_ref=feat/my-feature
 ```
 
 A 0.x version is refused here. Every run waits for a reviewer on the
 `release` environment; the run summary names both the source commit and the
 workflow commit.
 
-### Moving the 2.x line to `main`
+### Moving the 2.x line to `main` (done)
+
+The record of the one-time move, kept for reference.
 
 Nothing in the workflows needs to change: every push trigger, the publish
 gates (`sdk_publish.yaml`, `upgrade-tool-publish.yaml`, `prepare-release.yaml`)
@@ -157,7 +159,7 @@ For each release:
 2. **Publish** from the commit to release:
 
 ```bash
-gh workflow run sdk_publish.yaml --ref release/v2 -f version=v2.0.0-alpha.3
+gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3
 # optional: -f publish_pypi=false / -f publish_npm=false / -f publish_cli=false  (all default true)
 # optional: -f force_republish=true      # resume a half-landed publish of this version (see below)
 gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databaseId --jq '.[0].databaseId')"

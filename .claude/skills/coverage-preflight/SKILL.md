@@ -14,8 +14,8 @@ lines a branch adds, with `scripts/patch_coverage.py`, and closes the gap.
 
 ## Steps
 
-1. **Base.** The branch's merge base with the 2.x line — `origin/release/v2`
-   while it exists, else `origin/main` (the script's default) — or
+1. **Base.** The branch's merge base with the 2.x line, `origin/main` (the
+   script's default), or
    `--base <ref>` for another target branch (for example `release/v0`).
 
 2. **Reports for every component the diff touches** (from the repository root):

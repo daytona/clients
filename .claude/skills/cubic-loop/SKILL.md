@@ -150,7 +150,7 @@ git status --porcelain
 ```
 
 `-b/--base` takes the base branch name — pass it explicitly (e.g.
-`cubic review -b release/v2 -j` — the 2.x line's branch, `main` once 2.x moves there).
+`cubic review -b main -j` — the 2.x line's branch).
 
 Unrelated untracked or generated files do **not** count as "uncommitted
 changes" — reviewing only the working tree when the real work is committed

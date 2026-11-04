@@ -63,7 +63,7 @@ follows the version.
 
 | Line | Branch | Workflows |
 |---|---|---|
-| 2.x | `release/v2` until general availability, then `main` | `prepare-release.yaml`, `sdk_publish.yaml` |
+| 2.x | `main` (`release/v2` until the move) | `prepare-release.yaml`, `sdk_publish.yaml` |
 | 0.x | `release/v0` | that branch's own `prepare-release.yaml`, `release.yaml`, `sdk_publish.yaml` |
 
 PyPI and npm Trusted Publishing bind a package to a repository, a workflow

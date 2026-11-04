@@ -25,7 +25,7 @@ that loop, apply fixes, or substitute for the repository's verification gates.
 
 - **Branch mode:** branch/ref and its actual base (including a stacked
   branch's immediate base), plus a locally saved draft PR description.
-  Default head is `HEAD`; default base is the 2.x line (`release/v2` until it becomes `main`). Supply the claims to review
+  Default head is `HEAD`; default base is the 2.x line (`main`). Supply the claims to review
   before starting; if no draft exists, record the missing input rather than
   inventing the author's promises.
 - **PR mode:** a PR identifier in `daytona/clients`. The PR's own base and
@@ -92,7 +92,7 @@ All commands below run from the repository root. Scripts require Bash,
 Git, and jq; PR mode also needs authenticated GitHub CLI read access.
 
 ```bash
-bash .claude/skills/deep-review/scripts/branch_context.sh HEAD release/v2
+bash .claude/skills/deep-review/scripts/branch_context.sh HEAD main
 # Or, for an existing PR:
 bash .claude/skills/deep-review/scripts/pr_context.sh <pr>
 bash .claude/skills/deep-review/scripts/preflight.sh <merge-base> <head> .

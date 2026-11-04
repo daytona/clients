@@ -92,8 +92,8 @@ Every source file starts with a license header (see [Licensing](#licensing)); th
 5. Ensure the commands under [Development setup](#development-setup) pass.
 6. Open a pull request (a [draft PR](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
    is welcome for early feedback). A Daytona team member will review it, and once approved and
-   green it will be merged. Until 2.x is generally available its default branch is
-   `release/v2`: target pull requests there.
+   green it will be merged. Target 2.x pull requests at `main`; 0.x fixes go to
+   `release/v0`.
 
 ## Licensing
 
