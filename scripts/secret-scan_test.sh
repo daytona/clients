@@ -174,7 +174,7 @@ mkdir -p "$nogl"
 for tool in git bash sed cat grep tr od head mktemp dirname uname cut; do
   ln -s "$(command -v "$tool")" "$nogl/$tool"
 done
-rm -rf "$(git rev-parse --git-common-dir)/gitleaks"
+rm -rf "$tmp/repo/.git/gitleaks" # the throwaway repository's copy only
 rc=0
 PATH="$nogl" scripts/secret-scan.sh staged >/dev/null 2>"$tmp/out" || rc=$?
 [ "$rc" = 2 ] || fail "missing gitleaks: exit $rc (want 2)"
