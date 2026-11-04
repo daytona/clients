@@ -358,6 +358,7 @@ ImageV2 = Image
 ListSandboxesQueryV2 = ListSandboxesQuery
 ResourcesV2 = Resources
 SandboxV2 = Sandbox
+SandboxClassV2 = SandboxClass
 SecretV2 = Secret
 VolumeMountV2 = VolumeMount
 
@@ -709,6 +710,7 @@ __all__ = [
     "ListSandboxesQueryV2",
     "ResourcesV2",
     "SandboxV2",
+    "SandboxClassV2",
     "SecretV2",
     "VolumeMountV2",
 ]

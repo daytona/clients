@@ -353,6 +353,7 @@ SHARED_WITH_V0 = (
     "ListSandboxesQuery",
     "Resources",
     "Sandbox",
+    "SandboxClass",
     "Secret",
     "VolumeMount",
 )
