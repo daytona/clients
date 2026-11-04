@@ -230,9 +230,7 @@ pass "an existing worktree override is replaced, the clone's setting untouched"
 
 ln -s .githooks "$tmp/wt2/hooks-link"
 git -C "$tmp/wt2" config --worktree secretscan.chainHooksPath hooks-link
-echo link >"$tmp/wt2/link.txt"
-git -C "$tmp/wt2" add link.txt
-timeout 60 git -C "$tmp/wt2" commit -q -m link || fail "a chained path symlinked to .githooks recursed or failed"
+[ -z "$(cd "$tmp/wt2" && scripts/secret-scan.sh chained-hook pre-commit)" ] || fail "a chained path symlinked to .githooks chains the wrapper to itself"
 pass "a chained hooks path that is a symlink to .githooks is not chained to itself"
 
 # No pinned build for the platform: install uses gitleaks from PATH.
