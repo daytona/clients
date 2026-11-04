@@ -1,8 +1,7 @@
-# Contributing to Daytona Clients
+# Contributing to the Daytona SDKs and CLI
 
-This repository holds Daytona's client-facing packages — the **SDKs** (TypeScript, Python,
-Ruby, Java, Go), the generated **API clients**, and the **CLI** (with its embedded MCP
-server). Contributions are welcome! ❤️
+This repository holds the Daytona **Python SDK** (`daytona`), the **TypeScript
+SDK** (`@daytona/sdk`) and the **`daytona` CLI**. Contributions are welcome! ❤️
 
 > If you like the project but don't have time to contribute, you can still help by starring
 > the repo, telling others about it, or referencing it in your own project's README.
@@ -15,66 +14,68 @@ participating, you are expected to uphold it. Please report unacceptable behavio
 
 ## Provide feedback
 
-Found a bug or have an idea for the SDKs, clients, or CLI? Please
+Found a bug or have an idea for the SDKs or the CLI? Please
 [open an issue](https://github.com/daytona/clients/issues/new) — but first check that a
 matching issue doesn't already exist. For questions and discussion, join the
 [Daytona Community Slack](https://go.daytona.io/slack).
 
 ## What you can contribute
 
-- Bug fixes and new features in the SDKs (`sdk-typescript`, `sdk-python`, `sdk-ruby`,
-  `sdk-java`, `sdk-go`).
-- Improvements to the CLI and the embedded MCP server (`cli/`).
-- New SDK examples under `examples/`.
-- Improvements to the OpenAPI generation tooling under `hack/`.
+- Bug fixes and new features in the SDKs (`python/`, `typescript/`). A change to SDK
+  behavior lands in **both** SDKs in the same pull request — see the parity contract in
+  [`AGENTS.md`](./AGENTS.md).
+- Improvements to the CLI (`cli/`).
+- New examples under `examples/`.
 
-> **Generated code**: `api-client*`, `toolbox-api-client*`, and `analytics-api-client*` are
-> generated from the specs in `openapi-specs/` and the templates in `hack/`. Don't hand-edit
-> the generated output — change the spec or the template and re-run `yarn generate:api-client`.
+> **Generated code**: the wire types under `typescript/src/v2/gen/`,
+> `python/src/daytona/v2/_gen/` and `cli/gen/` are generated from the API contracts in
+> `contract/`, and the synchronous Python surface (`python/src/daytona/v2/_sync/`) is
+> generated from the async one. Don't hand-edit generated output. The contract files
+> themselves are maintained by the Daytona team; if you need API surface that isn't in
+> them, open an issue.
 
 ## Development setup
 
-Use the Nix dev shells (`nix develop`, or `.#go` / `.#node` / `.#python` / `.#ruby` /
-`.#java`). Each shell auto-installs its language's dependencies on first entry
-(`yarn install` / `poetry install` / `bundle install` / `go work sync`); set
-`DAYTONA_NO_BOOTSTRAP=1` to skip. To install manually instead:
+You need Python 3.10+ with [uv](https://docs.astral.sh/uv/), Node.js 22.4+ and Go (the
+version in `cli/go.mod`). Regenerating the wire types also needs a Java runtime.
 
 ```bash
-yarn install
-poetry install
-bundle install
-go work sync
+(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd cli && go vet ./... && go test ./...)
 ```
 
-Common commands:
+Before your first commit, enable the secret-scanning hooks (once per clone or
+worktree):
 
 ```bash
-yarn generate:api-client   # regenerate clients from openapi-specs/
-yarn build                 # build all packages
-yarn test                  # run the test suites
-yarn docs                  # generate SDK reference docs into artifacts/sdk-docs/
+scripts/secret-scan.sh install
 ```
 
-Go modules use a workspace:
+It downloads a pinned, checksum-verified [gitleaks](https://github.com/gitleaks/gitleaks)
+into the clone's `.git/` directory (Linux and macOS; elsewhere, put gitleaks on
+your `PATH`) and enables the hooks in `.githooks/` for that worktree (git 2.36
+or later): every commit's staged
+changes and every push's new commits are checked against `.gitleaks.toml`, and
+the `Secret scan` check repeats it on pull requests. If it blocks a commit,
+remove the credential rather than bypassing the hook; for a value that is not a
+secret, see the comments at the top of `.gitleaks.toml`.
 
-```bash
-go build ./cli/... ./sdk-go/...
-go test ./sdk-go/...
-```
+With a Daytona API key you can also run the live end-to-end suites:
+`DAYTONA_API_KEY=… ./run-e2e.sh`.
 
-See [`AGENTS.md`](./AGENTS.md) for the full project map and per-shell command reference.
+[`AGENTS.md`](./AGENTS.md) has the full project map and conventions.
 
 ## Coding style
 
 Match the conventions already used in each package. Keep changes lint- and type-clean:
 
+- **Python**: `ruff check` + `mypy` (strict)
+- **TypeScript**: `tsc --strict` + `oxlint` (`npm run lint`)
 - **Go**: `gofmt` + `golangci-lint run`
-- **TypeScript**: ESLint + Prettier (`yarn lint:ts`)
-- **Python**: ruff / black / isort + basedpyright (`yarn lint:py`)
-- **Ruby**: RuboCop
-- **Java**: the module's Gradle build
 
-Run `yarn lint` before opening a PR.
+Every source file starts with a license header (see [Licensing](#licensing)); the
+`License headers` check enforces it.
 
 ## Submitting a pull request
 
@@ -86,12 +87,13 @@ Run `yarn lint` before opening a PR.
    every commit to comply with the DCO v1.1 (`git commit -s`).
    The first time you open a PR, our CLA assistant will also ask you to **sign the
    [Contributor License Agreement](./CLA.md)** (see [Licensing](#licensing) below).
-4. If you changed generated clients, regenerate them (`yarn generate:api-client`) and commit
-   the result. If you changed command behavior, regenerate any affected docs.
-5. Ensure `yarn lint`, `yarn build`, and `yarn test` pass.
+4. Add a changelog fragment under [`changelog.d/`](./changelog.d/README.md) for any
+   user-visible change.
+5. Ensure the commands under [Development setup](#development-setup) pass.
 6. Open a pull request (a [draft PR](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
    is welcome for early feedback). A Daytona team member will review it, and once approved and
-   green it will be merged into `main`.
+   green it will be merged. Until 2.x is generally available its default branch is
+   `release/v2`: target pull requests there.
 
 ## Licensing
 

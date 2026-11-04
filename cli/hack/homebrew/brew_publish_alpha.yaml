@@ -1,0 +1,41 @@
+name: Update brew alpha with new versions
+# The run title carries the version so the dispatching publish job can find
+# and await ITS run by title (never by clock).
+run-name: Update brew alpha to ${{ github.event.client_payload.version }}
+
+on:
+  repository_dispatch:
+    types: [update-version-alpha]
+
+concurrency:
+  group: brew-alpha-formula
+  cancel-in-progress: false
+
+jobs:
+  update-brew:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run Bash script with version argument
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          # Ensure a version argument is provided
+          if [ -z "$VERSION" ]; then
+            echo "Please provide a version number as an argument."
+            exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
+            echo "::error::Invalid alpha version '$VERSION'. Expected vX.Y.Z-alpha.N." >&2
+            exit 1
+          fi
+          echo "Received version: $VERSION"
+          bash scripts/update_sha.sh "$VERSION" daytona-alpha.rb
+      - name: Commit ${{ github.event.client_payload.version }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: "daytona-alpha.rb"
+          commit_message: Automated file update to - ${{ github.event.client_payload.version }}

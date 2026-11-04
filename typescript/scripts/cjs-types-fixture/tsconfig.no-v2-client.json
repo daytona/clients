@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.bundler.json",
+  "files": ["no-v2-client.ts"]
+}

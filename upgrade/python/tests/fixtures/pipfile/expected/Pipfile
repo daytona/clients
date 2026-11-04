@@ -1,0 +1,12 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+daytona = {version = ">=2,<3", extras = ["v0-sdk"]} # SDK
+
+[dev-packages]
+daytona-upgrade = "*"
+daytona = {version = ">=2,<3", markers = "sys_platform == 'linux'", extras = ["otel", "v0-sdk"]}

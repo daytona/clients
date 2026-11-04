@@ -1,87 +1,103 @@
 name: Prepare Release
 
+# Opens the release PR for a version: folds every changelog.d/ fragment into
+# CHANGELOG.md under the new version heading (and deletes the fragments).
+# Merge the PR, then run "SDK Publish" (sdk_publish.yaml) from the merge commit
+# with the same version.
+#
+#   gh workflow run prepare-release.yaml --ref main -f version=v2.1.0
+#
+# Pre-releases may skip this step: an alpha publishes any commit (source_ref), and its
+# changes stay as fragments until the next prepared release.
+#
+# Each release line carries its own copy of this file under the same name; the
+# 0.x line's copy on release/v0 prepares 0.x releases.
+
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (start with "v")'
+        description: 'Version to prepare (vX.Y.Z or vX.Y.Z-alpha.N / -beta.N / -rc.N)'
         required: true
-        default: v0.0.0-dev
+        type: string
 
 permissions: {}
-
-env:
-  VERSION: ${{ inputs.version }}
-  # On a release/vN maintenance branch, automated PRs target that branch;
-  # from any other ref they target main.
-  BASE_BRANCH: ${{ startsWith(github.ref, 'refs/heads/release/') && github.ref_name || 'main' }}
 
 jobs:
   prepare:
     if: github.repository == 'daytona/clients'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
     # for required-reviewer approval before secrets resolve.
     environment: release
     permissions:
       contents: write
-      pull-requests: write
     env:
-      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+      VERSION_INPUT: ${{ inputs.version }}
+      BASE_BRANCH: ${{ github.ref_name }}
     steps:
-      - name: Validate version format
-        run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
-            exit 1
-          fi
-      - name: Validate release branch version line
-        if: startsWith(github.ref, 'refs/heads/release/')
-        run: |
-          line="${GITHUB_REF_NAME#release/}"
-          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
-            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
-            exit 1
-          fi
-          if [[ "$VERSION" != "$line".* ]]; then
-            echo "::error::$GITHUB_REF_NAME only releases $line.x versions (got $VERSION)"
-            exit 1
-          fi
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-tags: true
           fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
-      - uses: ./.github/actions/setup-toolchain
-      - name: Configure git
+      - name: Validate the version for this line
+        id: version
         run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git config --global user.name "Daytona Release Bot"
-          git config --global user.email "153830314+daytonaBot@users.noreply.github.com"
-      - name: Create release branch
-        run: git checkout -b "prepare-release-$VERSION"
-      - name: Prepare release
-        run: yarn prepare-release
-      - name: Push branch and create PR
+          set -euo pipefail
+          derived=$(scripts/sdk-version.sh "$VERSION_INPUT")
+          version=$(sed -n 's/^version=//p' <<<"$derived")
+          case "$version" in
+            0.*) echo "::error::${version} is a 0.x version — prepare it from release/v0"; exit 1 ;;
+          esac
+          case "$version" in
+            *-*) ;;
+            *)
+              if [ "$GITHUB_REF" != refs/heads/main ]; then
+                echo "::error::${version} is a stable version; prepare stable releases from main (dispatched from ${GITHUB_REF})"
+                exit 1
+              fi ;;
+          esac
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            echo "::error::tag v${version} already exists"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Fold changelog fragments into CHANGELOG.md
         env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts/changelog
+          python3 scripts/changelog/assemble.py check --dir changelog.d
+          python3 scripts/changelog/assemble.py assemble \
+            --dir changelog.d --changelog CHANGELOG.md --version "$VERSION" --pr-links \
+            --compare-url "https://github.com/${GITHUB_REPOSITORY}/compare/v{prev}...v{version}"
+          git --no-pager diff --stat
+      - name: Push branch and open the release PR
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
-          # daytonaBot so it works with "Allow GitHub Actions to create and
-          # approve pull requests" disabled, and PR checks trigger on it
-          # (GITHUB_TOKEN-created PRs never trigger workflows).
+          # daytonaBot so PR checks trigger on it (GITHUB_TOKEN-created PRs
+          # never trigger workflows).
           GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
         run: |
-          # Fail fast: with an empty GH_TOKEN, gh silently falls back to
-          # GITHUB_TOKEN, and that PR would trigger no CI.
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::GITHUBBOT_TOKEN is unavailable; refusing to create the release PR with GITHUB_TOKEN"
             exit 1
           fi
+          branch="prepare-release-v${VERSION}"
+          git config user.name "Daytona Release Bot"
+          git config user.email "153830314+daytonaBot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A CHANGELOG.md changelog.d
+          git commit -s -m "chore: prepare release v${VERSION}"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
-          git push origin "prepare-release-$VERSION"
+          git push origin "$branch"
           gh pr create \
-            --title "chore: prepare clients release $VERSION" \
-            --body "Automated PR to prepare clients release $VERSION" \
+            --title "chore: prepare release v${VERSION}" \
+            --body "Folds the changelog fragments into CHANGELOG.md for v${VERSION}. After merging, run SDK Publish from the merge commit with version v${VERSION}." \
             --base "$BASE_BRANCH" \
-            --head "prepare-release-$VERSION"
+            --head "$branch"

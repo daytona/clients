@@ -1,110 +1,24 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
+typescript/node_modules/
+typescript/dist/
+python/.venv/
+python/build/
+python/dist/
+**/__pycache__/
+**/*.egg-info/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+examples/node_modules/
+examples/package-lock.json
 
-# compiled output
-dist
-tmp
-out-tsc
+# Local agent overlay (see AGENTS.md); never committed
+AGENTS.local.md
+.agents/local/
+.omo/
+.sisyphus/
+.opencode/
 
-# dependencies
-node_modules
-package-lock.json
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-.cursor
-
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
-.DS_Store
-Thumbs.db
-
-.nx/cache
-.nx/workspace-data
-
-vite.config.*.timestamp*
-vitest.config.*.timestamp*
-
-# yarn
-# https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-
-.eslintcache
-.tmp/
-.env.local
-
-# Python package metadata
-*.egg-info/
-*.egg
-*.pyc
-__pycache__/
-
-# Ruby gem artifacts
-*.gem
-**/.bundle/
-**/vendor/bundle
-**/Gemfile.lock
-!/Gemfile.lock
-
-examples/**/*.png
-
-**/.venv
-**/poetry.lock
-!/poetry.lock
-.astro
-.github/instructions/nx.instructions.md
-
-go.work.sum
-
-# Claude
-.claude/worktrees
-.claude/settings.local.json
-
-# Java build outputs
-**/.gradle/
-**/build/
-*.class
-*.jar
-!**/gradle/wrapper/gradle-wrapper.jar
-**/target/
-
-# .NET build outputs
-**/bin/Debug/
-**/bin/Release/
-**/obj/
-
-# Nix / direnv
-.direnv/
-result
-result-*
-.envrc.local
-
-# generated Go vanity Pages site
-hack/go-vanity/site/
+# Coverage reports (scripts/patch_coverage.py)
+python/coverage.xml
+python/.coverage
+typescript/coverage/

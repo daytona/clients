@@ -1,0 +1,49 @@
+/*
+ * Shared helpers for the Daytona TypeScript examples.
+ *
+ * Every example builds its `Daytona` client from the same environment
+ * variables so they can all use the same Daytona deployment:
+ *
+ *     DAYTONA_API_URL      Daytona API base         (default https://api.daytona.com)
+ *     DAYTONA_API_KEY      bearer api key (dtn_...)  (required)
+ *     DAYTONA_IMAGE        default sandbox image    (default python:3.12-slim)
+ */
+
+import { randomUUID } from 'node:crypto'
+
+import { Daytona, type DaytonaV2Client } from '@daytona/sdk'
+
+export const IMAGE = process.env.DAYTONA_IMAGE ?? 'python:3.12-slim'
+// A CSPRNG, not Math.random(): the secrets example derives a demo secret
+// value from RUN.
+export const RUN = randomUUID().replace(/-/g, '').slice(0, 8)
+
+const BOLD = '\x1b[1m'
+const GREEN = '\x1b[32m'
+const RED = '\x1b[31m'
+const RESET = '\x1b[0m'
+
+export const section = (title: string): void => console.log(`\n${BOLD}== ${title}${RESET}`)
+export const info = (msg: string): void => console.log(`   .. ${msg}`)
+export const pass = (msg: string): void => console.log(`   ${GREEN}PASS${RESET} ${msg}`)
+export const fail = (msg: string): void => console.log(`   ${RED}FAIL${RESET} ${msg}`)
+export const sleep = (s: number): Promise<void> => new Promise((r) => setTimeout(r, s * 1000))
+
+/** Build the v2 client (the root's `.v2`) from the shared env vars, or exit with a hint. */
+export function client(): DaytonaV2Client {
+  const apiKey = process.env.DAYTONA_API_KEY
+  if (!apiKey) {
+    console.error('DAYTONA_API_KEY is required (mint a project API key from the dashboard)')
+    process.exit(2)
+  }
+  // The v2 client reads DAYTONA_V2_API_URL, else DAYTONA_API_URL; default to the
+  // Daytona API when neither is set.
+  if (!process.env.DAYTONA_V2_API_URL?.trim() && !process.env.DAYTONA_API_URL?.trim()) {
+    process.env.DAYTONA_API_URL = 'https://api.daytona.com'
+  }
+  // The examples pick their API through DAYTONA_API_URL (the root client has no
+  // URL field), which the root's v2 client reads.
+  return new Daytona({
+    apiKey,
+  }).v2
+}

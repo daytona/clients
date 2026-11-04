@@ -1,174 +1,919 @@
-name: SDK and CLI Publish
+name: SDK Publish
+
+# Publishes the Python SDK (`daytona`, PyPI), the TypeScript SDK
+# (`@daytona/sdk`, npm) and the `daytona` CLI (a GitHub Release of this
+# repository plus the Homebrew formula) on demand. PyPI and npm use OIDC
+# Trusted Publishing — no long-lived registry tokens.
+#
+# ── How to publish ───────────────────────────────────────────────────────────
+# Actions → "SDK Publish" → Run workflow (branch: main), or from a terminal:
+#
+#   gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3 \
+#     [-f source_ref=feat/my-branch] \
+#     [-f publish_pypi=false] [-f publish_npm=false] [-f publish_cli=false] \
+#     [-f force_republish=true]
+#
+# ── Two refs, on purpose ─────────────────────────────────────────────────────
+# `--ref` (the DISPATCH ref) selects which copy of THIS FILE and of scripts/
+# runs. The `release` environment admits only `main` and `release/*`, so the
+# publishing logic always comes from a protected branch: nobody can publish
+# through a modified copy of this workflow on their own branch.
+# `source_ref` (an input, default: the dispatch ref) selects which commit is
+# BUILT and published — a feature branch may ship a pre-release this way. Its
+# code runs only in the tokenless build jobs; the publish jobs upload the
+# built artifact and never execute it.
+#
+# One version goes to every target; the gate derives each registry's spelling
+# with scripts/sdk-version.sh —
+#
+#   v2.0.0-alpha.3  →  npm @daytona/sdk 2.0.0-alpha.3
+#                   →  CLI release      v2.0.0-alpha.3 (GitHub Release + tag)
+#                   →  PyPI daytona     2.0.0a3  (PEP 440: -alpha.N → aN,
+#                                        -beta.N → bN, -rc.N → rcN)
+#
+# Nothing is committed: the version is stamped into the runner's checkout
+# only, so the `version` fields tracked in git are placeholders. A successful
+# run records the version as the tag `v<version>` on the published commit (the
+# CLI's GitHub Release creates it; an SDK-only run creates it explicitly).
+#
+# ── Which source may publish what ────────────────────────────────────────────
+# This file exists on every release line with the same name, so one Trusted
+# Publishing registration per package serves them all. On this line (2.x):
+#   - a STABLE version (X.Y.Z) publishes only a commit on `main`;
+#   - a PRE-RELEASE (X.Y.Z-alpha.N / -beta.N / -rc.N) may publish any commit
+#     (`source_ref`), so a feature can ship an alpha before it merges;
+#   - a 0.x version is refused: the 0.x line publishes from `release/v0`.
+# Every run waits for a reviewer on the `release` environment before any job
+# runs, and the summary names the source commit.
+#
+# ── Build / publish split ────────────────────────────────────────────────────
+# `gate` resolves the version, checks the source rule, and snapshots the
+# source_ref tree into a same-run artifact; it runs only scripts from the
+# dispatch commit, never from source_ref. The tokenless build-* jobs unpack that
+# snapshot — no git checkout, no actions cache — and run its install/test/
+# build to produce the package artifact. The publish-* jobs — the only ones
+# with `id-token: write` or a write token — download the package artifact and
+# upload it, never touching source. Build jobs are kept OFF the environment so
+# no environment secret is ever visible to code under test.
+#
+# The gate refuses a version a target registry ALREADY has (npm registry API,
+# PyPI JSON API, this repository's releases), because a second run for the
+# same version is a no-op for users. `force_republish=true` skips that check
+# to RESUME a run that half-landed: targets already on their registry are
+# skipped (PyPI `skip-existing`, an npm pre-check, the CLI job's own
+# identical-checksums resume) and only the missing ones are published. It
+# never overwrites — registries refuse re-uploads regardless.
+#
+# ── ALPHA-ONLY GATE (pre-launch) ─────────────────────────────────────────────
+# Until 2.x is generally available, ONLY alpha pre-releases may be published:
+# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N`. The regexes run on the
+# DERIVED strings, so a stable, rc or beta version fails the gate and an
+# official-looking release cannot ship by accident. The npm dist-tag follows
+# the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
+# stable → `latest` — VERSIONING.md "Release channels"), so under the
+# alpha-only policy every publish lands on `alpha`, never `latest`. Widen the
+# gate (rc, then stable) by relaxing the three regexes in the "Derive registry
+# versions" step — the dist-tag and the branch rule need no change.
+#
+# ── One-time registry + repo setup ───────────────────────────────────────────
+# Trusted publishers are bound to THIS FILENAME and the environment name —
+# renaming either breaks publishing (OIDC 403) until the registries match.
+# PyPI  (https://pypi.org/manage/account/publishing/): project `daytona`,
+#        owner daytona, repository clients, workflow sdk_publish.yaml, environment release
+# npm   (package @daytona/sdk → Settings → Trusted publishers):
+#        repository daytona/clients, workflow sdk_publish.yaml, environment release
+#        (requires npm CLI >= 11.5.1 in the job, installed below)
+# CLI   environment secret GITHUBBOT_TOKEN — dispatches the Homebrew formula
+#        update to daytonaio/homebrew-cli (a token that spans both orgs). The
+#        GitHub Release itself is created with this run's own token.
+# Repo  Settings → Environments → `release` → required reviewers on; deployment
+#        branches: `main` and `release/*` only (the two-refs model depends on it).
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (start with "v")'
+        description: 'Version to publish to every selected target — e.g. v2.0.0-alpha.3. A stable version publishes only from main'
         required: true
-        default: v0.0.0-dev
-      publish_cli:
-        description: 'Publish CLI (update Homebrew tap)'
+        type: string
+      source_ref:
+        description: 'Commit to build and publish (branch, tag or SHA). Empty = the dispatch ref. A stable version must be a commit on main; a pre-release may be any commit'
+        required: false
+        type: string
+        default: ''
+      publish_pypi:
+        description: 'Publish the Python SDK `daytona` to PyPI (PEP 440 spelling, e.g. 2.0.0a3)'
+        required: false
         type: boolean
+        default: true
+      publish_npm:
+        description: 'Publish the TypeScript SDK `@daytona/sdk` to npm (e.g. 2.0.0-alpha.3)'
         required: false
+        type: boolean
+        default: true
+      publish_cli:
+        description: 'Publish the `daytona` CLI as a GitHub Release of this repository and update the Homebrew formula'
+        required: false
+        type: boolean
+        default: true
+      v0_tag:
+        description: 'TESTING ONLY: override the 0.x tag vendored as the SDKs'' v0 namespace (Daytona().v0). Publishing to PyPI/npm with it also needs allow_unpinned_v0. Empty (every release) = the pin in v0-sdk-version'
+        required: false
+        type: string
+        default: ''
+      allow_unpinned_v0:
+        description: 'Required with v0_tag when publishing to PyPI or npm: knowingly ship a v0 namespace that is NOT the pinned v0-sdk-version release (the run summary marks it UNVERIFIED)'
+        required: false
+        type: boolean
         default: false
-      pypi_pkg_version:
-        description: 'PyPI package version (empty: skip Python SDK publish)'
+      force_republish:
+        description: 'Skip the "already on the registry" check to RESUME a half-landed publish of this version; targets already published are skipped, never overwritten'
         required: false
-      npm_pkg_version:
-        description: 'NPM package version (empty: skip TypeScript SDK publish)'
-        required: false
-      npm_tag:
-        description: 'NPM tag (default: latest)'
-        required: false
-        default: latest
-      rubygems_pkg_version:
-        description: 'RubyGems package version (empty: skip Ruby SDK publish)'
-        required: false
-      maven_pkg_version:
-        description: 'Maven package version (empty: skip Java SDK publish)'
-        required: false
+        type: boolean
+        default: false
 
-env:
-  VERSION: ${{ inputs.version }}
-  PYPI_PKG_VERSION: ${{ inputs.pypi_pkg_version }}
-  NPM_PKG_VERSION: ${{ inputs.npm_pkg_version }}
-  RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_pkg_version }}
-  MAVEN_PKG_VERSION: ${{ inputs.maven_pkg_version }}
-  NPM_TAG: ${{ inputs.npm_tag }}
-  POETRY_VIRTUALENVS_IN_PROJECT: true
-
+# No repo-wide token permissions; each job opts into what it needs.
 permissions: {}
 
 jobs:
-  publish:
-    if: github.repository == 'daytona/clients'
+  gate:
+    name: Resolve version
     runs-on: ubuntu-latest
-    # Publish credentials live in the `release` environment: every run waits
-    # for required-reviewer approval before secrets resolve. Any branch may
-    # deploy (alpha/beta prereleases publish from non-main refs).
+    # The environment gates the whole run at its entry: every later job needs
+    # this one, and the `release` environment requires a reviewer. The build-*
+    # jobs deliberately do NOT reference the environment: they execute the
+    # dispatched code, and an environment reference would hand that code any
+    # environment secrets.
     environment: release
     permissions:
       contents: read
-      # OIDC token for npm trusted publishing.
-      id-token: write
-    name: Publish ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: TypeScript SDK
-            projects: sdk-typescript
-            pkg_version: ${{ inputs.npm_pkg_version }}
-          - name: Python SDK
-            projects: sdk-python
-            pkg_version: ${{ inputs.pypi_pkg_version }}
-          - name: Ruby SDK
-            projects: sdk-ruby
-            pkg_version: ${{ inputs.rubygems_pkg_version }}
-          - name: Java SDK
-            projects: sdk-java
-            pkg_version: ${{ inputs.maven_pkg_version }}
-    # Registry credentials are set per step rather than for the whole job, so that
-    # `yarn install` in setup-toolchain runs with none of them in its environment, and
-    # each matrix leg only ever sees the registry it publishes to.
-    env:
-      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+    outputs:
+      version: ${{ steps.versions.outputs.version }}
+      tag: ${{ steps.versions.outputs.tag }}
+      pypi: ${{ steps.versions.outputs.pypi }}
+      npm: ${{ steps.versions.outputs.npm }}
+      npm_dist_tag: ${{ steps.versions.outputs.npm_dist_tag }}
+      cli: ${{ steps.versions.outputs.cli }}
+      source_sha: ${{ steps.source.outputs.sha }}
+      v0_tag: ${{ steps.v0.outputs.tag }}
+      v0_sha: ${{ steps.v0.outputs.sha }}
+      v0_unverified: ${{ steps.v0.outputs.unverified }}
     steps:
-      - name: Skip publish (no version provided)
-        if: matrix.pkg_version == ''
-        run: echo "No package version provided for ${{ matrix.name }}; skipping publish."
-      - name: Validate version format
-        if: matrix.pkg_version != ''
-        run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
-            exit 1
-          fi
-      - name: Validate release branch version line
-        if: matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/')
+      - name: Require at least one target
         env:
-          PKG_VERSION: ${{ matrix.pkg_version }}
+          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
+          PUBLISH_NPM: ${{ inputs.publish_npm }}
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
         run: |
-          line="${GITHUB_REF_NAME#release/}"
-          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
-            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+          set -euo pipefail
+          if [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ] && [ "$PUBLISH_CLI" != true ]; then
+            echo "::error::nothing to publish — enable publish_pypi, publish_npm and/or publish_cli"
             exit 1
           fi
-          if [[ "$VERSION" != "$line".* || "$PKG_VERSION" != "${line#v}".* ]]; then
-            echo "::error::$GITHUB_REF_NAME only publishes $line.x versions (got $VERSION, package version $PKG_VERSION)"
-            exit 1
-          fi
-      - name: Checkout code
-        if: matrix.pkg_version != ''
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # The source to build. Full history + tags: the stable-version check
+      # (`main` ancestry), the v0 pin and the "tag already elsewhere" check
+      # read them. Nothing from this checkout is executed in this job.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-tags: true
+          ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
-      - name: Keep the npm latest dist-tag on the highest version
-        # `npm publish --tag latest` moves the tag even to a lower version, so a
-        # maintenance branch may only take `latest` with a version above every
-        # published stable one. Otherwise publish under a line tag such as v0-latest.
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
-        run: bash hack/npm-latest-guard.sh check "$NPM_PKG_VERSION"
-      - uses: ./.github/actions/setup-toolchain
-        if: matrix.pkg_version != ''
+      # The helpers this job runs come from the DISPATCH commit (a protected
+      # branch, by the environment's branch policy), never from source_ref.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          install-swag: 'false'
-      - name: Upgrade npm for trusted publishing
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != ''
-        # npm >= 11.5.1 is required for OIDC publishing; Node 22 ships npm 10.
-        run: npm install -g npm@11 && npm --version
-      - name: Configure RubyGems credentials
-        if: matrix.projects == 'sdk-ruby' && matrix.pkg_version != ''
-        # Trusted publishing (OIDC): exchanges the job's OIDC token for a short-lived
-        # RubyGems key (valid 15 minutes) exported as GEM_HOST_API_KEY. Keep this
-        # step directly before the publish step so the key cannot expire first.
-        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
-      - name: Publish projects
-        if: matrix.pkg_version != ''
-        env:
-          # npm publishes via trusted publishing (OIDC). The only remaining npm token is
-          # a granular one scoped to @daytonaio/sdk, used solely by `npm deprecate`
-          # (metadata writes are not covered by OIDC).
-          NPM_DEPRECATE_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_DEPRECATE_TOKEN || '' }}
-          PYPI_TOKEN: ${{ matrix.projects == 'sdk-python' && secrets.PYPI_TOKEN || '' }}
-          MAVEN_USERNAME: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_USERNAME || '' }}
-          MAVEN_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_PASSWORD || '' }}
-          MAVEN_GPG_SIGNING_KEY: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_KEY || '' }}
-          MAVEN_GPG_SIGNING_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_PASSWORD || '' }}
+          ref: ${{ github.sha }}
+          path: .publish-tools
+          sparse-checkout: |
+            scripts/sdk-version.sh
+            scripts/resolve-v0-tag.sh
+            scripts/v0-publish-mode.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - id: source
+        name: Resolve the source commit
         run: |
-          source "$(poetry env info --path)/bin/activate"
-          yarn nx run-many --target=publish --projects=${{ matrix.projects }}
-      - name: Verify the npm latest dist-tag
-        # Catches a higher version published by an overlapping run after the
-        # check above.
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
-        run: bash hack/npm-latest-guard.sh verify
-      - name: Cleanup credentials
-        if: always()
-        run: rm -f ~/.gem/credentials 2>/dev/null || true
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          echo "source: ${SOURCE_REF:-<dispatch ref>} -> $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+      - id: versions
+        name: Derive registry versions (branch rule + alpha-only gate)
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
+          PUBLISH_NPM: ${{ inputs.publish_npm }}
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
+        run: |
+          set -euo pipefail
+          # version=, npm=, cli=, cli_tag=, pypi= — or exit 1 with nothing printed.
+          derived=$(.publish-tools/scripts/sdk-version.sh "$VERSION_INPUT")
+          echo "$derived"
+          version=$(sed -n 's/^version=//p' <<<"$derived")
+          npm=$(sed -n 's/^npm=//p' <<<"$derived")
+          cli=$(sed -n 's/^cli=//p' <<<"$derived")
+          pypi=$(sed -n 's/^pypi=//p' <<<"$derived")
+          tag="v${version}"
+          # The 2.x line publishes here; 0.x publishes from release/v0.
+          case "$version" in
+            0.*) echo "::error::${version} is a 0.x version — the 0.x line publishes from release/v0"; exit 1 ;;
+          esac
+          # Source rule: a stable version only from a commit on main; a
+          # pre-release from any commit.
+          case "$version" in
+            *-*) ;;
+            *)
+              git fetch --quiet --no-tags origin main
+              if ! git merge-base --is-ancestor "$SOURCE_SHA" FETCH_HEAD; then
+                echo "::error::${version} is a stable version; stable versions publish only commits on main (${SOURCE_SHA} is not)"
+                exit 1
+              fi ;;
+          esac
+          # A tag that already names ANOTHER commit means this version was
+          # released from different source: refuse rather than publish a
+          # second build under the same number.
+          if existing=$(git rev-parse -q --verify "refs/tags/${tag}^{commit}" 2>/dev/null); then
+            if [ "$existing" != "$SOURCE_SHA" ]; then
+              echo "::error::tag ${tag} already points at ${existing}, not the source commit ${SOURCE_SHA} — a version is published once"
+              exit 1
+            fi
+          fi
+          # ALPHA-ONLY (pre-launch): the regexes run on the DERIVED strings.
+          # Numeric components: no leading zeros (npm/PEP 440 would canonicalize
+          # e.g. 2.01.0 to 2.1.0, and the summary/links would then lie).
+          num='(0|[1-9][0-9]*)'
+          if ! [[ "$pypi" =~ ^${num}\.${num}\.${num}a${num}$ ]]; then
+            echo "::error::PyPI version '$pypi' (from ${VERSION_INPUT}) rejected — only X.Y.ZaN alpha pre-releases may be published before launch"
+            exit 1
+          fi
+          if ! [[ "$npm" =~ ^${num}\.${num}\.${num}-alpha\.${num}$ ]]; then
+            echo "::error::npm version '$npm' (from ${VERSION_INPUT}) rejected — only X.Y.Z-alpha.N alpha pre-releases may be published before launch"
+            exit 1
+          fi
+          if ! [[ "$cli" =~ ^${num}\.${num}\.${num}-alpha\.${num}$ ]]; then
+            echo "::error::CLI version '$cli' (from ${VERSION_INPUT}) rejected — only X.Y.Z-alpha.N alpha pre-releases may be published before launch"
+            exit 1
+          fi
+          # The npm dist-tag follows the version's pre-release identifier
+          # (VERSIONING.md "Release channels"), so widening the gate above
+          # never has to touch publish-npm: a pre-release never lands on
+          # `latest`. sdk-version.sh admits only these four shapes; the
+          # fallthrough guards a future widening of that helper.
+          case "$npm" in
+            *-alpha.*) npm_dist_tag=alpha ;;
+            *-beta.*)  npm_dist_tag=beta ;;
+            *-rc.*)    npm_dist_tag=next ;;
+            *-*)       echo "::error::npm version '$npm' has a pre-release identifier with no dist-tag mapping"; exit 1 ;;
+            *)         npm_dist_tag=latest ;;
+          esac
+          echo "npm dist-tag: $npm_dist_tag"
+          # Downstream jobs key on an EMPTY version to skip a target.
+          [ "$PUBLISH_PYPI" = true ] || pypi=""
+          [ "$PUBLISH_NPM" = true ] || npm=""
+          [ "$PUBLISH_CLI" = true ] || cli=""
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "pypi=$pypi"
+            echo "npm=$npm"
+            echo "npm_dist_tag=$npm_dist_tag"
+            echo "cli=$cli"
+          } >> "$GITHUB_OUTPUT"
+      # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
+      # v0-sdk-version, resolved once here so the Python and npm builds bundle
+      # the same release. `v0_tag` overrides the pin for testing only. Only
+      # fetched, never run, here; the build jobs copy it in with
+      # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
+      # the code) fails here, so a package whose d.v0 can never work is never
+      # published.
+      - id: v0
+        name: Resolve and fetch the pinned v0 namespace release
+        env:
+          DAYTONA_V0_TAG: ${{ inputs.v0_tag }}
+          DAYTONA_V0_PIN_FILE: v0-sdk-version
+          PUBLISH_PYPI: ${{ inputs.publish_pypi }}
+          PUBLISH_NPM: ${{ inputs.publish_npm }}
+          ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
+        run: |
+          set -euo pipefail
+          .publish-tools/scripts/v0-publish-mode.sh --check-override
+          mode=$(.publish-tools/scripts/v0-publish-mode.sh "$PWD")
+          if [ "$mode" = skip ]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          tag=$(.publish-tools/scripts/resolve-v0-tag.sh --verify)
+          pinned=$(.publish-tools/scripts/resolve-v0-tag.sh --sha)
+          [ -z "$DAYTONA_V0_TAG" ] || echo "::warning::v0 namespace tag overridden to $DAYTONA_V0_TAG (testing only; releases use v0-sdk-version)"
+          rm -rf .v0-src
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
+          sha=$(git -C .v0-src rev-parse HEAD)
+          if [ -n "$pinned" ] && [ "$sha" != "$pinned" ]; then
+            echo "::error::${tag} is at ${sha}, not the commit pinned in v0-sdk-version (${pinned}); was the tag moved?"
+            exit 1
+          fi
+          echo "v0 namespace: ${tag} (${sha})"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ -n "$DAYTONA_V0_TAG" ] && [ -z "$pinned" ]; then
+            echo "unverified=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unverified=" >> "$GITHUB_OUTPUT"
+          fi
+      # The whole v0 checkout (minus .git and build output) goes into the
+      # snapshot so every bundler input is available. sdk-ci.yaml's "v0 bundle
+      # from the publish snapshot" job runs the bundlers on this same tar shape.
+      - name: Snapshot SDK sources
+        run: |
+          set -euo pipefail
+          optional=()
+          if [ -e .v0-src ]; then optional+=(.v0-src); fi
+          tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
+            --exclude='.git' \
+            -czf /tmp/sdk-src.tgz python typescript contract cli scripts v0-sdk-version "${optional[@]}"
+          ls -l /tmp/sdk-src.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src.tgz
+          if-no-files-found: error
+          retention-days: 1
 
-  update-homebrew-tap:
-    # The Homebrew formula tracks the main release line only.
-    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' && !startsWith(github.ref, 'refs/heads/release/') }}
+  # ── Build jobs: run the dispatched code with NO token, NO environment, NO cache ─
+  # The already-published check runs in its own job with NO checkout: it only
+  # needs the derived versions and talks to npm/PyPI/GitHub.
+  registry-check:
+    name: Refuse a version a registry already has
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse a version the registry already has (unless force_republish)
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
+          NPM_VERSION: ${{ needs.gate.outputs.npm }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          FORCE: ${{ inputs.force_republish }}
+          GH_TOKEN: ${{ github.token }}   # read-only
+        run: |
+          set -euo pipefail
+          if [ "$FORCE" = true ]; then
+            echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by their publish job, not overwritten"
+            exit 0
+          fi
+          taken=0
+          if [ -n "$NPM_VERSION" ]; then
+            # Ask the registry the publish job uploads to, by HTTP status, like
+            # the PyPI branch: 200 = published, 404 = absent, anything else
+            # (5xx, auth, a timeout, no connection → 000) fails closed. Not
+            # `npm view`: it exits non-zero on an absent version too (E404),
+            # and its 404 wording differs between npm 10 and 11, so telling
+            # "absent" from "registry down" would mean parsing error text.
+            # The version in the URL already passed the gate's alpha regex.
+            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fsdk/${NPM_VERSION}") || true
+            case "$code" in
+              200) echo "::error::@daytona/sdk@${NPM_VERSION} is already on npm — a version is published once; publish the next release, or set force_republish to resume a half-landed run"; taken=1 ;;
+              404) ;;
+              *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/sdk ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          fi
+          if [ -n "$PYPI_VERSION" ]; then
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/daytona/${PYPI_VERSION}/json")
+            case "$code" in
+              200) echo "::error::daytona==${PYPI_VERSION} is already on PyPI — a version is published once; publish the next release, or set force_republish to resume a half-landed run"; taken=1 ;;
+              404) ;;
+              *)   echo "::error::PyPI answered HTTP ${code} for daytona ${PYPI_VERSION} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          fi
+          if [ -n "$CLI_VERSION" ]; then
+            if out=$(gh release view "v${CLI_VERSION}" -R "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>&1); then
+              echo "::error::release v${CLI_VERSION} already exists — a version is published once; publish the next release, or set force_republish to resume a half-landed run"
+              taken=1
+            elif ! grep -qi "release not found" <<<"$out"; then
+              echo "::error::gh release view v${CLI_VERSION} failed: $out"
+              exit 1
+            fi
+          fi
+          [ "$taken" -eq 0 ] || exit 1
+          echo "no target registry has this version yet"
+  build-python:
+    name: Build daytona ${{ needs.gate.outputs.pypi }}
+    needs: [gate, registry-check]
+    if: needs.gate.outputs.pypi != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        working-directory: ${{ github.workspace }}
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
+      # No `cache: pip` here for the same reason as build-npm below.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Stamp version into the runner's checkout (not committed)
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
+        run: |
+          set -euo pipefail
+          sed -i -E "s/^version = \"[^\"]+\"/version = \"${PYPI_VERSION}\"/" pyproject.toml
+          grep -qE "^version = \"${PYPI_VERSION//./\\.}\"$" pyproject.toml || { echo "::error::failed to stamp pyproject.toml"; exit 1; }
+      - name: Bundle the v0 namespace (${{ needs.gate.outputs.v0_tag }})
+        if: needs.gate.outputs.v0_tag != ''
+        env:
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+          # The snapshot is not a git checkout; the gate verified its commit.
+          DAYTONA_V0_SRC_VERIFIED: '1'
+        run: bash ../scripts/bundle-v0.sh --lang python --src "$GITHUB_WORKSPACE/.v0-src" "$V0_TAG"
+      - name: Install, test, build
+        env:
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+          # tests/test_v0_bundle.py: the tag the gate approved (the pin, or an
+          # allow_unpinned_v0 override).
+          DAYTONA_V0_EXPECTED_TAG: ${{ needs.gate.outputs.v0_tag }}
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build
+          if [ -z "$V0_TAG" ] && [ -f src/daytona/_client.py ]; then
+            echo "::error::the v0 namespace code is present but no v0 bundle was produced; refusing to build a package whose Daytona().v0 cannot work"
+            exit 1
+          fi
+          if [ -n "$V0_TAG" ]; then
+            python -m pip install -e ".[dev,v0-sdk]"
+          else
+            python -m pip install -e ".[dev]"
+          fi
+          python -m pytest -q
+          if [ -n "$V0_TAG" ]; then
+            # d.v0 resolves through the bundle (an import smoke; no API is called).
+            python -c "from daytona import Daytona, DaytonaConfig; d = Daytona(DaytonaConfig(api_key='smoke')); assert callable(d.v0.list); import daytona.v0._bundle as b; print(b.BUNDLED_FROM)"
+            # The shared root errors catch v0's and v2's classes alike.
+            python -c "import daytona, daytona.v0 as v0, daytona.v2 as v2; assert all(isinstance(e, daytona.DaytonaNotFoundError) and isinstance(e, daytona.DaytonaError) for e in (v0.DaytonaNotFoundError('x'), v2.NotFoundError('x'))); print('shared errors ok')"
+          fi
+          rm -rf dist
+          python -m build
+          ls -l dist
+          # The typing marker must ship (users type-check against the wheel),
+          # and the git-ignored bundle must be in both artifacts. Member lists
+          # are read directly (no `lister | grep -q` under pipefail).
+          python ../scripts/check_dist_artifacts.py python dist ${V0_TAG:+--v0}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pypi-dist
+          path: python/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  build-npm:
+    name: Build @daytona/sdk ${{ needs.gate.outputs.npm }}
+    needs: [gate, registry-check]
+    if: needs.gate.outputs.npm != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        working-directory: ${{ github.workspace }}
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
+      # No `cache: npm` here on purpose: release builds never restore a cache
+      # (a poisoned cache would ship). A cold `npm ci` costs seconds; the
+      # publish job never touches source or cache at all.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Stamp version into the runner's checkout (not committed)
+        env:
+          NPM_VERSION: ${{ needs.gate.outputs.npm }}
+        run: npm version "$NPM_VERSION" --no-git-tag-version --allow-same-version
+      # Copies v0's sources into src/v0 and adds v0's runtime dependencies to
+      # package.json in this checkout only (never committed).
+      - name: Bundle the v0 namespace (${{ needs.gate.outputs.v0_tag }})
+        if: needs.gate.outputs.v0_tag != ''
+        env:
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+          # The snapshot is not a git checkout; the gate verified its commit.
+          DAYTONA_V0_SRC_VERIFIED: '1'
+        run: bash ../scripts/bundle-v0.sh --lang typescript --src "$GITHUB_WORKSPACE/.v0-src" "$V0_TAG"
+      - name: Install, test, build, pack
+        env:
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+          # build:v0 fails instead of skipping when the bundle is missing.
+          DAYTONA_REQUIRE_V0_BUNDLE: ${{ needs.gate.outputs.v0_tag != '' && '1' || '' }}
+        run: |
+          set -euo pipefail
+          # Mirror of the Python build's stop: never pack the unbundled ./v0
+          # stub from a tree that has the namespace code.
+          if [ -z "$V0_TAG" ] && [ -f src/v0-unbundled.ts ]; then
+            echo "::error::the v0 namespace code is present but no v0 bundle was produced; refusing to build a package whose Daytona().v0 cannot work"
+            exit 1
+          fi
+          if [ -n "$V0_TAG" ]; then
+            # `npm install`, not `npm ci`: the bundle step just added v0's
+            # dependencies, so the committed lockfile no longer matches.
+            npm install --no-audit --no-fund
+          else
+            npm ci
+          fi
+          # src/version.ts is committed at the tracked placeholder version;
+          # re-stamp it from the just-bumped package.json BEFORE typecheck/test
+          # (the drift test compares the two) — build's prebuild would do it
+          # too late for `npm test`.
+          npm run stamp-version
+          npm run typecheck
+          npm test
+          npm run build
+          rm -rf pack && mkdir pack
+          npm pack --ignore-scripts --pack-destination pack
+          ls -l pack
+          if [ -n "$V0_TAG" ]; then
+            # The tarball must carry the v0 namespace, and `d.v0` must resolve it
+            # (an import smoke against a local mock API).
+            python3 ../scripts/check_dist_artifacts.py npm pack --v0
+            pkgdir=$PWD consumer=$(mktemp -d)
+            (cd "$consumer" && npm init -y >/dev/null && npm install --no-audit --no-fund "$pkgdir"/pack/*.tgz >/dev/null \
+              && cp "$pkgdir/scripts/v0-bundle-smoke.cjs" . \
+              && node v0-bundle-smoke.cjs "$V0_TAG" \
+              && cp -r "$pkgdir/scripts/cjs-types-fixture" . \
+              && npm install --no-audit --no-fund --no-save typescript@5 >/dev/null \
+              && for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json; do npx tsc -p "cjs-types-fixture/$config" || exit 1; done)
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-pack
+          path: typescript/pack/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  build-cli:
+    name: Build daytona CLI ${{ needs.gate.outputs.cli }}
+    needs: [gate, registry-check]
+    if: needs.gate.outputs.cli != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        working-directory: ${{ github.workspace }}
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
+      # No module cache here for the same reason as build-npm.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - name: Test, cross-build six targets, checksum
+        env:
+          VERSION: ${{ needs.gate.outputs.cli }}
+        run: |
+          set -euo pipefail
+          go vet ./...
+          go test ./...
+          ./hack/build.sh   # also copies install.sh/install.ps1 into dist and checksums them
+          ls -l dist && cat dist/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cli-dist
+          path: cli/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Publish jobs: artifact in, registry out; never check out source ─────────
+  publish-python:
+    name: Publish daytona ${{ needs.gate.outputs.pypi }} to PyPI
+    needs: [gate, build-python]
+    if: needs.gate.outputs.pypi != ''
     runs-on: ubuntu-latest
     environment: release
-    permissions: {}
-    name: Update Homebrew CLI tap
+    permissions:
+      id-token: write   # OIDC token for PyPI Trusted Publishing — the ONLY job perm
     steps:
-      - name: Validate version format
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pypi-dist
+          path: dist/
+      - run: ls -l dist
+      - name: Publish to PyPI (OIDC)
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/
+          # force_republish resumes a half-landed run: files PyPI already has
+          # are skipped instead of failing the upload (never overwritten).
+          skip-existing: ${{ inputs.force_republish }}
+
+  publish-npm:
+    name: Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm
+    needs: [gate, build-npm]
+    if: needs.gate.outputs.npm != ''
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write   # OIDC token for npm Trusted Publishing — the ONLY job perm
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      # Exact version, not a range: the job that holds the OIDC token runs a
+      # reviewed publisher binary (Trusted Publishing needs >= 11.5.1); bump
+      # it deliberately. registry-check runs no npm at all (it asks the
+      # registry over HTTP), so the check cannot disagree with this binary.
+      # setup-node@v4 writes `always-auth=…` into the .npmrc it generates;
+      # npm >= 7 ignores the key and warns "Unknown user config" (an error in
+      # the next major). Only that line is dropped — the registry and the
+      # `_authToken` placeholder it writes stay as they are.
+      - name: Install a Trusted-Publishing-capable npm (pinned)
         run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+          set -euo pipefail
+          sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
+          npm install -g npm@11.21.1
+          npm --version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-pack
+          path: pack/
+      - name: Publish to npm (OIDC)
+        # No NODE_AUTH_TOKEN: OIDC trusted publishing authenticates the run,
+        # and npm attaches a provenance attestation automatically (public
+        # repository, public package).
+        # --tag "$NPM_DIST_TAG": the gate derives the dist-tag from the
+        # version (-alpha.N → alpha, -beta.N → beta, -rc.N → next, stable →
+        # latest — VERSIONING.md "Release channels"), so a pre-release never
+        # becomes `latest`. Publishing the packed tarball means no package
+        # scripts run here.
+        env:
+          NPM_VERSION: ${{ needs.gate.outputs.npm }}
+          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
+          FORCE: ${{ inputs.force_republish }}
+        run: |
+          set -euo pipefail
+          tgz=$(ls pack/*.tgz)
+          [ "$(echo "$tgz" | wc -l)" -eq 1 ] || { echo "::error::expected exactly one tarball, got: $tgz"; exit 1; }
+          case "$NPM_DIST_TAG" in
+            alpha|beta|next|latest) ;;
+            *) echo "::error::gate produced no usable npm dist-tag ('${NPM_DIST_TAG}')"; exit 1 ;;
+          esac
+          # force_republish resumes a half-landed run: npm refuses re-uploads,
+          # so a version that is already there is a no-op here, not a failure.
+          # Same HTTP-status check as registry-check: only a 200 skips, only a
+          # 404 publishes, and an unreachable or erroring registry fails the
+          # job rather than guessing either way.
+          if [ "$FORCE" = true ]; then
+            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fsdk/${NPM_VERSION}") || true
+            case "$code" in
+              200) echo "::notice::@daytona/sdk@${NPM_VERSION} is already on npm — skipping (force_republish)"; exit 0 ;;
+              404) ;;
+              *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/sdk ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          fi
+          # --registry pinned: the tarball's package.json (incl. any
+          # publishConfig.registry) must not choose where the OIDC credential
+          # publishes.
+          # "./" is load-bearing: npm reads a bare `pack/x.tgz` as GitHub
+          # shorthand (`git ls-remote ssh://git@github.com/pack/x.tgz.git`).
+          npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
+
+  publish-cli:
+    name: Publish daytona CLI ${{ needs.gate.outputs.cli }} as a GitHub Release
+    needs: [gate, build-cli]
+    if: needs.gate.outputs.cli != ''
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write   # create the release (and its tag) on this repository
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cli-dist
+          path: dist/
+      - run: ls -l dist
+      # Idempotent and resumable: the release is created only if the tag is
+      # absent; if it exists with IDENTICAL SHA256SUMS the step is a no-op
+      # (re-run after a failed Homebrew dispatch), and if it exists with
+      # different content the run fails loudly — a version is published once.
+      - name: Create (or confirm) the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          tag="v${CLI_VERSION}"
+          repo="$GITHUB_REPOSITORY"
+          notes="daytona CLI ${CLI_VERSION} — alpha pre-release. Install: \`brew install daytonaio/cli/daytona-alpha\` or the install.sh / install.ps1 assets (\`--version ${CLI_VERSION}\`)."
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            # Only an existing PRE-RELEASE (what this job creates) may be
+            # resumed: a draft or a stable release under the alpha tag was
+            # made by someone else, and pointing the alpha formula at it is
+            # not this job's call.
+            kind="$(gh release view "$tag" --repo "$repo" --json isPrerelease,isDraft --jq 'if .isDraft then "draft" elif .isPrerelease then "prerelease" else "stable" end')"
+            if [ "$kind" != "prerelease" ]; then
+              echo "::error::release $tag is a $kind, not the alpha pre-release this job publishes — refusing to resume or dispatch Homebrew"
+              exit 1
+            fi
+            # Resume only if the published release is COMPLETE and identical:
+            # same SHA256SUMS and every asset we would upload already present
+            # (a run that died mid-upload must re-upload, not dispatch Homebrew
+            # at a half-populated release).
+            if gh release download "$tag" --repo "$repo" --pattern SHA256SUMS --output /tmp/published.SHA256SUMS; then
+              if ! cmp -s /tmp/published.SHA256SUMS dist/SHA256SUMS; then
+                echo "::error::release $tag already exists with DIFFERENT content — a version is published once; publish the next version"
+                exit 1
+              fi
+              published_assets="$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name' | sort)"
+              expected_assets="$(cd dist && ls | sort)"
+              missing="$(comm -23 <(echo "$expected_assets") <(echo "$published_assets"))"
+              if [ -n "$missing" ]; then
+                echo "release $tag exists with identical checksums but is missing assets — uploading: $missing"
+                for a in $missing; do gh release upload "$tag" "dist/$a" --repo "$repo"; done
+              fi
+            else
+              # No SHA256SUMS: a run died between `gh release create` and the
+              # asset uploads, so nothing on the release is trustworthy.
+              # Replace EVERYTHING from this build, checksums included.
+              echo "release $tag exists without SHA256SUMS — replacing every asset from dist/"
+              gh release upload "$tag" dist/* --repo "$repo" --clobber
+            fi
+            # Before Homebrew is pointed at the tag, download every published
+            # asset and verify it against THIS build's SHA256SUMS.
+            rm -rf /tmp/verify && mkdir -p /tmp/verify
+            gh release download "$tag" --repo "$repo" --dir /tmp/verify
+            (cd /tmp/verify && cp "$GITHUB_WORKSPACE/dist/SHA256SUMS" ./SHA256SUMS.expected && cmp -s SHA256SUMS SHA256SUMS.expected && sha256sum --check --strict SHA256SUMS.expected)
+            echo "release $tag verified against this build's checksums — resuming at the Homebrew dispatch"
+            exit 0
+          fi
+          # --target: the release creates its tag on the published commit.
+          # --latest=false: a pre-release never becomes the repository's
+          # "Latest" release.
+          gh release create "$tag" --repo "$repo" --target "$SOURCE_SHA" --prerelease --latest=false \
+            --title "daytona CLI ${CLI_VERSION}" --notes "$notes" dist/*
+      - name: Point the daytona-alpha Homebrew formula at the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
+        run: |
+          set -euo pipefail
+          # Recency guard: only a run created AFTER this dispatch counts, so a
+          # re-publish of the same version never latches onto an earlier
+          # (failed) run with the same title. The reference time is GitHub's
+          # own clock (the newest run's createdAt before dispatching).
+          since="$(gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --limit 1 --json createdAt --jq '.[0].createdAt // "1970-01-01T00:00:00Z"' 2>/dev/null || echo 1970-01-01T00:00:00Z)"
+          gh api repos/daytonaio/homebrew-cli/dispatches \
+            -f event_type=update-version-alpha \
+            -F "client_payload[version]=v${CLI_VERSION}"
+          # The dispatch only proves GitHub accepted the event. Wait for the
+          # downstream formula run so a failed formula update fails THIS job
+          # instead of leaving Homebrew silently stale.
+          runs_url="https://github.com/daytonaio/homebrew-cli/actions/workflows/brew_publish_alpha.yaml"
+          if ! gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --limit 1 >/dev/null 2>&1; then
+            echo "::warning::GITHUBBOT_TOKEN cannot read workflow runs on daytonaio/homebrew-cli — verify the formula update by hand: $runs_url"
+            exit 0
+          fi
+          # The downstream workflow names its run after the dispatched version
+          # (`run-name: … v<version>`), so the match is by title.
+          run_id=""
+          for _ in $(seq 1 30); do
+            run_id="$(gh run list --repo daytonaio/homebrew-cli --workflow brew_publish_alpha.yaml --event repository_dispatch --limit 20 \
+              --json databaseId,displayTitle,createdAt --jq "[.[] | select((.displayTitle | endswith(\"v${CLI_VERSION}\")) and .createdAt > \"$since\")] | sort_by(.createdAt) | last | .databaseId // empty")"
+            [ -n "$run_id" ] && break
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::no brew_publish_alpha run started within 5 minutes of the dispatch — $runs_url"
             exit 1
           fi
-      - name: Update version
+          echo "waiting for daytonaio/homebrew-cli run $run_id"
+          gh run watch "$run_id" --repo daytonaio/homebrew-cli --exit-status --interval 15
+
+  # The version is recorded as a tag on the published commit. publish-cli's
+  # release creates it; an SDK-only run (publish_cli=false) creates it here.
+  record-tag:
+    name: Record v${{ needs.gate.outputs.version }} as a tag
+    needs: [gate, publish-python, publish-npm, publish-cli]
+    if: >-
+      always() && needs.gate.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Create the tag if absent
         env:
-          GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.gate.outputs.tag }}
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
         run: |
-          curl -f -X POST -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
-            https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+          set -euo pipefail
+          if existing=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null); then
+            [ "$existing" = "$SOURCE_SHA" ] || { echo "::error::tag ${TAG} points at ${existing}, not ${SOURCE_SHA}"; exit 1; }
+            echo "tag ${TAG} already at ${SOURCE_SHA}"
+            exit 0
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${TAG}" -f sha="$SOURCE_SHA" >/dev/null
+          echo "created tag ${TAG} at ${SOURCE_SHA}"
+
+  summary:
+    name: Publish summary
+    needs: [gate, registry-check, build-python, build-npm, build-cli, publish-python, publish-npm, publish-cli, record-tag]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Write run summary
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
+          NPM_VERSION: ${{ needs.gate.outputs.npm }}
+          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          VERSION_INPUT: ${{ inputs.version }}
+          FORCE: ${{ inputs.force_republish }}
+          GATE_RESULT: ${{ needs.gate.result }}
+          REGISTRY_RESULT: ${{ needs.registry-check.result }}
+          PY_BUILD: ${{ needs.build-python.result }}
+          NPM_BUILD: ${{ needs.build-npm.result }}
+          PY_RESULT: ${{ needs.publish-python.result }}
+          NPM_RESULT: ${{ needs.publish-npm.result }}
+          CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          CLI_BUILD: ${{ needs.build-cli.result }}
+          CLI_RESULT: ${{ needs.publish-cli.result }}
+          TAG_RESULT: ${{ needs.record-tag.result }}
+          SOURCE_REF: ${{ inputs.source_ref || github.ref_name }}
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
+          WORKFLOW_REF: ${{ github.ref_name }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+          V0_SHA: ${{ needs.gate.outputs.v0_sha }}
+          V0_UNVERIFIED: ${{ needs.gate.outputs.v0_unverified }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          status() { # build-result publish-result
+            case "$REGISTRY_RESULT" in
+              failure|cancelled) if [ "$1" = skipped ]; then echo ":x: NOT BUILT — registry check ${REGISTRY_RESULT} (see its job log)"; return; fi ;;
+            esac
+            case "$1/$2" in
+              success/success) echo ":white_check_mark: published" ;;
+              skipped/skipped) echo ":fast_forward: skipped (not requested)" ;;
+              failure/*)       echo ":x: BUILD FAILED — see build job log" ;;
+              */failure)       echo ":x: PUBLISH FAILED — see publish job log" ;;
+              */cancelled|cancelled/*) echo ":stop_sign: cancelled" ;;
+              *)               echo ":grey_question: build=$1 publish=$2" ;;
+            esac
+          }
+          row() { printf '| %s | %s | %s | %s | %s |\n' "$1" "${2:-—}" "$3" "$4" "$5"; }
+          {
+            echo "## SDK Publish — \`${VERSION:-${VERSION_INPUT}}\` from \`${SOURCE_REF}\` @ \`${SOURCE_SHA:0:12}\`"
+            echo
+            echo "Triggered by **@${ACTOR}**. Gate: **${GATE_RESULT}** (alpha-only, pre-launch$([ "$FORCE" = true ] && echo '; force_republish')). Registry check: **${REGISTRY_RESULT}**. Tag: **${TAG_RESULT}**."
+            echo
+            echo "- **Published source:** \`${SOURCE_REF}\` → [\`${SOURCE_SHA}\`](${SERVER}/${REPO}/commit/${SOURCE_SHA})"
+            echo "- **Workflow logic from:** \`${WORKFLOW_REF}\` → [\`${WORKFLOW_SHA}\`](${SERVER}/${REPO}/commit/${WORKFLOW_SHA})"
+            echo "- **v0 namespace bundled from:** \`${V0_TAG:-—}\`${V0_SHA:+ → [\`${V0_SHA:0:12}\`](${SERVER}/${REPO}/commit/${V0_SHA})}${V0_UNVERIFIED:+ — **UNVERIFIED** (v0_tag override, not the pinned release)}"
+            echo
+            echo "| Package | Version | Result | Install | Registry |"
+            echo "|---|---|---|---|---|"
+            row "Python \`daytona\`" "$PYPI_VERSION" "$(status "$PY_BUILD" "$PY_RESULT")" \
+                "${PYPI_VERSION:+\`pip install daytona==${PYPI_VERSION}\`}" \
+                "${PYPI_VERSION:+https://pypi.org/project/daytona/${PYPI_VERSION}/}"
+            row "TypeScript \`@daytona/sdk\`" "$NPM_VERSION" "$(status "$NPM_BUILD" "$NPM_RESULT")" \
+                "${NPM_VERSION:+\`npm install @daytona/sdk@${NPM_VERSION}\` (dist-tag \`${NPM_DIST_TAG}\`)}" \
+                "${NPM_VERSION:+https://www.npmjs.com/package/@daytona/sdk/v/${NPM_VERSION}}"
+            row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_BUILD" "$CLI_RESULT")" \
+                "${CLI_VERSION:+\`brew install daytonaio/cli/daytona-alpha\` · \`install.sh --version ${CLI_VERSION}\`}" \
+                "${CLI_VERSION:+${SERVER}/${REPO}/releases/tag/v${CLI_VERSION}}"
+            echo
+            echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$PY_RESULT" "$NPM_RESULT" "$CLI_RESULT" "$TAG_RESULT"; do
+            case "$r" in failure|cancelled) exit 1;; esac
+          done
+          exit 0

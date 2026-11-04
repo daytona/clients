@@ -1,0 +1,154 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: AGPL-3.0
+
+package cmd
+
+import (
+	"strings"
+
+	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/mgmt"
+	"github.com/daytona/clients/cli/internal/output"
+	"github.com/spf13/cobra"
+)
+
+func init() {
+	Register(newServiceAccountCmd)
+	extendProjectCmd(newProjectServiceAccountCmd)
+}
+
+func newServiceAccountCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "service-account", Short: "Service accounts: create, list, get, update, delete", GroupID: GroupManagement}
+	cmd.AddCommand(newServiceAccountCreateCmd(), newServiceAccountListCmd(), newServiceAccountGetCmd(), newServiceAccountUpdateCmd(), newServiceAccountDeleteCmd())
+	return cmd
+}
+
+func newServiceAccountCreateCmd() *cobra.Command {
+	var roleCSV string
+	cmd := &cobra.Command{Use: "create <name>", Short: "Create a service account", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		roles, err := splitCSV(roleCSV, "--role")
+		if err != nil {
+			return err
+		}
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		orgID, err := a.RequireOrg(ctx, pickOrg(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(ctx)
+		if err != nil {
+			return err
+		}
+		resp, err := mgmt.CreateServiceAccount(ctx, mc, orgID, gen.CreateServiceAccountRequest{Name: args[0], Roles: roles})
+		if err != nil {
+			return err
+		}
+		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}})
+	}}
+	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	return cmd
+}
+
+func newServiceAccountListCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "list", Short: "List service accounts in the selected organization", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		orgID, err := a.RequireOrg(ctx, pickOrg(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(ctx)
+		if err != nil {
+			return err
+		}
+		items, err := mgmt.ListServiceAccounts(ctx, mc, orgID)
+		if err != nil {
+			return err
+		}
+		return output.ListOut(a.Printer(), output.List[gen.OrganizationServiceAccount]{Items: items}, serviceAccountTable)
+	}}
+	return cmd
+}
+
+func newServiceAccountGetCmd() *cobra.Command {
+	return &cobra.Command{Use: "get <id>", Short: "Show one service account", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		a := FromContext(cmd.Context())
+		orgID, err := a.RequireOrg(cmd.Context(), pickOrg(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(cmd.Context())
+		if err != nil {
+			return err
+		}
+		resp, err := mgmt.GetServiceAccount(cmd.Context(), mc, orgID, args[0])
+		if err != nil {
+			return err
+		}
+		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}, {"live_key_count", toString(resp.LiveKeyCount)}})
+	}}
+}
+
+func newServiceAccountUpdateCmd() *cobra.Command {
+	var name, roleCSV string
+	cmd := &cobra.Command{Use: "update <id>", Short: "Update a service account's name and/or roles", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("role") {
+			return cerr.Usage("at least one of --name or --role is required")
+		}
+		if cmd.Flags().Changed("name") && strings.TrimSpace(name) == "" {
+			return cerr.Usage("--name must not be empty")
+		}
+		var roles []string
+		var err error
+		if cmd.Flags().Changed("role") {
+			roles, err = splitCSV(roleCSV, "--role")
+			if err != nil {
+				return err
+			}
+		}
+		a := FromContext(cmd.Context())
+		orgID, err := a.RequireOrg(cmd.Context(), pickOrg(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(cmd.Context())
+		if err != nil {
+			return err
+		}
+		req := gen.UpdateServiceAccountRequest{Name: stringPtr(name)}
+		if cmd.Flags().Changed("role") {
+			req.Roles = mgmt.Ref(roles)
+		}
+		resp, err := mgmt.UpdateServiceAccount(cmd.Context(), mc, orgID, args[0], req)
+		if err != nil {
+			return err
+		}
+		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}})
+	}}
+	cmd.Flags().StringVar(&name, "name", "", "new service-account name")
+	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	return cmd
+}
+
+func newServiceAccountDeleteCmd() *cobra.Command {
+	return &cobra.Command{Use: "delete <id>", Short: "Archive a service account and revoke its live keys", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		a := FromContext(cmd.Context())
+		if err := a.Confirm("delete", "service account "+args[0]); err != nil {
+			return err
+		}
+		orgID, err := a.RequireOrg(cmd.Context(), pickOrg(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(cmd.Context())
+		if err != nil {
+			return err
+		}
+		if err := mgmt.DeleteServiceAccount(cmd.Context(), mc, orgID, args[0]); err != nil {
+			return err
+		}
+		return a.Printer().Object(map[string]any{"archived": args[0]}, [][2]string{{"archived", args[0]}})
+	}}
+}

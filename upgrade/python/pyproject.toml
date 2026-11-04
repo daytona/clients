@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daytona-upgrade"
+version = "0.0.0"
+description = "Upgrade Daytona 0.x Python projects to SDK 2.x on the v0 namespace"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+dependencies = ["libcst>=1.8,<2", "tomlkit>=0.13,<0.14", "packaging>=24,<27"]
+
+[project.scripts]
+daytona-upgrade = "daytona_upgrade.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/daytona/clients"
+Repository = "https://github.com/daytona/clients"
+
+[dependency-groups]
+dev = ["pytest>=8,<9", "jsonschema>=4,<5", "ruff>=0.14,<1", "basedpyright>=1.31,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daytona_upgrade"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/pyproject.toml", "/LICENSE"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.9"
+include = ["src", "tests"]
+exclude = ["tests/fixtures", ".venv"]
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+target-version = "py39"
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ANN"]
+ignore = ["E501", "UP045"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-config --strict-markers"

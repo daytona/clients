@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "workflow"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+daytona = {version = ">=2,<3", extras = ["v0-sdk"]} # sandbox client
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8"
+daytona = {version = ">=2,<3", optional = true, markers = "sys_platform == 'linux'", extras = ["v0-sdk"]}
+
+[tool.poetry.dev-dependencies]
+daytona = {version = ">=2,<3", extras = ["v0-sdk"]}

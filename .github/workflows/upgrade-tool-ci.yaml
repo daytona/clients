@@ -1,0 +1,173 @@
+name: Upgrade tool CI
+
+# The daytona-upgrade migration tool (upgrade/): both packages' gates, the shared mapping against the pinned 0.x SDK, and the
+# pinned 0.x examples upgraded and type-checked against SDK 2.x.
+on:
+  push:
+    branches: [main, release/v2]
+    paths:
+      - 'upgrade/**'
+      - 'v0-sdk-version'
+      - 'scripts/**'
+      - 'python/**'
+      - 'typescript/**'
+      - '.github/workflows/upgrade-tool-ci.yaml'
+      - '.github/workflows/upgrade-tool-publish.yaml'
+      - 'scripts/test-upgrade.sh'
+  pull_request:
+    paths:
+      - 'upgrade/**'
+      - 'v0-sdk-version'
+      - 'scripts/**'
+      - 'python/**'
+      - 'typescript/**'
+      - '.github/workflows/upgrade-tool-ci.yaml'
+      - '.github/workflows/upgrade-tool-publish.yaml'
+      - 'scripts/test-upgrade.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upgrade-tool-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mapping:
+    name: Mapping, guide and SDK surface coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Install the SDK compiler dependency
+        working-directory: typescript
+        run: npm ci --no-audit --no-fund
+      - name: Script regressions (root export scanner, migration notes)
+        run: node --test upgrade/scripts/*.test.mjs
+      - name: Package copies of the mapping are current
+        run: node upgrade/scripts/sync-mapping.mjs --check
+      - name: MIGRATION.md is current
+        run: node upgrade/scripts/gen-guide.mjs --check
+      - name: Every public 0.x method at the pinned tag has a mapping entry
+        run: |
+          set -euo pipefail
+          tag=$(bash scripts/resolve-v0-tag.sh --verify)
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+          node upgrade/scripts/check-v0-surface.mjs --src "$RUNNER_TEMP/v0-src"
+      - name: Every v2 suggestion names existing SDK calls and arguments
+        run: node upgrade/scripts/check-v2-surface.mjs
+
+  typescript:
+    name: npm daytona-upgrade
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: upgrade/typescript
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Type-check, lint, test, build and pack
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npm run build
+          npm pack --dry-run --ignore-scripts
+      # Check dependency installation and the built CLI on the oldest supported Node major.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+      - name: Install and run the built CLI on Node 20
+        run: |
+          set -euo pipefail
+          node --version
+          consumer=$(mktemp -d)
+          tarball=$(npm pack --ignore-scripts --pack-destination "$consumer" --silent)
+          npm install --prefix "$consumer" --engine-strict --ignore-scripts --no-audit --no-fund "$consumer/$tarball"
+          "$consumer/node_modules/.bin/daytona-upgrade" --version
+          node dist/cli.js --version
+          node dist/cli.js --help >/dev/null
+          work=$(mktemp -d) && cp -r tests/fixtures/named-imports/input/. "$work/"
+          node dist/cli.js "$work" --yes --force
+          diff -r tests/fixtures/named-imports/expected "$work"
+
+  python:
+    name: PyPI daytona-upgrade (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: upgrade/python
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Lint, type-check and test
+        env:
+          UV_PYTHON: ${{ matrix.python }}
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv
+          uv sync --locked
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run basedpyright
+          uv run pytest -q
+          uv build --out-dir "$RUNNER_TEMP/dist"
+
+  examples:
+    name: Pinned 0.x examples upgraded and type-checked against 2.x
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Build both 2.x SDKs with the pinned v0 bundle
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv build
+          tag=$(bash scripts/resolve-v0-tag.sh --verify)
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+          DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang all --src "$RUNNER_TEMP/v0-src" "$tag"
+          (cd python && python -m build --wheel --outdir "$RUNNER_TEMP/sdk-py")
+          (cd typescript && npm install --no-audit --no-fund && npm run build \
+            && mkdir -p "$RUNNER_TEMP/sdk-ts" && npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-ts")
+      - name: Upgrade the examples and type-check them
+        run: |
+          set -euo pipefail
+          bash upgrade/scripts/check-examples.sh --src "$RUNNER_TEMP/v0-src" \
+            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-py/*.whl)" --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-ts/*.tgz)" \
+            --work "$RUNNER_TEMP/examples"
+      - name: Run the tools' example tests against the pinned examples
+        env:
+          DAYTONA_UPGRADE_V0_EXAMPLES: ${{ runner.temp }}/v0-src/examples
+        run: |
+          set -euo pipefail
+          (cd upgrade/typescript && npm ci --no-audit --no-fund && npx vitest run tests/examples.test.ts)
+          (cd upgrade/python && uv run pytest -q tests/test_examples.py)

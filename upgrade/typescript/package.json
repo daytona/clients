@@ -1,0 +1,21 @@
+{
+  "name": "@daytona/upgrade",
+  "version": "0.0.0",
+  "description": "Upgrade Daytona 0.x JavaScript and TypeScript projects to SDK 2.x on v0",
+  "type": "module",
+  "bin": { "daytona-upgrade": "dist/cli.js" },
+  "engines": { "node": ">=20.0.0" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/daytona/clients.git", "directory": "upgrade/typescript" },
+  "homepage": "https://www.daytona.io/docs",
+  "scripts": {
+    "build": "tsc && node -e \"require('node:fs').copyFileSync('src/mapping.json', 'dist/mapping.json')\"",
+    "test": "vitest run --maxWorkers=1 --testTimeout=20000",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "lint": "tsc --noEmit",
+    "sync-mapping": "node ../scripts/sync-mapping.mjs"
+  },
+  "dependencies": { "semver": "^7.7.4", "ts-morph": "^28.0.0", "yaml": "^2.9.1" },
+  "devDependencies": { "@types/node": "^22.0.0", "@types/semver": "^7.7.1", "ajv": "^8.17.1", "typescript": "^5.9.3", "vitest": "^5.0.5" }
+}
