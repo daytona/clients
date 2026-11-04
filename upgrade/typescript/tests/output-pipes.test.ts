@@ -4,18 +4,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { contents, invoke, temporaryProject } from './helpers.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
-beforeAll(() => {
-  const compiler = fileURLToPath(new URL('../node_modules/typescript/bin/tsc', import.meta.url));
-  const built = spawnSync(process.execPath, [compiler], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
-  expect(built.status, built.stdout + built.stderr).toBe(0);
-  copyFileSync(new URL('../src/mapping.json', import.meta.url), new URL('../dist/mapping.json', import.meta.url));
-});
 
 it.skipIf(process.platform === 'win32').each(['--print', '--dry'])('exits cleanly when the %s reader closes early', flag => {
   // Given a preview larger than the pipe buffer, consumed by a one-byte reader.
