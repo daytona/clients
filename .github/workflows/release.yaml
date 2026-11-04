@@ -28,10 +28,14 @@ jobs:
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
-    # for required-reviewer approval before secrets resolve.
+    # for required-reviewer approval before secrets resolve. This is the only
+    # job on the environment, so a run needs a single approval; keep new
+    # environment work (such as the go.sum sync below) inside it.
     environment: release
     permissions:
       contents: write
+    outputs:
+      cli_assets_uploaded: ${{ steps.upload_cli.outputs.uploaded }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -133,11 +137,13 @@ jobs:
       - name: Upload CLI to release assets
         # <name>-<os>-<arch> binaries plus SHA256SUMS (and install-v0.sh for
         # daytona-v0); see cli/hack/stage-release-assets.sh.
+        id: upload_cli
         run: |
           bash cli/hack/stage-release-assets.sh "$VERSION" > "$RUNNER_TEMP/cli-assets"
           mapfile -t assets < "$RUNNER_TEMP/cli-assets"
           printf 'Uploading %s\n' "${assets[@]}"
           gh release upload "$VERSION" "${assets[@]}" --clobber
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"
@@ -146,6 +152,38 @@ jobs:
           tar -czf "sdk-docs-${VERSION}.tar.gz" -C artifacts sdk-docs
       - name: Upload SDK docs to release assets
         run: gh release upload "$VERSION" "sdk-docs-${VERSION}.tar.gz" --clobber
+      - name: Sync go.sum and create PR
+        # Runs last, after the Go module tags are pushed. It works in a clean
+        # worktree at the dispatch commit, so build and docs output in the
+        # main checkout never reaches the PR.
+        env:
+          # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
+          # daytonaBot so it works with "Allow GitHub Actions to create and
+          # approve pull requests" disabled, and PR checks trigger on it
+          # (GITHUB_TOKEN-created PRs never trigger workflows).
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+        run: |
+          # Fail fast: with an empty GH_TOKEN, gh silently falls back to
+          # GITHUB_TOKEN, and that PR would trigger no CI.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GITHUBBOT_TOKEN is unavailable; refusing to create the sync PR with GITHUB_TOKEN"
+            exit 1
+          fi
+          git worktree add -b "sync-gosum-$VERSION" "$RUNNER_TEMP/gosum-sync" "$GITHUB_SHA"
+          cd "$RUNNER_TEMP/gosum-sync"
+          GONOSUMDB=github.com/daytona/clients go work sync
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No go workspace changes detected; skipping commit and PR creation."
+          else
+            git commit -s -m "chore: sync go.sum for $VERSION"
+            git push origin "sync-gosum-$VERSION"
+            gh pr create \
+              --title "chore: sync go.sum for $VERSION" \
+              --body "Automated PR to sync go.sum after release $VERSION" \
+              --base "$BASE_BRANCH" \
+              --head "sync-gosum-$VERSION"
+          fi
       - name: Cleanup credentials
         if: always()
         run: |
@@ -159,9 +197,11 @@ jobs:
     # can be fixed with "Re-run failed jobs" without re-running the release.
     # It attests the binaries as published on the release, the exact bytes
     # users download, and only if they match the checksums the release job
-    # recorded at build time, so a re-run cannot sign a replaced asset.
+    # recorded at build time, so a re-run cannot sign a replaced asset. It
+    # still runs when a later release step (SDK docs, go.sum sync) fails once
+    # the binaries are uploaded.
     needs: release
-    if: github.repository == 'daytona/clients'
+    if: ${{ !cancelled() && github.repository == 'daytona/clients' && needs.release.outputs.cli_assets_uploaded == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -192,68 +232,3 @@ jobs:
             dist/cli/${{ env.CLI_BINARY_NAME }}-darwin-arm64
             dist/cli/${{ env.CLI_BINARY_NAME }}-windows-amd64.exe
             dist/cli/${{ env.CLI_BINARY_NAME }}-windows-arm64.exe
-
-  sync_gosum:
-    needs: release
-    if: github.repository == 'daytona/clients'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
-    # for required-reviewer approval before secrets resolve.
-    environment: release
-    permissions:
-      contents: write
-      pull-requests: write
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-tags: true
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.work
-      - uses: ./.github/actions/install-gh-cli
-      - name: Configure git
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git config --global user.name "Daytona Release Bot"
-          git config --global user.email "153830314+daytonaBot@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
-      - name: Sync go.sum and create PR
-        env:
-          # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
-          # daytonaBot so it works with "Allow GitHub Actions to create and
-          # approve pull requests" disabled, and PR checks trigger on it
-          # (GITHUB_TOKEN-created PRs never trigger workflows).
-          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
-        run: |
-          # Fail fast: with an empty GH_TOKEN, gh silently falls back to
-          # GITHUB_TOKEN, and that PR would trigger no CI.
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::GITHUBBOT_TOKEN is unavailable; refusing to create the sync PR with GITHUB_TOKEN"
-            exit 1
-          fi
-          git checkout -b "sync-gosum-$VERSION"
-          GONOSUMDB=github.com/daytona/clients go work sync
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No go workspace changes detected; skipping commit and PR creation."
-          else
-            git commit -s -m "chore: sync go.sum for $VERSION"
-            git push origin "sync-gosum-$VERSION"
-            gh pr create \
-              --title "chore: sync go.sum for $VERSION" \
-              --body "Automated PR to sync go.sum after release $VERSION" \
-              --base "$BASE_BRANCH" \
-              --head "sync-gosum-$VERSION"
-          fi
-      - name: Cleanup credentials
-        if: always()
-        run: |
-          git config --global --fixed-value --unset-all user.name "Daytona Release Bot" 2>/dev/null || true
-          git config --global --fixed-value --unset-all user.email "153830314+daytonaBot@users.noreply.github.com" 2>/dev/null || true
-          git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
