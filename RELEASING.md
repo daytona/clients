@@ -72,6 +72,50 @@ A 0.x version is refused here. Every run waits for a reviewer on the
 `release` environment; the run summary names both the source commit and the
 workflow commit.
 
+### Moving the 2.x line to `main`
+
+Nothing in the workflows needs to change: every push trigger, the publish
+gates (`sdk_publish.yaml`, `upgrade-tool-publish.yaml`, `prepare-release.yaml`)
+and `scripts/patch_coverage.py` already accept `main` as the 2.x line, and
+the alpha-only gate does not depend on the branch. The default branch also
+keeps what the 0.x line still needs from it: `release.yaml` (a stub, so
+`gh workflow run release.yaml --ref release/v0` stays dispatchable; GitHub
+only dispatches workflows that exist on the default branch), `CLA.md`
+(linked by the CLA check of every line), and
+`assets/images/Daytona-logotype-black.png` (loaded from `main` by released
+0.x CLIs).
+
+1. **Open the move PR.** Replace `main`'s tree with this branch's while
+   keeping both histories, so every 0.x tag stays reachable and `release/v2`
+   becomes an ancestor of `main`:
+
+   ```bash
+   git fetch origin main release/v2
+   git switch -c chore/2x-to-main origin/main
+   git merge -s ours --no-commit --allow-unrelated-histories origin/release/v2
+   git read-tree -u --reset origin/release/v2
+   git commit -s -m "chore!: move the 2.x line to main"
+   git diff --quiet origin/release/v2 HEAD   # the tree is exactly release/v2's
+   ```
+
+2. **Merge it with a merge commit, not a squash.** A squash drops the
+   `release/v2` parent, and pull requests based on `release/v2` then share no
+   history with `main`. Enable "Allow merge commits" for this one merge if
+   the repository allows only squash merges.
+3. **Repository settings:** point the default-branch ruleset's required
+   checks at this line's job names (the ones `release/v2` requires), and drop
+   `release/v2` from any ruleset or environment rule that names it.
+4. **Retarget open pull requests** from `release/v2` to `main`, then retire
+   `release/v2`.
+5. **Docs:** replace the `release/v2` references (`git grep -n release/v2`):
+   this file's commands, [AGENTS.md](AGENTS.md) "Pull requests",
+   [CONTRIBUTING.md](CONTRIBUTING.md), the design record
+   `docs/design/0002-versioning-and-release-lines.md` and the review skills
+   under `.claude/skills/`.
+6. **0.x side:** the 0.x Pages site (`deploy-pages.yml`) and the AX evals
+   sync deploy only from `main`. The site keeps serving its last deployment;
+   change those workflows on `release/v0` before 0.x needs a new deployment.
+
 ## What a version derives
 
 The gate computes these with [`scripts/sdk-version.sh`](scripts/sdk-version.sh)
