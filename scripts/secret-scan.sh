@@ -7,7 +7,7 @@
 #
 #   scripts/secret-scan.sh install        download the pinned gitleaks (or use
 #                                         one on PATH where none is published)
-#                                         and enable the hooks
+#                                         and enable the hooks in this worktree
 #   scripts/secret-scan.sh install-bin    download the pinned gitleaks only
 #   scripts/secret-scan.sh staged         scan the staged changes (pre-commit)
 #   scripts/secret-scan.sh pre-push URL   scan the commits a push would send;
@@ -96,42 +96,38 @@ install_bin() {
   echo "secret-scan: installed gitleaks $GITLEAKS_VERSION at $bin_dir/gitleaks"
 }
 
+# Hooks are always enabled per worktree: a clone-wide core.hooksPath is what
+# other tools write (husky's `postinstall` on the 0.x line sets .husky/_ for
+# the whole clone), and a later clone-wide write must not switch the scan off.
 install_hooks() {
-  local shared own="" previous
-  shared=$(git config --local --get core.hooksPath || true)
-  if [ "$(git config --bool --get extensions.worktreeConfig || true)" = true ]; then
-    own=$(git config --worktree --get core.hooksPath || true)
-  fi
-  if [ -n "$own" ]; then
-    # This worktree already overrides the hooks path; replace the override.
-    previous="$own"
-    git config --worktree core.hooksPath .githooks
-    record_chain --worktree "$previous"
-  elif [ -z "$shared" ] || [ "$shared" = .githooks ]; then
-    previous="$shared"
-    git config --local core.hooksPath .githooks
-    record_chain --local "$previous"
-  else
-    # Another tool owns the clone-wide hooks path (for example husky, set up
-    # by a checkout of another branch line). Point only this worktree at
-    # .githooks; other worktrees run `scripts/secret-scan.sh install` too.
-    previous="$shared"
-    git config --local extensions.worktreeConfig true
-    git config --worktree core.hooksPath .githooks
-    record_chain --worktree "$previous"
+  local previous
+  previous=$(git config --get core.hooksPath || true)
+  enable_worktree_config
+  git config --worktree core.hooksPath .githooks
+  if [ -n "$previous" ] && [ "$previous" != .githooks ]; then
+    # The replaced path keeps running behind the scan (see chained_hook).
+    git config --worktree secretscan.chainHooksPath "$previous"
+    echo "secret-scan: core.hooksPath was '$previous'; its hooks still run alongside the scan"
   fi
   [ "$(git -C "$repo_root" rev-parse --git-path hooks)" = .githooks ] \
     || die "core.hooksPath did not take effect (git rev-parse --git-path hooks: $(git -C "$repo_root" rev-parse --git-path hooks))"
-  echo "secret-scan: hooks enabled (.githooks/pre-commit, .githooks/pre-push)"
+  echo "secret-scan: hooks enabled for this worktree (.githooks/pre-commit, .githooks/pre-push); other worktrees run install too"
 }
 
-# record_chain SCOPE PREVIOUS: the hooks path .githooks replaced keeps running
-# behind the scan (see chained_hook). Re-running install keeps the record.
-record_chain() {
-  local scope="$1" previous="$2"
-  [ -n "$previous" ] && [ "$previous" != .githooks ] || return 0
-  git config "$scope" secretscan.chainHooksPath "$previous"
-  echo "secret-scan: core.hooksPath was '$previous'; its hooks still run after the scan"
+# enable_worktree_config: turn on extensions.worktreeConfig the way
+# git-worktree(1) prescribes. Once it is on, every linked worktree reads the
+# shared config, so core.bare and core.worktree, which describe only the main
+# worktree, move from it into the main worktree's own config.worktree. Left in
+# place, a bare clone's core.bare=true breaks every linked worktree.
+enable_worktree_config() {
+  local shared="$common_dir/config" main="$common_dir/config.worktree" key value
+  for key in core.bare core.worktree; do
+    value=$(git config --file "$shared" --get "$key" || true)
+    [ -n "$value" ] || continue
+    git config --file "$main" --get "$key" >/dev/null || git config --file "$main" "$key" "$value"
+    git config --file "$shared" --unset "$key"
+  done
+  git config --file "$shared" extensions.worktreeConfig true
 }
 
 # chained_hook NAME: print the hook the .githooks wrapper runs besides the
@@ -215,7 +211,12 @@ scan_log() {
     esac
   done
   git rev-list "$@" >/dev/null || die "git rejected the revisions to scan: $*"
-  run_gitleaks --log-opts="$*"
+  # gitleaks reads `git log -p`, which shows no diff for a merge commit, so a
+  # secret added while resolving a merge would pass. --remerge-diff (git
+  # 2.36+) shows what the merge changed against git's own merge of its parents.
+  git log -n1 --remerge-diff --format= "$1" >/dev/null 2>&1 \
+    || die "git $(git version | cut -d' ' -f3) cannot scan merge commits (--remerge-diff); git 2.36 or later is required"
+  run_gitleaks --log-opts="--remerge-diff $*"
 }
 
 is_zero() { [ -z "${1//0/}" ]; }

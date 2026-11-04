@@ -50,9 +50,11 @@ git remote add origin "$tmp/remote.git"
 mkdir -p ".git/gitleaks/$version"
 cp "$(command -v gitleaks)" ".git/gitleaks/$version/gitleaks"
 scripts/secret-scan.sh install >"$tmp/out" 2>&1 || fail "install failed: $(cat "$tmp/out")"
-[ "$(git config --local core.hooksPath)" = .githooks ] || fail "install did not set core.hooksPath"
+[ "$(git config --worktree core.hooksPath)" = .githooks ] || fail "install did not set core.hooksPath for the worktree"
+[ -z "$(git config --file .git/config --get core.hooksPath || true)" ] || fail "install set a clone-wide core.hooksPath"
+[ "$(git rev-parse --is-bare-repository)" = false ] || fail "core.bare was lost"
 (cd scripts && ./secret-scan.sh install >/dev/null) || fail "install from a subdirectory failed"
-pass "install sets core.hooksPath=.githooks, also from a subdirectory"
+pass "install sets core.hooksPath=.githooks per worktree, also from a subdirectory"
 
 git add -A
 git commit -q -m "tooling" || fail "clean commit was blocked"
@@ -190,6 +192,31 @@ scripts/secret-scan.sh range "$base..HEAD" "" >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "range with an empty argument: exit $rc (want 2)"
 pass "a range git cannot resolve is an error, not a clean scan"
 
+# A secret added while resolving a merge exists only in the merge commit.
+git init -q -b main "$tmp/merge"
+git init -q --bare "$tmp/merge-remote.git"
+(
+  cd "$tmp/merge"
+  mkdir -p scripts
+  cp "$src/.gitleaks.toml" .
+  cp -R "$src/.githooks" .
+  cp "$src/scripts/secret-scan.sh" scripts/
+  mkdir -p ".git/gitleaks/$version"
+  cp "$(command -v gitleaks)" ".git/gitleaks/$version/gitleaks"
+  scripts/secret-scan.sh install >/dev/null
+  git remote add origin "$tmp/merge-remote.git"
+  git add -A && git commit -q -m tooling && git push -q origin main
+  git checkout -q -b feat && echo feat >feat.txt && git add feat.txt && git commit -q -m feat
+  git checkout -q main && echo main >main.txt && git add main.txt && git commit -q -m main
+  git merge -q --no-commit feat >/dev/null 2>&1
+  echo "DAYTONA_API_KEY=$daytona_key" >merged.env
+  git add merged.env
+  git commit -q --no-verify -m "evil merge"
+  if scripts/secret-scan.sh range origin/main..main >/dev/null 2>&1; then fail "range missed a secret only in a merge commit"; fi
+  if git push -q origin main >/dev/null 2>&1; then fail "push missed a secret only in a merge commit"; fi
+) || exit 1
+pass "a secret that exists only in a merge commit is caught by range and pre-push"
+
 # ci-push: the workflow's push scan. The secret sits below a clean tip.
 echo clean >after-leak.txt
 git add after-leak.txt
@@ -207,7 +234,20 @@ pass "ci-push scans every new commit after a force push or a new branch"
 
 # ── worktree-only hooks path when another tool owns the clone's ─────────────
 git config --local core.hooksPath .husky/_
+# What husky's postinstall does in another worktree: a clone-wide write.
+[ "$(git rev-parse --git-path hooks)" = .githooks ] || fail "a later clone-wide core.hooksPath switched the hooks off"
+echo "DAYTONA_API_KEY=$daytona_key" >late.env
+git add late.env
+if git commit -q -m "after husky" >/dev/null 2>&1; then fail "a later clone-wide core.hooksPath let a secret through"; fi
+git rm -q --cached late.env
+rm late.env
+pass "a later clone-wide core.hooksPath (husky) does not switch the hooks off"
+
 git worktree add -q "$tmp/wt" -b wt
+# git 2.37+ copies the main worktree's config.worktree into a new worktree.
+[ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "a new worktree did not inherit the hooks"
+pass "a worktree added after install inherits the hooks"
+git -C "$tmp/wt" config --worktree --unset core.hooksPath # a worktree with no override of its own
 (cd "$tmp/wt" && scripts/secret-scan.sh install >/dev/null) || fail "worktree install failed"
 [ "$(git config --local core.hooksPath)" = .husky/_ ] || fail "the clone-wide hooks path was overwritten"
 [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree does not use .githooks"
@@ -228,6 +268,22 @@ git -C "$tmp/wt2" config --worktree core.hooksPath .husky/_
 [ -z "$(git config --local --get core.hooksPath || true)" ] || fail "the clone-wide hooks path was set"
 pass "an existing worktree override is replaced, the clone's setting untouched"
 
+# A bare clone with linked worktrees: core.bare must not reach them.
+git clone -q --bare "$tmp/repo" "$tmp/bare.git"
+git --git-dir="$tmp/bare.git" config core.hooksPath .husky/_
+git --git-dir="$tmp/bare.git" worktree add -q "$tmp/bwt" -b bwt main
+mkdir -p "$tmp/bare.git/gitleaks/$version"
+cp "$(command -v gitleaks)" "$tmp/bare.git/gitleaks/$version/gitleaks"
+(cd "$tmp/bwt" && scripts/secret-scan.sh install >/dev/null) || fail "install in a bare clone's worktree failed"
+git -C "$tmp/bwt" status --short >/dev/null 2>&1 || fail "install broke the bare clone's worktree"
+[ "$(git --git-dir="$tmp/bare.git" rev-parse --is-bare-repository)" = true ] || fail "the bare clone is no longer bare"
+git --git-dir="$tmp/bare.git" worktree add -q "$tmp/bwt2" -b bwt2 main
+git -C "$tmp/bwt2" status --short >/dev/null 2>&1 || fail "a worktree added after install is broken"
+echo "DAYTONA_API_KEY=$daytona_key" >"$tmp/bwt/leak.env"
+git -C "$tmp/bwt" add leak.env
+if git -C "$tmp/bwt" commit -q -m leak >/dev/null 2>&1; then fail "the bare clone's worktree did not block a secret"; fi
+pass "a bare clone's worktrees keep working and scanning after install"
+
 ln -s .githooks "$tmp/wt2/hooks-link"
 git -C "$tmp/wt2" config --worktree secretscan.chainHooksPath hooks-link
 [ -z "$(cd "$tmp/wt2" && scripts/secret-scan.sh chained-hook pre-commit)" ] || fail "a chained path symlinked to .githooks chains the wrapper to itself"
@@ -247,7 +303,7 @@ cp "$src/.gitleaks.toml" "$tmp/unsup/"
 cp "$src/scripts/secret-scan.sh" "$tmp/unsup/scripts/"
 cp -R "$src/.githooks" "$tmp/unsup/"
 (cd "$tmp/unsup" && PATH="$shim:$PATH" scripts/secret-scan.sh install >/dev/null) || fail "install with gitleaks on PATH failed on an unpublished platform"
-[ "$(git -C "$tmp/unsup" config --local core.hooksPath)" = .githooks ] || fail "hooks not enabled on an unpublished platform"
+[ "$(git -C "$tmp/unsup" rev-parse --git-path hooks)" = .githooks ] || fail "hooks not enabled on an unpublished platform"
 echo "DAYTONA_API_KEY=$daytona_key" >"$tmp/unsup/leak.env"
 git -C "$tmp/unsup" add leak.env
 if PATH="$shim:$PATH" git -C "$tmp/unsup" commit -q -m leak >/dev/null 2>&1; then fail "the PATH gitleaks did not block on an unpublished platform"; fi

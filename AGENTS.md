@@ -31,12 +31,17 @@ below works with what is in the repository plus, optionally, a Daytona account:
 Every clone and every worktree runs `scripts/secret-scan.sh install` once,
 before its first commit. It downloads the pinned gitleaks (checksum-verified,
 stored under the clone's `.git/`; on a platform without a published build it
-uses a gitleaks you put on `PATH`) and points `core.hooksPath` at
-`.githooks/`. Hooks from the path it replaces keep running:
+uses a gitleaks you put on `PATH`) and points this worktree's
+`core.hooksPath` at `.githooks/`. Hooks from the path it replaces keep running.
+The setting is per worktree (`extensions.worktreeConfig`), so a clone-wide
+write by another tool (husky's `postinstall` on the 0.x line) cannot switch
+the scan off; worktrees added later from an installed main worktree inherit
+it (git 2.37+), which also means a 0.x worktree added from there runs no
+husky hooks. Scans need git 2.36 or later.
 
 - `pre-commit` scans the staged changes; `pre-push` scans the commits the
-  remote does not have yet, which catches commits made before the hooks were
-  enabled. The `Secret scan` workflow runs the same scan on every pull request
+  remote does not have yet (merge commits included), which catches commits
+  made before the hooks were enabled. The `Secret scan` workflow runs the same scan on every pull request
   and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`:
   the gitleaks defaults plus Daytona API keys, organization keys, sandbox
   tokens and invitation tokens.

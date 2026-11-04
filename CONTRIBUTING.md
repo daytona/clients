@@ -54,7 +54,8 @@ scripts/secret-scan.sh install
 
 It downloads a pinned, checksum-verified [gitleaks](https://github.com/gitleaks/gitleaks)
 into the clone's `.git/` directory (Linux and macOS; elsewhere, put gitleaks on
-your `PATH`) and enables the hooks in `.githooks/`: every commit's staged
+your `PATH`) and enables the hooks in `.githooks/` for that worktree (git 2.36
+or later): every commit's staged
 changes and every push's new commits are checked against `.gitleaks.toml`, and
 the `Secret scan` check repeats it on pull requests. If it blocks a commit,
 remove the credential rather than bypassing the hook; for a value that is not a
