@@ -202,6 +202,48 @@ async def test_a_context_is_uploaded_in_parts_completed_and_built(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("as_file", [False, True], ids=["bytes", "file"])
+async def test_a_part_is_streamed_in_bounded_chunks_with_a_fixed_length(
+    monkeypatch: pytest.MonkeyPatch, as_file: bool, tmp_path: Path
+) -> None:
+    # Given parts several chunks long.
+    monkeypatch.setattr(_context_upload, "_PART_CHUNK", 1000)
+    data = archive(10_000)
+    context: object = data
+    if as_file:
+        context = tmp_path / "ctx.tar"
+        context.write_bytes(data)
+    source = _context_upload._Source(context)  # type: ignore[arg-type]
+    # When a part is read, no chunk is larger than the chunk size and the
+    # chunks are the part's bytes.
+    chunks = [chunk async for chunk in source.chunks(4096, 4096)]
+    assert max(len(chunk) for chunk in chunks) <= 1000
+    assert b"".join(chunks) == data[4096:8192]
+    # And on the wire each part carries its own length and is not chunked.
+    with storage_peer() as peer:
+        await build(peer, context, False)
+        puts = [(headers, body) for m, _, headers, body in peer.requests if m == "PUT"]
+        assert puts and all(headers.get("Content-Length") == str(len(body)) for headers, body in puts)
+        assert all("Transfer-Encoding" not in headers for headers, _ in puts)
+
+
+@pytest.mark.anyio
+async def test_a_file_that_shrinks_during_the_upload_is_refused(tmp_path: Path) -> None:
+    # Given a context file truncated after it was declared.
+    path = tmp_path / "ctx.tar"
+    path.write_bytes(archive(10_000))
+    source = _context_upload._Source(path)
+    path.write_bytes(b"short")
+    with storage_peer() as peer:
+        part = _context_upload._Part(1, 4096, f"{peer.url}/bucket/part/1?{SIGNATURE}")
+        # When its part is uploaded, it fails as a changed context.
+        async with httpx.AsyncClient(timeout=5) as client:
+            with pytest.raises(BadRequestError, match="changed while it was being uploaded") as error:
+                await _context_upload._put_part(client, source, 0, part)
+        assert SIGNATURE not in str(error.value)
+
+
+@pytest.mark.anyio
 async def test_an_already_uploaded_context_is_built_without_uploading(sync: bool) -> None:
     # Given an API that already holds a verified upload of the same archive.
     with storage_peer(ready=True) as peer:
