@@ -132,16 +132,16 @@ export class ScreenService {
     const { region, format, quality, scale, showCursor } = options
     const compressed = format !== undefined || quality !== undefined || scale !== undefined
     const query = {
-      x: region === undefined ? undefined : String(region.x),
-      y: region === undefined ? undefined : String(region.y),
-      width: region === undefined ? undefined : String(region.width),
-      height: region === undefined ? undefined : String(region.height),
+      x: region == null ? undefined : String(region.x),
+      y: region == null ? undefined : String(region.y),
+      width: region == null ? undefined : String(region.width),
+      height: region == null ? undefined : String(region.height),
       format,
       quality: quality === undefined ? undefined : String(quality),
       scale: scale === undefined ? undefined : String(scale),
       show_cursor: showCursor === undefined ? undefined : String(showCursor),
     } satisfies toolbox.ComputerUseScreenshotQuery
-    const route = region
+    const route = region != null
       ? (compressed ? '/computeruse/screenshot/region/compressed' : '/computeruse/screenshot/region')
       : (compressed ? '/computeruse/screenshot/compressed' : '/computeruse/screenshot')
     return this.transport.get<toolbox.ComputerUseScreenshotResponse>(route, { params: dropUndefined(query) })
