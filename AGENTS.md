@@ -56,14 +56,15 @@ Start it (`sudo systemctl start nix-daemon` on systemd hosts) and retry.
 Run `scripts/secret-scan.sh install` once per clone or worktree, before the
 first commit. It downloads the pinned, checksum-verified gitleaks into the
 clone's `.git/` (or uses one on `PATH` where no build is published) and points
-this worktree's `core.hooksPath` at `.githooks/` (git 2.36+). Husky's hooks
-(`.husky/`, lint-staged) keep running behind the scan, whether `yarn install`
-ran before or after the install.
+this worktree's `core.hooksPath` at `.githooks/`. Husky's hooks (`.husky/`,
+lint-staged) keep running behind the scan, whether `yarn install` ran before
+or after the install.
 
 - `pre-commit` scans the staged changes, `pre-push` the commits the remote
-  lacks. The `Secret scan` workflow (job `gitleaks`) runs the same scan on
-  every pull request and on pushes to `release/v0`. Rules: `.gitleaks.toml`
-  (gitleaks defaults plus Daytona keys and tokens).
+  lacks, merge commits included (git 2.36+). The `gitleaks` check (workflow
+  `Secret scan`) runs the same scan on every pull request and on pushes to
+  `release/v0`. Rules: `.gitleaks.toml` (gitleaks defaults plus Daytona keys
+  and tokens).
 - Never bypass a block (`--no-verify`, editing the rules to fit). Remove the
   secret; one that was pushed or shared anywhere is leaked and must be rotated.
 - A false positive (a spec example, a fixture) gets a `gitleaks:allow` comment

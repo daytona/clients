@@ -130,19 +130,27 @@ enable_worktree_config() {
   git config --file "$shared" extensions.worktreeConfig true
 }
 
-# chained_hook NAME: print the hook the .githooks wrapper runs besides the
-# scan: NAME from the hooks path install replaced, else from the clone-wide
-# core.hooksPath (husky's `postinstall` writes .husky/_ there, also after
-# install, and the worktree's .githooks shadows it), else from
-# <common dir>/hooks.
+# chained_hook NAME: print, one per line, the hooks the .githooks wrapper runs
+# besides the scan: NAME from the hooks path install replaced and NAME from
+# the clone-wide core.hooksPath (husky's `postinstall` writes .husky/_ there,
+# also after install, and the worktree's .githooks shadows it), each directory
+# once; with neither set, NAME from <common dir>/hooks.
 chained_hook() {
-  local dir hook
-  dir=$(git config --get secretscan.chainHooksPath || true)
-  [ -n "$dir" ] || dir=$(git config --file "$common_dir/config" --get core.hooksPath || true)
-  [ -n "$dir" ] || dir="$common_dir/hooks"
-  case "$dir" in /*) ;; *) dir="$repo_root/$dir" ;; esac
-  hook="$dir/$1"
-  [ -x "$hook" ] && [ "$(cd "$dir" && pwd -P)" != "$(cd "$repo_root/.githooks" && pwd -P)" ] && echo "$hook"
+  local dir hook real seen="" replaced clone_wide
+  replaced=$(git config --get secretscan.chainHooksPath || true)
+  clone_wide=$(git config --file "$common_dir/config" --get core.hooksPath || true)
+  [ -n "$replaced$clone_wide" ] || replaced="$common_dir/hooks"
+  for dir in "$replaced" "$clone_wide"; do
+    [ -n "$dir" ] || continue
+    case "$dir" in /*) ;; *) dir="$repo_root/$dir" ;; esac
+    hook="$dir/$1"
+    [ -x "$hook" ] || continue
+    real=$(cd "$dir" && pwd -P)
+    [ "$real" != "$(cd "$repo_root/.githooks" && pwd -P)" ] || continue
+    case "$seen" in *"|$real|"*) continue ;; esac
+    seen="$seen|$real|"
+    echo "$hook"
+  done
   return 0
 }
 

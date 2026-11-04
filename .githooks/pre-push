@@ -4,8 +4,9 @@
 
 # Blocks a push whose new commits contain a secret: the backstop for commits
 # made before the hooks were enabled or with `--no-verify`. Enable with
-# `scripts/secret-scan.sh install`. The pre-push hook this path replaced (or
-# the clone's .git/hooks/pre-push) still runs after the scan passes.
+# `scripts/secret-scan.sh install`. The pre-push hooks of the path this
+# replaced and of the clone-wide core.hooksPath (or the clone's
+# .git/hooks/pre-push) still run after the scan passes.
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -13,7 +14,8 @@ refs=$(cat)
 # $2 is where the push goes (a remote's pushurl, not its fetch url).
 printf '%s\n' "$refs" | "$root/scripts/secret-scan.sh" pre-push "$2"
 
-own=$("$root/scripts/secret-scan.sh" chained-hook pre-push)
-if [ -n "$own" ]; then
-  exec "$own" "$@" <<<"$refs"
-fi
+hooks=$("$root/scripts/secret-scan.sh" chained-hook pre-push)
+while IFS= read -r hook <&3; do
+  [ -n "$hook" ] || continue
+  "$hook" "$@" <<<"$refs"
+done 3<<<"$hooks"

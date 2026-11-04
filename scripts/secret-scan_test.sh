@@ -266,13 +266,30 @@ git -C "$tmp/wt" config --worktree --unset core.hooksPath || true # a worktree w
 [ "$(git config --local core.hooksPath)" = .husky/_ ] || fail "the clone-wide hooks path was overwritten"
 [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree does not use .githooks"
 mkdir -p "$tmp/wt/.husky/_"
-printf '#!/bin/sh\ntouch "%s/husky-ran"\n' "$tmp" >"$tmp/wt/.husky/_/pre-commit"
+printf '#!/bin/sh\necho x >>"%s/husky-ran"\n' "$tmp" >"$tmp/wt/.husky/_/pre-commit"
 chmod +x "$tmp/wt/.husky/_/pre-commit"
 echo wt >"$tmp/wt/wt.txt"
 git -C "$tmp/wt" add wt.txt
 git -C "$tmp/wt" commit -q -m wt || fail "commit in the worktree failed"
 [ -f "$tmp/husky-ran" ] || fail "the replaced hooks path's pre-commit did not run"
-pass "an existing clone-wide hooks path is kept; the worktree gets .githooks and still runs it"
+[ "$(wc -l <"$tmp/husky-ran")" -eq 1 ] || fail "a path that is both the replaced and the clone-wide one ran twice"
+pass "an existing clone-wide hooks path is kept; the worktree gets .githooks and still runs it once"
+
+# A worktree whose replaced path differs from a clone-wide one set later
+# (husky after install): both run.
+mkdir -p "$tmp/wt/own-hooks"
+printf '#!/bin/sh\ntouch "%s/own-ran"\n' "$tmp" >"$tmp/wt/own-hooks/pre-commit"
+chmod +x "$tmp/wt/own-hooks/pre-commit"
+git -C "$tmp/wt" config --worktree secretscan.chainHooksPath own-hooks
+rm -f "$tmp/husky-ran"
+echo both >"$tmp/wt/wt.txt"
+git -C "$tmp/wt" add wt.txt
+git -C "$tmp/wt" commit -q -m both || fail "commit with two chained paths failed"
+[ -f "$tmp/own-ran" ] || fail "the replaced hooks path did not run next to a clone-wide one"
+[ -f "$tmp/husky-ran" ] || fail "a clone-wide hooks path was masked by the replaced one"
+git -C "$tmp/wt" config --worktree --unset secretscan.chainHooksPath
+rm -rf "$tmp/wt/own-hooks"
+pass "the replaced hooks path and a later clone-wide one both run"
 
 git config --local --unset core.hooksPath
 git worktree add -q "$tmp/wt2" -b wt2
