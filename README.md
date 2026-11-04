@@ -44,18 +44,20 @@ dependencies {
 
 ### CLI
 
+The 0.x CLI installs as `daytona-v0`, side by side with the 2.x `daytona` CLI:
+
 ```bash
-brew install daytonaio/cli/daytona
+brew install daytonaio/cli/daytona@0
 ```
 
-Or download the binary for your platform from [GitHub Releases](https://github.com/daytona/clients/releases). The release page lists it as `daytona-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-<os>-<arch>`.
+Or download the binary for your platform from a `v0.x.y` [GitHub release](https://github.com/daytona/clients/releases). The release page lists it as `daytona-v0-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-v0-<os>-<arch>`. Linux and macOS can use the release's `install-v0.sh`. Some older 0.x releases name the binary `daytona-<os>-<arch>` instead.
 
 #### Verify the binary
 
 Release binaries carry a [GitHub artifact attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) (SLSA build provenance). Verify a downloaded binary with the [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify ./daytona-linux-amd64 --repo daytona/clients \
+gh attestation verify ./daytona-v0-linux-amd64 --repo daytona/clients \
   --signer-workflow daytona/clients/.github/workflows/release.yaml
 ```
 

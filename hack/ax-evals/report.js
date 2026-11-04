@@ -7,6 +7,7 @@
 const fs = require('fs')
 const path = require('path')
 const { upsertComment } = require('./comment.js')
+const { DISPATCH_HINT } = require('./plan.js')
 
 function parseReport(raw) {
   try {
@@ -71,7 +72,7 @@ function oneLine(text) {
   )
 }
 
-function render({ results, sha, runUrl }) {
+function render({ results, sha, runUrl, pr }) {
   const rows = results.map((result) => {
     const report = parseReport(result.reportJson)
     const metrics = (report && report.metrics) || {}
@@ -99,7 +100,7 @@ function render({ results, sha, runUrl }) {
       ? ['', '<details><summary>Key findings and friction points</summary>', '', ...details, '', '</details>']
       : []),
     '',
-    `Re-run: remove and re-add the \`ax-eval\` label, or run **[PR] AX evals** from \`release/v0\` with this PR number and \`all\` or e.g. \`python go\` · [workflow run](${runUrl})`,
+    `Re-run: remove and re-add the \`ax-eval\` label, or \`${DISPATCH_HINT.replace('<number>', pr || '<number>')}\` · [workflow run](${runUrl})`,
   ]
 }
 
@@ -115,7 +116,7 @@ async function run({ github, context, core }) {
   const matrix = JSON.parse(process.env.AX_MATRIX)
   const results = loadResults(process.env.AX_RESULTS_DIR, matrix)
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-  const lines = render({ results, sha: process.env.AX_SHA, runUrl })
+  const lines = render({ results, sha: process.env.AX_SHA, runUrl, pr: process.env.AX_PR })
   await core.summary.addRaw(lines.join('\n')).write()
   const written = await upsertComment(github, context.repo, Number(process.env.AX_PR), context.runId, lines)
   if (!written) core.notice('A newer AX eval run already owns the PR comment; leaving it untouched')

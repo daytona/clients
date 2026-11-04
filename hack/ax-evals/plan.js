@@ -10,6 +10,9 @@ const { MARKER, upsertComment } = require('./comment.js')
 
 const ALIASES = { ts: 'typescript', js: 'typescript', py: 'python', golang: 'go' }
 const WRITE_ROLES = new Set(['admin', 'maintain', 'write'])
+// The prompts and evals.json paths describe the 0.x layout; main (2.x) differs.
+const BASE_BRANCH = 'release/v0'
+const DISPATCH_HINT = `gh workflow run ax_evals.yaml --repo daytona/clients --ref ${BASE_BRANCH} -f pr=<number> -f evals=all`
 
 function parseEvals(input) {
   return (input || '')
@@ -52,6 +55,9 @@ async function run({ github, context, core }) {
 
   const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: prNumber })
   if (pr.state !== 'open') return core.notice(`PR #${prNumber} is ${pr.state}`)
+  if (pr.base.ref !== BASE_BRANCH) {
+    return core.notice(`PR #${prNumber} targets ${pr.base.ref}; AX evals only cover PRs against ${BASE_BRANCH}`)
+  }
   if (!pr.head.repo || pr.head.repo.full_name !== `${repo.owner}/${repo.repo}`) {
     return core.notice('AX evals are not supported on pull requests from forks')
   }
@@ -82,7 +88,7 @@ async function run({ github, context, core }) {
       '### AX evals (2027.dev)',
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
-      'To run evals anyway, run the **[PR] AX evals** workflow from `release/v0` with this PR number and `all` (or e.g. `python go`).',
+      `To run evals anyway (or only some, e.g. \`evals='python go'\`): \`${DISPATCH_HINT.replace('<number>', prNumber)}\``,
     ])
     return
   }
@@ -106,3 +112,4 @@ module.exports = run
 module.exports.parseEvals = parseEvals
 module.exports.selectByPaths = selectByPaths
 module.exports.MARKER = MARKER
+module.exports.DISPATCH_HINT = DISPATCH_HINT

@@ -12,7 +12,9 @@ this repo, hosted on **GitHub Pages**. Deploy is automated by
 You can deploy and validate **before** touching DNS:
 
 1. **Enable Pages**: repo **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
-2. **Merge to `release/v0`** (or run the workflow manually from `release/v0`). The workflow generates the site
+2. **Allow `release/v0`** in the `github-pages` environment's deployment branch rules
+   (**Settings → Environments → github-pages**), then **merge to `release/v0`** (or run
+   the workflow manually from `release/v0`). The workflow generates the site
    and deploys it. With no custom domain it is served at the **default GitHub URL**:
 
    ```

@@ -18,7 +18,13 @@ const BOT = { login: 'github-actions[bot]' }
 const SHA = 'c8114371cbfae6ee7ffce6aea618f8de7f161c91'
 const REPO = { owner: 'daytona', repo: 'clients' }
 
-function mockGithub({ role = 'write', fork = false, files = [{ filename: 'sdk-go/a.go' }], comments = [] } = {}) {
+function mockGithub({
+  role = 'write',
+  fork = false,
+  base = 'release/v0',
+  files = [{ filename: 'sdk-go/a.go' }],
+  comments = [],
+} = {}) {
   const calls = []
   return {
     calls,
@@ -29,6 +35,7 @@ function mockGithub({ role = 'write', fork = false, files = [{ filename: 'sdk-go
         get: async () => ({
           data: {
             state: 'open',
+            base: { ref: base },
             head: { sha: SHA, repo: { full_name: fork ? 'someone/clients' : 'daytona/clients' } },
           },
         }),
@@ -120,6 +127,9 @@ test('plan: rejects triage users and non-collaborators', async () => {
 
 test('plan: forks, unknown evals, selection, renames, nothing changed', async () => {
   assert.match((await runPlan(mockGithub({ fork: true }), dispatchContext('all'))).notice, /forks/)
+  const toMain = await runPlan(mockGithub({ base: 'main' }), dispatchContext('all'))
+  assert.match(toMain.notice, /targets main/)
+  assert.equal(toMain.matrix, '[]')
   assert.match((await runPlan(mockGithub(), dispatchContext('rust'))).failed, /Unknown eval/)
   assert.deepEqual(names(await runPlan(mockGithub(), dispatchContext('py, ts python'))), ['python', 'typescript'])
   assert.equal(
@@ -131,6 +141,7 @@ test('plan: forks, unknown evals, selection, renames, nothing changed', async ()
   const docsOnly = mockGithub({ files: [{ filename: 'README.md' }] })
   assert.equal((await runPlan(docsOnly, dispatchContext(''))).matrix, '[]')
   assert.match(docsOnly.calls[0][1], /nothing was evaluated/)
+  assert.match(docsOnly.calls[0][1], /--ref release\/v0 -f pr=7 -f evals=all/)
 })
 
 test('plan: manual runs need a pull request number', async () => {
@@ -221,6 +232,11 @@ test('render: every status label', () => {
   for (const [title, label] of Object.entries(expected))
     assert.ok(out.includes(`| ${title} | ${label} |`), `${title}: ${label}`)
   assert.doesNotMatch(out, /All evals succeeded/)
+})
+
+test('render: re-run hint names the PR and release/v0', () => {
+  const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
+  assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref release\/v0 -f pr=42 -f evals=all/)
 })
 
 test('render: escapes agent text', () => {

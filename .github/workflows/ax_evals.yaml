@@ -5,9 +5,11 @@ name: '[PR] AX evals (2027.dev)'
 #
 # Trigger (requires write access to the repo), for PRs against release/v0 (0.x):
 #   - add the `ax-eval` label to a PR (evaluates the changed SDKs)
-#   - run this workflow from release/v0 with the PR number and `all`, `python go`, ...
+#   - gh workflow run ax_evals.yaml --repo daytona/clients --ref release/v0 \
+#       -f pr=<number> [-f evals='all' | -f evals='python go']
 # There is no `/ax-eval` comment trigger: issue_comment runs the default branch's copy
-# of a workflow, and main (the 2.x line) has no AX evals.
+# of a workflow, and main (the 2.x line) has no AX evals. For the same reason the
+# Actions UI shows no "Run workflow" button; dispatch through the CLI or the API.
 # Prompts and setup scripts live in hack/ax-evals and are stored on 2027; they are
 # synced from release/v0 by ax_evals_config.yaml, so a PR is evaluated with
 # release/v0's prompts.
