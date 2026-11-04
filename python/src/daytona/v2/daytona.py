@@ -386,6 +386,7 @@ class AsyncDaytona:
         labels: Optional[Dict[str, str]] = None,
         secrets: Optional[Sequence[str]] = None,
         ports: Optional[Sequence[PortMapping]] = None,
+
         persistent: Optional[bool] = None,
         lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
@@ -404,16 +405,18 @@ class AsyncDaytona:
 
         ``memory``: Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses half of the claiming Mac's memory, rounded down, on a model that runs two sandboxes, or all of it on a model that runs one.
 
-        ``disk``: Disk in GiB, at least 80; sent as disk_mib. The whole sandbox disk, macOS included. disk * 1024 must be an integer. Omitted uses half of the claiming Mac's sandbox disk room, rounded down to a whole GiB, on a model that runs two sandboxes, or all of it on a model that runs one.
+        ``disk``: Disk in GiB, at least 80; sent as disk_mib. The whole sandbox disk, macOS included. disk * 1024 must be an integer. Omitted uses the claiming Mac's sandbox disk room less 32 GiB, halved on a model that runs two sandboxes, rounded down to a whole GiB, and at least 80.
 
         The first successful claim fixes the size, which the sandbox reports
         from then on.
 
-        ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+        ``persistent``: Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
 
-        ``volumes`` attaches disk volumes read-write. A sandbox with volumes
-        cannot be persistent; bucket volumes and ``read_only`` are rejected
-        with :class:`BadRequestError`.
+        ``volumes`` attaches disk volumes read-write. Each volume holds its
+        ``size_gib`` (100 GiB when omitted) of the Mac's sandbox disk room
+        beside the sandbox's disk, so the disk and the volumes must fit one Mac
+        together. A sandbox with volumes cannot be persistent; bucket volumes
+        and ``read_only`` are rejected with :class:`BadRequestError`.
 
         ``reservation`` picks the Mac's reservation (``daytona.reservations``):
         ``None`` uses any fitting reservation of the organization in the region (or
@@ -449,6 +452,7 @@ class AsyncDaytona:
         creating the client. An API that does not serve the region answers
         :class:`ConflictError`; the SDK does not reroute.
         """
+
         resolved_image = _require_image_source(image)
         if auto_renew is not None and reservation != "new":
             raise create_error(
@@ -463,6 +467,7 @@ class AsyncDaytona:
             labels=labels,
             secrets=secrets,
             ports=ports,
+
             persistent=persistent,
             volumes=volumes,
             cores=_macos_cores(cpu),
@@ -1490,6 +1495,7 @@ def _create_body(config: CreateConfig) -> CreateBody:
         raise create_error("lifecycle_policy must be an object", 400, "BAD_REQUEST", "SDK")
     lifecycle = lifecycle_body(lifecycle_raw, creating=True) if lifecycle_raw is not None else None
     assert_lifecycle_class_support(
+
         lifecycle,
         sandbox_class=route,
         persistent=route == "macos" and config.get("persistent") is True,

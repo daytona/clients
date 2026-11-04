@@ -65,13 +65,12 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 	text := squashSpaces(help)
 	for _, line := range []string{
 		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: half of the Mac's sandbox disk capacity, rounded down to a whole GiB, on a model that runs two sandboxes; all of it on a model that runs one)",
+		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac's sandbox disk capacity less 32768 MiB, halved on a model that runs two sandboxes, rounded down to a whole GiB, at least 81920)",
 		"--memory MIB memory in MiB, minimum 4096 (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
 		"--reservation ID|new",
 		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
-		// macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
-		"--persistent keep the disk across stop/start on the same Mac; delete erases it, and reservation end saves it as an image before the Mac is erased. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged.",
-		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.",
+		"--persistent keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.",
+		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one. The disk share leaves 32768 MiB of the sandbox disk capacity and is at least 81920 MiB.",
 		"--on-timeout ACTION action when --timeout elapses: stop|delete (stop needs --persistent)",
 		"--on-idle-timeout ACTION action when --idle-timeout elapses: stop|delete (stop needs --persistent)",
 		"daytona sandbox create-macos --image base-macos",

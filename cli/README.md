@@ -150,7 +150,8 @@ Each omitted `--cores`, `--memory`, or `--disk` uses half of the reserved Mac
 on a model that runs two sandboxes, or all of it on a model that runs one.
 Defaults round down, and disk rounds down to a whole GiB. For `--disk`, the
 total is the model's sandbox disk room (`SANDBOX_DISK_MIB` in `mac-model list`),
-not the Mac's whole SSD. Sandbox sizes do not change the reservation.
+not the Mac's whole SSD; the default disk leaves 32768 MiB of it and is at least
+81920. Sandbox sizes do not change the reservation.
 The size is fixed at creation, and `daytona
 sandbox get` shows the associated reservation as `reservation_id`. `--disk` is the
 whole sandbox disk in MiB, macOS included, at least 81920. Without `--model`, a
@@ -169,7 +170,7 @@ pass `--yes`, set `DAYTONA_YES=1`, or run `daytona config set confirm false`.
 Using an existing reservation ID or `reservation create --dry-run` does not
 prompt.
 
-Stop and pause need a persistent sandbox (`--persistent`). Stop keeps the disk on the same Mac, and start and resume use that Mac. Delete erases the disk. At reservation end, a persistent sandbox's disk is saved as an anonymous image before the Mac is erased, and an ephemeral sandbox's disk is erased unsaved; a lost Mac saves persistent disks if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+Stop and pause need a persistent sandbox (`--persistent`). Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it. Delete erases the disk.
 
 ## Scripts and agents
 

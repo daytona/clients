@@ -702,7 +702,8 @@ export class Daytona {
    * `MAC_DISK_FULL`, `AUTO_RESERVE_LIMIT_REACHED`, `NO_MAC_AVAILABLE`).
    * `cpu` (cores), `memory` (GiB) and `disk` (GiB) size the sandbox; each omitted
    * axis uses half of the claiming Mac, rounded down, on a model that runs two sandboxes,
-   * or all of it on a model that runs one. The first successful
+   * or all of it on a model that runs one. The disk share leaves 32 GiB of the Mac's
+   * sandbox disk room and is at least 80 GiB. The first successful
    * claim fixes the size, which the sandbox reports from then on. `name`,
    * `idempotencyKey`, `waitSeconds` and `createTimeoutSeconds` behave as on
    * {@link create}. `networkPolicy` sets the outbound network policy as on

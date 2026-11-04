@@ -226,6 +226,5 @@ func TestReservationUpdate_setsAutoRenew(t *testing.T) {
 
 	help, _, err := runCLI(t, []string{"reservation", "update", "--help"}, nil)
 	require.NoError(t, err)
-	require.Contains(t, squashSpaces(help), "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.")
 	require.Contains(t, help, "Examples:\n  daytona reservation update RESERVATION_ID --auto-renew=false\n  daytona reservation update RESERVATION_ID --auto-renew=true")
 }

@@ -443,7 +443,12 @@ export interface CreateSandboxFromSnapshotOptions extends CreateRequestBaseOptio
  * CPU selectors do not apply.
  */
 export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions, 'cpuArch' | 'cpuType'> {
-  /** Read-write disk volumes. Cannot be combined with `persistent: true`. */
+  /**
+   * Read-write disk volumes. Each volume holds its `sizeGib` (100 GiB when
+   * omitted) of the Mac's sandbox disk room beside the sandbox's disk, so the
+   * disk and the volumes must fit one Mac together. Cannot be combined with
+   * `persistent: true`.
+   */
   volumes?: VolumeMount[]
   env?: Record<string, string>
   envVars?: Record<string, string>
@@ -459,9 +464,7 @@ export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions
   /** Disk in GiB, at least 80, including macOS; sent as disk_mib. disk * 1024 must be an integer. Omitted uses the API default. */
   disk?: number
   /**
-   * Preserve the sandbox's disk when stopped. Start or resume to continue;
-   * delete to remove it. At reservation end, the disk is saved as an anonymous
-   * image that can be used to create another sandbox.
+   * Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
    */
   persistent?: boolean
   /**

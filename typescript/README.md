@@ -482,7 +482,7 @@ const reservation = await daytona.v2.reservations.create({ region: '<region>', m
 await daytona.v2.createMacos('base-macos', { region: '<region>', reservation: reservation.id, persistent: true })
 ```
 
-Stop and pause need a persistent sandbox (`persistent: true`). Stop keeps the disk on the same Mac, and start and resume use that Mac. Delete erases the disk. At reservation end, a persistent sandbox's disk is saved as an anonymous image before the Mac is erased, and an ephemeral sandbox's disk is erased unsaved; a lost Mac saves persistent disks if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+Stop and pause need a persistent sandbox (`persistent: true`). Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it. Delete erases the disk.
 
 `reservation` picks the Mac reservation. Omitted, the sandbox goes on any reservation of your
 organization in the region with room for its size, or, when none has room and
@@ -520,25 +520,31 @@ for the size; `MAC_DISK_FULL` when the reservations with room have no free disk
 space; `AUTO_RESERVE_LIMIT_REACHED` when auto-reserve holds its maximum number
 of reservations; or `NO_MAC_AVAILABLE` when buying a reservation, with `reservation: 'new'`
 or through auto-reserve, finds no fitting Mac in the region). `MAC_DISK_FULL`
-never buys a reservation. Starting a stopped macOS sandbox uses its own disk on the
-same Mac and reservation; it never buys a reservation. Reservations report `model`,
+never buys a reservation. A macOS start runs on any Mac of the organization with
+room for its size, the Mac that holds its newest changes first; with none it
+answers `NO_FREE_SLOT`, or buys a reservation under auto-reserve as a create
+does. Reservations report `model`,
 `capacity`, `resourcesUsed`, `origin` (`explicit` or `auto`), `autoRenew`
 and `renewalError`; `reservations.update(id, { autoRenew })` changes renewal
 on a live reservation.
 
 `pause()` and `resume()` work on persistent macOS sandboxes. `pause()` saves
 the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
-sandbox in `assigned` and waits for `started`. A paused sandbox keeps its Mac
-slot, but pausing stops its reservation from auto-renewing: a reservation that
-holds only paused sandboxes lapses at the end of its period.
-`sandbox.macBootMode` reports how the macOS sandbox resumed; `errorReason`
-provides additional details when resuming fails.
+sandbox in `assigned` and waits for `started`. A paused macOS sandbox keeps its
+Mac slot and keeps an auto-renewing reservation renewing. Before a reservation
+that does not renew ends, the sandbox is resumed and stopped, so its disk is
+saved. `sandbox.macBootMode` reports how the macOS sandbox resumed;
+`errorReason` provides additional details when resuming fails.
 
-A macOS `fork()` copies the disk only: omit `memory` or pass `memory: false`
-(`memory: true` answers `NOT_SUPPORTED_FOR_CLASS`). A fork of a running macOS
-sandbox boots with a fresh machine identity; a fork of a paused or stopped
-one remains `stopped`. A fork needs sufficient reservation capacity and disk
-space; insufficient resources can produce `NO_FREE_SLOT` or `MAC_DISK_FULL`.
+A macOS fork copies the disk only (`memory: true` answers `409 NOT_SUPPORTED_FOR_CLASS`;
+omit `memory` or pass `memory: false`). The fork holds the source's disk as of its
+capture on the source's Mac and lands `stopped`. A fork of a running sandbox then
+starts automatically, on the source's Mac when it has room, else on another Mac of
+the organization (buying a reservation when the organization's auto-reserve allows
+it, as a start does). A fork of a paused or stopped sandbox rests `stopped`; start
+it yourself. A stopped source whose newest changes are still uploading answers
+`409 DISK_UPLOAD_PENDING`; retry the fork. `fork({ timeout })` waits until a fork of a
+running sandbox is `started`, and until any other fork is `stopped`.
 
 ### Processes
 
