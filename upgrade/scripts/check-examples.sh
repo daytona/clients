@@ -7,9 +7,10 @@
 # a type checker can see as a 0.x-only call or import, and that a second run
 # changes nothing.
 #
-# Usage: check-examples.sh --src <daytona/clients checkout> --py-wheel <daytona 2.x wheel> \
-#          --ts-tarball <@daytona/sdk 2.x .tgz> [--work <dir>]
-# Both SDK artifacts must carry the v0 bundle (scripts/bundle-v0.sh).
+# Usage: check-examples.sh --src <daytona/clients checkout> [--py-wheel <daytona 2.x wheel>] \
+#          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--work <dir>]
+# Checks each language whose SDK artifact is given (at least one). The artifacts
+# must carry the v0 bundle (scripts/bundle-v0.sh).
 # Needs node/npm, python3 with uv, and git on PATH.
 set -euo pipefail
 
@@ -25,10 +26,10 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-[ -n "$src" ] && [ -n "$wheel" ] && [ -n "$tarball" ] || { echo "usage: $0 --src DIR --py-wheel WHL --ts-tarball TGZ [--work DIR]" >&2; exit 2; }
+[ -n "$src" ] && { [ -n "$wheel" ] || [ -n "$tarball" ]; } || { echo "usage: $0 --src DIR [--py-wheel WHL] [--ts-tarball TGZ] [--work DIR]" >&2; exit 2; }
 src=$(cd "$src" && pwd)
-wheel=$(cd "$(dirname "$wheel")" && pwd)/$(basename "$wheel")
-tarball=$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")
+[ -z "$wheel" ] || wheel=$(cd "$(dirname "$wheel")" && pwd)/$(basename "$wheel")
+[ -z "$tarball" ] || tarball=$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")
 work=${work:-$(mktemp -d)}
 mkdir -p "$work"
 work=$(cd "$work" && pwd)
@@ -44,6 +45,7 @@ idempotent() {
 }
 
 # ── TypeScript ──────────────────────────────────────────────────────────────
+if [ -n "$tarball" ]; then
 ts="$work/ts"
 fresh_repo "$ts"
 cp -r "$src/examples/typescript/." "$ts/"
@@ -74,8 +76,10 @@ JSON
   done
   rm tsconfig.json
 )
+fi
 
 # ── Python (and the Jupyter notebook) ───────────────────────────────────────
+if [ -n "$wheel" ]; then
 py="$work/py"
 fresh_repo "$py"
 cp -r "$src/examples/python" "$py/python"
@@ -134,4 +138,5 @@ then
   echo "FAIL: upgraded Python examples still import daytona_sdk" >&2; fail=1
 fi
 [ "$fail" -eq 0 ] || { echo "FAIL: upgraded Python examples still use 0.x-only names" >&2; exit 1; }
-echo "OK: both tools upgraded the pinned 0.x examples; the results type-check against SDK 2.x"
+fi
+echo "OK: the upgraded pinned 0.x examples type-check against SDK 2.x (${tarball:+TypeScript }${wheel:+Python})"
