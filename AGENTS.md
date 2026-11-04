@@ -26,6 +26,43 @@ below works with what is in the repository plus, optionally, a Daytona account:
   SDKs and the CLI only. Do not name or link non-public systems, repositories,
   hostnames, deployments or internal tickets.
 
+## Secret scanning — enable the hooks before your first commit
+
+Every clone and every worktree runs `scripts/secret-scan.sh install` once,
+before its first commit. It downloads the pinned gitleaks (checksum-verified,
+stored under the clone's `.git/`; on a platform without a published build it
+uses a gitleaks you put on `PATH`) and points this worktree's
+`core.hooksPath` at `.githooks/`. Hooks from the path it replaces keep running.
+The setting is per worktree (`extensions.worktreeConfig`), so a clone-wide
+write by another tool (husky's `postinstall` on the 0.x line) cannot switch
+the scan off; worktrees added later from an installed main worktree inherit
+it (git 2.37+), which also means a 0.x worktree added from there runs no
+husky hooks. Scans need git 2.36 or later.
+
+- `pre-commit` scans the staged changes; `pre-push` scans the commits the
+  remote does not have yet (merge commits included), which catches commits
+  made before the hooks were enabled. The `Secret scan` workflow runs the same scan on every pull request
+  and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`:
+  the gitleaks defaults plus Daytona API keys, organization keys, sandbox
+  tokens and invitation tokens.
+- **Never bypass a block** (`--no-verify`, removing the hooks path, editing
+  the rules to fit your change). Remove the secret instead — read it from an
+  environment variable. A secret that was pushed or shared anywhere is leaked:
+  say so, so it can be rotated; rewriting history does not un-leak it.
+- A false positive (a fabricated fixture, a documented example) gets a
+  `gitleaks:allow` comment on that line or an exact-value `[[allowlists]]`
+  entry in `.gitleaks.toml` with its reason, never a file- or rule-wide one.
+  Test credentials are built at run time where possible
+  (`scripts/secret-scan_test.sh` shows how).
+- Patterns that must not be published (non-public hostnames or project
+  names) belong in `info/gitleaks-private.toml` under the clone's common git
+  directory (`git rev-parse --git-common-dir`; `.git/info/` in the main
+  worktree), a complete gitleaks config that every scan in every worktree of
+  that clone also runs, with no `gitleaks:allow` exception. It is never
+  committed.
+- Changing `scripts/secret-scan.sh`, `.githooks/` or `.gitleaks.toml`: run
+  `bash scripts/secret-scan_test.sh`.
+
 ## Repository layout
 
 | Path | What |

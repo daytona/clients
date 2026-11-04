@@ -45,6 +45,22 @@ version in `cli/go.mod`). Regenerating the wire types also needs a Java runtime.
 (cd cli && go vet ./... && go test ./...)
 ```
 
+Before your first commit, enable the secret-scanning hooks (once per clone or
+worktree):
+
+```bash
+scripts/secret-scan.sh install
+```
+
+It downloads a pinned, checksum-verified [gitleaks](https://github.com/gitleaks/gitleaks)
+into the clone's `.git/` directory (Linux and macOS; elsewhere, put gitleaks on
+your `PATH`) and enables the hooks in `.githooks/` for that worktree (git 2.36
+or later): every commit's staged
+changes and every push's new commits are checked against `.gitleaks.toml`, and
+the `Secret scan` check repeats it on pull requests. If it blocks a commit,
+remove the credential rather than bypassing the hook; for a value that is not a
+secret, see the comments at the top of `.gitleaks.toml`.
+
 With a Daytona API key you can also run the live end-to-end suites:
 `DAYTONA_API_KEY=… ./run-e2e.sh`.
 
