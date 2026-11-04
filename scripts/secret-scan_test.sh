@@ -228,6 +228,13 @@ git -C "$tmp/wt2" config --worktree core.hooksPath .husky/_
 [ -z "$(git config --local --get core.hooksPath || true)" ] || fail "the clone-wide hooks path was set"
 pass "an existing worktree override is replaced, the clone's setting untouched"
 
+ln -s .githooks "$tmp/wt2/hooks-link"
+git -C "$tmp/wt2" config --worktree secretscan.chainHooksPath hooks-link
+echo link >"$tmp/wt2/link.txt"
+git -C "$tmp/wt2" add link.txt
+timeout 60 git -C "$tmp/wt2" commit -q -m link || fail "a chained path symlinked to .githooks recursed or failed"
+pass "a chained hooks path that is a symlink to .githooks is not chained to itself"
+
 # No pinned build for the platform: install uses gitleaks from PATH.
 shim="$tmp/shim"
 mkdir -p "$shim"

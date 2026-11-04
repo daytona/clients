@@ -142,7 +142,7 @@ chained_hook() {
   [ -n "$dir" ] || dir="$common_dir/hooks"
   case "$dir" in /*) ;; *) dir="$repo_root/$dir" ;; esac
   hook="$dir/$1"
-  [ -x "$hook" ] && [ "$(cd "$dir" && pwd)" != "$repo_root/.githooks" ] && echo "$hook"
+  [ -x "$hook" ] && [ "$(cd "$dir" && pwd -P)" != "$(cd "$repo_root/.githooks" && pwd -P)" ] && echo "$hook"
   return 0
 }
 
