@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# Blocks a commit whose staged changes contain a secret (gitleaks, rules in
+# .gitleaks.toml). Enable with `scripts/secret-scan.sh install`. The
+# pre-commit hook this path replaced (or the clone's .git/hooks/pre-commit)
+# runs first, so the scan sees anything it stages.
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+own=$("$root/scripts/secret-scan.sh" chained-hook pre-commit)
+if [ -n "$own" ]; then
+  "$own" "$@"
+fi
+"$root/scripts/secret-scan.sh" staged
