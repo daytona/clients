@@ -124,11 +124,16 @@ it('builds from an already uploaded context without uploading it again', async (
   expect(json('POST', '/images')).toMatchObject({ context_upload_id: UPLOAD_ID })
 })
 
-it('retries a part after a storage error', async () => {
+it.each(['bytes', 'file'] as const)('retries a %s part after a storage error', async (kind) => {
   partSize = 1 << 20
   putStatuses = [503]
   const data = archive()
-  await service().buildFromContext(data)
+  let context: Uint8Array | string = data
+  if (kind === 'file') {
+    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  await service().buildFromContext(context)
   expect(puts().map((request) => request.body)).toEqual([Buffer.from(data), Buffer.from(data)])
   expect(completes()).toHaveLength(1)
 })

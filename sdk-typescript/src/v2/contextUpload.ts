@@ -19,6 +19,7 @@ export type BuildContext = Uint8Array | Blob | string
 
 export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024
 const HASH_CHUNK = 8 * 1024 * 1024
+const PART_CHUNK = 1024 * 1024
 const PART_ATTEMPTS = 3
 
 /** Test seams: the storage client and the pause between part attempts. */
@@ -42,15 +43,17 @@ interface NodeFileHandle {
   close(): Promise<void>
 }
 
+/** A part's request body: a view, a lazy `Blob` slice, or a stream of exactly its length. */
+type PartBody = Uint8Array<ArrayBuffer> | Blob | ReadableStream<Uint8Array>
+
 /**
  * The archive, read by offset: a `Blob` slice, or (Node.js) a file handle.
- * A part body is a lazy slice, so fetch streams it instead of holding a whole
- * part in memory.
+ * A part body is created per attempt and never holds a whole part in memory.
  */
 interface ContextSource {
   readonly size: number
   read(offset: number, length: number): Promise<Uint8Array>
-  part(offset: number, length: number): Promise<Blob | Uint8Array<ArrayBuffer>>
+  part(offset: number, length: number): PartBody
   changed(): Promise<boolean>
   close(): Promise<void>
 }
@@ -59,7 +62,7 @@ function blobSource(blob: Blob): ContextSource {
   return {
     size: blob.size,
     read: async (offset, length) => new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer()),
-    part: async (offset, length) => blob.slice(offset, offset + length),
+    part: (offset, length) => blob.slice(offset, offset + length),
     changed: async () => false,
     close: async () => undefined,
   }
@@ -78,14 +81,22 @@ async function fileSource(path: string): Promise<ContextSource> {
     await handle.close().catch(() => undefined)
     throw notAFile
   }
-  const fsSpecifier = 'node:fs'
-  let file: Promise<Blob> | undefined
   return {
     size: info.size,
-    part: async (offset, length) => {
-      // SAFETY: the shape is node:fs's documented openAsBlob signature (Node.js >= 19.8).
-      file ??= (import(/* @vite-ignore */ /* webpackIgnore: true */ fsSpecifier) as Promise<{ openAsBlob(path: string): Promise<Blob> }>).then((fs) => fs.openAsBlob(path))
-      return (await file).slice(offset, offset + length)
+    part: (offset, length) => {
+      let sent = 0
+      return new ReadableStream<Uint8Array>({
+        pull: async (controller) => {
+          const chunk = new Uint8Array(Math.min(PART_CHUNK, length - sent))
+          const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, offset + sent)
+          // A short read means the file shrank; the request fails and putPart
+          // reports it as a changed context.
+          if (bytesRead === 0) return controller.error(new Error('short read'))
+          controller.enqueue(chunk.subarray(0, bytesRead))
+          sent += bytesRead
+          if (sent === length) controller.close()
+        },
+      })
     },
     changed: async () => {
       const now = await handle.stat().catch(() => undefined)
@@ -112,7 +123,7 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
         size: context.byteLength,
         read: async (offset, length) => context.subarray(offset, offset + length),
         // SAFETY: a view of the caller's bytes; fetch only reads it.
-        part: async (offset, length) => context.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
+        part: (offset, length) => context.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
         changed: async () => false,
         close: async () => undefined,
       }
@@ -148,16 +159,21 @@ async function sha256Hex(source: ContextSource): Promise<string> {
 
 async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart): Promise<void> {
   const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
-  const body = await source.part(offset, part.bytes)
-  if ((body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()
   let status: number | undefined
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
+    const body = source.part(offset, part.bytes)
+    if (!(body instanceof ReadableStream) && (body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()
+    // A presigned PUT needs a fixed length, so a streamed body is not chunked.
+    const init: RequestInit & { duplex?: 'half' } =
+      body instanceof ReadableStream
+        ? { method: 'PUT', body, redirect: 'error', headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
+        : { method: 'PUT', body, redirect: 'error' }
     try {
-      const response = await contextUploadRuntime.fetch(part.url, { method: 'PUT', body, redirect: 'error' })
+      const response = await contextUploadRuntime.fetch(part.url, init)
       status = response.status
       await response.body?.cancel().catch(() => undefined)
     } catch {
-      // A file-backed slice fails to read once its file changes.
+      // A streamed part fails to read once its file shrinks.
       if (await source.changed()) throw changed()
       // The failure names the URL, so it is not kept as a cause.
       status = undefined
