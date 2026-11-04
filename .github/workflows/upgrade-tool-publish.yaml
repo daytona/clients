@@ -2,8 +2,7 @@ name: Publish daytona-upgrade
 
 # Publishes the migration tool, npm `@daytona/upgrade` and PyPI
 # `daytona-upgrade` (upgrade/). Manual only, and a dry run unless `dry_run` is
-# set to false. Dispatched from the 2.x line (`release/v2`, or `main` once 2.x
-# is the default branch), it builds, tests and packs both packages from a
+# set to false. Dispatched from `main` (the 2.x line), it builds, tests and packs both packages from a
 # release tag `daytona-upgrade-vX.Y.Z[-(alpha|beta|rc).N]` that must point at
 # a commit on the dispatch branch; the published version is the tag's. In a
 # dry run the publish jobs are skipped.
@@ -54,12 +53,12 @@ jobs:
       pypi_version: ${{ steps.versions.outputs.pypi }}
       npm_dist_tag: ${{ steps.versions.outputs.dist_tag }}
     steps:
-      - name: Require dispatch from the 2.x line
+      - name: Require dispatch from main
         run: |
           set -euo pipefail
           case "$GITHUB_REF" in
-            refs/heads/main|refs/heads/release/v2) ;;
-            *) echo "::error::dispatch this workflow from release/v2 (or main once 2.x is the default branch), got '$GITHUB_REF'"; exit 1 ;;
+            refs/heads/main) ;;
+            *) echo "::error::dispatch this workflow from main, got '$GITHUB_REF'"; exit 1 ;;
           esac
       - name: Require a daytona-upgrade release tag
         id: tag

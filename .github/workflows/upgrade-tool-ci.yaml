@@ -4,7 +4,7 @@ name: Upgrade tool CI
 # pinned 0.x examples upgraded and type-checked against SDK 2.x.
 on:
   push:
-    branches: [main, release/v2]
+    branches: [main]
     paths:
       - 'upgrade/**'
       - 'v0-sdk-version'

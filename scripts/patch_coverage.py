@@ -198,23 +198,14 @@ def as_ranges(nums):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", help="base commit (default: merge-base of HEAD "
-                                   "and the 2.x line: origin/main once it is 2.x, "
-                                   "else origin/release/v2)")
+                                   "and origin/main)")
     ap.add_argument("--allow-missing", action="store_true",
                     help="warn instead of fail when a changed component has "
                          "no coverage report on disk")
     args = ap.parse_args()
 
     repo_root = run(["git", "rev-parse", "--show-toplevel"], os.getcwd()).strip()
-    # The 2.x line is origin/main once it carries this tree, origin/release/v2
-    # before that (while main is still the 0.x monorepo).
-    def has(ref):
-        return subprocess.run(["git", "rev-parse", "-q", "--verify", ref],
-                              cwd=repo_root, capture_output=True).returncode == 0
-    line = "origin/main"
-    if not has("origin/main:python/src/daytona/v2") and has("origin/release/v2"):
-        line = "origin/release/v2"
-    base = args.base or run(["git", "merge-base", line, "HEAD"], repo_root).strip()
+    base = args.base or run(["git", "merge-base", "origin/main", "HEAD"], repo_root).strip()
 
     diff = added_lines(base, repo_root)
     untracked = run(["git", "ls-files", "--others", "--exclude-standard"],

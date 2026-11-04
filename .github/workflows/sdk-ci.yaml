@@ -3,7 +3,7 @@ name: SDK CI
 # Build + test both SDKs.
 on:
   push:
-    branches: [main, release/v2]
+    branches: [main]
     paths:
       - 'python/**'
       - 'typescript/**'
