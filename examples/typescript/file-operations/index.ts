@@ -29,7 +29,7 @@ async function main() {
     section('writeBytes (from in-memory bytes)')
     const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)
     await sandbox.fs.writeBytes(`${dir}/config.json`, new TextEncoder().encode(config))
-    await sandbox.fs.writeBytes(`${dir}/script.sh`, new TextEncoder().encode('#!/bin/bash\necho "Hello from script!"\n'))
+    await sandbox.fs.writeText(`${dir}/script.sh`, '#!/bin/bash\necho "Hello from script!"\n')
     info('uploaded config.json + script.sh')
 
     section('run: verify + run the uploaded script')
