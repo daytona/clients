@@ -32,7 +32,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class MacResources(BaseModel):
     """
-    CPU cores, memory, and sandbox disk capacity or usage, in cores and MiB. A Mac core is one CPU of the Mac (Apple Silicon has no SMT).
+    CPU cores, memory and disk, in cores and MiB. A Mac core is one CPU of the Mac (Apple Silicon has no SMT).
     """ # noqa: E501
     cores: StrictInt = Field(description="CPU cores.")
     disk_mib: StrictInt = Field(description="Sandbox disk in MiB.")

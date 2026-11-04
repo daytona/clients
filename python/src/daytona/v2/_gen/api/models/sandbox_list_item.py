@@ -63,10 +63,10 @@ class SandboxListItem(BaseModel):
     memory_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum memory in MiB.")
     memory_mib: StrictInt = Field(description="Reserved memory in MiB.")
     name: StrictStr = Field(description="The sandbox name.")
-    persistent: Optional[StrictBool] = Field(default=None, description="Whether the macOS sandbox retains writable state across stops.")
+    persistent: Optional[StrictBool] = Field(default=None, description="Whether the sandbox keeps its disk across stop and start.")
     port_map: List[PortAssignment] = Field(description="Port assignments reported for the sandbox.")
     region_id: StrictStr = Field(description="The region the sandbox runs in.")
-    reservation_id: Optional[StrictStr] = Field(default=None, description="The macOS reservation of the current or latest successful claim; null before the first claim and absent for other sandbox classes.")
+    reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the macOS sandbox runs on, or ran on last. Null before the sandbox first reaches a Mac; absent for other sandbox classes.")
     snapshot: Optional[SnapshotReference] = None
     spot: Optional[StrictBool] = Field(default=None, description="Whether discounted interruptible capacity was requested.")
     spot_evicted_at: Optional[datetime] = Field(default=None, description="When discounted capacity reclaimed the sandbox; absent when it has not been reclaimed.")

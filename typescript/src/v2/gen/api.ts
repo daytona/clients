@@ -1732,7 +1732,7 @@ export interface paths {
         put?: never;
         /**
          * Create a macOS sandbox
-         * @description Creates a macOS sandbox using an organization reservation. Acceptance does not guarantee immediate capacity: concurrent requests may compete for room, and the sandbox may wait or time out.
+         * @description Creates a macOS sandbox on a Mac reservation of the organization. The sizes of the sandboxes on one Mac must fit that Mac. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
          */
         post: operations["create_macos_sandbox"];
         delete?: never;
@@ -2175,7 +2175,7 @@ export interface paths {
         put?: never;
         /**
          * Start a sandbox
-         * @description macOS: Start the saved disk at its fixed size on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. With no reservation, buys one as a create does.
+         * @description macOS: Starts the sandbox with its disk and size on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. If the organization has no Mac reservation in the region and auto-reserve is on, the start buys one.
          */
         post: operations["start_sandbox"];
         delete?: never;
@@ -2443,7 +2443,7 @@ export interface components {
          * @description Stable machine-readable error codes, returned as `ErrorBody.code`
          *     when `source` is `DAYTONA_API`.
          */
-        ApiErrorCode: ("ORG_SUSPENDED" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_UPLOAD_PENDING" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        ApiErrorCode: ("ORG_SUSPENDED" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -3114,22 +3114,21 @@ export interface components {
             auto_renew?: boolean | null;
             /**
              * Format: int32
-             * @description CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.
+             * @description CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
              */
             cores?: number | null;
             /**
              * Format: int64
-             * @description Seconds the sandbox may take to reach `running`. 3600 by default; a
-             *     create from an older saved image, which converts first, keeps a longer
-             *     default, the maximum. `-1` uses the maximum (86400). Past it the sandbox
-             *     is deleted. The budget runs while the sandbox waits for a Mac, including
-             *     one whose reservation this create bought: that reservation stays bought
-             *     and charged when the sandbox is deleted.
+             * @description Seconds the sandbox can take to reach `running`: 3600 by default, or
+             *     86400 for an image captured on an earlier version of macOS sandboxes.
+             *     `-1` uses the maximum, 86400. After this time, the platform deletes the
+             *     sandbox. The time includes the wait for a Mac. A reservation that this
+             *     create bought stays bought and charged after that delete.
              */
             create_timeout_seconds?: number | null;
             /**
              * Format: int32
-             * @description Disk for this sandbox in MiB, at least 81920: the whole guest disk, macOS included. Omitted or null uses the claiming Mac model's sandbox disk room less 32768 MiB, halved when its reservation's `sandboxes_per_mac` is 2, rounded down to a whole GiB, and at least 81920. The first successful claim fixes the size; request and limit are equal. Disk volumes take their own room beside this disk (`volumes`).
+             * @description Disk for this sandbox in MiB, macOS included, at least 81920. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`). For a create from a captured image, omitted or null uses the image's `disk_mib`, and a smaller value returns 400. The disk and the disk volumes must fit the disk space of the sandbox's Mac (`sandbox_disk_mib` in `GET /mac-models`).
              */
             disk_mib?: number | null;
             /** @description Sandbox-specific environment variables. Names must be valid environment variable names. */
@@ -3142,9 +3141,9 @@ export interface components {
              */
             idempotency_key?: string | null;
             /**
-             * @description The macOS image, by name or `img_…` id: a platform macOS base image,
+             * @description The macOS image, by name or `img_…` id: a platform macOS image,
              *     typically `base-macos`, or a macOS image of this project in the
-             *     request's region, such as a saved sandbox disk.
+             *     request's region, such as an image captured from a macOS sandbox.
              * @example base-macos
              */
             image: string;
@@ -3152,11 +3151,11 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
-            /** @description Sandbox lifecycle policy: idle stop/delete budgets and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults. */
+            /** @description Sandbox lifecycle policy: idle stop and delete timeouts and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults. */
             lifecycle_policy?: null | components["schemas"]["UpdateSandboxLifecyclePolicyRequest"];
             /**
              * Format: int32
-             * @description Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.
+             * @description Memory for this sandbox in MiB, at least 4096. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
              */
             memory_mib?: number | null;
             /** @description Optional sandbox name (defaults to `sandbox-<short-id>`). */
@@ -3180,7 +3179,7 @@ export interface components {
              */
             region_id?: string | null;
             /**
-             * @description Omitted uses any fitting Mac reservation of this organization in the region. "new" buys the cheapest available model that fits. A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+             * @description Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
              * @example new
              */
             reservation?: string | null;
@@ -3188,10 +3187,9 @@ export interface components {
             secrets?: string[];
             /**
              * @description Disk volumes to attach, as on Linux: at most 8, each read-write. Each
-             *     volume holds its `size_gib` (100 GiB when omitted) of the Mac's sandbox
-             *     disk room beside the sandbox's disk, so the disk and the volumes must
-             *     fit one Mac together. A sandbox with volumes cannot be persistent, and a
-             *     bucket volume answers 400.
+             *     volume uses its `size_gib` (100 GiB when omitted) of disk space on the
+             *     sandbox's Mac, beside the sandbox's disk. A sandbox with volumes cannot
+             *     be persistent. A bucket volume returns 400.
              */
             volumes?: components["schemas"]["VolumeMount"][];
             /**
@@ -3739,8 +3737,8 @@ export interface components {
             /**
              * Format: int64
              * @description The disk size in MiB that a macOS sandbox created from this image gets
-             *     when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-             *     null for every other image.
+             *     when the create omits `disk_mib`; a create cannot ask for less. Set for
+             *     images captured from a macOS sandbox; null for other images.
              */
             disk_mib?: number | null;
             /** @description Build failure reason; null unless `status` is `failed`. */
@@ -3868,8 +3866,8 @@ export interface components {
             /**
              * Format: int64
              * @description The disk size in MiB that a macOS sandbox created from this image gets
-             *     when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-             *     null for every other image.
+             *     when the create omits `disk_mib`; a create cannot ask for less. Set for
+             *     images captured from a macOS sandbox; null for other images.
              */
             disk_mib?: number | null;
             /** @description Build failure reason; null unless `status` is `failed`. */
@@ -4196,11 +4194,11 @@ export interface components {
             /** @description Every region the answer covers, in catalog order. */
             regions: components["schemas"]["MacCatalogRegion"][];
         };
-        /** @description One registry model in one region. */
+        /** @description One Mac model in one region. */
         MacCatalogModel: {
             /**
              * Format: int64
-             * @description Macs of this model currently available to reserve in this region. Advisory only: another purchase may consume the capacity first. Zero when the model has no price.
+             * @description Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.
              */
             available: number;
             /** @description The Mac model, as `GET /mac-models` lists it. */
@@ -4223,7 +4221,7 @@ export interface components {
              * @example region-a
              */
             id: string;
-            /** @description One entry per registry model, in `GET /mac-models` order. */
+            /** @description One entry per Mac model, in `GET /mac-models` order. */
             models: components["schemas"]["MacCatalogModel"][];
         };
         /** @description A Mac model. */
@@ -4233,18 +4231,18 @@ export interface components {
              * @description CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).
              */
             cores: number;
-            /** @description The size a create gives each size field it omits: half of the model's cores and memory when `max_sandboxes` is 2, all of them when it is 1, and a disk of the sandbox disk room less 32768 MiB, halved when `max_sandboxes` is 2, rounded down to a whole GiB, and at least 81920. Null when `max_sandboxes` is 0. */
+            /** @description The default size: the cores, memory and disk that a create gives each size field it omits. A create from a captured image gets the image's disk size instead. Null when this Mac model takes no sandbox. */
             default_size: null | components["schemas"]["MacResources"];
             /**
              * Format: int32
-             * @description Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.
+             * @description Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.
              */
             disk_mib: number;
             /** @description Mac model slug accepted by POST /reservations. */
             id: string;
             /**
              * Format: int32
-             * @description Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes, with 8192 MiB of disk for each persistent sandbox's saves, must also fit the Mac.
+             * @description Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.
              */
             max_sandboxes: number;
             /**
@@ -4256,7 +4254,7 @@ export interface components {
             name: string;
             /**
              * Format: int32
-             * @description Disk room for sandboxes on one Mac of this model, in MiB. The disks of the sandboxes on the Mac, their disk volumes, and 8192 MiB for each persistent sandbox's saves add up to at most this. Zero until the model's disk room is measured.
+             * @description Disk space for sandboxes on one Mac of this model, in MiB. The disks and disk volumes of the sandboxes on one Mac must fit in it. 0 until this Mac model's disk space is known.
              */
             sandbox_disk_mib: number;
         };
@@ -4306,7 +4304,7 @@ export interface components {
              *     instead.
              */
             auto_renew: boolean;
-            /** @description The reserved model’s CPU, memory, and sandbox disk capacity, fixed at purchase. Null when capacity information is unavailable; such a reservation accepts no new sandbox. */
+            /** @description The cores, memory and disk space for sandboxes of this reservation's Mac, set at purchase. Null when unknown; such a reservation accepts no new sandbox. */
             capacity?: null | components["schemas"]["MacResources"];
             /**
              * Format: date-time
@@ -4330,22 +4328,23 @@ export interface components {
              */
             org_id: string;
             /**
-             * @description How the lease was bought: `explicit` by `POST /reservations` or a
-             *     create with `reservation: "new"`, and `auto` by a macOS create under
-             *     the organization's auto-reserve setting.
+             * @description How the reservation was bought: `explicit` by `POST /reservations` or a
+             *     create with `reservation: "new"`, and `auto` by a macOS create or start
+             *     under the organization's auto-reserve setting.
              */
             origin: components["schemas"]["MacReservationOrigin"];
             /**
              * Format: date-time
-             * @description When the reservation last began waiting for a Mac: at its first
-             *     charge, or when it moved after its Mac was lost. Kept after a Mac
-             *     claims it.
+             * @description When the reservation last began to wait for a Mac: at its first
+             *     charge, or when it moved after a Mac failure. Kept after a Mac takes
+             *     it.
              */
             pending_mac_started_at?: string | null;
             /**
              * Format: date-time
-             * @description When the reservation ends unless renewed. Absent until a Mac first claims it
-             *     (period 1 starts at the claim, so waiting for a Mac is not paid time).
+             * @description When the reservation ends unless renewed. Absent until a Mac first takes
+             *     the reservation; period 1 starts then, so the wait for a Mac is not paid
+             *     time.
              */
             period_end?: string | null;
             /**
@@ -4375,7 +4374,7 @@ export interface components {
             region_id: string;
             /**
              * Format: date-time
-             * @description Set when the reservation moved to another Mac after its Mac was lost.
+             * @description Set when the reservation moved to another Mac after a Mac failure.
              */
             reissued_at?: string | null;
             /**
@@ -4387,18 +4386,14 @@ export interface components {
             /** @description A renewal charge is still waiting for billing's answer. */
             renewal_pending: boolean;
             /**
-             * @description CPU and memory held by the sandboxes on this reservation's Mac,
-             *     including paused sandboxes and sandboxes still being deleted, and the
-             *     disk its sandboxes and their disk volumes hold, with 8192 MiB for each
-             *     persistent sandbox's saves. A sandbox being started
-             *     on this Mac counts from the moment its start picks this Mac; other
-             *     sandboxes that no Mac has claimed yet are not counted.
+             * @description The cores, memory and disk space in use on this reservation's Mac.
+             *     Paused sandboxes and sandboxes with status `deleting` count.
              */
             resources_used: components["schemas"]["MacResources"];
             /**
              * Format: int32
-             * @description Most sandboxes this reservation's Mac runs at once, subject to CPU,
-             *     memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.
+             * @description Most sandboxes on this reservation's Mac at once. Stopped sandboxes do
+             *     not count. 0 when the reservation accepts no new sandbox.
              */
             sandboxes_per_mac: number;
             /**
@@ -4428,7 +4423,7 @@ export interface components {
         MacReservationOrigin: ("explicit" | "auto") | (string & {});
         MacReservationStatus: ("pending_charge" | "pending_mac" | "active" | "ending" | "released" | "failed") | (string & {});
         /**
-         * @description CPU cores, memory, and sandbox disk capacity or usage, in cores and MiB.
+         * @description CPU cores, memory and disk, in cores and MiB.
          *     A Mac core is one CPU of the Mac (Apple Silicon has no SMT).
          */
         MacResources: {
@@ -4450,7 +4445,7 @@ export interface components {
         };
         /** @description An organization's macOS settings. */
         MacosSettings: {
-            /** @description Whether a macOS create buys a Mac reservation when the organization holds none in the region. On unless an admin turns it off. */
+            /** @description Whether a macOS create or start buys a Mac reservation when the organization has none in the region. On unless an admin turns it off. */
             macos_auto_reserve: boolean;
             /**
              * Format: date-time
@@ -5510,15 +5505,16 @@ export interface components {
             memory_mib: number;
             /** @description The sandbox name. */
             name: string;
-            /** @description Whether the macOS sandbox retains writable state across stops. */
+            /** @description Whether the sandbox keeps its disk across stop and start. */
             persistent?: boolean | null;
             /** @description Port assignments reported for the sandbox. */
             port_map: components["schemas"]["PortAssignment"][];
             /** @description The region the sandbox runs in. */
             region_id: string;
             /**
-             * @description The macOS reservation of the current or latest successful claim; null
-             *     before the first claim and absent for other sandbox classes.
+             * @description The Mac reservation that the macOS sandbox runs on, or ran on last.
+             *     Null before the sandbox first reaches a Mac; absent for other sandbox
+             *     classes.
              */
             reservation_id?: string | null;
             /**
@@ -5617,8 +5613,8 @@ export interface components {
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */
             name: string;
             /**
-             * @description The macOS reservation selected by a successful claim; null until a Mac
-             *     claims the sandbox.
+             * @description The Mac reservation that the sandbox runs on; null until the sandbox
+             *     reaches a Mac.
              */
             reservation_id?: string | null;
             /**
@@ -6240,7 +6236,7 @@ export interface components {
         };
         /** @description The macOS settings to change: any non-empty subset of the fields. */
         UpdateMacosSettingsRequest: {
-            /** @description Whether new macOS creates may automatically reserve capacity. */
+            /** @description Whether a macOS create or start buys a Mac reservation when the organization has none in the region. */
             macos_auto_reserve?: boolean | null;
             /**
              * Format: int32
@@ -8238,7 +8234,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`) */
+            /** @description The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14309,7 +14305,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The image, reservation, or available capacity cannot satisfy the request (`CONFLICT`) */
+            /** @description The image or the reservation cannot serve this create (`CONFLICT`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`). The idempotency key was used for a create of another size (`IDEMPOTENCY_KEY_REUSED`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14538,7 +14534,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description A fork of this macOS sandbox has not saved its first copy of the disk yet; retry in a minute (`CONFLICT`). */
+            /** @description A fork of this macOS sandbox is in progress; retry the delete later (`CONFLICT`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14784,7 +14780,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Optional body; omit it entirely for a memory fork with the default name */
+        /** @description Optional body; omit it for a fork with the default name and the default `memory`. */
         requestBody?: {
             content: {
                 "application/json": null | components["schemas"]["ForkSandboxRequest"];
@@ -14832,7 +14828,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). A stopped macOS source's newest changes are still uploading from the Mac it last ran on (`DISK_UPLOAD_PENDING`, retry the fork) */
+            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14904,7 +14900,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, or the image name already exists (`CONFLICT`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). A stopped macOS sandbox's newest changes are still uploading from the Mac it last ran on (`DISK_UPLOAD_PENDING`, retry the capture). A macOS image would exceed the organization's image size limit (`IMAGE_TOO_LARGE`) */
+            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, or the image name already exists (`CONFLICT`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -15724,7 +15720,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support resuming (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not paused, its saved state is unavailable, or its macOS reservation is ending (`CONFLICT`) */
+            /** @description The sandbox class does not support resuming (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not paused, its saved state is unavailable, or its Mac reservation is ending (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -16030,7 +16026,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox cannot be started in its current configuration (`CONFLICT`). A macOS sandbox's newest changes are still uploading from the Mac it last ran on (`DISK_UPLOAD_PENDING`, retry the start). No Mac of the organization has room (`NO_FREE_SLOT`) or free disk space (`MAC_DISK_FULL`). The organization holds no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`) or found no Mac to reserve (`NO_MAC_AVAILABLE`). */
+            /** @description The sandbox cannot be started in its current configuration (`CONFLICT`). The sandbox's disk is not ready yet; retry the start later (`DISK_NOT_READY`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

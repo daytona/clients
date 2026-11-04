@@ -45,7 +45,7 @@ class ImageListItem(BaseModel):
     cursor: StrictStr = Field(description="Opaque continuation token for the next image in the list.")
     default: StrictBool = Field(description="Whether this is the image a sandbox create without `image` boots.")
     deprecated: StrictBool = Field(description="Whether this platform image is deprecated. A deprecated image is not listed and cannot be used by name, but its ID still resolves.")
-    disk_mib: Optional[StrictInt] = Field(default=None, description="The disk size in MiB that a macOS sandbox created from this image gets when the create omits `disk_mib`. Set for saved macOS sandbox disks; null for every other image.")
+    disk_mib: Optional[StrictInt] = Field(default=None, description="The disk size in MiB that a macOS sandbox created from this image gets when the create omits `disk_mib`; a create cannot ask for less. Set for images captured from a macOS sandbox; null for other images.")
     error: Optional[StrictStr] = Field(default=None, description="Build failure reason; null unless `status` is `failed`.")
     expires_at: Optional[datetime] = Field(default=None, description="When an anonymous image expires, or null for a permanent image.")
     format_outdated: StrictBool = Field(description="`format_version` is below the current format. Such an image converts on its first Linux sandbox create (which waits `queued` meanwhile) or ahead of time with `POST /images/{id}/convert`; other operations refuse it with `IMAGE_FORMAT_OUTDATED` until then.")
