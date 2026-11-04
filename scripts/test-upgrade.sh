@@ -16,4 +16,4 @@ fi
 node --test upgrade/scripts/*.test.mjs
 node upgrade/scripts/check-v2-surface.mjs
 (cd upgrade/typescript && npm ci --no-audit --no-fund && npm run typecheck && npm test)
-(cd upgrade/python && uv sync --locked && uv run ruff check . && uv run ruff format --check . && uv run basedpyright && uv run pytest -q)
+(cd upgrade/python && uv sync --locked && uv run ruff check . && uv run ruff format --check . && uv run basedpyright && uv run pytest -q -n auto)

@@ -11,7 +11,7 @@
   "homepage": "https://www.daytona.io/docs",
   "scripts": {
     "build": "tsc && node -e \"require('node:fs').copyFileSync('src/mapping.json', 'dist/mapping.json')\"",
-    "test": "vitest run --maxWorkers=1 --testTimeout=20000",
+    "test": "vitest run --testTimeout=20000",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "lint": "tsc --noEmit",
     "sync-mapping": "node ../scripts/sync-mapping.mjs"

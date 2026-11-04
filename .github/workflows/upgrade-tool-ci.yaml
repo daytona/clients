@@ -43,6 +43,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
@@ -78,12 +80,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - name: Type-check, lint, test, build and pack
+          cache: npm
+          cache-dependency-path: upgrade/typescript/package-lock.json
+      - name: Type-check, build and pack
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
           npm run typecheck
-          npm test
           npm run build
           npm pack --dry-run --ignore-scripts
       # Check dependency installation and the built CLI on the oldest supported Node major.
@@ -104,6 +107,34 @@ jobs:
           node dist/cli.js "$work" --yes --force
           diff -r tests/fixtures/named-imports/expected "$work"
 
+  # The suite is CPU-bound (ts-morph projects per test): split it across runners, and vitest uses every core within each.
+  typescript-tests:
+    name: npm daytona-upgrade tests (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: upgrade/typescript
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: upgrade/typescript/package-lock.json
+      - name: Test
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test -- --shard="$SHARD/3"
+
   python:
     name: PyPI daytona-upgrade (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
@@ -114,6 +145,8 @@ jobs:
       fail-fast: false
       matrix:
         python: ['3.9', '3.13', '3.14']
+    env:
+      UV_PYTHON: ${{ matrix.python }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -121,21 +154,27 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ matrix.python }}
-      - name: Lint, type-check and test
-        env:
-          UV_PYTHON: ${{ matrix.python }}
+      - name: Install
         run: |
           set -euo pipefail
           python -m pip install --upgrade uv
           uv sync --locked
+      # ruff checks source, not the interpreter (target-version is pinned): once is enough.
+      - name: Lint
+        if: matrix.python == '3.13'
+        run: |
+          set -euo pipefail
           uv run ruff check .
           uv run ruff format --check .
+      - name: Type-check, test and build
+        run: |
+          set -euo pipefail
           uv run basedpyright
-          uv run pytest -q
+          uv run pytest -q -n auto
           uv build --out-dir "$RUNNER_TEMP/dist"
 
-  examples:
-    name: Pinned 0.x examples upgraded and type-checked against 2.x
+  examples-typescript:
+    name: Pinned 0.x TypeScript examples upgraded and type-checked against 2.x
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -144,30 +183,79 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Build both 2.x SDKs with the pinned v0 bundle
+          cache: npm
+          cache-dependency-path: |
+            typescript/package-lock.json
+            upgrade/typescript/package-lock.json
+      - name: Build the 2.x TypeScript SDK with the pinned v0 bundle
         run: |
           set -euo pipefail
-          python -m pip install --upgrade uv build
           tag=$(bash scripts/resolve-v0-tag.sh --verify)
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
             "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
-          DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang all --src "$RUNNER_TEMP/v0-src" "$tag"
-          (cd python && python -m build --wheel --outdir "$RUNNER_TEMP/sdk-py")
+          DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang typescript --src "$RUNNER_TEMP/v0-src" "$tag"
           (cd typescript && npm install --no-audit --no-fund && npm run build \
             && mkdir -p "$RUNNER_TEMP/sdk-ts" && npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-ts")
       - name: Upgrade the examples and type-check them
         run: |
           set -euo pipefail
           bash upgrade/scripts/check-examples.sh --src "$RUNNER_TEMP/v0-src" \
-            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-py/*.whl)" --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-ts/*.tgz)" \
-            --work "$RUNNER_TEMP/examples"
-      - name: Run the tools' example tests against the pinned examples
+            --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-ts/*.tgz)" --work "$RUNNER_TEMP/examples"
+      - name: Run the tool's example tests against the pinned examples
+        working-directory: upgrade/typescript
         env:
           DAYTONA_UPGRADE_V0_EXAMPLES: ${{ runner.temp }}/v0-src/examples
         run: |
           set -euo pipefail
-          (cd upgrade/typescript && npm ci --no-audit --no-fund && npx vitest run tests/examples.test.ts)
-          (cd upgrade/python && uv run pytest -q tests/test_examples.py)
+          npm ci --no-audit --no-fund
+          npx vitest run tests/examples.test.ts
+
+  examples-python:
+    name: Pinned 0.x Python examples upgraded and type-checked against 2.x
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Build the 2.x Python SDK with the pinned v0 bundle
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv build
+          tag=$(bash scripts/resolve-v0-tag.sh --verify)
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+          DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang python --src "$RUNNER_TEMP/v0-src" "$tag"
+          (cd python && python -m build --wheel --outdir "$RUNNER_TEMP/sdk-py")
+      - name: Upgrade the examples and type-check them
+        run: |
+          set -euo pipefail
+          bash upgrade/scripts/check-examples.sh --src "$RUNNER_TEMP/v0-src" \
+            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-py/*.whl)" --work "$RUNNER_TEMP/examples"
+
+  # Independent of the type-check above and about as long: its own runner.
+  examples-python-tests:
+    name: Python tool tests against the pinned 0.x examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Fetch the pinned 0.x examples
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv
+          tag=$(bash scripts/resolve-v0-tag.sh --verify)
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+      # Three long tests over the whole corpus: one worker each.
+      - name: Run the tool's example tests against the pinned examples
+        working-directory: upgrade/python
+        env:
+          DAYTONA_UPGRADE_V0_EXAMPLES: ${{ runner.temp }}/v0-src/examples
+        run: uv run --locked pytest -q -n 3 tests/test_examples.py

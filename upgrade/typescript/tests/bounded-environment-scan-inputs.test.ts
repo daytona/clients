@@ -4,23 +4,16 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { composeEnvFiles } from '../src/compose-env-files.js';
 import { environmentText, MAX_ENVIRONMENT_BYTES } from '../src/environment-text.js';
 import { contents, invoke, temporaryProject } from './helpers.js';
 
 const manifest = '{"dependencies":{"@daytonaio/sdk":"0.224.0"}}';
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
-beforeAll(() => {
-  const compiler = fileURLToPath(new URL('../node_modules/typescript/bin/tsc', import.meta.url));
-  const built = spawnSync(process.execPath, [compiler], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
-  expect(built.status, built.stdout + built.stderr).toBe(0);
-  copyFileSync(new URL('../src/mapping.json', import.meta.url), new URL('../dist/mapping.json', import.meta.url));
-});
 
 it('ignores a large unrelated YAML specification within a bounded CLI run', async () => {
   // Given a generated 20 MB spec with nested services/include words, not Compose keys.
