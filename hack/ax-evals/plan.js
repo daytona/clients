@@ -1,7 +1,7 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Decides whether and what to evaluate for an `ax-eval` label or `/ax-eval` comment.
+// Decides whether and what to evaluate for an `ax-eval` label or a manual workflow run.
 // Sets outputs: matrix (JSON list of {name, title, promptId}), sha, pr.
 
 const fs = require('fs')
@@ -11,11 +11,8 @@ const { MARKER, upsertComment } = require('./comment.js')
 const ALIASES = { ts: 'typescript', js: 'typescript', py: 'python', golang: 'go' }
 const WRITE_ROLES = new Set(['admin', 'maintain', 'write'])
 
-function parseCommand(body) {
-  const firstLine = (body || '').trim().split('\n')[0].trim()
-  const match = /^\/ax-eval(?:\s+(.*))?$/i.exec(firstLine)
-  if (!match) return null
-  return (match[1] || '')
+function parseEvals(input) {
+  return (input || '')
     .split(/[\s,]+/)
     .filter(Boolean)
     .map((token) => token.toLowerCase())
@@ -32,22 +29,14 @@ function selectByPaths(config, files) {
 async function run({ github, context, core }) {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'evals.json'), 'utf8'))
   const repo = context.repo
-  const isComment = context.eventName === 'issue_comment'
-  const prNumber = isComment ? context.payload.issue.number : context.payload.pull_request.number
+  const isDispatch = context.eventName === 'workflow_dispatch'
+  const prNumber = isDispatch ? Number(context.payload.inputs.pr) : context.payload.pull_request.number
   const actor = context.payload.sender.login
   core.setOutput('matrix', '[]')
-
-  const react = async (content) => {
-    if (!isComment) return
-    await github.rest.reactions.createForIssueComment({ ...repo, comment_id: context.payload.comment.id, content })
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    return core.setFailed(`Not a pull request number: ${context.payload.inputs?.pr}`)
   }
-
-  let requested = []
-  if (isComment) {
-    const tokens = parseCommand(context.payload.comment.body)
-    if (tokens === null) return core.info('Comment is not an /ax-eval command')
-    requested = tokens
-  }
+  const requested = isDispatch ? parseEvals(context.payload.inputs.evals) : []
 
   let role = 'none'
   try {
@@ -58,14 +47,12 @@ async function run({ github, context, core }) {
     core.info(`Could not read @${actor}'s permission: ${error.message}`)
   }
   if (!WRITE_ROLES.has(role)) {
-    await react('-1')
     return core.notice(`@${actor} has '${role}' access; AX evals need write access`)
   }
 
   const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: prNumber })
   if (pr.state !== 'open') return core.notice(`PR #${prNumber} is ${pr.state}`)
   if (!pr.head.repo || pr.head.repo.full_name !== `${repo.owner}/${repo.repo}`) {
-    await react('confused')
     return core.notice('AX evals are not supported on pull requests from forks')
   }
 
@@ -77,7 +64,6 @@ async function run({ github, context, core }) {
     const resolved = requested.map((token) => ALIASES[token] || token)
     const unknown = resolved.filter((name) => !names.includes(name))
     if (unknown.length > 0) {
-      await react('confused')
       return core.setFailed(`Unknown eval(s): ${unknown.join(', ')}. Valid: all, ${names.join(', ')}`)
     }
     selected = [...new Set(resolved)]
@@ -92,12 +78,11 @@ async function run({ github, context, core }) {
   const sha = pr.head.sha
   const runUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`
   if (selected.length === 0) {
-    await react('eyes')
     await upsertComment(github, repo, prNumber, context.runId, [
       '### AX evals (2027.dev)',
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
-      'Comment `/ax-eval all` or `/ax-eval <python|typescript|go|ruby|java|cli>` to run evals anyway.',
+      'To run evals anyway, run the **[PR] AX evals** workflow from `release/v0` with this PR number and `all` (or e.g. `python go`).',
     ])
     return
   }
@@ -110,7 +95,6 @@ async function run({ github, context, core }) {
   core.setOutput('matrix', JSON.stringify(matrix))
   core.setOutput('sha', sha)
   core.setOutput('pr', String(prNumber))
-  await react('rocket')
   await upsertComment(github, repo, prNumber, context.runId, [
     '### AX evals (2027.dev)',
     '',
@@ -119,6 +103,6 @@ async function run({ github, context, core }) {
 }
 
 module.exports = run
-module.exports.parseCommand = parseCommand
+module.exports.parseEvals = parseEvals
 module.exports.selectByPaths = selectByPaths
 module.exports.MARKER = MARKER

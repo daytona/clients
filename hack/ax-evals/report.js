@@ -99,7 +99,7 @@ function render({ results, sha, runUrl }) {
       ? ['', '<details><summary>Key findings and friction points</summary>', '', ...details, '', '</details>']
       : []),
     '',
-    `Re-run with a \`/ax-eval\` comment (\`/ax-eval all\` or e.g. \`/ax-eval python go\`) · [workflow run](${runUrl})`,
+    `Re-run: remove and re-add the \`ax-eval\` label, or run **[PR] AX evals** from \`release/v0\` with this PR number and \`all\` or e.g. \`python go\` · [workflow run](${runUrl})`,
   ]
 }
 

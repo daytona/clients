@@ -1,5 +1,5 @@
 {
-  "$comment": "2027.dev AX evals. 2027 stores the prompt text, checks and setup scripts: the workflow only sends promptId and the commit. Merging changes under hack/ax-evals to main syncs them (ax_evals_config.yaml); a PR that edits prompts or setup/*.sh is still evaluated with the version on main. Changes under sharedPaths run every eval.",
+  "$comment": "2027.dev AX evals. 2027 stores the prompt text, checks and setup scripts: the workflow only sends promptId and the commit. Merging changes under hack/ax-evals to release/v0 syncs them (ax_evals_config.yaml); a PR that edits prompts or setup/*.sh is still evaluated with the version on release/v0. Changes under sharedPaths run every eval.",
   "sharedPaths": ["hack/ax-evals/", ".github/workflows/ax_evals.yaml", "openapi-specs/"],
   "defaults": {
     "endGoal": "A sandbox was created using the pre-installed build under test (no registry reinstall), `hello-from-ax` was printed, and the sandbox was deleted.",

@@ -2,6 +2,8 @@
 
 SDKs, generated API clients, and the CLI/MCP tools for [Daytona](https://www.daytona.io/).
 
+> This is the `release/v0` branch with the **0.x** SDKs and CLI. The 2.x line lives on [`main`](https://github.com/daytona/clients/tree/main).
+
 ## Documentation
 
 See the [Daytona documentation](https://www.daytona.io/docs) for guides, examples, and API reference material.

@@ -4,6 +4,12 @@ This repository contains Daytona client-facing packages: SDKs, generated API cli
 
 Use the Nix dev shells (`nix develop`) when running builds locally — this repo is **Nix-only** (no devcontainer). Keep changes scoped to the client repo; platform services are intentionally not present here.
 
+## Branch: `release/v0` (0.x line)
+
+- This branch carries the **0.x** line. Branch 0.x work from `release/v0` and open PRs against `release/v0`; 0.x fixes land here directly, not on `main`.
+- `main` is the **2.x** line with a different layout (`python/`, `typescript/`, `cli/`, ...) and its own workflows. Do not port this branch's structure, paths or commands to `main`, or the reverse.
+- The repository is **public**. Do not put private repository names, internal hostnames, internal tickets, employee names or non-public endpoints in anything committed or posted (code, comments, commit messages, PR text, review replies).
+
 ## Dev Shells
 
 | Shell | Command | Use |
