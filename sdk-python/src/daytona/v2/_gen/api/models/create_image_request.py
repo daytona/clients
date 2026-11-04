@@ -35,13 +35,14 @@ class CreateImageRequest(BaseModel):
     """
     CreateImageRequest
     """ # noqa: E501
+    context_upload_id: Optional[StrictStr] = Field(default=None, description="A `ready` build-context upload from `POST /build-contexts` to build: the Dockerfile at the upload's `dockerfile` path, with the uploaded archive as its context. The image must be created in the upload's region. Mutually exclusive with `source` and `dockerfile`.")
     cpu_arch: Optional[StrictStr] = Field(default=None, description="The CPU architecture: `amd64` or `arm64`. Omit it to use the region default.")
     dockerfile: Optional[StrictStr] = Field(default=None, description="An inline, self-contained Dockerfile body to build. Local files cannot be used with `COPY` or `ADD`; use `multipart/form-data` to upload a build context. Mutually exclusive with `source`.")
     idle_expiry_seconds: Optional[StrictInt] = Field(default=None, description="The idle-retention window in seconds for an anonymous image: the image is deleted once this long has passed without a sandbox being created from it, and every create from the image restarts the clock. Allowed only without `name`; a named image is permanent, and `idle_expiry_seconds` with `name` is a `400`. Omitted or `-1` uses the maximum, 7 days by default; `1` up to that maximum sets the window; `0`, values below `-1`, and values above the maximum answer `400 IDLE_OUT_OF_RANGE`, whose body carries `max`.")
     name: Optional[StrictStr] = Field(default=None, description="The project-unique image name. Omit it to create an anonymous image.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the image in. When omitted, the project's default region is used, then the organization's, then the platform's default region.")
     source: Optional[PublicImageSource] = None
-    __properties: ClassVar[List[str]] = ["cpu_arch", "dockerfile", "idle_expiry_seconds", "name", "region_id", "source"]
+    __properties: ClassVar[List[str]] = ["context_upload_id", "cpu_arch", "dockerfile", "idle_expiry_seconds", "name", "region_id", "source"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -87,6 +88,11 @@ class CreateImageRequest(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of source
         if self.source:
             _dict['source'] = self.source.to_dict()
+        # set to None if context_upload_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.context_upload_id is None and "context_upload_id" in self.model_fields_set:
+            _dict['context_upload_id'] = None
+
         # set to None if cpu_arch (nullable) is None
         # and model_fields_set contains the field
         if self.cpu_arch is None and "cpu_arch" in self.model_fields_set:
@@ -129,6 +135,7 @@ class CreateImageRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            **({"context_upload_id": obj["context_upload_id"]} if "context_upload_id" in obj else {}),
             **({"cpu_arch": obj["cpu_arch"]} if "cpu_arch" in obj else {}),
             **({"dockerfile": obj["dockerfile"]} if "dockerfile" in obj else {}),
             **({"idle_expiry_seconds": obj["idle_expiry_seconds"]} if "idle_expiry_seconds" in obj else {}),
