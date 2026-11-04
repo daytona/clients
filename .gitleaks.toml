@@ -25,12 +25,14 @@ useDefault = true
 id = "daytona-api-key"
 description = "Daytona API key, organization key or sandbox token"
 regex = '''\b(dtn[ov]?_[a-f0-9]{32}(?:[a-f0-9]{32})?)\b'''
+secretGroup = 1
 keywords = ["dtn"]
 
 [[rules]]
 id = "daytona-invite-token"
 description = "Daytona organization invitation token"
 regex = '''\b(dtni_[A-Za-z0-9_-]{43})(?:[^A-Za-z0-9_-]|$)'''
+secretGroup = 1
 keywords = ["dtni_"]
 
 # Known non-secrets in the tree. Each entry matches one exact value in one file.

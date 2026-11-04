@@ -10,7 +10,7 @@
 #                                         and enable the hooks
 #   scripts/secret-scan.sh install-bin    download the pinned gitleaks only
 #   scripts/secret-scan.sh staged         scan the staged changes (pre-commit)
-#   scripts/secret-scan.sh pre-push NAME  scan the commits a push would send;
+#   scripts/secret-scan.sh pre-push URL   scan the commits a push would send;
 #                                         reads the pre-push hook's stdin
 #   scripts/secret-scan.sh range ARGS...  scan the commits `git log ARGS`
 #                                         lists, e.g. `range main..HEAD`
@@ -97,28 +97,53 @@ install_bin() {
 }
 
 install_hooks() {
-  local shared own=""
+  local shared own="" previous
   shared=$(git config --local --get core.hooksPath || true)
   if [ "$(git config --bool --get extensions.worktreeConfig || true)" = true ]; then
     own=$(git config --worktree --get core.hooksPath || true)
   fi
   if [ -n "$own" ]; then
     # This worktree already overrides the hooks path; replace the override.
+    previous="$own"
     git config --worktree core.hooksPath .githooks
-    [ "$own" = .githooks ] || echo "secret-scan: replaced this worktree's core.hooksPath '$own' with .githooks"
+    record_chain --worktree "$previous"
   elif [ -z "$shared" ] || [ "$shared" = .githooks ]; then
+    previous="$shared"
     git config --local core.hooksPath .githooks
+    record_chain --local "$previous"
   else
     # Another tool owns the clone-wide hooks path (for example husky, set up
     # by a checkout of another branch line). Point only this worktree at
     # .githooks; other worktrees run `scripts/secret-scan.sh install` too.
+    previous="$shared"
     git config --local extensions.worktreeConfig true
     git config --worktree core.hooksPath .githooks
-    echo "secret-scan: core.hooksPath is '$shared' for the clone; set .githooks for this worktree only"
+    record_chain --worktree "$previous"
   fi
-  [ "$(git rev-parse --git-path hooks)" = .githooks ] \
-    || die "core.hooksPath did not take effect (git rev-parse --git-path hooks: $(git rev-parse --git-path hooks))"
+  [ "$(git -C "$repo_root" rev-parse --git-path hooks)" = .githooks ] \
+    || die "core.hooksPath did not take effect (git rev-parse --git-path hooks: $(git -C "$repo_root" rev-parse --git-path hooks))"
   echo "secret-scan: hooks enabled (.githooks/pre-commit, .githooks/pre-push)"
+}
+
+# record_chain SCOPE PREVIOUS: the hooks path .githooks replaced keeps running
+# behind the scan (see chained_hook). Re-running install keeps the record.
+record_chain() {
+  local scope="$1" previous="$2"
+  [ -n "$previous" ] && [ "$previous" != .githooks ] || return 0
+  git config "$scope" secretscan.chainHooksPath "$previous"
+  echo "secret-scan: core.hooksPath was '$previous'; its hooks still run after the scan"
+}
+
+# chained_hook NAME: print the hook the .githooks wrapper runs besides the
+# scan: NAME from the hooks path install replaced, else from <common dir>/hooks.
+chained_hook() {
+  local dir hook
+  dir=$(git config --get secretscan.chainHooksPath || true)
+  [ -n "$dir" ] || dir="$common_dir/hooks"
+  case "$dir" in /*) ;; *) dir="$repo_root/$dir" ;; esac
+  hook="$dir/$1"
+  [ -x "$hook" ] && [ "$(cd "$dir" && pwd)" != "$repo_root/.githooks" ] && echo "$hook"
+  return 0
 }
 
 # install: the pinned binary where one is published, else a gitleaks on PATH.
@@ -217,7 +242,7 @@ scan_pre_push() {
       git cat-file -e "${sha}^{commit}" 2>/dev/null && revs+=("^$sha")
     done <<<"$advertised"
   else
-    echo "secret-scan: could not list the refs on '$remote'; scanning every commit being pushed" >&2
+    echo "secret-scan: could not list the remote's refs; scanning every commit being pushed" >&2
   fi
   scan_log "${revs[@]}"
 }
@@ -241,9 +266,13 @@ cmd="${1:-}"
 case "$cmd" in
   install) install_all ;;
   install-bin) install_bin ;;
+  chained-hook)
+    [ $# -eq 1 ] || die "usage: secret-scan.sh chained-hook HOOK_NAME"
+    chained_hook "$1"
+    ;;
   staged) run_gitleaks --pre-commit --staged ;;
   pre-push)
-    [ $# -ge 1 ] || die "usage: secret-scan.sh pre-push REMOTE_NAME < hook-stdin"
+    [ $# -ge 1 ] || die "usage: secret-scan.sh pre-push REMOTE_URL < hook-stdin"
     scan_pre_push "$1"
     ;;
   ci-push)

@@ -3,15 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Blocks a commit whose staged changes contain a secret (gitleaks, rules in
-# .gitleaks.toml). Enable with `scripts/secret-scan.sh install`. A hook of the
-# same name in the clone's own hooks directory (.git/hooks) still runs after
-# the scan passes.
+# .gitleaks.toml). Enable with `scripts/secret-scan.sh install`. The
+# pre-commit hook this path replaced (or the clone's .git/hooks/pre-commit)
+# runs first, so the scan sees anything it stages.
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
-"$root/scripts/secret-scan.sh" staged
-
-own="$(git rev-parse --git-common-dir)/hooks/pre-commit"
-if [ -x "$own" ]; then
-  exec "$own" "$@"
+own=$("$root/scripts/secret-scan.sh" chained-hook pre-commit)
+if [ -n "$own" ]; then
+  "$own" "$@"
 fi
+"$root/scripts/secret-scan.sh" staged

@@ -46,9 +46,13 @@ cp "$src/scripts/secret-scan.sh" scripts/
 git remote add origin "$tmp/remote.git"
 
 # ── install: hooks path ────────────────────────────────────────────────────
+# Seed the pinned-binary cache so install does not download again.
+mkdir -p ".git/gitleaks/$version"
+cp "$(command -v gitleaks)" ".git/gitleaks/$version/gitleaks"
 scripts/secret-scan.sh install >"$tmp/out" 2>&1 || fail "install failed: $(cat "$tmp/out")"
 [ "$(git config --local core.hooksPath)" = .githooks ] || fail "install did not set core.hooksPath"
-pass "install sets core.hooksPath=.githooks"
+(cd scripts && ./secret-scan.sh install >/dev/null) || fail "install from a subdirectory failed"
+pass "install sets core.hooksPath=.githooks, also from a subdirectory"
 
 git add -A
 git commit -q -m "tooling" || fail "clean commit was blocked"
@@ -108,8 +112,16 @@ echo one >chain.txt
 git add chain.txt
 git commit -q -m "chain" || fail "commit with a chained hook failed"
 [ -f "$tmp/chained" ] || fail ".git/hooks/pre-commit was not chained"
-rm .git/hooks/pre-commit
 pass "the clone's own pre-commit hook still runs"
+
+# A chained hook runs before the scan, so what it stages is scanned.
+printf '#!/bin/sh\necho "DAYTONA_API_KEY=%s" >generated.env\ngit add generated.env\n' "$daytona_key" >.git/hooks/pre-commit
+echo two >chain.txt
+git add chain.txt
+if git commit -q -m "chain stages a secret" >/dev/null 2>&1; then fail "a secret staged by a chained hook was not blocked"; fi
+rm .git/hooks/pre-commit generated.env
+git rm -q --cached generated.env
+pass "a secret staged by the chained hook is blocked"
 
 # ── pre-push ───────────────────────────────────────────────────────────────
 git push -q origin main 2>"$tmp/out" || fail "clean push was blocked: $(cat "$tmp/out")"
@@ -128,6 +140,16 @@ pass "push to a new branch scans the commits the remote lacks"
 
 if git push -q "$tmp/remote.git" main:refs/heads/by-url >/dev/null 2>&1; then fail "push of the secret to a bare URL was not blocked"; fi
 pass "push to a bare URL (no remote-tracking refs) is scanned"
+
+# The remote's refs come from where the push goes ($2), not its fetch url.
+git init -q --bare "$tmp/mirror.git"
+git --git-dir="$tmp/mirror.git" fetch -q "$tmp/repo" main:refs/heads/main
+git remote add split "$tmp/mirror.git"
+git remote set-url --push split "$tmp/pushtarget.git"
+git init -q --bare "$tmp/pushtarget.git"
+if git push -q split main >/dev/null 2>&1; then fail "refs at the fetch url exempted commits pushed to a different pushurl"; fi
+git remote remove split
+pass "the push target's refs decide what is scanned (pushurl)"
 
 # A branch deleted on the remote by someone else leaves a stale tracking ref
 # here; its commits are no longer on the remote and must be scanned again.
@@ -189,7 +211,14 @@ git worktree add -q "$tmp/wt" -b wt
 (cd "$tmp/wt" && scripts/secret-scan.sh install >/dev/null) || fail "worktree install failed"
 [ "$(git config --local core.hooksPath)" = .husky/_ ] || fail "the clone-wide hooks path was overwritten"
 [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree does not use .githooks"
-pass "an existing clone-wide hooks path is kept; the worktree gets .githooks"
+mkdir -p "$tmp/wt/.husky/_"
+printf '#!/bin/sh\ntouch "%s/husky-ran"\n' "$tmp" >"$tmp/wt/.husky/_/pre-commit"
+chmod +x "$tmp/wt/.husky/_/pre-commit"
+echo wt >"$tmp/wt/wt.txt"
+git -C "$tmp/wt" add wt.txt
+git -C "$tmp/wt" commit -q -m wt || fail "commit in the worktree failed"
+[ -f "$tmp/husky-ran" ] || fail "the replaced hooks path's pre-commit did not run"
+pass "an existing clone-wide hooks path is kept; the worktree gets .githooks and still runs it"
 
 git config --local --unset core.hooksPath
 git worktree add -q "$tmp/wt2" -b wt2
@@ -211,8 +240,12 @@ git init -q "$tmp/unsup"
 mkdir -p "$tmp/unsup/scripts"
 cp "$src/.gitleaks.toml" "$tmp/unsup/"
 cp "$src/scripts/secret-scan.sh" "$tmp/unsup/scripts/"
+cp -R "$src/.githooks" "$tmp/unsup/"
 (cd "$tmp/unsup" && PATH="$shim:$PATH" scripts/secret-scan.sh install >/dev/null) || fail "install with gitleaks on PATH failed on an unpublished platform"
 [ "$(git -C "$tmp/unsup" config --local core.hooksPath)" = .githooks ] || fail "hooks not enabled on an unpublished platform"
+echo "DAYTONA_API_KEY=$daytona_key" >"$tmp/unsup/leak.env"
+git -C "$tmp/unsup" add leak.env
+if PATH="$shim:$PATH" git -C "$tmp/unsup" commit -q -m leak >/dev/null 2>&1; then fail "the PATH gitleaks did not block on an unpublished platform"; fi
 pass "an unpublished platform installs with gitleaks from PATH"
 
 # ── fail closed without gitleaks ───────────────────────────────────────────

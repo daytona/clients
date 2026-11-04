@@ -30,13 +30,16 @@ below works with what is in the repository plus, optionally, a Daytona account:
 
 Every clone and every worktree runs `scripts/secret-scan.sh install` once,
 before its first commit. It downloads the pinned gitleaks (checksum-verified,
-stored under the clone's `.git/`) and points `core.hooksPath` at `.githooks/`:
+stored under the clone's `.git/`; on a platform without a published build it
+uses a gitleaks you put on `PATH`) and points `core.hooksPath` at
+`.githooks/`. Hooks from the path it replaces keep running:
 
 - `pre-commit` scans the staged changes; `pre-push` scans the commits the
   remote does not have yet, which catches commits made before the hooks were
   enabled. The `Secret scan` workflow runs the same scan on every pull request
-  and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`: the gitleaks defaults plus Daytona
-  API keys, organization keys, sandbox tokens and invitation tokens.
+  and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`:
+  the gitleaks defaults plus Daytona API keys, organization keys, sandbox
+  tokens and invitation tokens.
 - **Never bypass a block** (`--no-verify`, removing the hooks path, editing
   the rules to fit your change). Remove the secret instead — read it from an
   environment variable. A secret that was pushed or shared anywhere is leaked:
@@ -47,8 +50,11 @@ stored under the clone's `.git/`) and points `core.hooksPath` at `.githooks/`:
   Test credentials are built at run time where possible
   (`scripts/secret-scan_test.sh` shows how).
 - Patterns that must not be published (non-public hostnames or project
-  names) belong in `.git/info/gitleaks-private.toml`, a complete gitleaks
-  config that every scan in that clone also runs. It is never committed.
+  names) belong in `info/gitleaks-private.toml` under the clone's common git
+  directory (`git rev-parse --git-common-dir`; `.git/info/` in the main
+  worktree), a complete gitleaks config that every scan in every worktree of
+  that clone also runs, with no `gitleaks:allow` exception. It is never
+  committed.
 - Changing `scripts/secret-scan.sh`, `.githooks/` or `.gitleaks.toml`: run
   `bash scripts/secret-scan_test.sh`.
 
