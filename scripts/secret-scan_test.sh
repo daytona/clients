@@ -245,9 +245,12 @@ pass "a later clone-wide core.hooksPath (husky) does not switch the hooks off"
 
 git worktree add -q "$tmp/wt" -b wt
 # git 2.37+ copies the main worktree's config.worktree into a new worktree.
-[ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "a new worktree did not inherit the hooks"
-pass "a worktree added after install inherits the hooks"
-git -C "$tmp/wt" config --worktree --unset core.hooksPath # a worktree with no override of its own
+IFS=. read -r git_major git_minor _ <<<"$(git version | cut -d' ' -f3)"
+if [ "$git_major" -gt 2 ] || { [ "$git_major" -eq 2 ] && [ "$git_minor" -ge 37 ]; }; then
+  [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "a new worktree did not inherit the hooks"
+  pass "a worktree added after install inherits the hooks"
+fi
+git -C "$tmp/wt" config --worktree --unset core.hooksPath || true # a worktree with no override of its own
 (cd "$tmp/wt" && scripts/secret-scan.sh install >/dev/null) || fail "worktree install failed"
 [ "$(git config --local core.hooksPath)" = .husky/_ ] || fail "the clone-wide hooks path was overwritten"
 [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree does not use .githooks"
