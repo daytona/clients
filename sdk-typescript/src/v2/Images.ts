@@ -13,6 +13,8 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
+import { uploadBuildContext } from './contextUpload.js'
+import type { BuildContext } from './contextUpload.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import { acknowledgedId } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
@@ -101,6 +103,29 @@ export class ImagesService {
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
+  }
+
+  /**
+   * Build an image from a Dockerfile inside a build-context tar archive: its
+   * bytes, a `Blob`, or (Node.js) the path of a `.tar` file, up to 1 GiB.
+   * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
+   * The archive is uploaded straight to storage in parts and verified by the
+   * API before the build starts; an identical archive the project already
+   * uploaded is reused without uploading it again. Resolves once the build is
+   * submitted; wait with `get(id, { wait: 'ready' })`.
+   */
+  public async buildFromContext(context: BuildContext, options: BuildImageOptions & { readonly dockerfile?: string } = {}): Promise<Image> {
+    const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: options.region })
+    const request: api.CreateImageRequest = {
+      // The build must name the region the upload was verified in.
+      context_upload_id: upload.id,
+      region_id: upload.regionId,
+      ...(options.name === undefined ? {} : { name: options.name }),
+      ...(options.idleExpirySeconds === undefined ? {} : { idle_expiry_seconds: options.idleExpirySeconds }),
+      ...(options.cpuArch === undefined ? {} : { cpu_arch: options.cpuArch }),
+    }
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
+    return this.get(data.id)
   }
 
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
