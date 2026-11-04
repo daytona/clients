@@ -22,6 +22,7 @@
 /scripts/check_dist_artifacts.py           @MDzaja
 /scripts/changelog/                        @MDzaja
 /typescript/scripts/bundle-v0.mjs          @MDzaja
+/typescript/scripts/build-v0.mjs           @MDzaja
 /typescript/scripts/v0-bundle-smoke.cjs    @MDzaja
 /typescript/scripts/stamp-version.mjs      @MDzaja
 /v0-sdk-version                            @MDzaja
