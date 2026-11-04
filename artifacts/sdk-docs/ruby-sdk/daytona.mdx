@@ -165,7 +165,8 @@ or ttl_minutes is negative, if queue_timeout is not a positive integer, or if au
 auto_pause_interval are both non-zero
 - `Daytona:Sdk:TimeoutError` - If the Sandbox is not started within timeout. When the Sandbox was
 already created, the error's sandbox_id names it: it may still be starting, so fetch it with #get
-and remove it with #delete
+and remove it with #delete. When the create request itself timed out, sandbox_id is nil, but the API
+may still have created the Sandbox: find it by its labels with #list (it can take a few seconds to show up)
 - `Daytona:Sdk:QueueTimeoutError` - If the API destroyed the Sandbox because it waited longer than
 queue_timeout for a runner
 - `Daytona:Sdk:SpotEvictedError` - If the Sandbox was destroyed by spot preemption while starting

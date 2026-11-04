@@ -126,14 +126,17 @@ There are two timeouts:
 
 - `queue_timeout` (minutes, in the params): if no runner takes the sandbox in time, the API deletes it and `create` raises `Daytona::Sdk::QueueTimeoutError`.
 - `timeout` (seconds, 60 by default, `0` for no limit): if the sandbox hasn't started in time, `create` raises `Daytona::Sdk::TimeoutError`. The sandbox may still be starting, so delete it yourself using `sandbox_id` from the error.
+  If the create request itself timed out, `sandbox_id` is `nil`, but the API may still have created the sandbox, and it can take a few seconds to show up. Give your sandboxes labels so you can find and delete these later with `list`.
 
 ```ruby
 require 'daytona'
+require 'securerandom'
 
 daytona = Daytona::Daytona.new
+labels = { 'job' => SecureRandom.uuid }
 begin
   sandbox = daytona.create(
-    Daytona::CreateSandboxFromImageParams.new(image: Daytona::Image.debian_slim('3.12'), queue_timeout: 5),
+    Daytona::CreateSandboxFromImageParams.new(image: Daytona::Image.debian_slim('3.12'), queue_timeout: 5, labels:),
     timeout: 300
   )
 rescue Daytona::Sdk::TimeoutError => e
@@ -146,6 +149,12 @@ rescue Daytona::Sdk::TimeoutError => e
   end
   raise e
 end
+```
+
+A few seconds later (e.g. at the end of the job, or from a cleanup job that kept the labels), delete what a timed out create request may have left behind:
+
+```ruby
+daytona.list(Daytona::ListSandboxesQuery.new(labels:)).each { |s| daytona.delete(s) }
 ```
 
 ### Execute commands
