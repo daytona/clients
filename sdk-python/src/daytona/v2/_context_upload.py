@@ -15,7 +15,7 @@ import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Optional, Union
+from typing import AsyncIterator, Mapping, Optional, Union
 from urllib.parse import quote
 
 import anyio
@@ -31,12 +31,13 @@ BuildContext = Union[bytes, bytearray, memoryview, str, "os.PathLike[str]"]
 
 MAX_CONTEXT_BYTES = 1 << 30
 _HASH_CHUNK = 1 << 20
+_PART_CHUNK = 1 << 20
 _PART_ATTEMPTS = 3
 _PART_TIMEOUT_SECONDS = 300.0
 
 
 class _Source:
-    """The archive, read by offset so a file is never held whole in memory."""
+    """The archive, streamed by offset so a file is held one chunk at a time, never a whole part."""
 
     def __init__(self, context: BuildContext) -> None:
         if isinstance(context, (bytes, bytearray, memoryview)):
@@ -66,13 +67,27 @@ class _Source:
                 source="SDK",
             )
 
-    def read(self, offset: int, length: int) -> bytes:
+    async def chunks(self, offset: int, length: int) -> AsyncIterator[bytes]:
+        """Yield ``length`` bytes from ``offset`` in chunks of at most ``_PART_CHUNK``."""
+        end = offset + length
         if self._data is not None:
-            return self._data[offset : offset + length]
+            view = memoryview(self._data)
+            for start in range(offset, end, _PART_CHUNK):
+                yield bytes(view[start : min(start + _PART_CHUNK, end)])
+            return
         assert self._path is not None
-        with self._path.open("rb") as handle:
-            handle.seek(offset)
-            return handle.read(length)
+        handle = await anyio.to_thread.run_sync(self._path.open, "rb")
+        try:
+            await anyio.to_thread.run_sync(handle.seek, offset)
+            remaining = length
+            while remaining > 0:
+                chunk = await anyio.to_thread.run_sync(handle.read, min(_PART_CHUNK, remaining))
+                if not chunk:
+                    raise _changed_while_uploading()
+                remaining -= len(chunk)
+                yield chunk
+        finally:
+            await anyio.to_thread.run_sync(handle.close)
 
     def sha256(self) -> str:
         digest = hashlib.sha256()
@@ -118,19 +133,25 @@ def _text(payload: Mapping[str, object], key: str) -> str:
     return value
 
 
+def _changed_while_uploading() -> BadRequestError:
+    return BadRequestError(
+        "build context changed while it was being uploaded",
+        status_code=400,
+        code="BAD_REQUEST",
+        source="SDK",
+    )
+
+
 async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, part: _Part) -> None:
-    body = await anyio.to_thread.run_sync(source.read, offset, part.bytes)
-    if len(body) != part.bytes:
-        raise BadRequestError(
-            "build context changed while it was being uploaded",
-            status_code=400,
-            code="BAD_REQUEST",
-            source="SDK",
-        )
     status: Optional[int] = None
     for attempt in range(_PART_ATTEMPTS):
         try:
-            response = await client.put(part.url, content=body, headers={"Content-Length": str(part.bytes)})
+            # A presigned PUT needs a fixed length, so the stream is not chunked.
+            response = await client.put(
+                part.url,
+                content=source.chunks(offset, part.bytes),
+                headers={"Content-Length": str(part.bytes)},
+            )
         except httpx.HTTPError:
             # The exception text names the URL, so it is not chained.
             status = None
