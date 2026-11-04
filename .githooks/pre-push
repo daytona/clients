@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# Blocks a push whose new commits contain a secret: the backstop for commits
+# made before the hooks were enabled or with `--no-verify`. Enable with
+# `scripts/secret-scan.sh install`. A hook of the same name in the clone's own
+# hooks directory (.git/hooks) still runs after the scan passes.
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+refs=$(cat)
+printf '%s\n' "$refs" | "$root/scripts/secret-scan.sh" pre-push "$1"
+
+own="$(git rev-parse --git-common-dir)/hooks/pre-push"
+if [ -x "$own" ]; then
+  exec "$own" "$@" <<<"$refs"
+fi

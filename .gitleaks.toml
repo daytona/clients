@@ -1,0 +1,60 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Secret-scanning rules for this repository, read by gitleaks
+# (https://github.com/gitleaks/gitleaks) in the pre-commit and pre-push hooks
+# and in the "Secret scan" workflow. Run it with `scripts/secret-scan.sh`, see
+# CONTRIBUTING.md.
+#
+# A finding that is not a secret (a test fixture, a documented example):
+#   - add `gitleaks:allow` in a comment on that line, or
+#   - add an [[allowlists]] entry below that names the file and the exact
+#     value, with a description that says why it is safe.
+# Never allowlist a whole file or a whole rule.
+
+title = "Daytona clients"
+
+[extend]
+# Start from the gitleaks default rule set (cloud provider keys, tokens,
+# private keys, generic high-entropy assignments, ...).
+useDefault = true
+
+# Daytona credentials. Keyword "dtn" pre-filters every rule.
+
+[[rules]]
+id = "daytona-api-key"
+description = "Daytona API key, organization key or sandbox token"
+regex = '''\b(dtn[ov]?_[a-f0-9]{32}(?:[a-f0-9]{32})?)\b'''
+keywords = ["dtn"]
+
+[[rules]]
+id = "daytona-invite-token"
+description = "Daytona organization invitation token"
+regex = '''\b(dtni_[A-Za-z0-9_-]{43})(?:[^A-Za-z0-9_-]|$)'''
+keywords = ["dtni_"]
+
+# Known non-secrets in the tree. Each entry matches one exact value in one file.
+
+[[allowlists]]
+description = "Fabricated invitation token in the CLI invite tests"
+condition = "AND"
+paths = ['''^cli/cmd/invite_test\.go$''']
+regexes = ['''^dtni_c3VwZXJzZWNyZXR0b2tlbnZhbHVlMDEyMzQ1Njc4OTB$''']
+
+[[allowlists]]
+description = "RFC 6455 section 4.2.2 example Sec-WebSocket-Key"
+condition = "AND"
+paths = ['''^cli/internal/toolbox/websocket_test\.go$''']
+regexes = ['''^dGhlIHNhbXBsZSBub25jZQ==$''']
+
+[[allowlists]]
+description = "Module path in the migration-tool tests, not a credential"
+condition = "AND"
+paths = ['''^upgrade/python/tests/test_client_service_parity\.py$''']
+regexes = ['''^daytona\.v0\.secret$''']
+
+[[allowlists]]
+description = "Malformed JWT fixture (payload is not JSON) in the TypeScript unit tests"
+condition = "AND"
+paths = ['''^typescript/tests/unit\.test\.ts$''']
+regexes = ['''^eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCJ9\.bm90LWpzb24\.signature$''']
