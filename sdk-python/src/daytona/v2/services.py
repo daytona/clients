@@ -37,6 +37,7 @@ from ._api_core import (
     mac_resources_from_wire,
     secret_from_wire,
 )
+from ._context_upload import BuildContext, upload_build_context
 from ._core import (
     INT32_MAX,
     RequestSpec,
@@ -194,6 +195,43 @@ class AsyncImagesService:
             body["source"] = source
         if rendered_dockerfile is not None:
             body["dockerfile"] = rendered_dockerfile
+        created = expect_create_image_resp(
+            await self._transport.send(RequestSpec("POST", "/images", json_body=body))
+        )
+        return await self.get(created.id)
+
+    async def build_from_context(
+        self,
+        context: BuildContext,
+        /,
+        *,
+        dockerfile: str = "Dockerfile",
+        name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
+        region: Optional[str] = None,
+        cpu_arch: Optional[str] = None,
+    ) -> Image:
+        """Build an image from a Dockerfile inside a build-context tar archive.
+
+        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
+        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
+        archive is uploaded straight to storage in parts and verified by the
+        API before the build starts; an identical archive the project already
+        uploaded is reused without uploading it again. The other arguments
+        are those of :meth:`build`. Returns as soon as the build is submitted;
+        wait with :meth:`get` (``wait="ready"``).
+        """
+        upload_id, upload_region = await upload_build_context(
+            self._transport, context, dockerfile=dockerfile, region=region
+        )
+        # The build must name the region the upload was verified in.
+        body: JsonObject = {"context_upload_id": upload_id, "region_id": upload_region}
+        if name is not None:
+            body["name"] = name
+        if idle_expiry_seconds is not None:
+            body["idle_expiry_seconds"] = idle_expiry_seconds
+        if cpu_arch is not None:
+            body["cpu_arch"] = cpu_arch
         created = expect_create_image_resp(
             await self._transport.send(RequestSpec("POST", "/images", json_body=body))
         )

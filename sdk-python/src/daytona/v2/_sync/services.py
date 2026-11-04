@@ -69,6 +69,29 @@ class ImagesService:
             )
         )
 
+    def build_from_context(
+        self,
+        context: BuildContext,
+        /,
+        *,
+        dockerfile: str = "Dockerfile",
+        name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
+        region: Optional[str] = None,
+        cpu_arch: Optional[str] = None,
+    ) -> Image:
+        """Build an image from a Dockerfile inside a build-context tar archive."""
+        return self._bridge.call(
+            lambda: self._impl.build_from_context(
+                context,
+                dockerfile=dockerfile,
+                name=name,
+                idle_expiry_seconds=idle_expiry_seconds,
+                region=region,
+                cpu_arch=cpu_arch,
+            )
+        )
+
     def delete(self, image_id: str) -> None:
         return self._bridge.call(lambda: self._impl.delete(image_id))
 
