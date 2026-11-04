@@ -37,15 +37,21 @@ function isNode(): boolean {
 }
 
 interface NodeFileHandle {
-  stat(): Promise<{ isFile(): boolean; size: number }>
+  stat(): Promise<{ isFile(): boolean; size: number; mtimeMs: number }>
   read(buffer: Uint8Array, offset: number, length: number, position: number): Promise<{ bytesRead: number }>
   close(): Promise<void>
 }
 
-/** The archive, read by offset: a `Blob` slice, or (Node.js) a file handle. */
+/**
+ * The archive, read by offset: a `Blob` slice, or (Node.js) a file handle.
+ * A part body is a lazy slice, so fetch streams it instead of holding a whole
+ * part in memory.
+ */
 interface ContextSource {
   readonly size: number
   read(offset: number, length: number): Promise<Uint8Array>
+  part(offset: number, length: number): Promise<Blob | Uint8Array<ArrayBuffer>>
+  changed(): Promise<boolean>
   close(): Promise<void>
 }
 
@@ -53,6 +59,8 @@ function blobSource(blob: Blob): ContextSource {
   return {
     size: blob.size,
     read: async (offset, length) => new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer()),
+    part: async (offset, length) => blob.slice(offset, offset + length),
+    changed: async () => false,
     close: async () => undefined,
   }
 }
@@ -70,8 +78,19 @@ async function fileSource(path: string): Promise<ContextSource> {
     await handle.close().catch(() => undefined)
     throw notAFile
   }
+  const fsSpecifier = 'node:fs'
+  let file: Promise<Blob> | undefined
   return {
     size: info.size,
+    part: async (offset, length) => {
+      // SAFETY: the shape is node:fs's documented openAsBlob signature (Node.js >= 19.8).
+      file ??= (import(/* @vite-ignore */ /* webpackIgnore: true */ fsSpecifier) as Promise<{ openAsBlob(path: string): Promise<Blob> }>).then((fs) => fs.openAsBlob(path))
+      return (await file).slice(offset, offset + length)
+    },
+    changed: async () => {
+      const now = await handle.stat().catch(() => undefined)
+      return now === undefined || now.size !== info.size || now.mtimeMs !== info.mtimeMs
+    },
     read: async (offset, length) => {
       const buffer = new Uint8Array(length)
       let filled = 0
@@ -89,7 +108,14 @@ async function fileSource(path: string): Promise<ContextSource> {
 async function sourceOf(context: BuildContext): Promise<ContextSource> {
   if (typeof context !== 'string') {
     if (context instanceof Uint8Array) {
-      return { size: context.byteLength, read: async (offset, length) => context.subarray(offset, offset + length), close: async () => undefined }
+      return {
+        size: context.byteLength,
+        read: async (offset, length) => context.subarray(offset, offset + length),
+        // SAFETY: a view of the caller's bytes; fetch only reads it.
+        part: async (offset, length) => context.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
+        changed: async () => false,
+        close: async () => undefined,
+      }
     }
     if (typeof Blob !== 'undefined' && context instanceof Blob) return blobSource(context)
     throw new TypeError('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
@@ -121,9 +147,9 @@ async function sha256Hex(source: ContextSource): Promise<string> {
 }
 
 async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart): Promise<void> {
-  // SAFETY: read() returns a view over a plain ArrayBuffer, never a shared one.
-  const body = (await source.read(offset, part.bytes)) as Uint8Array<ArrayBuffer>
-  if (body.byteLength !== part.bytes) throw badRequest('build context changed while it was being uploaded')
+  const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
+  const body = await source.part(offset, part.bytes)
+  if ((body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()
   let status: number | undefined
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
     try {
@@ -131,6 +157,8 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
       status = response.status
       await response.body?.cancel().catch(() => undefined)
     } catch {
+      // A file-backed slice fails to read once its file changes.
+      if (await source.changed()) throw changed()
       // The failure names the URL, so it is not kept as a cause.
       status = undefined
     }

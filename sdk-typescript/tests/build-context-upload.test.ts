@@ -176,3 +176,39 @@ it.each([
   await expect(service().buildFromContext(context)).rejects.toThrow(message)
   expect(seen).toHaveLength(0)
 })
+
+it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own length, not chunked', async (kind) => {
+  const data = archive(10_000)
+  let context: Uint8Array | Blob | string = data
+  if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
+  if (kind === 'file') {
+    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  await service().buildFromContext(context)
+  expect(puts().length).toBeGreaterThan(1)
+  expect(puts().every((request) => request.headers['content-length'] === String(request.body.byteLength))).toBe(true)
+  expect(puts().every((request) => request.headers['transfer-encoding'] === undefined)).toBe(true)
+  expect(Buffer.concat(puts().map((request) => request.body))).toEqual(Buffer.from(data))
+})
+
+it('refuses a file that changes while it is being uploaded', async () => {
+  // Given a context file rewritten after it was declared.
+  const path = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+  await writeFile(path, archive(10_000))
+  const original = contextUploadRuntime.fetch
+  contextUploadRuntime.fetch = async (input, init) => {
+    await writeFile(path, 'short')
+    return original(input, init)
+  }
+  try {
+    // When it is built from the context, it fails as a changed context.
+    const error = await service().buildFromContext(path).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(String(error)).toContain('changed while it was being uploaded')
+    expect(String(error)).not.toContain(SIGNATURE)
+    expect(completes()).toHaveLength(0)
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
