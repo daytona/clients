@@ -1,0 +1,24 @@
+typescript/node_modules/
+typescript/dist/
+python/.venv/
+python/build/
+python/dist/
+**/__pycache__/
+**/*.egg-info/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+examples/node_modules/
+examples/package-lock.json
+
+# Local agent overlay (see AGENTS.md); never committed
+AGENTS.local.md
+.agents/local/
+.omo/
+.sisyphus/
+.opencode/
+
+# Coverage reports (scripts/patch_coverage.py)
+python/coverage.xml
+python/.coverage
+typescript/coverage/

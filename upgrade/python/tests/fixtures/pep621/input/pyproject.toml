@@ -1,0 +1,13 @@
+[project]
+name = "daytona-upgrade"
+description = "daytona-sdk>=0.2"
+dependencies = [
+  'httpx>=0.27',
+  'daytona-sdk>=0.224; python_version >= "3.9"', # keep marker
+]
+
+[project.optional-dependencies]
+examples = ['daytona_sdk==0.224.0', 'pytest>=8']
+
+[tool.example]
+dependencies = ['daytona-sdk==0.224.0']

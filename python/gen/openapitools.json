@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/OpenAPITools/openapi-generator-cli/master/apps/generator-cli/src/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.14.0",
+    "storageDir": "gen/.generator",
+    "generators": {
+      "toolbox": {
+        "generatorName": "python",
+        "inputSpec": "gen/.toolbox-3.0.json",
+        "output": "gen/.out/toolbox",
+        "templateDir": "gen/templates",
+        "globalProperty": {
+          "models": ""
+        },
+        "additionalProperties": {
+          "packageName": "daytona.v2._gen.toolbox",
+          "library": "asyncio",
+          "enumUnknownDefaultCase": true,
+          "disallowAdditionalPropertiesIfNotPresent": false,
+          "hideGenerationTimestamp": true
+        }
+      },
+      "api": {
+        "generatorName": "python",
+        "inputSpec": "gen/.api-3.0.json",
+        "output": "gen/.out/api",
+        "templateDir": "gen/templates",
+        "globalProperty": {
+          "models": ""
+        },
+        "additionalProperties": {
+          "packageName": "daytona.v2._gen.api",
+          "library": "asyncio",
+          "enumUnknownDefaultCase": true,
+          "disallowAdditionalPropertiesIfNotPresent": false,
+          "hideGenerationTimestamp": true
+        }
+      }
+    }
+  }
+}

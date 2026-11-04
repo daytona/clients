@@ -1,0 +1,375 @@
+name: SDK CI
+
+# Build + test both SDKs.
+on:
+  push:
+    branches: [main, release/v2]
+    paths:
+      - 'python/**'
+      - 'typescript/**'
+      - 'contract/**'
+      - 'scripts/**'
+      - 'v0-sdk-version'
+      - '.github/workflows/sdk-ci.yaml'
+      - '.github/workflows/sdk_publish.yaml'
+  pull_request:
+    paths:
+      - 'python/**'
+      - 'typescript/**'
+      - 'contract/**'
+      - 'scripts/**'
+      - 'v0-sdk-version'
+      - '.github/workflows/sdk-ci.yaml'
+      - '.github/workflows/sdk_publish.yaml'
+
+# Every job only reads the repository (least-privilege GITHUB_TOKEN).
+permissions:
+  contents: read
+
+jobs:
+  # The v0 namespace is copied from a 0.x release tag of this repository by
+  # scripts/bundle-v0.sh at publish time and never committed; fail any change
+  # that commits it.
+  no-bundled-v0:
+    name: No bundled v0 committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-no-bundled-v0.sh
+      # The publish gate's "this tree has the v0 namespace" markers must exist.
+      - run: bash scripts/v0-publish-mode.sh --check-markers
+
+  # The pinned 0.x tag the v0 namespace vendors must exist at its pinned commit.
+  v0-pin-exists:
+    name: Pinned v0 SDK tag exists at its pinned commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - run: bash scripts/resolve-v0-tag.sh --verify
+
+  # Bundle from the publish gate's snapshot, not a git checkout: the same tar
+  # shape as sdk_publish.yaml "Snapshot SDK sources", unpacked into a clean
+  # directory, bundled as the build jobs do (DAYTONA_V0_SRC_VERIFIED=1). Keep
+  # the tar command in step with that workflow.
+  v0-bundle-from-snapshot:
+    name: v0 bundle from the publish snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+      - name: Snapshot like the publish gate, then bundle from the unpacked snapshot
+        run: |
+          set -euo pipefail
+          tag=$(bash scripts/resolve-v0-tag.sh --verify)
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
+          tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
+            --exclude='.git' \
+            -czf "$RUNNER_TEMP/sdk-src.tgz" python typescript contract cli scripts v0-sdk-version .v0-src
+          mkdir "$RUNNER_TEMP/unpacked" && cd "$RUNNER_TEMP/unpacked"
+          tar -xzf "$RUNNER_TEMP/sdk-src.tgz"
+          test ! -e .v0-src/.git
+          DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang all --src "$PWD/.v0-src" "$tag"
+          test -f python/src/daytona/v0/LICENSE
+          test -f python/src/daytona/v0/NOTICE
+          test -d typescript/src/v0
+          # The guard's v0-only dependency list covers what this bundle merged.
+          (cd "$GITHUB_WORKSPACE" && cp "$RUNNER_TEMP/unpacked/typescript/package.json" typescript/package.json && bash scripts/check-no-bundled-v0.sh --check-list && git checkout -- typescript/package.json)
+          # The Python publish build runs the full suite on this snapshot, so
+          # a test that reaches outside python/ must skip here, not fail at
+          # release time.
+          cd python
+          python -m pip install --upgrade pip >/dev/null
+          python -m pip install -e ".[dev,v0-sdk]" >/dev/null
+          python -m pytest -q -p no:cacheprovider
+
+  # Run the publish-time bundle against the pinned v0 release, so a change on
+  # either side that breaks it fails here and not in the publish run.
+  python-v0-bundle:
+    name: Python v0 bundle smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Bundle the pinned v0 release (v0-sdk-version)
+        run: bash ../scripts/bundle-v0.sh --lang python
+      - name: Install with the v0-sdk extra and resolve Daytona().v0
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install ".[v0-sdk,dev]"
+          # The pinned bundle: per-call target / region_id reach the request
+          # body (local mock API), and the bundle is the pinned release.
+          python -m pytest -q -p no:cacheprovider -o addopts="" tests/test_v0_bundle.py
+          # Type-check user code against this non-editable install (py.typed,
+          # typed root errors, removed root names flagged).
+          python -m pytest -q -p no:cacheprovider -o addopts="" tests/test_readme_types.py
+          cd /tmp
+          python -c "from daytona import Daytona, DaytonaConfig; d = Daytona(DaytonaConfig(api_key='smoke')); assert callable(d.v0.list); import daytona.v0._bundle as b; print(b.BUNDLED_FROM)"
+          # The shared root errors catch v0's and v2's classes alike.
+          python -c "import daytona, daytona.v0 as v0, daytona.v2 as v2; assert all(isinstance(e, daytona.DaytonaNotFoundError) and isinstance(e, daytona.DaytonaError) for e in (v0.DaytonaNotFoundError('x'), v2.NotFoundError('x'))); print('shared errors ok')"
+
+  # The bundled wheel must install on Python 3.10 with an OLD pip (the
+  # python:3.10 image's default, no --upgrade): pip < 26 mis-parses an extra
+  # named `v0` as a version and crashes even a plain install, hence `v0-sdk`.
+  python-v0-bundle-old-pip:
+    name: Python v0 bundle on 3.10 with the default pip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Bundle the pinned v0 release and build the wheel
+        working-directory: python
+        run: |
+          set -euo pipefail
+          bash ../scripts/bundle-v0.sh --lang python
+          python -m pip install --upgrade build
+          # Wheel and sdist, checked exactly as sdk_publish.yaml checks them.
+          python -m build --outdir "$RUNNER_TEMP/wheel"
+          python ../scripts/check_dist_artifacts.py python "$RUNNER_TEMP/wheel" --v0
+      - name: Install on python:3.10 with its default pip (plain and [v0-sdk])
+        run: |
+          set -euo pipefail
+          docker run --rm -e PIP_DISABLE_PIP_VERSION_CHECK=1 -v "$RUNNER_TEMP/wheel:/w:ro" python:3.10 bash -ec '
+            whl=$(ls /w/*.whl)
+            python -m pip --version
+            python -m pip install -q "$whl"
+            python -c "import daytona; print(\"plain install ok\")"
+            python -m pip install -q "$whl[v0-sdk]"
+            cd /tmp && python -c "from daytona import Daytona, DaytonaConfig; d = Daytona(DaytonaConfig(api_key=\"x\")); print(\"d.v0:\", type(d.v0).__module__)"
+          '
+
+  typescript-v0-bundle:
+    name: TypeScript v0 bundle smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+      - name: Bundle the pinned v0 release (v0-sdk-version)
+        run: bash ../scripts/bundle-v0.sh --lang typescript
+      - name: Build, pack and resolve Daytona().v0 from the tarball
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run typecheck
+          npm run build
+          rm -rf pack && mkdir pack
+          npm pack --ignore-scripts --pack-destination pack
+          python3 ../scripts/check_dist_artifacts.py npm pack --v0
+          pkgdir=$PWD consumer=$(mktemp -d)
+          cd "$consumer"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "$pkgdir"/pack/*.tgz >/dev/null
+          # d.v0 resolves the pinned bundle; per-call target / regionId reach
+          # the request body (local mock API); shared errors catch v0 errors.
+          cp "$pkgdir/scripts/v0-bundle-smoke.cjs" .
+          # dotenv (optional in v0) makes the smoke's dotenv-warning check run,
+          # and DAYTONA_SMOKE_REQUIRE_DOTENV turns a skip into a failure here.
+          npm install --no-audit --no-fund --no-save dotenv >/dev/null
+          DAYTONA_SMOKE_REQUIRE_DOTENV=1 node v0-bundle-smoke.cjs "$(bash "$pkgdir/../scripts/resolve-v0-tag.sh")"
+          # Typecheck require() and import of every subpath from a node16
+          # CommonJS consumer (conditional types for the CJS build).
+          cp -r "$pkgdir/scripts/cjs-types-fixture" .
+          npm install --no-audit --no-fund --no-save typescript@5 >/dev/null
+          # Plus strict consumers (skipLibCheck: false) importing only the root: the
+          # published declarations must resolve on their own (no #v0-loader, ws types).
+          for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json; do npx tsc -p "cjs-types-fixture/$config"; done
+          # Expected failure: @daytona/sdk/v2 exports no client, not even as a
+          # type. Each of the three type-only imports must be TS2305.
+          if npx tsc -p cjs-types-fixture/tsconfig.no-v2-client.json > no-v2-client.log 2>&1; then echo '@daytona/sdk/v2 exports a client type' >&2; exit 1; fi
+          test "$(grep -c "error TS2305" no-v2-client.log)" = 3 || { cat no-v2-client.log >&2; exit 1; }
+          # Expected failure for v0 too, with no "Did you mean" pointing at the
+          # private names the root reads.
+          if npx tsc -p cjs-types-fixture/tsconfig.no-v0-client-hint.json > no-v0-client-hint.log 2>&1; then echo '@daytona/sdk/v0 exports a client' >&2; exit 1; fi
+          test "$(grep -cE "error TS(2305|2724)" no-v0-client-hint.log)" = 2 || { cat no-v0-client-hint.log >&2; exit 1; }
+          if grep -q "Did you mean" no-v0-client-hint.log; then cat no-v0-client-hint.log >&2; exit 1; fi
+          # The README's floor for strict root consumers is TypeScript 5.7.
+          npm install --no-audit --no-fund --no-save typescript@5.7 >/dev/null
+          for config in tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json; do npx tsc -p "cjs-types-fixture/$config"; done
+          # Browser bundles: @daytona/sdk/v2 alone (builders, types, errors),
+          # which must contain no v0 code; and the root, whose browser
+          # #v0-loader imports v0's ESM build statically so daytona.v0 works
+          # there and which builds every client.
+          cp -r "$pkgdir/scripts/browser-bundle-fixture" .
+          npm install --no-audit --no-fund --no-save esbuild@0 >/dev/null
+          for entry in entry root-v0; do
+            npx esbuild --bundle --platform=browser --format=esm --log-level=error "browser-bundle-fixture/$entry.mjs" --outfile="browser-$entry.js"
+          done
+          if grep -q 'class SnapshotService' browser-entry.js; then echo 'v0 code in a v2-only browser bundle' >&2; exit 1; fi
+          grep -q 'class SnapshotService' browser-root-v0.js
+          # Run the root's browser bundle with the Node globals a browser lacks
+          # (Buffer, process, require, …) shadowed as undefined: v0 must not
+          # touch them at load, and d.v0 / d.v2 must build synchronously.
+          npx esbuild --bundle --platform=browser --format=iife --log-level=error browser-bundle-fixture/root-v0.mjs \
+            --banner:js='(function (Buffer, process, require, module, exports, global) {' --footer:js='})()' --outfile=browser-root-v0-run.cjs
+          test "$(node browser-root-v0-run.cjs)" = 'function true function'
+          # Rollup (standalone, browser resolution) checks named imports against
+          # the browser map's empty stubs, which the other bundlers tolerate:
+          # the root's static v0 import must still build (build-v0.mjs makes
+          # those imports namespace imports).
+          npm install --no-audit --no-fund --no-save rollup@4 @rollup/plugin-node-resolve@16 @rollup/plugin-commonjs@28 @rollup/plugin-json@6 >/dev/null
+          cat > rollup.config.mjs <<'ROLLUP'
+          import { nodeResolve } from '@rollup/plugin-node-resolve'
+          import commonjs from '@rollup/plugin-commonjs'
+          import json from '@rollup/plugin-json'
+          export default {
+            input: 'browser-bundle-fixture/root-v0.mjs',
+            output: { dir: 'rollup-out', format: 'es', inlineDynamicImports: true },
+            plugins: [nodeResolve({ browser: true, preferBuiltins: false }), commonjs(), json()],
+            onwarn(warning, warn) { if (warning.code === 'MISSING_EXPORT') throw new Error(warning.message); warn(warning) },
+          }
+          ROLLUP
+          npx rollup -c rollup.config.mjs --silent
+          test "$(node rollup-out/root-v0.js)" = 'function true function'
+          # Direct client imports must not bundle: neither namespace exports a client.
+          for ns in v0 v2; do
+            if npx esbuild --bundle --platform=browser --format=esm --log-level=error "browser-bundle-fixture/$ns-import.mjs" --outfile="browser-$ns-import.js" > "esbuild-$ns-import.log" 2>&1; then
+              echo "import { Daytona } from '@daytona/sdk/$ns' still bundles" >&2; exit 1
+            fi
+            # Fail for the right reason: the missing export, not a broken toolchain.
+            grep -q 'No matching export .* for import "Daytona"' "esbuild-$ns-import.log" || { cat "esbuild-$ns-import.log" >&2; exit 1; }
+          done
+          # Node apps bundled to CommonJS (esbuild --format=cjs, the AWS CDK
+          # NodejsFunction default): the root must not crash at import, and
+          # d.v0 must be inlined into the bundle, so each bundle runs from a
+          # directory with NO node_modules (the Lambda deployment shape).
+          cp -r "$pkgdir/scripts/node-bundle-fixture" .
+          mkdir -p "$RUNNER_TEMP/no-node-modules"
+          for entry in v2-only.mjs v0.mjs v0-cjs.cjs v0-static.mjs; do
+            npx esbuild --bundle --platform=node --format=cjs --log-level=error "node-bundle-fixture/$entry" --outfile="$RUNNER_TEMP/no-node-modules/$entry.cjs"
+          done
+          (
+            cd "$RUNNER_TEMP/no-node-modules"
+            test "$(node v2-only.mjs.cjs)" = function
+            test "$(node v0.mjs.cjs)" = 'function true'
+            test "$(node v0-cjs.cjs.cjs)" = 'function true'
+            test "$(node v0-static.mjs.cjs)" = 'function true'
+          )
+          # webpack --target node (Next.js server routes) resolves #v0-loader to
+          # loaders/v0-node-webpack.cjs: v0 is required at run time from
+          # node_modules (inlining v0's dependency graph trips a webpack bug in
+          # braces / picomatch and fails every production build).
+          npm install --no-audit --no-fund --no-save webpack@5 webpack-cli@5 >/dev/null
+          for mode in development production; do
+            for entry in v2-only.mjs v0.mjs v0-cjs.cjs; do
+              npx webpack --mode "$mode" --target node --entry "./node-bundle-fixture/$entry" -o "webpack-$mode-$entry" --output-filename main.js >/dev/null
+            done
+            test "$(node "webpack-$mode-v2-only.mjs/main.js")" = function
+            test "$(node "webpack-$mode-v0.mjs/main.js")" = 'function true'
+            test "$(node "webpack-$mode-v0-cjs.cjs/main.js")" = 'function true'
+          done
+          # webpack --target web resolves #v0-loader to loaders/v0-browser.mjs
+          # (its "browser" condition): v0's ESM build is bundled, and
+          # fast-glob is stubbed by the "browser" map, so the braces /
+          # picomatch bug above does not apply. webpack resolves ES modules
+          # strictly, so this also proves the build's relative imports are
+          # fully specified (scripts/build-v0.mjs).
+          for mode in development production; do
+            for entry in entry root-v0; do
+              npx webpack --mode "$mode" --target web --entry "./browser-bundle-fixture/$entry.mjs" -o "webpack-web-$mode-$entry" --output-filename main.js >/dev/null
+            done
+            # A v0 string literal, not a class name: production builds mangle names.
+            grep -q 'DaytonaEnvReader: variable name must start with' "webpack-web-$mode-root-v0/main.js"
+            if grep -q 'DaytonaEnvReader: variable name must start with' "webpack-web-$mode-entry/main.js"; then echo 'v0 code in a v2-only webpack browser bundle' >&2; exit 1; fi
+          done
+
+  typescript:
+    name: TypeScript (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+      - run: npm ci
+      # src/version.ts is generated from package.json and COMMITTED (consumers
+      # that compile the SDK source directly run none of these npm hooks), so
+      # fail here on drift instead of silently re-stamping.
+      - name: src/version.ts matches package.json
+        run: npm run stamp-version && git diff --exit-code -- src/version.ts
+      - run: npm run typecheck
+      - run: npm test -- --coverage --coverageReporters=lcov
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.node == '22'
+        with:
+          name: coverage-typescript
+          path: typescript/coverage/lcov.info
+          retention-days: 14
+      - run: npm run lint
+        if: matrix.node == '22'
+      - run: npm run build
+      # Verify the publishable tarball contents (dist + README), no upload.
+      - run: npm pack --dry-run
+
+  python:
+    name: Python (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install (with dev extras)
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy
+      - name: Test
+        run: pytest --cov=daytona --cov-report=xml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.python == '3.12'
+        with:
+          name: coverage-python
+          path: python/coverage.xml
+          retention-days: 14
+      - name: Build + validate metadata
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*

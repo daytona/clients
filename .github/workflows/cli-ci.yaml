@@ -1,0 +1,54 @@
+name: CLI CI
+
+on:
+  push:
+    branches: [main, release/v2]
+    paths:
+      - 'cli/**'
+      - 'contract/**'
+      - '.github/workflows/cli-ci.yaml'
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'contract/**'
+      - '.github/workflows/cli-ci.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: CLI vet, test, format, lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            echo "::error::unformatted Go files — run 'gofmt -w .' and re-commit"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./... -coverprofile=coverage.out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-cli
+          path: cli/coverage.out
+          retention-days: 14
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.13.1
+          working-directory: cli
+      - name: Cross-build the release targets
+        run: ./hack/build.sh

@@ -1,0 +1,5732 @@
+{
+  "$schema": "./mapping.schema.json",
+  "docs": {
+    "base": "https://www.daytona.com/docs",
+    "placeholder": false
+  },
+  "packages": {
+    "py": {
+      "old": [
+        "daytona",
+        "daytona-sdk",
+        "daytona_sdk"
+      ],
+      "new": "daytona",
+      "extras": [
+        "v0-sdk"
+      ],
+      "specifier": ">=2,<3",
+      "requirement": "daytona[v0-sdk]>=2,<3"
+    },
+    "ts": {
+      "old": [
+        "@daytona/sdk",
+        "@daytonaio/sdk"
+      ],
+      "new": "@daytona/sdk",
+      "range": "^2.0.0"
+    }
+  },
+  "v0Modules": {
+    "py": {
+      "old": [
+        "daytona",
+        "daytona_sdk"
+      ],
+      "root": "daytona",
+      "v0": "daytona.v0",
+      "keep": [
+        "daytona.v0",
+        "daytona.v2"
+      ]
+    },
+    "ts": {
+      "old": [
+        "@daytona/sdk",
+        "@daytonaio/sdk"
+      ],
+      "root": "@daytona/sdk",
+      "v0": "@daytona/sdk/v0",
+      "keep": [
+        "@daytona/sdk/v0",
+        "@daytona/sdk/v2"
+      ]
+    }
+  },
+  "rootNames": {
+    "py": [
+      "Daytona",
+      "AsyncDaytona",
+      "DaytonaConfig",
+      "DaytonaError",
+      "DaytonaBadRequestError",
+      "DaytonaAuthenticationError",
+      "DaytonaForbiddenError",
+      "DaytonaAuthorizationError",
+      "DaytonaNotFoundError",
+      "DaytonaTimeoutError",
+      "DaytonaConflictError",
+      "DaytonaGoneError",
+      "DaytonaUnprocessableEntityError",
+      "DaytonaValidationError",
+      "DaytonaRateLimitError",
+      "DaytonaInternalServerError",
+      "DaytonaServiceUnavailableError",
+      "DaytonaConnectionError",
+      "DEFAULT_V2_API_URL",
+      "V0_API_URL",
+      "DaytonaV2Client",
+      "AsyncDaytonaV2Client",
+      "DaytonaV0Client",
+      "AsyncDaytonaV0Client",
+      "v0",
+      "v2"
+    ],
+    "ts": [
+      "Daytona",
+      "DaytonaConfig",
+      "DaytonaError",
+      "DaytonaBadRequestError",
+      "DaytonaAuthenticationError",
+      "DaytonaForbiddenError",
+      "DaytonaAuthorizationError",
+      "DaytonaNotFoundError",
+      "DaytonaTimeoutError",
+      "DaytonaConflictError",
+      "DaytonaGoneError",
+      "DaytonaUnprocessableEntityError",
+      "DaytonaValidationError",
+      "DaytonaRateLimitError",
+      "DaytonaInternalServerError",
+      "DaytonaServiceUnavailableError",
+      "DaytonaConnectionError",
+      "DEFAULT_V2_API_URL",
+      "V0_API_URL",
+      "DaytonaV0Client",
+      "DaytonaV2Client"
+    ]
+  },
+  "movedClientMembers": {
+    "py": [
+      "create",
+      "get",
+      "list",
+      "start",
+      "stop",
+      "delete",
+      "volume",
+      "snapshot",
+      "secret",
+      "warm_pool",
+      "default_language"
+    ],
+    "ts": [
+      "create",
+      "get",
+      "list",
+      "start",
+      "stop",
+      "fork",
+      "delete",
+      "volume",
+      "snapshot",
+      "secret",
+      "warmPool",
+      "_experimental_fork"
+    ]
+  },
+  "config": {
+    "py": {
+      "api_key": "keep",
+      "jwt_token": "keep",
+      "organization_id": "keep",
+      "otel_enabled": "keep",
+      "connection_pool_maxsize": "keep",
+      "target": "deprecated",
+      "api_url": "url",
+      "server_url": "url",
+      "use_deprecated_polling": "fixme",
+      "_experimental": "fixme"
+    },
+    "ts": {
+      "apiKey": "keep",
+      "jwtToken": "keep",
+      "organizationId": "keep",
+      "otelEnabled": "keep",
+      "target": "deprecated",
+      "apiUrl": "url",
+      "serverUrl": "url",
+      "useDeprecatedPolling": "fixme",
+      "requestTimeoutMs": "fixme",
+      "_experimental": "fixme"
+    }
+  },
+  "cloudApiUrls": [
+    "https://app.daytona.io/api"
+  ],
+  "dataTraps": [
+    {
+      "id": "ids",
+      "short": "sandbox IDs and preview URLs are not preserved on import to v2",
+      "text": "Sandbox IDs and preview URLs are not preserved when a sandbox is imported to v2: code that stores or passes IDs needs the new ones."
+    },
+    {
+      "id": "snapshots",
+      "short": "v0 snapshots become v2 images that convert on first use (the first create is slower)",
+      "text": "v0 snapshots appear in v2 as images and convert on first use, so the first sandbox created from one takes longer."
+    },
+    {
+      "id": "volumes",
+      "short": "volumes migrate separately",
+      "text": "Volumes migrate separately from sandboxes."
+    },
+    {
+      "id": "same-platform",
+      "short": "a v0 sandbox is only reachable through .v0",
+      "text": "A sandbox created on v0 can only be used through .v0: move every call in this workflow to v2 together."
+    }
+  ],
+  "receivers": {
+    "client": {
+      "py": {
+        "types": [
+          "Daytona",
+          "AsyncDaytona"
+        ],
+        "members": [
+          "close",
+          "create",
+          "delete",
+          "get",
+          "list",
+          "start",
+          "stop"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Daytona"
+        ],
+        "members": [
+          "create",
+          "createAxiosInstance",
+          "delete",
+          "fork",
+          "get",
+          "list",
+          "start",
+          "stop",
+          "_experimental_fork"
+        ]
+      },
+      "notes": [
+        "Python: close exists only on AsyncDaytona; all other listed method names match between sync and async"
+      ]
+    },
+    "client.snapshot": {
+      "py": {
+        "types": [
+          "SnapshotService",
+          "AsyncSnapshotService"
+        ],
+        "members": [
+          "activate",
+          "create",
+          "delete",
+          "get",
+          "list",
+          "process_image_context"
+        ]
+      },
+      "ts": {
+        "types": [
+          "SnapshotService"
+        ],
+        "members": [
+          "activate",
+          "create",
+          "delete",
+          "get",
+          "list",
+          "processImageContext"
+        ]
+      },
+      "parent": "client",
+      "attr": {
+        "py": "snapshot",
+        "ts": "snapshot"
+      },
+      "notes": [
+        "Python: sync and async method names match; process_image_context is a static helper"
+      ]
+    },
+    "client.volume": {
+      "py": {
+        "types": [
+          "VolumeService",
+          "AsyncVolumeService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "get",
+          "list"
+        ]
+      },
+      "ts": {
+        "types": [
+          "VolumeService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "get",
+          "list"
+        ]
+      },
+      "parent": "client",
+      "attr": {
+        "py": "volume",
+        "ts": "volume"
+      },
+      "notes": [
+        "Python: sync and async method names match"
+      ]
+    },
+    "client.secret": {
+      "py": {
+        "types": [
+          "SecretService",
+          "AsyncSecretService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "get",
+          "list",
+          "update"
+        ]
+      },
+      "ts": {
+        "types": [
+          "SecretService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "get",
+          "list",
+          "update"
+        ]
+      },
+      "parent": "client",
+      "attr": {
+        "py": "secret",
+        "ts": "secret"
+      },
+      "notes": [
+        "Python: sync and async method names match"
+      ]
+    },
+    "client.warmPool": {
+      "py": {
+        "types": [
+          "WarmPoolService",
+          "AsyncWarmPoolService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "list",
+          "update"
+        ]
+      },
+      "ts": {
+        "types": [
+          "WarmPoolService"
+        ],
+        "members": [
+          "create",
+          "delete",
+          "list",
+          "update"
+        ]
+      },
+      "parent": "client",
+      "attr": {
+        "py": "warm_pool",
+        "ts": "warmPool"
+      },
+      "notes": [
+        "Python: sync and async method names match"
+      ]
+    },
+    "sandbox": {
+      "py": {
+        "types": [
+          "Sandbox",
+          "AsyncSandbox"
+        ],
+        "members": [
+          "archive",
+          "create_lsp_server",
+          "create_signed_preview_url",
+          "create_snapshot",
+          "create_ssh_access",
+          "delete",
+          "download_url",
+          "expire_signed_preview_url",
+          "fork",
+          "get_metrics",
+          "get_metrics_latest",
+          "get_preview_link",
+          "get_user_home_dir",
+          "get_user_root_dir",
+          "get_work_dir",
+          "pause",
+          "recover",
+          "refresh_activity",
+          "refresh_data",
+          "resize",
+          "revoke_ssh_access",
+          "rotate_signing_key",
+          "set_auto_archive_interval",
+          "set_auto_delete_interval",
+          "set_auto_pause_interval",
+          "set_autostop_interval",
+          "set_labels",
+          "set_public",
+          "set_ttl",
+          "start",
+          "stop",
+          "update_env",
+          "update_network_settings",
+          "update_secrets",
+          "upload_url",
+          "validate_ssh_access",
+          "wait_for_resize_complete",
+          "wait_for_sandbox_start",
+          "wait_for_sandbox_stop",
+          "_experimental_fork",
+          "_experimental_create_snapshot"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Sandbox"
+        ],
+        "members": [
+          "archive",
+          "createLspServer",
+          "createSnapshot",
+          "createSshAccess",
+          "delete",
+          "downloadUrl",
+          "expireSignedPreviewUrl",
+          "fork",
+          "getMetrics",
+          "getMetricsLatest",
+          "getPreviewLink",
+          "getSignedPreviewUrl",
+          "getUserHomeDir",
+          "getUserRootDir",
+          "getWorkDir",
+          "pause",
+          "recover",
+          "refreshActivity",
+          "refreshData",
+          "resize",
+          "revokeSshAccess",
+          "rotateSigningKey",
+          "setAutoArchiveInterval",
+          "setAutoDeleteInterval",
+          "setAutoPauseInterval",
+          "setAutostopInterval",
+          "setLabels",
+          "setPublic",
+          "setTtl",
+          "start",
+          "stop",
+          "updateEnv",
+          "updateNetworkSettings",
+          "updateSecrets",
+          "uploadUrl",
+          "validateSshAccess",
+          "waitForResizeComplete",
+          "waitUntilStarted",
+          "waitUntilStopped",
+          "_experimental_fork",
+          "_experimental_createSnapshot"
+        ]
+      },
+      "producedBy": [
+        "client.create",
+        "client.get",
+        "client.fork",
+        "sandbox.fork",
+        "client.list",
+        "client._experimental_fork",
+        "sandbox._experimental_fork"
+      ],
+      "notes": [
+        "Python: sync and async method names match; create_lsp_server is synchronous even on AsyncSandbox and returns an AsyncLspServer",
+        "v2 fork waits for the new sandbox only when a timeout is passed (Python: seconds, 0 waits without a deadline; TypeScript: milliseconds)"
+      ]
+    },
+    "sandbox.fs": {
+      "py": {
+        "types": [
+          "FileSystem",
+          "AsyncFileSystem"
+        ],
+        "members": [
+          "create_folder",
+          "delete_file",
+          "download_file",
+          "download_file_stream",
+          "download_files",
+          "find_files",
+          "get_file_info",
+          "list_files",
+          "move_files",
+          "replace_in_files",
+          "search_files",
+          "set_file_permissions",
+          "upload_file",
+          "upload_file_stream",
+          "upload_files"
+        ]
+      },
+      "ts": {
+        "types": [
+          "FileSystem"
+        ],
+        "members": [
+          "createFolder",
+          "deleteFile",
+          "downloadFile",
+          "downloadFileStream",
+          "downloadFiles",
+          "findFiles",
+          "getFileDetails",
+          "listFiles",
+          "moveFiles",
+          "replaceInFiles",
+          "searchFiles",
+          "setFilePermissions",
+          "uploadFile",
+          "uploadFileStream",
+          "uploadFiles"
+        ]
+      },
+      "parent": "sandbox",
+      "attr": {
+        "py": "fs",
+        "ts": "fs"
+      },
+      "notes": [
+        "Python: async methods require await; async transfer progress callbacks may be awaitable",
+        "Python: async upload_file_stream additionally accepts AsyncIterable[bytes]",
+        "Python and TypeScript: v2 filesystem transfers do not accept the v0 positional timeout"
+      ]
+    },
+    "sandbox.git": {
+      "py": {
+        "types": [
+          "Git",
+          "AsyncGit"
+        ],
+        "members": [
+          "add",
+          "branches",
+          "checkout_branch",
+          "clone",
+          "commit",
+          "configure_user",
+          "create_branch",
+          "dangerously_authenticate",
+          "delete_branch",
+          "get_config",
+          "init",
+          "pull",
+          "push",
+          "remote_add",
+          "remote_get",
+          "remotes",
+          "reset",
+          "restore",
+          "set_config",
+          "status"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Git"
+        ],
+        "members": [
+          "add",
+          "branches",
+          "checkoutBranch",
+          "clone",
+          "commit",
+          "configureUser",
+          "createBranch",
+          "dangerouslyAuthenticate",
+          "deleteBranch",
+          "getConfig",
+          "init",
+          "pull",
+          "push",
+          "remoteAdd",
+          "remoteGet",
+          "remotes",
+          "reset",
+          "restore",
+          "setConfig",
+          "status"
+        ]
+      },
+      "parent": "sandbox",
+      "attr": {
+        "py": "git",
+        "ts": "git"
+      },
+      "notes": [
+        "Python: AsyncGit exposes the same method names with await",
+        "Python: v2 optional Git arguments are keyword-only",
+        "TypeScript: v2 groups optional Git arguments into options objects"
+      ]
+    },
+    "sandbox.process": {
+      "py": {
+        "types": [
+          "Process",
+          "AsyncProcess"
+        ],
+        "members": [
+          "code_run",
+          "connect_pty_session",
+          "create_pty_session",
+          "create_session",
+          "delete_session",
+          "exec",
+          "execute_session_command",
+          "get_entrypoint_logs",
+          "get_entrypoint_logs_async",
+          "get_entrypoint_session",
+          "get_pty_session_info",
+          "get_session",
+          "get_session_command",
+          "get_session_command_logs",
+          "get_session_command_logs_async",
+          "kill_pty_session",
+          "list_pty_sessions",
+          "list_sessions",
+          "resize_pty_session",
+          "send_session_command_input"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Process"
+        ],
+        "members": [
+          "codeRun",
+          "connectPty",
+          "createPty",
+          "createSession",
+          "deleteSession",
+          "executeCommand",
+          "executeSessionCommand",
+          "getEntrypointLogs",
+          "getEntrypointSession",
+          "getPtySessionInfo",
+          "getSession",
+          "getSessionCommand",
+          "getSessionCommandLogs",
+          "killPtySession",
+          "listPtySessions",
+          "listSessions",
+          "resizePtySession",
+          "sendSessionCommandInput"
+        ]
+      },
+      "parent": "sandbox",
+      "attr": {
+        "py": "process",
+        "ts": "process"
+      },
+      "notes": [
+        "Python: async and sync method names match; async PTY create/connect require on_data while sync variants do not",
+        "TypeScript: v0 process timeouts use seconds; v2 timeout and executionTimeout use milliseconds",
+        "TypeScript: getSessionCommandLogs and getEntrypointLogs each have collected and callback-streaming overloads"
+      ]
+    },
+    "sandbox.codeInterpreter": {
+      "py": {
+        "types": [
+          "CodeInterpreter",
+          "AsyncCodeInterpreter"
+        ],
+        "members": [
+          "create_context",
+          "delete_context",
+          "list_contexts",
+          "run_code"
+        ]
+      },
+      "ts": {
+        "types": [
+          "CodeInterpreter"
+        ],
+        "members": [
+          "createContext",
+          "deleteContext",
+          "listContexts",
+          "runCode"
+        ]
+      },
+      "parent": "sandbox",
+      "attr": {
+        "py": "code_interpreter",
+        "ts": "codeInterpreter"
+      },
+      "notes": [
+        "Python: AsyncCodeInterpreter exposes the same method names with await",
+        "Python and TypeScript: v0 contexts are generated metadata DTOs rather than executable SDK handles",
+        "TypeScript: v0 interpreter timeouts use seconds; v2 uses milliseconds"
+      ]
+    },
+    "sandbox.computerUse": {
+      "py": {
+        "types": [
+          "ComputerUse",
+          "AsyncComputerUse"
+        ],
+        "members": [
+          "get_process_errors",
+          "get_process_logs",
+          "get_process_status",
+          "get_status",
+          "restart_process",
+          "start",
+          "stop"
+        ]
+      },
+      "ts": {
+        "types": [
+          "ComputerUse"
+        ],
+        "members": [
+          "getProcessErrors",
+          "getProcessLogs",
+          "getProcessStatus",
+          "getStatus",
+          "restartProcess",
+          "start",
+          "stop"
+        ]
+      },
+      "parent": "sandbox",
+      "attr": {
+        "py": "computer_use",
+        "ts": "computerUse"
+      },
+      "notes": [
+        "Python: v2 removes request_timeout from all computer-use calls",
+        "Python: v2 response objects are dataclasses rather than generated Pydantic models",
+        "v2 moves process operations under the computer-use service attribute"
+      ]
+    },
+    "sandbox.computerUse.mouse": {
+      "py": {
+        "types": [
+          "Mouse",
+          "AsyncMouse"
+        ],
+        "members": [
+          "click",
+          "down",
+          "drag",
+          "get_position",
+          "move",
+          "scroll",
+          "up"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Mouse"
+        ],
+        "members": [
+          "click",
+          "down",
+          "drag",
+          "getPosition",
+          "move",
+          "scroll",
+          "up"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "mouse",
+        "ts": "mouse"
+      },
+      "notes": [
+        "Python: v2 action arguments are keyword-only and request_timeout is removed",
+        "TypeScript: v2 actions accept request objects instead of positional arguments",
+        "v2 has no down/up methods, click counts, mouse modifiers or horizontal scrolling"
+      ]
+    },
+    "sandbox.computerUse.keyboard": {
+      "py": {
+        "types": [
+          "Keyboard",
+          "AsyncKeyboard"
+        ],
+        "members": [
+          "down",
+          "hotkey",
+          "press",
+          "type",
+          "up"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Keyboard"
+        ],
+        "members": [
+          "down",
+          "hotkey",
+          "press",
+          "type",
+          "up"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "keyboard",
+        "ts": "keyboard"
+      },
+      "notes": [
+        "Python: v2 arguments are keyword-only and request_timeout is removed",
+        "TypeScript: v2 actions accept request objects instead of positional arguments",
+        "v2 has no persistent key-down or key-up methods"
+      ]
+    },
+    "sandbox.computerUse.screenshot": {
+      "py": {
+        "types": [
+          "Screenshot",
+          "AsyncScreenshot"
+        ],
+        "members": [
+          "take_compressed",
+          "take_compressed_region",
+          "take_full_screen",
+          "take_region"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Screenshot"
+        ],
+        "members": [
+          "takeCompressed",
+          "takeCompressedRegion",
+          "takeFullScreen",
+          "takeRegion"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "screenshot",
+        "ts": "screenshot"
+      },
+      "notes": [
+        "v2 moves screenshots to the computer-use screen attribute",
+        "Python: v2 uses keyword-only arguments and dataclass responses without request_timeout",
+        "v2 compression format is restricted to png or jpeg"
+      ]
+    },
+    "sandbox.computerUse.display": {
+      "py": {
+        "types": [
+          "Display",
+          "AsyncDisplay"
+        ],
+        "members": [
+          "get_info",
+          "get_windows"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Display"
+        ],
+        "members": [
+          "getInfo",
+          "getWindows"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "display",
+        "ts": "display"
+      },
+      "notes": [
+        "Python: v2 returns dataclasses and removes request_timeout",
+        "v2 requires display and window fields that were optional in v0"
+      ]
+    },
+    "sandbox.computerUse.recording": {
+      "py": {
+        "types": [
+          "RecordingService",
+          "AsyncRecordingService"
+        ],
+        "members": [
+          "delete",
+          "download",
+          "get",
+          "list",
+          "start",
+          "stop"
+        ]
+      },
+      "ts": {
+        "types": [
+          "RecordingService"
+        ],
+        "members": [
+          "delete",
+          "download",
+          "get",
+          "list",
+          "start",
+          "stop"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "recording",
+        "ts": "recording"
+      },
+      "notes": [
+        "Python: v2 returns dataclasses and removes request_timeout",
+        "TypeScript: v2 start and stop accept request objects",
+        "v2 download returns bytes in Python or Uint8Array in TypeScript instead of streaming to a local path"
+      ]
+    },
+    "sandbox.computerUse.accessibility": {
+      "py": {
+        "types": [
+          "Accessibility",
+          "AsyncAccessibility"
+        ],
+        "members": [
+          "find_nodes",
+          "focus_node",
+          "get_tree",
+          "invoke_node",
+          "set_node_value"
+        ]
+      },
+      "ts": {
+        "types": [
+          "Accessibility"
+        ],
+        "members": [
+          "findNodes",
+          "focusNode",
+          "getTree",
+          "invokeNode",
+          "setNodeValue"
+        ]
+      },
+      "parent": "sandbox.computerUse",
+      "attr": {
+        "py": "accessibility",
+        "ts": "accessibility"
+      },
+      "notes": [
+        "v2 moves accessibility to the computer-use a11y attribute and requires explicit scope for tree and find",
+        "Python: v2 arguments are keyword-only",
+        "Python: v2 returns dataclasses and removes request_timeout"
+      ]
+    },
+    "lspServer": {
+      "py": {
+        "types": [
+          "LspServer",
+          "AsyncLspServer"
+        ],
+        "members": [
+          "completions",
+          "did_close",
+          "did_open",
+          "document_symbols",
+          "sandbox_symbols",
+          "start",
+          "stop",
+          "workspace_symbols"
+        ]
+      },
+      "ts": {
+        "types": [
+          "LspServer"
+        ],
+        "members": [
+          "completions",
+          "didClose",
+          "didOpen",
+          "documentSymbols",
+          "sandboxSymbols",
+          "start",
+          "stop",
+          "workspaceSymbols"
+        ]
+      },
+      "producedBy": [
+        "sandbox.createLspServer",
+        "sandbox.create_lsp_server"
+      ],
+      "notes": [
+        "Python: AsyncLspServer exposes the same method names with await",
+        "Python and TypeScript: retain the v2 handle returned by sandbox.lsp.start as lsp"
+      ]
+    },
+    "ptyHandle": {
+      "py": {
+        "types": [
+          "PtyHandle",
+          "AsyncPtyHandle"
+        ],
+        "members": [
+          "disconnect",
+          "is_connected",
+          "kill",
+          "resize",
+          "send_input",
+          "wait",
+          "wait_for_connection"
+        ]
+      },
+      "ts": {
+        "types": [
+          "PtyHandle"
+        ],
+        "members": [
+          "disconnect",
+          "isConnected",
+          "kill",
+          "resize",
+          "sendInput",
+          "wait",
+          "waitForConnection"
+        ]
+      },
+      "producedBy": [
+        "sandbox.process.createPty",
+        "sandbox.process.connectPty",
+        "sandbox.process.create_pty_session",
+        "sandbox.process.connect_pty_session"
+      ],
+      "notes": [
+        "Python and TypeScript: retain the returned v2 process handle as handle; TypeScript attachment separately returns connection",
+        "Python: is_connected is synchronous on both classes; only sync wait accepts on_data and timeout and only sync wait_for_connection accepts timeout",
+        "Python: v2 attach requires an external WebSocket adapter; TypeScript: exitCode and error are properties, not methods"
+      ]
+    }
+  },
+  "suggestions": [
+    {
+      "id": "sandbox.fs.createFolder",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "create_folder",
+        "ts": "createFolder"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.mkdir(path, mode=mode)",
+        "ts": "{sandbox}.fs.mkdir(path, { mode })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "mode becomes keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "mode moves into an options object"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.deleteFile",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "delete_file",
+        "ts": "deleteFile"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.delete(path, recursive=recursive)",
+        "ts": "{sandbox}.fs.rm(path, { recursive })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "recursive becomes keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "recursive moves into an options object"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.downloadFile",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "download_file",
+        "ts": "downloadFile"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.download_file(remote_path, local_path)",
+        "ts": "{sandbox}.fs.downloadFile(remotePath, localPath)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "The disk-transfer form requires local_path; timeout is removed",
+          "For the bytes-returning overload use fs.read_bytes(remote_path)",
+          "v2 does not create missing local parent directories; create them first"
+        ],
+        "ts": [
+          "The disk-transfer form requires localPath; positional timeout is removed",
+          "For the buffer-returning overload use fs.read(remotePath), which returns Uint8Array",
+          "v2 does not create missing local parent directories; create them first"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.downloadFileStream",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "download_file_stream",
+        "ts": "downloadFileStream"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No chunk-iterator download method",
+          "Use fs.download_file(remote_path, local_path) for streaming to disk",
+          "For a custom HTTP stream use fs.presigned_download_url(remote_path)"
+        ],
+        "ts": [
+          "No Readable-returning download method",
+          "Use fs.downloadFile(remotePath, localPath) for streaming to disk",
+          "For a custom HTTP stream use fs.presignedDownloadUrl(remotePath)"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.downloadFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "download_files",
+        "ts": "downloadFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.read_many(paths)",
+        "ts": "{sandbox}.fs.readMany(paths)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Convert FileDownloadRequest objects to remote path strings; timeout is removed",
+          "Returns BulkReadResult with files and errors, buffering contents in memory",
+          "For local destinations call fs.download_file(remote_path, local_path) per file",
+          "v0 created missing local parent directories; v2 does not, so create them first"
+        ],
+        "ts": [
+          "Convert download request objects to remote path strings; positional timeout is removed",
+          "Returns BulkReadResult with files and errors, buffering contents in memory",
+          "For local destinations call fs.downloadFile(remotePath, localPath) per file",
+          "v0 created missing local parent directories; v2 does not, so create them first"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.findFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "find_files",
+        "ts": "findFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.find(path, pattern)",
+        "ts": "{sandbox}.fs.find(path, pattern)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read matches from result.items; each match is a dict with file, line and content keys, not an object with attributes",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Read matches from result.items"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.getFileDetails",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "get_file_info",
+        "ts": "getFileDetails"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.stat(path)",
+        "ts": "{sandbox}.fs.stat(path)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Renamed to stat; same argument, returns the v2 FileInfo type"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.listFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "list_files",
+        "ts": "listFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.list(path, depth=depth)",
+        "ts": "{sandbox}.fs.list(path, { depth })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read entries from result.items",
+          "depth becomes keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "Read entries from result.items"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.moveFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "move_files",
+        "ts": "moveFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.move(source, destination)",
+        "ts": "{sandbox}.fs.move(source, destination)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Renamed to move; same arguments"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.replaceInFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "replace_in_files",
+        "ts": "replaceInFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.replace(files, pattern, new_value)",
+        "ts": "{sandbox}.fs.replace(files, pattern, newValue)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read replacement results from result.items; each result is a dict, not an object with attributes",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Read replacement results from result.items"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.searchFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "search_files",
+        "ts": "searchFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.search(path, pattern)",
+        "ts": "{sandbox}.fs.search(path, pattern)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read matching paths from result.items; request_timeout is removed"
+        ],
+        "ts": [
+          "Read matching paths from result.items"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.setFilePermissions",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "set_file_permissions",
+        "ts": "setFilePermissions"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.chmod(path, mode=mode, owner=owner, group=group)",
+        "ts": "{sandbox}.fs.chmod(path, permissions)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "mode, owner and group become keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "Renamed to chmod; the permissions object becomes FilePermissionsOptions"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.uploadFile",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "upload_file",
+        "ts": "uploadFile"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.upload_file(local_path, remote_path)",
+        "ts": "{sandbox}.fs.uploadFile(localPath, remotePath)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "For the bytes overload use fs.write_bytes(remote_path, content)",
+          "timeout is removed"
+        ],
+        "ts": [
+          "For the Buffer overload use fs.write(remotePath, content)",
+          "Positional timeout is removed"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.uploadFileStream",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "upload_file_stream",
+        "ts": "uploadFileStream"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No arbitrary file-like or AsyncIterable upload method",
+          "Use fs.upload_file(local_path, remote_path) for a streamed local file",
+          "For custom streaming use fs.presigned_upload_url(remote_path)"
+        ],
+        "ts": [
+          "No arbitrary Readable upload method",
+          "Use fs.uploadFile(localPath, remotePath) for a streamed local file",
+          "For custom streaming use fs.presignedUploadUrl(remotePath)"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fs.uploadFiles",
+      "receiver": "sandbox.fs",
+      "v0": {
+        "py": "upload_files",
+        "ts": "uploadFiles"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.write_many(files_by_path)",
+        "ts": "{sandbox}.fs.writeMany(filesByPath)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Convert FileUpload entries to a remote-path-to-bytes mapping; timeout is removed",
+          "Returns BulkWriteResult with files and errors",
+          "For local source paths call fs.upload_file(local_path, remote_path) per file"
+        ],
+        "ts": [
+          "Convert FileUpload entries to a remote-path-to-Uint8Array record; positional timeout is removed",
+          "Returns BulkWriteResult with files and errors",
+          "For local source paths call fs.uploadFile(localPath, remotePath) per file"
+        ]
+      },
+      "anchor": "sandbox-fs",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.add",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "add",
+        "ts": "add"
+      },
+      "v2": {
+        "py": "{sandbox}.git.add(path, files)",
+        "ts": "{sandbox}.git.add(path, files)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and arguments on the v2 sandbox git service"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.branches",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "branches",
+        "ts": "branches"
+      },
+      "v2": {
+        "py": "{sandbox}.git.list_branches(path)",
+        "ts": "{sandbox}.git.listBranches(path)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read branch names from result.items; request_timeout is removed"
+        ],
+        "ts": [
+          "Read branch names from result.items"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.checkoutBranch",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "checkout_branch",
+        "ts": "checkoutBranch"
+      },
+      "v2": {
+        "py": "{sandbox}.git.checkout_branch(path, branch)",
+        "ts": "{sandbox}.git.checkoutBranch(path, branch)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and arguments on the v2 sandbox git service"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.clone",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "clone",
+        "ts": "clone"
+      },
+      "v2": {
+        "py": "{sandbox}.git.clone(url, path, branch=branch, commit_id=commit_id, username=username, password=password, insecure_skip_tls=insecure_skip_tls, depth=depth)",
+        "ts": "{sandbox}.git.clone(url, { path, branch, commitId, username, password, insecureSkipTls, depth })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations",
+          "Use False rather than None for an omitted insecure_skip_tls value"
+        ],
+        "ts": [
+          "path and optional positional arguments move into one options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.commit",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "commit",
+        "ts": "commit"
+      },
+      "v2": {
+        "py": "{sandbox}.git.commit(path, message, author=author, email=email, allow_empty=allow_empty)",
+        "ts": "{sandbox}.git.commit(path, message, { author, email, allowEmpty })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "author, email and allow_empty become keyword-only; request_timeout is removed",
+          "The commit result field changes from .sha to .hash"
+        ],
+        "ts": [
+          "author, email and allowEmpty move into an options object",
+          "The commit result field changes from .sha to .hash"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.configureUser",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "configure_user",
+        "ts": "configureUser"
+      },
+      "v2": {
+        "py": "{sandbox}.git.set_config(\"user.name\", name, scope=scope, path=path); {sandbox}.git.set_config(\"user.email\", email, scope=scope, path=path)",
+        "ts": "await {sandbox}.git.setConfig('user.name', name, { scope, path }); await {sandbox}.git.setConfig('user.email', email, { scope, path })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Two separate config writes replace configure_user; await each with the async SDK",
+          "scope and path become keyword-only; request_timeout is removed",
+          "The \"system\" scope is gone: v2 accepts only \"global\" and \"local\""
+        ],
+        "ts": [
+          "Two separate config writes replace configureUser",
+          "scope and path move into options objects",
+          "The 'system' scope is gone: v2 accepts only 'global' and 'local'"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.createBranch",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "create_branch",
+        "ts": "createBranch"
+      },
+      "v2": {
+        "py": "{sandbox}.git.create_branch(path, name)",
+        "ts": "{sandbox}.git.createBranch(path, name)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and arguments on the v2 sandbox git service"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.dangerouslyAuthenticate",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "dangerously_authenticate",
+        "ts": "dangerouslyAuthenticate"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No persistent credential-installation method",
+          "Pass username and password to git.clone, git.pull or git.push"
+        ],
+        "ts": [
+          "No persistent credential-installation method",
+          "Pass username and password in git.clone, git.pull or git.push options"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.deleteBranch",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "delete_branch",
+        "ts": "deleteBranch"
+      },
+      "v2": {
+        "py": "{sandbox}.git.delete_branch(path, name)",
+        "ts": "{sandbox}.git.deleteBranch(path, name)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and arguments on the v2 sandbox git service"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.getConfig",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "get_config",
+        "ts": "getConfig"
+      },
+      "v2": {
+        "py": "{sandbox}.git.get_config(key, scope=scope, path=path)",
+        "ts": "{sandbox}.git.getConfig(key, { scope, path })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "scope and path become keyword-only; request_timeout is removed",
+          "The \"system\" scope is gone: v2 accepts only \"global\" and \"local\""
+        ],
+        "ts": [
+          "scope and path move into an options object",
+          "Missing values return null rather than undefined",
+          "The 'system' scope is gone: v2 accepts only 'global' and 'local'"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.init",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "init",
+        "ts": "init"
+      },
+      "v2": {
+        "py": "{sandbox}.git.init(path, bare=bare, initial_branch=initial_branch)",
+        "ts": "{sandbox}.git.init(path, { bare, initialBranch })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "bare and initial_branch become keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "bare and initialBranch move into an options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.pull",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "pull",
+        "ts": "pull"
+      },
+      "v2": {
+        "py": "{sandbox}.git.pull(path, username=username, password=password, branch=branch, remote=remote)",
+        "ts": "{sandbox}.git.pull(path, { username, password, branch, remote })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations"
+        ],
+        "ts": [
+          "Optional arguments move into an options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.push",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "push",
+        "ts": "push"
+      },
+      "v2": {
+        "py": "{sandbox}.git.push(path, username=username, password=password, branch=branch, remote=remote, set_upstream=set_upstream)",
+        "ts": "{sandbox}.git.push(path, { username, password, branch, remote, setUpstream })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Optional arguments become keyword-only; request_timeout is replaced by timeout, which must be positive; v0 request_timeout=0 (no limit) has no direct equivalent, and omitting timeout selects the 30-minute default, so pass a large timeout for long operations"
+        ],
+        "ts": [
+          "Optional arguments move into an options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.remoteAdd",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "remote_add",
+        "ts": "remoteAdd"
+      },
+      "v2": {
+        "py": "{sandbox}.git.add_remote(path, name, url)",
+        "ts": "{sandbox}.git.addRemote(path, name, url)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "fetch, overwrite and request_timeout are not accepted",
+          "Use process.run for Git CLI behavior requiring fetch or overwrite"
+        ],
+        "ts": [
+          "fetch and overwrite options are not supported",
+          "Use process.run for Git CLI behavior requiring those options"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.remoteGet",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "remote_get",
+        "ts": "remoteGet"
+      },
+      "v2": {
+        "py": "{sandbox}.git.get_config(f\"remote.{name}.url\", scope=\"local\", path=path)",
+        "ts": "{sandbox}.git.getConfig(`remote.${name}.url`, { scope: 'local', path })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Reads the remote URL from repository-local Git config",
+          "Missing values return None; request_timeout is removed"
+        ],
+        "ts": [
+          "Reads the remote URL from repository-local Git config",
+          "Missing values return null rather than undefined"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.remotes",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "remotes",
+        "ts": "remotes"
+      },
+      "v2": {
+        "py": "{sandbox}.git.list_remotes(path)",
+        "ts": "{sandbox}.git.listRemotes(path)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read remotes from result.items; each item is a dict, so use remote[\"name\"] and remote[\"url\"] instead of attributes; request_timeout is removed"
+        ],
+        "ts": [
+          "Read remotes from result.items"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.reset",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "reset",
+        "ts": "reset"
+      },
+      "v2": {
+        "py": "{sandbox}.git.reset(path, mode=mode, target=target, files=files)",
+        "ts": "{sandbox}.git.reset(path, { mode, target, files })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Optional arguments become keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "Optional arguments move into an options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.restore",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "restore",
+        "ts": "restore"
+      },
+      "v2": {
+        "py": "{sandbox}.git.restore(path, files, staged=staged, worktree=worktree, source=source)",
+        "ts": "{sandbox}.git.restore(path, files, { staged, worktree, source })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Optional arguments become keyword-only; request_timeout is removed"
+        ],
+        "ts": [
+          "Optional arguments move into an options object"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.setConfig",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "set_config",
+        "ts": "setConfig"
+      },
+      "v2": {
+        "py": "{sandbox}.git.set_config(key, value, scope=scope, path=path)",
+        "ts": "{sandbox}.git.setConfig(key, value, { scope, path })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "scope and path become keyword-only; request_timeout is removed",
+          "The \"system\" scope is gone: v2 accepts only \"global\" and \"local\""
+        ],
+        "ts": [
+          "scope and path move into an options object",
+          "The 'system' scope is gone: v2 accepts only 'global' and 'local'"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.git.status",
+      "receiver": "sandbox.git",
+      "v0": {
+        "py": "status",
+        "ts": "status"
+      },
+      "v2": {
+        "py": "{sandbox}.git.status(path)",
+        "ts": "{sandbox}.git.status(path)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and argument; returns the v2 GitStatus type"
+        ]
+      },
+      "anchor": "sandbox-git",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.codeRun",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "code_run",
+        "ts": "codeRun"
+      },
+      "v2": {
+        "py": "{sandbox}.interpreter.run(code, language=language, isolated=True, env=env, timeout=timeout)",
+        "ts": "{sandbox}.interpreter.run(code, { language, isolated: true, env, timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Select the language explicitly rather than relying on the v0 sandbox language",
+          "CodeRunParams.env becomes env; argv has no interpreter equivalent",
+          "Returns InterpreterResult rather than ExecuteResponse and execution artifacts"
+        ],
+        "ts": [
+          "Select the language explicitly rather than relying on the v0 sandbox language",
+          "CodeRunParams.env becomes env; argv has no interpreter equivalent",
+          "Returns InterpreterResult; convert timeout seconds to milliseconds"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.connectPty",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "connect_pty_session",
+        "ts": "connectPty"
+      },
+      "v2": {
+        "py": "handle = {sandbox}.pty.connect(pty_id)",
+        "ts": "const handle = {sandbox}.pty.connect(ptyId); const connection = await handle.attach()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "connect returns a process handle without opening a WebSocket",
+          "Use handle.stream_logs() for output and handle.stdin(data) for input",
+          "Python v2 attach requires an external WebSocket adapter"
+        ],
+        "ts": [
+          "connect returns a process handle without opening a WebSocket",
+          "Replace onData with iteration over connection.readable",
+          "Connection options are not accepted by pty.connect"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.createPty",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "create_pty_session",
+        "ts": "createPty"
+      },
+      "v2": {
+        "py": "handle = {sandbox}.pty.start(name=pty_name, cwd=cwd, env=envs, cols=cols, rows=rows)",
+        "ts": "const handle = await {sandbox}.pty.start(undefined, { name: ptyName, cwd, env: envs, terminal: { cols, rows } }); const connection = await handle.attach()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "v0 id becomes a name alias; the process receives a new generated id",
+          "Expand pty_size into cols and rows; defaults are 80 by 24",
+          "Replace on_data or handle iteration with handle.stream_logs()",
+          "On AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "v0 id becomes a name alias; the process receives a new generated id",
+          "Terminal dimensions move into terminal",
+          "Replace onData with iteration over connection.readable"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.createSession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "create_session",
+        "ts": "createSession"
+      },
+      "v2": {
+        "py": "session = {sandbox}.process.create_session(name=session_id)",
+        "ts": "const session = await {sandbox}.process.createSession({ name: sessionId })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a Session handle instead of None; request_timeout is removed",
+          "The supplied id becomes a name alias; retain session.id",
+          "Set shared cwd and env when creating the session",
+          "On AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Returns a Session handle instead of void",
+          "The supplied id becomes a name alias; retain session.id",
+          "Set shared cwd and env when creating the session"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.deleteSession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "delete_session",
+        "ts": "deleteSession"
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect_session(session_id).delete()",
+        "ts": "{sandbox}.process.connectSession(sessionId).delete()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Ends the shell and removes its command records; request_timeout is removed",
+          "Prefer the retained Session handle's delete()"
+        ],
+        "ts": [
+          "Ends the shell and removes its command records",
+          "Prefer the retained Session handle's delete()"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.executeCommand",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "exec",
+        "ts": "executeCommand"
+      },
+      "v2": {
+        "py": "{sandbox}.process.run(command, cwd=cwd, env=env, execution_timeout=timeout)",
+        "ts": "{sandbox}.process.run(command, { cwd, env, executionTimeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "cwd and env become keyword-only; timeout becomes execution_timeout, not the caller wait timeout",
+          "Read output or stdout instead of result",
+          "Check the returned reason as well as exit_code"
+        ],
+        "ts": [
+          "Move cwd and env into options; convert timeout seconds to executionTimeout milliseconds",
+          "Read output or stdout instead of result",
+          "Check the returned reason as well as exitCode"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.executeSessionCommand",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "execute_session_command",
+        "ts": "executeSessionCommand"
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect_session(session_id).run(command, timeout=timeout)",
+        "ts": "{sandbox}.process.connectSession(sessionId).run(command, { timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Extract command from SessionExecuteRequest; suppress_input_echo has no matching option",
+          "For run_async=True use session.start(command), which returns a ProcessHandle",
+          "timeout bounds the caller wait; execution_timeout stops the command",
+          "The result is a ProcessResult: v0 cmd_id becomes process_id"
+        ],
+        "ts": [
+          "Extract command from SessionExecuteRequest",
+          "For runAsync=true use session.start(command), which returns a ProcessHandle",
+          "timeout and executionTimeout use milliseconds; suppressInputEcho has no matching option",
+          "The result is a ProcessResult: v0 cmdId becomes processId"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getEntrypointLogs",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_entrypoint_logs",
+        "ts": "getEntrypointLogs"
+      },
+      "v2": {
+        "py": "{sandbox}.entrypoint_logs()",
+        "ts": "{sandbox}.entrypointLogs()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moved from process to the sandbox handle",
+          "Returns the combined entrypoint output as one text; v0 returned separate stdout/stderr fields"
+        ],
+        "ts": [
+          "Moved from process to the sandbox handle",
+          "Returns the combined entrypoint output as one text; v0 returned separate stdout/stderr fields",
+          "The callback-streaming overload has no v2 equivalent; v2 returns the log once as a string"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.get_entrypoint_logs_async",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_entrypoint_logs_async",
+        "ts": null
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No dedicated v2 entrypoint-session log stream",
+          "For a process you start use handle.stream_logs() and route frames by channel"
+        ],
+        "ts": []
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getEntrypointSession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_entrypoint_session",
+        "ts": "getEntrypointSession"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No dedicated v2 entrypoint shell-session resource",
+          "Create an explicit session with process.create_session() when persistent shell state is needed"
+        ],
+        "ts": [
+          "No dedicated v2 entrypoint shell-session resource",
+          "Create an explicit session with process.createSession() when persistent shell state is needed"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getPtySessionInfo",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_pty_session_info",
+        "ts": "getPtySessionInfo"
+      },
+      "v2": {
+        "py": "{sandbox}.pty.connect(pty_id).get()",
+        "ts": "{sandbox}.pty.connect(ptyId).get()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns ProcessInfo rather than PtySessionInfo; request_timeout is removed"
+        ],
+        "ts": [
+          "Returns ProcessDto rather than PtySessionInfo"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getSession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_session",
+        "ts": "getSession"
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect_session(session_id).get()",
+        "ts": "{sandbox}.process.connectSession(sessionId).get()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns shell ProcessInfo rather than command history; request_timeout is removed",
+          "For commands use process.list(session_id=session.id)",
+          "connect_session only binds identity; get() fetches metadata"
+        ],
+        "ts": [
+          "Returns shell ProcessDto rather than a session containing command history",
+          "For commands use process.list({ sessionId: session.id })",
+          "connectSession only binds identity; get() fetches metadata"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getSessionCommand",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_session_command",
+        "ts": "getSessionCommand"
+      },
+      "v2": {
+        "py": "{sandbox}.process.get(command_id)",
+        "ts": "{sandbox}.process.get(commandId)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Use the v2 command handle's id; no session_id argument is needed",
+          "Returns ProcessInfo rather than Command; request_timeout is removed"
+        ],
+        "ts": [
+          "Use the v2 command handle's id; no sessionId argument is needed",
+          "Returns ProcessDto rather than Command"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.getSessionCommandLogs",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_session_command_logs",
+        "ts": "getSessionCommandLogs"
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect(command_id).logs()",
+        "ts": "{sandbox}.process.connect(commandId).logs()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a cursor-based page of channel-tagged log frames",
+          "session_id and request_timeout are removed"
+        ],
+        "ts": [
+          "Returns a cursor-based page of channel-tagged log frames",
+          "For the callback-streaming overload use handle.streamLogs()",
+          "Route log events by frame.channel instead of onStdout and onStderr callbacks"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.get_session_command_logs_async",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "get_session_command_logs_async",
+        "ts": null
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect(command_id).stream_logs()",
+        "ts": null
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Iterate channel-tagged LogFrame values instead of passing output callbacks",
+          "Use async for with AsyncProcessHandle and for with its sync twin",
+          "No session_id argument is needed"
+        ],
+        "ts": []
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.killPtySession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "kill_pty_session",
+        "ts": "killPtySession"
+      },
+      "v2": {
+        "py": "{sandbox}.pty.delete(pty_id)",
+        "ts": "{sandbox}.pty.delete(ptyId)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Stops the PTY and removes its process record and retained logs",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Stops the PTY and removes its process record and retained logs"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.listPtySessions",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "list_pty_sessions",
+        "ts": "listPtySessions"
+      },
+      "v2": {
+        "py": "{sandbox}.pty.list()",
+        "ts": "{sandbox}.pty.list()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read ProcessInfo rows from result.items; request_timeout is removed"
+        ],
+        "ts": [
+          "Read ProcessDto rows from result.items"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.listSessions",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "list_sessions",
+        "ts": "listSessions"
+      },
+      "v2": {
+        "py": "{sandbox}.process.list(kind=\"session\")",
+        "ts": "{sandbox}.process.list({ kind: 'session' })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Read shell process metadata from result.items; request_timeout is removed",
+          "Bind an item with process.connect_session(item.id)"
+        ],
+        "ts": [
+          "Read shell process metadata from result.items",
+          "Bind an item with process.connectSession(item.id)"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.resizePtySession",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "resize_pty_session",
+        "ts": "resizePtySession"
+      },
+      "v2": {
+        "py": "{sandbox}.pty.connect(pty_id).resize(cols, rows)",
+        "ts": "{sandbox}.pty.connect(ptyId).resize(cols, rows)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Expand PtySize into cols and rows; request_timeout is removed",
+          "Returns None rather than PtySessionInfo"
+        ],
+        "ts": [
+          "Returns void rather than PtySessionInfo"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.process.sendSessionCommandInput",
+      "receiver": "sandbox.process",
+      "v0": {
+        "py": "send_session_command_input",
+        "ts": "sendSessionCommandInput"
+      },
+      "v2": {
+        "py": "{sandbox}.process.connect(command_id).stdin(data)",
+        "ts": "{sandbox}.process.connect(commandId).stdin(data)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Start the command with session.start(command, stdin=\"open\")",
+          "Use the returned command handle's id; session_id and request_timeout are removed",
+          "Open stdin when starting the command before sending input"
+        ],
+        "ts": [
+          "Start the command with session.start(command, { stdin: 'open' })",
+          "Use the returned command handle's id, not the shell session id",
+          "Open stdin when starting the command before sending input"
+        ]
+      },
+      "anchor": "sandbox-process",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.codeInterpreter.createContext",
+      "receiver": "sandbox.codeInterpreter",
+      "v0": {
+        "py": "create_context",
+        "ts": "createContext"
+      },
+      "v2": {
+        "py": "{sandbox}.interpreter.create_context(language=\"python\", cwd=cwd)",
+        "ts": "{sandbox}.interpreter.createContext({ language: 'python', cwd })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Language is explicit and cwd becomes keyword-only",
+          "Returns an executable InterpreterContext handle"
+        ],
+        "ts": [
+          "Language is explicit and cwd moves into an options object",
+          "Returns an executable InterpreterContext handle"
+        ]
+      },
+      "anchor": "sandbox-code-interpreter",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.codeInterpreter.deleteContext",
+      "receiver": "sandbox.codeInterpreter",
+      "v0": {
+        "py": "delete_context",
+        "ts": "deleteContext"
+      },
+      "v2": {
+        "py": "{sandbox}.interpreter.delete_context(context)",
+        "ts": "{sandbox}.interpreter.deleteContext(context)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a v2 context handle, serialized identity or context id",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Pass a v2 context handle, serialized identity or context id"
+        ]
+      },
+      "anchor": "sandbox-code-interpreter",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.codeInterpreter.listContexts",
+      "receiver": "sandbox.codeInterpreter",
+      "v0": {
+        "py": "list_contexts",
+        "ts": "listContexts"
+      },
+      "v2": {
+        "py": "{sandbox}.interpreter.list_contexts()",
+        "ts": "{sandbox}.interpreter.listContexts()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns executable context handles rather than v0 metadata DTOs",
+          "Lists language-kernel contexts, including default contexts that exist",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Returns executable context handles rather than v0 metadata DTOs",
+          "Lists language-kernel contexts, including default contexts that exist"
+        ]
+      },
+      "anchor": "sandbox-code-interpreter",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.codeInterpreter.runCode",
+      "receiver": "sandbox.codeInterpreter",
+      "v0": {
+        "py": "run_code",
+        "ts": "runCode"
+      },
+      "v2": {
+        "py": "{sandbox}.interpreter.run(code, language=\"python\", context=context, timeout=timeout)",
+        "ts": "{sandbox}.interpreter.run(code, { language: 'python', context, timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a v2 context handle; omitted context uses the default Python context",
+          "No on_stdout, on_stderr or on_error callbacks; inspect InterpreterResult",
+          "envs becomes env, but per-run env is refused with an explicit context"
+        ],
+        "ts": [
+          "Pass a v2 context handle; convert timeout seconds to milliseconds",
+          "No onStdout, onStderr or onError callbacks; inspect InterpreterResult",
+          "envs becomes env, but per-run env is refused with an explicit context"
+        ]
+      },
+      "anchor": "sandbox-code-interpreter",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.completions",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "completions",
+        "ts": "completions"
+      },
+      "v2": {
+        "py": "lsp.completions(uri, position)",
+        "ts": "lsp.completions(uri, position)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a file URI; v0 added the file:// prefix to path",
+          "Pass position as a dict {\"line\": p.line, \"character\": p.character} or a v2 LspPosition; a v0 LspCompletionPosition is rejected",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Pass a file URI; v0 added the file:// prefix to path"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.didClose",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "did_close",
+        "ts": "didClose"
+      },
+      "v2": {
+        "py": "lsp.did_close(uri)",
+        "ts": "lsp.didClose(uri)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a file URI rather than the v0 path argument",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Pass a file URI rather than the v0 path argument"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.didOpen",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "did_open",
+        "ts": "didOpen"
+      },
+      "v2": {
+        "py": "lsp.did_open(uri)",
+        "ts": "lsp.didOpen(uri)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a file URI rather than the v0 path argument",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Pass a file URI rather than the v0 path argument"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.documentSymbols",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "document_symbols",
+        "ts": "documentSymbols"
+      },
+      "v2": {
+        "py": "lsp.document_symbols(uri)",
+        "ts": "lsp.documentSymbols(uri)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a file URI rather than the v0 path argument",
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Pass a file URI rather than the v0 path argument"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.sandboxSymbols",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "sandbox_symbols",
+        "ts": "sandboxSymbols"
+      },
+      "v2": {
+        "py": "lsp.workspace_symbols(query)",
+        "ts": "lsp.workspaceSymbols(query)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Renamed to workspaceSymbols on the v2 LSP handle"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.start",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "start",
+        "ts": "start"
+      },
+      "v2": {
+        "py": "lsp = {sandbox}.lsp.start(language_id, path_to_project)",
+        "ts": "const lsp = await {sandbox}.lsp.start(languageId, pathToProject)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Start through sandbox.lsp and retain the returned server handle",
+          "A v2 server handle has no start() method; request_timeout is removed",
+          "On AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Start through sandbox.lsp and retain the returned server handle",
+          "A v2 server handle has no start() method"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.stop",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "stop",
+        "ts": "stop"
+      },
+      "v2": {
+        "py": "lsp.stop()",
+        "ts": "lsp.stop()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name on the v2 LSP handle"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "lspServer.workspaceSymbols",
+      "receiver": "lspServer",
+      "v0": {
+        "py": "workspace_symbols",
+        "ts": "workspaceSymbols"
+      },
+      "v2": {
+        "py": "lsp.workspace_symbols(query)",
+        "ts": "lsp.workspaceSymbols(query)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout is removed"
+        ],
+        "ts": [
+          "Same name and argument on the v2 LSP handle"
+        ]
+      },
+      "anchor": "lsp-server",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.disconnect",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "disconnect",
+        "ts": "disconnect"
+      },
+      "v2": {
+        "py": null,
+        "ts": "connection.close()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "v2 process handles have no persistent WebSocket connection to disconnect",
+          "Close a custom WebSocket adapter separately; Python attach is not bundled"
+        ],
+        "ts": [
+          "Close the duplex connection returned by handle.attach()",
+          "This disconnects transport without deleting the process"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.isConnected",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "is_connected",
+        "ts": "isConnected"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No SDK WebSocket-connected predicate",
+          "Track custom adapter state separately from handle.get() process state"
+        ],
+        "ts": [
+          "No duplex connected predicate",
+          "Track attachment lifecycle and readable completion separately from handle.get() process state"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.kill",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "kill",
+        "ts": "kill"
+      },
+      "v2": {
+        "py": "handle.delete()",
+        "ts": "handle.delete()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Deletes the PTY process and retained logs, stopping it first",
+          "For signal-only behavior use handle.kill(signal=\"KILL\")"
+        ],
+        "ts": [
+          "Deletes the PTY process and retained logs, stopping it first",
+          "For signal-only behavior use handle.kill({ signal: 'KILL' })"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.resize",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "resize",
+        "ts": "resize"
+      },
+      "v2": {
+        "py": "handle.resize(cols, rows)",
+        "ts": "handle.resize(cols, rows)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Expand PtySize into separate cols and rows arguments",
+          "Returns None rather than PtySessionInfo"
+        ],
+        "ts": [
+          "Returns void rather than PtySessionInfo"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.sendInput",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "send_input",
+        "ts": "sendInput"
+      },
+      "v2": {
+        "py": "handle.stdin(data)",
+        "ts": "handle.stdin(data)"
+      },
+      "category": "direct",
+      "notes": {
+        "py": [],
+        "ts": []
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.wait",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "wait",
+        "ts": "wait"
+      },
+      "v2": {
+        "py": "handle.wait()",
+        "ts": "handle.wait()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns WaitResult with reason rather than PtyResult with error",
+          "Output consumption is separate through handle.stream_logs()",
+          "For the v0 sync timeout argument use handle.wait(timeout=timeout)"
+        ],
+        "ts": [
+          "Returns WaitResult with reason rather than PtyResult with error",
+          "Consume connection.readable or handle.streamLogs() separately"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "ptyHandle.waitForConnection",
+      "receiver": "ptyHandle",
+      "v0": {
+        "py": "wait_for_connection",
+        "ts": "waitForConnection"
+      },
+      "v2": {
+        "py": null,
+        "ts": "const connection = await handle.attach()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "No bundled Python WebSocket attachment handshake",
+          "Use HTTP handle.stdin(data) and handle.stream_logs(), or supply a custom adapter"
+        ],
+        "ts": [
+          "attach opens and awaits a new WebSocket connection",
+          "Retain its duplex connection for reading, writing and closing"
+        ]
+      },
+      "anchor": "pty-handle",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.start",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "start",
+        "ts": "start"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.start()",
+        "ts": "{sandbox}.computerUse.start()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns ComputerUseLifecycleResult instead of ComputerUseStartResponse",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Returns a lifecycle response with required message and process-status fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.stop",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "stop",
+        "ts": "stop"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.stop()",
+        "ts": "{sandbox}.computerUse.stop()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns ComputerUseLifecycleResult instead of ComputerUseStopResponse",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Returns a lifecycle response with required message and process-status fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.getStatus",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "get_status",
+        "ts": "getStatus"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.status()",
+        "ts": "{sandbox}.computerUse.status()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a discriminated desktop status with desktop and optional failure cause",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Returns a discriminated desktop status with desktop and optional failure cause"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.getProcessStatus",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "get_process_status",
+        "ts": "getProcessStatus"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.service.status(process_name)",
+        "ts": "{sandbox}.computerUse.service.status(processName)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves under service and returns ComputerUseProcessRunningStatus",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves under service and returns required processName and running fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.restartProcess",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "restart_process",
+        "ts": "restartProcess"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.service.restart(process_name)",
+        "ts": "{sandbox}.computerUse.service.restart(processName)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves under service and returns ComputerUseProcessRestartResult",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves under service and returns required message and processName fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.getProcessLogs",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "get_process_logs",
+        "ts": "getProcessLogs"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.service.logs(process_name)",
+        "ts": "{sandbox}.computerUse.service.logs(processName)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves under service and returns ComputerUseProcessLogs",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves under service and returns required logs and processName fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.getProcessErrors",
+      "receiver": "sandbox.computerUse",
+      "v0": {
+        "py": "get_process_errors",
+        "ts": "getProcessErrors"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.service.errors(process_name)",
+        "ts": "{sandbox}.computerUse.service.errors(processName)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves under service and returns ComputerUseProcessErrors",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves under service and returns required errors and processName fields"
+        ]
+      },
+      "anchor": "sandbox-computer-use",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.getPosition",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "get_position",
+        "ts": "getPosition"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.mouse.position()",
+        "ts": "{sandbox}.computerUse.mouse.position()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a ComputerUsePoint dataclass with required x and y",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Returns required x and y fields instead of optional coordinates"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.move",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "move",
+        "ts": "move"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.mouse.move(x=x, y=y)",
+        "ts": "{sandbox}.computerUse.mouse.move({ x, y })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Coordinates become keyword-only and request_timeout is removed",
+          "Returns a ComputerUsePoint dataclass"
+        ],
+        "ts": [
+          "Coordinates move into a request object",
+          "Returned coordinates are required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.down",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "down",
+        "ts": "down"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "v2 has no method for holding a mouse button down",
+          "click or drag cannot preserve arbitrary down/move/up sequences"
+        ],
+        "ts": [
+          "v2 has no method for holding a mouse button down",
+          "click or drag cannot preserve arbitrary down/move/up sequences"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.up",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "up",
+        "ts": "up"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "v2 has no method for releasing a held mouse button"
+        ],
+        "ts": [
+          "v2 has no method for releasing a held mouse button"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.click",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "click",
+        "ts": "click"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.mouse.click(x=x, y=y, button=button, double=double)",
+        "ts": "{sandbox}.computerUse.mouse.click({ x, y, button, double })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Arguments become keyword-only and request_timeout is removed",
+          "v2 has no clicks or modifiers parameters",
+          "Returns a ComputerUsePoint dataclass"
+        ],
+        "ts": [
+          "Arguments move into a request object",
+          "v2 has no clicks or modifiers parameters",
+          "Returned coordinates are required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.drag",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "drag",
+        "ts": "drag"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.mouse.drag(start_x=start_x, start_y=start_y, end_x=end_x, end_y=end_y, button=button)",
+        "ts": "{sandbox}.computerUse.mouse.drag({ startX, startY, endX, endY, button })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Arguments become keyword-only and request_timeout is removed",
+          "v2 has no modifiers parameter",
+          "Returns a ComputerUsePoint dataclass"
+        ],
+        "ts": [
+          "Arguments move into a request object whose button field is required",
+          "v2 has no modifiers parameter",
+          "Returned coordinates are required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.mouse.scroll",
+      "receiver": "sandbox.computerUse.mouse",
+      "v0": {
+        "py": "scroll",
+        "ts": "scroll"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.mouse.scroll(x=x, y=y, direction=direction, amount=amount)",
+        "ts": "{sandbox}.computerUse.mouse.scroll({ x, y, direction, amount })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Arguments become keyword-only and request_timeout is removed",
+          "Only up/down are supported and modifiers are unavailable",
+          "Returns a result object with success instead of bool"
+        ],
+        "ts": [
+          "Arguments move into a request object",
+          "Only up/down are supported and modifiers are unavailable",
+          "Returns an object with success instead of boolean"
+        ]
+      },
+      "anchor": "sandbox-computer-use-mouse",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.keyboard.type",
+      "receiver": "sandbox.computerUse.keyboard",
+      "v0": {
+        "py": "type",
+        "ts": "type"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.keyboard.type(text=text, delay=delay)",
+        "ts": "{sandbox}.computerUse.keyboard.type({ text, delay })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Arguments become keyword-only and request_timeout is removed"
+        ],
+        "ts": [
+          "Text and delay move into a request object"
+        ]
+      },
+      "anchor": "sandbox-computer-use-keyboard",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.keyboard.press",
+      "receiver": "sandbox.computerUse.keyboard",
+      "v0": {
+        "py": "press",
+        "ts": "press"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.keyboard.key(key=key, modifiers=modifiers)",
+        "ts": "{sandbox}.computerUse.keyboard.key({ key, modifiers })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Renamed to key with keyword-only arguments and no request_timeout",
+          "Modifier types are restricted to ctrl, alt, shift and cmd"
+        ],
+        "ts": [
+          "Renamed to key with a request object",
+          "Modifier types are restricted to ctrl, alt, shift and cmd"
+        ]
+      },
+      "anchor": "sandbox-computer-use-keyboard",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.keyboard.hotkey",
+      "receiver": "sandbox.computerUse.keyboard",
+      "v0": {
+        "py": "hotkey",
+        "ts": "hotkey"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.keyboard.hotkey(keys=keys)",
+        "ts": "{sandbox}.computerUse.keyboard.hotkey({ keys })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "keys becomes keyword-only and request_timeout is removed"
+        ],
+        "ts": [
+          "The chord string moves into a request object's keys field"
+        ]
+      },
+      "anchor": "sandbox-computer-use-keyboard",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.keyboard.down",
+      "receiver": "sandbox.computerUse.keyboard",
+      "v0": {
+        "py": "down",
+        "ts": "down"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "v2 has no method for holding a key down across operations"
+        ],
+        "ts": [
+          "v2 has no method for holding a key down across operations"
+        ]
+      },
+      "anchor": "sandbox-computer-use-keyboard",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.keyboard.up",
+      "receiver": "sandbox.computerUse.keyboard",
+      "v0": {
+        "py": "up",
+        "ts": "up"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "v2 has no method for releasing a held key"
+        ],
+        "ts": [
+          "v2 has no method for releasing a held key"
+        ]
+      },
+      "anchor": "sandbox-computer-use-keyboard",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.screenshot.takeFullScreen",
+      "receiver": "sandbox.computerUse.screenshot",
+      "v0": {
+        "py": "take_full_screen",
+        "ts": "takeFullScreen"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.screen.capture(show_cursor=show_cursor)",
+        "ts": "{sandbox}.computerUse.screen.capture({ showCursor })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to screen.capture with keyword-only show_cursor",
+          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+        ],
+        "ts": [
+          "Moves to screen.capture with an options object",
+          "The screenshot response field is required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-screenshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.screenshot.takeRegion",
+      "receiver": "sandbox.computerUse.screenshot",
+      "v0": {
+        "py": "take_region",
+        "ts": "takeRegion"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.screen.region(x=region.x, y=region.y, width=region.width, height=region.height, show_cursor=show_cursor)",
+        "ts": "{sandbox}.computerUse.screen.region({ ...region, showCursor })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Region fields become separate keyword-only arguments on screen.region",
+          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+        ],
+        "ts": [
+          "Region and showCursor merge into one screen.region options object",
+          "The screenshot response field is required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-screenshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.screenshot.takeCompressed",
+      "receiver": "sandbox.computerUse.screenshot",
+      "v0": {
+        "py": "take_compressed",
+        "ts": "takeCompressed"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.screen.capture_compressed(format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)",
+        "ts": "{sandbox}.computerUse.screen.captureCompressed(options)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Expand options into keyword-only arguments or omit them when options is None",
+          "Only png and jpeg formats are supported",
+          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+        ],
+        "ts": [
+          "Moves to screen.captureCompressed with format restricted to png or jpeg",
+          "The screenshot response field is required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-screenshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.screenshot.takeCompressedRegion",
+      "receiver": "sandbox.computerUse.screenshot",
+      "v0": {
+        "py": "take_compressed_region",
+        "ts": "takeCompressedRegion"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.screen.region_compressed(x=region.x, y=region.y, width=region.width, height=region.height, format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)",
+        "ts": "{sandbox}.computerUse.screen.regionCompressed({ ...region, ...options })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Expand region and options into keyword-only arguments, omitting options fields when None",
+          "Only png and jpeg formats are supported",
+          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+        ],
+        "ts": [
+          "Region and compression options merge into one screen.regionCompressed object",
+          "Only png and jpeg formats are supported",
+          "The screenshot response field is required"
+        ]
+      },
+      "anchor": "sandbox-computer-use-screenshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.display.getInfo",
+      "receiver": "sandbox.computerUse.display",
+      "v0": {
+        "py": "get_info",
+        "ts": "getInfo"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.display.info()",
+        "ts": "{sandbox}.computerUse.display.info()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns ComputerUseDisplayInfo with required display fields",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "The displays array and each display's fields are required instead of optional"
+        ]
+      },
+      "anchor": "sandbox-computer-use-display",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.display.getWindows",
+      "receiver": "sandbox.computerUse.display",
+      "v0": {
+        "py": "get_windows",
+        "ts": "getWindows"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.display.windows()",
+        "ts": "{sandbox}.computerUse.display.windows()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns ComputerUseDisplayWindows with required window fields",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "The windows array and each window's fields are required instead of optional"
+        ]
+      },
+      "anchor": "sandbox-computer-use-display",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.start",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "start",
+        "ts": "start"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.start(label=label)",
+        "ts": "{sandbox}.computerUse.recording.start({ label })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "label becomes keyword-only and request_timeout is removed",
+          "Returns a ComputerUseRecording dataclass"
+        ],
+        "ts": [
+          "The optional label moves into a request object"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.stop",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "stop",
+        "ts": "stop"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.stop(id=recording_id)",
+        "ts": "{sandbox}.computerUse.recording.stop({ id })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "recording_id becomes keyword-only id and request_timeout is removed",
+          "Returns a ComputerUseRecording dataclass"
+        ],
+        "ts": [
+          "The recording ID moves into a request object's id field"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.list",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.list()",
+        "ts": "{sandbox}.computerUse.recording.list()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a ComputerUseRecordingList dataclass containing recording dataclasses",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Returns ComputerUseRecordingsResponse instead of ListRecordingsResponse"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.get",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "get",
+        "ts": "get"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.get(recording_id)",
+        "ts": "{sandbox}.computerUse.recording.get(id)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a ComputerUseRecording dataclass",
+          "The keyword recording_id becomes id and request_timeout is removed"
+        ],
+        "ts": [
+          "Same argument; returns ComputerUseRecording instead of Recording"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.delete",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.delete(recording_id)",
+        "ts": "{sandbox}.computerUse.recording.delete(id)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "The keyword recording_id becomes id and request_timeout is removed"
+        ],
+        "ts": [
+          "Same argument on the v2 recording namespace"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.recording.download",
+      "receiver": "sandbox.computerUse.recording",
+      "v0": {
+        "py": "download",
+        "ts": "download"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.recording.download(recording_id)",
+        "ts": "{sandbox}.computerUse.recording.download(id)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns bytes in memory instead of streaming to local_path",
+          "Write the returned bytes to the desired file separately",
+          "The keyword recording_id becomes id"
+        ],
+        "ts": [
+          "Returns Uint8Array in memory instead of streaming to localPath",
+          "Write the returned bytes to the desired file separately"
+        ]
+      },
+      "anchor": "sandbox-computer-use-recording",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.accessibility.getTree",
+      "receiver": "sandbox.computerUse.accessibility",
+      "v0": {
+        "py": "get_tree",
+        "ts": "getTree"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.a11y.tree(scope=scope, pid=pid, max_depth=max_depth)",
+        "ts": "{sandbox}.computerUse.a11y.tree({ scope, pid, maxDepth })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to a11y.tree with keyword-only arguments and no request_timeout",
+          "scope is required and must be focused, pid or all",
+          "Returns a dataclass tree with required root and truncated fields"
+        ],
+        "ts": [
+          "Moves to a11y.tree and requires scope to be focused, pid or all",
+          "Root and truncated are required and nodes include value and valueTruncated"
+        ]
+      },
+      "anchor": "sandbox-computer-use-accessibility",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.accessibility.findNodes",
+      "receiver": "sandbox.computerUse.accessibility",
+      "v0": {
+        "py": "find_nodes",
+        "ts": "findNodes"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.a11y.find(scope=scope, pid=pid, role=role, name=name, name_match=name_match, states=states, limit=limit)",
+        "ts": "{sandbox}.computerUse.a11y.find({ scope, pid, role, name, nameMatch, states, limit })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to a11y.find with keyword-only arguments and no request_timeout",
+          "scope is required and name_match is restricted to exact, substring or regex",
+          "Returns a dataclass result with required matches and truncated fields"
+        ],
+        "ts": [
+          "Moves to a11y.find and requires scope to be focused, pid or all",
+          "nameMatch is restricted to exact, substring or regex",
+          "Matches and truncated are required and nodes include value and valueTruncated"
+        ]
+      },
+      "anchor": "sandbox-computer-use-accessibility",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.accessibility.focusNode",
+      "receiver": "sandbox.computerUse.accessibility",
+      "v0": {
+        "py": "focus_node",
+        "ts": "focusNode"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.a11y.focus(id=node_id)",
+        "ts": "{sandbox}.computerUse.a11y.focus({ id })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to a11y.focus with keyword-only id instead of node_id",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves to a11y.focus with an object containing id"
+        ]
+      },
+      "anchor": "sandbox-computer-use-accessibility",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.accessibility.invokeNode",
+      "receiver": "sandbox.computerUse.accessibility",
+      "v0": {
+        "py": "invoke_node",
+        "ts": "invokeNode"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.a11y.invoke(id=node_id, action=action)",
+        "ts": "{sandbox}.computerUse.a11y.invoke({ id, action })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to a11y.invoke with keyword-only id and action",
+          "node_id becomes id and request_timeout is removed"
+        ],
+        "ts": [
+          "Moves to a11y.invoke with an object containing id and optional action"
+        ]
+      },
+      "anchor": "sandbox-computer-use-accessibility",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.computerUse.accessibility.setNodeValue",
+      "receiver": "sandbox.computerUse.accessibility",
+      "v0": {
+        "py": "set_node_value",
+        "ts": "setNodeValue"
+      },
+      "v2": {
+        "py": "{sandbox}.computer_use.a11y.set_value(id=node_id, value=value)",
+        "ts": "{sandbox}.computerUse.a11y.setValue({ id, value })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to a11y.set_value with keyword-only id and value",
+          "node_id becomes id and request_timeout is removed"
+        ],
+        "ts": [
+          "Moves to a11y.setValue with an object containing id and value"
+        ]
+      },
+      "anchor": "sandbox-computer-use-accessibility",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.create",
+      "receiver": "client",
+      "v0": {
+        "py": "create",
+        "ts": "create"
+      },
+      "v2": {
+        "py": "{client}.v2.create(image, region=region)",
+        "ts": "{client}.v2.create(image, { region })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references",
+          "Translate target to region and rebuild creation parameters, resource units and lifecycle settings",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting, so pass wait_seconds=0 and wait once with the original budget (sandbox.wait(until=\"started\", timeout=timeout), where 0 waits without a deadline); create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
+          "v0 create raised when the sandbox failed to start; v2 create can return a sandbox that is not running yet, and that single wait raises on a terminal state (await it on AsyncDaytona)",
+          "Image builds use create_from_build(builder, ...) instead of passing a v0 Image",
+          "A registry image string such as \"python:3.12\" is not a v2 create source (IMAGE_NOT_FOUND); use create_from_build(ImageBuilder.from_registry(...)) or register the image first"
+        ],
+        "ts": [
+          "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+          "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references",
+          "Translate target to region and rebuild creation options, resource units and lifecycle settings",
+          "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting, so pass waitSeconds: 0 and wait once with the original budget (await sandbox.wait({ until: 'started', timeout }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
+          "v0 create raised when the sandbox failed to start; v2 create can return a sandbox that is not running yet, and that single wait throws on a terminal state",
+          "Image builds use createFromBuild(builder, options) instead of passing a v0 Image",
+          "A registry image string such as 'python:3.12' is not a v2 create source (IMAGE_NOT_FOUND); use createFromBuild(ImageBuilder.fromRegistry(...)) or register the image first"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": true
+    },
+    {
+      "id": "client.createAxiosInstance",
+      "receiver": "client",
+      "v0": {
+        "py": null,
+        "ts": "createAxiosInstance"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [],
+        "ts": [
+          "Static Daytona helper, not a client instance method",
+          "No v2 Daytona.createAxiosInstance counterpart"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.delete",
+      "receiver": "client",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{client}.v2.delete(sandbox)",
+        "ts": "{client}.v2.delete(sandbox)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Accepts a v2 sandbox or ID",
+          "No timeout or wait parameters",
+          "v0 delete(wait=True) blocked until destroyed; with a v2 sandbox handle, follow with sandbox.wait(until=\"destroyed\", timeout=timeout) (await it on AsyncDaytona)"
+        ],
+        "ts": [
+          "Accepts a v2 sandbox or ID",
+          "No timeout or wait parameters",
+          "v0 delete(sandbox, timeout, true) blocked until destroyed; with a v2 sandbox handle, follow with await sandbox.wait({ until: 'destroyed', timeout })"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.fork",
+      "receiver": "client",
+      "v0": {
+        "py": null,
+        "ts": "fork"
+      },
+      "v2": {
+        "py": null,
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, timeout: timeoutSeconds * 1000 }))"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [],
+        "ts": [
+          "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
+          "v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "memory: false preserves v0 filesystem-only cloning",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": true
+    },
+    {
+      "id": "client._experimental_fork",
+      "receiver": "client",
+      "v0": {
+        "py": null,
+        "ts": "_experimental_fork"
+      },
+      "v2": {
+        "py": null,
+        "ts": "{client}.v2.get(sandbox.id).then(source => source.fork({ name, memory: false, timeout: timeoutSeconds * 1000 }))"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [],
+        "ts": [
+          "Deprecated alias of fork in 0.x",
+          "Fork moved to the v2 sandbox handle; there is no client.v2.fork",
+          "v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "memory: false preserves v0 filesystem-only cloning",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": true
+    },
+    {
+      "id": "client.get",
+      "receiver": "client",
+      "v0": {
+        "py": "get",
+        "ts": "get"
+      },
+      "v2": {
+        "py": "{client}.v2.get(sandbox_id)",
+        "ts": "{client}.v2.get(sandboxId)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "get accepts an ID, not a name; find_by_name(name, region=...) returns a list",
+          "No per-call request_timeout argument"
+        ],
+        "ts": [
+          "get accepts an ID, not a name; findByName(name, { region }) returns an array"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": true
+    },
+    {
+      "id": "client.list",
+      "receiver": "client",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": "{client}.v2.list(labels=labels, cursor=cursor, limit=limit)",
+        "ts": "{client}.v2.list({ labels, cursor, limit })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns one ListResult page with items and next_cursor, not an iterator",
+          "Use iter() for automatic unfiltered pagination; filtered pagination uses list with cursors",
+          "Translate ListSandboxesQuery filters; async list now awaits a page instead of yielding sandboxes"
+        ],
+        "ts": [
+          "Returns a Promise of one ListResult page with items and nextCursor, not an async iterator",
+          "Use iter({ labels }) for automatic pagination; it passes the same filters to every page",
+          "Translate ListSandboxesQuery filters rather than copying the old query"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": true
+    },
+    {
+      "id": "client.start",
+      "receiver": "client",
+      "v0": {
+        "py": "start",
+        "ts": "start"
+      },
+      "v2": {
+        "py": "{client}.v2.start(sandbox, timeout=0 if timeout is None else timeout)",
+        "ts": "{client}.v2.start(sandbox, { timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2",
+          "Accepts a v2 macOS sandbox or ID and resumes it if paused"
+        ],
+        "ts": [
+          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "Accepts a v2 macOS sandbox or ID and resumes it if paused"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.stop",
+      "receiver": "client",
+      "v0": {
+        "py": "stop",
+        "ts": "stop"
+      },
+      "v2": {
+        "py": "{client}.v2.stop(sandbox)",
+        "ts": "{client}.v2.stop(sandbox)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Accepts a v2 sandbox or ID",
+          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "No timeout argument",
+          "Requests stop and refreshes metadata; use sandbox.wait(until=\"stopped\") when completion is required"
+        ],
+        "ts": [
+          "Accepts a v2 sandbox or ID",
+          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "Requests stop and refreshes metadata; use sandbox.wait({ until: 'stopped' }) when completion is required"
+        ]
+      },
+      "anchor": "client",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.activate",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "activate",
+        "ts": "activate"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 images have no snapshot activation operation"
+        ],
+        "ts": [
+          "V2 images have no snapshot activation operation"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.create",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "create",
+        "ts": "create"
+      },
+      "v2": {
+        "py": "{client}.v2.images.build(builder, name=name, region=region)",
+        "ts": "{client}.v2.images.build(builder, { name, region })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "A v0 snapshot is a v2 image, not a v2 sandbox-state snapshot",
+          "Convert v0 Image input to a v2 ImageBuilder; registry references can use images.pull(ref, name=..., region=...), which waits until the image is ready (pass wait=False to return early)",
+          "Translate region_id to region; observe readiness with images.get(image.id, wait=\"ready\") and logs with follow_build_logs"
+        ],
+        "ts": [
+          "A v0 snapshot is a v2 image, not a v2 sandbox-state snapshot",
+          "Convert v0 Image input to a v2 ImageBuilder; registry references can use images.pull(ref, { name, region }), which waits until the image is ready (pass wait: false to return early)",
+          "Translate regionId to region; observe readiness with images.get(image.id, { wait: 'ready' }) and logs with followBuildLogs"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.delete",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{client}.v2.images.delete(image_id)",
+        "ts": "{client}.v2.images.delete(imageId)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a v2 image ID, not a v0 Snapshot object or name"
+        ],
+        "ts": [
+          "Pass a v2 image ID, not a v0 Snapshot object or name"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.get",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "get",
+        "ts": "get"
+      },
+      "v2": {
+        "py": "{client}.v2.images.get(image_id)",
+        "ts": "{client}.v2.images.get(imageId)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses the v2 image ID; resolve a name through images.list(name=...)"
+        ],
+        "ts": [
+          "Uses the v2 image ID; resolve a name through images.list({ name })"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.list",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": "{client}.v2.images.list(cursor=cursor, limit=limit, sandbox_id=source_sandbox_id)",
+        "ts": "{client}.v2.images.list({ cursor, limit, sandboxId: sourceSandboxId })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Lists images, not v2 sandbox-state snapshots",
+          "Pagination uses cursor and next_cursor instead of page numbers",
+          "source_sandbox_id becomes sandbox_id"
+        ],
+        "ts": [
+          "Lists images, not v2 sandbox-state snapshots",
+          "Pagination uses cursor and nextCursor instead of page numbers",
+          "sourceSandboxId becomes sandboxId"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.snapshot.processImageContext",
+      "receiver": "client.snapshot",
+      "v0": {
+        "py": "process_image_context",
+        "ts": "processImageContext"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "Static v0 object-storage upload helper has no v2 equivalent"
+        ],
+        "ts": [
+          "Static v0 object-storage upload helper has no v2 equivalent"
+        ]
+      },
+      "anchor": "client-snapshot",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.volume.create",
+      "receiver": "client.volume",
+      "v0": {
+        "py": "create",
+        "ts": "create"
+      },
+      "v2": {
+        "py": "{client}.v2.volume.create(name=name)",
+        "ts": "{client}.v2.volume.create(name)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Creates a v2 disk volume; migrate v0 volume data separately",
+          "Optional size_gib sets capacity in GiB; on AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Creates a v2 disk volume; migrate v0 volume data separately",
+          "Optional second argument sizeGib sets capacity in GiB"
+        ]
+      },
+      "anchor": "client-volume",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.volume.delete",
+      "receiver": "client.volume",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{client}.v2.volume.delete(volume_id)",
+        "ts": "{client}.v2.volume.delete(volume)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Pass a v2 volume ID rather than a v0 Volume object; delete attached sandboxes first",
+          "Requests deletion without waiting for completion; on AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Pass a v2 Volume or its ID rather than a v0 Volume object; delete attached sandboxes first",
+          "Requests deletion without waiting for completion"
+        ]
+      },
+      "anchor": "client-volume",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.volume.get",
+      "receiver": "client.volume",
+      "v0": {
+        "py": "get",
+        "ts": "get"
+      },
+      "v2": {
+        "py": "{client}.v2.volume.get(name_or_id, create=create)",
+        "ts": "{client}.v2.volume.get(nameOrId, create)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Looks up a v2 volume by name or ID; create=True creates a disk volume if missing",
+          "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Looks up a v2 volume by name or ID; create=true creates a disk volume if missing",
+          "Migrate v0 volume data separately"
+        ]
+      },
+      "anchor": "client-volume",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.volume.list",
+      "receiver": "client.volume",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": "{client}.v2.volume.list()",
+        "ts": "{client}.v2.volume.list()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns one envelope page with items and next_cursor; use volume.iter() to traverse all pages",
+          "On AsyncDaytona this call must be awaited"
+        ],
+        "ts": [
+          "Returns one envelope page with items and nextCursor; use volume.iter() to traverse all pages"
+        ]
+      },
+      "anchor": "client-volume",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.secret.create",
+      "receiver": "client.secret",
+      "v0": {
+        "py": "create",
+        "ts": "create"
+      },
+      "v2": {
+        "py": "{client}.v2.secret.set(name, value, allowed_domains=domains, description=description, if_not_exists=True)",
+        "ts": "{client}.v2.secret.set(name, value, { allowedDomains: domains, description, ifNotExists: true })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Secrets become project-scoped; set returns Secret metadata without the write-only value",
+          "Translate hosts to explicit allowed_domains; unrestricted access requires an intentional [\"*\"]",
+          "if_not_exists preserves create-only behavior"
+        ],
+        "ts": [
+          "Secrets become project-scoped; set returns Secret metadata without the write-only value",
+          "Translate hosts to explicit allowedDomains; unrestricted access requires an intentional ['*']",
+          "ifNotExists preserves create-only behavior"
+        ]
+      },
+      "anchor": "client-secret",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.secret.delete",
+      "receiver": "client.secret",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{client}.v2.secret.delete(name)",
+        "ts": "{client}.v2.secret.delete(name)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses the project secret name instead of its v0 ID"
+        ],
+        "ts": [
+          "Uses the project secret name instead of its v0 ID"
+        ]
+      },
+      "anchor": "client-secret",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.secret.get",
+      "receiver": "client.secret",
+      "v0": {
+        "py": "get",
+        "ts": "get"
+      },
+      "v2": {
+        "py": "{client}.v2.secret.get(name)",
+        "ts": "{client}.v2.secret.get(name)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses the project secret name instead of its v0 ID",
+          "Returns metadata without the secret value"
+        ],
+        "ts": [
+          "Uses the project secret name instead of its v0 ID",
+          "Returns metadata without the secret value"
+        ]
+      },
+      "anchor": "client-secret",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.secret.list",
+      "receiver": "client.secret",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": "{client}.v2.secret.list()",
+        "ts": "{client}.v2.secret.list()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Lists project secret metadata in ListResult.items, with next_cursor",
+          "Pages with cursor and limit; no name, sort or order arguments"
+        ],
+        "ts": [
+          "Lists project secret metadata in ListResult.items, with nextCursor",
+          "Pages with { cursor, limit }; no query, sort or order options"
+        ]
+      },
+      "anchor": "client-secret",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.secret.update",
+      "receiver": "client.secret",
+      "v0": {
+        "py": "update",
+        "ts": "update"
+      },
+      "v2": {
+        "py": "{client}.v2.secret.set(name, value, allowed_domains=domains, description=description)",
+        "ts": "{client}.v2.secret.set(name, value, { allowedDomains: domains, description })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses a project secret name rather than a v0 ID and returns Secret metadata without the write-only value",
+          "set requires value and allowed_domains; v0 partial updates cannot be copied unchanged",
+          "Metadata-only updates require supplying the write-only value again; get cannot recover it"
+        ],
+        "ts": [
+          "Uses a project secret name rather than a v0 ID and returns Secret metadata without the write-only value",
+          "set requires value and allowedDomains; v0 partial updates cannot be copied unchanged",
+          "Metadata-only updates require supplying the write-only value again; get cannot recover it"
+        ]
+      },
+      "anchor": "client-secret",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.warmPool.create",
+      "receiver": "client.warmPool",
+      "v0": {
+        "py": "create",
+        "ts": "create"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no warm-pool service"
+        ],
+        "ts": [
+          "V2 has no warm-pool service"
+        ]
+      },
+      "anchor": "client-warm-pool",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.warmPool.delete",
+      "receiver": "client.warmPool",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no warm-pool service"
+        ],
+        "ts": [
+          "V2 has no warm-pool service"
+        ]
+      },
+      "anchor": "client-warm-pool",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.warmPool.list",
+      "receiver": "client.warmPool",
+      "v0": {
+        "py": "list",
+        "ts": "list"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no warm-pool service"
+        ],
+        "ts": [
+          "V2 has no warm-pool service"
+        ]
+      },
+      "anchor": "client-warm-pool",
+      "startsWorkflow": false
+    },
+    {
+      "id": "client.warmPool.update",
+      "receiver": "client.warmPool",
+      "v0": {
+        "py": "update",
+        "ts": "update"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no warm-pool service"
+        ],
+        "ts": [
+          "V2 has no warm-pool service"
+        ]
+      },
+      "anchor": "client-warm-pool",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.archive",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "archive",
+        "ts": "archive"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No v2 equivalent; keep 0.x archive workflows on .v0"
+        ],
+        "ts": [
+          "No v2 equivalent; keep 0.x archive workflows on .v0"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.createLspServer",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "create_lsp_server",
+        "ts": "createLspServer"
+      },
+      "v2": {
+        "py": "{sandbox}.lsp.start(language_id, path_to_project)",
+        "ts": "{sandbox}.lsp.start(languageId, pathToProject)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Starts the server immediately instead of constructing a server for a later start call",
+          "On AsyncDaytona this call must be awaited; v0 AsyncSandbox.create_lsp_server was synchronous"
+        ],
+        "ts": [
+          "Starts the server immediately instead of constructing a server for a later start call"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.createSnapshot",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "create_snapshot",
+        "ts": "createSnapshot"
+      },
+      "v2": {
+        "py": "{sandbox}.snapshot_filesystem(name=name)",
+        "ts": "{sandbox}.snapshotFilesystem({ name })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "V0 filesystem snapshots correspond to v2 images",
+          "Returns an Image and has no timeout argument",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "V2 create_snapshot(name) captures sandbox state and is a different operation"
+        ],
+        "ts": [
+          "V0 filesystem snapshots correspond to v2 images",
+          "Returns an Image and has no timeout argument",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeout }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "V2 createSnapshot(name) captures sandbox state and is a different operation"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox._experimental_createSnapshot",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "_experimental_create_snapshot",
+        "ts": "_experimental_createSnapshot"
+      },
+      "v2": {
+        "py": "{sandbox}.snapshot_filesystem(name=name)",
+        "ts": "{sandbox}.snapshotFilesystem({ name })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Deprecated alias of create_snapshot in 0.x",
+          "V0 filesystem snapshots correspond to v2 images",
+          "Returns an Image and has no timeout argument",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait=\"ready\", timeout=timeout), then check that the returned image status is \"ready\" (it can be \"failed\", or still pending on timeout) before booting from it",
+          "V2 create_snapshot(name) captures sandbox state and is a different operation"
+        ],
+        "ts": [
+          "Deprecated alias of createSnapshot in 0.x",
+          "V0 filesystem snapshots correspond to v2 images",
+          "Returns an Image and has no timeout argument",
+          "Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeout }), then check that the returned image status is 'ready' (it can be 'failed', or still pending on timeout) before booting from it",
+          "V2 createSnapshot(name) captures sandbox state and is a different operation"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.createSshAccess",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "create_ssh_access",
+        "ts": "createSshAccess"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No equivalent v0 SSH access-token management helper",
+          "V2 scoped access tokens are a different credential model"
+        ],
+        "ts": [
+          "No equivalent v0 SSH access-token management helper",
+          "V2 scoped access tokens are a different credential model"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.delete",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "delete",
+        "ts": "delete"
+      },
+      "v2": {
+        "py": "{sandbox}.delete()",
+        "ts": "{sandbox}.delete()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "No timeout or wait arguments",
+          "v0 delete(wait=True) blocked until destroyed; follow with sandbox.wait(until=\"destroyed\", timeout=timeout) (await it on AsyncSandbox)"
+        ],
+        "ts": [
+          "No timeout or wait arguments",
+          "v0 delete(timeout, true) blocked until destroyed; follow with await sandbox.wait({ until: 'destroyed', timeout })"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.downloadUrl",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "download_url",
+        "ts": "downloadUrl"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.presigned_download_url(path, expires_in_seconds=ttl_seconds)",
+        "ts": "{sandbox}.fs.presignedDownloadUrl(path, { expiresInSeconds: ttlSeconds })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to fs and renames the TTL argument",
+          "Omit expires_in_seconds when v0 ttl_seconds was None",
+          "v0 ttl_seconds <= 0 creates never-expiring links; v2 has no equivalent and requires an integer from 1 to 604800 (7 days), rejecting longer TTLs too",
+          "Requires a sandbox handle"
+        ],
+        "ts": [
+          "Moves to fs and places TTL in an options object",
+          "v0 ttlSeconds <= 0 creates never-expiring links; v2 has no equivalent and requires an integer from 1 to 604800 (7 days), rejecting longer TTLs too",
+          "Requires a sandbox handle"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.expireSignedPreviewUrl",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "expire_signed_preview_url",
+        "ts": "expireSignedPreviewUrl"
+      },
+      "v2": {
+        "py": "{sandbox}.ports.expire_signed_preview_link(port, token)",
+        "ts": "{sandbox}.ports.expireSignedPreviewLink(port, token)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to the ports namespace",
+          "request_timeout is no longer accepted"
+        ],
+        "ts": [
+          "Moves to the ports namespace"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.fork",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "fork",
+        "ts": "fork"
+      },
+      "v2": {
+        "py": "{sandbox}.fork(name=name, memory=False, timeout=0 if timeout is None else timeout)",
+        "ts": "{sandbox}.fork({ name, memory: false, timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
+          "name, memory and timeout are keyword-only; v2 waits for the fork only when timeout is set (0 waits without a deadline), so pass it to keep the v0 wait; v0's None (wait without limit) is 0 in v2",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ],
+        "ts": [
+          "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
+          "timeout moves into the options object and waiting is optional; v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": true
+    },
+    {
+      "id": "sandbox._experimental_fork",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "_experimental_fork",
+        "ts": "_experimental_fork"
+      },
+      "v2": {
+        "py": "{sandbox}.fork(name=name, memory=False, timeout=0 if timeout is None else timeout)",
+        "ts": "{sandbox}.fork({ name, memory: false, timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Deprecated alias of fork in 0.x",
+          "memory=False preserves v0 filesystem-only cloning; v2 otherwise includes memory",
+          "name, memory and timeout are keyword-only; v2 waits for the fork only when timeout is set (0 waits without a deadline), so pass it to keep the v0 wait; v0's None (wait without limit) is 0 in v2",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ],
+        "ts": [
+          "Deprecated alias of fork in 0.x",
+          "memory: false preserves v0 filesystem-only cloning; v2 otherwise includes memory",
+          "timeout moves into the options object and waiting is optional; v0 took seconds and always waited (60 s by default); v2 waits for the fork only when timeout is set and takes milliseconds, so pass timeout: timeoutSeconds * 1000 (timeout: 60_000 for the v0 default; 0 waits without a deadline)",
+          "Only running sources start the fork automatically; paused or stopped sources require resume or start"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": true
+    },
+    {
+      "id": "sandbox.getMetrics",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_metrics",
+        "ts": "getMetrics"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No historical metrics helper with start and end filters",
+          "metrics() provides only the current system reading"
+        ],
+        "ts": [
+          "No historical metrics helper with start and end filters",
+          "metrics() provides only the current system reading"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getMetricsLatest",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_metrics_latest",
+        "ts": "getMetricsLatest"
+      },
+      "v2": {
+        "py": "{sandbox}.metrics()",
+        "ts": "{sandbox}.metrics()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns the v2 SystemMetrics model rather than SandboxMetrics; update field and unit handling"
+        ],
+        "ts": [
+          "Returns the v2 SystemMetrics model rather than SandboxMetrics; update field and unit handling"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getPreviewLink",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_preview_link",
+        "ts": "getPreviewLink"
+      },
+      "v2": {
+        "py": "{sandbox}.ports.preview_link(port)",
+        "ts": "{sandbox}.ports.previewLink(port)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to ports and returns a v2 PreviewLink",
+          "Private links include an access token; preview_link exposes the port if needed"
+        ],
+        "ts": [
+          "Moves to ports and returns a v2 PreviewLink",
+          "Private links include an access token; previewLink exposes the port if needed"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getSignedPreviewUrl",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "create_signed_preview_url",
+        "ts": "getSignedPreviewUrl"
+      },
+      "v2": {
+        "py": "{sandbox}.ports.signed_preview_link(port, expires_in_seconds=expires_in_seconds)",
+        "ts": "{sandbox}.ports.signedPreviewLink(port, { expiresInSeconds })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to ports; expires_in_seconds is keyword-only",
+          "Returns SignedPreviewLink with url, token and expires_at"
+        ],
+        "ts": [
+          "Moves to ports; expiresInSeconds moves into an options object",
+          "Returns SignedPreviewLink with url, token and expiresAt"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getUserHomeDir",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_user_home_dir",
+        "ts": "getUserHomeDir"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No v2 home-directory helper"
+        ],
+        "ts": [
+          "No v2 home-directory helper"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getUserRootDir",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_user_root_dir",
+        "ts": "getUserRootDir"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "Deprecated v0 alias for get_user_home_dir; no v2 counterpart"
+        ],
+        "ts": [
+          "Deprecated v0 alias for getUserHomeDir; no v2 counterpart"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.getWorkDir",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "get_work_dir",
+        "ts": "getWorkDir"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No v2 working-directory helper"
+        ],
+        "ts": [
+          "No v2 working-directory helper"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.pause",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "pause",
+        "ts": "pause"
+      },
+      "v2": {
+        "py": "{sandbox}.pause(timeout=timeout)",
+        "ts": "{sandbox}.pause({ timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "timeout is keyword-only",
+          "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+        ],
+        "ts": [
+          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.recover",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "recover",
+        "ts": "recover"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 deliberately does not expose recover"
+        ],
+        "ts": [
+          "V2 deliberately does not expose recover"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.refreshActivity",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "refresh_activity",
+        "ts": "refreshActivity"
+      },
+      "v2": {
+        "py": "{sandbox}.reset_idle_timer()",
+        "ts": "{sandbox}.resetIdleTimer()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Resets idle activity and returns SandboxLifecycle",
+          "Does not extend the wall-clock timeout; no request_timeout argument"
+        ],
+        "ts": [
+          "Resets idle activity and returns SandboxLifecycle",
+          "Does not extend the wall-clock timeout"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.refreshData",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "refresh_data",
+        "ts": "refreshData"
+      },
+      "v2": {
+        "py": "{sandbox}.refresh_data(timeout=request_timeout)",
+        "ts": "{sandbox}.refreshData()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "request_timeout becomes keyword-only timeout"
+        ],
+        "ts": [
+          "Same name, no arguments, on the v2 sandbox handle"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.resize",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "resize",
+        "ts": "resize"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no runtime resize helper; resources and burst caps are creation settings"
+        ],
+        "ts": [
+          "V2 has no runtime resize helper; resources and burst caps are creation settings"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.revokeSshAccess",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "revoke_ssh_access",
+        "ts": "revokeSshAccess"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No equivalent v0 SSH access-token revocation helper"
+        ],
+        "ts": [
+          "No equivalent v0 SSH access-token revocation helper"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.rotateSigningKey",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "rotate_signing_key",
+        "ts": "rotateSigningKey"
+      },
+      "v2": {
+        "py": "{sandbox}.rotate_signing_key()",
+        "ts": "{sandbox}.rotateSigningKey()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Requires a sandbox handle"
+        ],
+        "ts": [
+          "Requires a sandbox handle"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setAutoArchiveInterval",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_auto_archive_interval",
+        "ts": "setAutoArchiveInterval"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No v2 equivalent; keep 0.x auto-archive workflows on .v0"
+        ],
+        "ts": [
+          "No v2 equivalent; keep 0.x auto-archive workflows on .v0"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setAutoDeleteInterval",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_auto_delete_interval",
+        "ts": "setAutoDeleteInterval"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No equivalent policy measuring time continuously stopped",
+          "V2 lifecycle timeout and idle actions use different clocks"
+        ],
+        "ts": [
+          "No equivalent policy measuring time continuously stopped",
+          "V2 lifecycle timeout and idle actions use different clocks"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setAutoPauseInterval",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_auto_pause_interval",
+        "ts": "setAutoPauseInterval"
+      },
+      "v2": {
+        "py": "{sandbox}.update_lifecycle_policy(idle_expiry_seconds=interval * 60, on_idle_timeout=\"pause\")",
+        "ts": "{sandbox}.updateLifecyclePolicy({ idleExpirySeconds: interval * 60, onIdleTimeout: 'pause' })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Convert positive minutes to seconds",
+          "For interval 0, use update_lifecycle_policy(idle_expiry_seconds=-1) without an action",
+          "Pause requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+        ],
+        "ts": [
+          "Convert positive minutes to seconds",
+          "For interval 0, use updateLifecyclePolicy({ idleExpirySeconds: -1 }) without an action",
+          "Pause requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setAutostopInterval",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_autostop_interval",
+        "ts": "setAutostopInterval"
+      },
+      "v2": {
+        "py": "{sandbox}.update_lifecycle_policy(idle_expiry_seconds=interval * 60, on_idle_timeout=\"stop\")",
+        "ts": "{sandbox}.updateLifecyclePolicy({ idleExpirySeconds: interval * 60, onIdleTimeout: 'stop' })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Convert positive minutes to seconds",
+          "For interval 0, use update_lifecycle_policy(idle_expiry_seconds=-1) without an action",
+          "Stop requires a macOS sandbox; keep existing 0.x stop workflows on .v0"
+        ],
+        "ts": [
+          "Convert positive minutes to seconds",
+          "For interval 0, use updateLifecyclePolicy({ idleExpirySeconds: -1 }) without an action",
+          "Stop requires a macOS sandbox; keep existing 0.x stop workflows on .v0"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setLabels",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_labels",
+        "ts": "setLabels"
+      },
+      "v2": {
+        "py": "{sandbox}.set_labels(labels=labels)",
+        "ts": "{sandbox}.setLabels(labels)"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "labels is keyword-only; no request_timeout argument",
+          "Replaces the complete label set"
+        ],
+        "ts": [
+          "Replaces the complete label set"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setPublic",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_public",
+        "ts": "setPublic"
+      },
+      "v2": {
+        "py": "{sandbox}.ports.set_public(port, public=public)",
+        "ts": "{sandbox}.ports.setPublic(port, { public: isPublic })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Visibility is per exposed port, not sandbox-wide",
+          "Choose a port explicitly; returns PreviewEndpoint"
+        ],
+        "ts": [
+          "Visibility is per exposed port, not sandbox-wide",
+          "Choose a port explicitly; returns PreviewEndpoint"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.setTtl",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "set_ttl",
+        "ts": "setTtl"
+      },
+      "v2": {
+        "py": "{sandbox}.update_lifecycle_policy(timeout_seconds=ttl_minutes * 60, on_timeout=\"delete\")",
+        "ts": "{sandbox}.updateLifecyclePolicy({ timeoutSeconds: ttlMinutes * 60, onTimeout: 'delete' })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Convert positive minutes to seconds",
+          "V2 re-anchors the deadline from this update, not sandbox creation",
+          "Each accepted transition to running (after a start or resume) re-arms the full v2 timeout, so it is not an absolute deadline like the v0 TTL; keep this workflow on .v0 or schedule the delete yourself if you need one",
+          "V2 timeout cannot be disabled; v0 TTL 0 has no equivalent"
+        ],
+        "ts": [
+          "Convert positive minutes to seconds",
+          "V2 re-anchors the deadline from this update, not sandbox creation",
+          "Each accepted transition to running (after a start or resume) re-arms the full v2 timeout, so it is not an absolute deadline like the v0 TTL; keep this workflow on .v0 or schedule the delete yourself if you need one",
+          "V2 timeout cannot be disabled; v0 TTL 0 has no equivalent"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.start",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "start",
+        "ts": "start"
+      },
+      "v2": {
+        "py": "{sandbox}.start(timeout=0 if timeout is None else timeout)",
+        "ts": "{sandbox}.start({ timeout: timeoutSeconds * 1000 })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2",
+          "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
+        ],
+        "ts": [
+          "v0 took seconds; v2 timeout is milliseconds (multiply by 1000; omit it to keep the default)",
+          "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.stop",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "stop",
+        "ts": "stop"
+      },
+      "v2": {
+        "py": "{sandbox}.stop()",
+        "ts": "{sandbox}.stop()"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "No timeout or force arguments",
+          "Requests stop and refreshes metadata; wait separately for stopped when required"
+        ],
+        "ts": [
+          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "No timeout or force arguments",
+          "Requests stop and refreshes metadata; wait separately for stopped when required"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.updateEnv",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "update_env",
+        "ts": "updateEnv"
+      },
+      "v2": {
+        "py": "{sandbox}.update_env(env, unset=unset or [])",
+        "ts": "{sandbox}.updateEnv(env, { unset })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "unset must be a list: v0's default None becomes an empty list",
+          "Affects future processes; already-running processes and session kernels are unchanged"
+        ],
+        "ts": [
+          "Affects future processes; already-running processes and session kernels are unchanged"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.updateNetworkSettings",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "update_network_settings",
+        "ts": "updateNetworkSettings"
+      },
+      "v2": {
+        "py": "{sandbox}.update_network_policy(network_policy=policy, if_match=etag)",
+        "ts": "{sandbox}.updateNetworkPolicy(policy, { ifMatch: etag })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Translate v0 block flags and allow-list strings into a v2 NetworkPolicyInput",
+          "Read get_network_policy() first and supply its concurrency token through if_match",
+          "Replaces the policy rather than patching individual v0 settings"
+        ],
+        "ts": [
+          "Translate v0 block flags and allow-list strings into a v2 NetworkPolicyInput",
+          "Read getNetworkPolicy() first and supply its concurrency token through ifMatch",
+          "Replaces the policy rather than patching individual v0 settings"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.updateSecrets",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "update_secrets",
+        "ts": "updateSecrets"
+      },
+      "v2": {
+        "py": "{sandbox}.replace_secrets(secrets=secret_names, if_match=etag)",
+        "ts": "await {sandbox}.replaceSecrets(secretNames, { ifMatch: (await {sandbox}.getSecrets()).etag })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "The v0 dict of environment variable to secret name becomes secret_names, a list of project secret names; the secret's own name is the variable name",
+          "Read first: etag is get_secrets().etag (await both calls on AsyncDaytona); replacing with a stale etag fails with PreconditionFailedError",
+          "Replaces the full attached set; pass every name to keep, or an empty list to detach all",
+          "Applies asynchronously: poll get_secrets() until status is applied; running processes keep their environment"
+        ],
+        "ts": [
+          "The v0 Record of environment variable to secret name becomes secretNames, a list of project secret names; the secret's own name is the variable name",
+          "Read first: getSecrets() returns the attached names and the etag; replacing with a stale etag fails with PreconditionFailedError",
+          "Replaces the full attached set; pass every name to keep, or an empty list to detach all",
+          "Applies asynchronously: poll getSecrets() until status is applied; running processes keep their environment"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.uploadUrl",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "upload_url",
+        "ts": "uploadUrl"
+      },
+      "v2": {
+        "py": "{sandbox}.fs.presigned_upload_url(path, expires_in_seconds=ttl_seconds)",
+        "ts": "{sandbox}.fs.presignedUploadUrl(path, { expiresInSeconds: ttlSeconds })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Moves to fs and renames the TTL argument",
+          "Omit expires_in_seconds when v0 ttl_seconds was None",
+          "v0 ttl_seconds <= 0 creates never-expiring links; v2 has no equivalent and requires an integer from 1 to 604800 (7 days), rejecting longer TTLs too",
+          "Requires a sandbox handle"
+        ],
+        "ts": [
+          "Moves to fs and places TTL in an options object",
+          "v0 ttlSeconds <= 0 creates never-expiring links; v2 has no equivalent and requires an integer from 1 to 604800 (7 days), rejecting longer TTLs too",
+          "Requires a sandbox handle"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.validateSshAccess",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "validate_ssh_access",
+        "ts": "validateSshAccess"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "No equivalent v0 SSH access-token validation helper"
+        ],
+        "ts": [
+          "No equivalent v0 SSH access-token validation helper"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.waitForResizeComplete",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "wait_for_resize_complete",
+        "ts": "waitForResizeComplete"
+      },
+      "v2": {
+        "py": null,
+        "ts": null
+      },
+      "category": "none",
+      "notes": {
+        "py": [
+          "V2 has no runtime resize operation or resize-completion helper"
+        ],
+        "ts": [
+          "V2 has no runtime resize operation or resize-completion helper"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.waitUntilStarted",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "wait_for_sandbox_start",
+        "ts": "waitUntilStarted"
+      },
+      "v2": {
+        "py": "{sandbox}.wait(until=\"started\", timeout=timeout)",
+        "ts": "{sandbox}.wait({ until: 'started', timeout })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses the public state-wait helper and returns the sandbox handle",
+          "timeout is keyword-only"
+        ],
+        "ts": [
+          "Uses the public state-wait helper and returns the sandbox handle",
+          "timeout moves into an options object"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
+      "id": "sandbox.waitUntilStopped",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "wait_for_sandbox_stop",
+        "ts": "waitUntilStopped"
+      },
+      "v2": {
+        "py": "{sandbox}.wait(until=\"stopped\", timeout=timeout)",
+        "ts": "{sandbox}.wait({ until: 'stopped', timeout })"
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Uses the public state-wait helper and returns the sandbox handle",
+          "timeout is keyword-only",
+          "v0 also returned when the sandbox was destroyed; wait(until=\"stopped\") raises on destroyed, so use sandbox.wait_for_state([\"stopped\", \"destroyed\"], timeout=timeout) (await it on AsyncSandbox) to keep that behavior"
+        ],
+        "ts": [
+          "Uses the public state-wait helper and returns the sandbox handle",
+          "timeout moves into an options object",
+          "v0 also returned when the sandbox was destroyed; wait({ until: 'stopped' }) throws on destroyed, so use wait({ until: ['stopped', 'destroyed'], timeout }) to keep that behavior"
+        ]
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    }
+  ],
+  "v0Exports": {
+    "py": [
+      "AsyncComputerUse",
+      "AsyncDaytona",
+      "AsyncDisplay",
+      "AsyncKeyboard",
+      "AsyncMouse",
+      "AsyncSandbox",
+      "AsyncScreenshot",
+      "BarChart",
+      "BoxAndWhiskerChart",
+      "CancelEvent",
+      "Chart",
+      "ChartType",
+      "CodeLanguage",
+      "CodeRunParams",
+      "CompositeChart",
+      "CreateSandboxBaseParams",
+      "CreateSandboxFromImageParams",
+      "CreateSandboxFromSnapshotParams",
+      "CreateSecretParams",
+      "CreateSnapshotParams",
+      "Daytona",
+      "DaytonaA11yUnavailableError",
+      "DaytonaAuthenticationError",
+      "DaytonaAuthorizationError",
+      "DaytonaBadGatewayError",
+      "DaytonaBadRequestError",
+      "DaytonaCommandAlreadyCompletedError",
+      "DaytonaConfig",
+      "DaytonaConflictError",
+      "DaytonaConnectionError",
+      "DaytonaConnectionTimeoutError",
+      "DaytonaError",
+      "DaytonaFileAccessDeniedError",
+      "DaytonaFileNotFoundError",
+      "DaytonaFileReadFailedError",
+      "DaytonaForbiddenError",
+      "DaytonaGitAuthFailedError",
+      "DaytonaGitBranchExistsError",
+      "DaytonaGitBranchNotFoundError",
+      "DaytonaGitDirtyWorktreeError",
+      "DaytonaGitMergeConflictError",
+      "DaytonaGitPushRejectedError",
+      "DaytonaGitRemoteRejectedError",
+      "DaytonaGitRepoNotFoundError",
+      "DaytonaGitTransportFailedError",
+      "DaytonaGoneError",
+      "DaytonaInternalServerError",
+      "DaytonaInvalidFilePathError",
+      "DaytonaLspServerNotInitializedError",
+      "DaytonaNotFoundError",
+      "DaytonaProcessExecutionTimeoutError",
+      "DaytonaProcessNotFoundError",
+      "DaytonaQueueTimeoutError",
+      "DaytonaRateLimitError",
+      "DaytonaRecordingFfmpegNotFoundError",
+      "DaytonaRecordingStillActiveError",
+      "DaytonaServiceUnavailableError",
+      "DaytonaSessionEndedError",
+      "DaytonaSpotEvictedError",
+      "DaytonaTimeoutError",
+      "DaytonaUnprocessableEntityError",
+      "DaytonaValidationError",
+      "DownloadProgress",
+      "ExecuteResponse",
+      "ExecutionArtifacts",
+      "ExecutionError",
+      "ExecutionResult",
+      "FileDownloadErrorDetails",
+      "FileDownloadRequest",
+      "FileDownloadResponse",
+      "FileUpload",
+      "GpuType",
+      "Image",
+      "LineChart",
+      "ListSandboxesQuery",
+      "ListSecretsResponse",
+      "LspCompletionPosition",
+      "LspLanguageId",
+      "OutputHandler",
+      "OutputMessage",
+      "PieChart",
+      "PtySize",
+      "Resources",
+      "Sandbox",
+      "SandboxClass",
+      "SandboxListSortDirection",
+      "SandboxListSortField",
+      "SandboxMetrics",
+      "SandboxState",
+      "ScatterChart",
+      "ScreenshotOptions",
+      "ScreenshotRegion",
+      "Secret",
+      "SessionExecuteRequest",
+      "SessionExecuteResponse",
+      "UpdateSecretParams",
+      "UploadProgress",
+      "VolumeMount",
+      "WarmPool"
+    ],
+    "ts": [
+      "Accessibility",
+      "AccessibilityFindOptions",
+      "AccessibilityTreeOptions",
+      "BarChart",
+      "BarData",
+      "BoxAndWhiskerChart",
+      "BoxAndWhiskerData",
+      "Chart",
+      "Chart2D",
+      "ChartElement",
+      "ChartType",
+      "CodeLanguage",
+      "CodeRunParams",
+      "CompositeChart",
+      "ComputerUse",
+      "CreateSandboxBaseParams",
+      "CreateSandboxFromImageParams",
+      "CreateSandboxFromSnapshotParams",
+      "CreateSecretParams",
+      "CreateSnapshotParams",
+      "CreateWarmPool",
+      "Daytona",
+      "DaytonaA11yUnavailableError",
+      "DaytonaAuthenticationError",
+      "DaytonaAuthorizationError",
+      "DaytonaBadGatewayError",
+      "DaytonaBadRequestError",
+      "DaytonaCommandAlreadyCompletedError",
+      "DaytonaConfig",
+      "DaytonaConflictError",
+      "DaytonaConnectionError",
+      "DaytonaConnectionTimeoutError",
+      "DaytonaError",
+      "DaytonaFileAccessDeniedError",
+      "DaytonaFileNotFoundError",
+      "DaytonaFileReadFailedError",
+      "DaytonaForbiddenError",
+      "DaytonaGitAuthFailedError",
+      "DaytonaGitBranchExistsError",
+      "DaytonaGitBranchNotFoundError",
+      "DaytonaGitDirtyWorktreeError",
+      "DaytonaGitMergeConflictError",
+      "DaytonaGitPushRejectedError",
+      "DaytonaGitRemoteRejectedError",
+      "DaytonaGitRepoNotFoundError",
+      "DaytonaGitTransportFailedError",
+      "DaytonaGoneError",
+      "DaytonaInternalServerError",
+      "DaytonaInvalidArgumentError",
+      "DaytonaInvalidFilePathError",
+      "DaytonaLspServerNotInitializedError",
+      "DaytonaNotFoundError",
+      "DaytonaProcessExecutionTimeoutError",
+      "DaytonaProcessNotFoundError",
+      "DaytonaQueueTimeoutError",
+      "DaytonaRateLimitError",
+      "DaytonaRecordingFfmpegNotFoundError",
+      "DaytonaRecordingStillActiveError",
+      "DaytonaServiceUnavailableError",
+      "DaytonaSessionEndedError",
+      "DaytonaSpotEvictedError",
+      "DaytonaTimeoutError",
+      "DaytonaUnprocessableEntityError",
+      "DaytonaValidationError",
+      "Display",
+      "DownloadMetadata",
+      "DownloadProgress",
+      "DownloadStreamOptions",
+      "ExecutionError",
+      "ExecutionResult",
+      "FileDownloadErrorDetails",
+      "FileDownloadRequest",
+      "FileDownloadResponse",
+      "FileInfo",
+      "FilePermissionsParams",
+      "FileSystem",
+      "FileUpload",
+      "ForkSandboxParams",
+      "Git",
+      "GitStatus",
+      "GpuType",
+      "Image",
+      "Keyboard",
+      "LineChart",
+      "ListBranchResponse",
+      "ListSandboxesQuery",
+      "ListSecretsPaginatedOrderEnum",
+      "ListSecretsPaginatedSortEnum",
+      "ListSecretsQuery",
+      "ListSecretsResponse",
+      "ListSnapshotsQuery",
+      "LspLanguageId",
+      "MAX_PREFIX_LEN",
+      "Match",
+      "Mouse",
+      "OutputMessage",
+      "PaginatedSnapshots",
+      "PieChart",
+      "PieData",
+      "PointChart",
+      "PointData",
+      "Process",
+      "PtyConnectOptions",
+      "PtyCreateOptions",
+      "PtyHandle",
+      "PtyResult",
+      "ReplaceResult",
+      "Resources",
+      "RunCodeOptions",
+      "SOURCE_API",
+      "SOURCE_DAEMON",
+      "SOURCE_PROXY",
+      "STDERR_PREFIX_BYTES",
+      "STDOUT_PREFIX_BYTES",
+      "Sandbox",
+      "SandboxClass",
+      "SandboxListSortDirection",
+      "SandboxListSortField",
+      "SandboxMetrics",
+      "SandboxState",
+      "ScatterChart",
+      "Screenshot",
+      "ScreenshotOptions",
+      "ScreenshotRegion",
+      "SearchFilesResponse",
+      "Secret",
+      "SessionCommandLogsResponse",
+      "SessionExecuteResponse",
+      "Snapshot",
+      "SnapshotState",
+      "UpdateSecretParams",
+      "UpdateWarmPool",
+      "UploadProgress",
+      "UploadSource",
+      "UploadStreamOptions",
+      "VolumeMount",
+      "WarmPool"
+    ]
+  }
+}

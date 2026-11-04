@@ -1,0 +1,53 @@
+name: Contract types
+
+# The SDKs and the CLI vendor wire types generated from contract/*.json.
+# Regenerate them and fail when the committed copy differs: a contract update
+# must come with its regenerated types (and the SDK changes they force).
+on:
+  push:
+    branches: [main, release/v2]
+  pull_request:
+    paths:
+      - 'contract/**'
+      - 'scripts/gen-contract-types.sh'
+      - 'typescript/scripts/gen-contract.mjs'
+      - 'typescript/package.json'
+      - 'typescript/package-lock.json'
+      - 'typescript/src/v2/gen/**'
+      - 'python/gen-contract.sh'
+      - 'python/gen/**'
+      - 'python/src/daytona/v2/_gen/**'
+      - 'cli/hack/gen.sh'
+      - 'cli/gen/**'
+      - '.github/workflows/contracts.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contracts-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  contract-types:
+    name: vendored wire types match contract/
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+      - uses: actions/setup-go@v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - uses: actions/setup-java@v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: scripts/gen-contract-types.sh --check

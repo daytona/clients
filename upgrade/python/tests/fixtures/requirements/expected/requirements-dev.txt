@@ -1,0 +1,7 @@
+# Shared test dependencies
+-r requirements.txt
+httpx>=0.27
+daytona[v0-sdk]>=2,<3 ; python_version >= "3.9"  # v0 client
+daytona[otel,v0-sdk]>=2,<3 # instrumentation
+daytona-upgrade>=0.1
+daytona_tools==1.0

@@ -1,0 +1,28 @@
+name: Changelog fragments
+
+on:
+  push:
+    branches: [main, release/v2]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changelog-fragments:
+    name: fragments well-formed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - name: Unit tests for the assembler
+        run: python3 -m unittest discover -s scripts/changelog -v
+      - name: Validate every fragment
+        run: python3 scripts/changelog/assemble.py check --dir changelog.d
+      - name: Preview what the next release would fold in
+        run: python3 scripts/changelog/assemble.py render --dir changelog.d --pr-links >> "$GITHUB_STEP_SUMMARY"

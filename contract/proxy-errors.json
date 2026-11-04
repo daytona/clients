@@ -1,0 +1,62 @@
+{
+  "source": "DAYTONA_PROXY",
+  "codes": [
+    {
+      "code": "SANDBOX_NOT_RUNNING",
+      "status": 409,
+      "extras": []
+    }
+  ],
+  "generic": [
+    {
+      "code": "NOT_FOUND",
+      "status": 404,
+      "extras": []
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "status": 401,
+      "extras": []
+    },
+    {
+      "code": "FORBIDDEN",
+      "status": 403,
+      "extras": []
+    },
+    {
+      "code": "BAD_REQUEST",
+      "status": 400,
+      "extras": []
+    },
+    {
+      "code": "CONFLICT",
+      "status": 409,
+      "extras": []
+    },
+    {
+      "code": "SERVICE_UNAVAILABLE",
+      "status": 503,
+      "extras": []
+    },
+    {
+      "code": "BAD_GATEWAY",
+      "status": 502,
+      "extras": []
+    },
+    {
+      "code": "INTERNAL_SERVER_ERROR",
+      "status": 500,
+      "extras": []
+    },
+    {
+      "code": "METHOD_NOT_ALLOWED",
+      "status": 405,
+      "extras": []
+    },
+    {
+      "code": "GATEWAY_TIMEOUT",
+      "status": 504,
+      "extras": []
+    }
+  ]
+}

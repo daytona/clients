@@ -1,0 +1,38 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { expect, it } from 'vitest';
+import { contents, invoke, temporaryProject } from './helpers.js';
+
+it.each(['overrides', 'resolutions', 'pnpm'].flatMap(section => ['@daytonaio/sdk', '@daytona/sdk'].map(name => ({ section, name }))))('reports a qualified $section selector for $name', async ({ section, name }) => {
+  // Given
+  const constraints = { [`${name}@^0.224.0`]: '0.224.0' };
+  const manifest = { dependencies: { '@daytonaio/sdk': '0.224.0' },
+    [section]: section === 'pnpm' ? { overrides: constraints } : constraints };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest) });
+  // When
+  const result = await invoke(root, ['--json', '--strict']);
+  // Then
+  expect(result.code).toBe(1);
+  expect(JSON.parse(contents(root)['package.json'] ?? '')).toMatchObject({ [section]: manifest[section] });
+  expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ kind: 'config-field' })]) });
+});
+
+it.each(['overrides', 'resolutions', 'pnpm'].flatMap(section => [
+  'npm:@custom/sdk@0.224.0', 'git+https://example.com/custom.git#v0.224.0',
+  'file:../sdk', 'https://example.com/sdk.tgz', 'github:custom/sdk', '$@daytonaio/sdk',
+].map(spec => ({ section, spec }))))('preserves a custom $section source: $spec', async ({ section, spec }) => {
+  // Given
+  const constraints = { '@daytonaio/sdk': spec };
+  const manifest = { dependencies: { '@daytonaio/sdk': '0.224.0' },
+    [section]: section === 'pnpm' ? { overrides: constraints } : constraints };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest) });
+  // When
+  const result = await invoke(root, ['--json', '--strict']);
+  // Then
+  expect(result.code).toBe(1);
+  expect(JSON.parse(contents(root)['package.json'] ?? '')).toMatchObject({ [section]: manifest[section] });
+  expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ kind: 'config-field' })]) });
+});
