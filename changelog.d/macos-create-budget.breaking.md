@@ -1,6 +1,5 @@
-**macOS create and start time budgets:** a macOS create from a saved image that
-omits `create_timeout_seconds` gets 3600 seconds, as any other create does,
-instead of 3600 plus the time to download the image at the platform's minimum
-restore rate. A create from an older saved image, which converts first, keeps
-a longer default, 86400 seconds. A start that no Mac takes within 3600 seconds
-goes back to `stopped`.
+**macOS create and start time limits:** a macOS create from an image that omits
+`create_timeout_seconds` gets 3600 seconds, as any other create does. Before,
+this default grew with the image's size. A create from an image captured on an
+earlier version of macOS sandboxes gets 86400 seconds. A start that does not
+begin on a Mac within 3600 seconds goes back to `stopped`.
