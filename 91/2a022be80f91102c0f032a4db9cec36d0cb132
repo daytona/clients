@@ -1,0 +1,19 @@
+.github/CODEOWNERS
+  s_5f9b41ab727065::t_292398451faaa9 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "912a022be80f91102c0f032a4db9cec36d0cb132",
+  "prompts": {},
+  "sessions": {
+    "s_5f9b41ab727065": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe5ffeQxp31iLPSnPeYB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
