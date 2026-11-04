@@ -1,0 +1,2 @@
+daytona[v0-sdk]>=2,<3
+daytona[v0-sdk]>=2,<3

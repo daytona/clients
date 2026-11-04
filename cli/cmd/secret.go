@@ -1,0 +1,232 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: AGPL-3.0
+
+package cmd
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
+	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/output"
+	"github.com/spf13/cobra"
+)
+
+func init() {
+	Register(newSecretCmd)
+}
+
+func newSecretCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "secret", Short: "Project secrets: set, list, get, delete", GroupID: GroupManagement}
+	cmd.AddCommand(newSecretSetCmd(), newSecretListCmd(), newSecretGetCmd(), newSecretDeleteCmd())
+	return cmd
+}
+
+func newSecretSetCmd() *cobra.Command {
+	var value, fromFile string
+	var useStdin bool
+	var allowedDomains []string
+	var description string
+	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		count := 0
+		if cmd.Flags().Changed("value") {
+			count++
+		}
+		if cmd.Flags().Changed("from-file") {
+			count++
+		}
+		if useStdin {
+			count++
+		}
+		if err := mustOneOf(count, "--value", "--from-file", "--stdin"); err != nil {
+			return err
+		}
+		if cmd.Flags().Changed("value") {
+			a := FromContext(cmd.Context())
+			a.Info("note: --value puts the secret in the process list and shell history; prefer --stdin or --from-file")
+		}
+		secretValue, err := secretInputValue(value, fromFile, useStdin)
+		if err != nil {
+			return err
+		}
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		client, _, err := a.WorkloadClient(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		path := "/secrets/" + url.PathEscape(args[0])
+		var existing gen.Secret
+		err = client.Do(ctx, http.MethodGet, path, nil, nil, &existing)
+		if err != nil && cerr.ExitCode(err) != cerr.ExitNotFound {
+			return err
+		}
+		var current *gen.Secret
+		if err == nil {
+			current = &existing
+		}
+		putReq, err := secretPutReq(cmd, current, secretSetInput{
+			Value: secretValue, AllowedDomains: allowedDomains, Description: description,
+		})
+		if err != nil {
+			return err
+		}
+		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, nil); err != nil {
+			return err
+		}
+		return a.Printer().Object(map[string]any{"name": args[0], "updated": true}, [][2]string{{"name", args[0]}, {"updated", "true"}})
+	}}
+	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
+	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
+	cmd.Flags().BoolVar(&useStdin, "stdin", false, "read the secret value from stdin; strips exactly one trailing newline (or CRLF)")
+	cmd.Flags().StringSliceVar(&allowedDomains, "allowed-domain", nil, "hosts where this secret's value may be sent (exact or *.wildcard), or '*' for any verified host; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
+	cmd.Flags().StringVar(&description, "description", "", "secret description (set to an empty string to clear it)")
+	return cmd
+}
+
+func newSecretListCmd() *cobra.Command {
+	var flags pageFlags
+	cmd := &cobra.Command{Use: "list", Short: "List project secrets (metadata only)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		client, _, err := a.WorkloadClient(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		fetch := func(ctx context.Context, cursor string) (output.List[gen.Secret], error) {
+			var page gen.SecretPage
+			if err := client.Do(ctx, http.MethodGet, "/secrets", listQuery(flags, cursor), nil, &page); err != nil {
+				return output.List[gen.Secret]{}, err
+			}
+			return output.List[gen.Secret]{Items: page.Secrets, NextCursor: formatPtr(page.NextCursor)}, nil
+		}
+		var items output.List[gen.Secret]
+		if flags.all {
+			items, err = collectPaged(ctx, flags.cursor, fetch)
+		} else {
+			items, err = fetch(ctx, flags.cursor)
+		}
+		if err != nil {
+			return err
+		}
+		return output.ListOut(a.Printer(), items, func(rows []gen.Secret) output.Table {
+			tableRows := make([][]string, 0, len(rows))
+			for _, row := range rows {
+				tableRows = append(tableRows, []string{row.Name, joinComma(row.AllowedDomains), row.UpdatedAt.Format(time.RFC3339)})
+			}
+			return output.Table{Headers: []string{"NAME", "ALLOWED_DOMAINS", "UPDATED_AT"}, Rows: tableRows}
+		})
+	}}
+	addPageFlags(cmd, &flags)
+	return cmd
+}
+
+func newSecretGetCmd() *cobra.Command {
+	return &cobra.Command{Use: "get <name>", Short: "Show one project's secret metadata", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		client, _, err := a.WorkloadClient(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		var resp gen.Secret
+		if err := client.Do(ctx, http.MethodGet, "/secrets/"+url.PathEscape(args[0]), nil, nil, &resp); err != nil {
+			return err
+		}
+		a.Info("Secret values are write-only and are never returned by the API.")
+		return a.Printer().Object(resp, [][2]string{{"name", resp.Name}, {"allowed_domains", joinComma(resp.AllowedDomains)}, {"updated_at", resp.UpdatedAt.Format(time.RFC3339)}})
+	}}
+}
+
+func newSecretDeleteCmd() *cobra.Command {
+	return &cobra.Command{Use: "delete <name>", Short: "Delete a project secret", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		a := FromContext(cmd.Context())
+		if err := a.Confirm("delete", "secret "+args[0]); err != nil {
+			return err
+		}
+		ctx := cmd.Context()
+		client, _, err := a.WorkloadClient(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		if err := client.Do(ctx, http.MethodDelete, "/secrets/"+url.PathEscape(args[0]), nil, nil, nil); err != nil {
+			return err
+		}
+		return a.Printer().Object(map[string]any{"deleted": args[0]}, [][2]string{{"deleted", args[0]}})
+	}}
+}
+
+type secretSetInput struct {
+	Value          string
+	AllowedDomains []string
+	Description    string
+}
+
+func secretPutReq(cmd *cobra.Command, existing *gen.Secret, input secretSetInput) (gen.SetSecretRequest, error) {
+	req := gen.SetSecretRequest{Value: input.Value}
+	isCreate := existing == nil
+
+	// An explicitly empty flag (--allowed-domain '' from an unset shell
+	// variable) counts as no scope, so it gets the usage error below instead of
+	// sending [] for the API to reject.
+	given := make([]string, 0, len(input.AllowedDomains))
+	for _, d := range input.AllowedDomains {
+		if d = strings.TrimSpace(d); d != "" {
+			given = append(given, d)
+		}
+	}
+
+	if len(given) > 0 {
+		req.AllowedDomains = &given
+	} else if isCreate {
+		return gen.SetSecretRequest{}, cerr.New(cerr.ExitUsage,
+			"--allowed-domain is required when creating a secret; use --allowed-domain '*' to allow any verified host")
+	} else if len(existing.AllowedDomains) == 0 {
+		return gen.SetSecretRequest{}, cerr.New(cerr.ExitUsage,
+			"--allowed-domain is required: this secret has no scope; use --allowed-domain '*' to allow any verified host")
+	} else {
+		domains := append([]string{}, existing.AllowedDomains...)
+		req.AllowedDomains = &domains
+	}
+
+	if !isCreate && !cmd.Flags().Changed("description") && existing.Description != nil {
+		desc := *existing.Description
+		req.Description = &desc
+	}
+	if cmd.Flags().Changed("description") {
+		desc := input.Description
+		req.Description = &desc
+	}
+	return req, nil
+}
+
+func secretInputValue(value string, fromFile string, useStdin bool) (string, error) {
+	if strings.TrimSpace(fromFile) != "" {
+		body, err := os.ReadFile(fromFile)
+		if err != nil {
+			return "", cerr.Wrap(cerr.ExitFailure, err, "read %s: %v", fromFile, err)
+		}
+		return trimOneTrailingLineEnding(string(body)), nil
+	}
+	if useStdin {
+		body, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", cerr.Wrap(cerr.ExitFailure, err, "read stdin: %v", err)
+		}
+		return trimOneTrailingLineEnding(string(body)), nil
+	}
+	return value, nil
+}
+
+func trimOneTrailingLineEnding(value string) string {
+	if strings.HasSuffix(value, "\r\n") {
+		return strings.TrimSuffix(value, "\r\n")
+	}
+	return strings.TrimSuffix(value, "\n")
+}

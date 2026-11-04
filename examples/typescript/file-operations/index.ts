@@ -1,158 +1,69 @@
-import { Daytona } from '@daytona/sdk'
-import * as fs from 'fs'
-import * as path from 'path'
+/*
+ * file-operations — upload, list, search, replace, and download files.
+ *
+ * Uses the single-file helpers `fs.write(path, bytes)` and `fs.read(path)`
+ * (bytes in / Uint8Array out). Paths are relative to the sandbox's working
+ * directory.
+ *
+ * Run (from examples):
+ *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
+ *       npx tsx typescript/file-operations/index.ts
+ */
+
+import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function main() {
-  const daytona = new Daytona()
+  const daytona = client()
+  const sandbox = await daytona.create(IMAGE, { name: `files-${RUN}`, wait: 200 })
+  info(`created sandbox id=${sandbox.id}`)
 
-  //  first, create a sandbox
-  const sandbox = await daytona.create()
-
+  let ok = true
   try {
-    console.log(`Created sandbox with ID: ${sandbox.id}`)
+    const dir = 'project-files'
 
-    //  list files in the sandbox
-    const files = await sandbox.fs.listFiles('.')
-    console.log('Initial files:', files)
+    section('mkdir + list')
+    await sandbox.fs.mkdir(dir, { mode: '755' })
+    const before = (await sandbox.fs.list('.')).items
+    info(`entries in cwd: ${before.map((f) => f.name).join(', ')}`)
 
-    //  create a new directory in the sandbox
-    const newDir = 'project-files'
-    await sandbox.fs.createFolder(newDir, '755')
+    section('write (from in-memory bytes)')
+    const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)
+    await sandbox.fs.write(`${dir}/config.json`, new TextEncoder().encode(config))
+    await sandbox.fs.write(`${dir}/script.sh`, new TextEncoder().encode('#!/bin/bash\necho "Hello from script!"\n'))
+    info('uploaded config.json + script.sh')
 
-    // Create a local file for demonstration
-    const localFilePath = 'local-example.txt'
-    fs.writeFileSync(localFilePath, 'This is a local file created for use case purposes')
+    section('run: verify + run the uploaded script')
+    info((await sandbox.process.run(`ls -la ${dir}`)).output.trim())
+    await sandbox.process.run(`chmod +x ${dir}/script.sh`)
+    const scriptOut = await sandbox.process.run(`./${dir}/script.sh`)
+    info(`script output: ${scriptOut.output.trim()}`)
 
-    // Create a configuration file with JSON data
-    const configData = JSON.stringify(
-      {
-        name: 'project-config',
-        version: '1.0.0',
-        settings: {
-          debug: true,
-          maxConnections: 10,
-        },
-      },
-      null,
-      2,
-    )
+    section('search (by name pattern)')
+    const found = await sandbox.fs.search(dir, '*.json')
+    info(`json files: ${JSON.stringify(found.items)}`)
 
-    // Upload multiple files at once - both from local path and from buffers
-    await sandbox.fs.uploadFiles([
-      {
-        source: localFilePath,
-        destination: path.join(newDir, 'example.txt'),
-      },
-      {
-        source: Buffer.from(configData),
-        destination: path.join(newDir, 'config.json'),
-      },
-      {
-        source: Buffer.from('#!/bin/bash\necho "Hello from script!"\nexit 0'),
-        destination: path.join(newDir, 'script.sh'),
-      },
-    ])
+    section('replace (edit config in place)')
+    await sandbox.fs.replace([`${dir}/config.json`], '"debug": true', '"debug": false')
 
-    // Execute commands on the sandbox to verify files and make them executable
-    console.log('Verifying uploaded files:')
-    const lsResult = await sandbox.process.executeCommand(`ls -la ${newDir}`)
-    console.log(lsResult.result)
-
-    // Make the script executable
-    await sandbox.process.executeCommand(`chmod +x ${path.join(newDir, 'script.sh')}`)
-
-    // Run the script
-    console.log('Running script:')
-    const scriptResult = await sandbox.process.executeCommand(`${path.join(newDir, 'script.sh')}`)
-    console.log(scriptResult.result)
-
-    //  search for files in the project
-    const matches = await sandbox.fs.searchFiles(newDir, '*.json')
-    console.log('JSON files found:', matches)
-
-    //  replace content in config file
-    await sandbox.fs.replaceInFiles([path.join(newDir, 'config.json')], '"debug": true', '"debug": false')
-
-    // Download multiple files - mix of local file and memory download
-    console.log('Downloading multiple files:')
-    const downloadResults = await sandbox.fs.downloadFiles([
-      {
-        source: path.join(newDir, 'config.json'),
-        destination: 'local-config.json',
-      },
-      {
-        source: path.join(newDir, 'example.txt'),
-      },
-      {
-        source: path.join(newDir, 'script.sh'),
-        destination: 'local-script.sh',
-      },
-    ])
-
-    for (const result of downloadResults) {
-      if (result.error) {
-        console.error(`Error downloading ${result.source}: ${result.error}`)
-      } else if (typeof result.result === 'string') {
-        console.log(`Downloaded ${result.source} to ${result.result}`)
-      } else {
-        console.log(`Downloaded ${result.source} to memory (${result.result?.length} bytes)`)
-      }
+    section('read (read bytes back)')
+    const bytes = await sandbox.fs.read(`${dir}/config.json`)
+    const text = new TextDecoder().decode(bytes)
+    info(`config.json now:\n${text}`)
+    if (text.includes('"debug": false')) pass('replace round-tripped through read')
+    else {
+      fail(`expected the edited value in the downloaded file (got: ${text})`)
+      ok = false
     }
-
-    // Single file download example
-    console.log('Single file download example:')
-    const reportBuffer = await sandbox.fs.downloadFile(path.join(newDir, 'config.json'))
-    console.log('Config content:', reportBuffer.toString())
-
-    //  stream upload — push a Readable straight to the Sandbox without
-    //  buffering the whole payload in memory, with live progress.
-    console.log('\nStreaming upload with progress:')
-    const { Readable } = await import('stream')
-    const generatedPayload = Buffer.from('streamed-upload-content-'.repeat(2048)) // ~48 KB
-    await sandbox.fs.uploadFileStream(Readable.from(generatedPayload), path.join(newDir, 'streamed.bin'), {
-      onProgress: ({ bytesSent }) => console.log(`  uploaded ${bytesSent} / ${generatedPayload.length} bytes`),
-    })
-
-    //  stream download — process file content as chunks arrive, with progress.
-    //  Use an AbortController if you need to cancel a long-running transfer.
-    console.log('\nStreaming download with progress:')
-    const downloadController = new AbortController()
-    const stream = await sandbox.fs.downloadFileStream(path.join(newDir, 'config.json'), {
-      signal: downloadController.signal,
-      onProgress: ({ bytesReceived, totalBytes }) =>
-        console.log(`  downloaded ${bytesReceived} / ${totalBytes ?? '?'} bytes`),
-    })
-    const chunks: Buffer[] = []
-    await new Promise<void>((resolve, reject) => {
-      stream.on('data', (chunk: Buffer) => chunks.push(chunk))
-      stream.on('end', resolve)
-      stream.on('error', reject)
-    })
-    console.log('Streamed content:', Buffer.concat(chunks).toString())
-
-    // Create a report of all operations
-    const reportData = `
-Project Files Report:
----------------------
-Time: ${new Date().toISOString()}
-Files: ${matches.files.length} JSON files found
-Config: ${reportBuffer.includes('"debug": false') ? 'Production mode' : 'Debug mode'}
-Script: ${scriptResult.exitCode === 0 ? 'Executed successfully' : 'Failed'}
-    `.trim()
-
-    // Save the report
-    await sandbox.fs.uploadFile(Buffer.from(reportData), path.join(newDir, 'report.txt'))
-
-    // Clean up local file
-    fs.unlinkSync(localFilePath)
-    if (fs.existsSync('local-config.json')) fs.unlinkSync('local-config.json')
-    if (fs.existsSync('local-script.sh')) fs.unlinkSync('local-script.sh')
-  } catch (error) {
-    console.error('Error:', error)
   } finally {
-    //  cleanup
+    section('cleanup')
     await daytona.delete(sandbox)
+    info(`deleted sandbox ${sandbox.id}`)
   }
+
+  process.exit(ok ? 0 : 1)
 }
 
-main()
+main().catch((e) => {
+  console.error('Error:', e)
+  process.exit(1)
+})

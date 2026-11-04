@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "dependencies": {
+    "jest-mock-extended": "4.0.2",
+    "vitest-mock-extended": "3.1.1",
+    "vitest": "5.0.5",
+    "typescript": "5.9.3"
+  }
+}

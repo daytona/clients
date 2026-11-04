@@ -1,0 +1,132 @@
+{
+  "source": "DAYTONA_ROUTER",
+  "codes": [
+    {
+      "code": "REGION_MISMATCH",
+      "status": 400,
+      "extras": [
+        "stated",
+        "actual"
+      ]
+    },
+    {
+      "code": "UNKNOWN_REGION",
+      "status": 400,
+      "extras": [
+        "region"
+      ]
+    },
+    {
+      "code": "REGION_REQUIRED",
+      "status": 400,
+      "extras": []
+    },
+    {
+      "code": "IDEMPOTENCY_KEY_REQUIRED",
+      "status": 400,
+      "extras": []
+    },
+    {
+      "code": "CREATE_BODY_TOO_LARGE",
+      "status": 413,
+      "extras": []
+    },
+    {
+      "code": "PLACEMENT_UNAVAILABLE",
+      "status": 503,
+      "extras": []
+    }
+  ],
+  "generic": [
+    {
+      "code": "BAD_REQUEST",
+      "status": 400,
+      "extras": []
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "status": 401,
+      "extras": []
+    },
+    {
+      "code": "PAYMENT_REQUIRED",
+      "status": 402,
+      "extras": []
+    },
+    {
+      "code": "FORBIDDEN",
+      "status": 403,
+      "extras": []
+    },
+    {
+      "code": "NOT_FOUND",
+      "status": 404,
+      "extras": []
+    },
+    {
+      "code": "METHOD_NOT_ALLOWED",
+      "status": 405,
+      "extras": []
+    },
+    {
+      "code": "REQUEST_TIMEOUT",
+      "status": 408,
+      "extras": []
+    },
+    {
+      "code": "CONFLICT",
+      "status": 409,
+      "extras": []
+    },
+    {
+      "code": "GONE",
+      "status": 410,
+      "extras": []
+    },
+    {
+      "code": "PAYLOAD_TOO_LARGE",
+      "status": 413,
+      "extras": []
+    },
+    {
+      "code": "UNSUPPORTED_MEDIA_TYPE",
+      "status": 415,
+      "extras": []
+    },
+    {
+      "code": "UNPROCESSABLE_ENTITY",
+      "status": 422,
+      "extras": []
+    },
+    {
+      "code": "TOO_MANY_REQUESTS",
+      "status": 429,
+      "extras": []
+    },
+    {
+      "code": "INTERNAL_SERVER_ERROR",
+      "status": 500,
+      "extras": []
+    },
+    {
+      "code": "NOT_IMPLEMENTED",
+      "status": 501,
+      "extras": []
+    },
+    {
+      "code": "BAD_GATEWAY",
+      "status": 502,
+      "extras": []
+    },
+    {
+      "code": "SERVICE_UNAVAILABLE",
+      "status": 503,
+      "extras": []
+    },
+    {
+      "code": "GATEWAY_TIMEOUT",
+      "status": 504,
+      "extras": []
+    }
+  ]
+}

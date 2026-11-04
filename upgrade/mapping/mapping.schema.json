@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.daytona.com/schemas/sdk-upgrade/mapping.schema.json",
+  "title": "Daytona SDK upgrade mapping",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "docs",
+    "packages",
+    "v0Modules",
+    "rootNames",
+    "movedClientMembers",
+    "config",
+    "cloudApiUrls",
+    "dataTraps",
+    "receivers",
+    "suggestions",
+    "v0Exports"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./mapping.schema.json"
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "placeholder"
+      ],
+      "properties": {
+        "base": {
+          "type": "string",
+          "pattern": "^https://[^#]+$"
+        },
+        "placeholder": {
+          "type": "boolean"
+        }
+      }
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "old",
+            "new",
+            "extras",
+            "specifier",
+            "requirement"
+          ],
+          "properties": {
+            "old": {
+              "$ref": "#/$defs/strings"
+            },
+            "new": {
+              "$ref": "#/$defs/text"
+            },
+            "extras": {
+              "$ref": "#/$defs/strings"
+            },
+            "specifier": {
+              "$ref": "#/$defs/text"
+            },
+            "requirement": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        },
+        "ts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "old",
+            "new",
+            "range"
+          ],
+          "properties": {
+            "old": {
+              "$ref": "#/$defs/strings"
+            },
+            "new": {
+              "$ref": "#/$defs/text"
+            },
+            "range": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        }
+      }
+    },
+    "v0Modules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "$ref": "#/$defs/modules"
+        },
+        "ts": {
+          "$ref": "#/$defs/modules"
+        }
+      }
+    },
+    "rootNames": {
+      "$ref": "#/$defs/languageStrings"
+    },
+    "movedClientMembers": {
+      "$ref": "#/$defs/languageStrings"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "$ref": "#/$defs/configFields"
+        },
+        "ts": {
+          "$ref": "#/$defs/configFields"
+        }
+      }
+    },
+    "cloudApiUrls": {
+      "$ref": "#/$defs/strings"
+    },
+    "dataTraps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "short",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/anchor"
+          },
+          "short": {
+            "$ref": "#/$defs/text"
+          },
+          "text": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "receivers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)*$": {
+          "$ref": "#/$defs/receiver"
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/suggestion"
+      }
+    },
+    "v0Exports": {
+      "$ref": "#/$defs/languageStrings"
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "languageStrings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "$ref": "#/$defs/strings"
+        },
+        "ts": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "languageText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "ts": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "old",
+        "root",
+        "v0",
+        "keep"
+      ],
+      "properties": {
+        "old": {
+          "$ref": "#/$defs/strings"
+        },
+        "root": {
+          "$ref": "#/$defs/text"
+        },
+        "v0": {
+          "$ref": "#/$defs/text"
+        },
+        "keep": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "configFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "enum": [
+            "keep",
+            "deprecated",
+            "url",
+            "fixme"
+          ]
+        }
+      }
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "types",
+        "members"
+      ],
+      "properties": {
+        "types": {
+          "$ref": "#/$defs/strings"
+        },
+        "members": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "receiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "$ref": "#/$defs/surface"
+        },
+        "ts": {
+          "$ref": "#/$defs/surface"
+        },
+        "parent": {
+          "$ref": "#/$defs/text"
+        },
+        "attr": {
+          "$ref": "#/$defs/languageText"
+        },
+        "producedBy": {
+          "$ref": "#/$defs/strings"
+        },
+        "notes": {
+          "$ref": "#/$defs/strings"
+        }
+      },
+      "dependentRequired": {
+        "parent": [
+          "attr"
+        ],
+        "attr": [
+          "parent"
+        ]
+      }
+    },
+    "anchor": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "receiver",
+        "v0",
+        "v2",
+        "category",
+        "notes",
+        "anchor",
+        "startsWorkflow"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/text"
+        },
+        "receiver": {
+          "$ref": "#/$defs/text"
+        },
+        "v0": {
+          "$ref": "#/$defs/languageText"
+        },
+        "v2": {
+          "$ref": "#/$defs/languageText"
+        },
+        "category": {
+          "enum": [
+            "direct",
+            "differs",
+            "none"
+          ]
+        },
+        "notes": {
+          "$ref": "#/$defs/languageStrings"
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor"
+        },
+        "startsWorkflow": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "category": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "v2": {
+                "properties": {
+                  "py": {
+                    "type": "null"
+                  },
+                  "ts": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

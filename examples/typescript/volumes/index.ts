@@ -1,67 +1,78 @@
-import { Daytona } from '@daytona/sdk'
-import path from 'path'
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Mount one volume into multiple sandboxes, including a volume subpath.
+ * Run from examples with DAYTONA_API_KEY set:
+ *   npx tsx typescript/volumes/index.ts
+ *
+ * Writes become available to other sandboxes asynchronously. See
+ * volumes_share.ts for a persistence round-trip with synchronization waits.
+ */
 
-async function main() {
-  const daytona = new Daytona()
+import { DaytonaError } from '@daytona/sdk'
+import { ImageBuilder } from '@daytona/sdk/v2'
+import type { Sandbox } from '@daytona/sdk/v2'
+import { client, section, info, IMAGE, RUN } from '../_common'
 
-  //  Create a new volume or get an existing one
-  const volume = await daytona.volume.get('my-volume', true)
+async function main(): Promise<void> {
+  const daytona = client()
 
-  // Mount the volume to the sandbox
-  const mountDir1 = '/home/daytona/volume'
+  section('volume.get(name, create=true)')
+  const volume = await daytona.volume.get(`my-volume-${RUN}`, true)
+  info(`volume id=${volume.id} name=${volume.name} status=${volume.status}`)
 
-  const sandbox1 = await daytona.create({
-    language: 'typescript',
-    volumes: [{ volumeId: volume.id, mountPath: mountDir1 }],
-  })
+  const boxes: Sandbox[] = []
+  try {
+    section('sandbox 1: mount volume at /mnt/vol and write a file')
+    const mount1 = '/mnt/vol'
+    const s1 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol1-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount1 }], waitSeconds: 240 })
+    boxes.push(s1)
+    await s1.fs.mkdir(`${mount1}/new-dir`, { mode: '755' })
+    await s1.fs.write(`${mount1}/new-file.txt`, new TextEncoder().encode('Hello, World!'))
+    info(`s1 wrote ${mount1}/new-file.txt`)
 
-  // Create a new directory in the mount directory
-  const newDir = path.join(mountDir1, 'new-dir')
-  await sandbox1.fs.createFolder(newDir, '755')
+    section('sandbox 2: mount the same volume at a different path')
+    const mount2 = '/mnt/other'
+    const s2 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol2-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount2 }], waitSeconds: 240 })
+    boxes.push(s2)
+    const files = (await s2.fs.list(mount2)).items
+    info(`s2 sees at ${mount2}: ${files.map((f) => f.name).join(', ') || '(not yet synchronized)'}`)
 
-  // Create a new file in the mount directory
-  const newFile = path.join(mountDir1, 'new-file.txt')
-  await sandbox1.fs.uploadFile(Buffer.from('Hello, World!'), newFile)
-
-  // Create a new sandbox with the same volume
-  // and mount it to the different path
-  const mountDir2 = '/home/daytona/my-files'
-
-  const sandbox2 = await daytona.create({
-    language: 'typescript',
-    volumes: [{ volumeId: volume.id, mountPath: mountDir2 }],
-  })
-
-  // List files in the mount directory
-  const files = await sandbox2.fs.listFiles(mountDir2)
-  console.log('Files:', files)
-
-  // Get the file from the first sandbox
-  const file = await sandbox1.fs.downloadFile(newFile)
-  console.log('File:', file.toString())
-
-  // Mount a specific subpath within the volume
-  // This is useful for isolating data or implementing multi-tenancy
-  const mountDir3 = '/home/daytona/subpath'
-
-  const sandbox3 = await daytona.create({
-    language: 'typescript',
-    volumes: [{ volumeId: volume.id, mountPath: mountDir3, subpath: 'users/alice' }],
-  })
-
-  // This sandbox will only see files within the 'users/alice' subpath
-  // Create a file in the subpath
-  const subpathFile = path.join(mountDir3, 'alice-file.txt')
-  await sandbox3.fs.uploadFile(Buffer.from("Hello from Alice's subpath!"), subpathFile)
-
-  // The file is stored at: volume-root/users/alice/alice-file.txt
-  // but appears at: /home/daytona/subpath/alice-file.txt in the sandbox
-
-  // Cleanup
-  await daytona.delete(sandbox1)
-  await daytona.delete(sandbox2)
-  await daytona.delete(sandbox3)
-  // await daytona.volume.delete(volume)
+    section('sandbox 3: mount a subpath of the volume')
+    const mount3 = '/mnt/alice'
+    const s3 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), {
+      name: `vol3-${RUN}`,
+      volumes: [{ volumeId: volume.id, mountPath: mount3, subpath: 'users/alice' }],
+      waitSeconds: 240,
+    })
+    boxes.push(s3)
+    await s3.fs.write(`${mount3}/alice-file.txt`, new TextEncoder().encode("Hello from Alice's subpath!"))
+    info(`s3 wrote ${mount3}/alice-file.txt (volume-root/users/alice/alice-file.txt)`)
+  } finally {
+    section('cleanup')
+    for (const box of boxes) {
+      try {
+        await daytona.delete(box)
+        info(`deleted sandbox ${box.id}`)
+      } catch (error) {
+        if (!(error instanceof DaytonaError)) throw error
+        info(`delete sandbox failed: ${error}`)
+      }
+    }
+    // Allow sandbox deletion to finish before deleting the volume.
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+    try {
+      await daytona.volume.delete(volume)
+      info(`deleted volume ${volume.id}`)
+    } catch (error) {
+      if (!(error instanceof DaytonaError)) throw error
+      info(`volume delete failed (delete its sandboxes first): ${error}`)
+    }
+  }
 }
 
-main()
+main().catch((error: unknown) => {
+  console.error('Error:', error)
+  process.exit(1)
+})

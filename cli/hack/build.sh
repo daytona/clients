@@ -1,112 +1,34 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: AGPL-3.0
 
+# Cross-build the daytona CLI for the six release targets
+# and write SHA256SUMS. Static (CGO_ENABLED=0), version stamped via ldflags.
+#
+#   hack/build.sh                 # all six into dist/
+#   VERSION=2.0.0-alpha.3 hack/build.sh
+#   TARGETS="linux/amd64" hack/build.sh
+set -euo pipefail
+cd "$(dirname "$0")/.."
 
-# Exit on error
-set -e
+VERSION="${VERSION:-0.0.0-dev}"
+DIST="${DIST:-dist}"
+TARGETS="${TARGETS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
+LDFLAGS="-s -w -X github.com/daytona/clients/cli/internal/app.Version=${VERSION}"
 
-# Get absolute path of script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-DIST_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-
-# Environment file precedence:
-# 1. DAYTONA_ENV_FILE environment variable if set
-# 2. .env file in CLI directory
-# 3. .env file in project root
-# 4. Default values
-
-load_env_file() {
-    local env_file="$1"
-    if [ -f "$env_file" ]; then
-        source "$env_file"
-        return 0
-    fi
-    return 1
-}
-
-# If --skip-env-file is passed, skip loading env files
-for arg in "$@"; do
-    if [ "$arg" == "--skip-env-file" ]; then
-        echo "Skipping loading of environment files"
-        SKIP_ENV_FILE=true
-        break
-    fi
+rm -rf "$DIST" && mkdir -p "$DIST"
+for t in $TARGETS; do
+  os="${t%/*}"; arch="${t#*/}"
+  out="$DIST/daytona-${os}-${arch}"
+  [ "$os" = windows ] && out="${out}.exe"
+  echo "building $out"
+  CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$out" .
 done
-
-if [ "$SKIP_ENV_FILE" != "true" ]; then
-    echo "Loading environment files"
-    # Try loading environment files in order of precedence
-    if [ -n "$DAYTONA_ENV_FILE" ]; then
-        if ! load_env_file "$DAYTONA_ENV_FILE"; then
-            echo "Warning: Environment file specified by DAYTONA_ENV_FILE ($DAYTONA_ENV_FILE) not found"
-        fi
-    elif load_env_file "${SCRIPT_DIR}/../.env.local"; then
-        : # Successfully loaded CLI .env
-    elif load_env_file "${SCRIPT_DIR}/../.env"; then
-        : # Successfully loaded CLI .env
-    elif load_env_file "${PROJECT_ROOT}/.env.local"; then
-        : # Successfully loaded root .env
-    elif load_env_file "${PROJECT_ROOT}/.env"; then
-        : # Successfully loaded root .env
-    else
-        echo "Note: No .env file found, using default values"
-    fi
-fi
-
-# Set default values
-DAYTONA_VERSION=${VERSION:-v0.0.0-dev}
-GOOS=${GOOS:-linux}
-GOARCH=${GOARCH:-amd64}
-CGO_ENABLED=${CGO_ENABLED:-0}
-
-# Validate required variables
-REQUIRED_VARS=(
-    "DAYTONA_API_URL"
-    "DAYTONA_AUTH0_DOMAIN"
-    "DAYTONA_AUTH0_CLIENT_ID"
-    "DAYTONA_AUTH0_CALLBACK_PORT"
-    "DAYTONA_AUTH0_AUDIENCE"
-)
-
-MISSING_VARS=()
-for var in "${REQUIRED_VARS[@]}"; do
-    if [ -z "${!var}" ]; then
-        MISSING_VARS+=("$var")
-    fi
-done
-
-if [ ${#MISSING_VARS[@]} -ne 0 ]; then
-    echo "Error: Missing required environment variables:"
-    printf '%s\n' "${MISSING_VARS[@]}"
-    exit 1
-fi
-
-# Auth0's discovery issuer ends in a single trailing slash, and go-oidc compares
-# the configured issuer against it exactly. Collapse any trailing slashes to one
-# so a value entered with none or several still matches.
-shopt -s extglob
-DAYTONA_AUTH0_DOMAIN="${DAYTONA_AUTH0_DOMAIN%%+(/)}/"
-
-# Create build directory if it doesn't exist
-mkdir -p "${DIST_DIR}/dist/cli"
-
-# Set output filename with .exe extension for Windows
-OUTPUT_FILE="daytona-${GOOS}-${GOARCH}"
-if [ "$GOOS" == "windows" ]; then
-    OUTPUT_FILE="${OUTPUT_FILE}.exe"
-fi
-
-# Build the binary
-echo "Building Daytona CLI with version: $DAYTONA_VERSION"
-go build \
-    -ldflags "-X 'github.com/daytona/clients/cli/internal.Version=${DAYTONA_VERSION}' \
-    -X 'github.com/daytona/clients/cli/internal.DaytonaApiUrl=${DAYTONA_API_URL}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0Domain=${DAYTONA_AUTH0_DOMAIN}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0ClientId=${DAYTONA_AUTH0_CLIENT_ID}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0CallbackPort=${DAYTONA_AUTH0_CALLBACK_PORT}' \
-    -X 'github.com/daytona/clients/cli/internal.Auth0Audience=${DAYTONA_AUTH0_AUDIENCE}'" \
-    -o "${DIST_DIR}/dist/cli/${OUTPUT_FILE}" main.go
-
-echo "Build complete: ${DIST_DIR}/dist/cli/${OUTPUT_FILE}"
+# The install scripts ship as release assets beside the binaries and are
+# verified against the same SHA256SUMS by the publish job's resume path and by
+# anyone checking a download — so they are checksummed here too.
+cp install.sh install.ps1 "$DIST/"
+# stock macOS has shasum, not sha256sum
+if command -v sha256sum >/dev/null 2>&1; then SHA="sha256sum"; else SHA="shasum -a 256"; fi
+( cd "$DIST" && $SHA daytona-* install.sh install.ps1 > SHA256SUMS )
+echo "wrote $DIST/SHA256SUMS"

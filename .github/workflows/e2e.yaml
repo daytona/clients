@@ -1,0 +1,69 @@
+name: E2E
+
+# Live end-to-end tests of both SDKs against a Daytona deployment. They need
+# the DAYTONA_API_KEY secret (and DAYTONA_API_URL for a deployment other than
+# the default). One key serves both release lines: keys are shared between
+# the 0.x and 2.x APIs. Secrets are not available to pull requests from forks, so
+# there the suite reports a skip instead of failing; a maintainer runs it
+# before merging.
+#
+# A pull request that depends on API changes that are not deployed yet is
+# expected to fail here until they are: keep it a draft until then.
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Use the repository variable for a custom 2.x test deployment;
+  # otherwise test against the default 2.x API.
+  DAYTONA_V2_API_URL: ${{ vars.DAYTONA_V2_API_URL || 'https://api.daytona.com' }}
+  DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+
+jobs:
+  check-secret:
+    name: Check API key availability
+    runs-on: ubuntu-latest
+    outputs:
+      run_e2e: ${{ steps.check.outputs.run_e2e }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "$DAYTONA_API_KEY" ]; then
+            echo "run_e2e=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DAYTONA_API_KEY is not available (fork PR or unset); skipping the live E2E suite."
+          else
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e:
+    name: ${{ matrix.sdk }} SDK E2E
+    needs: check-secret
+    if: needs.check-secret.outputs.run_e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [py, ts]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: ./run-e2e.sh ${{ matrix.sdk }}

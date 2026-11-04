@@ -1,0 +1,7 @@
+[dependency-groups]
+test = [
+    "pytest>=8",
+    {include-group = "sandbox"},
+]
+sandbox = ["daytona==0.224.0; sys_platform == 'linux'"]
+tools = ["daytona-upgrade>=0.1"]

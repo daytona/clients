@@ -1,0 +1,92 @@
+{
+  "$comment": "Sandbox state events WebSocket protocol and example client and server frames.",
+  "version": 1,
+  "subprotocol": "daytona.events.v1",
+  "ticket": {
+    "mint": {
+      "method": "POST",
+      "path": "/events/{region}/ticket",
+      "auth": "Project API key or platform token; requires read:sandboxes",
+      "response": { "ticket": "k7Qm...opaque...", "expires_in_ms": 30000, "subprotocol": "daytona.events.v1" },
+      "errors": { "401": "no/invalid credential", "403": "credential lacks read:sandboxes", "404": "malformed region tag", "429": "mint rate (10/min per credential) or socket cap (16 live sockets per credential) - Retry-After set", "503": "sandbox events temporarily unavailable" }
+    },
+    "upgrade": {
+      "method": "GET",
+      "path": "/events/{region}",
+      "headers": { "Upgrade": "websocket", "Sec-WebSocket-Protocol": "daytona.events.v1, daytona.ticket.k7Qm...opaque..." },
+      "response_headers": { "Sec-WebSocket-Protocol": "daytona.events.v1" },
+      "region": "the region tag of the sandbox ids the socket will carry, as it appears after the dash in `<base58>-<region tag>`; `_` when the id carries no tag (bare UUID) and the sandbox's region is unknown. The server accepts subscriptions for any sandbox the caller can see, whatever region tag the socket was opened with.",
+      "errors": { "401": "ticket missing, expired, already consumed, or the referenced credential no longer valid", "404": "malformed region tag", "429": "per-credential live socket cap reached - Retry-After set", "503": "sandbox events temporarily unavailable or the connection limit reached - retry with backoff" }
+    }
+  },
+  "client_frames": [
+    { "name": "subscribe", "frame": { "type": "subscribe", "ids": [ { "id": "7fJkQ2mN8pL3xR5tV9wA1b-region-a", "known": false }, { "id": "3bCd4EfG5hJk6LmN7pQr8s-region-a", "known": true } ] }, "semantics": "register interest; one snapshot (or error) per id, then events; snapshot/event arrival order is unspecified and consumers apply whichever frame carries the higher version. Idempotent: re-subscribing re-snapshots. `known` defaults to false and marks an id the client has previously received a real snapshot or event for." },
+    { "name": "unsubscribe", "frame": { "type": "unsubscribe", "ids": [ "7fJkQ2mN8pL3xR5tV9wA1b-region-a" ] }, "semantics": "drop interest; no reply" },
+    { "name": "ping", "frame": { "type": "ping" }, "semantics": "optional; answered with pong; counts toward the frame rate" },
+    { "name": "pong", "frame": { "type": "pong" }, "semantics": "answer to a server ping" }
+  ],
+  "server_frames": [
+    { "name": "snapshot", "frame": { "type": "snapshot", "id": "7fJkQ2mN8pL3xR5tV9wA1b-region-a", "status": "pending", "version": 3, "error": null }, "semantics": "current state after the subscription is registered; exactly one per accepted id per subscribe; `id` is echoed exactly as the client spelled it" },
+    { "name": "event", "frame": { "type": "event", "id": "7fJkQ2mN8pL3xR5tV9wA1b-region-a", "status": "running", "version": 5, "error": null }, "semantics": "an updated sandbox state; intermediate states may be omitted in favor of the latest state" },
+    { "name": "event_failed", "frame": { "type": "event", "id": "7fJkQ2mN8pL3xR5tV9wA1b-region-a", "status": "failed", "version": 6, "error": "sandbox unavailable" }, "semantics": "`error` carries the sandbox's error message when it has one" },
+    { "name": "error_not_found", "frame": { "type": "error", "id": "3bCd4EfG5hJk6LmN7pQr8s-region-a", "code": "NOT_FOUND", "was_known": true }, "semantics": "the sandbox is unknown (nonexistent, deleted, or not in the caller's project - indistinguishable); `was_known` echoes the latest `known` the server holds from the client. If the client has already seen a real snapshot/event for the id, that own knowledge is authoritative even when the echoed flag is stale. known=true: terminal with unrecorded outcome; known=false: not yet visible, keep waiting" },
+    { "name": "error_limit", "frame": { "type": "error", "id": "7fJkQ2mN8pL3xR5tV9wA1b-region-a", "code": "LIMIT", "message": "subscriptions per socket" }, "semantics": "no snapshot was returned: a subscription limit was reached or the snapshot was temporarily unavailable. The new subscription was not accepted; a previously-held subscription remains active. The socket stays open and other ids in the frame are unaffected; retry this id later" },
+    { "name": "error_limit_inbound", "frame": { "type": "error", "id": null, "code": "LIMIT", "message": "inbound frame rate" }, "semantics": "the whole socket exceeded its inbound frame budget; this is not a per-id refusal and carries no id to retry" },
+    { "name": "error_malformed_frame", "frame": { "type": "error", "id": null, "code": "MALFORMED", "message": "frame carries 1001 ids (max 1000)" }, "semantics": "the whole frame was rejected and no id in it was processed; three in a row close the socket with 1008" },
+    { "name": "error_malformed_id", "frame": { "type": "error", "id": "not-an-id", "code": "MALFORMED", "message": "invalid sandbox id" }, "semantics": "one id in an otherwise valid frame does not parse; the other ids in the frame are processed" },
+    { "name": "ping", "frame": { "type": "ping" }, "semantics": "server liveness ping, ~30 s cadence; the client answers pong within the pong deadline" },
+    { "name": "pong", "frame": { "type": "pong" }, "semantics": "answer to a client ping" }
+  ],
+  "error_codes": [ "NOT_FOUND", "LIMIT", "MALFORMED" ],
+  "wire_states": {
+    "$comment": "the values `status` can carry; the server never emits `unknown` - an SDK decodes anything else to its own `unknown`",
+    "in_progress": [ "queued", "pending", "assigned", "booting" ],
+    "live": [ "running", "stopping", "deleting", "pausing" ],
+    "rest": [ "stopped", "paused" ],
+    "terminal": [ "deleted", "failed", "lost" ]
+  },
+  "sdk_state_decoding": {
+    "queued": "queued", "pending": "creating", "assigned": "creating", "booting": "starting",
+    "running": "started", "pausing": "pausing", "paused": "paused", "stopping": "stopping", "stopped": "stopped",
+    "deleting": "destroying", "deleted": "destroyed", "failed": "error", "lost": "error",
+    "*": "unknown"
+  },
+  "version_rule": "apply a snapshot or event when its version is >= the version held for that id; drop it when lower. Equal versions carry identical state.",
+  "limits": {
+    "max_frame_bytes": 65536,
+    "max_ids_per_frame": 1000,
+    "malformed_frames_before_close": 3,
+    "inbound_frames_per_second": 100,
+    "subscriptions_per_socket": 20000,
+    "subscribe_ids_per_second_per_socket": 2000,
+    "subscribe_burst_per_socket": 10000,
+    "subscriptions_per_project": 200000,
+    "subscribe_ids_per_second_per_project": 10000,
+    "sockets_per_credential": 16,
+    "ticket_mints_per_minute_per_credential": 10,
+    "ticket_ttl_ms": 30000,
+    "server_ping_interval_ms": 30000,
+    "pong_deadline_ms": 10000,
+    "authorization_lease_ms": 60000
+  },
+  "close_codes": {
+    "1000": "normal close (client unsubscribe-all / shutdown)",
+    "1001": "going away: pong deadline missed or service restarting - reconnect",
+    "1008": "policy violation: three malformed frames in a row, sustained frame-rate abuse, or a client unable to keep up with events",
+    "1009": "message too big: a text message exceeds max_frame_bytes; oversized messages may also close with 1000 — reconnect either way",
+    "1013": "try again later: authorization temporarily unavailable - reconnect; a connection limit may instead reject the upgrade with HTTP 503",
+    "4401": "credential no longer valid: revoked, expired, or permission or membership lost - mint a new ticket before reconnecting"
+  },
+  "client_rules": {
+    "reconnect_backoff": { "base_ms": 250, "cap_ms": 30000, "jitter": "full" },
+    "resubscribe_on_reconnect": "every id with a live waiter, in frames of <= max_ids_per_frame, each with its own `known`",
+    "reconcile": { "default_interval_s": 60, "jitter": "+-10%", "rule": "re-subscribe every id that still has a waiter; never skip recently-updated ids" },
+    "early_probe": { "delay_ms": 10000, "rule": "when a socket-path waiter has a poll fallback, arm the first probe at jittered(min(delay_ms, remaining_budget/2)); if the waiter's socket has then received no frame of any kind (snapshot/event/error/ping/pong) since that waiter registered and for at least delay_ms, run one poll. If the poll resolves or reaches a terminal state, settle the waiter exactly as an observed socket state would; otherwise discard the result when any socket frame arrived during the GET, re-arm a failed poll after a fresh jittered delay_ms, and re-arm a non-terminal successful poll using only the remaining quiet time (delay_ms - silent_ms, with silent_ms measured from max(waiter_registered_at, socket_last_frame_at))) while the waiter stays pending. While waiters exist, the client also sends one {\"type\":\"ping\"} after 5000 ms of socket silence and re-arms that client ping only when any frame is received" },
+    "waits": {
+      "create": "wait for started; on a terminal state {destroying, destroyed, error} or a spent budget, return the sandbox as-is (its state shows the outcome) rather than reject; `unknown` keeps waiting. `wait(until=started)` / `waitForState([started])` reject on a terminal state",
+      "target": "resolve when decoded state == target; by default reject when state is in {destroying, destroyed, error} and is not the target, or on NOT_FOUND with was_known=true; `unknown` keeps waiting; stopped/paused are not terminal by default. A caller-supplied terminalStates / terminal_states replaces the terminal set",
+      "timeout": "RequestTimeoutError (408, REQUEST_TIMEOUT) when the deadline passes; a target the sandbox passed through unobserved is not recovered"
+    },
+    "endpoints": "one socket per regional endpoint: key a socket by the X-Daytona-Cell value of non-GET sandbox responses, else by the id's region tag; a NOT_FOUND for an id keyed by a learned value drops that value and retries once by region tag"
+  }
+}

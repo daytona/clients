@@ -1,0 +1,27 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - forcetypeassert
+    - forbidigo
+    - nolintlint
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^reflect\.
+          msg: Use typed access instead of reflection.
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    rules:
+      # reflect.DeepEqual is idiomatic for comparisons in Go tests.
+      - path: _test\.go
+        linters:
+          - forbidigo
+      # Tests assert types from controlled fixtures and platform metadata.
+      - path: _test\.go
+        linters:
+          - forcetypeassert

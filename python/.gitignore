@@ -1,0 +1,3 @@
+# The v0 SDK, bundled at publish time from daytona/clients by
+# scripts/bundle-v0.sh. Never committed (a CI check enforces it).
+/src/daytona/v0/

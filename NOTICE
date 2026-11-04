@@ -3,3 +3,9 @@ Copyright the various Daytona software authors.
 
 The initial developer of the software is Daytona Platforms, Inc. (https://daytona.io).
 Copyright Daytona Platforms, Inc. All Rights Reserved.
+
+This repository includes a test fixture derived from Harbor
+(https://github.com/laude-institute/harbor), licensed under the Apache License,
+Version 2.0: upgrade/python/tests/fixtures/harbor_utils.py. It is used only as
+sample input for the migration tool's tests and is not distributed in any
+package.

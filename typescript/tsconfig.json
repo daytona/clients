@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2021", "DOM", "ESNext.Disposable"],
+    "declaration": true,
+    "stripInternal": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@daytona/sdk": ["./src/index.ts"],
+      "@daytona/sdk/v0": ["./dist/cjs/v0/index.d.ts", "./src/v0-unbundled.ts"],
+      "@daytona/sdk/v2": ["./src/v2/index.ts"],
+      "#v0-loader": ["./loaders/v0-loader.d.ts"]
+    },
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests", "src/v0"]
+}

@@ -1,0 +1,5 @@
+{
+  "dependencies": {"before":"1", "@daytonaio/sdk":"~0.224.0", "after":"2"},
+  "devDependencies": {"@daytona/sdk":"^2.0.0"},
+  "optionalDependencies": {"@daytonaio/sdk":"0.224.0"}
+}

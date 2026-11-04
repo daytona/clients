@@ -1,0 +1,155 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: AGPL-3.0
+
+package cmd
+
+import (
+	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/mgmt"
+	"github.com/daytona/clients/cli/internal/output"
+	"github.com/spf13/cobra"
+)
+
+func init() {
+	extendProjectCmd(newProjectMemberSubcmd)
+}
+
+func extendProjectCmd(add func() *cobra.Command) {
+	for i, reg := range registry {
+		current := reg
+		built := current()
+		if built != nil && built.Use == "project" {
+			registry[i] = func() *cobra.Command {
+				cmd := current()
+				cmd.AddCommand(add())
+				return cmd
+			}
+			return
+		}
+	}
+}
+
+func newProjectMemberSubcmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "member", Short: "Project membership: list, add, remove"}
+	cmd.AddCommand(newProjectMemberListCmd(), newProjectMemberAddCmd(), newProjectMemberRemoveCmd())
+	return cmd
+}
+
+func newProjectMemberListCmd() *cobra.Command {
+	return &cobra.Command{Use: "list", Short: "List members who can access the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		projectID, err := a.RequireProject(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(ctx)
+		if err != nil {
+			return err
+		}
+		items, err := mgmt.ListProjectMembers(ctx, mc, projectID)
+		if err != nil {
+			return err
+		}
+		return output.ListOut(a.Printer(), output.List[gen.ProjectMember]{Items: items}, projectMemberTable)
+	}}
+}
+
+func newProjectMemberAddCmd() *cobra.Command {
+	var bulk string
+	cmd := &cobra.Command{Use: "add <user>", Short: "Add one or more members to the selected project", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if bulk != "" && len(args) > 0 {
+			return cerr.Usage("--bulk does not take a positional user")
+		}
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		orgID, err := a.RequireOrg(ctx, pickOrg(a))
+		if err != nil {
+			return err
+		}
+		projectID, err := a.RequireProject(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(ctx)
+		if err != nil {
+			return err
+		}
+		members, err := mgmt.ListMembers(ctx, mc, orgID)
+		if err != nil {
+			return err
+		}
+		if bulk != "" {
+			refs, err := splitCSV(bulk, "--bulk")
+			if err != nil {
+				return err
+			}
+			selected := make([]gen.OrganizationMember, 0, len(refs))
+			for _, ref := range refs {
+				member, err := resolveMemberRef(members, ref)
+				if err != nil {
+					return err
+				}
+				selected = append(selected, *member)
+			}
+			resp, err := mgmt.AddProjectMembersBulk(ctx, mc, projectID, selected)
+			if err != nil {
+				return err
+			}
+			return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+		}
+		if len(args) != 1 {
+			return cobra.ExactArgs(1)(cmd, args)
+		}
+		member, err := resolveMemberRef(members, args[0])
+		if err != nil {
+			return err
+		}
+		resp, err := mgmt.AddProjectMember(ctx, mc, projectID, *member)
+		if err != nil {
+			return err
+		}
+		return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+	}}
+	cmd.Flags().StringVar(&bulk, "bulk", "", "comma-separated user ids/emails/names to add in one request")
+	return cmd
+}
+
+func newProjectMemberRemoveCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "remove <user>", Short: "Remove one member from the selected project", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		a := FromContext(cmd.Context())
+		ctx := cmd.Context()
+		if err := a.PreflightConfirm("remove", "project member "+args[0]); err != nil {
+			return err
+		}
+		orgID, err := a.RequireOrg(ctx, pickOrg(a))
+		if err != nil {
+			return err
+		}
+		projectID, err := a.RequireProject(ctx, pickProject(a))
+		if err != nil {
+			return err
+		}
+		mc, err := a.Client(ctx)
+		if err != nil {
+			return err
+		}
+		members, err := mgmt.ListMembers(ctx, mc, orgID)
+		if err != nil {
+			return err
+		}
+		member, err := resolveMemberRef(members, args[0])
+		if err != nil {
+			return err
+		}
+		if err := a.Confirm("remove", "project member "+args[0]); err != nil {
+			return err
+		}
+		if err := mgmt.RemoveProjectMember(ctx, mc, projectID, member.UserId.String()); err != nil {
+			return err
+		}
+		return a.Printer().Object(map[string]any{"removed": member.UserId.String()}, [][2]string{{"removed", member.UserId.String()}})
+	}}
+	return cmd
+}
