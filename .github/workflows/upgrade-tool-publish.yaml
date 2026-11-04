@@ -178,19 +178,19 @@ jobs:
           name: upgrade-npm
           path: ${{ runner.temp }}/npm/
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7   # outlives the wait for the publish approval
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: upgrade-pypi
           path: ${{ runner.temp }}/pypi/
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7   # outlives the wait for the publish approval
 
   # The ONLY job on the `release` environment, so a run asks for one
   # approval, after the build and tests are green. A dry run skips it (no
   # approval asked); `targets` selects which registry steps run.
   publish:
-    name: Publish daytona-upgrade ${{ needs.build.outputs.npm_version }} (${{ inputs.targets }})
+    name: Publish daytona-upgrade ${{ inputs.targets == 'pypi' && needs.build.outputs.pypi_version || needs.build.outputs.npm_version }} (${{ inputs.targets }})
     needs: build
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest

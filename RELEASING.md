@@ -68,10 +68,11 @@ early users before it merges:
 gh workflow run sdk_publish.yaml --ref main -f version=v2.1.0-alpha.2 -f source_ref=feat/my-feature
 ```
 
-A 0.x version is refused here. Every run waits for **one** approval on the
-`release` environment, asked once the builds and tests are green and before
-any credential is used; the run summary names both the source commit and the
-workflow commit.
+A 0.x version is refused here. A run whose gate passes and whose builds and
+tests are green waits for **one** approval on the `release` environment,
+before any credential is used (a run that fails earlier asks for none); the
+run summary names both the source commit and the workflow commit. The built
+packages are kept for 7 days: approve within that, or dispatch again.
 
 ### Moving the 2.x line to `main` (done)
 

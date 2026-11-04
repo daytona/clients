@@ -497,7 +497,7 @@ jobs:
           name: pypi-dist
           path: python/dist/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7   # outlives the wait for the publish approval
 
   build-npm:
     name: Build @daytona/sdk ${{ needs.gate.outputs.npm }}
@@ -584,7 +584,7 @@ jobs:
           name: npm-pack
           path: typescript/pack/*.tgz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7   # outlives the wait for the publish approval
 
   build-cli:
     name: Build daytona CLI ${{ needs.gate.outputs.cli }}
@@ -623,7 +623,7 @@ jobs:
           name: cli-dist
           path: cli/dist/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7   # outlives the wait for the publish approval
 
   # ── Publish: artifacts in, registries out; never checks out source ─────────
   # The ONLY job on the `release` environment, so the run's single approval is
@@ -634,7 +634,8 @@ jobs:
   # failed registry check) still skips the whole job, so nothing is published
   # and nobody is asked to approve. Each target's steps key on its version
   # output, empty when the target is disabled. Targets run in order — PyPI,
-  # npm, CLI release, Homebrew — and a failure stops the ones after it.
+  # npm, CLI release, Homebrew — and a failure stops the ones after it. The
+  # package artifacts are kept 7 days: approve (or re-run) within that.
   publish:
     name: Publish ${{ needs.gate.outputs.tag }}
     needs: [gate, registry-check, build-python, build-npm, build-cli]
