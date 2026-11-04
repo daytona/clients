@@ -212,6 +212,8 @@ export class FileSystemService {
   }
 
   public async writeBytes(path: string, data: Uint8Array, options: WriteFileOptions = {}): Promise<void> {
+    // JavaScript callers migrating from the old write(path, string) get a named error, not a RangeError from TypedArray.set.
+    if (typeof data === 'string') throw new BadRequestError('writeBytes() takes a Uint8Array; use writeText() for strings', 400, 'BAD_REQUEST', 'SDK')
     const form = new FormData()
     form.append('path', path)
     if (options.mode) form.append('mode', options.mode)

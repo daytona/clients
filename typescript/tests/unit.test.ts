@@ -3987,6 +3987,8 @@ describe('toolbox service request shaping', () => {
     const transport = transportStub()
     const fs = new FileSystemService(transport.object)
 
+    await expect(fs.writeBytes('/tmp/a.txt', 'hello' as unknown as Uint8Array)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    expect(transport.post).not.toHaveBeenCalled()
     await fs.writeText('/tmp/a.txt', 'hello', { atomic: true })
     await fs.writeMany({ '/tmp/a.txt': new Uint8Array([1, 2, 3]) }, { atomic: true })
 

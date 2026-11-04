@@ -1935,7 +1935,7 @@
         "py": [
           "connect returns a process handle without opening a WebSocket",
           "Use handle.stream_logs() for output and handle.write_stdin(data) for input",
-          "Python v2 has no PTY attach"
+          "Python v2 has no bundled PTY attach; supply a custom WebSocket adapter if you need a socket"
         ],
         "ts": [
           "connect returns a process handle without opening a WebSocket",
@@ -3394,11 +3394,13 @@
       "notes": {
         "py": [
           "Expand options into keyword-only arguments or omit them when options is None",
+          "Compression applies only when format, quality or scale is set; when options sets none of them, pass format=\"png\" to keep a compressed image",
           "Only png and jpeg formats are supported",
           "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
         ],
         "ts": [
           "Moves to screen.screenshot with format restricted to png or jpeg",
+          "Compression applies only when format, quality or scale is set; when options sets none of them, pass format: 'png' to keep a compressed image",
           "The screenshot response field is required"
         ]
       },
@@ -3420,11 +3422,13 @@
       "notes": {
         "py": [
           "Pass the region as a ComputerUseRegion and expand options into keyword-only arguments, omitting options fields when None",
+          "Compression applies only when format, quality or scale is set; when options sets none of them, pass format=\"png\" to keep a compressed image",
           "Only png and jpeg formats are supported",
           "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
         ],
         "ts": [
           "Region and compression options merge into one screen.screenshot options object",
+          "Compression applies only when format, quality or scale is set; when options sets none of them, pass format: 'png' to keep a compressed image",
           "Only png and jpeg formats are supported",
           "The screenshot response field is required"
         ]
