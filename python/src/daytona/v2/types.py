@@ -492,10 +492,9 @@ class SandboxInfo:
     spot_evicted_at: Optional[str] = field(default=None, kw_only=True)
     lifecycle_policy: Optional[SandboxLifecycle] = field(default=None, kw_only=True)
     forked_from: Optional[str] = field(default=None, kw_only=True)
-    #: macOS only: the external ID of the reservation selected by the current or
-    #: latest successful claim. Unset before first claim, and on search
-    #: reads (``search()``, a search-routed ``list()``), which omit it:
-    #: ``refresh_data()`` reads it.
+    #: macOS only: the ID of the reservation selected for this sandbox. Unset
+    #: before a reservation is selected, and on search reads (``search()``, a
+    #: search-routed ``list()``), which omit it: ``refresh_data()`` reads it.
     reservation_id: Optional[str] = field(default=None, kw_only=True)
     user: Optional[str] = field(default=None, kw_only=True)
     error: Optional[str] = field(default=None, kw_only=True)

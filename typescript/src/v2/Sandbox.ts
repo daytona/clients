@@ -1226,8 +1226,8 @@ export class Sandbox {
 
   /**
    * Pause a persistent macOS sandbox with its memory. Waits up to `timeout` for `paused` and throws
-   * `SandboxTerminalStateError` if the pause fails. A paused macOS sandbox keeps its Mac slot
-   * and keeps an auto-renewing reservation renewing.
+   * `SandboxTerminalStateError` if the pause fails. A paused macOS sandbox stays on its Mac
+   * and keeps a reservation with auto-renew on renewing.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
@@ -1473,7 +1473,7 @@ export class Sandbox {
    * Snapshot this sandbox's filesystem as a new {@link Image}
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
    * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
-   * stopped; it cannot start until the snapshot is `ready`.
+   * stopped.
    */
   public async snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')

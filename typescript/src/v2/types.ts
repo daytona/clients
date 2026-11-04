@@ -439,14 +439,14 @@ export interface CreateSandboxFromSnapshotOptions extends CreateRequestBaseOptio
 
 /**
  * Options for a macOS create (`POST /sandboxes/macos`). `cpu`, `memory` and
- * `disk` size the sandbox; omitted values use the API defaults.
+ * `disk` size the sandbox; omitted values use the Mac model's default size.
  * CPU selectors do not apply.
  */
 export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions, 'cpuArch' | 'cpuType'> {
   /**
-   * Read-write disk volumes. Each volume holds its `sizeGib` (100 GiB when
-   * omitted) of the Mac's sandbox disk room beside the sandbox's disk, so the
-   * disk and the volumes must fit one Mac together. Cannot be combined with
+   * Read-write disk volumes. Each volume uses its size (`sizeGib`, 100 GiB by
+   * default) of disk space on the Mac, beside the sandbox's disk. The disk and
+   * the volumes must fit one Mac together. Cannot be combined with
    * `persistent: true`.
    */
   volumes?: VolumeMount[]
@@ -457,24 +457,24 @@ export interface CreateMacosSandboxOptions extends Omit<CreateRequestBaseOptions
    * restricted to each secret's allowed domains. Needs `read:secrets` permission.
    */
   secrets?: string[]
-  /** CPU cores, at least 4; sent as `cores`. Omitted uses the API default. */
+  /** CPU cores, at least 4; sent as `cores`. Omitted uses the Mac model's default size (`default_size` in the Mac catalog). */
   cpu?: number
-  /** Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses the API default. */
+  /** Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses the Mac model's default size (`default_size` in the Mac catalog). */
   memory?: number
-  /** Disk in GiB, at least 80, including macOS; sent as disk_mib. disk * 1024 must be an integer. Omitted uses the API default. */
+  /** Disk in GiB, at least 80, including macOS; sent as disk_mib. disk * 1024 must be an integer. Omitted uses the Mac model's default size (`default_size` in the Mac catalog). A create from a captured image gets the image's disk size when `disk` is omitted, and refuses a smaller `disk`. */
   disk?: number
   /**
    * Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
    */
   persistent?: boolean
   /**
-   * Which Mac reservation the sandbox runs on. Omitted: any fitting reservation of the
-   * organization in the region; when none fits and the organization's
-   * auto-reserve setting allows it, the server buys a reservation. `'new'`: buy a
-   * reservation of the cheapest model that fits. Any other value is a reservation
-   * id as `reservations.list()` returns it.
-   * A reservation ID selects that reservation. Acceptance does not guarantee
-   * immediate capacity; the sandbox can wait for room or time out.
+   * Which Mac reservation the sandbox runs on. Omitted: any reservation of the
+   * organization in the region that has space for the size; if the
+   * organization has no reservation in the region and its auto-reserve setting
+   * is on, the server buys one. `'new'`: buy a reservation of the cheapest
+   * model that fits. Any other value is a reservation id as
+   * `reservations.list()` returns it. An accepted create can wait for space on
+   * its Mac, or time out.
    */
   reservation?: 'new' | (string & {})
   /**
@@ -1169,8 +1169,8 @@ export interface CpuTypeInfo {
 }
 
 /**
- * A registered Mac model (`GET /mac-models`), with its physical resources,
- * sandbox disk room, `max_sandboxes`, and `default_size` for omitted create sizes.
+ * A registered Mac model (`GET /mac-models`), with its physical resources, its
+ * disk space for sandboxes and its `default_size`.
  */
 export type MacModel = api.MacModel
 

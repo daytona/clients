@@ -401,28 +401,29 @@ class AsyncDaytona:
     ) -> AsyncSandbox:
         """Create a macOS sandbox on a reserved Mac from a macOS image name.
 
-        ``cpu``: CPU cores, at least 4; sent as ``cores``. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted uses half of the claiming Mac's cores, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.
+        ``cpu``: CPU cores, at least 4; sent as ``cores``. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted uses the Mac model's default size (``default_size`` in the Mac catalog).
 
-        ``memory``: Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses half of the claiming Mac's memory, rounded down, on a model that runs two sandboxes, or all of it on a model that runs one.
+        ``memory``: Memory in GiB, at least 4; sent as memory_mib. memory * 1024 must be an integer. Omitted uses the Mac model's default size (``default_size`` in the Mac catalog).
 
-        ``disk``: Disk in GiB, at least 80; sent as disk_mib. The whole sandbox disk, macOS included. disk * 1024 must be an integer. Omitted uses the claiming Mac's sandbox disk room less 32 GiB, halved on a model that runs two sandboxes, rounded down to a whole GiB, and at least 80.
+        ``disk``: Disk in GiB, at least 80; sent as disk_mib. The whole sandbox disk, macOS included. disk * 1024 must be an integer. Omitted uses the Mac model's default size (``default_size`` in the Mac catalog). A create from a captured image gets the image's disk size when ``disk`` is omitted, and refuses a smaller ``disk``.
 
-        The first successful claim fixes the size, which the sandbox reports
-        from then on.
+        The size is fixed when the sandbox first gets a Mac, and the sandbox
+        reports it from then on.
 
         ``persistent``: Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
 
-        ``volumes`` attaches disk volumes read-write. Each volume holds its
-        ``size_gib`` (100 GiB when omitted) of the Mac's sandbox disk room
-        beside the sandbox's disk, so the disk and the volumes must fit one Mac
-        together. A sandbox with volumes cannot be persistent; bucket volumes
-        and ``read_only`` are rejected with :class:`BadRequestError`.
+        ``volumes`` attaches disk volumes read-write. Each volume uses its size
+        (``size_gib``, 100 GiB by default) of disk space on the Mac, beside the
+        sandbox's disk. The disk and the volumes must fit one Mac together. A
+        sandbox with volumes cannot be persistent; bucket volumes and
+        ``read_only`` are rejected with :class:`BadRequestError`.
 
-        ``reservation`` picks the Mac's reservation (``daytona.reservations``):
-        ``None`` uses any fitting reservation of the organization in the region (or
-        lets the organization's auto-reserve buy one), ``"new"`` buys a reservation of
-        the cheapest model that fits.
-        A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+        ``reservation`` picks the Mac reservation (``daytona.reservations``):
+        ``None`` uses any reservation of the organization in the region that
+        has space for the size; if the organization has no reservation in the
+        region, auto-reserve buys one. ``"new"`` buys a reservation of the
+        cheapest model that fits. A reservation ID uses that reservation. An
+        accepted create can wait for space on its Mac, or time out.
         ``auto_renew`` is allowed only with ``reservation="new"``. With no reservation
         to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
         ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,

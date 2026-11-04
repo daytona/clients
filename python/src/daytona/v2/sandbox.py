@@ -1030,7 +1030,7 @@ class AsyncSandbox:
 
         macOS waits up to ``timeout`` for ``paused`` and raises
         ``SandboxTerminalStateError`` if the pause fails. A paused macOS
-        sandbox keeps its Mac slot and keeps an auto-renewing reservation renewing.
+        sandbox stays on its Mac and keeps a reservation with auto-renew on renewing.
         """
         _validate_timeout(timeout)
         await self._require_macos_lifecycle()
@@ -1304,9 +1304,7 @@ class AsyncSandbox:
         """Snapshot this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``).
 
         The result boots new sandboxes (``daytona.create(image.id)``); a Linux
-        sandbox keeps running. A macOS
-        sandbox must be persistent and stopped; it cannot start until the
-        snapshot is ``ready``.
+        sandbox keeps running. A macOS sandbox must be persistent and stopped.
 
         ``name`` makes the image named and permanent. ``idle`` (seconds) is the
         idle-retention window of an ANONYMOUS capture: it is deleted once that
