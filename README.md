@@ -96,7 +96,7 @@ processes, files, Git, code execution, ports, LSP and computer use.
   against the contract artifact `contract/toolbox-openapi.json`.
 - **Mac reservations buy physical Macs.** Both SDKs reserve one Mac per
   reservation, individually or in bulk. Sandbox CPU, memory, and disk sizes
-  are per-create inputs. `MacModel` exposes `max_sandboxes` and `default_size`.
+  are per-create inputs. `MacModel` exposes each model's `default_size`.
 - Signals use bare names on the surface (`TERM`, `INT`, …), `SIG*` on the wire.
 
 ## Verification
