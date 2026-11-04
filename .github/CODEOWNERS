@@ -2,9 +2,9 @@
 # These owners are automatically requested for review on PRs that modify the listed files.
 # Multiple owners = OR semantics (any one can approve).
 # Enforcement: this branch (release/v0, the 0.x line) is governed by the
-# "Release branches" ruleset, which requires pull request reviews including code
-# owner review, so listed owners must approve before merge. main (the 2.x line)
-# has its own protection and CODEOWNERS.
+# "Release branches" ruleset, which requires the status checks noted below.
+# Owners listed here are requested for review; their approval becomes mandatory
+# once that ruleset requires code owner review.
 
 # Security and compliance policies (CISO-owned)
 SECURITY.md                @MDzaja @aprojic

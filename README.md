@@ -50,7 +50,7 @@ The 0.x CLI installs as `daytona-v0`, side by side with the 2.x `daytona` CLI:
 brew install daytonaio/cli/daytona@0
 ```
 
-Or download the binary for your platform from a `v0.x.y` [GitHub release](https://github.com/daytona/clients/releases). The release page lists it as `daytona-v0-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-v0-<os>-<arch>`. Linux and macOS can use the release's `install-v0.sh`. Some older 0.x releases name the binary `daytona-<os>-<arch>` instead.
+Or download the binary for your platform from a `v0.x.y` [GitHub release](https://github.com/daytona/clients/releases). The release page lists it as `daytona-v0-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-v0-<os>-<arch>`. Linux and macOS can use the release's `install-v0.sh`; pass `--version 0.X.Y` to pick a release that has `daytona-v0-*` assets. Some 0.x releases name the binary `daytona-<os>-<arch>` instead.
 
 #### Verify the binary
 

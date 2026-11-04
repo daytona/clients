@@ -135,7 +135,7 @@ PyPI, RubyGems and the Go module proxy resolve the newest version by version ord
 
 ### Cutting over to the 2.x line
 
-When the 2.x SDK and CLI become the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
+Now that the 2.x SDK and CLI are the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
 
 At the cutover, in this order:
 

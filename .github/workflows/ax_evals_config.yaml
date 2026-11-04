@@ -21,8 +21,8 @@ permissions:
 
 concurrency:
   # Per ref, so other refs can't displace a release/v0 sync. On release/v0 a running
-  # sync is never cancelled and only the newest pending one is kept, which already contains every
-  # earlier change.
+  # sync is never cancelled and only the newest pending one is kept, which already
+  # contains every earlier change.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
