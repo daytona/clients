@@ -5,14 +5,17 @@
 # Secret scanning with gitleaks, shared by the git hooks in .githooks/ and the
 # "Secret scan" workflow. Rules: .gitleaks.toml. See CONTRIBUTING.md.
 #
-#   scripts/secret-scan.sh install        download the pinned gitleaks and
-#                                         enable the hooks in this clone
+#   scripts/secret-scan.sh install        download the pinned gitleaks (or use
+#                                         one on PATH where none is published)
+#                                         and enable the hooks
 #   scripts/secret-scan.sh install-bin    download the pinned gitleaks only
 #   scripts/secret-scan.sh staged         scan the staged changes (pre-commit)
 #   scripts/secret-scan.sh pre-push NAME  scan the commits a push would send;
 #                                         reads the pre-push hook's stdin
 #   scripts/secret-scan.sh range ARGS...  scan the commits `git log ARGS`
 #                                         lists, e.g. `range main..HEAD`
+#   scripts/secret-scan.sh ci-push BEFORE AFTER BRANCH
+#                                         scan the commits a push added (CI)
 #
 # Exit status: 0 clean, 1 secrets found, 2 usage or setup error.
 #
@@ -94,9 +97,16 @@ install_bin() {
 }
 
 install_hooks() {
-  local shared
+  local shared own=""
   shared=$(git config --local --get core.hooksPath || true)
-  if [ -z "$shared" ] || [ "$shared" = .githooks ]; then
+  if [ "$(git config --bool --get extensions.worktreeConfig || true)" = true ]; then
+    own=$(git config --worktree --get core.hooksPath || true)
+  fi
+  if [ -n "$own" ]; then
+    # This worktree already overrides the hooks path; replace the override.
+    git config --worktree core.hooksPath .githooks
+    [ "$own" = .githooks ] || echo "secret-scan: replaced this worktree's core.hooksPath '$own' with .githooks"
+  elif [ -z "$shared" ] || [ "$shared" = .githooks ]; then
     git config --local core.hooksPath .githooks
   else
     # Another tool owns the clone-wide hooks path (for example husky, set up
@@ -109,6 +119,19 @@ install_hooks() {
   [ "$(git rev-parse --git-path hooks)" = .githooks ] \
     || die "core.hooksPath did not take effect (git rev-parse --git-path hooks: $(git rev-parse --git-path hooks))"
   echo "secret-scan: hooks enabled (.githooks/pre-commit, .githooks/pre-push)"
+}
+
+# install: the pinned binary where one is published, else a gitleaks on PATH.
+install_all() {
+  if platform >/dev/null; then
+    install_bin
+  elif command -v gitleaks >/dev/null 2>&1; then
+    echo "secret-scan: no pinned gitleaks build for $(uname -s)/$(uname -m); using $(command -v gitleaks)"
+    resolve_gitleaks >/dev/null
+  else
+    die "no pinned gitleaks build for $(uname -s)/$(uname -m); install gitleaks $GITLEAKS_VERSION on PATH (https://github.com/gitleaks/gitleaks#installing), then re-run install"
+  fi
+  install_hooks
 }
 
 # Prefer the pinned binary, then gitleaks on PATH.
@@ -170,47 +193,69 @@ scan_log() {
   run_gitleaks --log-opts="$*"
 }
 
+is_zero() { [ -z "${1//0/}" ]; }
+
 # pre-push: stdin carries "<local ref> <local sha> <remote ref> <remote sha>"
-# per pushed ref. Scan the commits the remote does not have yet.
+# per pushed ref. Scan the commits the remote does not have yet. What the
+# remote has is asked from the remote itself (ls-remote), never read from the
+# local remote-tracking refs: those go stale when a branch is deleted or
+# rewritten elsewhere, and excluding a stale tip would skip its commits.
 scan_pre_push() {
-  local remote="$1" zero revs=() _lref local_sha _rref remote_sha
-  zero=$(git hash-object --stdin </dev/null | tr '[:xdigit:]' 0)
+  local remote="$1" revs=() _lref local_sha _rref remote_sha advertised sha _ref
   while read -r _lref local_sha _rref remote_sha; do
     [ -n "${local_sha:-}" ] || continue
-    [ "$local_sha" = "$zero" ] && continue # deleting a remote ref sends nothing
+    is_zero "$local_sha" && continue # deleting a remote ref sends nothing
     revs+=("$local_sha")
-    if [ "$remote_sha" != "$zero" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+    if ! is_zero "$remote_sha" && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
       revs+=("^$remote_sha")
     fi
   done
   [ "${#revs[@]}" -gt 0 ] || exit 0
-  # A named remote: skip every commit already on any of its branches. A push
-  # to a bare URL has no remote-tracking refs, so only ^remote_sha applies.
-  if git remote | grep -qxF -- "$remote"; then
-    revs+=(--not "--remotes=$remote")
+  if advertised=$(git ls-remote --heads --tags --refs -- "$remote" 2>/dev/null); then
+    while read -r sha _ref; do
+      [ -n "${sha:-}" ] || continue
+      git cat-file -e "${sha}^{commit}" 2>/dev/null && revs+=("^$sha")
+    done <<<"$advertised"
+  else
+    echo "secret-scan: could not list the refs on '$remote'; scanning every commit being pushed" >&2
   fi
   scan_log "${revs[@]}"
+}
+
+# ci-push BEFORE AFTER BRANCH: the commits a push to BRANCH of the origin
+# checkout added. With a known previous tip, BEFORE..AFTER (also right after a
+# force push: it lists every rewritten commit). Without one (a new branch, or
+# a previous tip CI cannot see), everything AFTER reaches that no other
+# branch of origin has.
+scan_ci_push() {
+  local before="$1" after="$2" branch="$3"
+  if [ -n "$before" ] && ! is_zero "$before" && git cat-file -e "${before}^{commit}" 2>/dev/null; then
+    scan_log "$before..$after"
+  else
+    scan_log "$after" --not "--exclude=origin/$branch" --remotes=origin
+  fi
 }
 
 cmd="${1:-}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
-  install)
-    install_bin
-    install_hooks
-    ;;
+  install) install_all ;;
   install-bin) install_bin ;;
   staged) run_gitleaks --pre-commit --staged ;;
   pre-push)
     [ $# -ge 1 ] || die "usage: secret-scan.sh pre-push REMOTE_NAME < hook-stdin"
     scan_pre_push "$1"
     ;;
+  ci-push)
+    [ $# -eq 3 ] || die "usage: secret-scan.sh ci-push BEFORE AFTER BRANCH"
+    scan_ci_push "$1" "$2" "$3"
+    ;;
   range)
     [ $# -ge 1 ] || die "usage: secret-scan.sh range GIT_LOG_ARGS..."
     scan_log "$@"
     ;;
   *)
-    sed -n '5,22p' "$0" | sed 's/^# \{0,1\}//' >&2
+    sed -n '5,25p' "$0" | sed 's/^# \{0,1\}//' >&2
     exit 2
     ;;
 esac

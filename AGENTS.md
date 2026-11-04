@@ -35,7 +35,7 @@ stored under the clone's `.git/`) and points `core.hooksPath` at `.githooks/`:
 - `pre-commit` scans the staged changes; `pre-push` scans the commits the
   remote does not have yet, which catches commits made before the hooks were
   enabled. The `Secret scan` workflow runs the same scan on every pull request
-  and push. The rules are `.gitleaks.toml`: the gitleaks defaults plus Daytona
+  and on pushes to `main` and `release/v2`. The rules are `.gitleaks.toml`: the gitleaks defaults plus Daytona
   API keys, organization keys, sandbox tokens and invitation tokens.
 - **Never bypass a block** (`--no-verify`, removing the hooks path, editing
   the rules to fit your change). Remove the secret instead — read it from an

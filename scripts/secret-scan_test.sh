@@ -129,6 +129,14 @@ pass "push to a new branch scans the commits the remote lacks"
 if git push -q "$tmp/remote.git" main:refs/heads/by-url >/dev/null 2>&1; then fail "push of the secret to a bare URL was not blocked"; fi
 pass "push to a bare URL (no remote-tracking refs) is scanned"
 
+# A branch deleted on the remote by someone else leaves a stale tracking ref
+# here; its commits are no longer on the remote and must be scanned again.
+git push -q --no-verify origin main:refs/heads/gone
+git --git-dir="$tmp/remote.git" update-ref -d refs/heads/gone
+git rev-parse -q --verify refs/remotes/origin/gone >/dev/null || fail "fixture: no stale tracking ref"
+if git push -q origin main:refs/heads/again >/dev/null 2>&1; then fail "a stale remote-tracking ref exempted a secret from the push scan"; fi
+pass "a stale remote-tracking ref does not exempt its commits"
+
 # History already on the remote (pushed past the hooks) is not rescanned, so
 # an old finding does not block every later push.
 git push -q --no-verify origin main:refs/heads/legacy
@@ -160,6 +168,21 @@ scripts/secret-scan.sh range "$base..HEAD" "" >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "range with an empty argument: exit $rc (want 2)"
 pass "a range git cannot resolve is an error, not a clean scan"
 
+# ci-push: the workflow's push scan. The secret sits below a clean tip.
+echo clean >after-leak.txt
+git add after-leak.txt
+git commit -q --no-verify -m "clean tip"
+zero=0000000000000000000000000000000000000000
+side=$(git commit-tree -p "$base" -m side "$base^{tree}")
+if scripts/secret-scan.sh ci-push "$side" HEAD main >/dev/null 2>&1; then fail "ci-push after a force push missed a secret below the tip"; fi
+if scripts/secret-scan.sh ci-push "$zero" HEAD fresh >/dev/null 2>&1; then fail "ci-push of a new branch missed a secret below the tip"; fi
+git update-ref refs/remotes/origin/fresh HEAD # what the CI checkout fetches
+if scripts/secret-scan.sh ci-push "$zero" HEAD fresh >/dev/null 2>&1; then fail "ci-push excluded the pushed branch's own commits"; fi
+git update-ref -d refs/remotes/origin/fresh
+scripts/secret-scan.sh ci-push "$zero" "$base" fresh >/dev/null 2>&1 || fail "ci-push of a new branch rescanned history other branches have"
+scripts/secret-scan.sh ci-push "$base~1" "$base" main >/dev/null 2>&1 || fail "ci-push of a clean fast-forward was blocked"
+pass "ci-push scans every new commit after a force push or a new branch"
+
 # ── worktree-only hooks path when another tool owns the clone's ─────────────
 git config --local core.hooksPath .husky/_
 git worktree add -q "$tmp/wt" -b wt
@@ -167,6 +190,30 @@ git worktree add -q "$tmp/wt" -b wt
 [ "$(git config --local core.hooksPath)" = .husky/_ ] || fail "the clone-wide hooks path was overwritten"
 [ "$(git -C "$tmp/wt" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree does not use .githooks"
 pass "an existing clone-wide hooks path is kept; the worktree gets .githooks"
+
+git config --local --unset core.hooksPath
+git worktree add -q "$tmp/wt2" -b wt2
+git -C "$tmp/wt2" config --worktree core.hooksPath .husky/_
+(cd "$tmp/wt2" && scripts/secret-scan.sh install >/dev/null) || fail "install over a worktree override failed"
+[ "$(git -C "$tmp/wt2" rev-parse --git-path hooks)" = .githooks ] || fail "the worktree override was not replaced"
+[ -z "$(git config --local --get core.hooksPath || true)" ] || fail "the clone-wide hooks path was set"
+pass "an existing worktree override is replaced, the clone's setting untouched"
+
+# No pinned build for the platform: install uses gitleaks from PATH.
+shim="$tmp/shim"
+mkdir -p "$shim"
+cat >"$shim/uname" <<'EOF'
+#!/bin/sh
+case "$1" in -m) echo x86_64 ;; *) echo FreeBSD ;; esac
+EOF
+chmod +x "$shim/uname"
+git init -q "$tmp/unsup"
+mkdir -p "$tmp/unsup/scripts"
+cp "$src/.gitleaks.toml" "$tmp/unsup/"
+cp "$src/scripts/secret-scan.sh" "$tmp/unsup/scripts/"
+(cd "$tmp/unsup" && PATH="$shim:$PATH" scripts/secret-scan.sh install >/dev/null) || fail "install with gitleaks on PATH failed on an unpublished platform"
+[ "$(git -C "$tmp/unsup" config --local core.hooksPath)" = .githooks ] || fail "hooks not enabled on an unpublished platform"
+pass "an unpublished platform installs with gitleaks from PATH"
 
 # ── fail closed without gitleaks ───────────────────────────────────────────
 nogl="$tmp/bin"
