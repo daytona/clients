@@ -4,10 +4,11 @@
 #   - 0.x (release/v0): entries with `target-branch: release/v0`. The copy of
 #     this file on release/v0 is ignored by Dependabot.
 #
-# Volume control: weekly runs, one grouped PR per ecosystem/directory for
-# minor and patch updates; majors arrive as individual PRs so each one gets
-# its own review. Actions stay pinned to full commit SHAs; Dependabot bumps the
-# SHA and the trailing `# vX.Y.Z` comment together.
+# Volume control: weekly runs with one group per entry. On 2.x the groups take
+# minor and patch updates and majors arrive as individual PRs so each one gets
+# its own review; the 0.x entries keep the grouping they had on release/v0
+# (everything grouped, Go majors ignored). Actions stay pinned to full commit
+# SHAs; Dependabot bumps the SHA and the trailing `# vX.Y.Z` comment together.
 version: 2
 updates:
   # ---------------------------------------------------------------------------
@@ -175,8 +176,9 @@ updates:
       prefix: "chore(deps)"
 
   # ---------------------------------------------------------------------------
-  # 0.x line (release/v0) -- maintenance only. Same groups as the config that
-  # lived on release/v0, plus the target branch.
+  # 0.x line (release/v0) -- maintenance only. Same groups and ignores as the
+  # config that lived on release/v0, plus the target branch. These groups take
+  # majors too, so a maintenance branch gets one PR per ecosystem a week.
   # ---------------------------------------------------------------------------
 
   - package-ecosystem: github-actions
