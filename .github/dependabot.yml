@@ -1,0 +1,265 @@
+# Dependabot reads this file only from the default branch (main), so it
+# configures version updates for both release lines:
+#   - 2.x (main): entries without `target-branch`.
+#   - 0.x (release/v0): entries with `target-branch: release/v0`. The copy of
+#     this file on release/v0 is ignored by Dependabot.
+#
+# Volume control: weekly runs, one grouped PR per ecosystem/directory for
+# minor and patch updates; majors arrive as individual PRs so each one gets
+# its own review. Actions stay pinned to full commit SHAs; Dependabot bumps the
+# SHA and the trailing `# vX.Y.Z` comment together.
+version: 2
+updates:
+  # ---------------------------------------------------------------------------
+  # 2.x line (main)
+  # ---------------------------------------------------------------------------
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  # TypeScript SDK (@daytona/sdk).
+  - package-ecosystem: npm
+    directory: /typescript
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      typescript-sdk:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Keep @types/node aligned with the oldest Node the package supports
+      # (`engines`); bump its major together with that floor.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # TypeScript upgrade tool (daytona-upgrade on npm).
+  - package-ecosystem: npm
+    directory: /upgrade/typescript
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      upgrade-typescript:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Pinned codegen tooling for python/gen-contract.sh. The Contracts workflow
+  # regenerates the client, so a bump that changes generated output fails CI.
+  - package-ecosystem: npm
+    directory: /python/gen
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      python-gen-tooling:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Runnable examples: no lockfile (installed fresh), so only bump a range
+  # once the latest release falls outside it.
+  - package-ecosystem: npm
+    directory: /examples
+    versioning-strategy: increase-if-necessary
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      examples:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Python SDK (daytona on PyPI).
+  - package-ecosystem: uv
+    directory: /python
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      python-sdk:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Python upgrade tool (daytona-upgrade on PyPI).
+  - package-ecosystem: uv
+    directory: /upgrade/python
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      upgrade-python:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Daytona CLI.
+  - package-ecosystem: gomod
+    directory: /cli
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      cli:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  # ---------------------------------------------------------------------------
+  # 0.x line (release/v0) -- maintenance only. Same groups as the config that
+  # lived on release/v0, plus the target branch.
+  # ---------------------------------------------------------------------------
+
+  - package-ecosystem: github-actions
+    target-branch: release/v0
+    directories:
+      - /
+      - /.github/actions/setup-toolchain
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: npm
+    target-branch: release/v0
+    directories:
+      - /
+      - /sdk-typescript
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      npm-prod:
+        patterns:
+          - "*"
+    ignore:
+      # Keep @types/node aligned with the node-version CI pins; a major ahead of the
+      # runtime typechecks against APIs that are not there. Bump it with a Node upgrade.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: pip
+    target-branch: release/v0
+    directories:
+      - /sdk-python
+      - /api-client-python
+      - /api-client-python-async
+      - /toolbox-api-client-python
+      - /toolbox-api-client-python-async
+      - /analytics-api-client-python
+      - /analytics-api-client-python-async
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      pip-prod:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: gomod
+    target-branch: release/v0
+    directories:
+      - /cli
+      - /api-client-go
+      - /sdk-go
+      - /toolbox-api-client-go
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      gomod-prod:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+    commit-message:
+      prefix: "chore(deps)"
