@@ -1,0 +1,28 @@
+name: Release
+
+# The 0.x release workflow lives on release/v0. GitHub only dispatches
+# workflows that also exist on the default branch, so this file keeps
+# `gh workflow run release.yaml --ref release/v0 -f version=v0.X.Y` (and the
+# Actions "Run workflow" button) working once the 2.x line is on main. The
+# dispatch ref's copy is what runs, so a release/v0 dispatch runs the real
+# workflow; dispatched from any other ref, this copy refuses and does nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '0.x version to release (start with "v"). Dispatch from release/v0'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  refuse:
+    name: 0.x releases run from release/v0
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "::error::0.x releases run from release/v0: gh workflow run release.yaml --ref release/v0 -f version=${VERSION}"
+          exit 1
