@@ -1803,6 +1803,10 @@ class TestUnsubscribeOnNoWaiters:
                 timeout=1.0,
             )
             await asyncio.sleep(0.06)
+            # The batching window is time-based: widen it so all 400
+            # resolutions land in one window even on a slow runner (at 50 ms a
+            # loaded CI host could split them across two flushes).
+            hub._subscribe_flush_s = 1.0
             for index, sandbox_id in enumerate(ids, start=1):
                 ws.inject(
                     {
@@ -1815,7 +1819,11 @@ class TestUnsubscribeOnNoWaiters:
                 )
             results = await asyncio.gather(*waits)
             assert len(results) == 400
-            await asyncio.sleep(0.06)
+
+            def unsubscribe_count() -> int:
+                return len([frame for frame in ws.sent_frames() if frame.get("type") == "unsubscribe"])
+
+            await asyncio.wait_for(_wait_for(lambda: unsubscribe_count() > baseline), timeout=5)
 
             unsubscribe_frames = [frame for frame in ws.sent_frames() if frame.get("type") == "unsubscribe"][
                 baseline:
