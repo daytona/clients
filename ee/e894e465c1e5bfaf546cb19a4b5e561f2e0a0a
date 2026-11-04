@@ -1,0 +1,24 @@
+changelog.d/461.breaking.md
+  h_e7759ddd73fa65 15-18
+typescript/src/v2/ComputerUseNamespaces.ts
+  h_e7759ddd73fa65 135-138,144
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 603,605
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 3371,3424
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 3371,3424
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 3371,3424
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eee894e465c1e5bfaf546cb19a4b5e561f2e0a0a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
