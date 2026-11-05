@@ -70,7 +70,10 @@ function npmLock(text: string): Lock {
 }
 
 function pnpmLock(text: string): Lock {
-  const lock = record(parseYaml(text)) ?? {};
+  // Only the head is read (importers, or pnpm 5 / 6 top-level sections): the
+  // per-package sections after it make up most of a large lockfile.
+  const head = /^(?:packages|snapshots):/m.exec(text);
+  const lock = record(parseYaml(head === null ? text : text.slice(0, head.index))) ?? {};
   const importers = record(lock['importers']);
   return ({ key }, importer) => {
     // pnpm 5 / 6 single-project lockfiles keep the root's sections at the top.

@@ -77,9 +77,10 @@ name: SDK Publish
 # and the environment's branch policy (`main`, `release/*`) still decides
 # whether this run's credentials can be used at all. gate and the build jobs
 # are kept OFF the environment so no environment secret is ever visible to
-# code under test. Inside the job the targets run in order — PyPI, npm, the
-# migration tool (PyPI, then npm), CLI release, Homebrew — so a failed target
-# stops the ones after it.
+# code under test. Inside the job the targets run in order — PyPI, npm, CLI
+# release, Homebrew, then the migration tool (PyPI, then npm), which needs both
+# SDKs published and never holds back the CLI — so a failed target stops the
+# ones after it.
 #
 # The gate refuses a version a target registry ALREADY has (npm registry API,
 # PyPI JSON API, this repository's releases), because a second run for the
@@ -908,8 +909,8 @@ jobs:
   # failed registry check) still skips the whole job, so nothing is published
   # and nobody is asked to approve. Each target's steps key on its version
   # output, empty when the target is disabled. Targets run in order — PyPI,
-  # npm, the migration tool (PyPI, then npm; after both SDKs, which it pins),
-  # CLI release, Homebrew — and a failure stops the ones after it. The
+  # npm, CLI release, Homebrew, then the migration tool (PyPI, then npm; after
+  # both SDKs, which it pins) — and a failure stops the ones after it. The
   # package artifacts are kept 7 days: approve (or re-run) within that.
   publish:
     name: Publish ${{ needs.gate.outputs.tag }}
@@ -1061,54 +1062,6 @@ jobs:
           # shorthand (`git ls-remote ssh://git@github.com/pack/x.tgz.git`).
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
-      # ── Migration tool: PyPI daytona-upgrade, npm @daytona/upgrade ──
-      - name: Download the migration tool's PyPI distributions
-        id: upgrade_pypi_download
-        if: needs.gate.outputs.upgrade_pypi != ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: upgrade-pypi
-          path: upgrade-pypi/
-      - name: Publish daytona-upgrade ${{ needs.gate.outputs.upgrade_pypi }} to PyPI (OIDC)
-        id: upgrade_pypi_publish
-        if: needs.gate.outputs.upgrade_pypi != ''
-        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
-        with:
-          packages-dir: upgrade-pypi/
-          skip-existing: ${{ env.RESUME }}
-      - name: Download the migration tool's npm tarball
-        id: upgrade_npm_download
-        if: needs.gate.outputs.upgrade_npm != ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: upgrade-npm
-          path: upgrade-pack/
-      # Same publish as @daytona/sdk above (dist-tag from the version, resume
-      # by HTTP status, registry pinned on the command line).
-      - name: Publish the migration tool to npm (OIDC)
-        id: upgrade_npm_publish
-        if: needs.gate.outputs.upgrade_npm != ''
-        env:
-          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
-          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
-        run: |
-          set -euo pipefail
-          tgz=$(ls upgrade-pack/*.tgz)
-          [ "$(echo "$tgz" | wc -l)" -eq 1 ] || { echo "::error::expected exactly one tarball, got: $tgz"; exit 1; }
-          case "$NPM_DIST_TAG" in
-            alpha|beta|next|latest) ;;
-            *) echo "::error::gate produced no usable npm dist-tag ('${NPM_DIST_TAG}')"; exit 1 ;;
-          esac
-          if [ "$RESUME" = true ]; then
-            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fupgrade/${NPM_VERSION}") || true
-            case "$code" in
-              200) echo "::notice::@daytona/upgrade@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
-              404) ;;
-              *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/upgrade ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
-            esac
-          fi
-          npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
-
       # ── CLI: GitHub Release + Homebrew daytona-alpha ──
       - name: Download the CLI release assets
         id: cli_download
@@ -1219,6 +1172,54 @@ jobs:
           fi
           echo "waiting for daytonaio/homebrew-cli run $run_id"
           gh run watch "$run_id" --repo daytonaio/homebrew-cli --exit-status --interval 15
+
+      # ── Migration tool: PyPI daytona-upgrade, npm @daytona/upgrade ──
+      - name: Download the migration tool's PyPI distributions
+        id: upgrade_pypi_download
+        if: needs.gate.outputs.upgrade_pypi != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-pypi
+          path: upgrade-pypi/
+      - name: Publish daytona-upgrade ${{ needs.gate.outputs.upgrade_pypi }} to PyPI (OIDC)
+        id: upgrade_pypi_publish
+        if: needs.gate.outputs.upgrade_pypi != ''
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: upgrade-pypi/
+          skip-existing: ${{ env.RESUME }}
+      - name: Download the migration tool's npm tarball
+        id: upgrade_npm_download
+        if: needs.gate.outputs.upgrade_npm != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-npm
+          path: upgrade-pack/
+      # Same publish as @daytona/sdk above (dist-tag from the version, resume
+      # by HTTP status, registry pinned on the command line).
+      - name: Publish the migration tool to npm (OIDC)
+        id: upgrade_npm_publish
+        if: needs.gate.outputs.upgrade_npm != ''
+        env:
+          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
+        run: |
+          set -euo pipefail
+          tgz=$(ls upgrade-pack/*.tgz)
+          [ "$(echo "$tgz" | wc -l)" -eq 1 ] || { echo "::error::expected exactly one tarball, got: $tgz"; exit 1; }
+          case "$NPM_DIST_TAG" in
+            alpha|beta|next|latest) ;;
+            *) echo "::error::gate produced no usable npm dist-tag ('${NPM_DIST_TAG}')"; exit 1 ;;
+          esac
+          if [ "$RESUME" = true ]; then
+            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fupgrade/${NPM_VERSION}") || true
+            case "$code" in
+              200) echo "::notice::@daytona/upgrade@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
+              404) ;;
+              *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/upgrade ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          fi
+          npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
   # The version is recorded as a tag on the published commit. The CLI
   # release creates it; an SDK-only run (publish_cli=false) creates it here.

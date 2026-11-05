@@ -97,6 +97,9 @@ it.each([
   ['^2.0.0-alpha.9', '2.0.0', '^2.0.0'],
   ['^2.3.1', '2.5.0', '^2.5.0'],
   ['^2.5.0', '2.3.1', '^2.5.0'],
+  ['^2.5.0', '2.0.0-alpha.3', '^2.5.0'],
+  ['2.1.0', '2.0.0-alpha.3', '2.1.0'],
+  ['^2.0.0', '2.0.0-alpha.3', '2.0.0-alpha.3'],
 ])('moves %s under a %s tool to %s', async (range, tool, expected) => {
   // Given / When
   const { written, items } = await migrate(range, tool);

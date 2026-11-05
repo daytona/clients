@@ -43,9 +43,11 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   const floor = minVersion(range);
   const wanted = minVersion(target);
   if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted)) return false;
-  // While the target is a pre-release, a range whose floor is an unreleased
-  // stable version (`^2.0.0`, what pre-lockstep releases wrote) installs nothing.
-  return !wanted.prerelease.length || floor.prerelease.length > 0;
+  // While the target is a pre-release, a floor on that same release's stable
+  // version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases wrote)
+  // installs nothing yet; any later stable floor is a project ahead of this tool.
+  return !wanted.prerelease.length || floor.prerelease.length > 0 ||
+    floor.major !== wanted.major || floor.minor !== wanted.minor || floor.patch !== wanted.patch;
 }
 
 /** A valid range whose floor is in the target's major (an earlier pre-release included). */

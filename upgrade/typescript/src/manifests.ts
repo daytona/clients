@@ -32,12 +32,12 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
     const before = text(file, failures);
     if (failures?.has(file)) continue;
     // JSON.parse rejects malformed JSON; the AST supplies exact source offsets.
-    try { JSON.parse(before.replace(/^\uFEFF/, '')); }
+    let parsed: unknown;
+    try { parsed = JSON.parse(before.replace(/^\uFEFF/, '')); }
     catch (error) {
       if (!(error instanceof SyntaxError)) throw error;
       throw new UpgradeError(`Cannot parse ${relativePath(root, file)}: ${error.message}. Fix the manifest before retrying.`);
     }
-    const parsed: unknown = JSON.parse(before.replace(/^\uFEFF/, ''));
     const manifestName = typeof parsed === 'object' && parsed !== null && 'name' in parsed && typeof parsed.name === 'string' ? parsed.name : undefined;
     const prefix = 'const manifest = (';
     const source = parser.createSourceFile('/manifest.ts', `${prefix}${before});`, { overwrite: true });

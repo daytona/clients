@@ -121,8 +121,8 @@ sees a publishing credential. The publish job is the only job on the
 `release` environment, so a run asks for exactly one approval, after every
 requested build is green; a failed or cancelled build skips it (nothing is
 published, no approval is asked). Inside it the targets run in order — PyPI,
-npm, the migration tool (PyPI, then npm), the CLI's GitHub Release, the
-Homebrew formula — and a failed target stops the ones after it. The
+npm, the CLI's GitHub Release, the Homebrew formula, then the migration tool
+(PyPI, then npm) — and a failed target stops the ones after it. The
 environment's deployment-branch policy still decides whether a run's
 credentials can be used at all.
 

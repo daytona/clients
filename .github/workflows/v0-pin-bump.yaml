@@ -116,8 +116,10 @@ jobs:
           done
           # Users see a different 0.x behind Daytona().v0: a changelog fragment.
           mkdir -p "$RUNNER_TEMP/bump/files/changelog.d"
-          printf '%s\n' "**\`Daytona().v0\` runs the 0.x SDK ${TAG}** — SDK 2.x now bundles 0.x ${TAG} as its v0 namespace, and the migration tool accepts projects on it." \
-            > "$RUNNER_TEMP/bump/files/changelog.d/v0-pin-${TAG}.changed.md"
+          # Fragment ids allow no dots (scripts/changelog/assemble.py).
+          fragment="changelog.d/v0-pin-${TAG//./-}.changed.md"
+          printf '%s\n' "**\`Daytona().v0\` runs the 0.x SDK ${TAG}** — SDK 2.x now bundles ${TAG} as its v0 namespace, and the migration tool accepts projects on it." \
+            > "$RUNNER_TEMP/bump/files/$fragment"
           cp "$RUNNER_TEMP/surface.txt" "$RUNNER_TEMP/bump/surface.txt"
           echo "$status" > "$RUNNER_TEMP/bump/surface-status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -157,7 +159,7 @@ jobs:
             exit 1
           fi
           files=(scripts/v0-sdk-version upgrade/mapping/mapping.json upgrade/typescript/src/mapping.json
-            upgrade/python/src/daytona_upgrade/mapping.json upgrade/MIGRATION.md "changelog.d/v0-pin-${TAG}.changed.md")
+            upgrade/python/src/daytona_upgrade/mapping.json upgrade/MIGRATION.md "changelog.d/v0-pin-${TAG//./-}.changed.md")
           for file in "${files[@]}"; do cp "$RUNNER_TEMP/bump/files/$file" "$file"; done
           surface_status=$(cat "$RUNNER_TEMP/bump/surface-status")
           branch="chore/v0-pin-${TAG}"

@@ -16,6 +16,8 @@ export default defineConfig({
     globalSetup: ['tests/build-cli.ts'],
     // Set here, not on the command line: a CLI --testTimeout would override
     // the release value (publish-gates.test.mjs checks the npm script).
+    // The 20 s default (vitest's own is 5 s) is the timeout the suite has
+    // always run with; release mode raises it further.
     testTimeout: release ? 300_000 : 20_000,
     hookTimeout: release ? 300_000 : 20_000,
   },

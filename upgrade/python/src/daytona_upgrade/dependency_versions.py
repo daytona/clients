@@ -69,9 +69,15 @@ def at_or_above_target(constraint: str, target: str) -> bool:
         and wanted is not None
         and floor.major == wanted.major
         and floor >= wanted
-        # While the target is a pre-release, a floor on an unreleased stable
-        # version (">=2,<3", what pre-lockstep releases wrote) installs nothing.
-        and (not wanted.is_prerelease or floor.is_prerelease)
+        # While the target is a pre-release, a floor on that same release's
+        # stable version (">=2,<3" under ==2.0.0a8, what pre-lockstep releases
+        # wrote) installs nothing yet; any later stable floor is a project
+        # ahead of this tool.
+        and (
+            not wanted.is_prerelease
+            or floor.is_prerelease
+            or (*floor.release, 0, 0)[:3] != (*wanted.release, 0, 0)[:3]
+        )
     )
 
 

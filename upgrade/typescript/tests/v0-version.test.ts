@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
 import { loadMapping } from '../src/mapping.js';
+import { expectWithinBudget, testTimeout } from './budget.js';
 import { allowedNewerMessage, newerPatchMessage, newerRefusal, olderMessage, unknownMessage } from '../src/v0-version.js';
 
 const pinned = loadMapping().v0Version;
@@ -329,3 +330,17 @@ it('keeps the version warning on an exit-1 report', async () => {
     expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
   } finally { chmodSync(join(root, 'locked'), 0o755); }
 });
+
+it('reads only the head of a large pnpm lockfile', async () => {
+  // Given: an 8 MB lockfile whose packages section dwarfs its importers.
+  const packages = Array.from({ length: 40_000 }, (_, index) =>
+    `  pkg-${index}@1.0.0:\n    resolution: {integrity: sha512-${'x'.repeat(150)}}\n`).join('');
+  const pnpm = `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^0.100.0\n        version: 0.100.0\n\npackages:\n${packages}`;
+  const root = temporaryProject({ 'package.json': manifest('^0.100.0'), 'pnpm-lock.yaml': pnpm, 'index.ts': code });
+  const started = performance.now();
+  // When
+  const result = await invoke(root, ['--json', '--dry']);
+  // Then
+  expectWithinBudget(performance.now() - started, 15_000);
+  expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'pnpm-lock.yaml', message: olderMessage('0.100.0', pinned) }]);
+}, testTimeout(60_000));

@@ -9,6 +9,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const workflow = readFileSync(new URL('../../.github/workflows/sdk_publish.yaml', import.meta.url), 'utf8');
 const testUpgrade = readFileSync(new URL('../../scripts/test-upgrade.sh', import.meta.url), 'utf8');
@@ -186,4 +187,20 @@ test('the release build gets the raised test timeout', () => {
   assert.match(config, /testTimeout: release \? 300_000/);
   assert.match(step('Build, test and pack the npm migration tool'), /npm test/);
   assert.match(workflow, /DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'/);
+});
+
+test('the pin bump writes a changelog fragment the changelog check accepts', (context) => {
+  // Given: the fragment path the pin bump workflow builds for a release tag.
+  const bump = readFileSync(new URL('../../.github/workflows/v0-pin-bump.yaml', import.meta.url), 'utf8');
+  const templates = [...bump.matchAll(/"(changelog\.d\/v0-pin-\$\{TAG[^"]*\.changed\.md)"/g)].map((match) => match[1]);
+  assert.equal(templates.length, 2, 'prepare and open-pr build the fragment path');
+  assert.equal(templates[0], templates[1]);
+  const root = fixture(context);
+  const built = spawnSync('bash', ['-c', `TAG=v0.231.0; printf %s "${templates[0]}"`], { encoding: 'utf8' }).stdout;
+  mkdirSync(join(root, 'changelog.d'));
+  writeFileSync(join(root, built), '**Fragment** — text.\n');
+  // When
+  const result = spawnSync('python3', [fileURLToPath(new URL('../../scripts/changelog/assemble.py', import.meta.url)), 'check', '--dir', join(root, 'changelog.d')], { encoding: 'utf8' });
+  // Then
+  assert.equal(result.status, 0, result.stdout + result.stderr);
 });

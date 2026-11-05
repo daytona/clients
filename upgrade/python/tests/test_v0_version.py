@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from functools import partial
 from pathlib import Path
+from time import perf_counter
 
 import jsonschema
 import pytest
@@ -565,6 +566,9 @@ def _migrate(
         ("daytona[v0-sdk]>=2.5.0", "2.3.1", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]>=2.0.0a9", "2.0.0a8", "daytona[v0-sdk]>=2.0.0a9"),
         ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]>2.0.0a8"),
+        ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
+        ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
+        ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),
     ],
 )
 def test_moves_a_lower_release_of_the_target_major_to_the_target(
@@ -688,4 +692,36 @@ def test_keeps_the_version_warning_on_an_exit_1_report(
     assert code == 1
     assert report["warnings"] == [
         {"file": "requirements.txt", "message": older_message("0.100.0", PINNED)}
+    ]
+
+
+@pytest.mark.wall_clock
+def test_reads_a_large_uv_lock_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: a workspace member's 4 MB uv.lock.
+    (tmp_path / ".git").mkdir()
+    filler = "".join(
+        f'[[package]]\nname = "pkg-{index}"\nversion = "1.0.0"\nsource = {{ registry = "https://pypi.org/simple" }}\n'
+        f'sdist = {{ url = "https://files/{index}.tar.gz", hash = "sha256:{"0" * 64}" }}\n\n'
+        for index in range(20_000)
+    )
+    (tmp_path / "uv.lock").write_text(
+        filler
+        + '[[package]]\nname = "daytona"\nversion = "0.100.0"\n\n'
+        + '[[package]]\nname = "app"\nversion = "1"\nsource = { editable = "app" }\n'
+    )
+    _project(
+        tmp_path / "app",
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n'
+        },
+    )
+    started = perf_counter()
+    # When
+    _, report = _run(tmp_path / "app", capsys)
+    # Then
+    assert perf_counter() - started < 20
+    assert report["warnings"] == [
+        {"file": "../uv.lock", "message": older_message("0.100.0", PINNED)}
     ]

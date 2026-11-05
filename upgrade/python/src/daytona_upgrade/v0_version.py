@@ -9,6 +9,7 @@ import functools
 import json
 import os
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
@@ -75,12 +76,27 @@ def _zero_x(value: str) -> Version | None:
     return version if version.major == 0 else None
 
 
+@functools.cache
+def _toml_packages(path: Path) -> tuple[dict[str, object], ...]:
+    """A uv, Poetry or PDM lockfile's [[package]] tables, parsed once (tomllib
+    where the interpreter has it: much faster than tomlkit on large locks)."""
+    text = path.read_text(encoding="utf-8").removeprefix("\ufeff")
+    if sys.version_info >= (3, 11):
+        import tomllib
+
+        packages: object = tomllib.loads(text).get("package", [])
+    else:
+        packages = tomlkit.parse(text).unwrap().get("package", [])
+    if not isinstance(packages, list):
+        return ()
+    return tuple(entry for entry in packages if isinstance(entry, dict))
+
+
 def _locked(path: Path) -> dict[str, list[str]]:
     """The versions a lockfile resolves, per normalized Daytona package name."""
-    text = path.read_text(encoding="utf-8").removeprefix("\ufeff")
     entries: list[tuple[str, object]] = []
     if path.name == "Pipfile.lock":
-        lock = json.loads(text)
+        lock = json.loads(path.read_text(encoding="utf-8").removeprefix("\ufeff"))
         sections = (
             [lock.get(name) for name in ("default", "develop")]
             if isinstance(lock, dict)
@@ -94,14 +110,10 @@ def _locked(path: Path) -> dict[str, list[str]]:
             if isinstance(entry, dict)
         ]
     else:
-        # uv, Poetry and PDM: [[package]] tables with name and version.
-        packages = tomlkit.parse(text).unwrap().get("package", [])
-        if isinstance(packages, list):
-            entries = [
-                (str(entry.get("name", "")), entry.get("version"))
-                for entry in packages
-                if isinstance(entry, dict)
-            ]
+        entries = [
+            (str(entry.get("name", "")), entry.get("version"))
+            for entry in _toml_packages(path)
+        ]
     found: dict[str, list[str]] = {}
     for name, version in entries:
         if _normalized(name) in _NAMES and isinstance(version, str):
@@ -109,23 +121,16 @@ def _locked(path: Path) -> dict[str, list[str]]:
     return found
 
 
-@functools.cache
 def _uv_members(lockfile: Path) -> frozenset[str]:
-    """The editable or virtual source paths a uv.lock records (parsed once)."""
+    """The editable or virtual source paths a uv.lock records."""
     try:
-        packages = (
-            tomlkit.parse(lockfile.read_text(encoding="utf-8").removeprefix("\ufeff"))
-            .unwrap()
-            .get("package", [])
-        )
+        packages = _toml_packages(lockfile)
     except (OSError, UnicodeError, ValueError, TOMLKitError, RecursionError):
-        return frozenset()
-    if not isinstance(packages, list):
         return frozenset()
     return frozenset(
         str(path)
         for entry in packages
-        if isinstance(entry, dict) and isinstance(source := entry.get("source"), dict)
+        if isinstance(source := entry.get("source"), dict)
         for path in (source.get("editable"), source.get("virtual"))
         if isinstance(path, str)
     )
@@ -219,6 +224,7 @@ def check_v0_version(
     because its added APIs are in neither ``.v0`` nor the mapping."""
     if pinned is None:
         return V0VersionCheck(())
+    _toml_packages.cache_clear()  # Parsed once per run, never reused across runs.
     if not declared:
         # Daytona code with no declaration anywhere up to the Git root.
         return V0VersionCheck(
