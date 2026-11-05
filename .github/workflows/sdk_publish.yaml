@@ -369,7 +369,7 @@ jobs:
             --exclude='.git' \
             -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
           ls -l /tmp/sdk-src.tgz
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src.tgz
@@ -502,7 +502,7 @@ jobs:
           # and the git-ignored bundle must be in both artifacts. Member lists
           # are read directly (no `lister | grep -q` under pipefail).
           python ../scripts/check_dist_artifacts.py python dist ${V0_TAG:+--v0}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pypi-dist
           path: sdk-python/dist/
@@ -589,7 +589,7 @@ jobs:
               && npm install --no-audit --no-fund --no-save typescript@5 >/dev/null \
               && for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json; do npx tsc -p "cjs-types-fixture/$config" || exit 1; done)
           fi
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-pack
           path: sdk-typescript/pack/*.tgz
@@ -628,7 +628,7 @@ jobs:
           go test ./...
           ./hack/build.sh   # also copies install.sh/install.ps1 into dist and checksums them
           ls -l dist && cat dist/SHA256SUMS
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cli-dist
           path: cli/dist/
