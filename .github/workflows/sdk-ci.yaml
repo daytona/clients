@@ -76,7 +76,7 @@ jobs:
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts .v0-src
+            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts upgrade .v0-src
           mkdir "$RUNNER_TEMP/unpacked" && cd "$RUNNER_TEMP/unpacked"
           tar -xzf "$RUNNER_TEMP/sdk-src.tgz"
           test ! -e .v0-src/.git
@@ -93,6 +93,13 @@ jobs:
           python -m pip install --upgrade pip >/dev/null
           python -m pip install -e ".[dev,v0-sdk]" >/dev/null
           python -m pytest -q -p no:cacheprovider
+          # The migration tool's release build (sdk_publish.yaml build-upgrade)
+          # also runs from this snapshot, with no .git above it: its Python
+          # suite, as that job runs it.
+          cd ../upgrade/python
+          python -m pip install --upgrade uv >/dev/null
+          uv sync --locked -q
+          uv run pytest -q -n auto -p no:cacheprovider -m "not wall_clock"
 
   # Run the publish-time bundle against the pinned v0 release, so a change on
   # either side that breaks it fails here and not in the publish run.

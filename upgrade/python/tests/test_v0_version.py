@@ -214,7 +214,8 @@ def test_reads_the_workspace_lockfile_above_the_scanned_project(
     # Given
     (tmp_path / ".git").mkdir()
     (tmp_path / "uv.lock").write_text(
-        '[[package]]\nname = "daytona"\nversion = "0.100.0"\n'
+        '[[package]]\nname = "daytona"\nversion = "0.100.0"\n\n'
+        '[[package]]\nname = "app"\nversion = "1"\nsource = { editable = "packages/app" }\n'
     )
     _project(
         tmp_path / "packages" / "app",
@@ -477,3 +478,50 @@ def test_a_rerun_of_a_pre_release_tool_is_clean_under_strict(
     assert (tmp_path / "requirements.txt").read_text() == "daytona[v0-sdk]==2.0.0a8\n"
     assert report["changedFiles"] == []
     assert code == 0
+
+
+def test_a_migrated_declaration_ignores_a_stale_lockfile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the manifest is on 2.x; uv.lock still resolves the old 0.x minor.
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona[v0-sdk]>=2,<3"]\n',
+            "uv.lock": '[[package]]\nname = "daytona"\nversion = "0.999.0"\n',
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert "refused" not in report
+    assert "warnings" not in report
+
+
+@pytest.mark.parametrize("member", [False, True])
+def test_a_root_lockfile_resolves_only_its_own_projects(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], member: bool
+) -> None:
+    # Given: the root uv.lock resolves a newer minor; tools/x is on the pin.
+    (tmp_path / ".git").mkdir()
+    source = (
+        '{ editable = "tools/x" }'
+        if member
+        else '{ registry = "https://pypi.org/simple" }'
+    )
+    (tmp_path / "uv.lock").write_text(
+        '[[package]]\nname = "daytona"\nversion = "0.999.0"\n\n'
+        f'[[package]]\nname = "x"\nversion = "1"\nsource = {source}\n'
+    )
+    _project(
+        tmp_path / "tools" / "x",
+        {
+            "pyproject.toml": f'[project]\nname = "x"\nversion = "1"\ndependencies = ["daytona=={PINNED}"]\n'
+        },
+    )
+    # When
+    code, report = _run(tmp_path / "tools" / "x", capsys)
+    # Then: a workspace member resolves through the lock; another project does not.
+    assert code == (2 if member else 0)
+    assert ("refused" in report) is member

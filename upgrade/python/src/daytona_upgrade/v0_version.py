@@ -101,6 +101,33 @@ def _locked(path: Path) -> dict[str, list[str]]:
     return found
 
 
+def _owns(lockfile: Path, manifest: Path) -> bool:
+    """A lockfile resolves the project file beside it, and a uv workspace
+    member (an editable or virtual source) below it; other manifests below it
+    are other projects."""
+    if manifest.parent.resolve() == lockfile.parent.resolve():
+        return True
+    if lockfile.name != "uv.lock" or manifest.name != "pyproject.toml":
+        return False
+    member = Path(
+        os.path.relpath(manifest.parent.resolve(), lockfile.parent.resolve())
+    ).as_posix()
+    try:
+        packages = (
+            tomlkit.parse(lockfile.read_text(encoding="utf-8"))
+            .unwrap()
+            .get("package", [])
+        )
+    except (OSError, UnicodeError, ValueError, TOMLKitError):
+        return False
+    return isinstance(packages, list) and any(
+        isinstance(entry, dict)
+        and isinstance(source := entry.get("source"), dict)
+        and member in (source.get("editable"), source.get("virtual"))
+        for entry in packages
+    )
+
+
 def _owner_lockfiles(directory: Path) -> list[Path]:
     current = directory.resolve()
     while True:
@@ -187,8 +214,17 @@ def check_v0_version(
     owners: dict[Path, list[Path]] = {}
     locks: dict[Path, dict[str, list[str]]] = {}
     for manifest, name, specifier in declared:
+        # A declaration already on 2.x needs no check, even before its lockfile is refreshed.
+        bound = lower_bound(specifier) if specifier else None
+        if bound is not None and bound.major >= 2:
+            evidenced.add(manifest)
+            continue
         directory = manifest.parent
-        lockfiles = owners.setdefault(directory, _owner_lockfiles(directory))
+        lockfiles = [
+            lockfile
+            for lockfile in owners.setdefault(directory, _owner_lockfiles(directory))
+            if _owns(lockfile, manifest)
+        ]
         resolved: list[tuple[Path, str]] = []
         for lockfile in lockfiles:
             if lockfile not in locks:
@@ -209,10 +245,6 @@ def check_v0_version(
             evidenced.add(manifest)
             continue
         # No lockfile, or one that does not resolve this package: the constraint stands in.
-        bound = lower_bound(specifier) if specifier else None
-        if bound is not None and bound.major >= 2:
-            evidenced.add(manifest)
-            continue
         version = (
             None if bound is None or bound == Version("0") else _zero_x(str(bound))
         )

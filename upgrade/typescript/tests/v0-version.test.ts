@@ -149,7 +149,7 @@ it.each([
 
 it.each([
   ['package-lock.json', JSON.stringify({ lockfileVersion: 3, packages: {
-    'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/b/node_modules/@daytonaio/sdk': { version: transitive } } })],
+    'packages/a': { name: 'a' }, 'packages/b': { name: 'b' }, 'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/b/node_modules/@daytonaio/sdk': { version: transitive } } })],
   ['pnpm-lock.yaml', `lockfileVersion: '9.0'\nimporters:\n  packages/a:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${pinned}\n        version: ${pinned}\n  packages/b:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${transitive}\n        version: ${transitive}\n`],
   ['bun.lock', `{\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    "b/@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "b"],\n  },\n}\n`],
 ])('migrates one workspace without reading a sibling workspace\'s copy in %s', async (lockfile, text) => {
@@ -166,7 +166,7 @@ it.each([
 
 it('reads a workspace\'s own nested copy before the hoisted one', async () => {
   // Given: the root hoists the pin; packages/a keeps its own newer copy.
-  const lock = JSON.stringify({ lockfileVersion: 3, packages: {
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'packages/a': { name: 'a' },
     'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/a/node_modules/@daytonaio/sdk': { version: transitive } } });
   // When
   const { code: exit, report } = await run({ '.git/HEAD': '', 'package-lock.json': lock,
@@ -244,4 +244,31 @@ it('reports unknown only for a manifest with no version evidence', async () => {
   const { report } = await run(files);
   // Then
   expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
+});
+
+it('a migrated declaration ignores a stale lockfile', async () => {
+  // Given: package.json is on 2.x; package-lock.json still resolves the old 0.x minor.
+  const files = { 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': '^2.0.0' } }),
+    'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytona/sdk': { version: transitive } } }),
+    'index.ts': "import { Daytona } from '@daytona/sdk'; const d = new Daytona(); d.v0.create();\n" };
+  // When
+  const { code: exit, report } = await run(files);
+  // Then
+  expect(exit).toBe(0);
+  expect(report.refused).toBeUndefined();
+  expect(report.warnings).toBeUndefined();
+});
+
+it.each([false, true])('a root package-lock.json resolves only its own workspaces (workspace=%s)', async workspace => {
+  // Given: the root lockfile hoists a newer minor; tools/x is on the pin.
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: {
+    '': { workspaces: workspace ? ['tools/x'] : [] },
+    ...(workspace ? { 'tools/x': { name: 'x' } } : {}),
+    'node_modules/@daytonaio/sdk': { version: transitive } } });
+  const files = { '.git/HEAD': '', 'package-lock.json': lock, 'tools/x/package.json': manifest(`^${pinned}`), 'tools/x/index.ts': code };
+  // When
+  const { code: exit, report } = await run(files, [], 'tools/x');
+  // Then: a workspace resolves through the lock; another project falls back to its manifest.
+  expect(exit).toBe(workspace ? 2 : 0);
+  expect(report.refused !== undefined).toBe(workspace);
 });

@@ -10,7 +10,6 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // leaves them out, so a slow release runner cannot block an SDK release.
 const wallClock = [
   'tests/bounded-environment-scan-inputs.test.ts',
-  'tests/callback-budget-identity.test.ts',
   'tests/callback-budget-regression.test.ts',
   'tests/es5-callback-performance.test.ts',
   'tests/holder-helper-performance.test.ts',

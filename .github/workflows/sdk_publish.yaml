@@ -1270,8 +1270,8 @@ jobs:
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
-          # The tool row counts as built only when its end-to-end check passed too.
-          UPGRADE_BUILD: ${{ needs.build-upgrade.result == 'success' && needs.upgrade-e2e.result || needs.build-upgrade.result }}
+          # Built but not end-to-end checked (an SDK build failed) gets its own row text.
+          UPGRADE_BUILD: ${{ needs.build-upgrade.result == 'success' && (needs.upgrade-e2e.result == 'skipped' && 'e2e-skipped' || needs.upgrade-e2e.result) || needs.build-upgrade.result }}
           PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
           UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
           UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
@@ -1307,7 +1307,7 @@ jobs:
               success)   ;;
               failure)   echo ":x: BUILD FAILED — see build job log"; return ;;
               cancelled) echo ":stop_sign: cancelled"; return ;;
-              skipped)   echo ":fast_forward: NOT BUILT — a build it needs failed or was cancelled"; return ;;
+              e2e-skipped) echo ":fast_forward: built, end-to-end check not run (an SDK build failed or was cancelled)"; return ;;
               *)         echo ":grey_question: build=$2"; return ;;
             esac
             case "$PUBLISH_RESULT/$3" in

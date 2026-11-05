@@ -61,6 +61,8 @@ function npmLock(text: string): Lock {
   return ({ key }, importer) => {
     // lockfileVersion 1 records the root project's tree only.
     if (packages === undefined) return importer === '' ? version(legacy[key]) : [];
+    // A directory the lockfile does not record as a workspace is another project.
+    if (importer !== '' && packages[importer] === undefined) return [];
     // A workspace's own copy wins; otherwise it resolves the hoisted root copy.
     const own = importer === '' ? undefined : packages[`${importer}/node_modules/${key}`];
     return version(own ?? packages[`node_modules/${key}`]);
@@ -170,6 +172,9 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
     return locks.get(file);
   };
   for (const dependency of declared) {
+    // A declaration already on 2.x needs no check, even before its lockfile is refreshed.
+    const range = validRange(dependency.range) === null ? null : minVersion(dependency.range);
+    if (range !== null && range.major >= 2) { evidenced.add(dependency.file); continue; }
     const directory = dirname(dependency.file);
     const lockfiles = owners.get(directory) ?? ownerLockfiles(directory);
     owners.set(directory, lockfiles);
@@ -187,8 +192,6 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
       continue;
     }
     // No lockfile, or one that does not resolve this dependency: the manifest range stands in.
-    const range = validRange(dependency.range) === null ? null : minVersion(dependency.range);
-    if (range !== null && range.major >= 2) { evidenced.add(dependency.file); continue; }
     const version = range === null || range.version === '0.0.0' ? undefined : zeroX(range.version);
     if (version) {
       observed.set(`${dependency.file}\0${version.version}`, { file: dependency.file, version });
