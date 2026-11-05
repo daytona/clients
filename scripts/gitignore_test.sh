@@ -16,6 +16,7 @@ ignored=(
   typescript/dist/index.js
   python/dist/daytona.whl
   python/build/lib/x.py
+  upgrade/scripts/dist/index.js
   upgrade/typescript/node_modules/x/index.js
   upgrade/scripts/node_modules/x/index.js
   examples/node_modules/x/index.js
