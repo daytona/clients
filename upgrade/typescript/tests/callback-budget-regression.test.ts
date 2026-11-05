@@ -7,6 +7,7 @@ import { performance } from 'node:perf_hooks';
 import { expect, it } from 'vitest';
 import type { Report } from '../src/model.js';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
+import { expectWithinBudget, testTimeout } from './budget.js';
 
 const shapes = [
   { name: 'function parameter', source: 'function run(client) { client.create(); }\nrun(new Daytona());' },
@@ -33,8 +34,8 @@ it.each(cases)('retains review for $name in .$extension with $count unrelated ca
   const report: Report = JSON.parse(result.output);
   expect({ code: result.code, items: report.items.filter(item => item.kind === 'fixme').map(item => item.file) })
     .toEqual({ code: 1, items: [`app.${extension}`] });
-  expect(elapsed).toBeLessThan(10_000);
-}, 20_000);
+  expectWithinBudget(elapsed, 10_000);
+}, testTimeout(20_000));
 
 it.each([
   { name: 'parameter', body: 'client.create();', parameter: 'client = new Daytona()', argument: '{ create() {} }' },

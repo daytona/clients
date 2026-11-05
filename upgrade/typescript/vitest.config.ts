@@ -3,24 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { configDefaults, defineConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 
-// Tests that assert wall-clock budgets. upgrade-tool-ci runs them on every
-// change; the release build (sdk_publish.yaml, DAYTONA_UPGRADE_SKIP_WALL_CLOCK=1)
-// leaves them out, so a slow release runner cannot block an SDK release.
-const wallClock = [
-  'tests/bounded-environment-scan-inputs.test.ts',
-  'tests/callback-budget-regression.test.ts',
-  'tests/es5-callback-performance.test.ts',
-  'tests/holder-helper-performance.test.ts',
-  'tests/holder-performance.test.ts',
-  'tests/output-bounded.test.ts',
-  'tests/receiver-write-and-extraction-proofs.test.ts',
-];
+// The release build (sdk_publish.yaml) sets DAYTONA_UPGRADE_SKIP_WALL_CLOCK=1:
+// tests/budget.ts then skips the wall-clock budget assertions and every test
+// gets a generous timeout, so a slow release runner cannot block an SDK
+// release. upgrade-tool-ci runs with the budgets on every change.
+const release = process.env['DAYTONA_UPGRADE_SKIP_WALL_CLOCK'] === '1';
 
 export default defineConfig({
   test: {
     globalSetup: ['tests/build-cli.ts'],
-    exclude: [...configDefaults.exclude, ...(process.env['DAYTONA_UPGRADE_SKIP_WALL_CLOCK'] === '1' ? wallClock : [])],
+    ...(release ? { testTimeout: 300_000, hookTimeout: 300_000 } : {}),
   },
 });

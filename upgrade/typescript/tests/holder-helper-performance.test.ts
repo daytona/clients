@@ -6,6 +6,7 @@
 import { performance } from 'node:perf_hooks';
 import { expect, it } from 'vitest';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
+import { expectWithinBudget, testTimeout } from './budget.js';
 
 const sizes = process.env['DAYTONA_UPGRADE_BENCHMARK'] === '1' ? [200, 400, 800] : [200];
 
@@ -36,5 +37,5 @@ export class Service${index} {
   // Then the existing depth budget stays conservative, without quadratic work.
   expect(result.code, result.output).toBe(1);
   expect(JSON.parse(result.output).changedFiles).toHaveLength(count + 1);
-  expect(elapsed).toBeLessThan(count * 150);
-}, 180_000);
+  expectWithinBudget(elapsed, count * 150);
+}, testTimeout(180_000));

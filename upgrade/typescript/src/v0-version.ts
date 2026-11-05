@@ -94,7 +94,11 @@ function yarnLock(text: string): Lock {
     const descriptors = header.slice(0, -1).split(/,\s*/).map(descriptor => descriptor.trim().replace(/^"|"$/g, ''));
     return [{ descriptors, version }];
   });
-  return ({ key, spec }) => {
+  // Berry records each workspace as `"<name>@workspace:<path>"`; classic records none.
+  const workspaces = new Set(blocks.flatMap(block => block.descriptors.flatMap(descriptor =>
+    /@workspace:(.+)$/.exec(descriptor)?.[1] ?? [])));
+  return ({ key, spec }, importer) => {
+    if (importer !== '' && workspaces.size > 0 && !workspaces.has(importer)) return [];
     const wanted = new Set([`${key}@${spec}`, `${key}@npm:${spec}`]);
     return blocks.filter(block => block.descriptors.some(descriptor => wanted.has(descriptor))).map(block => block.version);
   };
@@ -107,7 +111,12 @@ function bunLock(text: string): Lock {
     const version = versionIn(match[2] ?? '');
     if (version !== undefined) entries.set(match[1] ?? '', version);
   }
+  // `"workspaces": { "": {…}, "packages/a": {…} }` records the root and each workspace.
+  const section = /"workspaces"\s*:\s*\{([\s\S]*?)\n\s{2}\}/.exec(text)?.[1] ?? '';
+  const workspaces = new Set([...section.matchAll(/^\s{4}"([^"\n]*)"\s*:/gm)].map(match => match[1] ?? ''));
   return ({ key, owner }, importer) => {
+    // A directory the lockfile does not record as a workspace is another project.
+    if (importer !== '' && !workspaces.has(importer)) return [];
     const own = importer !== '' && owner !== undefined ? entries.get(`${owner}/${key}`) : undefined;
     const version = own ?? entries.get(key);
     return version === undefined ? [] : [version];

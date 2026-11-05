@@ -6,6 +6,7 @@
 import { performance } from 'node:perf_hooks';
 import { expect, it } from 'vitest';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
+import { expectWithinBudget, testTimeout } from './budget.js';
 
 it('finishes holder analysis within 30 seconds when 200 service files are independent', async () => {
   // Given a two-client-call service shape, scaled to 200 files.
@@ -31,5 +32,5 @@ export class Service${index} {
   // Then every service is migrated within a generous CI budget.
   expect(result.code, result.output).toBe(0);
   expect(JSON.parse(result.output).changedFiles).toHaveLength(201);
-  expect(elapsed).toBeLessThan(30_000);
-}, 60_000);
+  expectWithinBudget(elapsed, 30_000);
+}, testTimeout(60_000));

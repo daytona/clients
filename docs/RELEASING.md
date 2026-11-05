@@ -203,10 +203,11 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   that version from the same commit: `-f publish_pypi=false -f
   publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
   registry check requires both SDKs to be published already).
-- The release run leaves out the tool's wall-clock budget tests
-  (TypeScript: `DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, `upgrade/typescript/vitest.config.ts`;
-  Python: the `wall_clock` marker); `upgrade-tool-ci.yaml` runs them on every
-  change.
+- The release run skips the tool's wall-clock budget assertions (TypeScript:
+  `DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, which `upgrade/typescript/tests/budget.ts`
+  reads and which also raises test timeouts; Python: the `wall_clock` marker),
+  so a slow runner cannot block an SDK release; `upgrade-tool-ci.yaml` asserts
+  them on every change.
 - To build and test the tool without publishing it, dispatch the run and
   reject the `release` approval: every build and check, `upgrade-e2e`
   included, has run by then.

@@ -525,3 +525,19 @@ def test_a_root_lockfile_resolves_only_its_own_projects(
     # Then: a workspace member resolves through the lock; another project does not.
     assert code == (2 if member else 0)
     assert ("refused" in report) is member
+
+
+def test_a_pre_release_tool_replaces_a_pre_lockstep_range(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: >=2,<3 (what the pre-lockstep tool wrote) installs no 2.x alpha.
+    monkeypatch.setattr(
+        cli, "load_mapping", partial(load_mapping, tool_version="2.0.0a8")
+    )
+    _project(tmp_path, {"requirements.txt": "daytona[v0-sdk]>=2,<3\n"})
+    # When
+    _run(tmp_path, capsys)
+    # Then
+    assert (tmp_path / "requirements.txt").read_text() == "daytona[v0-sdk]==2.0.0a8\n"

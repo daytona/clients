@@ -8,6 +8,7 @@ import { Project } from 'ts-morph';
 import { expect, it } from 'vitest';
 import { bindingIsStable } from '../src/stable-bindings.js';
 import { contents, installFakeSdk, invoke, temporaryProject } from './helpers.js';
+import { expectWithinBudget } from './budget.js';
 
 const prefix = "import { Daytona } from '@daytonaio/sdk';\n";
 const codeWithoutComments = (code: string): string => code.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
@@ -89,5 +90,5 @@ it('indexes writes once when checking 600 client bindings', () => {
   const elapsed = performance.now() - start;
   // Then
   expect(stable).toEqual(Array.from({ length: 600 }, () => false));
-  expect(elapsed).toBeLessThan(2000);
+  expectWithinBudget(elapsed, 2000);
 });

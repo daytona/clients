@@ -72,3 +72,13 @@ it.each(['2.0.0-alpha.9', '^2.0.0-alpha.9'])('an older tool keeps a newer pre-re
   expect((JSON.parse(result.output) as { readonly items: readonly { readonly kind: string }[] }).items
     .filter(item => item.kind === 'manual-dependency')).toEqual([]);
 });
+
+it('a pre-release tool replaces a pre-lockstep ^2.0.0 range', async () => {
+  // Given: ^2.0.0 (what the pre-lockstep tool wrote) installs no 2.x alpha.
+  const root = temporaryProject({ 'package.json': '{"dependencies":{"@daytona/sdk":"^2.0.0"}}',
+    'index.ts': "import { Daytona } from '@daytona/sdk'; const d = new Daytona(); d.v0.create();\n" });
+  // When
+  await invoke(root, ['--json'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then
+  expect(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))).toEqual({ dependencies: { '@daytona/sdk': '2.0.0-alpha.8' } });
+});

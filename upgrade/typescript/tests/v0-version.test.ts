@@ -151,7 +151,7 @@ it.each([
   ['package-lock.json', JSON.stringify({ lockfileVersion: 3, packages: {
     'packages/a': { name: 'a' }, 'packages/b': { name: 'b' }, 'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/b/node_modules/@daytonaio/sdk': { version: transitive } } })],
   ['pnpm-lock.yaml', `lockfileVersion: '9.0'\nimporters:\n  packages/a:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${pinned}\n        version: ${pinned}\n  packages/b:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${transitive}\n        version: ${transitive}\n`],
-  ['bun.lock', `{\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    "b/@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "b"],\n  },\n}\n`],
+  ['bun.lock', `{\n  "lockfileVersion": 1,\n  "workspaces": {\n    "": {\n      "name": "root",\n    },\n    "packages/a": {\n      "name": "a",\n    },\n    "packages/b": {\n      "name": "b",\n    },\n  },\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    "b/@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "b"],\n  },\n}\n`],
 ])('migrates one workspace without reading a sibling workspace\'s copy in %s', async (lockfile, text) => {
   // Given: packages/b is on a newer minor; packages/a, the scanned package, is on the pin.
   const files = { '.git/HEAD': '', [lockfile]: text,
@@ -271,4 +271,17 @@ it.each([false, true])('a root package-lock.json resolves only its own workspace
   // Then: a workspace resolves through the lock; another project falls back to its manifest.
   expect(exit).toBe(workspace ? 2 : 0);
   expect(report.refused !== undefined).toBe(workspace);
+});
+
+it.each([
+  ['bun.lock', `{\n  "lockfileVersion": 1,\n  "workspaces": {\n    "": {\n      "name": "root",\n    },\n  },\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "a"],\n  },\n}\n`],
+  ['yarn.lock', `__metadata:\n  version: 8\n\n"@daytonaio/sdk@npm:0.100.0":\n  version: 0.100.0\n\n"@daytonaio/sdk@npm:^${transitive}":\n  version: ${transitive}\n\n"root@workspace:.":\n  version: 0.0.0-use.local\n`],
+])('a root %s does not resolve a nested project that is not a workspace', async (lockfile, text) => {
+  // Given: tools/x is a separate project on 0.100.0 below a root lockfile on a newer minor.
+  const files = { '.git/HEAD': '', [lockfile]: text, 'tools/x/package.json': manifest('0.100.0'), 'tools/x/index.ts': code };
+  // When
+  const { code: exit, report } = await run(files, [], 'tools/x');
+  // Then: its own manifest stands in.
+  expect(exit).toBe(0);
+  expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
 });

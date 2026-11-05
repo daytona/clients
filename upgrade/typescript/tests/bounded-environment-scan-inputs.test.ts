@@ -11,6 +11,7 @@ import { expect, it } from 'vitest';
 import { composeEnvFiles } from '../src/compose-env-files.js';
 import { environmentText, MAX_ENVIRONMENT_BYTES } from '../src/environment-text.js';
 import { contents, invoke, temporaryProject } from './helpers.js';
+import { expectWithinBudget, testTimeout } from './budget.js';
 
 const manifest = '{"dependencies":{"@daytonaio/sdk":"0.224.0"}}';
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
@@ -25,8 +26,8 @@ it('ignores a large unrelated YAML specification within a bounded CLI run', asyn
   // Then unrelated specs neither enter the YAML parser nor produce review noise.
   expect(result.code).toBe(0);
   expect(JSON.parse(result.output).items).toEqual([]);
-  expect(performance.now() - start).toBeLessThan(2_000);
-}, 3_000);
+  expectWithinBudget(performance.now() - start, 2_000);
+}, testTimeout(3_000));
 
 it.each(['compose.yaml', 'stack.yaml'])('reviews oversized Compose-looking %s without parsing it', async file => {
   // Given a recognized Compose file larger than the parser budget.
@@ -38,8 +39,8 @@ it.each(['compose.yaml', 'stack.yaml'])('reviews oversized Compose-looking %s wi
   // Then the existing unresolved environment review replaces an unbounded parse.
   expect(result.code).toBe(1);
   expect(JSON.parse(result.output).items).toContainEqual(expect.objectContaining({ file, kind: 'env-api-url' }));
-  expect(performance.now() - start).toBeLessThan(2_000);
-}, 3_000);
+  expectWithinBudget(performance.now() - start, 2_000);
+}, testTimeout(3_000));
 
 it('caps direct Compose parsing even when called without a bounded file reader', () => {
   // Given an oversized input with a costly YAML collection, rather than a block scalar.
@@ -49,7 +50,7 @@ it('caps direct Compose parsing even when called without a bounded file reader',
   const result = composeEnvFiles(lines);
   // Then an unresolved reference records the skipped parse.
   expect(result).toEqual({ compose: true, references: [{ value: undefined, line: 0, column: 0 }], includes: [] });
-  expect(performance.now() - start).toBeLessThan(500);
+  expectWithinBudget(performance.now() - start, 500);
 });
 
 it.each(['.env', 'Dockerfile'])('reviews oversized %s instead of certifying unseen endpoints', async file => {

@@ -773,8 +773,8 @@ jobs:
         working-directory: upgrade/typescript
         env:
           NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
-          # The wall-clock budget tests run in upgrade-tool-ci, not here
-          # (vitest.config.ts): runner speed must not block a release.
+          # Skips the wall-clock budget assertions and raises test timeouts
+          # (tests/budget.ts, vitest.config.ts); upgrade-tool-ci asserts them.
           DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
         run: |
           set -euo pipefail
@@ -1271,7 +1271,7 @@ jobs:
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
           # Built but not end-to-end checked (an SDK build failed) gets its own row text.
-          UPGRADE_BUILD: ${{ needs.build-upgrade.result == 'success' && (needs.upgrade-e2e.result == 'skipped' && 'e2e-skipped' || needs.upgrade-e2e.result) || needs.build-upgrade.result }}
+          UPGRADE_BUILD: ${{ needs.build-upgrade.result == 'success' && (needs.upgrade-e2e.result == 'success' && 'success' || format('e2e-{0}', needs.upgrade-e2e.result)) || needs.build-upgrade.result }}
           PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
           UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
           UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
@@ -1308,6 +1308,8 @@ jobs:
               failure)   echo ":x: BUILD FAILED — see build job log"; return ;;
               cancelled) echo ":stop_sign: cancelled"; return ;;
               e2e-skipped) echo ":fast_forward: built, end-to-end check not run (an SDK build failed or was cancelled)"; return ;;
+              e2e-failure) echo ":x: END-TO-END CHECK FAILED — see the upgrade-e2e job log"; return ;;
+              e2e-cancelled) echo ":stop_sign: end-to-end check cancelled"; return ;;
               *)         echo ":grey_question: build=$2"; return ;;
             esac
             case "$PUBLISH_RESULT/$3" in
@@ -1360,6 +1362,6 @@ jobs:
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
           } >> "$GITHUB_STEP_SUMMARY"
           for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$UPGRADE_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
-            case "$r" in failure|cancelled) exit 1;; esac
+            case "$r" in failure|cancelled|e2e-failure|e2e-cancelled) exit 1;; esac
           done
           exit 0

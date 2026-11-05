@@ -42,5 +42,8 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
   const floor = minVersion(range);
   const wanted = minVersion(target);
-  return floor !== null && wanted !== null && floor.major === wanted.major && gte(floor, wanted);
+  if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted)) return false;
+  // While the target is a pre-release, a range whose floor is an unreleased
+  // stable version (`^2.0.0`, what pre-lockstep releases wrote) installs nothing.
+  return !wanted.prerelease.length || floor.prerelease.length > 0;
 }
