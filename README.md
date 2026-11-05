@@ -15,7 +15,7 @@ processes, files, Git, code execution, ports, LSP and computer use.
 ├── contract/        OpenAPI contracts the SDKs and CLI generate their wire types from
 ├── sdk-python/      daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
 ├── sdk-typescript/  @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
-├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (typescript/) + PyPI (python/) packages,
+├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
 │                    one shared mapping (mapping/), the generated MIGRATION.md
 ├── examples/        runnable examples for both SDKs
 ├── e2e/             live API e2e, run.sh (needs DAYTONA_API_KEY)

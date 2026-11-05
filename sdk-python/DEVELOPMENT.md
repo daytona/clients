@@ -76,7 +76,7 @@ scripts/bundle-v0.sh --clean
   instead of cloning one.
 - `--clean` removes the bundle from `src/daytona/v0/` and empties the `v0-sdk`
   extra in `pyproject.toml`. Restore `sdk-typescript/package.json` and
-  `package-lock.json` with `git` if needed.
+  `sdk-typescript/package-lock.json` with `git` if needed.
 
 **What the Python helper (`scripts/bundle_v0_python.py`) does:**
 
@@ -117,7 +117,7 @@ print('ok')
 "
 
 # 3. Clean up (empties the v0-sdk extra and removes src/daytona/v0/)
-scripts/bundle-v0.sh --clean
+../scripts/bundle-v0.sh --clean
 ```
 
 ## Design references

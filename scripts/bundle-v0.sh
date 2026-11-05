@@ -141,7 +141,7 @@ if [ "$lang" = typescript ] || [ "$lang" = all ]; then
   node "$clients/sdk-typescript/scripts/bundle-v0.mjs" "$src/sdk-typescript/src" "$version" "$tag" "$src/package.json"
   # The bundle merges v0's dependencies into package.json; they are not
   # installed yet, so `npm run build` fails on src/v0 until they are.
-  echo "bundle-v0: next, in typescript: npm install (v0's dependencies), then npm run build;" \
+  echo "bundle-v0: next, in sdk-typescript: npm install (v0's dependencies), then npm run build;" \
     "--clean afterwards restores package.json (never commit the bundled manifest)"
 fi
 bundled_ok=1

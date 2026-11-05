@@ -311,6 +311,16 @@ jobs:
       # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
       # the code) fails here, so a package whose d.v0 can never work is never
       # published.
+      # The build jobs and the snapshot below address the SDKs as sdk-python/
+      # and sdk-typescript/; a source_ref from before that layout is refused
+      # here with a clear message instead of failing in a later step.
+      - name: Require the sdk-python/ and sdk-typescript/ layout
+        run: |
+          set -euo pipefail
+          if [ ! -d sdk-python ] || [ ! -d sdk-typescript ]; then
+            echo "::error::source_ref uses the old python/ and typescript/ layout; rebase it onto main before publishing"
+            exit 1
+          fi
       - id: v0
         name: Resolve and fetch the pinned v0 namespace release
         env:
