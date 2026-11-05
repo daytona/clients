@@ -10,12 +10,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"golang.org/x/sync/errgroup"
 )
 
 // Contexts above the multipart limit go straight to storage through
@@ -24,9 +26,24 @@ const imageContextDirectMaxBytes int64 = 1 << 30
 
 const imageContextPartAttempts = 3
 
+// Parts in flight at once. Each streams from the staged file, so memory stays
+// a few buffers whatever the part size.
+const imageContextPartConcurrency = 4
+
+const imageContextCompleteAttempts = 3
+
+// imageContextCompleteTimeout bounds one complete call: the API reads the
+// whole stored archive back (up to 1 GiB) before it answers. Tests shorten it.
+var imageContextCompleteTimeout = 10 * time.Minute
+
 // imageContextPartBackoff is the pause before part attempt n+1; tests shorten it.
 var imageContextPartBackoff = func(attempt int) time.Duration {
 	return time.Duration(500<<attempt) * time.Millisecond
+}
+
+// imageContextCompleteBackoff is the pause before complete attempt n+1; tests shorten it.
+var imageContextCompleteBackoff = func(attempt int) time.Duration {
+	return time.Duration(1<<attempt) * time.Second
 }
 
 // imageContextStorage uploads the parts. It is not the API client: the part
@@ -101,19 +118,10 @@ func postImageDirect(ctx context.Context, client *api.Client, meta map[string]st
 		return created, err
 	}
 	if upload.State != gen.BuildContextUploadStateReady {
-		var offset int64
-		for _, part := range upload.Parts {
-			if err := putImageContextPart(ctx, staged.file, offset, part); err != nil {
-				return created, err
-			}
-			offset += part.Bytes
+		if err := putImageContextParts(ctx, staged, upload.Parts); err != nil {
+			return created, err
 		}
-		if offset != staged.size {
-			return created, cerr.New(cerr.ExitFailure, "build context upload parts do not cover the archive")
-		}
-		complete := gen.CompleteBuildContextUploadRequest{RegionId: &upload.RegionId}
-		var completed gen.BuildContextUpload
-		if err := client.Do(ctx, http.MethodPost, "/build-contexts/"+upload.Id.String()+"/complete", nil, complete, &completed); err != nil {
+		if err := completeImageContextUpload(ctx, client, upload); err != nil {
 			return created, err
 		}
 	}
@@ -129,6 +137,57 @@ func postImageDirect(ctx context.Context, client *api.Client, meta map[string]st
 	return created, err
 }
 
+// putImageContextParts uploads every part, a bounded number at a time. The
+// first failure cancels the parts still in flight and is the one returned.
+func putImageContextParts(ctx context.Context, staged *stagedImageContext, parts []gen.BuildContextUploadPart) error {
+	var total int64
+	for _, part := range parts {
+		total += part.Bytes
+	}
+	if total != staged.size {
+		return cerr.New(cerr.ExitFailure, "build context upload parts do not cover the archive")
+	}
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(imageContextPartConcurrency)
+	var offset int64
+	for _, part := range parts {
+		start := offset
+		offset += part.Bytes
+		group.Go(func() error { return putImageContextPart(groupCtx, staged.file, start, part) })
+	}
+	return group.Wait()
+}
+
+// completeImageContextUpload asks the API to verify the uploaded archive. The
+// API answers a repeated complete of a verified upload with that upload, so a
+// call that timed out or met a server or network failure is sent again.
+func completeImageContextUpload(ctx context.Context, client *api.Client, upload gen.BuildContextUpload) error {
+	long := client.WithTimeoutAtLeast(imageContextCompleteTimeout)
+	complete := gen.CompleteBuildContextUploadRequest{RegionId: &upload.RegionId}
+	path := "/build-contexts/" + upload.Id.String() + "/complete"
+	for attempt := 0; ; attempt++ {
+		var completed gen.BuildContextUpload
+		err := long.Do(ctx, http.MethodPost, path, nil, complete, &completed)
+		if err == nil || ctx.Err() != nil || attempt+1 >= imageContextCompleteAttempts || !retryableComplete(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(imageContextCompleteBackoff(attempt)):
+		}
+	}
+}
+
+func retryableComplete(err error) bool {
+	var apiErr *api.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.Status >= 500 && apiErr.Status != http.StatusNotImplemented
+	}
+	var urlErr *url.Error
+	return errors.As(err, &urlErr)
+}
+
 func putImageContextPart(ctx context.Context, file *os.File, offset int64, part gen.BuildContextUploadPart) error {
 	status := 0
 	for attempt := 0; attempt < imageContextPartAttempts; attempt++ {
@@ -139,7 +198,9 @@ func putImageContextPart(ctx context.Context, file *os.File, offset int64, part 
 		req.ContentLength = part.Bytes
 		resp, err := imageContextStorage.Do(req)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			// The storage client's own timeout also matches
+			// context.DeadlineExceeded; only the caller's context ends the upload.
+			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			status = 0
