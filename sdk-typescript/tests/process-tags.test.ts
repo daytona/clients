@@ -107,6 +107,15 @@ describe('process tags', () => {
     expect(killed).toEqual(ids)
   })
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 0])('rejects timeout %p before sending a request', async (timeout) => {
+    // Given
+    const transport = new HttpTransport('http://toolbox.invalid')
+    const post = jest.spyOn(transport, 'post')
+    // When / Then
+    await expect(new ProcessService(transport, 'sandbox-1').killAll({ tag: 'job-123', timeout })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST' })
+    expect(post).not.toHaveBeenCalled()
+  })
+
   it('maps an incomplete kill response to the exported timeout subclass', async () => {
     // Given
     const response = new Response(JSON.stringify({

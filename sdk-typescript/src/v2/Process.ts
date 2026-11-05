@@ -135,6 +135,9 @@ export class ProcessService {
    * @throws ProcessKillIncompleteError if processes remain; retrying is safe.
    */
   public async killAll(options: { readonly tag: string; readonly timeout?: number }): Promise<string[]> {
+    if (options.timeout !== undefined && (!Number.isFinite(options.timeout) || options.timeout <= 0)) {
+      throw new BadRequestError('timeout must be a positive, finite number of milliseconds', 400, 'BAD_REQUEST', 'SDK')
+    }
     const body: toolbox.KillProcessesRequest = { tag: options.tag }
     if (options.timeout !== undefined) body.timeoutMs = Math.ceil(options.timeout)
     const data = await this.transport.post<toolbox.KillProcessesResponse>('/processes:kill', body, {
