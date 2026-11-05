@@ -1,0 +1,35 @@
+cli/cmd/sandbox_actions_more_test.go
+  s_99e5c120850106::t_15d859bb7f7329 248-258
+cli/install_test.go
+  s_99e5c120850106::t_5453de16b61b46 12,197-199
+cli/internal/auth/session_race_test.go
+  s_99e5c120850106::t_b8a45cfbd0d71b 183-186
+cli/internal/input/input.go
+  s_99e5c120850106::t_db38fe3077af5f 60-70,76
+cli/internal/input/input_test.go
+  s_99e5c120850106::t_221d064da48eab 90-101
+cli/internal/regions/fanout.go
+  s_99e5c120850106::t_21c9dc283ece2c 27-29
+cli/internal/regions/list_targets_test.go
+  s_99e5c120850106::t_b653e4796066be 94-104
+cli/internal/workload/resolve_sandbox_test.go
+  s_99e5c120850106::t_964c9b26279825 175-196
+cli/internal/workload/sandbox.go
+  s_99e5c120850106::t_6214d5d9f090d0 53,58-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6bd468fec1c3e8ef4314dbef666e491a0d0707ee",
+  "prompts": {},
+  "sessions": {
+    "s_99e5c120850106": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5517996bffel0i7jbnk4QE4Xt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
