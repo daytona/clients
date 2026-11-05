@@ -112,7 +112,7 @@ must preserve `manifestId: null` rather than optionalizing it.
 - `process`: cursor-replayable `logs()`, SSE `streamLogs()` with
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
   built-in global `WebSocket` (Node 22.4+); the package's floor is Node 22.15,
-  what the bundled v0's OpenTelemetry 3.x dependencies declare. Public
+  which the bundled v0's OpenTelemetry 3.x dependencies declare. Public
   `executionTimeout` is translated to the API's `timeoutMs` only on the
   process routes that support a server-managed kill deadline; code execution
   stays client-timed and interrupts on expiry instead.
