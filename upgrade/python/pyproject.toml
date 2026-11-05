@@ -46,3 +46,5 @@ ignore = ["E501", "UP045"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-config --strict-markers"
+# The release build (sdk_publish.yaml) deselects these; upgrade-tool-ci runs them.
+markers = ["wall_clock: asserts a wall-clock budget"]

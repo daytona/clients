@@ -161,7 +161,8 @@ jobs:
           git checkout -b "$branch"
           git add -- "${files[@]}"
           git commit -s -m "chore(sdk): bundle 0.x ${TAG} as the v0 namespace"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" "$branch"
+          gh auth setup-git   # git's credential helper reads GH_TOKEN; no token on argv
+          git push origin "$branch"
           {
             echo "Points \`scripts/v0-sdk-version\` at ${TAG}, the newest 0.x release, so SDK 2.x bundles it as \`Daytona().v0\` and the migration tool accepts projects on it. Regenerated: the tool's \`v0Version\` / \`v0Exports\` and upgrade/MIGRATION.md."
             echo

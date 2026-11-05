@@ -17,6 +17,8 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 from tomlkit.exceptions import TOMLKitError
 
+from .models import Mapping
+
 # Closest first: the nearest directory with a lockfile owns the install.
 _LOCKFILES = ("uv.lock", "poetry.lock", "pdm.lock", "Pipfile.lock")
 _NAMES = frozenset({"daytona", "daytona-sdk"})
@@ -118,18 +120,83 @@ def _lower_bound(specifier: str) -> Version | None:
         if entry.operator not in {"==", "===", ">=", "~=", ">"}:
             continue
         try:
-            bounds.append(Version(entry.version.removesuffix(".*")))
+            bound = Version(entry.version.removesuffix(".*"))
         except InvalidVersion:
             continue
+        if entry.operator == ">":
+            # The least version above it, as semver's minVersion reads `>`.
+            major, minor, micro = (*bound.release, 0, 0)[:3]
+            bound = Version(f"{major}.{minor}.{micro + 1}")
+        bounds.append(bound)
     return max(bounds) if bounds else None
 
 
 def _poetry_lower_bound(specifier: str) -> Version | None:
-    # Poetry caret/tilde and bare versions, as dependency_versions.requires_v2 reads them.
-    normalized = re.sub(r"[\^~](?!=)\s*(\d+(?:\.\d+)*)", r">=\1", specifier.strip())
-    if re.fullmatch(r"\d+(?:\.[\d*]+)*", normalized):
-        normalized = "==" + normalized
-    return _lower_bound(normalized)
+    """Poetry caret/tilde, bare versions and ``||`` alternatives (the least
+    alternative's bound), as dependency_versions.requires_v2 reads them."""
+    bounds: list[Version] = []
+    for alternative in specifier.split("||"):
+        normalized = re.sub(
+            r"[\^~](?!=)\s*(\d+(?:\.\d+)*)", r">=\1", alternative.strip()
+        )
+        if re.fullmatch(r"\d+(?:\.[\d*]+)*", normalized):
+            normalized = "==" + normalized
+        bound = _lower_bound(normalized)
+        if bound is None:
+            return None
+        bounds.append(bound)
+    return min(bounds) if bounds else None
+
+
+_ANCESTOR_MANIFESTS = (
+    "pyproject.toml",
+    "setup.cfg",
+    "setup.py",
+    "Pipfile",
+    "requirements.txt",
+    "requirements.in",
+)
+
+
+def ancestor_declarations(
+    base: Path, mapping: Mapping
+) -> tuple[tuple[Path, str, str], ...]:
+    """The nearest ancestor manifest's Daytona declarations, up to the Git
+    root, for a scan root that declares none itself (a partial-root run)."""
+    from .manifest_errors import ManifestParseError
+    from .manifests import inspect_manifest
+
+    start = base.resolve()
+    boundary = next(
+        (
+            directory
+            for directory in (start, *start.parents)
+            if (directory / ".git").exists()
+        ),
+        start,
+    )
+    if boundary == start:
+        return ()
+    for directory in start.parents:
+        found: list[tuple[Path, str, str]] = []
+        for name in _ANCESTOR_MANIFESTS:
+            path = directory / name
+            if not path.is_file():
+                continue
+            try:
+                manifest = inspect_manifest(
+                    Path("requirements.txt")
+                    if name.startswith("requirements")
+                    else path,
+                    path.read_text(encoding="utf-8"),
+                    mapping,
+                )
+            except (OSError, UnicodeError, ManifestParseError):
+                continue
+            found.extend((path, package, spec) for package, spec in manifest.declared)
+        if found or directory == boundary:
+            return tuple(found)
+    return ()
 
 
 def check_v0_version(
@@ -137,6 +204,7 @@ def check_v0_version(
     declared: tuple[tuple[Path, str, str], ...],
     pinned: str | None,
     allow_newer: bool,
+    found: bool = True,
 ) -> V0VersionCheck:
     """The owning lockfile's resolution of the declared package says what is
     installed; without one, the constraint's lower bound stands in. Older and
@@ -144,7 +212,13 @@ def check_v0_version(
     because its added APIs are in neither ``.v0`` nor the mapping."""
     if pinned is None:
         return V0VersionCheck(())
+    if not declared:
+        # Daytona code with no declaration anywhere up to the Git root.
+        return V0VersionCheck(
+            (Warning(file=".", message=unknown_message(pinned)),) if found else ()
+        )
     pin = Version(pinned)
+    evidenced: set[Path] = set()
     observed: dict[tuple[Path, Version], None] = {}
     unknown: dict[Path, None] = {}
     owners: dict[Path, list[Path]] = {}
@@ -169,10 +243,12 @@ def check_v0_version(
                 version = _zero_x(value)
                 if version is not None:
                     observed[(lockfile, version)] = None
+            evidenced.add(manifest)
             continue
         # No lockfile, or one that does not resolve this package: the constraint stands in.
         bound = _poetry_lower_bound(specifier) if specifier else None
         if bound is not None and bound.major >= 2:
+            evidenced.add(manifest)
             continue
         version = (
             None if bound is None or bound == Version("0") else _zero_x(str(bound))
@@ -181,6 +257,7 @@ def check_v0_version(
             unknown[manifest] = None
         else:
             observed[(manifest, version)] = None
+            evidenced.add(manifest)
 
     def relative(path: Path) -> str:
         return Path(os.path.relpath(path, base)).as_posix()
@@ -204,7 +281,8 @@ def check_v0_version(
             warnings.append(
                 Warning(file=file, message=newer_patch_message(shown, pinned))
             )
-    for path in sorted(unknown, key=relative):
+    # A manifest with another declaration that names a version is not unknown.
+    for path in sorted(unknown.keys() - evidenced, key=relative):
         warnings.append(Warning(file=relative(path), message=unknown_message(pinned)))
     return V0VersionCheck(tuple(warnings))
 

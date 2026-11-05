@@ -77,8 +77,9 @@ name: SDK Publish
 # and the environment's branch policy (`main`, `release/*`) still decides
 # whether this run's credentials can be used at all. gate and the build jobs
 # are kept OFF the environment so no environment secret is ever visible to
-# code under test. Inside the job the targets run in order — PyPI, npm, CLI
-# release, Homebrew — so a failed target stops the ones after it.
+# code under test. Inside the job the targets run in order — PyPI, npm, the
+# migration tool (PyPI, then npm), CLI release, Homebrew — so a failed target
+# stops the ones after it.
 #
 # The gate refuses a version a target registry ALREADY has (npm registry API,
 # PyPI JSON API, this repository's releases), because a second run for the
@@ -170,6 +171,12 @@ on:
 
 # No repo-wide token permissions; each job opts into what it needs.
 permissions: {}
+
+# Two runs of one version would both pass the registry check, and the second
+# would half-fail on the registries: queue them instead.
+concurrency:
+  group: sdk-publish-${{ inputs.version }}
+  cancel-in-progress: false
 
 jobs:
   gate:
@@ -793,7 +800,8 @@ jobs:
           # Test against the committed lock first; stamping the version
           # afterwards changes only the built artifacts, not uv.lock.
           uv sync --locked
-          uv run pytest -q -n auto
+          # The wall-clock budget tests run in upgrade-tool-ci, not here.
+          uv run pytest -q -n auto -m "not wall_clock"
           python - <<'PY'
           import os, re, pathlib
           p = pathlib.Path("pyproject.toml")

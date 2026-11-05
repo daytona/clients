@@ -146,9 +146,12 @@ function zeroX(value: string): SemVer | undefined {
  * unless `allowNewer`, because its added APIs are in neither `.v0` nor the
  * mapping.
  */
-export function checkV0Version(root: string, declared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean): V0VersionCheck {
+export function checkV0Version(root: string, declared: readonly DeclaredDependency[], pinned: string, allowNewer: boolean, found = true): V0VersionCheck {
   const pin = parse(pinned);
   if (pin === null) return { warnings: [] };
+  // Daytona code with no declaration anywhere up to the Git root.
+  if (!declared.length) return { warnings: found ? [{ file: '.', message: unknownMessage(pinned) }] : [] };
+  const evidenced = new Set<string>();
   const observed = new Map<string, { readonly file: string; readonly version: SemVer }>();
   const unknown = new Set<string>();
   const owners = new Map<string, readonly string[]>();
@@ -180,14 +183,17 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
         const zero = zeroX(version);
         if (zero) observed.set(`${file}\0${zero.version}`, { file, version: zero });
       }
+      evidenced.add(dependency.file);
       continue;
     }
     // No lockfile, or one that does not resolve this dependency: the manifest range stands in.
     const range = validRange(dependency.range) === null ? null : minVersion(dependency.range);
-    if (range !== null && range.major >= 2) continue;
+    if (range !== null && range.major >= 2) { evidenced.add(dependency.file); continue; }
     const version = range === null || range.version === '0.0.0' ? undefined : zeroX(range.version);
-    if (version) observed.set(`${dependency.file}\0${version.version}`, { file: dependency.file, version });
-    else unknown.add(dependency.file);
+    if (version) {
+      observed.set(`${dependency.file}\0${version.version}`, { file: dependency.file, version });
+      evidenced.add(dependency.file);
+    } else unknown.add(dependency.file);
   }
   const warnings: Warning[] = [];
   const order = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
@@ -202,8 +208,41 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
       warnings.push({ file: path, message: allowedNewerMessage(version.version, pinned) });
     } else warnings.push({ file: path, message: newerPatchMessage(version.version, pinned) });
   }
-  for (const file of [...unknown].sort((left, right) => order(relativePath(root, left), relativePath(root, right)))) {
+  // A manifest with another declaration that names a version is not unknown.
+  for (const file of [...unknown].filter(file => !evidenced.has(file)).sort((left, right) => order(relativePath(root, left), relativePath(root, right)))) {
     warnings.push({ file: relativePath(root, file), message: unknownMessage(pinned) });
   }
   return { warnings };
+}
+
+/**
+ * The nearest ancestor `package.json`'s Daytona declarations, up to the Git
+ * root, for a scan root that declares none itself (a partial-root run).
+ */
+export function ancestorDeclarations(root: string, names: readonly string[]): readonly DeclaredDependency[] {
+  const start = resolve(root);
+  let boundary: string | undefined;
+  for (let directory = start; ; directory = dirname(directory)) {
+    if (existsSync(join(directory, '.git'))) { boundary = directory; break; }
+    if (dirname(directory) === directory) break;
+  }
+  if (boundary === undefined || boundary === start) return [];
+  for (let directory = dirname(start); ; directory = dirname(directory)) {
+    const file = join(directory, 'package.json');
+    let manifest: Record<string, unknown> | undefined;
+    // An unreadable or malformed ancestor manifest is no evidence.
+    if (isFile(file)) {
+      try { manifest = record(JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''))); }
+      catch (error) { if (!(error instanceof SyntaxError || error instanceof Error && 'code' in error)) throw error; }
+    }
+    const owner = typeof manifest?.['name'] === 'string' ? manifest['name'] : undefined;
+    const found = ['dependencies', 'devDependencies', 'optionalDependencies'].flatMap(section =>
+      Object.entries(record(manifest?.[section]) ?? {}).flatMap(([key, spec]): DeclaredDependency[] => {
+        if (typeof spec !== 'string') return [];
+        const alias = names.find(name => spec === `npm:${name}` || spec.startsWith(`npm:${name}@`));
+        if (!names.includes(key) && alias === undefined) return [];
+        return [{ file, key, spec, owner, range: alias === undefined ? spec : spec.slice(`npm:${alias}@`.length) }];
+      }));
+    if (found.length || directory === boundary) return found;
+  }
 }

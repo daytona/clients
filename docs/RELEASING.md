@@ -190,7 +190,7 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
 - **Rollout:** the registries still carry the pre-lockstep `0.1.0` as the
   tool's npm `latest` (and PyPI's only stable release); deprecate it on npm
   once the first lockstep alpha is out, and keep the quickstarts on `@alpha` /
-  `--prerelease=allow` until 2.x is stable.
+  `daytona-upgrade>=2.0.0a0` until 2.x is stable.
 - A tool fix ships with the next SDK release. Untick `publish_upgrade` to
   leave the tool out of a run; the SDKs still name the tool release of their
   version (the gate warns and the run summary says so), so publish it later at
@@ -198,8 +198,12 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
   registry check requires both SDKs to be published already).
 - The release run leaves out the tool's wall-clock budget tests
-  (`DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, `upgrade/typescript/vitest.config.ts`);
-  `upgrade-tool-ci.yaml` runs them on every change.
+  (TypeScript: `DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, `upgrade/typescript/vitest.config.ts`;
+  Python: the `wall_clock` marker); `upgrade-tool-ci.yaml` runs them on every
+  change.
+- To build and test the tool without publishing it, dispatch the run and
+  reject the `release` approval: every build and check, `upgrade-e2e`
+  included, has run by then.
 
 ### The v0 pin
 

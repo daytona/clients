@@ -296,13 +296,19 @@ def test_moved_client_members_name_the_v0_form(cls: type) -> None:
         assert caught.value.name == name
 
 
-def test_moved_member_guidance_names_the_matching_migration_tool() -> None:
-    from daytona.v2._transport import SDK_VERSION
+@pytest.mark.parametrize(
+    ("installed", "tool"),
+    [("2.0.0a8", "uvx daytona-upgrade@2.0.0a8."), ("unknown", "uvx daytona-upgrade.")],
+)
+def test_moved_member_guidance_names_the_matching_migration_tool(
+    monkeypatch: pytest.MonkeyPatch, installed: str, tool: str
+) -> None:
+    import daytona._client as root_module
 
+    monkeypatch.setattr(root_module, "_SDK_VERSION", installed)
     with pytest.raises(AttributeError) as caught:
         Daytona(DaytonaConfig(api_key="k")).create  # type: ignore[attr-defined]  # noqa: B018
-    tool = "daytona-upgrade" if SDK_VERSION == "unknown" else f"daytona-upgrade@{SDK_VERSION}"
-    assert str(caught.value).endswith(f"To migrate 0.x code, run uvx {tool}.")
+    assert str(caught.value).endswith(f"To migrate 0.x code, run {tool}")
 
 
 @pytest.mark.parametrize("cls", [Daytona, AsyncDaytona])

@@ -41,7 +41,7 @@ the SDK release of the same version; while SDK 2.x is in alpha, run the newest a
 
 ```sh
 npx @daytona/upgrade@alpha  # TypeScript or JavaScript
-uvx --prerelease=allow daytona-upgrade  # Python
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade  # Python
 ```
 
 Publishing both packages is pending; until then these commands do not resolve.

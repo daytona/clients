@@ -109,9 +109,12 @@ class Migration:
         """Record the version constraint, ignoring hashes, comments and options."""
         line = re.split(r"\s+(?:#|--)", logical, maxsplit=1)[0].strip()
         try:
-            specifier = str(Requirement(line).specifier)
+            requirement = Requirement(line)
         except InvalidRequirement:
             specifier = ""
+        else:
+            # A marker-gated line may never install: it is no version evidence.
+            specifier = "" if requirement.marker else str(requirement.specifier)
         self.declared.append((name, specifier))
 
     def unparsed_requirement(self) -> None:

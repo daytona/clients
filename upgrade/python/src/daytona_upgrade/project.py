@@ -178,9 +178,11 @@ def preflight(
                 )
                 continue
             found = found or manifest.found
-            declared.extend(
-                (file.path, name, specifier) for name, specifier in manifest.declared
-            )
+            if not file.constraint:  # Constraints limit versions; they install nothing.
+                declared.extend(
+                    (file.path, name, specifier)
+                    for name, specifier in manifest.declared
+                )
             if manifest.found:
                 dependency_roots.add(owner)
             if file.constraint and manifest.found and not manifest.manual:

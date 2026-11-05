@@ -217,3 +217,31 @@ it('follows a symlinked lockfile', async () => {
   // Then
   expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'package-lock.json', message: olderMessage('0.100.0', pinned) }]);
 });
+
+it('reads the ancestor manifest on a partial-root run', async () => {
+  // Given: the repository root declares a newer minor; only src/ is scanned.
+  const files = { '.git/HEAD': '', 'package.json': manifest('0.999.0'), 'src/index.ts': code };
+  // When
+  const { code: exit, report } = await run(files, [], 'src');
+  // Then
+  expect(exit).toBe(2);
+  expect(report.refused?.message).toBe(newerRefusal('0.999.0', '../package.json', pinned));
+});
+
+it('warns unknown when nothing declares Daytona', async () => {
+  // Given: no manifest anywhere up to the Git root.
+  // When
+  const { code: exit, report } = await run({ '.git/HEAD': '', 'index.ts': code });
+  // Then
+  expect(exit).toBe(0);
+  expect(report.warnings).toEqual([{ file: '.', message: unknownMessage(pinned) }]);
+});
+
+it('reports unknown only for a manifest with no version evidence', async () => {
+  // Given: one declaration names a version, an alias names none.
+  const files = { 'package.json': JSON.stringify({ dependencies: { '@daytonaio/sdk': '^0.100.0', sdk0: 'npm:@daytonaio/sdk' } }), 'index.ts': code };
+  // When
+  const { report } = await run(files);
+  // Then
+  expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
+});

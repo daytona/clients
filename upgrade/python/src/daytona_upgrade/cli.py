@@ -21,7 +21,7 @@ from .project import ProjectResult, preflight
 from .project_progress import slow_progress
 from .safety import GitSafety, git_safety
 from .safety import _dirty as _dirty
-from .v0_version import Warning, check_v0_version
+from .v0_version import Warning, ancestor_declarations, check_v0_version
 from .writes import write_outputs
 
 Reason = Literal[
@@ -220,11 +220,13 @@ def main(argv: list[str] | None = None) -> int:
             raise Refused("custom-api-url", message)
         # Then the 0.x version (refuses exit 2 before unsupported files exit 1).
         if mode == "upgrade":
+            base = root.parent if root.is_file() else root
             v0 = check_v0_version(
-                root.parent if root.is_file() else root,
-                result.declared,
+                base,
+                result.declared or ancestor_declarations(base, mapping),
                 mapping.v0_version,
                 args.allow_newer_v0,
+                result.found,
             )
             if v0.warnings:
                 report["warnings"] = list(v0.warnings)

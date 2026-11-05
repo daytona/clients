@@ -32,7 +32,7 @@ import { registerDaytonaEvidence } from './project-daytona.js';
 import { environmentLoads } from './environment-loads.js';
 import { environmentFileReferences } from './environment-file-references.js';
 import { version } from './sdk-target.js';
-import { checkV0Version } from './v0-version.js';
+import { ancestorDeclarations, checkV0Version } from './v0-version.js';
 
 export { version } from './sdk-target.js';
 export function emptyReport(options: Options): Report {
@@ -199,7 +199,8 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
         : 'Cannot verify that every DaytonaConfig targets Daytona Cloud. If they do, rerun with --drop-api-url; for a custom API URL, stay on SDK 0.x. No files were written.' } } };
   }
   const v0 = options.mode === 'upgrade'
-    ? checkV0Version(options.root, dependency.declared, mapping.v0Version, options.allowNewerV0 ?? false) : { warnings: [] };
+    ? checkV0Version(options.root, dependency.declared.length ? dependency.declared : ancestorDeclarations(options.root, mapping.packages.ts.old),
+      mapping.v0Version, options.allowNewerV0 ?? false, found) : { warnings: [] };
   const warnings = v0.warnings.length ? { warnings: v0.warnings } : {};
   if (v0.refusal !== undefined) return { changes: [], code: 2, report: { ...base, items, ...warnings, refused: { reason: 'newer-v0', message: v0.refusal } } };
   // A custom API URL (above) refuses with exit 2 before unsupported files exit 1.

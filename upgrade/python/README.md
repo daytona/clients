@@ -7,12 +7,13 @@ SDK 2.x requires Python 3.10 or later; update your application's supported versi
 Run this tool with an interpreter that supports your source syntax.
 
 ```bash
-uvx --prerelease=allow daytona-upgrade --dry    # preview the patch
-uvx --prerelease=allow daytona-upgrade . --yes  # upgrade a clean Git tree
-pipx run --pip-args=--pre daytona-upgrade path/to/project  # alternative runner
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade --dry    # preview the patch
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade . --yes  # upgrade a clean Git tree
+pipx run --spec 'daytona-upgrade>=2.0.0a0' daytona-upgrade path/to/project  # alternative runner
 ```
 
-`--prerelease=allow` / `--pre` run the newest alpha while SDK 2.x is in alpha;
+`daytona-upgrade>=2.0.0a0` runs the newest alpha while SDK 2.x is in alpha
+(only the tool may be a pre-release, not its dependencies);
 `uvx daytona-upgrade@<version>` runs the release that migrates to that SDK
 version (see [Versions](#versions)).
 
@@ -45,9 +46,9 @@ unchanged with a `config-field` item for manual removal.
 ## Optional v2 guidance
 
 ```bash
-uvx --prerelease=allow daytona-upgrade --suggest-v2
-uvx --prerelease=allow daytona-upgrade --suggest-v2 --json   # report only; writes nothing
-uvx --prerelease=allow daytona-upgrade --remove-suggestions
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade --suggest-v2
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade --suggest-v2 --json   # report only; writes nothing
+uvx --from 'daytona-upgrade>=2.0.0a0' daytona-upgrade --remove-suggestions
 ```
 
 Suggestions are tagged `daytona-v2:` comments, with the v2 equivalent, behavior differences, workflow dependencies, and migration documentation links.

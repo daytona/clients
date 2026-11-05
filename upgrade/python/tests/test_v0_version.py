@@ -329,3 +329,85 @@ def test_reads_only_the_declared_package_from_the_lockfile(
     # Then
     assert code == 0
     assert "warnings" not in report
+
+
+def test_reads_the_ancestor_manifest_on_a_partial_root_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the repository root declares a newer minor; only src/ is scanned.
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "requirements.txt").write_text("daytona==0.999.0\n")
+    _project(tmp_path / "src", {})
+    # When
+    code, report = _run(tmp_path / "src", capsys)
+    # Then
+    assert code == 2
+    assert report["refused"] == {
+        "reason": "newer-v0",
+        "message": newer_refusal("0.999.0", "../requirements.txt", PINNED),
+    }
+
+
+def test_warns_unknown_when_nothing_declares_daytona(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: scripts run against a globally installed SDK, with no manifest.
+    _project(tmp_path, {})
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert report["warnings"] == [{"file": ".", "message": unknown_message(PINNED)}]
+
+
+def test_ignores_versions_from_a_constraints_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: constraints limit versions but install nothing.
+    _project(
+        tmp_path,
+        {
+            "requirements.txt": f"-c constraints.txt\ndaytona=={PINNED}\n",
+            "constraints.txt": "daytona==0.999.0\n",
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert "warnings" not in report
+
+
+def test_a_marker_gated_line_does_not_refuse(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the newer minor is behind a marker that may never be true.
+    requirements = (
+        f"daytona=={PINNED}; python_version>='3.8'\n"
+        "daytona==0.999.0; python_version<'3.0'\n"
+    )
+    _project(tmp_path, {"requirements.txt": requirements})
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert "refused" not in report
+
+
+@pytest.mark.parametrize(
+    ("specifier", "warning"),
+    [
+        (f">{PINNED}", newer_patch_message(NEWER_PATCH, PINNED)),
+        ("^0.100 || ^0.999", older_message("0.100.0", PINNED)),
+    ],
+)
+def test_reads_lower_bounds_like_the_typescript_tool(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], specifier: str, warning: str
+) -> None:
+    # Given: an exclusive bound and Poetry alternatives.
+    pyproject = f'[tool.poetry]\nname = "app"\n\n[tool.poetry.dependencies]\ndaytona = "{specifier}"\n'
+    _project(tmp_path, {"pyproject.toml": pyproject})
+    # When
+    _, report = _run(tmp_path, capsys)
+    # Then
+    assert report["warnings"] == [{"file": "pyproject.toml", "message": warning}]
