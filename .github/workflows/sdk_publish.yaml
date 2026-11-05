@@ -170,7 +170,7 @@ jobs:
         # release/v0, once the 2.x CLI has taken the `daytona` name (repository
         # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
         # follows the 0.x line, and so does the `daytona` formula until the first
-        # stable 2.x release exists (read from the tags on every run); before
+        # stable 2.x release exists (read from the releases on every run); before
         # the cutover, release branches never update the tap.
         # Each repository_dispatch event updates one formula; list one per line.
         id: tap
@@ -249,7 +249,8 @@ jobs:
         run: |
           # Each tap workflow commits to the tap's default branch without
           # rebasing, so two running at once can lose a push. Dispatch one event
-          # at a time and wait for its tap run to succeed before the next.
+          # at a time and wait for its tap run, the first one with a run ID above
+          # the newest before the dispatch, to succeed before the next.
           tap=daytonaio/homebrew-cli
           declare -A tap_workflow=(
             [update-version]=brew_publish.yaml
@@ -257,7 +258,8 @@ jobs:
           )
           while read -r event; do
             workflow="${tap_workflow[$event]:?no tap workflow known for $event}"
-            since=$(date -u -d '-30 seconds' +%Y-%m-%dT%H:%M:%SZ)
+            runs="repos/$tap/actions/workflows/$workflow/runs"
+            last_id=$(gh api "$runs?per_page=1" --jq '.workflow_runs[0].id // 0')
             echo "Dispatching $event for $VERSION"
             curl -f -X POST -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
@@ -266,8 +268,8 @@ jobs:
             run=""
             for _ in $(seq 90); do
               sleep 10
-              run=$(gh api "repos/$tap/actions/workflows/$workflow/runs?event=repository_dispatch&per_page=10" \
-                --jq "[.workflow_runs[] | select(.created_at >= \"$since\")] | sort_by(.created_at) | first // empty | \"\(.status) \(.conclusion) \(.html_url)\"") || run=""
+              run=$(gh api "$runs?event=repository_dispatch&per_page=10" \
+                --jq "[.workflow_runs[] | select(.id > $last_id)] | sort_by(.id) | first // empty | \"\(.status) \(.conclusion) \(.html_url)\"") || run=""
               [[ "$run" == completed\ * ]] && break
             done
             read -r status conclusion url <<< "$run"

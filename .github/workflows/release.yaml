@@ -76,7 +76,7 @@ jobs:
         # formula keeps following 0.x, and it downloads daytona-<os>-<arch>
         # assets. After the cutover a 0.x release then also carries its
         # daytona-v0 binaries under those names (same bytes). Decided from the
-        # repository's tags on every run; see PUBLISHING.md.
+        # repository's releases on every run; see PUBLISHING.md.
         id: cli_alias
         run: |
           alias=""

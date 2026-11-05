@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Tests for stable-v2-release.sh: tag lists in, the first stable 2.x tag out,
-# and a GitHub API failure (stubbed gh) is an error rather than "no 2.x".
+# the stable-release query it sends to gh, and a GitHub API failure (stubbed
+# gh) is an error rather than "no 2.x".
 #
 # Usage: bash hack/stable-v2-release.test.sh
 
@@ -39,17 +40,26 @@ stub="${work}/bin"
 mkdir -p "$stub"
 printf '#!/bin/sh\necho "gh: HTTP 502" >&2\nexit 1\n' >"${stub}/gh"
 chmod +x "${stub}/gh"
-if PATH="${stub}:$PATH" bash "$script" >/dev/null 2>&1; then
+if err="$(PATH="${stub}:$PATH" bash "$script" 2>&1 >/dev/null)"; then
   echo "FAIL: a gh failure must exit non-zero"
+  failures=$((failures + 1))
+elif ! grep -q "Could not list the releases of daytona/clients" <<<"$err"; then
+  echo "FAIL: a gh failure must report that the releases could not be listed, got: $err"
   failures=$((failures + 1))
 fi
 
-printf '#!/bin/sh\nprintf "refs/tags/v0.227.3\\nrefs/tags/v2.0.0-alpha.7\\nrefs/tags/v2.0.0\\n"\n' >"${stub}/gh"
+printf '#!/bin/sh\necho "$*" >"%s"\nprintf "v0.227.3\\nv2.0.0-alpha.7\\nv2.0.0\\n"\n' "${work}/gh-args" >"${stub}/gh"
 got="$(PATH="${stub}:$PATH" bash "$script")" || got="exit $?"
 if [ "$got" != v2.0.0 ]; then
-  echo "FAIL: want v2.0.0 from the GitHub tag refs, got '$got'"
+  echo "FAIL: want v2.0.0 from the GitHub releases, got '$got'"
   failures=$((failures + 1))
 fi
+for arg in "release list" "--repo daytona/clients" --exclude-drafts --exclude-pre-releases; do
+  if ! grep -q -- "$arg" "${work}/gh-args"; then
+    echo "FAIL: gh must be called with $arg, got: $(cat "${work}/gh-args")"
+    failures=$((failures + 1))
+  fi
+done
 
 if [ "$failures" -ne 0 ]; then
   echo "$failures failure(s)"

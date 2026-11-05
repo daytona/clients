@@ -191,6 +191,40 @@ func TestBinaryNameDrivesHelpAndHints(t *testing.T) {
 	}
 }
 
+// TestDaytonaV0BuildInstalledAsDaytona covers the daytona-v0 build that also
+// ships as the daytona-<os>-<arch> assets (the daytona Homebrew formula) until
+// the first stable 2.x release: run as daytona, it names itself daytona.
+func TestDaytonaV0BuildInstalledAsDaytona(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds the CLI binary")
+	}
+
+	built := buildCLI(t,
+		"-X github.com/daytona/clients/cli/internal.BinaryName=daytona-v0",
+		"-X github.com/daytona/clients/cli/internal.HomebrewFormula=daytonaio/cli/daytona@0")
+	bin := filepath.Join(t.TempDir(), "daytona")
+	if err := os.Rename(built, bin); err != nil {
+		t.Fatalf("renaming CLI under test: %v", err)
+	}
+	workDir := t.TempDir()
+
+	help := runCLI(t, bin, workDir, t.TempDir(), "--help")
+	if !strings.Contains(help, "daytona [command]") || strings.Contains(help, "daytona-v0") {
+		t.Errorf("a daytona-v0 build run as daytona must name itself daytona, got:\n%s", help)
+	}
+
+	out := runCLI(t, bin, workDir, t.TempDir(), "mcp", "config")
+	var mcpConfig map[string]struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal([]byte(out), &mcpConfig); err != nil {
+		t.Fatalf("parsing mcp config output: %v\n%s", err, out)
+	}
+	if got := mcpConfig["daytona-mcp"].Command; got != "daytona" {
+		t.Errorf("mcp config command = %q, want daytona", got)
+	}
+}
+
 // TestDefaultBinaryNameIsDaytona guards the pre-cutover behaviour: without the
 // build-time override the CLI keeps calling itself daytona.
 func TestDefaultBinaryNameIsDaytona(t *testing.T) {
