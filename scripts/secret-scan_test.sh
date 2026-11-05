@@ -125,6 +125,24 @@ rm .git/hooks/pre-commit generated.env
 git rm -q --cached generated.env
 pass "a secret staged by the chained hook is blocked"
 
+# A clone hook symlinked to the wrapper must not chain the wrapper to itself;
+# checked before the commit and push below, which would otherwise never end.
+ln -s ../../.githooks/pre-commit .git/hooks/pre-commit
+ln -s ../../.githooks/pre-push .git/hooks/pre-push
+for hook in pre-commit pre-push; do
+  [ -z "$(scripts/secret-scan.sh chained-hook "$hook")" ] || fail ".git/hooks/$hook symlinked to the wrapper chains the wrapper to itself"
+done
+echo three >chain.txt
+git add chain.txt
+git commit -q -m "self-linked hooks" || fail "commit with self-linked hooks failed"
+git push -q origin main:refs/heads/self-linked 2>"$tmp/out" || fail "push with self-linked hooks failed: $(cat "$tmp/out")"
+git push -q origin :refs/heads/self-linked 2>/dev/null
+rm .git/hooks/pre-commit .git/hooks/pre-push
+cp .githooks/pre-push .git/hooks/pre-push
+[ -z "$(scripts/secret-scan.sh chained-hook pre-push)" ] || fail "a copy of the wrapper in .git/hooks chains the wrapper to itself"
+rm .git/hooks/pre-push
+pass "a clone hook symlinked to or copied from the wrapper is not chained to itself"
+
 # ── pre-push ───────────────────────────────────────────────────────────────
 git push -q origin main 2>"$tmp/out" || fail "clean push was blocked: $(cat "$tmp/out")"
 pass "clean push passes"
