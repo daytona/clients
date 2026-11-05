@@ -257,6 +257,16 @@ jobs:
             [update-version-v0]=brew_publish_v0.yaml
           )
           while read -r event; do
+            # A stable 2.x release published while an earlier tap run was in
+            # flight now owns the daytona formula: never move it back to 0.x.
+            if [[ "$event" == update-version && "$GITHUB_REF" == refs/heads/release/v0 ]]; then
+              stable_v2=$(bash hack/stable-v2-release.sh < /dev/null)
+              if [[ -n "$stable_v2" ]]; then
+                echo "::warning::Stable 2.x release $stable_v2 was published during this run: the daytona formula follows 2.x now; skipping update-version."
+                continue
+              fi
+              echo "Still no stable 2.x release: dispatching update-version."
+            fi
             workflow="${tap_workflow[$event]:?no tap workflow known for $event}"
             runs="repos/$tap/actions/workflows/$workflow/runs"
             last_id=$(gh api "$runs?per_page=1" --jq '.workflow_runs[0].id // 0')

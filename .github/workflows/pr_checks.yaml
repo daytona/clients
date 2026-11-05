@@ -195,6 +195,8 @@ jobs:
         run: bash hack/npm-latest-guard.test.sh
       - name: Stable 2.x release check
         run: bash hack/stable-v2-release.test.sh
+      - name: Homebrew tap dispatch
+        run: bash hack/homebrew-tap-dispatch.test.sh
       - name: CLI release assets and install-v0.sh
         run: bash cli/hack/stage-release-assets.test.sh
 
