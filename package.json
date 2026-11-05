@@ -87,8 +87,7 @@
     "typedoc-plugin-markdown": "~4.14.1",
     "typedoc-plugin-merge-modules": "~7.0.0",
     "typescript": "5.8.3",
-    "typescript-eslint": "^8.72.1",
-    "verdaccio": "6.10.6"
+    "typescript-eslint": "^8.72.1"
   },
   "dependenciesMeta": {
     "@openapitools/openapi-generator-cli": {
