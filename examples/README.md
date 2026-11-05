@@ -123,11 +123,11 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 exec-command, file-operations, git, lifecycle, secrets-env, dynamic-build,
 build-logs and volumes-share examples (and the Python dockerfile-sandbox)
 against a fake client and check their exit codes and cleanup. CI runs the same
-command (`Examples CI`). `check` uses `../python/.venv` when it exists, so
+command (`Examples CI`). `check` uses `../sdk-python/.venv` when it exists, so
 install the SDK's dev extras there:
 
 ```bash
-(cd ../python && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]")
+(cd ../sdk-python && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]")
 ./run-examples.sh check
 ```
 
