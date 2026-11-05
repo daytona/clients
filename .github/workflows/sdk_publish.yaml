@@ -112,13 +112,22 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
-      - name: Keep 0.x off the npm latest dist-tag after the cutover
-        # Once the 2.x SDK owns `latest` (DAYTONA_V0_CUTOVER), 0.x publishes use a
-        # line tag even before a stable 2.x version would make the guard below refuse.
+      - name: Keep 0.x off the npm latest dist-tag once 2.x is stable
+        # npm `latest` follows 0.x until the first stable 2.x release exists (the
+        # same rule as the `daytona` Homebrew formula, hack/stable-v2-release.sh);
+        # from then on it belongs to 2.x and 0.x publishes use a line tag. The
+        # guard below still keeps `latest` on the highest version meanwhile.
         if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && inputs.npm_tag == 'latest'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "::error::After the cutover the npm latest dist-tag belongs to the 2.x SDK; publish release/v0 with npm_tag v0-latest"
-          exit 1
+          set -euo pipefail
+          stable_v2=$(bash hack/stable-v2-release.sh)
+          if [ -n "$stable_v2" ]; then
+            echo "::error::Stable 2.x release ${stable_v2} exists, so the npm latest dist-tag belongs to the 2.x SDK; publish release/v0 with npm_tag v0-latest"
+            exit 1
+          fi
+          echo "No stable 2.x release yet: 0.x may keep the npm latest dist-tag (still checked against every published stable version below)"
       - name: Keep the npm latest dist-tag on the highest version
         # `npm publish --tag latest` moves the tag even to a lower version, so a
         # maintenance branch may only take `latest` with a version above every
