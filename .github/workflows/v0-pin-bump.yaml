@@ -36,7 +36,8 @@ concurrency:
 jobs:
   detect:
     name: Newest 0.x release
-    if: github.repository == 'daytona/clients'
+    # The bump targets main, so it only runs there.
+    if: github.repository == 'daytona/clients' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -113,6 +114,10 @@ jobs:
             mkdir -p "$RUNNER_TEMP/bump/files/$(dirname "$file")"
             cp "$file" "$RUNNER_TEMP/bump/files/$file"
           done
+          # Users see a different 0.x behind Daytona().v0: a changelog fragment.
+          mkdir -p "$RUNNER_TEMP/bump/files/changelog.d"
+          printf '%s\n' "**\`Daytona().v0\` runs the 0.x SDK ${TAG}** — SDK 2.x now bundles 0.x ${TAG} as its v0 namespace, and the migration tool accepts projects on it." \
+            > "$RUNNER_TEMP/bump/files/changelog.d/v0-pin-${TAG}.changed.md"
           cp "$RUNNER_TEMP/surface.txt" "$RUNNER_TEMP/bump/surface.txt"
           echo "$status" > "$RUNNER_TEMP/bump/surface-status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -140,7 +145,7 @@ jobs:
         with:
           name: v0-pin-bump
           path: ${{ runner.temp }}/bump
-      # Only these five paths are taken from the artifact; git, gh and the
+      # Only these six paths are taken from the artifact; git, gh and the
       # shell are the only programs this job runs.
       - name: Commit the bump, push the branch and open the PR
         env:
@@ -152,7 +157,7 @@ jobs:
             exit 1
           fi
           files=(scripts/v0-sdk-version upgrade/mapping/mapping.json upgrade/typescript/src/mapping.json
-            upgrade/python/src/daytona_upgrade/mapping.json upgrade/MIGRATION.md)
+            upgrade/python/src/daytona_upgrade/mapping.json upgrade/MIGRATION.md "changelog.d/v0-pin-${TAG}.changed.md")
           for file in "${files[@]}"; do cp "$RUNNER_TEMP/bump/files/$file" "$file"; done
           surface_status=$(cat "$RUNNER_TEMP/bump/surface-status")
           branch="chore/v0-pin-${TAG}"

@@ -229,7 +229,9 @@ def preflight(
                 changes.append(Change(file, output))
     # Finish scanning readable inputs for custom URLs before blocking all writes.
     if any(item["kind"] == "unsupported-file" for item in items):
-        return ProjectResult((), (), tuple([*encoding_items, *items]), found)
+        return ProjectResult(
+            (), (), tuple([*encoding_items, *items]), found, declared=tuple(declared)
+        )
     inspected_paths = {file.path.resolve() for file in files}
     owners = (
         rewritten_sources.keys() | dependency_roots
@@ -258,7 +260,9 @@ def preflight(
             )
         )
     if encoding_items:
-        return ProjectResult((), (), tuple([*encoding_items, *items]), found)
+        return ProjectResult(
+            (), (), tuple([*encoding_items, *items]), found, declared=tuple(declared)
+        )
     if found and options.mode != "remove-suggestions":
         items.extend(partial_analysis(root))
     return ProjectResult(

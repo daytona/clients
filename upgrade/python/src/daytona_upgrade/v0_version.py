@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -108,6 +109,28 @@ def _locked(path: Path) -> dict[str, list[str]]:
     return found
 
 
+@functools.cache
+def _uv_members(lockfile: Path) -> frozenset[str]:
+    """The editable or virtual source paths a uv.lock records (parsed once)."""
+    try:
+        packages = (
+            tomlkit.parse(lockfile.read_text(encoding="utf-8").removeprefix("\ufeff"))
+            .unwrap()
+            .get("package", [])
+        )
+    except (OSError, UnicodeError, ValueError, TOMLKitError, RecursionError):
+        return frozenset()
+    if not isinstance(packages, list):
+        return frozenset()
+    return frozenset(
+        str(path)
+        for entry in packages
+        if isinstance(entry, dict) and isinstance(source := entry.get("source"), dict)
+        for path in (source.get("editable"), source.get("virtual"))
+        if isinstance(path, str)
+    )
+
+
 def _owns(lockfile: Path, manifest: Path) -> bool:
     """A lockfile resolves the project file beside it, and a uv workspace
     member (an editable or virtual source) below it; other manifests below it
@@ -119,20 +142,7 @@ def _owns(lockfile: Path, manifest: Path) -> bool:
     member = Path(
         os.path.relpath(manifest.parent.resolve(), lockfile.parent.resolve())
     ).as_posix()
-    try:
-        packages = (
-            tomlkit.parse(lockfile.read_text(encoding="utf-8").removeprefix("\ufeff"))
-            .unwrap()
-            .get("package", [])
-        )
-    except (OSError, UnicodeError, ValueError, TOMLKitError, RecursionError):
-        return False
-    return isinstance(packages, list) and any(
-        isinstance(entry, dict)
-        and isinstance(source := entry.get("source"), dict)
-        and member in (source.get("editable"), source.get("virtual"))
-        for entry in packages
-    )
+    return member in _uv_members(lockfile.resolve())
 
 
 def _owner_lockfiles(directory: Path) -> list[Path]:

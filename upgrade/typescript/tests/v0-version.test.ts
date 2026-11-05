@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { readFileSync, symlinkSync } from 'node:fs';
+import { chmodSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
@@ -315,4 +315,17 @@ it('treats a pnpm lockfile with a broken alias as no evidence', async () => {
   // Then
   expect(exit).toBe(0);
   expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
+});
+
+it('keeps the version warning on an exit-1 report', async () => {
+  // Given: an older 0.x version and an unreadable directory.
+  const root = temporaryProject({ 'package.json': manifest('0.100.0'), 'index.ts': code, 'locked/a.ts': '' });
+  chmodSync(join(root, 'locked'), 0o000);
+  try {
+    // When
+    const result = await invoke(root, ['--json', '--dry']);
+    // Then: both tools report it as Python does.
+    expect(result.code).toBe(1);
+    expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
+  } finally { chmodSync(join(root, 'locked'), 0o755); }
 });

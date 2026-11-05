@@ -670,3 +670,22 @@ def test_treats_an_editable_development_build_as_unknown(
     assert report["warnings"] == [
         {"file": "pyproject.toml", "message": unknown_message(PINNED)}
     ]
+
+
+def test_keeps_the_version_warning_on_an_exit_1_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: an older 0.x version and an unreadable directory.
+    _project(tmp_path, {"requirements.txt": "daytona==0.100.0\n", "locked/a.py": ""})
+    (tmp_path / "locked").chmod(0o000)
+    try:
+        # When
+        code = main([str(tmp_path), "--json", "--dry"])
+        report = json.loads(capsys.readouterr().out)
+    finally:
+        (tmp_path / "locked").chmod(0o755)
+    # Then: both tools report it.
+    assert code == 1
+    assert report["warnings"] == [
+        {"file": "requirements.txt", "message": older_message("0.100.0", PINNED)}
+    ]

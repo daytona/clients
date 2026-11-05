@@ -204,9 +204,9 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
   const warnings = v0.warnings.length ? { warnings: v0.warnings } : {};
   if (v0.refusal !== undefined) return { changes: [], code: 2, report: { ...base, items, ...warnings, refused: { reason: 'newer-v0', message: v0.refusal } } };
   // A custom API URL (above) refuses with exit 2 before unsupported files exit 1.
-  if (invalidEditedFiles.length) return { changes: [], code: 1, report: { ...base, items: [...items, ...invalidEditedFiles] } };
+  if (invalidEditedFiles.length) return { changes: [], code: 1, report: { ...base, items: [...items, ...invalidEditedFiles], ...warnings } };
   if (unsupportedPaths.length || failures.items.length || blockingParseErrors) return { changes: [], code: 1,
-    report: { ...base, items, ...(blockingParseErrors ? { nextSteps: ['Fix source parse errors before retrying.'] } : {}) } };
+    report: { ...base, items, ...warnings, ...(blockingParseErrors ? { nextSteps: ['Fix source parse errors before retrying.'] } : {}) } };
   if (!found) return { changes: [], code: 2, report: { ...base, items, refused: { reason: 'no-daytona', message: 'No Daytona dependency or code found.' } } };
   const commands = options.mode === 'upgrade' ? [...new Map(dependency.directories.map(directory => {
     const command = installCommand(directory, options.root); return [command.cwd, command];

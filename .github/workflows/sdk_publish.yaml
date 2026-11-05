@@ -384,7 +384,7 @@ jobs:
           .publish-tools/scripts/v0-publish-mode.sh --check-override
           # The tool's mapping is checked against the pinned release only, so
           # it never publishes beside a v0_tag override (allow_unpinned_v0 or not).
-          pinned_tag=$(sed -n '1p' "$DAYTONA_V0_PIN_FILE" 2>/dev/null | tr -d '[:space:]')
+          pinned_tag=$(sed -n '1p' "$DAYTONA_V0_PIN_FILE" 2>/dev/null | tr -d '[:space:]' || true)
           if [ "$PUBLISH_UPGRADE" = true ] && [ -n "$DAYTONA_V0_TAG" ] && [ "$DAYTONA_V0_TAG" != "$pinned_tag" ]; then
             echo "::error::v0_tag=$DAYTONA_V0_TAG overrides the pinned v0 release; the migration tool is checked against the pin only — untick publish_upgrade or clear v0_tag"
             exit 1

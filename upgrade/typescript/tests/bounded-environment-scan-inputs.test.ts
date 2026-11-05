@@ -86,7 +86,7 @@ it.skipIf(process.platform === 'win32')('skips FIFO scan inputs without blocking
     expect(fifo.status, fifo.stderr).toBe(0);
   }
   // When the CLI runs in a child process with a deadline to bound blocking reads.
-  const result = spawnSync(process.execPath, [cli, root, '--dry', '--strict', '--json'], { encoding: 'utf8', timeout: 3_000 });
+  const result = spawnSync(process.execPath, [cli, root, '--dry', '--strict', '--json'], { encoding: 'utf8', timeout: testTimeout(3_000) });
   // Then non-regular files are skipped, not refused or flagged.
   expect(result.error).toBeUndefined();
   expect(result.status, result.stderr).toBe(0);
