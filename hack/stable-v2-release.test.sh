@@ -54,7 +54,7 @@ if [ "$got" != v2.0.0 ]; then
   echo "FAIL: want v2.0.0 from the GitHub releases, got '$got'"
   failures=$((failures + 1))
 fi
-for arg in "release list" "--repo daytona/clients" --exclude-drafts --exclude-pre-releases; do
+for arg in "release list" "--repo daytona/clients" "--limit 1000" --exclude-drafts --exclude-pre-releases "--json tagName" "--jq .\[\].tagName"; do
   if ! grep -q -- "$arg" "${work}/gh-args"; then
     echo "FAIL: gh must be called with $arg, got: $(cat "${work}/gh-args")"
     failures=$((failures + 1))
