@@ -2333,7 +2333,7 @@ type CreateMacosSandboxRequest struct {
 	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
 	Secrets *[]string `json:"secrets,omitempty"`
 
-	// Volumes Disk volumes to attach: at most 8, each read-write. A bucket volume returns 400.
+	// Volumes Disk volumes to attach: at most 8, each read-write. A sandbox with volumes cannot be persistent. A bucket volume returns 400.
 	Volumes *[]VolumeMount `json:"volumes,omitempty"`
 
 	// WaitSeconds Seconds to hold the response until the sandbox is `running`, capped at 3 by default. Omitted uses the cap, `0` returns immediately, and a negative value returns 400. The response carries the status reached when the wait ends.
@@ -3269,7 +3269,7 @@ type LifecyclePolicy struct {
 	// LastActivityAt When activity was last observed, or null when no activity is recorded.
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
 
-	// LastActivitySource The kind of activity most recently observed, such as an API request, a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
+	// LastActivitySource The kind of activity most recently observed, such as an explicit idle-timer reset (`api`), a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
 	LastActivitySource *string `json:"last_activity_source,omitempty"`
 
 	// OnIdleTimeout The action run when the idle expiry elapses, or null when idle expiry
@@ -4570,7 +4570,7 @@ type Region struct {
 	// Name Display name.
 	Name string `json:"name"`
 
-	// ParentRegionIds IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. Membership does not guarantee that capacity is available.
+	// ParentRegionIds IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. A create that names one of these regions is placed here only if this region accepts automatic placement, and membership does not guarantee capacity.
 	ParentRegionIds []string `json:"parent_region_ids"`
 }
 
@@ -4792,7 +4792,7 @@ type Sandbox struct {
 
 // SandboxAccessToken `POST …/access-token` response.
 type SandboxAccessToken struct {
-	// AccessToken The sandbox access token. Returned only by this operation.
+	// AccessToken The sandbox access token.
 	AccessToken string `json:"access_token"`
 
 	// ExpiresAt Absolute expiry (RFC 3339). The token cannot be refreshed — mint a
@@ -5355,7 +5355,7 @@ type SignedFileUrl struct {
 	// Signature The link's signature. Pass it back unchanged.
 	Signature string `json:"signature"`
 
-	// Url The full pre-signed preview URL.
+	// Url The full pre-signed file URL.
 	Url string `json:"url"`
 }
 
@@ -6485,7 +6485,7 @@ type SearchSandboxesParams struct {
 	// non-object value answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter macOS sandboxes by persistence: `true` for persistent, `false` for ephemeral.
+	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).
