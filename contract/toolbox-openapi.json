@@ -1592,7 +1592,7 @@
             ]
           },
           "tag": {
-            "description": "Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.",
+            "description": "Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.",
             "type": [
               "string",
               "null"
@@ -2188,7 +2188,7 @@
         "description": "`POST /processes:kill` request body.",
         "properties": {
           "tag": {
-            "description": "The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters).",
+            "description": "The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).",
             "type": "string"
           },
           "timeoutMs": {
@@ -9119,7 +9119,7 @@
     },
     "/processes": {
       "get": {
-        "description": "List process records, optionally filtered by state, kind, session, name, or pid.",
+        "description": "List process records, optionally filtered by state, kind, session, name, pid, or tag.",
         "operationId": "list_processes",
         "parameters": [
           {
@@ -9928,7 +9928,7 @@
                 }
               }
             },
-            "description": "Every process started under the tag has exited."
+            "description": "Every process created under the tag before the call, and everything it started, has exited. A start admitted after the call may be running."
           },
           "400": {
             "content": {
@@ -9948,7 +9948,7 @@
                 }
               }
             },
-            "description": "`PROCESS_KILL_INCOMPLETE` \u2014 some killed processes were still running when `timeoutMs` expired; call again to retry."
+            "description": "`PROCESS_KILL_INCOMPLETE` \u2014 some killed processes were still running when `timeoutMs` expired, or another start or kill under the tag was still in progress so the kill could not begin; call again to retry."
           },
           "422": {
             "content": {
