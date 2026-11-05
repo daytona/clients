@@ -82,6 +82,8 @@ export type CompletionList = Omit<OptionalizeNullable<Schema<"CompletionList">>,
 }
 export type CompletionRequest = OptionalizeNullable<Schema<"CompletionRequest">>
 export type CreateProcessRequest = OptionalizeNullable<Schema<"CreateProcessRequest">>
+export type KillProcessesRequest = OptionalizeNullable<Schema<"KillProcessesRequest">>
+export type KillProcessesResponse = OptionalizeNullable<Schema<"KillProcessesResponse">>
 export type CreateSessionRequest = OptionalizeNullable<Schema<"CreateSessionRequest">>
 export type DocumentRequest = OptionalizeNullable<Schema<"DocumentRequest">>
 export type DockerOwner = Schema<"DockerOwner">

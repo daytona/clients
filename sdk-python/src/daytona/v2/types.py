@@ -910,6 +910,7 @@ class ProcessInfo:
     raw_stdin: Optional[str] = None
     raw_keep_logs: Optional[str] = None
     raw_reason: Optional[str] = None
+    tag: Optional[str] = None
 
 
 @dataclass(frozen=True)
