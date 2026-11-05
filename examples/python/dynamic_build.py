@@ -20,7 +20,7 @@ import time
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
-from daytona.v2 import Image
+from daytona.v2 import ImageBuilder
 
 
 def main() -> int:
@@ -34,10 +34,11 @@ def main() -> int:
     try:
         section("create a sandbox straight from a Dockerfile (builds it)")
         started = time.monotonic()
-        first = daytona.create(
-            Image.from_dockerfile(dockerfile),
+        first = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(dockerfile),
             name=f"dynbuild-first-{RUN}",
-            timeout=400,
+            # Covers the image build and the sandbox start.
+            wait_seconds=400,
         )
         sandboxes.append(first)
         first_secs = time.monotonic() - started
@@ -63,10 +64,10 @@ def main() -> int:
 
         section("create a second sandbox from the same Dockerfile")
         started = time.monotonic()
-        second = daytona.create(
-            Image.from_dockerfile(dockerfile),
+        second = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(dockerfile),
             name=f"dynbuild-second-{RUN}",
-            timeout=400,
+            wait_seconds=400,
         )
         sandboxes.append(second)
         second_secs = time.monotonic() - started
@@ -87,10 +88,10 @@ def main() -> int:
         info(second_logs or "build log response was empty")
 
         section("change the Dockerfile's output")
-        other = daytona.create(
-            Image.from_dockerfile(f"FROM {IMAGE}\nRUN echo other-{RUN} > /marker\n"),
+        other = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(f"FROM {IMAGE}\nRUN echo other-{RUN} > /marker\n"),
             name=f"dynbuild-other-{RUN}",
-            timeout=400,
+            wait_seconds=400,
         )
         sandboxes.append(other)
         other_marker = other.process.run("cat /marker").output.strip()

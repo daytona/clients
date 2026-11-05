@@ -14,7 +14,7 @@ import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function main() {
   const daytona = client()
-  const sandbox = await daytona.create(IMAGE, { name: `files-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(IMAGE, { name: `files-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id}`)
 
   let ok = true
@@ -37,6 +37,11 @@ async function main() {
     await sandbox.process.run(`chmod +x ${dir}/script.sh`)
     const scriptOut = await sandbox.process.run(`./${dir}/script.sh`)
     info(`script output: ${scriptOut.output.trim()}`)
+    if (scriptOut.exitCode === 0) pass('the uploaded script ran')
+    else {
+      fail(`the uploaded script failed (exit=${scriptOut.exitCode})`)
+      ok = false
+    }
 
     section('glob (by name pattern)')
     const found = await sandbox.fs.glob(dir, '*.json')
