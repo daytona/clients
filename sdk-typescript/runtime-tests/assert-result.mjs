@@ -19,6 +19,9 @@ let result
 try {
   result = JSON.parse(raw)
 } catch {
+  result = undefined
+}
+if (result === null || typeof result !== 'object' || Array.isArray(result)) {
   console.error('FAIL: the runtime did not return a JSON result object')
   process.exit(1)
 }

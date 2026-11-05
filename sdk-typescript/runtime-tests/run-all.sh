@@ -46,11 +46,28 @@ TIMEOUT_SECONDS="${RUNTIME_TEST_TIMEOUT_SECONDS:-600}"
 PARALLEL="${RUNTIME_TEST_PARALLEL:-$(nproc 2>/dev/null || echo 4)}"
 STATE_DIR="$(mktemp -d)"
 MOCK_PID=""
+# On an early exit (Ctrl-C, a CI cancel), stop every runtime still running.
+# Each one runs in its own process group (run_one), and its run.sh stops the
+# servers it started when it gets SIGTERM (lib.sh install_traps).
 cleanup() {
+  local pidfile pid stopped=""
+  for pidfile in "$STATE_DIR"/*.pid; do
+    [ -f "$pidfile" ] || continue
+    pid="$(cat "$pidfile")"
+    kill -TERM -- "-$pid" 2>/dev/null && stopped=1
+  done
+  if [ -n "$stopped" ]; then
+    sleep 3
+    for pidfile in "$STATE_DIR"/*.pid; do
+      [ -f "$pidfile" ] && kill -KILL -- "-$(cat "$pidfile")" 2>/dev/null
+    done
+  fi
   [ -n "$MOCK_PID" ] && kill "$MOCK_PID" 2>/dev/null
   rm -rf "$STATE_DIR"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 export RUNTIME_TESTS_DIR="$ROOT"
 export RUNTIME_LIB="$ROOT/lib.sh"
@@ -142,9 +159,14 @@ run_one() {
   cp -r "$dir"/. "$work/"
   cp "$ROOT/runtime-checks.mjs" "$ROOT/runtime-checks.d.mts" "$work/"
   start=$SECONDS
-  # No ambient NODE_ENV: each framework's production build runs as it would
-  # for a user.
-  (cd "$work" && timeout -k 15 "$TIMEOUT_SECONDS" env -u NODE_ENV bash run.sh) >"$out" 2>&1 || status=$?
+  # Its own process group (setsid), so cleanup can stop the whole runtime. No
+  # ambient NODE_ENV: each framework's production build runs as it would for
+  # a user.
+  (cd "$work" && exec setsid timeout -k 15 "$TIMEOUT_SECONDS" env -u NODE_ENV bash run.sh) >"$out" 2>&1 &
+  local pid=$!
+  echo "$pid" >"$STATE_DIR/$runtime.pid"
+  wait "$pid" || status=$?
+  rm -f "$STATE_DIR/$runtime.pid"
   echo "$status $((SECONDS - start))" >"$status_file"
   rm -rf "$work"
 }

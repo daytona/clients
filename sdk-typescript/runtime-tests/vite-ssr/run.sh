@@ -7,4 +7,10 @@ source "$RUNTIME_LIB"
 rm -rf dist
 install_sdk
 npx vite build --ssr src/ssr.ts --logLevel error
+# The SDK must be inside the bundle (vite.config.js), not imported from
+# node_modules at run time.
+if grep -qE "^import .* from [\"']@daytona/sdk[\"']|(import|require)\([\"']@daytona/sdk[\"']\)" dist/ssr.js; then
+  echo "FAIL: dist/ssr.js imports @daytona/sdk instead of bundling it"
+  exit 1
+fi
 assert_response "$(node --input-type=module -e "const m = await import('./dist/ssr.js'); console.log(await m.run())")"

@@ -9,7 +9,6 @@
 */deno.lock
 */dist/
 */build/
-*/standalone/
 */.next/
 */next-env.d.ts
 */.nuxt/

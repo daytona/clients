@@ -160,7 +160,8 @@ Nuxt, Remix, workerd (edge runtime), AWS Lambda and Azure Functions, and runs th
 same API, toolbox and fs-watch checks in each against a local mock API:
 
 ```bash
-npm run build && npm run test:runtime   # ONLY=node-esm,bun for a subset
+npm run build && npm run test:runtime
+ONLY=node-esm,bun npm run test:runtime   # a subset
 ```
 
 Changes to the transports in `src/v2/http.ts` (fetch options, abort and

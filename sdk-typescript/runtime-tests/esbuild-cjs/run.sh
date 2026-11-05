@@ -7,6 +7,10 @@ source "$RUNTIME_LIB"
 rm -rf dist
 install_sdk
 npm run --silent build
-mkdir -p standalone
-cp dist/test.cjs standalone/
-assert_response "$(cd standalone && node test.cjs)"
+# Outside the working copy, so Node cannot resolve anything from its
+# node_modules: the bundle must be self-contained.
+standalone="$(mktemp -d)"
+cp dist/test.cjs "$standalone/"
+result="$(cd "$standalone" && node test.cjs)"
+rm -rf "$standalone"
+assert_response "$result"
