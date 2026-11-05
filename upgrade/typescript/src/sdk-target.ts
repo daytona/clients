@@ -15,6 +15,15 @@ export function version(): string {
 }
 
 /**
+ * The command that runs the Python tool of this release: both tools are
+ * published at the SDK's version (uv accepts the npm spelling). An
+ * unpublished build (0.x) names no release.
+ */
+export function companionCommand(toolVersion: string): string {
+  return parse(toolVersion)?.major === 0 ? 'uvx daytona-upgrade' : `uvx daytona-upgrade@${toolVersion}`;
+}
+
+/**
  * The SDK range this tool writes. A published tool has the version of the SDK
  * release it was built and tested with in the same publish run, so it targets
  * exactly that release: a pre-release pins it (pre-releases may break), a
@@ -47,7 +56,7 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   // version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases wrote)
   // installs nothing yet; any later stable floor is a project ahead of this tool.
   return !wanted.prerelease.length || floor.prerelease.length > 0 ||
-    floor.major !== wanted.major || floor.minor !== wanted.minor || floor.patch !== wanted.patch;
+    floor.minor !== wanted.minor || floor.patch !== wanted.patch;
 }
 
 /** A valid range whose floor is in the target's major (an earlier pre-release included). */

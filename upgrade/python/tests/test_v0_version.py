@@ -16,7 +16,7 @@ import pytest
 from daytona_upgrade import cli
 from daytona_upgrade.cli import main
 from daytona_upgrade.models import load_mapping
-from daytona_upgrade.sdk_target import target_specifier
+from daytona_upgrade.sdk_target import companion_command, target_specifier
 from daytona_upgrade.v0_version import (
     allowed_newer_message,
     newer_patch_message,
@@ -725,3 +725,35 @@ def test_reads_a_large_uv_lock_once(
     assert report["warnings"] == [
         {"file": "../uv.lock", "message": older_message("0.100.0", PINNED)}
     ]
+
+
+@pytest.mark.parametrize(
+    ("tool_version", "command"),
+    [
+        ("0.0.0", "npx @daytona/upgrade"),
+        ("2.0.0a8", "npx @daytona/upgrade@2.0.0-alpha.8"),
+        ("2.0.0rc1", "npx @daytona/upgrade@2.0.0-rc.1"),
+        ("2.3.1", "npx @daytona/upgrade@2.3.1"),
+    ],
+)
+def test_names_the_npm_tool_of_the_same_release(
+    tool_version: str, command: str
+) -> None:
+    # Given / When / Then: the companion tool of the same release, not the registry's latest.
+    assert companion_command(tool_version) == command
+
+
+def test_refuses_a_partial_root_with_no_daytona_code_as_no_daytona(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the root declares a newer minor; sub/ has no Daytona code.
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "requirements.txt").write_text("daytona==0.999.0\n")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "x.py").write_text("x = 1\n")
+    # When
+    code, report = _run(tmp_path / "sub", capsys)
+    # Then
+    assert code == 2
+    assert report["refused"]["reason"] == "no-daytona"  # type: ignore[index]
+    assert "warnings" not in report

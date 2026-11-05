@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
+from . import __version__
 from .dependency_scope import inspect_parent_dependencies
 from .environment_python import scan_notebook_environment, scan_python_environment
 from .manifest_errors import ManifestParseError
@@ -30,6 +31,7 @@ from .project_result import Dependency as Dependency
 from .project_result import ProjectResult as ProjectResult
 from .pytest_collection import read_collection
 from .report_items import unique_items
+from .sdk_target import companion_command
 
 
 def preflight(
@@ -219,7 +221,7 @@ def preflight(
                     line=0,
                     column=0,
                     kind="other-ecosystem",
-                    message="Run npx @daytona/upgrade for TypeScript / JavaScript code.",
+                    message=f"Run {companion_command(__version__)} for TypeScript / JavaScript code.",
                 )
             )
         if output != file.source:

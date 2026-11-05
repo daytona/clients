@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { invoke, temporaryProject } from './helpers.js';
 import { loadMapping } from '../src/mapping.js';
-import { targetRange, withTarget } from '../src/sdk-target.js';
+import { companionCommand, targetRange, withTarget } from '../src/sdk-target.js';
 
 it.each([
   ['2.0.0-alpha.7', '2.0.0-alpha.7'],
@@ -130,3 +130,9 @@ it.each([['^2.0.0', true], ['2.0.0-alpha.8', false], ['3.0.0', true]])('ancestor
   expect(items).toEqual(reported ? [expect.objectContaining({ file: '../package.json',
     message: 'no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "2.0.0-alpha.8"' })] : []);
 });
+
+it.each([['0.0.0', 'uvx daytona-upgrade'], ['2.0.0-alpha.8', 'uvx daytona-upgrade@2.0.0-alpha.8'], ['2.3.1', 'uvx daytona-upgrade@2.3.1']])(
+  'names the Python tool of the %s release', (toolVersion, command) => {
+    // Given / When / Then: the companion tool of the same release, not the registry's latest.
+    expect(companionCommand(toolVersion)).toBe(command);
+  });

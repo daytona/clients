@@ -219,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             message, report["nextSteps"] = url_refusal(result.items)
             raise Refused("custom-api-url", message)
         # Then the 0.x version (refuses exit 2 before unsupported files exit 1).
-        if mode == "upgrade":
+        if mode == "upgrade" and result.found:
             base = root.parent if root.is_file() else root
             v0 = check_v0_version(
                 base,

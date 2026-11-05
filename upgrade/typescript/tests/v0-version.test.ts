@@ -344,3 +344,24 @@ it('reads only the head of a large pnpm lockfile', async () => {
   expectWithinBudget(performance.now() - started, 15_000);
   expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'pnpm-lock.yaml', message: olderMessage('0.100.0', pinned) }]);
 }, testTimeout(60_000));
+
+it('refuses a partial root with no Daytona code as no-daytona, not by version', async () => {
+  // Given: the root declares a newer minor; sub/ has no Daytona code.
+  const { code: exit, report } = await run({ '.git/HEAD': '', 'package.json': manifest('0.999.0'), 'sub/x.ts': 'export const x = 1;\n' }, [], 'sub');
+  // Then
+  expect(exit).toBe(2);
+  expect(report.refused?.reason).toBe('no-daytona');
+  expect(report.warnings).toBeUndefined();
+});
+
+it('matches a classic yarn workspace glob written with ./', async () => {
+  // Given: workspaces ["./packages/*"]; the lockfile resolves a newer minor for packages/a.
+  const yarn = `# yarn lockfile v1\n\n"@daytonaio/sdk@^${pinned}":\n  version "${transitive}"\n`;
+  const files = { '.git/HEAD': '', 'yarn.lock': yarn, 'package.json': JSON.stringify({ name: 'root', private: true, workspaces: ['./packages/*'] }),
+    'packages/a/package.json': manifest(`^${pinned}`), 'packages/a/index.ts': code };
+  // When
+  const { code: exit, report } = await run(files, [], 'packages/a');
+  // Then: the workspace's lockfile resolution counts.
+  expect(exit).toBe(2);
+  expect(report.refused?.message).toBe(newerRefusal(transitive, '../../yarn.lock', pinned));
+});

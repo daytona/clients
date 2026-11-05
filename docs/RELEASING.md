@@ -122,7 +122,9 @@ sees a publishing credential. The publish job is the only job on the
 requested build is green; a failed or cancelled build skips it (nothing is
 published, no approval is asked). Inside it the targets run in order — PyPI,
 npm, the CLI's GitHub Release, the Homebrew formula, then the migration tool
-(PyPI, then npm) — and a failed target stops the ones after it. The
+(PyPI, then npm) — and a failed target stops the ones after it. A failed
+Homebrew update therefore also holds back the tool: re-run the publish job to
+finish it (the summary shows the tool rows as not published). The
 environment's deployment-branch policy still decides whether a run's
 credentials can be used at all.
 

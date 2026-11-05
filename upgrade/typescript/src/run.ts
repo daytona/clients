@@ -198,7 +198,7 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
         ? (environmentRefusal ? ENV_CUSTOM_URL : 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.') + ' No files were written.'
         : 'Cannot verify that every DaytonaConfig targets Daytona Cloud. If they do, rerun with --drop-api-url; for a custom API URL, stay on SDK 0.x. No files were written.' } } };
   }
-  const v0 = options.mode === 'upgrade'
+  const v0 = options.mode === 'upgrade' && found
     ? checkV0Version(options.root, dependency.declared.length ? dependency.declared : ancestorDeclarations(options.root, mapping.packages.ts.old),
       mapping.v0Version, options.allowNewerV0 ?? false, found) : { warnings: [] };
   const warnings = v0.warnings.length ? { warnings: v0.warnings } : {};

@@ -8,6 +8,20 @@ from __future__ import annotations
 from packaging.version import Version
 
 
+def companion_command(tool_version: str) -> str:
+    """The command that runs the npm tool of this release: both tools are
+    published at the SDK's version, in npm's spelling (aN -> -alpha.N). An
+    unpublished build (0.x) names no release."""
+    version = Version(tool_version)
+    if version.major == 0:
+        return "npx @daytona/upgrade"
+    spelled = ".".join(map(str, (*version.release, 0, 0)[:3]))
+    if version.pre is not None:
+        stage, number = version.pre
+        spelled += f"-{ {'a': 'alpha', 'b': 'beta', 'rc': 'rc'}[stage] }.{number}"
+    return f"npx @daytona/upgrade@{spelled}"
+
+
 def target_specifier(tool_version: str, fallback: str) -> str:
     """A published tool has the version of the SDK release it was built and
     tested with in the same publish run, so it targets exactly that release: a

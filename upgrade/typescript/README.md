@@ -202,7 +202,7 @@ Without the override, a literal custom environment URL produces both
 
 The tool never migrates workloads to v2, changes sandbox calls into client
 calls, edits lockfiles directly, or modifies Python code. It reports Python
-manifests with the companion command `uvx daytona-upgrade`. Peer dependencies,
+manifests with the companion command `uvx daytona-upgrade@<this release>`. Peer dependencies,
 private imports, framework component files, environment URL settings and
 unsupported config fields require review. Suggestions include docs links and
 workflow/data warnings; re-running replaces the tool's comments.

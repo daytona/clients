@@ -98,7 +98,7 @@ function manifestWorkspaces(directory: string): readonly RegExp[] | undefined {
   const declared = manifest?.['workspaces'];
   const globs = Array.isArray(declared) ? declared : record(declared)?.['packages'];
   if (!Array.isArray(globs)) return [];
-  return globs.filter((glob): glob is string => typeof glob === 'string').map(glob => new RegExp(`^${glob.replace(/\/+$/, '')
+  return globs.filter((glob): glob is string => typeof glob === 'string').map(glob => new RegExp(`^${glob.replace(/^\.\//, '').replace(/\/+$/, '')
     .replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]+').replace(/\u0000/g, '.*')}$`));
 }
 

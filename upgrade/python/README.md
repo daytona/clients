@@ -191,7 +191,7 @@ bodies are ignored, including those in `ONBUILD RUN`; if a terminator is missing
 the remaining lines are scanned as instructions so malformed input cannot hide
 later URL diagnostics.
 A `package.json`
-produces guidance to run `npx @daytona/upgrade` separately.
+produces guidance to run `npx @daytona/upgrade@<this release>` separately.
 
 Local requirements/constraints includes are followed within the project root.
 Included filenames need no particular extension. For partial-root upgrades,
