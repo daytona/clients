@@ -1,0 +1,21 @@
+e2e.py
+  s_717b45cf151505::t_ac9b2903909e34 209-210
+e2e.ts
+  s_717b45cf151505::t_aec39995870126 143-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "084d6a01e1213549377dcaf2f9c494a08e5dfc27",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
