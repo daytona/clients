@@ -46,7 +46,9 @@ jobs:
     runs-on: ubuntu-latest
     # Publish credentials live in the `release` environment: every run waits
     # for required-reviewer approval before secrets resolve. Any branch may
-    # deploy (alpha/beta prereleases publish from non-main refs).
+    # deploy (alpha/beta prereleases publish from non-main refs). This is the
+    # only job on the environment, and all its matrix legs wait at once, so a
+    # run needs a single approval; keep new environment work inside it.
     environment: release
     permissions:
       contents: read
@@ -69,6 +71,10 @@ jobs:
           - name: Java SDK
             projects: sdk-java
             pkg_version: ${{ inputs.maven_pkg_version }}
+          # Not a registry publish: dispatches the Homebrew tap update with
+          # GITHUBBOT_TOKEN. Its steps are the ones gated on matrix.homebrew_tap.
+          - name: CLI (Homebrew tap)
+            homebrew_tap: true
     # Registry credentials are set per step rather than for the whole job, so that
     # `yarn install` in setup-toolchain runs with none of them in its environment, and
     # each matrix leg only ever sees the registry it publishes to.
@@ -76,7 +82,7 @@ jobs:
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - name: Skip publish (no version provided)
-        if: matrix.pkg_version == ''
+        if: matrix.pkg_version == '' && !matrix.homebrew_tap
         run: echo "No package version provided for ${{ matrix.name }}; skipping publish."
       - name: Validate version format
         if: matrix.pkg_version != ''
@@ -153,46 +159,66 @@ jobs:
         # check above.
         if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
         run: bash hack/npm-latest-guard.sh verify
-      - name: Cleanup credentials
-        if: always()
-        run: rm -f ~/.gem/credentials 2>/dev/null || true
-
-  update-homebrew-tap:
-    # From main, the `daytona` formula follows the main release line. From
-    # release/v0, once the 2.x CLI has taken the `daytona` name (repository
-    # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
-    # follows the 0.x line; before that, release branches never update the tap.
-    if: >-
-      github.repository == 'daytona/clients' && inputs.publish_cli && (
-        (!startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest') ||
-        (github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true')
-      )
-    runs-on: ubuntu-latest
-    environment: release
-    permissions: {}
-    name: Update Homebrew CLI tap
-    env:
-      HOMEBREW_EVENT: ${{ github.ref == 'refs/heads/release/v0' && 'update-version-v0' || 'update-version' }}
-    steps:
+      - name: Resolve Homebrew tap updates
+        # From main, the `daytona` formula follows the main release line. From
+        # release/v0, once the 2.x CLI has taken the `daytona` name (repository
+        # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
+        # follows the 0.x line; before that, release branches never update the tap.
+        # Each repository_dispatch event updates one formula; list one per line.
+        id: tap
+        if: matrix.homebrew_tap
+        env:
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
+          V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
+        run: |
+          events=()
+          if [[ "$PUBLISH_CLI" != true ]]; then
+            echo "publish_cli is off; the Homebrew tap is not updated."
+          elif [[ "$GITHUB_REF" == refs/heads/release/v0 ]]; then
+            if [[ "$V0_CUTOVER" == true ]]; then
+              events+=(update-version-v0)
+            else
+              echo "release/v0 updates the Homebrew tap only after the cutover (DAYTONA_V0_CUTOVER)."
+            fi
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            echo "$GITHUB_REF_NAME never updates the Homebrew tap."
+          elif [[ "$NPM_TAG" == latest ]]; then
+            events+=(update-version)
+          else
+            echo "npm_tag is $NPM_TAG, not latest; the Homebrew tap is not updated."
+          fi
+          {
+            echo 'events<<EOF'
+            if (( ${#events[@]} )); then printf '%s\n' "${events[@]}"; fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
       - name: Validate version format
+        if: steps.tap.outputs.events != ''
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
       - name: Validate daytona@0 version
-        if: github.ref == 'refs/heads/release/v0'
+        if: steps.tap.outputs.events != '' && github.ref == 'refs/heads/release/v0'
         run: |
           if [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::The daytona@0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
             exit 1
           fi
-      - name: Update version
+      - name: Update Homebrew CLI tap
+        if: steps.tap.outputs.events != ''
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          HOMEBREW_EVENTS: ${{ steps.tap.outputs.events }}
         run: |
-          echo "Dispatching $HOMEBREW_EVENT for $VERSION"
-          curl -f -X POST -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
-            https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"$HOMEBREW_EVENT\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+          while read -r event; do
+            echo "Dispatching $event for $VERSION"
+            curl -f -X POST -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
+              https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
+              -d "{\"event_type\": \"$event\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+          done <<< "$HOMEBREW_EVENTS"
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.gem/credentials 2>/dev/null || true
