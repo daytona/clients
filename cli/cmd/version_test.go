@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -253,6 +254,14 @@ func TestVersion_printsCLIVersionWhenConfigIsMalformed(t *testing.T) {
 	if _, _, code := run(t, d, nil, "org", "list"); code == 0 {
 		t.Fatal("other commands still fail on a malformed config")
 	}
+	t.Setenv("DAYTONA_CONFIG_DIR", d)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	root := NewRoot(io.Discard, io.Discard)
+	root.SetArgs([]string{"version"})
+	if err := root.ExecuteContext(ctx); cerr.ExitCode(err) != cerr.ExitInterrupted {
+		t.Fatalf("a cancelled invocation is interrupted, not a version print: %v", err)
+	}
 }
 
 // --version / -v print the CLI version offline, before config loading.
@@ -263,7 +272,7 @@ func TestRootVersionFlags(t *testing.T) {
 	}
 	for _, flag := range []string{"--version", "-v"} {
 		stdout, stderr, code := run(t, d, nil, flag)
-		if code != 0 || strings.TrimSpace(stdout) != "daytona "+app.Version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")" {
+		if code != 0 || stderr != "" || strings.TrimSpace(stdout) != "daytona "+app.Version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")" {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q", flag, code, stdout, stderr)
 		}
 	}

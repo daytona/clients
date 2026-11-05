@@ -92,12 +92,12 @@ func TestOrgLimitsPreservesLargeIntegers(t *testing.T) {
 	}
 	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
 	f.on("GET", "/api-keys/current", 401, map[string]any{"code": "UNAUTHORIZED", "message": "unauthorized", "source": "DAYTONA_API"})
-	for _, format := range []string{"json", "yaml"} {
+	for format, want := range map[string]string{"json": `"limit": 9007199254740993`, "yaml": "limit: 9007199254740993"} {
 		out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", format, "--org", testOrgA, "org", "limits")
 		if code != 0 {
 			t.Fatalf("%s: %d %s", format, code, errb)
 		}
-		if !has(out, "9007199254740993") {
+		if !has(out, want) {
 			t.Fatalf("%s output rounded the limit:\n%s", format, out)
 		}
 	}

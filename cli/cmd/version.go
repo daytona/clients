@@ -83,6 +83,9 @@ func init() {
 // printLocalVersion reports the CLI's own version when the config could not
 // be loaded, so `daytona version` still works against a broken config.yaml.
 func printLocalVersion(cmd *cobra.Command, loadErr error) error {
+	if err := cerr.FromContext(cmd.Context()); err != nil {
+		return err
+	}
 	format, err := output.ParseFormat(cmd.Flag("output").Value.String())
 	if err != nil {
 		return cerr.Usage("%v", err)

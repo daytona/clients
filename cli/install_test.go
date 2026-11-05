@@ -173,6 +173,20 @@ func TestInstallSh_keepsInstalledBinaryWhenTheNewOneFailsToRun(t *testing.T) {
 	requireNoStagedBinary(t, binDir)
 }
 
+func TestInstallSh_refusesADirectoryAtTheTarget(t *testing.T) {
+	binDir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(binDir, "daytona"), 0o755))
+
+	out, err := installShWithAsset(t, binDir, "#!/bin/sh\necho new\n")
+
+	require.Error(t, err, out)
+	require.Contains(t, out, "is a directory")
+	entries, readErr := os.ReadDir(filepath.Join(binDir, "daytona"))
+	require.NoError(t, readErr)
+	require.Empty(t, entries)
+	requireNoStagedBinary(t, binDir)
+}
+
 func TestInstallSh_replacesInstalledBinaryAfterTheCheck(t *testing.T) {
 	binDir := t.TempDir()
 	installed := filepath.Join(binDir, "daytona")
@@ -245,6 +259,22 @@ func TestInstallPs1_keepsInstalledBinaryWhenTheNewOneFailsToRun(t *testing.T) {
 	body, readErr := os.ReadFile(installed)
 	require.NoError(t, readErr)
 	require.Equal(t, "old", string(body), "the working binary is left in place")
+	requireNoStagedBinary(t, installDir)
+}
+
+// A first install (no daytona.exe yet) into a directory whose name holds
+// PowerShell wildcard characters.
+func TestInstallPs1_freshInstallIntoWildcardDirectory(t *testing.T) {
+	installDir := filepath.Join(t.TempDir(), "bin[1]")
+	asset := "#!/bin/sh\necho \"new $*\"\n"
+
+	out, err := installPs1(t, installDir, asset)
+
+	require.NoError(t, err, out)
+	require.NotContains(t, out, "INSTALL_FAILED")
+	body, readErr := os.ReadFile(filepath.Join(installDir, "daytona.exe"))
+	require.NoError(t, readErr)
+	require.Equal(t, asset, string(body))
 	requireNoStagedBinary(t, installDir)
 }
 

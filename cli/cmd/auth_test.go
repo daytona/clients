@@ -363,8 +363,13 @@ func TestTokenRefreshRejectedBeforeConcurrentRotationIsSaved(t *testing.T) {
 	f.on("GET", "/orgs", 200, organizationsFixture())
 	oidcProfile(t, d, f.srv.URL, -time.Minute)
 	_, errb, code := run(t, d, nil, "org", "list", "-o", "json")
-	if err := <-saved; err != nil {
-		t.Fatal(err)
+	select {
+	case err := <-saved:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("the token endpoint was never called: %d %s", code, errb)
 	}
 	if code != 0 {
 		t.Fatalf("must converge on the tokens saved after the rejection: %d %s", code, errb)

@@ -70,6 +70,10 @@ if [ -z "$INSTALL_DIR" ]; then
   else INSTALL_DIR="$HOME/.local/bin"; fi
 fi
 mkdir -p "$INSTALL_DIR"
+if [ -d "$INSTALL_DIR/daytona" ]; then
+  echo "$INSTALL_DIR/daytona is a directory; remove it or pass --dir" >&2
+  exit 1
+fi
 # Check that the new binary runs before it replaces the installed one. It is
 # staged beside the target: the install directory allows execution where /tmp
 # may not, and the final mv is a rename on the same filesystem.

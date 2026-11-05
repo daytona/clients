@@ -48,13 +48,20 @@ try {
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
   $target = Join-Path $InstallDir "daytona.exe"
   # Check that the new executable runs before it replaces the installed one.
+  # .NET file calls take literal paths (no PowerShell wildcards), and
+  # File.Replace swaps the files in one step on NTFS, so a failure cannot
+  # leave the install directory without a daytona.exe.
   $staged = Join-Path $InstallDir (".daytona.new." + [guid]::NewGuid() + ".exe")
-  Move-Item -Force (Join-Path $tmp $asset) $staged
+  [IO.File]::Move((Join-Path $tmp $asset), $staged)
   & $staged version
   if ($LASTEXITCODE -ne 0) {
     throw "the downloaded daytona $Version failed verification with exit code $LASTEXITCODE; $target was not changed"
   }
-  Move-Item -Force $staged $target
+  if ([IO.File]::Exists($target)) {
+    [IO.File]::Replace($staged, $target, [NullString]::Value)
+  } else {
+    [IO.File]::Move($staged, $target)
+  }
   $staged = $null
   Write-Host "installed $target"
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -64,6 +71,6 @@ try {
   }
 } finally {
   Remove-Item -Recurse -Force $tmp
-  if ($staged -and (Test-Path $staged)) { Remove-Item -Force $staged }
+  if ($staged -and [IO.File]::Exists($staged)) { [IO.File]::Delete($staged) }
 }
 }
