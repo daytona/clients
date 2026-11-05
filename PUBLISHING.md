@@ -154,7 +154,7 @@ At the cutover, in this order:
 From then on, runs from `release/v0`:
 
 - **Release** builds the CLI as `daytona-v0` (its help, hints and `mcp config` name `daytona-v0`, and the upgrade hint names `daytonaio/cli/daytona@0`), uploads `daytona-v0-<os>-<arch>` assets, `install-v0.sh` and `SHA256SUMS`, attests the `daytona-v0-*` binaries, and keeps re-marking the highest stable release, now 2.x, as **Latest**;
-- **SDK and CLI Publish** with **publish_cli** dispatches `update-version-v0` to the tap for stable `v0.X.Y` versions (prereleases fail the tap job), and refuses `npm_tag: latest` outright: publish with `v0-latest`. `hack/npm-latest-guard.sh` refuses it as well once a stable 2.x version is on npm, but not while 2.x is prerelease-only.
+- **SDK and CLI Publish** with **publish_cli** dispatches `update-version-v0` to the tap for stable `v0.X.Y` versions (prereleases fail the tap job), and refuses `npm_tag: latest` once a stable 2.x release exists (`hack/stable-v2-release.sh`): from then on publish with `v0-latest`. Until then npm `latest` keeps following 0.x, like the `daytona` formula below, and `hack/npm-latest-guard.sh` still keeps it on the highest published stable version.
 
 #### The `daytona` formula until 2.x is stable
 
@@ -162,6 +162,7 @@ Until the first stable 2.x release exists, `brew install daytonaio/cli/daytona` 
 
 - **Release**: upload the 0.x binaries a second time as `daytona-<os>-<arch>`, the asset names the `daytona` formula downloads. They are the same bytes as the `daytona-v0-*` assets. When the binary runs as `daytona`, its help, hints and `mcp config` say `daytona` and its upgrade hint names `daytonaio/cli/daytona`; under any other name it stays `daytona-v0`. `SHA256SUMS` lists both names and `attest_cli` attests both;
 - **SDK and CLI Publish** with **publish_cli**: dispatch `update-version` (the `daytona` formula) after `update-version-v0` (`daytona@0`), once it has checked that the release carries the `daytona-<os>-<arch>` assets.
+- **SDK and CLI Publish** with `npm_tag: latest`: move the npm `latest` dist-tag to the 0.x release (still only above every published stable version).
 
 Both workflows read the repository's releases on every run and log the decision. If the releases cannot be read, the run fails rather than guess. **SDK and CLI Publish** checks again right before it dispatches `update-version`, so a stable 2.x release published while the `daytona@0` tap run is in progress is never moved back to 0.x. The check and the dispatch are still two separate calls, so when you cut the first stable 2.x release, do not run a 0.x **SDK and CLI Publish** with **publish_cli** at the same time. If one did overlap, re-run the 2.x tap update (`update-version` for the 2.x version) once the 0.x run has finished, so the 2.x update lands last. The tap update dispatches one event at a time and waits for each tap run to succeed before sending the next, because the tap's workflows commit to its default branch without rebasing. The first stable 2.x release (`v2.0.0`) ends the period with no manual step: later 0.x releases ship only `daytona-v0-*` assets and update only `daytona@0`. From then on, the `daytona` formula follows 2.x, so the 2.x **SDK and CLI Publish** on `main` must dispatch `update-version` for stable 2.x versions.
 
