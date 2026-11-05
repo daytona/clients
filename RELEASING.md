@@ -55,9 +55,10 @@ gh workflow run release.yaml     --ref release/v0 -f version=v0.228.0
 the workflow and its helper scripts runs; the `release` environment admits
 only `main` and `release/*`, so publishing logic always comes from a
 protected branch and nobody can publish through a modified copy of the
-workflow on their own branch. The `source_ref` input (default: the dispatch
-ref) selects which commit is built and published. Its code runs only in the
-tokenless build jobs.
+workflow on their own branch (the gate also refuses any other dispatch ref up
+front, so such a run fails before it builds anything). The `source_ref` input
+(default: the dispatch ref) selects which commit is built and published. Its
+code runs only in the tokenless build jobs.
 
 On this line, a **stable** version publishes only a commit on `main`; a
 **pre-release** may publish any commit, so a feature can ship an alpha for
@@ -67,9 +68,11 @@ early users before it merges:
 gh workflow run sdk_publish.yaml --ref main -f version=v2.1.0-alpha.2 -f source_ref=feat/my-feature
 ```
 
-A 0.x version is refused here. Every run waits for a reviewer on the
-`release` environment; the run summary names both the source commit and the
-workflow commit.
+A 0.x version is refused here. A run whose gate passes and whose builds and
+tests are green waits for **one** approval on the `release` environment,
+before any publishing credential is used (a run that fails earlier asks for none); the
+run summary names both the source commit and the workflow commit. The built
+packages are kept for 7 days: approve within that, or dispatch again.
 
 ### Moving the 2.x line to `main` (done)
 
@@ -110,10 +113,18 @@ One-time setup (see the header of
   `GITHUBBOT_TOKEN` (the Homebrew formula dispatch).
 
 The workflow is split into tokenless **build** jobs (which run the
-install/test/build and upload an artifact) and **publish** jobs (which hold
-`id-token: write` and the environment, never check out source, and only
-upload the built artifact), so code under test never sees a publishing
-credential.
+install/test/build and upload an artifact) and one **publish** job (which
+holds `id-token: write`, `contents: write` and the environment, never checks
+out source, and only uploads the built artifacts), so code under test never
+sees a publishing credential. The publish job is the only job on the
+`release` environment, so a run asks for exactly one approval, after every
+requested build is green; a failed or cancelled build skips it (nothing is
+published, no approval is asked). Inside it the targets run in order — PyPI,
+npm, the CLI's GitHub Release, the Homebrew formula — and a failed target
+stops the ones after it. The environment's deployment-branch policy still
+decides whether a run's credentials can be used at all. `upgrade-tool-publish.yaml`
+has the same shape: one build job, one publish job on `release` (PyPI, then
+npm, per its `targets` input; skipped in a dry run).
 
 For each release:
 
@@ -139,9 +150,10 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
   commit. `force_republish=true` skips the registry check to *resume* a run
   that half-landed (say PyPI succeeded and npm failed): targets already on
   their registry are skipped — PyPI `skip-existing`, an npm pre-check, the
-  CLI job's identical-checksums resume — and only the missing ones are
-  published. Nothing is ever overwritten; registries refuse re-uploads
-  regardless.
+  CLI release's identical-checksums resume — and only the missing ones are
+  published. Re-running the failed publish job of the same run (*Re-run
+  failed jobs*, one more approval) resumes the same way. Nothing is ever
+  overwritten; registries refuse re-uploads regardless.
 - The run's **Summary** page lists what was published to which registry, from
   which branch and commit, with install commands and registry links.
 
@@ -152,9 +164,10 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 | CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + Homebrew `daytona-alpha` | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish |
 
 > **Registries reject re-uploading an existing version.** A version is
-> published once. If a publish half-fails, re-dispatch the same version from
-> the same commit with `force_republish=true` to finish the targets that did
-> not land — do not attempt to overwrite.
+> published once. If a publish half-fails, re-run the failed publish job, or
+> re-dispatch the same version from the same commit with
+> `force_republish=true`, to finish the targets that did not land — do not
+> attempt to overwrite.
 
 ---
 

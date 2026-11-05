@@ -149,7 +149,7 @@ When an API needs to change:
 
 The version's pre-release identifier picks the channel, so it never has to be
 chosen by hand: the publish workflow's gate derives the npm dist-tag from the
-version (output `npm_dist_tag`) and `publish-npm` publishes with it.
+version (output `npm_dist_tag`) and the publish job's npm step publishes with it.
 
 - **Stable** (`vX.Y.Z`): published to the `latest` tag (npm) / normal release (PyPI).
 - **Pre-release**: each stage has its own npm dist-tag so it never becomes
