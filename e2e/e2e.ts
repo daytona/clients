@@ -123,6 +123,10 @@ async function main(): Promise<number> {
       const other = await box.process.list({ tag: otherTag })
       check('process.list filters unrelated tag', other.items.length === 1 && other.items[0]?.id === unrelated.id)
 
+      // A tagged command that leaves a detached child behind and exits.
+      await box.process.run(`setsid sh -c 'echo $$ > /tmp/dtn-tag-${run}; exec sleep 300' >/dev/null 2>&1 & sleep 0.5`, { tag })
+      const detached = (await box.process.run(`cat /tmp/dtn-tag-${run}`)).output.trim()
+
       // When the shared tag is killed, both roots exit but the other can finish.
       // A sandbox without process containment refuses the tag-wide kill.
       let killed: Set<string> | undefined
@@ -135,7 +139,9 @@ async function main(): Promise<number> {
         for (const root of [first, second, unrelated]) await root.kill()
       }
       if (killed) {
-        check('process.killAll returns root ids', killed.size === 2 && killed.has(first.id) && killed.has(second.id))
+        check('process.killAll returns root ids', killed.has(first.id) && killed.has(second.id))
+        const alive = await box.process.run(`kill -0 ${detached} 2>/dev/null && echo alive || echo gone`)
+        check('detached descendant killed', alive.output.trim() === 'gone', detached)
         for (const root of [first, second]) {
           const stopped = await root.wait({ timeout: 5000 })
           check('tagged root killed', stopped.reason === 'signaled' && stopped.signal === 'KILL', root.id)

@@ -188,6 +188,13 @@ def main() -> int:
                 == {unrelated.id},
             )
 
+            # A tagged command that leaves a detached child behind and exits.
+            box.process.run(
+                f"setsid sh -c 'echo $$ > /tmp/dtn-tag-{RUN}; exec sleep 300' >/dev/null 2>&1 & sleep 0.5",
+                tag=tag,
+            )
+            detached = box.process.run(f"cat /tmp/dtn-tag-{RUN}").output.strip()
+
             # When the shared tag is killed, both roots exit but the other can finish.
             # A sandbox without process containment refuses the tag-wide kill.
             try:
@@ -198,7 +205,9 @@ def main() -> int:
                 for root in (first, second, unrelated):
                     root.kill()
             if killed is not None:
-                check("process.kill_all returns root ids", set(killed) == {first.id, second.id})
+                check("process.kill_all returns root ids", {first.id, second.id} <= set(killed))
+                alive = box.process.run(f"kill -0 {detached} 2>/dev/null && echo alive || echo gone")
+                check("detached descendant killed", alive.output.strip() == "gone", detached)
                 for root in (first, second):
                     stopped = root.wait(timeout=5)
                     check(
