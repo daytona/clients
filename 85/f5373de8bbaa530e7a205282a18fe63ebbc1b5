@@ -1,0 +1,19 @@
+.github/dependabot.yml
+  s_9f424cdd06a807::t_ba95ce8cf53f2f 56-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85f5373de8bbaa530e7a205282a18fe63ebbc1b5",
+  "prompts": {},
+  "sessions": {
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
