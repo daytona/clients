@@ -126,6 +126,6 @@ def test_reports_missing_export_when_name_is_not_a_bundled_module() -> None:
     assert [(item["kind"], item["message"]) for item in result.items] == [
         (
             "private-import",
-            "MissingExport is not exported by bundled v0.224.0; use the v2 API or remove it. It is unavailable from daytona.v0.",
+            "MissingExport is not exported by bundled v0.230.0; use the v2 API or remove it. It is unavailable from daytona.v0.",
         )
     ]

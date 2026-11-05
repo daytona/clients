@@ -230,6 +230,14 @@ updates:
       - dependency-name: "typescript"
         update-types:
           - "version-update:semver-major"
+      # nx majors wait for @nx-go/nx-go: 4.x pulls @nx/devkit with an nx <=23
+      # peer, and its nx 24 support is only a beta so far.
+      - dependency-name: "nx"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@nx/*"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 
@@ -252,6 +260,12 @@ updates:
       pip-prod:
         patterns:
           - "*"
+    ignore:
+      # The generated clients only use dateutil.parser, which works on 2.x and
+      # 3.x; a 3.x floor would force every 0.x SDK user onto dateutil 3.
+      - dependency-name: "python-dateutil"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 

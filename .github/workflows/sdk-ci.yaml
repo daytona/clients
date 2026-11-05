@@ -308,7 +308,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20', '22']
+        node: ['22.15', '22', '24']
     defaults:
       run:
         working-directory: sdk-typescript
