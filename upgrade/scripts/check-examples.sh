@@ -50,7 +50,7 @@ ts="$work/ts"
 fresh_repo "$ts"
 cp -r "$src/examples/typescript/." "$ts/"
 cat >"$ts/package.json" <<'JSON'
-{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.224.0" } }
+{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.230.0" } }
 JSON
 printf 'node_modules\n' >"$ts/.gitignore"
 commit "$ts" "0.x examples"
