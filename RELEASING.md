@@ -32,7 +32,7 @@ How to publish the two client SDKs and the `daytona` CLI.
 > `latest`), so it follows automatically.
 
 See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](CHANGELOG.md) ·
-[`changelog.d/`](changelog.d/) (per-PR changelog fragments).
+[`changelog.d/`](changelog.d/) (changelog fragments).
 
 ## Release lines and branches
 

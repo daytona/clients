@@ -9,6 +9,6 @@ and the SDKs follow [Semantic Versioning](https://semver.org/) — see
 together.
 
 There is no `Unreleased` section in this file. Unreleased changes live as one
-fragment per PR under [`changelog.d/`](changelog.d/) and are folded in here when
+fragment per user-visible change under [`changelog.d/`](changelog.d/) and are folded in here when
 a version is cut (see [RELEASING.md](RELEASING.md) and
 [`changelog.d/README.md`](changelog.d/README.md)).
