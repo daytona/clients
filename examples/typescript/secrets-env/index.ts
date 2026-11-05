@@ -121,7 +121,8 @@ async function main(): Promise<boolean> {
         await daytona.delete(sandbox)
         info(`deleted sandbox ${sandbox.id}`)
       } catch (e) {
-        info(`delete sandbox failed: ${e}`)
+        fail(`delete sandbox ${sandbox.id} failed: ${e}`)
+        ok = false
       }
     }
     if (secretCreated) {

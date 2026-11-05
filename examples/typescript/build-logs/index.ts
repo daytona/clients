@@ -117,14 +117,15 @@ async function main() {
           ok = false
           readFailed = true
         }
-        if (failedLog === '') {
-          if (!readFailed) fail("the failed build's log was empty")
-          ok = false
-        } else {
-          show(failedLog)
-          // A state line alone does not prove output was retrieved.
-          // Require our failing command's output.
-          if (failedLog.includes(`intentional-build-failure-${RUN}`)) {
+        if (failedLog !== '') show(failedLog)
+        // After a read error the output may be partial, so judge only a
+        // complete read. A state line alone does not prove output was
+        // retrieved: require our failing command's output.
+        if (!readFailed) {
+          if (failedLog === '') {
+            fail("the failed build's log was empty")
+            ok = false
+          } else if (failedLog.includes(`intentional-build-failure-${RUN}`)) {
             pass("the failed build's log contains the failing command's output")
           } else {
             fail("the failed build's log is missing the failing command's output")

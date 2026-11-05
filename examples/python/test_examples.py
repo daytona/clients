@@ -68,6 +68,7 @@ class FakeWorld:
         self.deleted_volumes: list[str] = []
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
+        self.build_logs_fail_after_output = False
         self.interpreter_exit_code = 0
         self.interpreter_error: Optional[InterpreterError] = None
         self.client = self._client()
@@ -149,6 +150,8 @@ class FakeWorld:
     def _follow_build_logs(self, image_id: str, *, on_logs: Callable[[str], object], **_: object) -> None:
         if not self.empty_build_logs:
             on_logs(f"intentional-build-failure-{RUN}\n")
+        if self.build_logs_fail_after_output:
+            raise ConnectionError("stream interrupted")
 
     # -- sandbox ----------------------------------------------------------
     def _sandbox(self, name: str, env: Mapping[str, str], *, dockerfile: str) -> MagicMock:
@@ -325,6 +328,19 @@ def test_failed_interpreter_run_fails_exec_command(
     assert re.search(reported, capsys.readouterr().out)
 
 
+def test_build_logs_does_not_pass_partial_output_after_a_read_error(
+    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = FakeWorld()
+    world.fail_builds_containing = "intentional-build-failure-"
+    world.build_logs_fail_after_output = True
+    code, _ = run_example("build_logs", world=world)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "the failed build's log could not be read: stream interrupted" in out
+    assert "PASS\x1b[0m the failed build's log contains" not in out
+
+
 def test_build_logs_fails_when_the_failed_build_log_is_empty(
     run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -410,6 +426,17 @@ def test_secrets_env_deletes_its_secret_when_listing_fails(
     world.client.secret.iter.side_effect = RuntimeError("list failed")
     with pytest.raises(RuntimeError, match="list failed"):
         run_example("secrets_env", world=world)
+    assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
+
+
+def test_secrets_env_fails_when_it_cannot_delete_its_sandbox(
+    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = FakeWorld()
+    world.client.delete.side_effect = RuntimeError("delete failed")
+    code, _ = run_example("secrets_env", world=world)
+    assert code == 1
+    assert re.search(r"FAIL.* delete sandbox sbx-0 failed: delete failed", capsys.readouterr().out)
     assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
 
 

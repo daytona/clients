@@ -102,6 +102,16 @@ test('build-logs reads the failed build through the error image id', () => {
   assertCleanedUp(record)
 })
 
+test('build-logs does not pass partial output after a log read error', () => {
+  const { code, output } = runExample(example('build-logs'), {
+    failBuildsContaining: 'intentional-build-failure-',
+    buildLogsThrowAfterOutput: true,
+  })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* the failed build's log could not be read: Error: stream interrupted/)
+  assert.doesNotMatch(output, /PASS.* the failed build's log contains/)
+})
+
 test('exec-command exits non-zero when the interpreter run fails', () => {
   const { code, output } = runExample(example('exec-command'), { interpreterExitCode: 1 })
   assert.equal(code, 1, output)
@@ -152,6 +162,13 @@ test('secrets-env fails when it cannot delete its secret', () => {
   const { code, output } = runExample(example('secrets-env'), { secretDeleteThrows: 'delete failed' })
   assert.equal(code, 1, output)
   assert.match(output, /FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: Error: delete failed/)
+})
+
+test('secrets-env fails when it cannot delete its sandbox', () => {
+  const { code, record, output } = runExample(example('secrets-env'), { sandboxDeleteThrows: 'delete failed' })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* delete sandbox sbx-0 failed: Error: delete failed/)
+  assert.equal(record.deletedSecrets.length, 1)
 })
 
 test('secrets-env leaves a secret it did not create', () => {

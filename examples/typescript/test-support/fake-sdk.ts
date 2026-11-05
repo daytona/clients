@@ -25,6 +25,9 @@ export interface Scenario {
   /** followBuildLogs delivers no output. */
   emptyBuildLogs?: boolean
   secretDeleteThrows?: string
+  /** followBuildLogs delivers its output, then fails. */
+  buildLogsThrowAfterOutput?: boolean
+  sandboxDeleteThrows?: string
   failBuildsContaining?: string
   secretSetThrows?: string
   secretIterThrows?: string
@@ -127,7 +130,10 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
       deleteBranch: async () => undefined,
     },
     buildLogs: async () => 'STEP 2: the marker\n',
-    delete: async () => void record.deletedSandboxes.push(id),
+    delete: async () => {
+      if (scenario.sandboxDeleteThrows) throw new Error(scenario.sandboxDeleteThrows)
+      record.deletedSandboxes.push(id)
+    },
   }
   return box
 }
@@ -166,6 +172,7 @@ const fake = {
     followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
       record.followedImages.push(imageId)
       if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)
+      if (scenario.buildLogsThrowAfterOutput) throw new Error('stream interrupted')
       return {}
     },
   },

@@ -115,7 +115,8 @@ def main() -> int:
                 daytona.delete(sandbox)
                 info(f"deleted sandbox {sandbox.id}")
             except Exception as e:
-                info(f"delete sandbox failed: {e}")
+                failed(f"delete sandbox {sandbox.id} failed: {e}")
+                ok = False
         if secret_created:
             try:
                 daytona.secret.delete(env_var_name)

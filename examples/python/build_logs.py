@@ -134,15 +134,16 @@ def main() -> int:
                     ok = False
                     read_failed = True
                 failed_log = "".join(chunks)
-                if not failed_log:
-                    if not read_failed:
-                        failed("the failed build's log was empty")
-                    ok = False
-                else:
+                if failed_log:
                     show(failed_log)
-                    # A state line alone does not prove output was
-                    # retrieved. Require our failing command's output.
-                    if f"intentional-build-failure-{RUN}" in failed_log:
+                # After a read error the output may be partial, so judge only
+                # a complete read. A state line alone does not prove output
+                # was retrieved: require our failing command's output.
+                if not read_failed:
+                    if not failed_log:
+                        failed("the failed build's log was empty")
+                        ok = False
+                    elif f"intentional-build-failure-{RUN}" in failed_log:
                         passed("the failed build's log contains the failing command's output")
                     else:
                         failed("the failed build's log is missing the failing command's output")
