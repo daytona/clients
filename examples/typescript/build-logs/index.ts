@@ -103,6 +103,7 @@ async function main() {
       } else {
         // Use the error's image id to read the failed build's output.
         let failedLog = ''
+        let readFailed = false
         try {
           await daytona.images.followBuildLogs(error.imageId, {
             onLogs: (chunk) => {
@@ -114,8 +115,12 @@ async function main() {
           // Reading build logs can fail; report the error to the user.
           fail(`the failed build's log could not be read: ${readError}`)
           ok = false
+          readFailed = true
         }
-        if (failedLog !== '') {
+        if (failedLog === '') {
+          if (!readFailed) fail("the failed build's log was empty")
+          ok = false
+        } else {
           show(failedLog)
           // A state line alone does not prove output was retrieved.
           // Require our failing command's output.

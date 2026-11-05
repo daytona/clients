@@ -86,19 +86,21 @@ def main() -> int:
         ):
             res = sandbox.process.run(f'printf %s "${name}"')
             got = (res.output or "").strip()
-            if got == expected:
+            if res.exit_code == 0 and got == expected:
                 passed(f'${name} = "{got}"')
             else:
-                failed(f'${name} = "{got}" (expected "{expected}")')
+                failed(f'${name} = "{got}" (expected "{expected}", exit={res.exit_code})')
                 ok = False
 
         section("the SECRET is NOT the real value inside the sandbox (placeholder only)")
-        in_sandbox = (
-            sandbox.process.run(f'printf %s "${env_var_name}"').output or ""
-        ).strip()
+        res = sandbox.process.run(f'printf %s "${env_var_name}"')
+        in_sandbox = (res.output or "").strip()
         # The env var exists (so apps can reference it), but it holds an opaque
         # placeholder, not the secret we set. The real value is used only in outgoing requests.
-        if in_sandbox == secret_value:
+        if res.exit_code != 0:
+            failed(f"reading ${env_var_name} failed (exit={res.exit_code})")
+            ok = False
+        elif in_sandbox == secret_value:
             failed(f"${env_var_name} leaked the real secret value into the sandbox!")
             ok = False
         elif in_sandbox:
@@ -119,7 +121,9 @@ def main() -> int:
                 daytona.secret.delete(env_var_name)
                 info(f"deleted secret {env_var_name}")
             except Exception as e:
-                info(f"delete secret failed: {e}")
+                # A secret left behind in the project fails the example.
+                failed(f"delete secret {env_var_name} failed: {e}")
+                ok = False
 
     return 0 if ok else 1
 

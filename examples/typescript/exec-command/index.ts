@@ -23,8 +23,8 @@ async function basicExec(sandbox: Sandbox): Promise<boolean> {
 
   // Run code in the sandbox's configured language runtime (python here).
   const code = await sandbox.interpreter.run('print("Hello World from code!")', { language: 'python' })
-  if (code.process.exitCode !== 0) {
-    fail(`code failed (exit=${code.process.exitCode})`)
+  if (code.process.exitCode !== 0 || code.error) {
+    fail(`code failed (exit=${code.process.exitCode}, error=${code.error?.name ?? 'none'})`)
     ok = false
   } else info(`code: ${code.logs.stdout.trim()}`)
 

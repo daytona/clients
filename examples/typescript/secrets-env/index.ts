@@ -90,18 +90,22 @@ async function main(): Promise<boolean> {
     ] as const) {
       const res = await sandbox.process.run(`printf %s "$${name}"`)
       const got = (res.output ?? '').trim()
-      if (got === expected) pass(`$${name} = "${got}"`)
+      if (res.exitCode === 0 && got === expected) pass(`$${name} = "${got}"`)
       else {
-        fail(`$${name} = "${got}" (expected "${expected}")`)
+        fail(`$${name} = "${got}" (expected "${expected}", exit=${res.exitCode})`)
         ok = false
       }
     }
 
     section('the SECRET is NOT the real value inside the sandbox (placeholder only)')
-    const inSandbox = (await sandbox.process.run(`printf %s "$${secretName}"`)).output?.trim() ?? ''
+    const res = await sandbox.process.run(`printf %s "$${secretName}"`)
+    const inSandbox = res.output?.trim() ?? ''
     // The env var exists (so apps can reference it), but it holds an opaque
     // placeholder, not the secret we set. The real value is used only in outgoing requests.
-    if (inSandbox === secretValue) {
+    if (res.exitCode !== 0) {
+      fail(`reading $${secretName} failed (exit=${res.exitCode})`)
+      ok = false
+    } else if (inSandbox === secretValue) {
       fail(`$${secretName} leaked the real secret value into the sandbox!`)
       ok = false
     } else if (inSandbox) {
@@ -125,7 +129,9 @@ async function main(): Promise<boolean> {
         await daytona.secret.delete(secretName)
         info(`deleted secret ${secretName}`)
       } catch (e) {
-        info(`delete secret failed: ${e}`)
+        // A secret left behind in the project fails the example.
+        fail(`delete secret ${secretName} failed: ${e}`)
+        ok = false
       }
     }
   }

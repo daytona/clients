@@ -35,6 +35,7 @@ from _common import RUN
 from daytona.v2 import (
     ImageBuilder,
     ImageBuildFailedError,
+    InterpreterError,
     InterpreterLogs,
     InterpreterProcess,
     InterpreterResult,
@@ -66,6 +67,9 @@ class FakeWorld:
         self.deleted_sandboxes: list[str] = []
         self.deleted_volumes: list[str] = []
         self.fail_builds_containing: Optional[str] = None
+        self.empty_build_logs = False
+        self.interpreter_exit_code = 0
+        self.interpreter_error: Optional[InterpreterError] = None
         self.client = self._client()
 
     # -- client -----------------------------------------------------------
@@ -109,6 +113,10 @@ class FakeWorld:
         assert isinstance(env, Mapping)
         secrets = kwargs.get("secrets") or []
         assert isinstance(secrets, list)
+        for name in secrets:
+            # The API rejects a create that attaches a secret the project lacks.
+            if name not in self.secrets:
+                raise LookupError(f"secret {name} not found")
         sandbox_env = {**env, **{name: "DAYTONA_SECRET_PLACEHOLDER" for name in secrets}}
         return self._sandbox(str(kwargs.get("name")), sandbox_env, dockerfile="")
 
@@ -139,7 +147,8 @@ class FakeWorld:
         self.deleted_secrets.append(name)
 
     def _follow_build_logs(self, image_id: str, *, on_logs: Callable[[str], object], **_: object) -> None:
-        on_logs(f"intentional-build-failure-{RUN}\n")
+        if not self.empty_build_logs:
+            on_logs(f"intentional-build-failure-{RUN}\n")
 
     # -- sandbox ----------------------------------------------------------
     def _sandbox(self, name: str, env: Mapping[str, str], *, dockerfile: str) -> MagicMock:
@@ -196,11 +205,13 @@ class FakeWorld:
             return _result(0, "abc1234 add daytona-note")
         return _result(0, "")
 
-    @staticmethod
-    def _interpret(code: str) -> InterpreterResult:
+    def _interpret(self, code: str) -> InterpreterResult:
         return InterpreterResult(
-            process=InterpreterProcess(process_id="p", exit_code=0, signal=None, reason=None),
+            process=InterpreterProcess(
+                process_id="p", exit_code=self.interpreter_exit_code, signal=None, reason=None
+            ),
             logs=InterpreterLogs(stdout="Hello World from code!\n"),
+            error=self.interpreter_error,
         )
 
 
@@ -264,40 +275,65 @@ def test_build_logs_reads_the_failed_build_through_the_error_image_id(
 # -- a failed check exits non-zero ------------------------------------------
 
 
+# Each case names the FAIL line the injected failure must produce, so an
+# unrelated error cannot pass the test.
 @pytest.mark.parametrize(
-    ("name", "override"),
+    ("name", "override", "reported"),
     [
-        ("exec_command", (r"Hello World from CMD", 1, "")),
-        ("lifecycle", (r"Hello World from run", 2, "")),
-        ("file_operations", (r"script\.sh$", 127, "not found")),
-        ("git_ops", (r"command -v git", 100, "apt failed")),
+        ("exec_command", (r"Hello World from CMD", 1, ""), r"FAIL.* command failed \(exit=1\)"),
+        ("lifecycle", (r"Hello World from run", 2, ""), r"FAIL.* run failed \(exit=2\)"),
+        (
+            "file_operations",
+            (r"script\.sh$", 127, "not found"),
+            r"FAIL.* the uploaded script failed \(exit=127\)",
+        ),
+        ("git_ops", (r"command -v git", 100, "apt failed"), r"FAIL.* could not ensure git: apt failed"),
     ],
 )
 def test_failed_command_fails_the_example(
-    run_example: Callable[..., tuple[int, FakeWorld]], name: str, override: Override
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+    name: str,
+    override: Override,
+    reported: str,
 ) -> None:
     code, world = run_example(name, override)
     assert code == 1
+    assert re.search(reported, capsys.readouterr().out)
     assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
 
 
+@pytest.mark.parametrize(
+    ("exit_code", "error", "reported"),
+    [
+        (1, None, r"FAIL.* code failed \(exit=1, error=None\)"),
+        (0, InterpreterError(name="NameError", value="x"), r"FAIL.* code failed \(exit=0, error=.*NameError"),
+    ],
+)
 def test_failed_interpreter_run_fails_exec_command(
     run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+    exit_code: int,
+    error: Optional[InterpreterError],
+    reported: str,
 ) -> None:
     world = FakeWorld()
-    failed = InterpreterResult(
-        process=InterpreterProcess(process_id="p", exit_code=1, signal=None, reason=None)
-    )
-    original = world._sandbox
-
-    def sandbox(*args: object, **kwargs: object) -> MagicMock:
-        box = original(*args, **kwargs)  # type: ignore[arg-type]
-        box.interpreter.run.side_effect = lambda code, **_: failed
-        return box
-
-    world._sandbox = sandbox  # type: ignore[method-assign]
+    world.interpreter_exit_code = exit_code
+    world.interpreter_error = error
     code, _ = run_example("exec_command", world=world)
     assert code == 1
+    assert re.search(reported, capsys.readouterr().out)
+
+
+def test_build_logs_fails_when_the_failed_build_log_is_empty(
+    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = FakeWorld()
+    world.fail_builds_containing = "intentional-build-failure-"
+    world.empty_build_logs = True
+    code, _ = run_example("build_logs", world=world)
+    assert code == 1
+    assert "the failed build's log was empty" in capsys.readouterr().out
 
 
 # -- secrets_env ------------------------------------------------------------
@@ -316,19 +352,55 @@ def test_secrets_env_uses_a_run_scoped_secret_it_never_overwrites(
 
 
 @pytest.mark.parametrize(
-    "override",
+    ("override", "reported"),
     [
-        pytest.param((r'"\$LOG_LEVEL"', 0, "info"), id="env-mismatch"),
-        pytest.param((r'"\$EXAMPLE_API_KEY_', 0, f"sk-secret-{RUN}"), id="secret-leak"),
-        pytest.param((r'"\$EXAMPLE_API_KEY_', 0, ""), id="placeholder-missing"),
+        pytest.param(
+            (r'"\$LOG_LEVEL"', 0, "info"),
+            r'FAIL.* \$LOG_LEVEL = "info" \(expected "debug", exit=0\)',
+            id="env-mismatch",
+        ),
+        pytest.param(
+            (r'"\$LOG_LEVEL"', 1, "debug"),
+            r'FAIL.* \$LOG_LEVEL = "debug" \(expected "debug", exit=1\)',
+            id="env-read-failed",
+        ),
+        pytest.param(
+            (r'"\$EXAMPLE_API_KEY_', 0, f"sk-secret-{RUN}"),
+            r"FAIL.* leaked the real secret value",
+            id="secret-leak",
+        ),
+        pytest.param(
+            (r'"\$EXAMPLE_API_KEY_', 0, ""),
+            r"FAIL.* is not set inside the sandbox",
+            id="placeholder-missing",
+        ),
+        pytest.param(
+            (r'"\$EXAMPLE_API_KEY_', 1, "x"),
+            r"FAIL.* reading \$EXAMPLE_API_KEY_\w+ failed \(exit=1\)",
+            id="secret-read-failed",
+        ),
     ],
 )
 def test_secrets_env_failed_check_exits_non_zero(
-    run_example: Callable[..., tuple[int, FakeWorld]], override: Override
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+    override: Override,
+    reported: str,
 ) -> None:
     code, world = run_example("secrets_env", override)
     assert code == 1
+    assert re.search(reported, capsys.readouterr().out)
     assert world.deleted_secrets == [f"EXAMPLE_API_KEY_{RUN.upper()}"]
+
+
+def test_secrets_env_fails_when_it_cannot_delete_its_secret(
+    run_example: Callable[..., tuple[int, FakeWorld]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = FakeWorld()
+    world.client.secret.delete.side_effect = RuntimeError("delete failed")
+    code, _ = run_example("secrets_env", world=world)
+    assert code == 1
+    assert re.search(r"FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: delete failed", capsys.readouterr().out)
 
 
 def test_secrets_env_deletes_its_secret_when_listing_fails(
@@ -354,38 +426,56 @@ def test_secrets_env_leaves_secrets_it_did_not_create(
 # -- volumes_share ----------------------------------------------------------
 
 
-def test_volumes_share_reports_a_failed_write_at_its_source(monkeypatch: pytest.MonkeyPatch) -> None:
+def _patch_volumes_share(monkeypatch: pytest.MonkeyPatch, world: FakeWorld) -> ModuleType:
     import volumes_share
 
-    world = FakeWorld(((r"> /data/message\.txt", 1, "read-only file system"),))
     monkeypatch.setattr(volumes_share, "Daytona", lambda config: SimpleNamespace(v2=world.client))
     monkeypatch.setattr(volumes_share, "time", SimpleNamespace(sleep=lambda seconds: None))
+    # DAYTONA_KEEP in the caller's shell would skip the cleanup under test.
+    monkeypatch.setattr(volumes_share, "KEEP", False)
+    return volumes_share
+
+
+def _volume_world(read_fails: bool = False) -> FakeWorld:
+    """A world whose sandboxes share /data/message.txt."""
+    contents: list[str] = []
+    world = FakeWorld()
+    original = world._run
+
+    def run(command: str, env: Mapping[str, str], dockerfile: str) -> ProcessResult:
+        if match := re.search(r"echo (\S+) >>? /data/message\.txt", command):
+            contents.append(match.group(1))
+            return _result(0, "")
+        if read_fails and command.endswith("then cat /data/message.txt; fi"):
+            return _result(1, "Input/output error")
+        if "/data/message.txt" in command:
+            return _result(0, "\n".join(contents))
+        return original(command, env, dockerfile)
+
+    world._run = run  # type: ignore[method-assign]
+    return world
+
+
+def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    world = _volume_world()
+    assert _patch_volumes_share(monkeypatch, world).main() == 0
+    assert len(world.deleted_volumes) == 1
+
+
+def test_volumes_share_reports_a_failed_write_at_its_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    world = FakeWorld(((r"> /data/message\.txt", 1, "read-only file system"),))
+    volumes_share = _patch_volumes_share(monkeypatch, world)
     with pytest.raises(RuntimeError, match=r"/data/message\.txt.*exit=1.*read-only file system"):
         volumes_share.main()
     assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
     assert len(world.deleted_volumes) == 1
 
 
-def test_volumes_share_round_trip_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
-    import volumes_share
-
-    contents: list[str] = []
-
-    def data(command: str) -> str:
-        if match := re.search(r"echo (\S+) >>? /data/message\.txt", command):
-            contents.append(match.group(1))
-            return ""
-        return "\n".join(contents)
-
-    world = FakeWorld()
-    original = world._run
-
-    def run(command: str, env: Mapping[str, str], dockerfile: str) -> ProcessResult:
-        if "/data/message.txt" in command:
-            return _result(0, data(command))
-        return original(command, env, dockerfile)
-
-    world._run = run  # type: ignore[method-assign]
-    monkeypatch.setattr(volumes_share, "Daytona", lambda config: SimpleNamespace(v2=world.client))
-    monkeypatch.setattr(volumes_share, "time", SimpleNamespace(sleep=lambda seconds: None))
-    assert volumes_share.main() == 0
+def test_volumes_share_reports_a_failed_read_instead_of_a_partial_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    world = _volume_world(read_fails=True)
+    volumes_share = _patch_volumes_share(monkeypatch, world)
+    with pytest.raises(RuntimeError, match=r"failed \(exit=1\): Input/output error"):
+        volumes_share.main()
+    assert len(world.deleted_volumes) == 1

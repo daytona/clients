@@ -12,7 +12,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -34,6 +34,8 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
         encoding: 'utf8',
         env: {
           ...process.env,
+          // DAYTONA_KEEP would make volumes_share skip its cleanup.
+          DAYTONA_KEEP: '',
           DAYTONA_API_KEY: 'test-key',
           EXAMPLE_FAKE_SCENARIO: JSON.stringify(scenario),
           EXAMPLE_FAKE_RECORD: recordPath,
@@ -42,8 +44,12 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
         timeout: 60_000,
       },
     )
+    const output = `${child.stdout}${child.stderr}`
+    if (!existsSync(recordPath)) {
+      throw new Error(`${entry} exited (status=${child.status}, signal=${child.signal}) before writing its record:\n${output}`)
+    }
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record
-    return { code: child.status, record, output: `${child.stdout}${child.stderr}` }
+    return { code: child.status, record, output }
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -64,17 +70,30 @@ for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secr
   })
 }
 
-for (const [name, override] of [
-  ['exec-command', ['Hello World from CMD', 1, '']],
-  ['file-operations', ['script\\.sh$', 127, 'not found']],
-  ['git', ['command -v git', 100, 'apt failed']],
+// Each case names the FAIL line the injected failure must produce, so an
+// unrelated crash (also exit 1) cannot pass the test.
+for (const [name, override, reported] of [
+  ['exec-command', ['Hello World from CMD', 1, ''], /FAIL.* command failed \(exit=1\)/],
+  ['file-operations', ['script\\.sh$', 127, 'not found'], /FAIL.* the uploaded script failed \(exit=127\)/],
+  ['git', ['command -v git', 100, 'apt failed'], /FAIL.* could not ensure git: apt failed/],
+  ['lifecycle', ['Hello World from run', 2, ''], /FAIL.* run failed \(exit=2\)/],
 ] as const) {
   test(`${name} exits non-zero when its command fails`, () => {
     const { code, record, output } = runExample(example(name), { overrides: [[...override]] })
     assert.equal(code, 1, output)
+    assert.match(output, reported)
     assertCleanedUp(record)
   })
 }
+
+test('build-logs fails when the failed build log is empty', () => {
+  const { code, output } = runExample(example('build-logs'), {
+    failBuildsContaining: 'intentional-build-failure-',
+    emptyBuildLogs: true,
+  })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* the failed build's log was empty/)
+})
 
 test('build-logs reads the failed build through the error image id', () => {
   const { code, record, output } = runExample(example('build-logs'), { failBuildsContaining: 'intentional-build-failure-' })
@@ -86,6 +105,13 @@ test('build-logs reads the failed build through the error image id', () => {
 test('exec-command exits non-zero when the interpreter run fails', () => {
   const { code, output } = runExample(example('exec-command'), { interpreterExitCode: 1 })
   assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* code failed \(exit=1, error=none\)/)
+})
+
+test('exec-command exits non-zero when the interpreter code raises', () => {
+  const { code, output } = runExample(example('exec-command'), { interpreterError: 'NameError' })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* code failed \(exit=0, error=NameError\)/)
 })
 
 test('secrets-env uses a run-scoped secret it never overwrites, and deletes it', () => {
@@ -98,14 +124,17 @@ test('secrets-env uses a run-scoped secret it never overwrites, and deletes it',
   assert.deepEqual(record.deletedSecrets, [name])
 })
 
-for (const [label, scenario] of [
-  ['an env var mismatch', { overrides: [['"\\$LOG_LEVEL"', 0, 'info']] }],
-  ['a leaked secret', { leakSecrets: true }],
-  ['a missing placeholder', { overrides: [['"\\$EXAMPLE_API_KEY_', 0, '']] }],
-] as [string, Scenario][]) {
+for (const [label, scenario, reported] of [
+  ['an env var mismatch', { overrides: [['"\\$LOG_LEVEL"', 0, 'info']] }, /FAIL.* \$LOG_LEVEL = "info" \(expected "debug", exit=0\)/],
+  ['a failed env var read', { overrides: [['"\\$LOG_LEVEL"', 1, 'debug']] }, /FAIL.* \$LOG_LEVEL = "debug" \(expected "debug", exit=1\)/],
+  ['a leaked secret', { leakSecrets: true }, /FAIL.* leaked the real secret value/],
+  ['a missing placeholder', { overrides: [['"\\$EXAMPLE_API_KEY_', 0, '']] }, /FAIL.* is not set inside the sandbox/],
+  ['a failed secret read', { overrides: [['"\\$EXAMPLE_API_KEY_', 1, 'x']] }, /FAIL.* reading \$EXAMPLE_API_KEY_\w+ failed \(exit=1\)/],
+] as [string, Scenario, RegExp][]) {
   test(`secrets-env exits non-zero on ${label}`, () => {
     const { code, record, output } = runExample(example('secrets-env'), scenario)
     assert.equal(code, 1, output)
+    assert.match(output, reported)
     assert.equal(record.deletedSecrets.length, 1)
     assert.match(record.deletedSecrets[0], SECRET_NAME)
   })
@@ -119,6 +148,12 @@ test('secrets-env deletes its secret when listing fails', () => {
   assert.match(record.deletedSecrets[0], SECRET_NAME)
 })
 
+test('secrets-env fails when it cannot delete its secret', () => {
+  const { code, output } = runExample(example('secrets-env'), { secretDeleteThrows: 'delete failed' })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* delete secret EXAMPLE_API_KEY_\w+ failed: Error: delete failed/)
+})
+
 test('secrets-env leaves a secret it did not create', () => {
   const { code, record, output } = runExample(example('secrets-env'), { secretSetThrows: 'already exists' })
   assert.equal(code, 1, output)
@@ -128,6 +163,16 @@ test('secrets-env leaves a secret it did not create', () => {
 test('volumes_share round-trips through the volume', () => {
   const { code, record, output } = runExample('volumes_share.ts', { volumeData: true })
   assert.equal(code, 0, output)
+  assert.equal(record.deletedVolumes.length, 1)
+})
+
+test('volumes_share reports a failed read instead of a partial result', () => {
+  const { code, record, output } = runExample('volumes_share.ts', {
+    volumeData: true,
+    overrides: [['then cat /data/message\\.txt; fi$', 1, 'Input/output error']],
+  })
+  assert.equal(code, 1, output)
+  assert.match(output, /failed \(exit=1\): Input\/output error/)
   assert.equal(record.deletedVolumes.length, 1)
 })
 

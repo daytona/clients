@@ -123,6 +123,7 @@ def main() -> int:
                 # A failed build leaves no sandbox; the error's image id reads
                 # the failed build's output.
                 chunks: list[str] = []
+                read_failed = False
                 try:
                     daytona.images.follow_build_logs(
                         exc.image_id, on_logs=chunks.append, timeout=60
@@ -131,8 +132,13 @@ def main() -> int:
                     # Reading build logs can fail; report the error to the user.
                     failed(f"the failed build's log could not be read: {read_exc}")
                     ok = False
+                    read_failed = True
                 failed_log = "".join(chunks)
-                if failed_log:
+                if not failed_log:
+                    if not read_failed:
+                        failed("the failed build's log was empty")
+                    ok = False
+                else:
                     show(failed_log)
                     # A state line alone does not prove output was
                     # retrieved. Require our failing command's output.

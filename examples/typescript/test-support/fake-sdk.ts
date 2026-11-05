@@ -20,6 +20,11 @@ export interface Scenario {
   /** [regex, exitCode, output]: the first pattern matching a command answers it. */
   overrides?: [string, number, string][]
   interpreterExitCode?: number
+  /** The interpreter run raises this exception name (exit code stays 0). */
+  interpreterError?: string
+  /** followBuildLogs delivers no output. */
+  emptyBuildLogs?: boolean
+  secretDeleteThrows?: string
   failBuildsContaining?: string
   secretSetThrows?: string
   secretIterThrows?: string
@@ -94,6 +99,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
         process: { exitCode: scenario.interpreterExitCode ?? 0 },
         logs: { stdout: 'Hello World from code!\n', stderr: '' },
         results: [],
+        error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
       }),
     },
     fs: {
@@ -133,6 +139,8 @@ const fake = {
   create: async (image: string, options: { name?: string; env?: { [k: string]: string }; envVars?: { [k: string]: string }; secrets?: string[] } = {}) => {
     const env = { ...options.env, ...options.envVars }
     for (const name of options.secrets ?? []) {
+      // The API rejects a create that attaches a secret the project lacks.
+      if (!secrets.has(name)) throw new Error(`secret ${name} not found`)
       env[name] = scenario.leakSecrets ? (secrets.get(name) ?? '') : 'DAYTONA_SECRET_PLACEHOLDER'
     }
     const box = sandbox(options.name ?? image, env, '')
@@ -157,7 +165,7 @@ const fake = {
     list: async () => ({ items: [], nextCursor: undefined }),
     followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
       record.followedImages.push(imageId)
-      options.onLogs(`intentional-build-failure-${RUN}\n`)
+      if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)
       return {}
     },
   },
@@ -175,6 +183,7 @@ const fake = {
     },
     list: async () => ({ items: [...secrets.keys()].map((name) => ({ name })) }),
     delete: async (name: string) => {
+      if (scenario.secretDeleteThrows) throw new Error(scenario.secretDeleteThrows)
       secrets.delete(name)
       record.deletedSecrets.push(name)
     },

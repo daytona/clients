@@ -28,8 +28,8 @@ def basic_exec(sandbox: Sandbox) -> bool:
         info(f"cmd: {cmd.output.strip()}")
 
     code = sandbox.interpreter.run('print("Hello World from code!")', language="python")
-    if code.process.exit_code != 0:
-        failed(f"code failed (exit={code.process.exit_code})")
+    if code.process.exit_code != 0 or code.error is not None:
+        failed(f"code failed (exit={code.process.exit_code}, error={code.error})")
         ok = False
     else:
         info(f"code: {code.logs.stdout.strip()}")

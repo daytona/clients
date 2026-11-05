@@ -69,7 +69,7 @@ def main() -> int:
 
         print("2. sandbox B reads A's file and appends a line")
         b = new_box("vol-b")
-        got = sh(b, "cat /data/message.txt 2>/dev/null || echo '<missing>'")
+        got = sh(b, "if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi")
         if got == marker:
             print("PASS: B read A's file after A was deleted")
         else:
@@ -85,7 +85,7 @@ def main() -> int:
 
         print("3. sandbox C reads both writers' data")
         c = new_box("vol-c")
-        contents = sh(c, "cat /data/message.txt 2>/dev/null || true")
+        contents = sh(c, "if [ -e /data/message.txt ]; then cat /data/message.txt; fi")
         if marker in contents and marker_b in contents:
             print("PASS: C sees changes from both A and B")
         else:

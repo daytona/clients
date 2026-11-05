@@ -118,13 +118,16 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 
 ### Static validation (no API access needed)
 
-`tsc --noEmit` and `mypy --strict` over the examples, plus offline tests that run
-each example against a fake client and check its exit code and cleanup
-(`typescript/examples.test.ts`, `python/test_examples.py`). CI runs the same
-command (`Examples CI`). The Python checks need the SDK's dev extras:
+`tsc --noEmit` and `mypy --strict` over every example, plus offline tests
+(`typescript/examples.test.ts`, `python/test_examples.py`) that run the
+exec-command, file-operations, git, lifecycle, secrets-env, dynamic-build,
+build-logs and volumes-share examples (and the Python dockerfile-sandbox)
+against a fake client and check their exit codes and cleanup. CI runs the same
+command (`Examples CI`). `check` uses `../python/.venv` when it exists, so
+install the SDK's dev extras there:
 
 ```bash
-(cd ../python && pip install -e ".[dev]")
+(cd ../python && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]")
 ./run-examples.sh check
 ```
 
