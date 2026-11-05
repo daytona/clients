@@ -17,7 +17,7 @@ import type {
 } from './types.js'
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
-import { encodeQuery, HttpTransport, sseMessages, strictUriEncode } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, sseMessages, strictUriEncode } from './http.js'
 import { BadRequestError, DaytonaError } from './errors/DaytonaError.js'
 
 export type Match = FileMatch
@@ -64,10 +64,6 @@ export interface WatchDirOptions {
   recursive?: boolean
   onExit?: (err?: Error) => void
   onOverflow?: () => void
-}
-
-function abortError(error: unknown): DOMException | undefined {
-  return error instanceof DOMException && error.name === 'AbortError' ? error : undefined
 }
 
 /** The `Headers`-shaped part of a fetch response we actually depend on. */
@@ -398,8 +394,7 @@ export class FileSystemService {
         rejectStarted(error)
         notifyExit(error)
       } catch (error) {
-        const aborted = abortError(error)
-        if (aborted && stopRequested) {
+        if (isAbortError(error) && stopRequested) {
           if (!started) rejectStarted(new DaytonaError('filesystem watch stopped before start'))
           notifyExit()
           return
