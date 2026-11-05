@@ -193,7 +193,7 @@ jobs:
       # The source to build. Full history + tags: the stable-version check
       # (`main` ancestry), the v0 pin and the "tag already elsewhere" check
       # read them. Nothing from this checkout is executed in this job.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
@@ -201,7 +201,7 @@ jobs:
           persist-credentials: false
       # The helpers this job runs come from the DISPATCH commit (a protected
       # branch, by the environment's branch policy), never from source_ref.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           path: .publish-tools
@@ -435,7 +435,7 @@ jobs:
       run:
         working-directory: python
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -510,7 +510,7 @@ jobs:
       run:
         working-directory: typescript
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -520,7 +520,7 @@ jobs:
       # No `cache: npm` here on purpose: release builds never restore a cache
       # (a poisoned cache would ship). A cold `npm ci` costs seconds; the
       # publish job never touches source or cache at all.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Stamp version into the runner's checkout (not committed)
@@ -597,7 +597,7 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -692,7 +692,7 @@ jobs:
       - name: Download the PyPI distributions
         id: pypi_download
         if: needs.gate.outputs.pypi != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pypi-dist
           path: pypi-dist/
@@ -710,7 +710,7 @@ jobs:
       - name: Set up Node for npm
         id: npm_node
         if: needs.gate.outputs.npm != ''
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -733,7 +733,7 @@ jobs:
       - name: Download the npm tarball
         id: npm_download
         if: needs.gate.outputs.npm != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-pack
           path: pack/
@@ -783,7 +783,7 @@ jobs:
       - name: Download the CLI release assets
         id: cli_download
         if: needs.gate.outputs.cli != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: cli-dist
           path: cli-dist/

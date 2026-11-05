@@ -7124,7 +7124,12 @@ describe('toolbox service request shaping', () => {
       const traceparent = enabledHeaders.get('traceparent') ?? ''
       expect(traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/)
       expect(traceparent).not.toMatch(/^00-0{32}-/)
-      await provider.forceFlush()
+      // The span may already be exporting when forceFlush starts; the
+      // in-memory exporter completes through a setTimeout, which the suite's
+      // fake timers only fire when advanced.
+      const flushed = provider.forceFlush()
+      await jest.advanceTimersByTimeAsync(0)
+      await flushed
       expect(exporter.getFinishedSpans().map((span) => span.name)).toContain('daytona.get /api-keys/current')
 
       process.env.DAYTONA_OTEL_ENABLED = 'yes'
