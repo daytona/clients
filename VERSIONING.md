@@ -19,8 +19,8 @@ moves), and the platform reports the same number from its health endpoint.
 What follows from that:
 
 - **No version is ever bumped in git.** The `version` fields in
-  `python/pyproject.toml`, `typescript/package.json` and
-  `typescript/src/version.ts` are placeholders, realigned to the latest
+  `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
+  `sdk-typescript/src/version.ts` are placeholders, realigned to the latest
   published release when convenient and overwritten at publish time.
 - **One version, every target.** The publish workflow
   ([RELEASING.md](RELEASING.md)) takes a single `vX.Y.Z[-pre.N]` input and
@@ -109,8 +109,8 @@ Version sources of truth:
 | What | Where | Role |
 |------|-------|------|
 | The version | the `version` input of the publish run, recorded as the `v*` tag on the published commit | **authoritative** |
-| Python manifest | `python/pyproject.toml` → `[project].version` (PEP 440 spelling) | placeholder, restamped from the tag at publish |
-| TypeScript manifest | `typescript/package.json` → `version`, mirrored into `typescript/src/version.ts` by `npm run stamp-version` | placeholder, restamped from the tag at publish |
+| Python manifest | `sdk-python/pyproject.toml` → `[project].version` (PEP 440 spelling) | placeholder, restamped from the tag at publish |
+| TypeScript manifest | `sdk-typescript/package.json` → `version`, mirrored into `sdk-typescript/src/version.ts` by `npm run stamp-version` | placeholder, restamped from the tag at publish |
 | CLI | `cli/internal/app/app.go` `Version` (`0.0.0-dev` default) | stamped from the tag by `hack/build.sh` ldflags at publish |
 
 The derivation from the version, per target:

@@ -10,8 +10,8 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
 node upgrade/scripts/sync-mapping.mjs --check
 node upgrade/scripts/gen-guide.mjs --check
-if [ ! -f typescript/node_modules/typescript/package.json ]; then
-  (cd typescript && npm ci --no-audit --no-fund >/dev/null)
+if [ ! -f sdk-typescript/node_modules/typescript/package.json ]; then
+  (cd sdk-typescript && npm ci --no-audit --no-fund >/dev/null)
 fi
 node --test upgrade/scripts/*.test.mjs
 node upgrade/scripts/check-v2-surface.mjs

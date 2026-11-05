@@ -159,8 +159,8 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 
 | SDK | Registry | Package | Import / usage name | Version |
 |-----|----------|---------|---------------------|---------|
-| Python | [PyPI](https://pypi.org/project/daytona/) | `daytona` | `import daytona` | PEP 440 spelling of the version, stamped into `python/pyproject.toml` at publish |
-| TypeScript | [npm](https://www.npmjs.com/package/@daytona/sdk) | `@daytona/sdk` | `from '@daytona/sdk'` | the version without `v`, stamped into `typescript/package.json` + `src/version.ts` at publish |
+| Python | [PyPI](https://pypi.org/project/daytona/) | `daytona` | `import daytona` | PEP 440 spelling of the version, stamped into `sdk-python/pyproject.toml` at publish |
+| TypeScript | [npm](https://www.npmjs.com/package/@daytona/sdk) | `@daytona/sdk` | `from '@daytona/sdk'` | the version without `v`, stamped into `sdk-typescript/package.json` + `src/version.ts` at publish |
 | CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + Homebrew `daytona-alpha` | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish |
 
 > **Registries reject re-uploading an existing version.** A version is
@@ -179,10 +179,10 @@ From the repository root:
 
 ```bash
 # TypeScript: types, tests, and a clean build must pass
-cd typescript && npm install && npm run typecheck && npm test && npm run build && cd ..
+cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build && cd ..
 
 # Python: unit tests
-cd python && .venv/bin/pytest && cd ..   # or your preferred env
+cd sdk-python && .venv/bin/pytest && cd ..   # or your preferred env
 ```
 
 Derive the registry versions with the same helper the workflow runs:
@@ -218,7 +218,7 @@ Store a PyPI API token (from <https://pypi.org/manage/account/token/>) in
 ### Publish
 
 ```bash
-cd python
+cd sdk-python
 
 # 1. Stamp the derived version (the `pypi=` value) into the working tree — do not commit it.
 #    Edit pyproject.toml -> [project].version = "X.Y.ZaK"  (PEP 440 alpha — see the alpha-only note above)
@@ -274,7 +274,7 @@ You must be logged in to npm as a user with publish rights on `@daytona/sdk`.
 ### Publish
 
 ```bash
-cd typescript
+cd sdk-typescript
 
 # 1. Stamp the derived version (the `npm=` value) into the working tree — do not commit it.
 npm version X.Y.Z-alpha.K --no-git-tag-version  # alpha-only until general availability (updates package.json + lockfile)
@@ -307,9 +307,9 @@ npm view @daytona/sdk@alpha version   # the alpha dist-tag; `latest` is the pre-
 
 ## 3. Post-release
 
-Discard the stamped manifests (`git checkout -- python/pyproject.toml
-typescript/package.json typescript/package-lock.json
-typescript/src/version.ts`) — the CI path does not read the tracked `version`
+Discard the stamped manifests (`git checkout -- sdk-python/pyproject.toml
+sdk-typescript/package.json sdk-typescript/package-lock.json
+sdk-typescript/src/version.ts`) — the CI path does not read the tracked `version`
 fields either — and tag the published commit `vX.Y.Z[-pre.N]`.
 
 ## Publish checklist

@@ -90,9 +90,9 @@ Mint a project API key from the dashboard (it needs sandbox read/write permissio
 ```bash
 cd examples
 
-# Build/link deps once (uses the local SDK via file:../typescript).
+# Build/link deps once (uses the local SDK via file:../sdk-typescript).
 npm install
-(cd ../python && uv pip install -e . || pip install -e .)
+(cd ../sdk-python && uv pip install -e . || pip install -e .)
 
 # TypeScript
 DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \

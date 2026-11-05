@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
 // Installed by the mapping CI job; never use emitted declarations from dist.
-const require = createRequire(new URL('../../typescript/package.json', import.meta.url));
+const require = createRequire(new URL('../../sdk-typescript/package.json', import.meta.url));
 const ts = require('typescript');
 
 function walk(node, visit) {
@@ -65,7 +65,7 @@ async function check(${parameters.join(', ')}) {\n${form}\n}\n`;
 }
 
 export function checkTsForms(mapping, sdkRoot) {
-  const directory = join(sdkRoot, 'typescript');
+  const directory = join(sdkRoot, 'sdk-typescript');
   const config = ts.readConfigFile(join(directory, 'tsconfig.json'), ts.sys.readFile);
   if (config.error) throw new SyntaxError(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, directory);

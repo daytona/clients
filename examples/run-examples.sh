@@ -20,7 +20,7 @@ set -uo pipefail
 cd "$(dirname "$0")"
 WHICH="${1:-both}"
 
-PY_BIN="../python/.venv/bin/python"
+PY_BIN="../sdk-python/.venv/bin/python"
 [[ -x "$PY_BIN" ]] || PY_BIN="python3"
 
 TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox build-logs pagination secrets-env)

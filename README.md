@@ -13,8 +13,8 @@ processes, files, Git, code execution, ports, LSP and computer use.
 .
 ├── cli/          daytona CLI (Go)
 ├── contract/     OpenAPI contracts the SDKs and CLI generate their wire types from
-├── python/       daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
-├── typescript/   @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
+├── sdk-python/       daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
+├── sdk-typescript/   @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
 ├── scripts/      bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
 │                 (+ resolve-v0-tag.sh, bundle_v0_python.py, check-no-bundled-v0.sh, changelog/)
 ├── v0-sdk-version                         — the pinned 0.x tag the v0 namespace vendors
@@ -102,8 +102,8 @@ processes, files, Git, code execution, ports, LSP and computer use.
 ## Verification
 
 ```bash
-(cd python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run build)
+(cd sdk-python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build)
 (cd cli && go vet ./... && go test ./...)
 scripts/test-upgrade.sh   # both daytona-upgrade packages + mapping / guide drift
 ```

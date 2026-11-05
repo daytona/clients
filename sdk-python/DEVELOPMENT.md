@@ -75,12 +75,12 @@ scripts/bundle-v0.sh --clean
 - `--src DIR` uses an existing local checkout of `daytona/clients` at that tag
   instead of cloning one.
 - `--clean` removes the bundle from `src/daytona/v0/` and empties the `v0-sdk`
-  extra in `pyproject.toml`. Restore `typescript/package.json` and
+  extra in `pyproject.toml`. Restore `sdk-typescript/package.json` and
   `package-lock.json` with `git` if needed.
 
 **What the Python helper (`scripts/bundle_v0_python.py`) does:**
 
-1. Copies `<sdk-python>/src/daytona/` to `python/src/daytona/v0/`.
+1. Copies `<sdk-python>/src/daytona/` to `sdk-python/src/daytona/v0/`.
 2. Rewrites every absolute `daytona` import to `daytona.v0` and fails if any
    absolute import remains.
 3. Replaces `importlib.metadata.version("daytona")` (which would otherwise
@@ -107,7 +107,7 @@ committed as `v0-sdk = []`; the bundle script fills it at publish time.
 scripts/bundle-v0.sh --lang python
 
 # 2. Install into a scratch venv and verify the import works
-cd python
+cd sdk-python
 uv venv /tmp/daytona-v0-smoke
 uv pip install --python /tmp/daytona-v0-smoke/bin/python -e '.[v0-sdk]'
 /tmp/daytona-v0-smoke/bin/python -c "

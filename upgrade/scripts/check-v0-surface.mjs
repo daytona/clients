@@ -58,7 +58,7 @@ if (problems.length > 0) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-const ts = createRequire(new URL('../../typescript/package.json', import.meta.url))('typescript');
+const ts = createRequire(new URL('../../sdk-typescript/package.json', import.meta.url))('typescript');
 
 async function sources(directory, extension) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -251,14 +251,14 @@ for (const [language, names] of [['py', exportedPython], ['ts', exportedTs]]) {
 // exports that the 2.x root also has, plus names only the 2.x root exports
 // (DaytonaV2Client, V0_API_URL, ...), read from this checkout's SDK roots.
 const sdkRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const rootPython = readFileSync(join(sdkRoot, 'python/src/daytona/__init__.py'), 'utf8');
+const rootPython = readFileSync(join(sdkRoot, 'sdk-python/src/daytona/__init__.py'), 'utf8');
 const rootPythonNames = new Set([
   ...[...(/__all__\s*=\s*\[([\s\S]*?)\]/.exec(rootPython)?.[1] ?? '').matchAll(/["'](\w+)["']/g)].map((match) => match[1]),
   ...[...rootPython.matchAll(/^\s*from \._client import (\w+) as \1/gm)].map((match) => match[1]),
   'v0',
   'v2',
 ]);
-const rootTs = collectRootTsExports(readFileSync(join(sdkRoot, 'typescript/src/index.ts'), 'utf8'));
+const rootTs = collectRootTsExports(readFileSync(join(sdkRoot, 'sdk-typescript/src/index.ts'), 'utf8'));
 const rootTsNames = rootTs.names;
 problems.push(...rootTs.problems);
 for (const [language, names, root] of [['py', exportedPython, rootPythonNames], ['ts', exportedTs, rootTsNames]]) {

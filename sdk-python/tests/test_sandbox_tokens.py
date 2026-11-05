@@ -3,7 +3,7 @@
 
 """Sandbox access tokens: mint, refresh, retry.
 
-Mirrors `sandbox access tokens` in `typescript/tests/unit.test.ts` (parity
+Mirrors `sandbox access tokens` in `sdk-typescript/tests/unit.test.ts` (parity
 contract): scoped mint requests, expiry-lead single-flight refresh,
 one re-mint + one retry on 401, lazy mint for key-configured handles, the
 caller-supplied-token guarantee, opaque create-response tokens, and

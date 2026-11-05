@@ -67,8 +67,8 @@ husky hooks. Scans need git 2.36 or later.
 
 | Path | What |
 |---|---|
-| `python/` | `daytona` (module `daytona`) — root client + `daytona.v2` + `daytona.v0` (bundled at publish) |
-| `typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
+| `sdk-python/` | `daytona` (module `daytona`) — root client + `daytona.v2` + `daytona.v0` (bundled at publish) |
+| `sdk-typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
 | `scripts/` | v0 bundling, release helpers, the changelog tool |
@@ -93,8 +93,8 @@ builds `v0` / `v2` and re-checks the URL fields then (`_refuse_url_fields`).
 Both refuse URL fields at any time; only later edits to other fields differ.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
-`version` fields in `python/pyproject.toml`, `typescript/package.json` and
-`typescript/src/version.ts` are placeholders, overwritten in the publish run
+`version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
+`sdk-typescript/src/version.ts` are placeholders, overwritten in the publish run
 ([RELEASING.md](RELEASING.md), [VERSIONING.md](VERSIONING.md)).
 
 **Changelog fragments.** Never edit `CHANGELOG.md` for unreleased work — it
@@ -135,8 +135,8 @@ the SDK does call fails as stale).
   break; if a drift test fails without an SDK change, treat it as a bug and
   flag it.
 - **Vendored wire types are generated from them — never hand-edit those
-  either.** `typescript/src/v2/gen/{toolbox,api}.ts`,
-  `python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models) and
+  either.** `sdk-typescript/src/v2/gen/{toolbox,api}.ts`,
+  `sdk-python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models) and
   `cli/gen/` type each wire boundary. After a contract refresh run
   `scripts/gen-contract-types.sh` (needs node, a JRE and Go) and let
   typecheck / mypy / `go build` surface what must adapt; CI runs it with
@@ -145,7 +145,7 @@ the SDK does call fails as stale).
 Enums: which are open is decided once, in the contract — every string enum
 in `contract/*.json` carries `x-daytona-open-enum` or `x-daytona-exact-enum`,
 and every generator reads the tag. The generated wire types are OPEN where tagged (TS `(string & {})` via
-`typescript/scripts/gen-contract.mjs`, which also checks its own output;
+`sdk-typescript/scripts/gen-contract.mjs`, which also checks its own output;
 Python `UNKNOWN_DEFAULT_OPEN_API` pseudo-members carrying the wire string, and
 no closed validator on an open inline enum), and every public SDK field backed by
 a contract enum is CLOSED known values + `'unknown'`, normalized at the
@@ -153,7 +153,7 @@ boundary, with the raw string on a `raw<Field>` / `raw_<field>` sibling.
 Vocabularies the contract does not declare as an enum (`ImageStatus`,
 `MacBootMode`, …) stay open until it does, as do the two the
 SDKs leave open on purpose (`LifecycleAction` on `lifecycle`, the interpreter
-`language`). Known lists come from `typescript/src/v2/gen/*-enums.ts` / the
+`language`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
 `daytona/v2/_gen` enums; never cast an open wire value into a closed public type.
 
 TypeScript: consumers import the alias layers as namespaces (`import type *
@@ -166,7 +166,7 @@ names for the Daytona API) — edit those, not the generated output. Python:
 pydantic v2 models (`from daytona.v2._gen.toolbox import ProcessDto`;
 `ProcessDto.model_validate(payload)` at the boundary, which also validates);
 regeneration needs node + a JRE (openapi-generator, tooling pinned under
-`python/gen/`).
+`sdk-python/gen/`).
 
 ## The CLI — `cli/`
 
@@ -187,8 +187,8 @@ Homebrew formulae (`cli/hack/homebrew/`).
 
 Both packages are a thin ROOT over one namespace per API major version:
 
-- **Root** (`python/src/daytona/__init__.py` + `_client.py`;
-  `typescript/src/index.ts` + `Daytona.ts`) exports only the client
+- **Root** (`sdk-python/src/daytona/__init__.py` + `_client.py`;
+  `sdk-typescript/src/index.ts` + `Daytona.ts`) exports only the client
   (`Daytona`, plus Python's `AsyncDaytona`), the flat shared `DaytonaConfig`
   (no API URL, no region; `target` v0-only and deprecated — it warns,
   pointing at v0's per-call `target` / `region_id`), the SHARED error
@@ -200,7 +200,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   a guiding `ImportError`; any other name is a plain `AttributeError`. In TS,
   `d.v0` is the 0.x SDK's own client (see "TS `d.v0` is the real v0 client"), so
   every v0 behaviour, including unbound detached methods, is 0.x's.
-- **`v2`** (`python/src/daytona/v2/`, `typescript/src/v2/`) is the SDK this
+- **`v2`** (`sdk-python/src/daytona/v2/`, `sdk-typescript/src/v2/`) is the SDK this
   repo writes; everything below this section describes it. Its client has NO
   API URL field either: it reads `DAYTONA_V2_API_URL`, else `DAYTONA_API_URL`,
   at construction, else `DEFAULT_V2_API_URL` (TS through a computed `globalThis.process` lookup, so
@@ -208,7 +208,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   on that). There is no client-level toolbox URL
   either: every sandbox response carries its own, and only a
   per-sandbox `toolbox_url` / `toolboxUrl` override remains.
-- **`v0`** (`python/src/daytona/v0/`, `typescript/src/v0/`) is the 0.x SDK
+- **`v0`** (`sdk-python/src/daytona/v0/`, `sdk-typescript/src/v0/`) is the 0.x SDK
   vendored from this repository's `release/v0` line at the PINNED tag and commit in
   `v0-sdk-version` (line 1 the tag, line 2 the commit it peels to; the single
   source of truth — a moved tag fails `resolve-v0-tag.sh --verify`,
@@ -230,8 +230,8 @@ Both packages are a thin ROOT over one namespace per API major version:
   bumping the pin to a 0.x release that has them. With that pin, config
   `target` is deprecated in 2.x only (Python `DeprecationWarning`, TS
   `@deprecated` + one `process.emitWarning`, the same text); the 0.x SDK
-  never deprecates it. `python/tests/test_v0_bundle.py` and
-  `typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
+  never deprecates it. `sdk-python/tests/test_v0_bundle.py` and
+  `sdk-typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
   sdk-ci and publish (skipped without a bundle). `d.v0` always passes `V0_API_URL`, so
   `DAYTONA_API_URL` never reaches v0. Python: v0's dependencies are the `v0-sdk`
   extra (never plain `v0`: pip < 26 on 3.10 parses `extra == 'v0'` as a
@@ -260,7 +260,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   registry on `globalThis[Symbol.for('@daytona/sdk/error-registry')]`, keyed
   by category name, so the ESM root and the CJS-only `./v0` copy share it; v2
   registers at module load, and the bundled v0 entry registers v0's classes
-  when it loads (appended by `typescript/scripts/bundle-v0.mjs`), so v0 error
+  when it loads (appended by `sdk-typescript/scripts/bundle-v0.mjs`), so v0 error
   classes imported from `@daytona/sdk/v0` are caught with no `d.v0` access. The aliases are
   class re-exports (usable as types). Version-specific errors are not
   re-exported at the root. Python's root `__getattr__` raises `ImportError`
@@ -280,7 +280,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   subclasses keep the native check only. A jest drift test fails if an exported
   error class is not keyed. `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
-  node16 fixture `typescript/scripts/cjs-types-fixture/` in the tarball smoke.
+  node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
 - **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DAYTONA_API_URL` → `DEFAULT_V2_API_URL` (the CLI mirrors this chain under its `--api-url` flag and above the profile's saved URL, `app.DefaultAPIURL` — keep the two defaults equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` and never reads `DAYTONA_API_URL` (passed explicitly as `api_url`/`apiUrl`). Blank = unset; no config field.
 - **TS `d.v0` is the real v0 client, loaded synchronously.** The getter
   builds the 0.x SDK's `Daytona` on first access through the package-internal
@@ -369,11 +369,11 @@ Both packages are a thin ROOT over one namespace per API major version:
 
 Paths below are inside the v2 namespace.
 
-| Concern | Python (`python/src/daytona/v2/`) | TypeScript (`typescript/src/v2/`) |
+| Concern | Python (`sdk-python/src/daytona/v2/`) | TypeScript (`sdk-typescript/src/v2/`) |
 |---------|---------------------------|-------------------------------|
 | Public exports | `__init__.py`, `_exports.py` | `index.ts` |
 | v2 client / sandbox handle (async-native `AsyncDaytona` / `AsyncSandbox`) | `daytona.py`, `sandbox.py` | `Daytona.ts`, `Sandbox.ts` |
-| Synchronous surface (`Daytona`, `Sandbox`, …) — GENERATED | `_sync/` package (one file per async module; `_sync/_runtime.py` is the hand-written glue) ← `python/gen/gen_sync.py`; bridge in `_bridge.py` | *(n/a — TS is async-only)* |
+| Synchronous surface (`Daytona`, `Sandbox`, …) — GENERATED | `_sync/` package (one file per async module; `_sync/_runtime.py` is the hand-written glue) ← `sdk-python/gen/gen_sync.py`; bridge in `_bridge.py` | *(n/a — TS is async-only)* |
 | Sans-I/O request/parse layer | `_core.py` | (inline per namespace + `http.ts`) |
 | Transports (sync + async / axios + fetch-SSE) | `_transport.py`, `http.py` | `http.ts` |
 | Process engine namespace | `process.py` | `Process.ts` |
@@ -405,8 +405,8 @@ skipping exist only in the TypeScript tool).
   `node upgrade/scripts/check-v2-surface.mjs` checks every v2 suggestion's call
   and argument names against the SDK sources in this repository.
 - **Runtime guard.** The moved client members are also the root clients'
-  runtime guard (`_MOVED_TO_V0` in `python/src/daytona/_client.py`,
-  `MOVED_TO_V0` in `typescript/src/Daytona.ts`); a test in each SDK pins them
+  runtime guard (`_MOVED_TO_V0` in `sdk-python/src/daytona/_client.py`,
+  `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them
   to the mapping.
 - The tools never rewrite v0 code to v2: `--suggest-v2` only writes
   `daytona-v2:` comments. `docs.base` in the mapping is the Daytona docs home
@@ -495,18 +495,18 @@ skipping exist only in the TypeScript tool).
 
 ## Shipped READMEs are public
 
-`python/README.md` and `typescript/README.md` are packaged (PyPI `readme`,
+`sdk-python/README.md` and `sdk-typescript/README.md` are packaged (PyPI `readme`,
 npm `files`) and render on the registry pages. They are user-facing only:
 install, quickstart, surface overview, errors, `DAYTONA_*` env vars. They must
 not describe toolbox or proxy internals or wire shapes, ports, `/tmp` paths
 or binaries. Contributor material (implementation notes, local verification)
-lives in the unpackaged `python/DEVELOPMENT.md` / `typescript/DEVELOPMENT.md`.
+lives in the unpackaged `sdk-python/DEVELOPMENT.md` / `sdk-typescript/DEVELOPMENT.md`.
 
 ## Verification
 
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
 scripts/gen-contract-types.sh --check     # only after touching contract/ or a generator
@@ -556,7 +556,7 @@ AGPL-3.0` under `cli/`, `Apache-2.0` elsewhere — and the `License headers`
 check enforces it (`.licenserc.yaml`). Add the header to every new file, or
 run `license-eye -c .licenserc.yaml header fix`. Generated files are exempt
 (they say so in their first line), except the synchronous Python surface,
-whose generator (`python/gen/gen_sync.py`) emits the header itself.
+whose generator (`sdk-python/gen/gen_sync.py`) emits the header itself.
 Contributions need a DCO sign-off on every commit and a one-time CLA
 signature ([CONTRIBUTING.md](CONTRIBUTING.md)).
 

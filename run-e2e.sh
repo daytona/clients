@@ -25,19 +25,19 @@ fi
 run_py() {
   echo "== python SDK e2e =="
   if command -v uv >/dev/null 2>&1; then
-    (cd python && uv venv --allow-existing .venv >/dev/null 2>&1 || true
+    (cd sdk-python && uv venv --allow-existing .venv >/dev/null 2>&1 || true
      uv pip install -p .venv -q -e . >/dev/null)
-    python/.venv/bin/python e2e.py
+    sdk-python/.venv/bin/python e2e.py
   else
-    (cd python && pip install -q -e . >/dev/null)
+    (cd sdk-python && pip install -q -e . >/dev/null)
     python3 e2e.py
   fi
 }
 
 run_ts() {
   echo "== typescript SDK e2e =="
-  (cd typescript && npm install --no-audit --no-fund >/dev/null 2>&1)
-  (cd typescript && npx --yes tsx ../e2e.ts)
+  (cd sdk-typescript && npm install --no-audit --no-fund >/dev/null 2>&1)
+  (cd sdk-typescript && npx --yes tsx ../e2e.ts)
 }
 
 rc=0

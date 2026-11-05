@@ -72,7 +72,7 @@ that loop, apply fixes, or substitute for the repository's verification gates.
 | Pair | What to prove |
 |---|---|
 | Python ↔ TypeScript | Same feature/fix, defaults, validation, errors, pagination, cancellation, and tests; respect seconds ↔ milliseconds |
-| Async Python ↔ generated sync | Edit async source, regenerate with `python/gen/gen_sync.py`; matching public parameters and runtime behavior; `_sync/_runtime.py` is handwritten glue |
+| Async Python ↔ generated sync | Edit async source, regenerate with `sdk-python/gen/gen_sync.py`; matching public parameters and runtime behavior; `_sync/_runtime.py` is handwritten glue |
 | SDK `codes.py` / `codes.ts` ↔ `contract/` | Source + code dispatch, generic fallbacks, status bases, per-code extras, route drift tests |
 | CLI ↔ SDK shared behavior | Defaults, endpoint/config precedence, request construction, and errors where they promise the same behavior; CLI is not subject to blanket SDK parity |
 | README/examples ↔ code | Runnable public imports, options, units, environment variables, and supported behavior |
@@ -142,8 +142,8 @@ test. A grep is not runtime evidence. Record blocked probes explicitly.
 Use the commands in root `AGENTS.md` for each touched component:
 
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test -- --runInBand && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test -- --runInBand && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./... && go build ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
 # When contract artifacts or generators changed:

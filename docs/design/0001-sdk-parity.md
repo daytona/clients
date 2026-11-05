@@ -21,8 +21,8 @@ closely the two SDKs have to match, and what keeps them matched over time.
 same pull request, with tests in both. The client, the sandbox handle and its
 namespaces (`process`, `interpreter`, `fs`, `git`, `ports`, `lsp`, and so on)
 have the same structure and the same method set in both languages. Compare
-[`../../python/src/daytona/v2/sandbox.py`](../../python/src/daytona/v2/sandbox.py)
-with [`../../typescript/src/v2/Sandbox.ts`](../../typescript/src/v2/Sandbox.ts).
+[`../../sdk-python/src/daytona/v2/sandbox.py`](../../sdk-python/src/daytona/v2/sandbox.py)
+with [`../../sdk-typescript/src/v2/Sandbox.ts`](../../sdk-typescript/src/v2/Sandbox.ts).
 
 **Naming follows each language.** Python uses `snake_case` and keyword-only
 arguments; TypeScript uses `camelCase` and options objects. Python timeouts
@@ -37,15 +37,15 @@ it sits one base class per HTTP status category (`DaytonaNotFoundError`,
 one subclass per error code the contract defines. A caller can catch broadly
 by status or narrowly by code, and the same `except` or `instanceof` works
 in both languages. Each SDK has a codes module,
-[`../../python/src/daytona/v2/codes.py`](../../python/src/daytona/v2/codes.py)
-and [`../../typescript/src/v2/codes.ts`](../../typescript/src/v2/codes.ts),
+[`../../sdk-python/src/daytona/v2/codes.py`](../../sdk-python/src/daytona/v2/codes.py)
+and [`../../sdk-typescript/src/v2/codes.ts`](../../sdk-typescript/src/v2/codes.ts),
 with one catalog per error source (the API, the in-sandbox toolbox, the
 toolbox proxy and the API router) plus a shared generic table. Errors are
 dispatched on the pair `(source, code)`, so two sources can reuse a code name
 without colliding. The classes live in
-[`../../python/src/daytona/v2/errors.py`](../../python/src/daytona/v2/errors.py)
+[`../../sdk-python/src/daytona/v2/errors.py`](../../sdk-python/src/daytona/v2/errors.py)
 and
-[`../../typescript/src/v2/errors/DaytonaError.ts`](../../typescript/src/v2/errors/DaytonaError.ts).
+[`../../sdk-typescript/src/v2/errors/DaytonaError.ts`](../../sdk-typescript/src/v2/errors/DaytonaError.ts).
 
 **Contract drift tests.** Each SDK's test suite reads the committed contract
 and fails when the SDK falls out of step with it:
@@ -57,11 +57,11 @@ and fails when the SDK falls out of step with it:
   [`../../contract/toolbox-openapi.json`](../../contract/toolbox-openapi.json),
   and every toolbox operation is either called or listed on an allow-list
   with a reason. See
-  [`../../python/tests/test_core.py`](../../python/tests/test_core.py) and
-  [`../../typescript/tests/unit.test.ts`](../../typescript/tests/unit.test.ts).
+  [`../../sdk-python/tests/test_core.py`](../../sdk-python/tests/test_core.py) and
+  [`../../sdk-typescript/tests/unit.test.ts`](../../sdk-typescript/tests/unit.test.ts).
 
 Wire types are generated from the same contract for both SDKs
-(`typescript/src/v2/gen/`, `python/src/daytona/v2/_gen/`) by
+(`sdk-typescript/src/v2/gen/`, `sdk-python/src/daytona/v2/_gen/`) by
 [`../../scripts/gen-contract-types.sh`](../../scripts/gen-contract-types.sh),
 and CI checks that the generated files are current.
 
@@ -69,9 +69,9 @@ and CI checks that the generated files are current.
 written once, as `async def` methods on classes named `Async*`
 (`AsyncDaytona`, `AsyncSandbox`). The synchronous surface (`Daytona`,
 `Sandbox`) is generated from it by
-[`../../python/gen/gen_sync.py`](../../python/gen/gen_sync.py) into
-[`../../python/src/daytona/v2/_sync/`](../../python/src/daytona/v2/_sync/).
-[`../../python/tests/test_sync_surface.py`](../../python/tests/test_sync_surface.py)
+[`../../sdk-python/gen/gen_sync.py`](../../sdk-python/gen/gen_sync.py) into
+[`../../sdk-python/src/daytona/v2/_sync/`](../../sdk-python/src/daytona/v2/_sync/).
+[`../../sdk-python/tests/test_sync_surface.py`](../../sdk-python/tests/test_sync_surface.py)
 fails if the generated files are stale or if any public async method lacks a
 sync twin with identical parameters. TypeScript is async by nature and has a
 single surface.
@@ -88,7 +88,7 @@ an older SDK has to survive values it has never seen:
   plus `'unknown'`. The SDK normalizes at the boundary and keeps the original
   string on a sibling field (`raw_<field>` in Python, `raw<Field>` in
   TypeScript). See
-  [`../../typescript/src/v2/knownValue.ts`](../../typescript/src/v2/knownValue.ts).
+  [`../../sdk-typescript/src/v2/knownValue.ts`](../../sdk-typescript/src/v2/knownValue.ts).
 
 Callers get exhaustive `match` and `switch` over a closed set, and still see
 what the server actually sent.

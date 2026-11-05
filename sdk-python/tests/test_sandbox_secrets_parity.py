@@ -3,7 +3,7 @@
 
 """Runtime sandbox-secrets parity.
 
-Mirrored by ``typescript/tests/sandboxSecretsParity.test.ts``: the two
+Mirrored by ``sdk-typescript/tests/sandboxSecretsParity.test.ts``: the two
 suites pin the same decode, error-mapping, and replace-wire behaviour.
 """
 

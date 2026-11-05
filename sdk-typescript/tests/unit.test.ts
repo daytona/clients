@@ -3439,7 +3439,7 @@ describe('creation shape', () => {
   })
 
   // Name-derived idempotency keys. The SAME vectors are pinned in
-  // python/tests/test_core.py (NAME_KEY_VECTORS): the two SDKs must
+  // sdk-python/tests/test_core.py (NAME_KEY_VECTORS): the two SDKs must
   // derive byte-identical keys, or a Python and a TypeScript caller creating
   // the same end user's sandbox would get two.
   const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex')
@@ -9476,7 +9476,7 @@ describe('sandbox search', () => {
   })
 
   // Timestamp-bound parity fixture — the SAME values are pinned in
-  // python/tests/test_core.py::test_search_timestamp_rejects_non_timestamp_values_matches_typescript:
+  // sdk-python/tests/test_core.py::test_search_timestamp_rejects_non_timestamp_values_matches_typescript:
   // a non-Date/non-string bound is the SDK's own BadRequestError and no request
   // goes out. An invalid `Date` is TS-only (a Python `datetime` cannot be NaN):
   // it must surface as BadRequestError, never the `RangeError` from `toISOString()`.
@@ -9527,7 +9527,7 @@ describe('sandbox search', () => {
   })
 
   // Input-boundary parity fixture — the SAME values are pinned in
-  // python/tests/test_core.py::test_search_input_boundary_matches_typescript:
+  // sdk-python/tests/test_core.py::test_search_input_boundary_matches_typescript:
   // (a) a bare string for a list filter is one entry, (b) a non-object
   // `labels` and a non-string list entry are the SDK's own BadRequestError with
   // no request sent, (c) unknown response fields are tolerated.

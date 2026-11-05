@@ -357,7 +357,7 @@ jobs:
           if [ -e .v0-src ]; then optional+=(.v0-src); fi
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf /tmp/sdk-src.tgz python typescript contract cli scripts v0-sdk-version "${optional[@]}"
+            -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts v0-sdk-version "${optional[@]}"
           ls -l /tmp/sdk-src.tgz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -433,7 +433,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: python
+        working-directory: sdk-python
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -495,7 +495,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pypi-dist
-          path: python/dist/
+          path: sdk-python/dist/
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
@@ -508,7 +508,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: typescript
+        working-directory: sdk-typescript
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -582,7 +582,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: npm-pack
-          path: typescript/pack/*.tgz
+          path: sdk-typescript/pack/*.tgz
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 

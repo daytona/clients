@@ -30,10 +30,10 @@ sandbox_v0 = d.v0.create()     # 0.x API, same package
 ```
 
 The roots are
-[`../../python/src/daytona/__init__.py`](../../python/src/daytona/__init__.py)
-with [`../../python/src/daytona/_client.py`](../../python/src/daytona/_client.py),
-and [`../../typescript/src/index.ts`](../../typescript/src/index.ts) with
-[`../../typescript/src/Daytona.ts`](../../typescript/src/Daytona.ts). Nothing
+[`../../sdk-python/src/daytona/__init__.py`](../../sdk-python/src/daytona/__init__.py)
+with [`../../sdk-python/src/daytona/_client.py`](../../sdk-python/src/daytona/_client.py),
+and [`../../sdk-typescript/src/index.ts`](../../sdk-typescript/src/index.ts) with
+[`../../sdk-typescript/src/Daytona.ts`](../../sdk-typescript/src/Daytona.ts). Nothing
 loads v0 until `.v0` is first used.
 
 **v0 is bundled at publish time from a pinned 0.x tag.** The `v0` namespace
@@ -62,9 +62,9 @@ except DaytonaNotFoundError:
 ```
 
 In Python, see
-[`../../python/src/daytona/_errors.py`](../../python/src/daytona/_errors.py);
+[`../../sdk-python/src/daytona/_errors.py`](../../sdk-python/src/daytona/_errors.py);
 both namespaces' classes inherit the root markers. In TypeScript,
-[`../../typescript/src/errors.ts`](../../typescript/src/errors.ts) matches
+[`../../sdk-typescript/src/errors.ts`](../../sdk-typescript/src/errors.ts) matches
 through a process-wide registry, so `instanceof` works across the ESM and
 CommonJS builds and the bundled v0. Version-specific errors stay in their
 namespace.
@@ -90,7 +90,7 @@ custom-URL users at SDK 0.x. `d.v0` always uses `V0_API_URL`.
    `d.v0.create(...)`. Root imports of 0.x names such as
    `from daytona import Sandbox` now raise an `ImportError` that names the new
    location (`daytona.v0`). The full list is in
-   [`../../python/src/daytona/_v0_root_names.py`](../../python/src/daytona/_v0_root_names.py).
+   [`../../sdk-python/src/daytona/_v0_root_names.py`](../../sdk-python/src/daytona/_v0_root_names.py).
 3. Catch errors from the root. `except DaytonaError` and the status classes
    keep working for both namespaces.
 4. Move calls to `d.v2` when ready. Region is now a per-create argument, not

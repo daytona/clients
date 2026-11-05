@@ -1409,7 +1409,7 @@ def test_package_all_symbols_resolve_and_computer_use_names_match_typescript_exp
     typescript_exports = {
         name
         for name in _typescript_export_names(
-            Path(__file__).resolve().parents[2].joinpath("typescript", "src", "v2", "index.ts")
+            Path(__file__).resolve().parents[2].joinpath("sdk-typescript", "src", "v2", "index.ts")
         )
         if name.startswith("ComputerUse")
         and name not in {"ComputerUse", "ComputerUseTransport"}
@@ -6229,7 +6229,7 @@ async def test_daytona_create_wait_remainder_long_polls_and_returns_a_queued_san
 
 
 # Name-derived idempotency keys. The SAME vectors are pinned in
-# typescript/tests/unit.test.ts ("idempotencyKeyForName parity
+# sdk-typescript/tests/unit.test.ts ("idempotencyKeyForName parity
 # vectors"): the two SDKs must derive byte-identical keys, or a Python and a
 # TypeScript caller creating the same end user's sandbox would get two.
 NAME_KEY_VECTORS: list[tuple[str, str]] = [
@@ -6792,7 +6792,7 @@ async def test_daytona_create_validates_image_source_class_rules_before_posting(
     assert api.specs == []
 
 
-# Parity vector shared with typescript/tests/unit.test.ts
+# Parity vector shared with sdk-typescript/tests/unit.test.ts
 # ("ImageBuilder renders the parity vector byte-identically"): the Dockerfile
 # text must render identically in both SDKs.
 PARITY_DOCKERFILE = (
@@ -9741,7 +9741,7 @@ async def test_search_rejects_response_without_sandboxes_array_matches_typescrip
 
 
 # Timestamp-bound parity fixture — the SAME values are pinned in
-# typescript/tests/unit.test.ts ("rejects an invalid Date and non-timestamp
+# sdk-typescript/tests/unit.test.ts ("rejects an invalid Date and non-timestamp
 # bounds with BadRequestError, never RangeError"): a non-``datetime``/non-``str``
 # bound is the SDK's own BadRequestError (never an ``AttributeError`` from the
 # formatter) and no request goes out. TS additionally pins an invalid ``Date``,
@@ -9789,7 +9789,7 @@ async def test_search_timestamp_rejects_non_timestamp_values_matches_typescript(
 
 
 # Input-boundary parity fixture — the SAME values are pinned in
-# typescript/tests/unit.test.ts ("handles the input-boundary fixture
+# sdk-typescript/tests/unit.test.ts ("handles the input-boundary fixture
 # exactly like the Python SDK"): (a) a bare string for a list filter is one
 # entry, (b) a non-mapping ``labels`` and a non-string list entry are the SDK's
 # own BadRequestError with no request sent.

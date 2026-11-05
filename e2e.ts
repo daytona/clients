@@ -5,8 +5,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { Daytona } from './typescript/src/index'
-import { DaytonaError, ImageBuilder, type Image, type Sandbox } from './typescript/src/v2/index'
+import { Daytona } from './sdk-typescript/src/index'
+import { DaytonaError, ImageBuilder, type Image, type Sandbox } from './sdk-typescript/src/v2/index'
 
 const run = randomUUID().replace(/-/g, '').slice(0, 8)
 const image = process.env.SMOKE_IMAGE ?? 'python:3.12-slim'

@@ -5,7 +5,7 @@
 
 // Runtime sandbox-secrets parity.
 //
-// Mirrored by python/tests/test_sandbox_secrets_parity.py: the two
+// Mirrored by sdk-python/tests/test_sandbox_secrets_parity.py: the two
 // suites pin the same decode, error-mapping, and replace-wire behaviour.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

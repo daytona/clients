@@ -29,9 +29,9 @@ else is a PATCH. Before `2.0.0`, every spec change takes the next
 `2.0.0-alpha.N` instead.
 
 **No version bumps in git.** The `version` fields in
-[`../../python/pyproject.toml`](../../python/pyproject.toml),
-[`../../typescript/package.json`](../../typescript/package.json) and
-[`../../typescript/src/version.ts`](../../typescript/src/version.ts) are
+[`../../sdk-python/pyproject.toml`](../../sdk-python/pyproject.toml),
+[`../../sdk-typescript/package.json`](../../sdk-typescript/package.json) and
+[`../../sdk-typescript/src/version.ts`](../../sdk-typescript/src/version.ts) are
 placeholders. The CLI's `Version` in
 [`../../cli/internal/app/app.go`](../../cli/internal/app/app.go) defaults to
 `0.0.0-dev`. The publish workflow,

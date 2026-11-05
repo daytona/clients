@@ -21,15 +21,15 @@ matching issue doesn't already exist. For questions and discussion, join the
 
 ## What you can contribute
 
-- Bug fixes and new features in the SDKs (`python/`, `typescript/`). A change to SDK
+- Bug fixes and new features in the SDKs (`sdk-python/`, `sdk-typescript/`). A change to SDK
   behavior lands in **both** SDKs in the same pull request — see the parity contract in
   [`AGENTS.md`](./AGENTS.md).
 - Improvements to the CLI (`cli/`).
 - New examples under `examples/`.
 
-> **Generated code**: the wire types under `typescript/src/v2/gen/`,
-> `python/src/daytona/v2/_gen/` and `cli/gen/` are generated from the API contracts in
-> `contract/`, and the synchronous Python surface (`python/src/daytona/v2/_sync/`) is
+> **Generated code**: the wire types under `sdk-typescript/src/v2/gen/`,
+> `sdk-python/src/daytona/v2/_gen/` and `cli/gen/` are generated from the API contracts in
+> `contract/`, and the synchronous Python surface (`sdk-python/src/daytona/v2/_sync/`) is
 > generated from the async one. Don't hand-edit generated output. The contract files
 > themselves are maintained by the Daytona team; if you need API surface that isn't in
 > them, open an issue.
@@ -40,8 +40,8 @@ You need Python 3.10+ with [uv](https://docs.astral.sh/uv/), Node.js 22.4+ and G
 version in `cli/go.mod`). Regenerating the wire types also needs a Java runtime.
 
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./...)
 ```
 

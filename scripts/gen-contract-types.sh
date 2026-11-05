@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Regenerate every vendored wire type from the committed contract/ artifacts:
-# the TypeScript SDK (typescript/src/v2/gen), the Python SDK
-# (python/src/daytona/v2/_gen) and the CLI (cli/gen).
+# the TypeScript SDK (sdk-typescript/src/v2/gen), the Python SDK
+# (sdk-python/src/daytona/v2/_gen) and the CLI (cli/gen).
 #
 #   scripts/gen-contract-types.sh           # regenerate
 #   scripts/gen-contract-types.sh --check   # regenerate, then fail if anything changed
@@ -20,12 +20,12 @@ case "${1:-}" in
   *) echo "usage: $0 [--check]" >&2; exit 2 ;;
 esac
 
-(cd typescript && npm install --no-audit --no-fund --silent && npm run --silent gen:contract)
-(cd python && ./gen-contract.sh)
+(cd sdk-typescript && npm install --no-audit --no-fund --silent && npm run --silent gen:contract)
+(cd sdk-python && ./gen-contract.sh)
 (cd cli && ./hack/gen.sh)
 
 if $check; then
-  paths="typescript/src/v2/gen python/src/daytona/v2/_gen cli/gen"
+  paths="sdk-typescript/src/v2/gen sdk-python/src/daytona/v2/_gen cli/gen"
   stale=0
   # shellcheck disable=SC2086 # word splitting is the point
   git diff --exit-code -- $paths || stale=1

@@ -21,10 +21,10 @@
 /scripts/check-no-bundled-v0.sh            @MDzaja
 /scripts/check_dist_artifacts.py           @MDzaja
 /scripts/changelog/                        @MDzaja
-/typescript/scripts/bundle-v0.mjs          @MDzaja
-/typescript/scripts/build-v0.mjs           @MDzaja
-/typescript/scripts/v0-bundle-smoke.cjs    @MDzaja
-/typescript/scripts/stamp-version.mjs      @MDzaja
+/sdk-typescript/scripts/bundle-v0.mjs          @MDzaja
+/sdk-typescript/scripts/build-v0.mjs           @MDzaja
+/sdk-typescript/scripts/v0-bundle-smoke.cjs    @MDzaja
+/sdk-typescript/scripts/stamp-version.mjs      @MDzaja
 /v0-sdk-version                            @MDzaja
 
 # Secret scanning
@@ -48,7 +48,7 @@
 /cli/LICENSE                               @MDzaja @aprojic
 /upgrade/python/LICENSE                    @MDzaja @aprojic
 /upgrade/typescript/LICENSE                @MDzaja @aprojic
-/typescript/lint/anti-slop/LICENSE         @MDzaja @aprojic
+/sdk-typescript/lint/anti-slop/LICENSE         @MDzaja @aprojic
 
 # CODEOWNERS itself (must protect itself; listed last so it always applies)
 /.github/CODEOWNERS                        @MDzaja

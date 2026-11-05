@@ -830,7 +830,7 @@ def _tree(tmp_path: Path, *files: str) -> Path:
 
 
 def test_publish_skips_v0_only_for_a_tree_from_before_the_namespaces(tmp_path: Path) -> None:
-    result = _publish_mode(_tree(tmp_path, "python/src/daytona/__init__.py"))
+    result = _publish_mode(_tree(tmp_path, "sdk-python/src/daytona/__init__.py"))
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "skip"
     assert "::notice::" in result.stderr
@@ -840,8 +840,8 @@ def test_publish_bundles_v0_when_the_namespace_code_and_the_pin_exist(tmp_path: 
     result = _publish_mode(
         _tree(
             tmp_path,
-            "typescript/src/v0-unbundled.ts",
-            "python/src/daytona/_client.py",
+            "sdk-typescript/src/v0-unbundled.ts",
+            "sdk-python/src/daytona/_client.py",
             "v0-sdk-version",
         )
     )
@@ -849,7 +849,7 @@ def test_publish_bundles_v0_when_the_namespace_code_and_the_pin_exist(tmp_path: 
     assert result.stdout.strip() == "bundle"
 
 
-@pytest.mark.parametrize("code", ["typescript/src/v0-unbundled.ts", "python/src/daytona/_client.py"])
+@pytest.mark.parametrize("code", ["sdk-typescript/src/v0-unbundled.ts", "sdk-python/src/daytona/_client.py"])
 def test_publish_refuses_the_namespace_code_in_only_one_sdk(tmp_path: Path, code: str) -> None:
     result = _publish_mode(_tree(tmp_path, code, "v0-sdk-version"))
     assert result.returncode != 0
@@ -857,7 +857,7 @@ def test_publish_refuses_the_namespace_code_in_only_one_sdk(tmp_path: Path, code
 
 
 def test_publish_refuses_namespace_code_without_a_pin(tmp_path: Path) -> None:
-    result = _publish_mode(_tree(tmp_path, "python/src/daytona/_client.py", "typescript/src/v0-unbundled.ts"))
+    result = _publish_mode(_tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts"))
     assert result.returncode != 0
     assert "::error::" in result.stderr
     assert "no v0-sdk-version pin" in result.stderr
@@ -1023,16 +1023,16 @@ def test_check_no_bundled_v0_catches_a_large_bundled_lockfile(tmp_path: Path, bu
     still fail on it (git show | grep -q under pipefail used to pass it)."""
     clients = tmp_path
     (clients / "scripts").mkdir(parents=True)
-    (clients / "python").mkdir()
-    (clients / "typescript").mkdir()
+    (clients / "sdk-python").mkdir()
+    (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
     script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
-    (clients / "python" / "pyproject.toml").write_text("[project.optional-dependencies]\nv0-sdk = []\n")
-    (clients / "typescript" / "package.json").write_text('{"name": "@daytona/sdk"}\n')
+    (clients / "sdk-python" / "pyproject.toml").write_text("[project.optional-dependencies]\nv0-sdk = []\n")
+    (clients / "sdk-typescript" / "package.json").write_text('{"name": "@daytona/sdk"}\n')
     filler = "".join(f'    "node_modules/pkg{i}": {{"version": "1.0.0"}},\n' for i in range(8000))
     client = '    "node_modules/@daytona/api-client": {"version": "0.224.0"},\n' if bundled else ""
-    (clients / "typescript" / "package-lock.json").write_text('{"packages": {\n' + client + filler + "}}\n")
-    assert (clients / "typescript" / "package-lock.json").stat().st_size > 256 * 1024
+    (clients / "sdk-typescript" / "package-lock.json").write_text('{"packages": {\n' + client + filler + "}}\n")
+    assert (clients / "sdk-typescript" / "package-lock.json").stat().st_size > 256 * 1024
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, env=env)
@@ -1140,20 +1140,20 @@ def test_v2_all_matches_root_exports() -> None:
     assert daytona_v2.__all__ == ROOT_EXPORTS
 
 
-@pytest.mark.parametrize("bundle_dir", ["python/src/daytona/v0", "typescript/src/v0"])
+@pytest.mark.parametrize("bundle_dir", ["sdk-python/src/daytona/v0", "sdk-typescript/src/v0"])
 def test_check_no_bundled_v0_refuses_committed_bundles(tmp_path: Path, bundle_dir: str) -> None:
     """Reject committed publish-time namespace bundles."""
     clients = tmp_path
     (clients / "scripts").mkdir(parents=True)
     (clients / bundle_dir).mkdir(parents=True)
-    (clients / "python").mkdir(exist_ok=True)
-    (clients / "typescript").mkdir(exist_ok=True)
+    (clients / "sdk-python").mkdir(exist_ok=True)
+    (clients / "sdk-typescript").mkdir(exist_ok=True)
     script = clients / "scripts" / "check-no-bundled-v0.sh"
     script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
-    (clients / "python" / "pyproject.toml").write_text("v0-sdk = []\n")
+    (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
     (clients / bundle_dir / "index.py").write_text("")
-    (clients / "typescript" / "package.json").write_text("{}\n")
-    (clients / "typescript" / "package-lock.json").write_text("{}\n")
+    (clients / "sdk-typescript" / "package.json").write_text("{}\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text("{}\n")
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, env=env)
@@ -1167,14 +1167,14 @@ def test_check_no_bundled_v0_refuses_committed_bundles(tmp_path: Path, bundle_di
 def test_check_no_bundled_v0_is_case_insensitive(tmp_path: Path) -> None:
     clients = tmp_path
     (clients / "scripts").mkdir(parents=True)
-    (clients / "python" / "src" / "daytona" / "V0").mkdir(parents=True)
-    (clients / "typescript").mkdir()
+    (clients / "sdk-python" / "src" / "daytona" / "V0").mkdir(parents=True)
+    (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
     script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
-    (clients / "python" / "pyproject.toml").write_text("v0-sdk = []\n")
-    (clients / "python" / "src" / "daytona" / "V0" / "x.py").write_text("")
-    (clients / "typescript" / "package.json").write_text("{}\n")
-    (clients / "typescript" / "package-lock.json").write_text("{}\n")
+    (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
+    (clients / "sdk-python" / "src" / "daytona" / "V0" / "x.py").write_text("")
+    (clients / "sdk-typescript" / "package.json").write_text("{}\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text("{}\n")
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, env=env)
@@ -1201,14 +1201,14 @@ def test_the_python_bundler_refuses_an_unrewritten_sdk_version_lookup(tmp_path: 
 def test_check_no_bundled_v0_catches_an_entry_at_the_exact_path(tmp_path: Path) -> None:
     clients = tmp_path
     (clients / "scripts").mkdir(parents=True)
-    (clients / "python" / "src" / "daytona").mkdir(parents=True)
-    (clients / "typescript").mkdir()
+    (clients / "sdk-python" / "src" / "daytona").mkdir(parents=True)
+    (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
     script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
-    (clients / "python" / "pyproject.toml").write_text("v0-sdk = []\n")
-    (clients / "python" / "src" / "daytona" / "v0").symlink_to("/nonexistent")
-    (clients / "typescript" / "package.json").write_text("{}\n")
-    (clients / "typescript" / "package-lock.json").write_text("{}\n")
+    (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
+    (clients / "sdk-python" / "src" / "daytona" / "v0").symlink_to("/nonexistent")
+    (clients / "sdk-typescript" / "package.json").write_text("{}\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text("{}\n")
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, env=env)
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, env=env)
@@ -1216,7 +1216,7 @@ def test_check_no_bundled_v0_catches_an_entry_at_the_exact_path(tmp_path: Path) 
         ["bash", str(script)], capture_output=True, text=True, env=env, timeout=60, check=False
     )
     assert result.returncode != 0
-    assert "python/src/daytona/v0" in result.stdout
+    assert "sdk-python/src/daytona/v0" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -1230,13 +1230,13 @@ def test_check_no_bundled_v0_catches_an_entry_at_the_exact_path(tmp_path: Path) 
 def test_check_no_bundled_v0_catches_v0_only_dependencies(tmp_path: Path, manifest: str, bad: bool) -> None:
     clients = tmp_path
     (clients / "scripts").mkdir(parents=True)
-    (clients / "python").mkdir()
-    (clients / "typescript").mkdir()
+    (clients / "sdk-python").mkdir()
+    (clients / "sdk-typescript").mkdir()
     script = clients / "scripts" / "check-no-bundled-v0.sh"
     script.write_text((ROOT.parent / "scripts" / "check-no-bundled-v0.sh").read_text())
-    (clients / "python" / "pyproject.toml").write_text("v0-sdk = []\n")
-    (clients / "typescript" / "package.json").write_text(manifest + "\n")
-    (clients / "typescript" / "package-lock.json").write_text(
+    (clients / "sdk-python" / "pyproject.toml").write_text("v0-sdk = []\n")
+    (clients / "sdk-typescript" / "package.json").write_text(manifest + "\n")
+    (clients / "sdk-typescript" / "package-lock.json").write_text(
         '{"packages": {"": {"dependencies": {"axios": "^1"}}}}\n'
     )
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}

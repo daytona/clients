@@ -5,7 +5,7 @@
 
 import { sameBuildLogResource } from '../src/v2/buildLogIdentity.js'
 
-// Mirrors python/tests/test_build_logs.py: both SDKs accept the same
+// Mirrors sdk-python/tests/test_build_logs.py: both SDKs accept the same
 // region grammar (1-64 ASCII [A-Za-z0-9_-]) before attaching credentials.
 describe('sameBuildLogResource region grammar', () => {
   const BODY = '3FP9SaFP7qfRTj4GM9xtju'

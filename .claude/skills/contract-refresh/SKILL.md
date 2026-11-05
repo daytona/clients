@@ -46,8 +46,8 @@ new contract files; this skill turns them into a working SDK change.
    fails, and collect every failure:
 
    ```bash
-   (cd typescript || exit; rc=0; npm run typecheck || rc=1; npm test || rc=1; exit $rc)
-   (cd python || exit; rc=0; .venv/bin/python -m mypy || rc=1; .venv/bin/python -m pytest -q || rc=1; exit $rc)
+   (cd sdk-typescript || exit; rc=0; npm run typecheck || rc=1; npm test || rc=1; exit $rc)
+   (cd sdk-python || exit; rc=0; .venv/bin/python -m mypy || rc=1; .venv/bin/python -m pytest -q || rc=1; exit $rc)
    (cd cli || exit; rc=0; go build ./... || rc=1; go test ./... || rc=1; exit $rc)
    ```
 

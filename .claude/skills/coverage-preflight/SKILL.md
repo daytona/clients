@@ -21,8 +21,8 @@ lines a branch adds, with `scripts/patch_coverage.py`, and closes the gap.
 2. **Reports for every component the diff touches** (from the repository root):
 
    ```bash
-   (cd python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
-   (cd typescript && npx jest --coverage --coverageReporters=lcov)
+   (cd sdk-python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
+   (cd sdk-typescript && npx jest --coverage --coverageReporters=lcov)
    (cd cli && go test ./... -coverprofile=coverage.out)
    ```
 
