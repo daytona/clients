@@ -128,7 +128,7 @@ jobs:
       - name: Mapping copies and guide are current
         run: |
           set -euo pipefail
-          npm ci --prefix typescript --no-audit --no-fund --ignore-scripts
+          npm ci --prefix sdk-typescript --no-audit --no-fund --ignore-scripts
           node upgrade/scripts/sync-mapping.mjs --check
           node upgrade/scripts/gen-guide.mjs --check
           node upgrade/scripts/check-v2-surface.mjs

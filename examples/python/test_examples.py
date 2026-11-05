@@ -10,7 +10,7 @@ would against a live deployment. Commands run in a fake sandbox answer from a
 small responder; a test overrides individual commands to drive the failure
 paths. Run from ``examples``::
 
-    ../python/.venv/bin/python -m pytest -q python/test_examples.py
+    ../sdk-python/.venv/bin/python -m pytest -q python/test_examples.py
 """
 
 from __future__ import annotations

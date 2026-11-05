@@ -20,7 +20,7 @@ set -uo pipefail
 cd "$(dirname "$0")"
 WHICH="${1:-both}"
 
-PY_BIN="../python/.venv/bin/python"
+PY_BIN="../sdk-python/.venv/bin/python"
 [[ -x "$PY_BIN" ]] || PY_BIN="python3"
 
 TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox build-logs pagination secrets-env)
@@ -44,7 +44,7 @@ check() {
   run "tsc --noEmit" npx tsc -p tsconfig.json --noEmit
   run "ts offline tests" node --import tsx --test \
     typescript/examples.test.ts typescript/follow-build-logs/output.test.ts
-  # mypy and pytest come from the SDK's dev extras (pip install -e "../python[dev]").
+  # mypy and pytest come from the SDK's dev extras (pip install -e "../sdk-python[dev]").
   run "mypy --strict" env MYPYPATH=python "$PY_BIN" -m mypy --strict python volumes_share.py
   run "python offline tests" "$PY_BIN" -m pytest -q -p no:cacheprovider python/test_examples.py
 }

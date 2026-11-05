@@ -10,13 +10,13 @@ on:
     paths:
       - 'contract/**'
       - 'scripts/gen-contract-types.sh'
-      - 'typescript/scripts/gen-contract.mjs'
-      - 'typescript/package.json'
-      - 'typescript/package-lock.json'
-      - 'typescript/src/v2/gen/**'
-      - 'python/gen-contract.sh'
-      - 'python/gen/**'
-      - 'python/src/daytona/v2/_gen/**'
+      - 'sdk-typescript/scripts/gen-contract.mjs'
+      - 'sdk-typescript/package.json'
+      - 'sdk-typescript/package-lock.json'
+      - 'sdk-typescript/src/v2/gen/**'
+      - 'sdk-python/gen-contract.sh'
+      - 'sdk-python/gen/**'
+      - 'sdk-python/src/daytona/v2/_gen/**'
       - 'cli/hack/gen.sh'
       - 'cli/gen/**'
       - '.github/workflows/contracts.yaml'
@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
+          cache-dependency-path: sdk-typescript/package-lock.json
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/go.mod
@@ -51,5 +51,5 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Generator jar integrity gate
-        run: bash python/gen/gen-contract_test.sh
+        run: bash sdk-python/gen/gen-contract_test.sh
       - run: scripts/gen-contract-types.sh --check

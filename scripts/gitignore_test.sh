@@ -13,9 +13,9 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 ignored=(
   cli/dist/daytona-linux-amd64
-  typescript/dist/index.js
-  python/dist/daytona.whl
-  python/build/lib/x.py
+  sdk-typescript/dist/index.js
+  sdk-python/dist/daytona.whl
+  sdk-python/build/lib/x.py
   upgrade/scripts/dist/index.js
   upgrade/typescript/node_modules/x/index.js
   upgrade/scripts/node_modules/x/index.js
@@ -23,9 +23,9 @@ ignored=(
   node_modules/x/index.js
   upgrade/python/build/lib/x.py
   examples/python/.venv/bin/python
-  python/src/daytona/__pycache__/x.pyc
+  sdk-python/src/daytona/__pycache__/x.pyc
   .env.local
-  python/.env.local
+  sdk-python/.env.local
   .DS_Store
   cli/.DS_Store
   .idea/workspace.xml

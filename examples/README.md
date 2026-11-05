@@ -90,9 +90,9 @@ Mint a project API key from the dashboard (it needs sandbox read/write permissio
 ```bash
 cd examples
 
-# Build/link deps once (uses the local SDK via file:../typescript).
+# Build/link deps once (uses the local SDK via file:../sdk-typescript).
 npm install
-(cd ../python && uv pip install -e . || pip install -e .)
+(cd ../sdk-python && uv pip install -e . || pip install -e .)
 
 # TypeScript
 DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
@@ -123,11 +123,11 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 exec-command, file-operations, git, lifecycle, secrets-env, dynamic-build,
 build-logs and volumes-share examples (and the Python dockerfile-sandbox)
 against a fake client and check their exit codes and cleanup. CI runs the same
-command (`Examples CI`). `check` uses `../python/.venv` when it exists, so
+command (`Examples CI`). `check` uses `../sdk-python/.venv` when it exists, so
 install the SDK's dev extras there:
 
 ```bash
-(cd ../python && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]")
+(cd ../sdk-python && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]")
 ./run-examples.sh check
 ```
 

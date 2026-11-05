@@ -7,7 +7,7 @@
 # daytona/clients release tag by scripts/bundle-v0.sh, never by hand).
 #
 # Checks the git index, so a .gitignore cannot hide a force-added file:
-#   - nothing tracked under python/src/daytona/v0/ or typescript/src/v0/;
+#   - nothing tracked under sdk-python/src/daytona/v0/ or sdk-typescript/src/v0/;
 #   - the Python `v0-sdk` extra is committed empty (the bundle fills it with pins);
 #   - the TypeScript manifest carries none of v0's generated API clients.
 set -euo pipefail
@@ -18,7 +18,7 @@ mode=${1:-}
 
 # Case-insensitively: a force-added daytona/V0/ or src/V0/ would ship too, and
 # shadows the real path on a case-insensitive checkout.
-tracked=$(git ls-files -- python/src/daytona typescript/src | grep -iE '^(python/src/daytona|typescript/src)/v0($|/)' || true)
+tracked=$(git ls-files -- sdk-python/src/daytona sdk-typescript/src | grep -iE '^(sdk-python/src/daytona|sdk-typescript/src)/v0($|/)' || true)
 if [ -n "$tracked" ]; then
   echo "::error::bundled v0 files are committed (they are produced by scripts/bundle-v0.sh at publish time):"
   printf '%s\n' "$tracked" | sed 's/^/  /'
@@ -29,13 +29,13 @@ fi
 # under pipefail reports a match as a failure once the file outgrows the pipe
 # buffer (grep exits early, git show gets SIGPIPE), so a large bundled
 # package-lock.json would pass.
-pyproject=$(git show :./python/pyproject.toml)
+pyproject=$(git show :./sdk-python/pyproject.toml)
 if ! grep -qx 'v0-sdk = \[\]' <<<"$pyproject"; then
-  echo "::error::python/pyproject.toml must commit the v0-sdk extra empty ('v0-sdk = []'); bundle-v0.sh fills it at publish time"
+  echo "::error::sdk-python/pyproject.toml must commit the v0-sdk extra empty ('v0-sdk = []'); bundle-v0.sh fills it at publish time"
   status=1
 fi
 
-for manifest in typescript/package.json typescript/package-lock.json; do
+for manifest in sdk-typescript/package.json sdk-typescript/package-lock.json; do
   content=$(git show ":./$manifest")
   if grep -Eq '"(node_modules/(.*/node_modules/)?)?@daytona/(api-client|toolbox-api-client|analytics-api-client)"' <<<"$content"; then
     echo "::error::$manifest carries v0's API clients; bundle-v0.sh adds them at publish time"
@@ -60,8 +60,8 @@ import json, os, subprocess
 sections = ("dependencies", "optionalDependencies", "peerDependencies")
 def names(data):
     return {n for s in sections for n in (data.get(s) or {})}
-committed = json.loads(subprocess.run(["git", "show", "HEAD:./typescript/package.json"], capture_output=True, text=True, check=True).stdout)
-bundled = json.load(open("typescript/package.json"))
+committed = json.loads(subprocess.run(["git", "show", "HEAD:./sdk-typescript/package.json"], capture_output=True, text=True, check=True).stdout)
+bundled = json.load(open("sdk-typescript/package.json"))
 known = set(os.environ["V0_ONLY"].split()) | {"@daytona/api-client", "@daytona/toolbox-api-client", "@daytona/analytics-api-client", "form-data"}
 print(" ".join(sorted(names(bundled) - names(committed) - known)))
 ')
@@ -73,7 +73,7 @@ print(" ".join(sorted(names(bundled) - names(committed) - known)))
   exit 0
 fi
 
-for manifest in typescript/package.json typescript/package-lock.json; do
+for manifest in sdk-typescript/package.json sdk-typescript/package-lock.json; do
   found=$(git show ":./$manifest" | V0_ONLY="$v0_only" python3 -c '
 import json, os, sys
 try:

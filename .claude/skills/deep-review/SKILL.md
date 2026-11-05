@@ -72,7 +72,7 @@ that loop, apply fixes, or substitute for the repository's verification gates.
 | Pair | What to prove |
 |---|---|
 | Python ↔ TypeScript | Same feature/fix, defaults, validation, errors, pagination, cancellation, and tests; respect seconds ↔ milliseconds |
-| Async Python ↔ generated sync | Edit async source, regenerate with `python/gen/gen_sync.py`; matching public parameters and runtime behavior; `_sync/_runtime.py` is handwritten glue |
+| Async Python ↔ generated sync | Edit async source, regenerate with `sdk-python/gen/gen_sync.py`; matching public parameters and runtime behavior; `_sync/_runtime.py` is handwritten glue |
 | SDK `codes.py` / `codes.ts` ↔ `contract/` | Source + code dispatch, generic fallbacks, status bases, per-code extras, route drift tests |
 | CLI ↔ SDK shared behavior | Defaults, endpoint/config precedence, request construction, and errors where they promise the same behavior; CLI is not subject to blanket SDK parity |
 | README/examples ↔ code | Runnable public imports, options, units, environment variables, and supported behavior |
@@ -115,7 +115,7 @@ zero commits is an empty scope, not a passing DCO result.
 
 ### 2. Build the claims and mirror checklist
 
-Read the entire description and relevant `docs/design/` records. List all
+Read the entire description and relevant `docs/adr/` records. List all
 claims, changed entry points, callers, contract dependencies, mirror pairs,
 and the tests that should fail if each promise is false. Include unresolved
 local cubic findings, if supplied. Preflight warnings are heuristics, never
@@ -142,8 +142,8 @@ test. A grep is not runtime evidence. Record blocked probes explicitly.
 Use the commands in root `AGENTS.md` for each touched component:
 
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test -- --runInBand && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test -- --runInBand && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./... && go build ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
 # When contract artifacts or generators changed:
@@ -157,7 +157,7 @@ commands, counts, tool versions, failures, and skips. Use isolated scratch
 copies for builds that write files; preserve relative repository paths.
 
 Live checks are optional and credential-gated: when `DAYTONA_API_KEY` is
-already available, run `./run-e2e.sh` (optionally `py` or `ts`), using
+already available, run `./e2e/run.sh` (optionally `py` or `ts`), using
 `DAYTONA_API_URL` only when provided. Otherwise skip and say so. Never ask
 for credentials, print keys or non-public endpoints, or claim a skipped
 suite passed. A feature needing undeployed API support remains draft until

@@ -5,7 +5,7 @@
 # Print the daytona/clients release tag the 2.x SDKs vendor as their v0
 # namespace (`Daytona().v0`): the 0.x SDK at a PINNED tag AND commit.
 #
-# The pin lives in exactly one place, v0-sdk-version, two lines:
+# The pin lives in exactly one place, scripts/v0-sdk-version, two lines:
 #
 #   v0.224.0                                   <- the release tag (vX.Y.Z)
 #   9fef984e676710a53a232d47f763d729dc5e6d14   <- the commit the tag peels to
@@ -34,7 +34,7 @@ set -euo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # DAYTONA_V0_PIN_FILE reads another checkout's pin (the publish gate runs
 # main's copy of this script against the pin of the release being published).
-pin_file=${DAYTONA_V0_PIN_FILE:-"$(dirname -- "$here")/v0-sdk-version"}
+pin_file=${DAYTONA_V0_PIN_FILE:-"$here/v0-sdk-version"}
 repo=${DAYTONA_V0_REPO:-https://github.com/daytona/clients.git}
 shape='^v[0-9]+\.[0-9]+\.[0-9]+$'
 sha_shape='^[0-9a-f]{40}$'

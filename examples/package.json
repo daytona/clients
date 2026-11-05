@@ -16,7 +16,7 @@
     "volumes-share": "tsx volumes_share.ts"
   },
   "dependencies": {
-    "@daytona/sdk": "file:../typescript"
+    "@daytona/sdk": "file:../sdk-typescript"
   },
   "devDependencies": {
     "tsx": "^4.21.0",

@@ -25,6 +25,6 @@ AGENTS.local.md
 .opencode/
 
 # Coverage reports (scripts/patch_coverage.py)
-python/coverage.xml
-python/.coverage
-typescript/coverage/
+sdk-python/coverage.xml
+sdk-python/.coverage
+sdk-typescript/coverage/

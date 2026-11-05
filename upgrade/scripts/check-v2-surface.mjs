@@ -47,7 +47,7 @@ async function main() {
   } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'MODULE_NOT_FOUND'
       || !error.message.startsWith("Cannot find module 'typescript'\n")) throw error;
-    console.error("Missing TypeScript dependency; run 'npm ci' in typescript/ first");
+    console.error("Missing TypeScript dependency; run 'npm ci' in sdk-typescript/ first");
     process.exitCode = 1;
     return;
   }

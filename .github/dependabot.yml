@@ -34,7 +34,7 @@ updates:
 
   # TypeScript SDK (@daytona/sdk).
   - package-ecosystem: npm
-    directory: /typescript
+    directory: /sdk-typescript
     schedule:
       interval: weekly
       day: monday
@@ -78,10 +78,10 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Pinned codegen tooling for python/gen-contract.sh. The Contracts workflow
+  # Pinned codegen tooling for sdk-python/gen-contract.sh. The Contracts workflow
   # regenerates the client, so a bump that changes generated output fails CI.
   - package-ecosystem: npm
-    directory: /python/gen
+    directory: /sdk-python/gen
     schedule:
       interval: weekly
       day: monday
@@ -123,7 +123,7 @@ updates:
 
   # Python SDK (daytona on PyPI).
   - package-ecosystem: uv
-    directory: /python
+    directory: /sdk-python
     schedule:
       interval: weekly
       day: monday
