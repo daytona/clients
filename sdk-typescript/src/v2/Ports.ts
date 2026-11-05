@@ -12,6 +12,13 @@ import { strictUriEncode } from './http.js'
 import { HttpTransport } from './http.js'
 import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink } from './types.js'
 
+/**
+ * Request header (and its value) that skips the preview warning page. Send it
+ * when a headless browser or another non-interactive client opens a preview URL.
+ */
+export const PREVIEW_WARNING_SKIP_HEADER = 'X-Daytona-Skip-Preview-Warning'
+export const PREVIEW_WARNING_SKIP_HEADER_VALUE = 'true'
+
 const JWT_SEGMENT = /^[A-Za-z0-9_-]+$/
 
 export type PortListResponse = toolbox.PortList

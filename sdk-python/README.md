@@ -715,6 +715,9 @@ otherwise refuse it.
 `signed_preview_link(port, expires_in_seconds=...)`,
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`.
+To skip the preview warning page when a headless browser opens a preview URL,
+send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
+exported from `daytona.v2`) with its requests.
 `lsp.start(language_id, path_to_project)` returns an `LspServer` handle with
 `open_document(uri)`, `close_document(uri)`, `completions(uri, position)`,
 `document_symbols(uri)`, `workspace_symbols(query)` and `stop()`.
