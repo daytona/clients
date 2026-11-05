@@ -10,7 +10,6 @@ npm run --silent build
 # Outside the working copy, so Node cannot resolve anything from its
 # node_modules: the bundle must be self-contained.
 standalone="$(mktemp -d)"
+trap 'rm -rf "$standalone"' EXIT
 cp dist/test.cjs "$standalone/"
-result="$(cd "$standalone" && node test.cjs)"
-rm -rf "$standalone"
-assert_response "$result"
+assert_response "$(cd "$standalone" && node test.cjs)"
