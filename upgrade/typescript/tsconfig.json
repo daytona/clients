@@ -5,7 +5,8 @@
     "noFallthroughCasesInSwitch": true, "noPropertyAccessFromIndexSignature": true,
     "forceConsistentCasingInFileNames": true, "verbatimModuleSyntax": true, "isolatedModules": true,
     "resolveJsonModule": true, "esModuleInterop": true, "skipLibCheck": true,
-    "declaration": true, "sourceMap": true, "rootDir": "src", "outDir": "dist"
+    "declaration": true, "sourceMap": true, "rootDir": "src", "outDir": "dist",
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"], "exclude": ["dist", "node_modules"]
 }
