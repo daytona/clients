@@ -966,7 +966,7 @@ def test_an_override_equal_to_the_pinned_tag_refuses_a_moved_tag(tmp_path: Path)
         ({"DAYTONA_V0_TAG": "v0.225.0", "PUBLISH_PYPI": "false", "PUBLISH_NPM": "false"}, True),
         ({"DAYTONA_V0_TAG": "v0.225.0", "PUBLISH_PYPI": "true", "PUBLISH_NPM": "false"}, False),
         # The pinned tag itself is not an override (its commit is still checked).
-        ({"DAYTONA_V0_TAG": "v0.224.0", "PUBLISH_PYPI": "false", "PUBLISH_NPM": "true"}, True),
+        ({"DAYTONA_V0_TAG": "v0.230.0", "PUBLISH_PYPI": "false", "PUBLISH_NPM": "true"}, True),
         ({"DAYTONA_V0_TAG": "v0.223.1", "PUBLISH_PYPI": "false", "PUBLISH_NPM": "true"}, False),
         ({"DAYTONA_V0_TAG": "v0.225.0", "PUBLISH_NPM": "true", "ALLOW_UNPINNED_V0": "true"}, True),
     ],
@@ -991,7 +991,7 @@ def test_publishing_with_a_v0_tag_override_needs_allow_unpinned(env: dict[str, s
         # The source's own pinned tag is not an override...
         ("v0.223.1", True),
         # ...while the pin beside the script (main's) is one for this source.
-        ("v0.224.0", False),
+        ("v0.230.0", False),
     ],
 )
 def test_check_override_compares_against_the_pin_file_being_published(
