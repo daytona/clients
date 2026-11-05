@@ -1122,7 +1122,7 @@ type InfoResponse struct {
 	// BuildTime Toolbox build time in RFC 3339 UTC, or `unknown` when unavailable. May be omitted.
 	BuildTime *string `json:"buildTime,omitempty"`
 
-	// UserHomeDir Home directory of the configured default user. Omitted when no user or home directory is available.
+	// UserHomeDir Home directory of the configured default user; omitted when that user cannot be resolved. Without a configured default user, the toolbox's own home directory.
 	UserHomeDir *string `json:"userHomeDir,omitempty"`
 
 	// Version Platform release version, for example `2.0.0-alpha.1`; `0.0.0-dev` when unavailable. Distinct from the toolbox build identifier returned by `GET /version`.

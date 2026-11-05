@@ -396,8 +396,8 @@ const result = await sandbox.volumes.pull(volume.id, {
 read-write disk volumes only, without `persistent: true`.
 
 Pulling an attachment is separate from the `daytona.v2.volume` management
-service. IDs contain 1–128 ASCII letters, digits, underscores or hyphens.
-The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
+service. The volume ID is the attached volume's `vol_` ID or its UUID. IDs
+contain 1–128 ASCII letters, digits, underscores or hyphens. The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
 nullable `manifestId`. Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 

@@ -451,7 +451,8 @@ result = sandbox.volumes.pull(
 On `AsyncDaytona` use `await sandbox.volumes.pull(...)`.
 
 This is separate from the platform `d.v2.volume` management service.
-IDs contain 1–128 ASCII letters, digits, underscores or hyphens. `PullVolumeResult`
+The volume ID is the attached volume's `vol_` ID or its UUID. IDs contain 1–128
+ASCII letters, digits, underscores or hyphens. `PullVolumeResult`
 has `request_id`, `status` (`pulled`, `unchanged`, `pending`, or `unknown`) and
 nullable `manifest_id`; `raw_status` preserves the server's status string.
 Fractional seconds round down to whole milliseconds, but any positive timeout

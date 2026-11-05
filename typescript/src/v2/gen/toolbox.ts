@@ -699,7 +699,7 @@ export interface paths {
         put?: never;
         /**
          * Update future child-process environment
-         * @description Update environment variables for subsequently created processes, PTYs, sessions, and Git commands. Running processes and existing interpreter contexts are unchanged. `unset` removes only variables previously added by this operation. Reserved or invalid names are rejected. Each `KEY=VALUE` entry is limited to 128 KiB and the `env` payload to 1 MiB; platform-specific environment size limits also apply.
+         * @description Update environment variables for subsequently created processes, PTYs, sessions, and Git commands. Running processes and existing interpreter contexts are unchanged. `unset` removes only pushed variables (set by this operation or supplied by the platform, such as create-time variables); the sandbox's base environment is unchanged. Reserved or invalid names are rejected. Each `KEY=VALUE` entry is limited to 128 KiB and the `env` payload to 1 MiB; platform-specific environment size limits also apply.
          */
         post: operations["set_env"];
         delete?: never;
@@ -2597,7 +2597,7 @@ export interface components {
             buildSha?: string | null;
             /** @description Toolbox build time in RFC 3339 UTC, or `unknown` when unavailable. May be omitted. */
             buildTime?: string | null;
-            /** @description Home directory of the configured default user. Omitted when no user or home directory is available. */
+            /** @description Home directory of the configured default user; omitted when that user cannot be resolved. Without a configured default user, the toolbox's own home directory. */
             userHomeDir?: string | null;
             /** @description Platform release version, for example `2.0.0-alpha.1`; `0.0.0-dev` when unavailable. Distinct from the toolbox build identifier returned by `GET /version`. */
             version: string;
@@ -8155,7 +8155,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Attached volume ID (1–128 ASCII letters, digits, underscores or hyphens). */
+                /** @description Attached volume ID: the volume's `vol_` ID or its UUID (1–128 ASCII letters, digits, underscores or hyphens). */
                 volumeId: string;
             };
             cookie?: never;
