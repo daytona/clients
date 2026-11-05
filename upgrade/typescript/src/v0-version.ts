@@ -72,8 +72,12 @@ function npmLock(text: string): Lock {
 function pnpmLock(text: string): Lock {
   // Only the head is read (importers, or pnpm 5 / 6 top-level sections): the
   // per-package sections after it make up most of a large lockfile.
-  const head = /^(?:packages|snapshots):/m.exec(text);
-  const lock = record(parseYaml(head === null ? text : text.slice(0, head.index))) ?? {};
+  // A boot document (config dependencies, the package manager) may come
+  // first: the project's lockfile is the last document.
+  const starts = [...text.matchAll(/^---[ \t]*$/gm)].filter(match => match.index > 0);
+  const last = starts.length ? text.slice((starts.at(-1)?.index ?? 0) + 3) : text;
+  const head = /^(?:packages|snapshots):/m.exec(last);
+  const lock = record(parseYaml(head === null ? last : last.slice(0, head.index))) ?? {};
   const importers = record(lock['importers']);
   return ({ key }, importer) => {
     // pnpm 5 / 6 single-project lockfiles keep the root's sections at the top.
@@ -92,6 +96,8 @@ function manifestWorkspaces(directory: string): readonly RegExp[] | undefined {
   let manifest: Record<string, unknown> | undefined;
   try { manifest = record(JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8').replace(/^\uFEFF/, ''))); }
   catch (error) {
+    // No root manifest: the lockfile's project has no workspaces to match.
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return [];
     if (error instanceof SyntaxError || error instanceof Error && 'code' in error) return undefined;
     throw error;
   }

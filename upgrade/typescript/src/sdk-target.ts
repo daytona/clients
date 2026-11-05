@@ -4,7 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { gte, minVersion, parse, validRange } from 'semver';
+import { gte, minVersion, parse, valid, validRange } from 'semver';
 import type { Mapping } from './model.js';
 import { UpgradeError } from './model.js';
 
@@ -38,6 +38,20 @@ export function targetRange(toolVersion: string, fallback: string): string {
   return parsed.prerelease.length ? parsed.version : `^${parsed.version}`;
 }
 
+/**
+ * The exact version to write for a pre-release range at or above a pre-release
+ * target (`^2.0.0-alpha.9` under 2.0.0-alpha.8 -> `2.0.0-alpha.9`): pinned like
+ * the target, never below the range's own floor. Undefined otherwise.
+ */
+export function pinnedFloor(range: string, target: string): string | undefined {
+  // An exclusive bound (`>2.0.0-alpha.8`) names no release to pin.
+  if (validRange(range) === null || validRange(target) === null || valid(range) !== null || /(?<![<>])>(?!=)/.test(range)) return undefined;
+  const floor = minVersion(range);
+  const wanted = minVersion(target);
+  if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length) return undefined;
+  return floor.major === wanted.major && gte(floor, wanted) ? floor.version : undefined;
+}
+
 export function withTarget(mapping: Mapping, toolVersion: string): Mapping {
   return { ...mapping, packages: { ts: { ...mapping.packages.ts, range: targetRange(toolVersion, mapping.packages.ts.range) } } };
 }
@@ -52,6 +66,9 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   const floor = minVersion(range);
   const wanted = minVersion(target);
   if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted)) return false;
+  // While the target is a pre-release, only an exact pre-release counts: a
+  // pre-release range (`^2.0.0-alpha.8`) also admits the stale 2.0.0-rc.1.
+  if (wanted.prerelease.length && floor.prerelease.length && valid(range) === null) return false;
   // While the target is a pre-release, a floor on that same release's stable
   // version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases wrote)
   // installs nothing yet; any later stable floor is a project ahead of this tool.

@@ -328,4 +328,6 @@ def _text(version: Version) -> str:
     if version.pre is not None:
         stage, number = version.pre
         text += f"-{ {'a': 'alpha', 'b': 'beta', 'rc': 'rc'}[stage] }.{number}"
+    if version.post is not None:
+        text += f".post{version.post}"
     return text

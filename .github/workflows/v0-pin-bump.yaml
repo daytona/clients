@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           pinned=$(sed -n '1p' scripts/v0-sdk-version | tr -d '[:space:]')
           newest=$(git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v0.*' \
-            | sed 's|.*refs/tags/||' | grep -E '^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -1)
+            | sed 's|.*refs/tags/||' | grep -E '^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -1 || true)
           echo "pinned: $pinned, newest 0.x release: ${newest:-none}"
           if [ -z "$newest" ] || [ "$(printf '%s\n%s\n' "$pinned" "$newest" | sort -V | tail -1)" = "$pinned" ]; then
             echo "tag=" >> "$GITHUB_OUTPUT"

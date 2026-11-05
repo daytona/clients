@@ -98,7 +98,9 @@ it('reads the workspace lockfile above the scanned package and a Berry lockfile'
   // Given: only the workspace root has a lockfile.
   const berry = `__metadata:\n  version: 8\n\n"@daytonaio/sdk@npm:^0.100.0":\n  version: 0.100.0\n  resolution: "@daytonaio/sdk@npm:0.100.0"\n`;
   // When
-  const { report } = await run({ '.git/HEAD': '', 'yarn.lock': berry, 'packages/app/package.json': manifest('^0.100.0'), 'packages/app/index.ts': code }, [], 'packages/app');
+  const berry2 = `${berry}\n"root@workspace:.":\n  version: 0.0.0-use.local\n\n"app@workspace:packages/app":\n  version: 0.0.0-use.local\n`;
+  const { report } = await run({ '.git/HEAD': '', 'yarn.lock': berry2, 'package.json': JSON.stringify({ name: 'root', private: true, workspaces: ['packages/*'] }),
+    'packages/app/package.json': manifest('^0.100.0'), 'packages/app/index.ts': code }, [], 'packages/app');
   // Then
   expect(report.warnings).toEqual([{ file: '../../yarn.lock', message: olderMessage('0.100.0', pinned) }]);
 });
@@ -388,4 +390,24 @@ it('ignores commented-out bun.lock entries', async () => {
   // Then
   expect(exit).toBe(0);
   expect(report.refused).toBeUndefined();
+});
+
+it('reads the last document of a pnpm lockfile with a boot document', async () => {
+  // Given: pnpm writes its config dependencies first; the project's lockfile is the last document.
+  const pnpm = `---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    configDependencies: {}\npackages:\n  pnpm@10.0.0:\n    resolution: {integrity: a}\n---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: '>=0.200.0'\n        version: ${transitive}\npackages:\n  '@daytonaio/sdk@${transitive}':\n    resolution: {integrity: b}\n`;
+  // When
+  const { code: exit, report } = await run({ 'package.json': manifest('>=0.200.0'), 'pnpm-lock.yaml': pnpm, 'index.ts': code });
+  // Then: the lockfile's resolution, not the manifest's floor.
+  expect(exit).toBe(2);
+  expect(report.refused?.message).toBe(newerRefusal(transitive, 'pnpm-lock.yaml', pinned));
+});
+
+it('a classic yarn.lock with no root manifest owns no nested project', async () => {
+  // Given: yarn.lock at the Git root, no root package.json, app/ declares 0.100.0.
+  const yarn = `# yarn lockfile v1\n\n"@daytonaio/sdk@0.100.0":\n  version "${transitive}"\n`;
+  // When
+  const { report } = await run({ '.git/HEAD': '', 'yarn.lock': yarn, 'app/package.json': manifest('0.100.0'), 'app/index.ts': code }, [], 'app');
+  // Then: its own manifest stands in.
+  expect(report.refused).toBeUndefined();
+  expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
 });

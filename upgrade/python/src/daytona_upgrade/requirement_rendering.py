@@ -39,11 +39,12 @@ def render_requirement(
     kept = target_constraint(
         requirement.name, existing, mapping.package_new, mapping.specifier
     )
-    # A kept constraint keeps its original text (packaging reorders specifiers).
+    # A kept constraint keeps its original text (packaging reorders specifiers);
+    # otherwise the target, or a pre-release range's own pinned floor.
     target += (
         tail[: len(tail) - len(suffix)].strip()
         if existing and kept == existing and kept != mapping.specifier
-        else mapping.specifier
+        else kept
     )
     result = parsed["indent"] + target + suffix + (parsed["ending"] or "")
     try:

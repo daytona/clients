@@ -60,7 +60,7 @@ it('a re-run of a pre-release tool reports no dependency item', async () => {
   expect(report.changedFiles).toEqual([]);
 });
 
-it.each(['2.0.0-alpha.9', '^2.0.0-alpha.9'])('an older tool keeps a newer pre-release %s', async range => {
+it.each(['2.0.0-alpha.9'])('an older tool keeps a newer pre-release %s', async range => {
   // Given: a 2.0.0-alpha.8 tool on a project already past it.
   const manifest = JSON.stringify({ dependencies: { '@daytona/sdk': range } });
   const root = temporaryProject({ 'package.json': manifest,
@@ -100,6 +100,12 @@ it.each([
   ['^2.5.0', '2.0.0-alpha.3', '^2.5.0'],
   ['2.1.0', '2.0.0-alpha.3', '2.1.0'],
   ['^2.0.0', '2.0.0-alpha.3', '2.0.0-alpha.3'],
+  // A pre-release range also admits the stale 2.0.0-rc.1: pinned, never lowered.
+  ['^2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  ['>=2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  ['^2.0.0-alpha.9', '2.0.0-alpha.8', '2.0.0-alpha.9'],
+  ['^2.0.0-alpha.7', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  ['>2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
 ])('moves %s under a %s tool to %s', async (range, tool, expected) => {
   // Given / When
   const { written, items } = await migrate(range, tool);

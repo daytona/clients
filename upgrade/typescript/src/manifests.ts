@@ -12,7 +12,7 @@ import { UpgradeError } from './model.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
 import type { DeclaredDependency } from './v0-version.js';
-import { aboveTargetMajor, atOrAboveTarget, inTargetMajor } from './sdk-target.js';
+import { aboveTargetMajor, atOrAboveTarget, inTargetMajor, pinnedFloor } from './sdk-target.js';
 
 export function manifests(files: readonly string[], mapping: Mapping, context: string | ReadContext): {
   readonly changes: readonly Change[]; readonly dependencies: readonly Dependency[]; readonly items: readonly Item[];
@@ -139,8 +139,10 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         }
         edits.push({ start: entry.getNameNode().getStart() - prefix.length, end: entry.getNameNode().getEnd() - prefix.length,
           text: JSON.stringify(mapping.packages.ts.new) });
-        edits.push({ start: version.getStart() - prefix.length, end: version.getEnd() - prefix.length, text: JSON.stringify(mapping.packages.ts.range) });
-        dependencies.push({ file: detail.file, from: `${name}@${version.getLiteralValue()}`, to: `${mapping.packages.ts.new}@${mapping.packages.ts.range}` });
+        // A pre-release range above the target is pinned to its own floor, never lowered.
+        const written = (name === mapping.packages.ts.new ? pinnedFloor(version.getLiteralValue(), mapping.packages.ts.range) : undefined) ?? mapping.packages.ts.range;
+        edits.push({ start: version.getStart() - prefix.length, end: version.getEnd() - prefix.length, text: JSON.stringify(written) });
+        dependencies.push({ file: detail.file, from: `${name}@${version.getLiteralValue()}`, to: `${mapping.packages.ts.new}@${written}` });
         directories.add(dirname(file));
       }
     }

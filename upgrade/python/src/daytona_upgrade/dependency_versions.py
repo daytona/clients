@@ -59,11 +59,56 @@ def lower_bound(constraint: str) -> Version | None:
     return min(bounds) if bounds else None
 
 
+def _exact(constraint: str) -> bool:
+    """A single ``==`` / ``===`` pin, or a bare Poetry version."""
+    text = constraint.strip()
+    try:
+        Version(text)
+        return True
+    except InvalidVersion:
+        pass
+    try:
+        specifiers = list(SpecifierSet(text))
+    except InvalidSpecifier:
+        return False
+    return (
+        len(specifiers) == 1
+        and specifiers[0].operator in {"==", "==="}
+        and "*" not in specifiers[0].version
+    )
+
+
+def pinned_floor(constraint: str, target: str) -> str | None:
+    """The exact pin to write for a pre-release range at or above a pre-release
+    target (">=2.0.0a9" under ==2.0.0a8 -> "==2.0.0a9"): never below the range's
+    own floor. None otherwise."""
+    floor, wanted = lower_bound(constraint), lower_bound(target)
+    if (
+        floor is None
+        or wanted is None
+        or not wanted.is_prerelease
+        or not floor.is_prerelease
+        or _exact(constraint)
+        or ">" in constraint.replace(">=", "")  # An exclusive bound names no release.
+    ):
+        return None
+    return f"=={floor}" if floor.major == wanted.major and floor >= wanted else None
+
+
 def at_or_above_target(constraint: str, target: str) -> bool:
     """A constraint already at or above the target in the target's major
     (``==2.0.0a9`` for a ``==2.0.0a8`` tool): left as it is, so an older tool
     release never downgrades a project."""
     floor, wanted = lower_bound(constraint), lower_bound(target)
+    if (
+        floor is not None
+        and wanted is not None
+        and wanted.is_prerelease
+        and floor.is_prerelease
+        and not _exact(constraint)
+    ):
+        # A pre-release range (">=2.0.0a8") also admits the stale 2.0.0rc1.
+        return False
     return (
         floor is not None
         and wanted is not None
@@ -96,7 +141,10 @@ def target_constraint(name: str, constraint: str, package: str, target: str) -> 
     ).lower() and (
         at_or_above_target(constraint, target) or above_target_major(constraint, target)
     )
-    return constraint if keep else target
+    if keep:
+        return constraint
+    pinned = pinned_floor(constraint, target)
+    return pinned if pinned is not None else target
 
 
 def requires_v2(constraint: str, target: str | None = None) -> bool:

@@ -564,8 +564,11 @@ def _migrate(
         ("daytona[v0-sdk]==2.0.0a8", "2.0.0", "daytona[v0-sdk]>=2.0.0,<3"),
         ("daytona[v0-sdk]>=2.3.1", "2.5.0", "daytona[v0-sdk]>=2.5.0,<3"),
         ("daytona[v0-sdk]>=2.5.0", "2.3.1", "daytona[v0-sdk]>=2.5.0"),
-        ("daytona[v0-sdk]>=2.0.0a9", "2.0.0a8", "daytona[v0-sdk]>=2.0.0a9"),
-        ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]>2.0.0a8"),
+        # A pre-release range also admits the stale 2.0.0rc1: pinned, never lowered.
+        ("daytona[v0-sdk]>=2.0.0a9", "2.0.0a8", "daytona[v0-sdk]==2.0.0a9"),
+        ("daytona[v0-sdk]>=2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        ("daytona[v0-sdk]~=2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
         ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
         ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),
@@ -808,4 +811,19 @@ def test_a_marker_gated_table_entry_is_no_version_evidence(
     assert code == 0
     assert report["warnings"] == [
         {"file": "pyproject.toml", "message": unknown_message(PINNED)}
+    ]
+
+
+def test_prints_a_post_release(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given / When
+    _project(tmp_path, {"requirements.txt": f"daytona=={PINNED}.post1\n"})
+    _, report = _run(tmp_path, capsys)
+    # Then: the message names the post-release it compares.
+    assert report["warnings"] == [
+        {
+            "file": "requirements.txt",
+            "message": newer_patch_message(f"{PINNED}.post1", PINNED),
+        }
     ]
