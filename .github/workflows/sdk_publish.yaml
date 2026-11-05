@@ -369,7 +369,7 @@ jobs:
             --exclude='.git' \
             -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
           ls -l /tmp/sdk-src.tgz
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src.tgz
@@ -453,7 +453,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: tar -xzf /tmp/sdk-src/sdk-src.tgz
       # No `cache: pip` here for the same reason as build-npm below.
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Stamp version into the runner's checkout (not committed)
@@ -502,7 +502,7 @@ jobs:
           # and the git-ignored bundle must be in both artifacts. Member lists
           # are read directly (no `lister | grep -q` under pipefail).
           python ../scripts/check_dist_artifacts.py python dist ${V0_TAG:+--v0}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pypi-dist
           path: sdk-python/dist/
@@ -589,7 +589,7 @@ jobs:
               && npm install --no-audit --no-fund --no-save typescript@5 >/dev/null \
               && for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json; do npx tsc -p "cjs-types-fixture/$config" || exit 1; done)
           fi
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-pack
           path: sdk-typescript/pack/*.tgz
@@ -615,7 +615,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: tar -xzf /tmp/sdk-src/sdk-src.tgz
       # No module cache here for the same reason as build-npm.
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: cli/go.mod
           cache: false
@@ -628,7 +628,7 @@ jobs:
           go test ./...
           ./hack/build.sh   # also copies install.sh/install.ps1 into dist and checksums them
           ls -l dist && cat dist/SHA256SUMS
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cli-dist
           path: cli/dist/
