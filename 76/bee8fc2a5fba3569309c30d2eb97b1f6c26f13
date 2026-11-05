@@ -1,0 +1,23 @@
+contract/api-openapi.json
+  s_717b45cf151505::t_eca5764cf4a95c 2248,4179,6604,7117,8110,9551,11732,18432,19959,21856
+contract/sandbox-events-protocol.json
+  s_717b45cf151505::t_e4403265a56255 11,19
+contract/toolbox-openapi.json
+  s_717b45cf151505::t_b766ee244fbb79 1563,1594-1600,1826,2111,2186-2225,2279-2285,2836-2842,6114,9170-9178,9659,9724,9903-9964,10464-10468
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76bee8fc2a5fba3569309c30d2eb97b1f6c26f13",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
