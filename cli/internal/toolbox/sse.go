@@ -43,7 +43,11 @@ func readSSE(r io.Reader, fn func(sseMessage) error) error {
 		}
 		if err == io.EOF {
 			if line.Len() > 0 {
-				block.Write(bytes.TrimRight(line.Bytes(), "\r\n"))
+				trimmed := bytes.TrimRight(line.Bytes(), "\r\n")
+				if block.Len()+len(trimmed)+1 > maxSSEEvent {
+					return fmt.Errorf("SSE event exceeds %d bytes", maxSSEEvent)
+				}
+				block.Write(trimmed)
 				block.WriteByte('\n')
 			}
 			break

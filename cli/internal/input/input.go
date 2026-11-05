@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -56,14 +57,23 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 	return b, nil
 }
 
-// Set writes a field unconditionally.
-func (b Body) Set(key string, v any) { b[key] = v }
+// Set writes a field unconditionally. Decode matches keys
+// case-insensitively, so Set also drops any case variant of key (from --file)
+// that would otherwise compete with the value written here.
+func (b Body) Set(key string, v any) {
+	for existing := range b {
+		if existing != key && strings.EqualFold(existing, key) {
+			delete(b, existing)
+		}
+	}
+	b[key] = v
+}
 
 // SetIfChanged writes a field only when the flag was explicitly given, so a
 // flag's default never clobbers a value from --file.
 func (b Body) SetIfChanged(fs *pflag.FlagSet, flag, key string, v any) {
 	if fs.Changed(flag) {
-		b[key] = v
+		b.Set(key, v)
 	}
 }
 
@@ -75,11 +85,15 @@ func (b Body) Require(key, flag string) error {
 	return nil
 }
 
+// RejectNulls refuses an explicit null for any of fields. Keys match
+// case-insensitively, as Decode does: `"Labels": null` would otherwise pass
+// here and then decode into the `labels` field as omitted.
 func RejectNulls(b Body, fields ...string) error {
 	for _, field := range fields {
-		value, ok := b[field]
-		if ok && value == nil {
-			return cerr.Usage("%q is not nullable; omit it to keep the current value", field)
+		for key, value := range b {
+			if value == nil && strings.EqualFold(key, field) {
+				return cerr.Usage("%q is not nullable; omit it to keep the current value", key)
+			}
 		}
 	}
 	return nil

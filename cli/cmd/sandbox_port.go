@@ -106,7 +106,7 @@ func processStdinReader(a *app.App) (io.Reader, error) {
 
 func exitError(result tbgen.ExitResult) error {
 	if result.Reason == nil {
-		return nil
+		return exitCodeError(result)
 	}
 	switch *result.Reason {
 	case tbgen.ReasonExited:
@@ -130,8 +130,17 @@ func exitError(result tbgen.ExitResult) error {
 		}
 		return cerr.New(cerr.ExitFailure, "process %s", *result.Reason)
 	default:
+		return exitCodeError(result)
+	}
+}
+
+// exitCodeError reports a nonzero exit code when the reason is absent or
+// unknown: `reason` is optional on the wire, the exit code still decides.
+func exitCodeError(result tbgen.ExitResult) error {
+	if result.ExitCode == nil || *result.ExitCode == 0 {
 		return nil
 	}
+	return cerr.New(int(*result.ExitCode), "process exited with code %d", *result.ExitCode)
 }
 
 func stdinModePtr(v tbgen.StdinMode) *tbgen.StdinMode { return &v }

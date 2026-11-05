@@ -210,6 +210,14 @@ func TestParsePorts_invalidProto(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
+func TestParsePorts_emptyProtoAfterSlash(t *testing.T) {
+	for _, value := range []string{"8080/", "8080/ "} {
+		_, err := ParsePorts([]string{value})
+		require.Error(t, err, value)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), value)
+	}
+}
+
 func sandboxFixture(status string) string {
 	return `{"class":"linux","spot":false,"cpu":1,"id":"id","image":{"id":"img_py312","name":"python:3.12"},"labels":{},"lifecycle_policy":{},"memory_mib":512,"name":"box","port_map":[],"region_id":"region-a","disk_mib":1024,"status":"` + status + `","toolbox_proxy_url":"https://tb.example","cores_max":1}`
 }

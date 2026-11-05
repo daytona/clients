@@ -69,7 +69,7 @@ func ParsePorts(values []string) ([]gen.PortMapping, error) {
 			return nil, cerr.Usage("--port wants PORT or PORT/PROTO, got %q", value)
 		}
 		item := gen.PortMapping{Port: int32(port)}
-		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+		if len(parts) == 2 {
 			proto := strings.ToLower(strings.TrimSpace(parts[1]))
 			if proto != "tcp" && proto != "udp" {
 				return nil, cerr.Usage("--port wants PORT or PORT/{tcp|udp}, got %q", value)

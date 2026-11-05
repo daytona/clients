@@ -26,9 +26,6 @@ func newRoleCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if a.Format != output.FormatTable {
-			return a.Printer().Object(catalog, nil)
-		}
 		return output.ListOut(a.Printer(), output.List[gen.Role]{Items: catalog.Roles}, func(items []gen.Role) output.Table {
 			rows := make([][]string, 0, len(items))
 			for _, item := range items {

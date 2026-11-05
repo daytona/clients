@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -29,6 +30,19 @@ const (
 )
 
 type ctxKey struct{}
+
+type loadErrKey struct{}
+
+// annotationRunsWithoutConfig marks a diagnostic command that still runs when
+// the config cannot be loaded; LoadError returns the failure.
+const annotationRunsWithoutConfig = "daytona/runs-without-config"
+
+// LoadError returns why the root could not build the App for a command
+// marked with annotationRunsWithoutConfig (nil when it could).
+func LoadError(ctx context.Context) error {
+	err, _ := ctx.Value(loadErrKey{}).(error)
+	return err
+}
 
 // FromContext returns the App the root PersistentPreRunE installed.
 func FromContext(ctx context.Context) *app.App {
@@ -59,9 +73,14 @@ Get started:
   daytona docs --full               the whole reference in one page`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Version:       app.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			a, err := app.Load(*globals, stdout, stderr, nil)
 			if err != nil {
+				if cmd.Annotations[annotationRunsWithoutConfig] != "" {
+					cmd.SetContext(context.WithValue(cmd.Context(), loadErrKey{}, err))
+					return nil
+				}
 				return err
 			}
 			installAuth(a)
@@ -71,6 +90,9 @@ Get started:
 	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
+	// Cobra answers --version before any pre-run hook: no config, no network.
+	root.Flags().BoolP("version", "v", false, "print the CLI version and exit")
+	root.SetVersionTemplate("daytona {{.Version}} (" + runtime.GOOS + "/" + runtime.GOARCH + ")\n")
 	// Unknown/malformed flags are usage errors (exit 2), like every other
 	// argument mistake — each command registers only the flags its request
 	// type has, so "unknown flag" is how a flag from another create surface

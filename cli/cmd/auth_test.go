@@ -333,6 +333,75 @@ func TestTokenRefreshDoesNotHoldLockAndConvergesOnRotation(t *testing.T) {
 	}
 }
 
+// The other invocation may redeem the refresh token first but save its
+// tokens only after our refresh was rejected: the rejected refresh rechecks
+// the store briefly instead of reporting an expired session.
+func TestTokenRefreshRejectedBeforeConcurrentRotationIsSaved(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	f.on("GET", "/config", 200, oidcConfigFixture(f.srv.URL))
+	f.on("GET", "/idp/.well-known/openid-configuration", 200, map[string]string{"issuer": f.srv.URL + "/idp", "authorization_endpoint": f.srv.URL + "/idp/authorize", "token_endpoint": f.srv.URL + "/idp/token"})
+	saved := make(chan error, 1)
+	f.handle("POST", "/idp/token", func(w http.ResponseWriter, r *http.Request) {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			st, err := config.Open(d)
+			if err != nil {
+				saved <- err
+				return
+			}
+			saved <- st.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
+				pc := cr.Profiles["default"]
+				pc.OIDC = &config.Tokens{AccessToken: "jwt-other", RefreshToken: "rt-other", ExpiresAt: time.Now().Add(time.Hour)}
+				cr.Profiles["default"] = pc
+				return false, true, nil
+			})
+		}()
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"refresh token rotated"}`))
+	})
+	f.on("GET", "/orgs", 200, organizationsFixture())
+	oidcProfile(t, d, f.srv.URL, -time.Minute)
+	_, errb, code := run(t, d, nil, "org", "list", "-o", "json")
+	select {
+	case err := <-saved:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("the token endpoint was never called: %d %s", code, errb)
+	}
+	if code != 0 {
+		t.Fatalf("must converge on the tokens saved after the rejection: %d %s", code, errb)
+	}
+	last := f.requests[len(f.requests)-1]
+	if last.Path != "/orgs" || last.Auth != "Bearer jwt-other" {
+		t.Fatalf("expected the other invocation's token on /orgs: %+v", last)
+	}
+}
+
+// A rejected refresh that no other invocation rotated still reports the
+// expired session, after the bounded recheck.
+func TestTokenRefreshRejectedWithoutRotationExpiresTheSession(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	f.on("GET", "/config", 200, oidcConfigFixture(f.srv.URL))
+	f.on("GET", "/idp/.well-known/openid-configuration", 200, map[string]string{"issuer": f.srv.URL + "/idp", "authorization_endpoint": f.srv.URL + "/idp/authorize", "token_endpoint": f.srv.URL + "/idp/token"})
+	f.handle("POST", "/idp/token", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"expired"}`))
+	})
+	oidcProfile(t, d, f.srv.URL, -time.Minute)
+	start := time.Now()
+	_, errb, code := run(t, d, nil, "org", "list", "-o", "json")
+	if code != cerr.ExitAuth || !has(errb, "session expired") {
+		t.Fatalf("%d %s", code, errb)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("the recheck is not bounded: %s", elapsed)
+	}
+}
+
 func TestDestructiveNeedsYesOffTTY(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)

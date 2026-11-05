@@ -674,3 +674,52 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 		t.Fatalf("%d %s", code, errb)
 	}
 }
+
+// The API types `anonymous` as a boolean with no "both" value, so --anonymous
+// accepts only true/false and refuses anything else before any request.
+func TestImageList_anonymousFilterIsBoolean(t *testing.T) {
+	var queries []string
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.Path+"?"+r.URL.RawQuery)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/regions" {
+			_, _ = io.WriteString(w, `{"regions":[]}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"images":[]}`)
+	}))
+	defer server.Close()
+	runList := func(value string) (int, string) {
+		t.Helper()
+		_, errb, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "-o", "json", "image", "list", "--anonymous", value)
+		return code, errb
+	}
+
+	for _, value := range []string{"any", "yes", ""} {
+		mu.Lock()
+		queries = nil
+		mu.Unlock()
+		code, errb := runList(value)
+		if value == "" {
+			require.Equal(t, 0, code, errb)
+			continue
+		}
+		require.Equal(t, cerr.ExitUsage, code, errb)
+		require.Contains(t, errb, "--anonymous wants true or false")
+		mu.Lock()
+		require.Empty(t, queries, "refused before any request")
+		mu.Unlock()
+	}
+
+	mu.Lock()
+	queries = nil
+	mu.Unlock()
+	code, errb := runList("TRUE")
+	require.Equal(t, 0, code, errb)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Contains(t, queries, "/images?anonymous=true&limit=100")
+}

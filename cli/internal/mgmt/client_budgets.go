@@ -16,9 +16,9 @@ func projectBudgetPath(projectID string) string {
 	return "/projects/" + url.PathEscape(projectID) + "/budget"
 }
 
-// GetProjectBudget reads GET /projects/{id}/budget.
-// The api answers 404 when the project has no budget (and for a project the
-// caller cannot reach).
+// GetProjectBudget reads GET /projects/{id}/budget. A project without a
+// budget answers 200 with null monthly_limit_cents and created_at; a 404
+// means the project was not found (a caller without access gets 403).
 func GetProjectBudget(ctx context.Context, c *api.Client, projectID string) (*gen.ProjectBudget, error) {
 	var resp gen.ProjectBudget
 	if err := c.Do(ctx, http.MethodGet, projectBudgetPath(projectID), nil, nil, &resp); err != nil {

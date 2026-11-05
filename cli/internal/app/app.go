@@ -146,7 +146,7 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	}
 	a.Config = cfg
 
-	a.Mode = ui.Resolve(ui.Options{OutputFormat: string(f), YesFlag: g.Yes, ConfirmSetting: cfg.Settings.ConfirmEnabled(), Getenv: getenv, StdoutTTY: ForceTTY, StdinTTY: ForceTTY})
+	a.Mode = ui.Resolve(ui.Options{OutputFormat: string(f), YesFlag: g.Yes, ConfirmOff: !cfg.Settings.ConfirmEnabled(), Getenv: getenv, StdoutTTY: ForceTTY, StdinTTY: ForceTTY})
 
 	// Profile selection: --profile > DAYTONA_PROFILE > active > "default".
 	name := firstNonEmpty(g.Profile, getenv("DAYTONA_PROFILE"), cfg.ActiveProfile, "default")
