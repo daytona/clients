@@ -1477,7 +1477,7 @@ export interface paths {
         };
         /**
          * List processes
-         * @description List process records, optionally filtered by state, kind, session, name, or pid.
+         * @description List process records, optionally filtered by state, kind, session, name, pid, or tag.
          */
         get: operations["list_processes"];
         put?: never;
@@ -2427,7 +2427,7 @@ export interface components {
             /** @description Shell command to execute. */
             shellCommand?: string | null;
             stdin?: null | components["schemas"]["StdinMode"];
-            /** @description Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag. */
+            /** @description Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag. */
             tag?: string | null;
             terminal?: null | components["schemas"]["TerminalSize"];
             /**
@@ -2645,7 +2645,7 @@ export interface components {
         KernelKind: ("shell" | "python" | "typescript" | "javascript") | (string & {});
         /** @description `POST /processes:kill` request body. */
         KillProcessesRequest: {
-            /** @description The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters). */
+            /** @description The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`). */
             tag: string;
             /**
              * Format: int64
@@ -8030,7 +8030,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Every process started under the tag has exited. */
+            /** @description Every process created under the tag before the call, and everything it started, has exited. A start admitted after the call may be running. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8048,7 +8048,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `PROCESS_KILL_INCOMPLETE` — some killed processes were still running when `timeoutMs` expired; call again to retry. */
+            /** @description `PROCESS_KILL_INCOMPLETE` — some killed processes were still running when `timeoutMs` expired, or another start or kill under the tag was still in progress so the kill could not begin; call again to retry. */
             408: {
                 headers: {
                     [name: string]: unknown;
