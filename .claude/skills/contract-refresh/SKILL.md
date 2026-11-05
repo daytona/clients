@@ -46,9 +46,9 @@ new contract files; this skill turns them into a working SDK change.
    fails, and collect every failure:
 
    ```bash
-   (cd typescript || exit; npm run typecheck; npm test)
-   (cd python || exit; .venv/bin/python -m mypy; .venv/bin/python -m pytest -q)
-   (cd cli || exit; go build ./...; go test ./...)
+   (cd typescript || exit; rc=0; npm run typecheck || rc=1; npm test || rc=1; exit $rc)
+   (cd python || exit; rc=0; .venv/bin/python -m mypy || rc=1; .venv/bin/python -m pytest -q || rc=1; exit $rc)
+   (cd cli || exit; rc=0; go build ./... || rc=1; go test ./... || rc=1; exit $rc)
    ```
 
    Drift tests name what must change: a new error code (both `codes.py` and
