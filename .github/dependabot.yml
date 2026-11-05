@@ -53,6 +53,14 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+      # TypeScript 7's package has no JavaScript compiler API, which ts-jest,
+      # openapi-typescript (scripts/gen-contract.mjs) and our own compiler-API
+      # code need. Remove once ts-jest and openapi-typescript support it:
+      # https://github.com/kulshekhar/ts-jest/issues/5366
+      # https://github.com/openapi-ts/openapi-typescript/issues/2841
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 
