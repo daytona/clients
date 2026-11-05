@@ -223,7 +223,8 @@ def main(argv: list[str] | None = None) -> int:
             base = root.parent if root.is_file() else root
             v0 = check_v0_version(
                 base,
-                result.declared or ancestor_declarations(base, mapping),
+                # A file root starts at its own directory.
+                result.declared or ancestor_declarations(root, mapping),
                 mapping.v0_version,
                 args.allow_newer_v0,
                 result.found,

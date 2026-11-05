@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import TypedDict
 
 import tomlkit
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 from tomlkit.exceptions import TOMLKitError
 
+from .dependency_versions import lower_bound
 from .models import Mapping
 
 # Closest first: the nearest directory with a lockfile owns the install.
@@ -110,44 +110,6 @@ def _owner_lockfiles(directory: Path) -> list[Path]:
         current = current.parent
 
 
-def _lower_bound(specifier: str) -> Version | None:
-    try:
-        specifiers = SpecifierSet(specifier)
-    except InvalidSpecifier:
-        return None
-    bounds: list[Version] = []
-    for entry in specifiers:
-        if entry.operator not in {"==", "===", ">=", "~=", ">"}:
-            continue
-        try:
-            bound = Version(entry.version.removesuffix(".*"))
-        except InvalidVersion:
-            continue
-        if entry.operator == ">":
-            # The least version above it, as semver's minVersion reads `>`.
-            major, minor, micro = (*bound.release, 0, 0)[:3]
-            bound = Version(f"{major}.{minor}.{micro + 1}")
-        bounds.append(bound)
-    return max(bounds) if bounds else None
-
-
-def _poetry_lower_bound(specifier: str) -> Version | None:
-    """Poetry caret/tilde, bare versions and ``||`` alternatives (the least
-    alternative's bound), as dependency_versions.requires_v2 reads them."""
-    bounds: list[Version] = []
-    for alternative in specifier.split("||"):
-        normalized = re.sub(
-            r"[\^~](?!=)\s*(\d+(?:\.\d+)*)", r">=\1", alternative.strip()
-        )
-        if re.fullmatch(r"\d+(?:\.[\d*]+)*", normalized):
-            normalized = "==" + normalized
-        bound = _lower_bound(normalized)
-        if bound is None:
-            return None
-        bounds.append(bound)
-    return min(bounds) if bounds else None
-
-
 _ANCESTOR_MANIFESTS = (
     "pyproject.toml",
     "setup.cfg",
@@ -162,7 +124,8 @@ def ancestor_declarations(
     base: Path, mapping: Mapping
 ) -> tuple[tuple[Path, str, str], ...]:
     """The nearest ancestor manifest's Daytona declarations, up to the Git
-    root, for a scan root that declares none itself (a partial-root run)."""
+    root, for a scan root that declares none itself (a partial-root run). A
+    file root starts at its own directory, even outside a Git checkout."""
     from .manifest_errors import ManifestParseError
     from .manifests import inspect_manifest
 
@@ -173,7 +136,7 @@ def ancestor_declarations(
             for directory in (start, *start.parents)
             if (directory / ".git").exists()
         ),
-        start,
+        start.parent if start.is_file() else start,
     )
     if boundary == start:
         return ()
@@ -246,7 +209,7 @@ def check_v0_version(
             evidenced.add(manifest)
             continue
         # No lockfile, or one that does not resolve this package: the constraint stands in.
-        bound = _poetry_lower_bound(specifier) if specifier else None
+        bound = lower_bound(specifier) if specifier else None
         if bound is not None and bound.major >= 2:
             evidenced.add(manifest)
             continue

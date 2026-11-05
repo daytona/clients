@@ -12,6 +12,7 @@ import { UpgradeError } from './model.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
 import type { DeclaredDependency } from './v0-version.js';
+import { atOrAboveTarget } from './sdk-target.js';
 
 export function manifests(files: readonly string[], mapping: Mapping, context: string | ReadContext): {
   readonly changes: readonly Change[]; readonly dependencies: readonly Dependency[]; readonly items: readonly Item[];
@@ -98,6 +99,10 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'manual-dependency', message: `Update Daytona package constraint ${name} manually for SDK 2.x.` });
           continue;
         }
+        // Already the target, or a later release of its major (before the
+        // ordinary-range test below, which pre-release literals fail).
+        if (name === mapping.packages.ts.new && sectionName !== 'peerDependencies' && Node.isStringLiteral(version) &&
+            atOrAboveTarget(version.getLiteralValue(), mapping.packages.ts.range)) continue;
         if (qualified || reference || Node.isStringLiteral(version) &&
             !/^[\s~^<>=|*v\d.xX+-]+$/.test(version.getLiteralValue())) {
           const catalog = Node.isStringLiteral(version) && version.getLiteralValue().startsWith('catalog:') ? catalogFile(file, files) : undefined;
@@ -116,7 +121,6 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'peer-dependency', message: `Update peer dependency ${name} manually for SDK 2.x.` });
           continue;
         }
-        if (name === mapping.packages.ts.new && version.getLiteralValue() === mapping.packages.ts.range) continue;
         const collision = constraint ? entries.getProperties().some(candidate => Node.isPropertyAssignment(candidate) &&
           candidate.getName().replaceAll('"', '') === mapping.packages.ts.new) : hasRoot;
         if (name !== mapping.packages.ts.new && collision) {

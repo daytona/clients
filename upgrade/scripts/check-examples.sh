@@ -46,6 +46,17 @@ work=$(cd "$work" && pwd)
 
 commit() { git -C "$1" add -A && git -C "$1" -c user.email=ci@daytona.invalid -c user.name=ci commit -qm "$2"; }
 fresh_repo() { rm -rf "$1" && mkdir -p "$1" && git -C "$1" init -q; }
+# The second run's report must not ask for the dependency it just wrote.
+target_kept() { # report-json manifest label
+  if ! node -e '
+    const report = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+    const bad = report.items.filter(item => item.kind === "manual-dependency" && item.file === process.argv[1]);
+    if (bad.length) { console.error(JSON.stringify(bad)); process.exit(1); }
+  ' "$2" <<<"$1"; then
+    echo "FAIL: a second $3 run reports the dependency it wrote as a manual item" >&2
+    exit 1
+  fi
+}
 idempotent() {
   if [ -n "$(git -C "$1" status --porcelain)" ]; then
     echo "FAIL: a second $2 run changed files:" >&2
@@ -81,7 +92,8 @@ ts_range=$(node -e '
 ' "$(dirname "$ts_cli")/../package.json" "$upgrade/mapping/mapping.json")
 grep -qF "\"@daytona/sdk\": \"$ts_range\"" "$ts/package.json" || { echo "FAIL: package.json not bumped to $ts_range" >&2; exit 1; }
 commit "$ts" "upgraded"
-node "$ts_cli" "$ts" --yes >/dev/null
+ts_report=$(node "$ts_cli" "$ts" --yes --json)
+target_kept "$ts_report" package.json "TypeScript upgrade"
 idempotent "$ts" "TypeScript upgrade"
 (
   cd "$ts"
@@ -126,7 +138,8 @@ else
 fi
 grep -qxF "$py_requirement" "$py/requirements.txt" || { echo "FAIL: requirements.txt not bumped to $py_requirement" >&2; exit 1; }
 commit "$py" "upgraded"
-py_upgrade "$py" --yes >/dev/null
+py_report=$(py_upgrade "$py" --yes --json)
+target_kept "$py_report" requirements.txt "Python upgrade"
 idempotent "$py" "Python upgrade"
 venv="$work/venv"
 rm -rf "$venv"

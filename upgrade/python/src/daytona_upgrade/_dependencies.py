@@ -13,7 +13,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from tomlkit.container import OutOfOrderTableProxy
 from tomlkit.items import Array, InlineTable, String, Table
 
-from .dependency_versions import requires_v2
+from .dependency_versions import requires_v2, target_constraint
 from .models import Mapping
 from .requirement_rendering import render_requirement
 from .toml_values import render_declaration as _render
@@ -133,11 +133,24 @@ class Migration:
                 if rewritten != str(entry):
                     value[index] = _string(entry, rewritten)
 
-    def _table(self, updated: Table | InlineTable | OutOfOrderTableProxy) -> None:
+    def _table(
+        self, updated: Table | InlineTable | OutOfOrderTableProxy, name: str
+    ) -> None:
+        current = updated.get("version")
+        keep = isinstance(current, String) and not any(
+            field in updated for field in ("git", "url", "path")
+        )
         for field in ("git", "url", "path", "rev", "branch", "tag", "develop"):
             if field in updated:
                 del updated[field]
-        updated["version"] = self.mapping.specifier
+        version = target_constraint(
+            name,
+            str(current) if keep else "",
+            self.mapping.package_new,
+            self.mapping.specifier,
+        )
+        if version != str(current) or not keep:
+            updated["version"] = version
         extras = updated.get("extras")
         if isinstance(extras, Array):
             for extra in self.mapping.extras:
@@ -258,14 +271,19 @@ class Migration:
                 if not alternatives:
                     continue
                 for entry in alternatives:
-                    self._table(entry)
+                    self._table(entry, str(name))
                 updated = original
             elif isinstance(original, (Table, InlineTable, OutOfOrderTableProxy)):
-                self._table(original)
+                self._table(original, str(name))
                 updated = original
             elif isinstance(original, String):
                 updated = tomlkit.inline_table()
-                updated["version"] = self.mapping.specifier
+                updated["version"] = target_constraint(
+                    str(name),
+                    str(original),
+                    self.mapping.package_new,
+                    self.mapping.specifier,
+                )
                 updated["extras"] = list(self.mapping.extras)
                 updated.trivia.comment = original.trivia.comment
                 updated.trivia.comment_ws = original.trivia.comment_ws

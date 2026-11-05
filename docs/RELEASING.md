@@ -146,7 +146,9 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 - The four `publish_*` booleans pick the targets; all four publish by
   default so the SDKs, the CLI and the migration tool stay on the same number.
   See [The migration tool](#the-migration-tool) for what `publish_upgrade`
-  needs.
+  needs: untick it for a run that does not publish an SDK and is not meant
+  to publish the tool (a CLI-only run, an SDK resume), or the registry check
+  refuses it.
 - The gate refuses a version a target registry **already has** (npm, PyPI,
   this repository's releases), and a version whose tag already names another
   commit. `force_republish=true` skips the registry check to *resume* a run
@@ -187,10 +189,14 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   published SDKs, on a resume).
 - It refuses to publish beside a `v0_tag` override, from a tree without the v0
   namespace, and while the mapping's `docs.placeholder` is true.
+- Like the SDKs, a tool pre-release may publish any `source_ref` (a stable
+  version only a commit on `main`), behind the same `release` approval; the
+  former standalone tool workflow published only commits on `main`.
 - **Rollout:** the registries still carry the pre-lockstep `0.1.0` as the
   tool's npm `latest` (and PyPI's only stable release); deprecate it on npm
-  once the first lockstep alpha is out, and keep the quickstarts on `@alpha` /
-  `daytona-upgrade>=2.0.0a0` until 2.x is stable.
+  once the first lockstep alpha is out, drop the "Publishing both packages is
+  pending" line from `upgrade/scripts/gen-guide.mjs`, and keep the quickstarts
+  on `@alpha` / `daytona-upgrade>=2.0.0a0` until 2.x is stable.
 - A tool fix ships with the next SDK release. Untick `publish_upgrade` to
   leave the tool out of a run; the SDKs still name the tool release of their
   version (the gate warns and the run summary says so), so publish it later at

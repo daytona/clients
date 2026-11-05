@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { gte, minVersion, validRange } from 'semver';
 import type { Item } from './model.js';
 import { relativePath } from './discovery.js';
+import { atOrAboveTarget } from './sdk-target.js';
 
 type RuntimeDependency = { readonly name: '@daytonaio/sdk' | '@daytona/sdk'; readonly range: string | null };
 
@@ -51,8 +52,8 @@ export function dependencyScopeItem(root: string, rewritten: string, dependencyD
       if (declarations.length) {
         const certified = declarations.every(({ name, range }) => {
           if (name !== '@daytona/sdk' || range === null || validRange(range) === null) return false;
-          // The exact pre-release this tool targets counts; other pre-release floors do not.
-          if (range.trim() === target) return true;
+          // The target or a later release of its major counts (pre-releases included).
+          if (atOrAboveTarget(range, target)) return true;
           const minimum = minVersion(range);
           return minimum !== null && gte(minimum, '2.0.0');
         });

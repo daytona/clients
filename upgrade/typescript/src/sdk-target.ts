@@ -4,7 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { parse } from 'semver';
+import { gte, minVersion, parse, validRange } from 'semver';
 import type { Mapping } from './model.js';
 import { UpgradeError } from './model.js';
 
@@ -31,4 +31,16 @@ export function targetRange(toolVersion: string, fallback: string): string {
 
 export function withTarget(mapping: Mapping, toolVersion: string): Mapping {
   return { ...mapping, packages: { ts: { ...mapping.packages.ts, range: targetRange(toolVersion, mapping.packages.ts.range) } } };
+}
+
+/**
+ * A `@daytona/sdk` range already at or above the target in the target's major
+ * (`2.0.0-alpha.9` for a `2.0.0-alpha.8` tool, `^2.5.0` for `^2.3.1`): left as
+ * it is, so an older tool release never downgrades a project.
+ */
+export function atOrAboveTarget(range: string, target: string): boolean {
+  if (validRange(range) === null || validRange(target) === null) return false;
+  const floor = minVersion(range);
+  const wanted = minVersion(target);
+  return floor !== null && wanted !== null && floor.major === wanted.major && gte(floor, wanted);
 }

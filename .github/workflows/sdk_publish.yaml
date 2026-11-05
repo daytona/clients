@@ -175,7 +175,8 @@ permissions: {}
 # Two runs of one version would both pass the registry check, and the second
 # would half-fail on the registries: queue them instead.
 concurrency:
-  group: sdk-publish-${{ inputs.version }}
+  # `v2.0.0-alpha.3` and `2.0.0-alpha.3` are the same version.
+  group: sdk-publish-${{ startsWith(inputs.version, 'v') && inputs.version || format('v{0}', inputs.version) }}
   cancel-in-progress: false
 
 jobs:
@@ -778,9 +779,11 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
-          npm version --no-git-tag-version --allow-same-version "$NPM_VERSION"
+          # Test the unstamped tree first: a stamped version changes the SDK
+          # release the tool writes, and the suite expects the development range.
           npm run typecheck
           npm test
+          npm version --no-git-tag-version --allow-same-version "$NPM_VERSION"
           npm run build
           mkdir -p "$RUNNER_TEMP/upgrade-npm"
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/upgrade-npm"

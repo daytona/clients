@@ -411,3 +411,69 @@ def test_reads_lower_bounds_like_the_typescript_tool(
     _, report = _run(tmp_path, capsys)
     # Then
     assert report["warnings"] == [{"file": "pyproject.toml", "message": warning}]
+
+
+@pytest.mark.parametrize("nested", [True, False])
+def test_a_file_root_reads_the_manifest_beside_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], nested: bool
+) -> None:
+    # Given: app/main.py beside app/requirements.txt, below or at the Git root.
+    (tmp_path / ".git").mkdir()
+    project = tmp_path / "app" if nested else tmp_path
+    _project(project, {"requirements.txt": "daytona==0.999.0\n"})
+    # When
+    code = main([str(project / "app.py"), "--json", "--yes", "--force"])
+    report = json.loads(capsys.readouterr().out)
+    # Then
+    assert code == 2
+    assert report["refused"]["reason"] == "newer-v0"
+
+
+def test_an_older_tool_keeps_a_newer_pre_release_pin(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: a 2.0.0a8 tool on a project already on 2.0.0a9.
+    monkeypatch.setattr(
+        cli, "load_mapping", partial(load_mapping, tool_version="2.0.0a8")
+    )
+    _project(
+        tmp_path,
+        {
+            "requirements.txt": "daytona[v0-sdk]==2.0.0a9\n",
+            "pyproject.toml": '[tool.poetry]\nname = "app"\n\n[tool.poetry.dependencies]\ndaytona = "2.0.0a9"\n',
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys, "--strict")
+    # Then: no downgrade, no manual item.
+    assert (tmp_path / "requirements.txt").read_text() == "daytona[v0-sdk]==2.0.0a9\n"
+    assert '"2.0.0a9"' in (tmp_path / "pyproject.toml").read_text()
+    assert report["dependencies"] == [
+        {
+            "file": "pyproject.toml",
+            "from": 'daytona = "2.0.0a9"',
+            "to": 'daytona = {version = "2.0.0a9", extras = ["v0-sdk"]}',
+        }
+    ]
+    assert code == 0
+
+
+def test_a_rerun_of_a_pre_release_tool_is_clean_under_strict(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: a project this 2.0.0a8 tool already migrated.
+    monkeypatch.setattr(
+        cli, "load_mapping", partial(load_mapping, tool_version="2.0.0a8")
+    )
+    _project(tmp_path, {"requirements.txt": f"daytona=={PINNED}\n"})
+    _run(tmp_path, capsys)
+    # When
+    code, report = _run(tmp_path, capsys, "--strict")
+    # Then
+    assert (tmp_path / "requirements.txt").read_text() == "daytona[v0-sdk]==2.0.0a8\n"
+    assert report["changedFiles"] == []
+    assert code == 0

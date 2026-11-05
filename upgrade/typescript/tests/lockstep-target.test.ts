@@ -45,3 +45,30 @@ it('accepts an ancestor that already declares the exact target pre-release', asy
   // Then
   expect(JSON.parse(result.output).items.filter((item: { readonly kind: string }) => item.kind === 'manual-dependency')).toEqual([]);
 });
+
+it('a re-run of a pre-release tool reports no dependency item', async () => {
+  // Given: a project this 2.0.0-alpha.7 tool already migrated.
+  const root = temporaryProject({ 'package.json': '{"dependencies":{"@daytonaio/sdk":"0.224.0"}}',
+    'index.ts': "import { Daytona } from '@daytonaio/sdk'; const d = new Daytona(); d.create();\n" });
+  const mapping = withTarget(loadMapping(), '2.0.0-alpha.7');
+  await invoke(root, ['--json'], mapping);
+  // When
+  const result = await invoke(root, ['--json'], mapping);
+  // Then: the pinned pre-release is the target, not a manual dependency.
+  const report = JSON.parse(result.output) as { readonly items: readonly { readonly kind: string }[]; readonly changedFiles: readonly string[] };
+  expect(report.items.filter(item => item.kind === 'manual-dependency')).toEqual([]);
+  expect(report.changedFiles).toEqual([]);
+});
+
+it.each(['2.0.0-alpha.9', '^2.0.0-alpha.9'])('an older tool keeps a newer pre-release %s', async range => {
+  // Given: a 2.0.0-alpha.8 tool on a project already past it.
+  const manifest = JSON.stringify({ dependencies: { '@daytona/sdk': range } });
+  const root = temporaryProject({ 'package.json': manifest,
+    'index.ts': "import { Daytona } from '@daytona/sdk'; const d = new Daytona(); d.v0.create();\n" });
+  // When
+  const result = await invoke(root, ['--json', '--strict'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then: no downgrade, no manual item.
+  expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe(manifest);
+  expect((JSON.parse(result.output) as { readonly items: readonly { readonly kind: string }[] }).items
+    .filter(item => item.kind === 'manual-dependency')).toEqual([]);
+});

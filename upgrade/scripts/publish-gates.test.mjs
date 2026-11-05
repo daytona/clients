@@ -165,3 +165,13 @@ for (const [title, inputs, codes, expected] of [
     assert.equal(result.status, expected, result.stdout + result.stderr);
   });
 }
+
+test('tests both tools before stamping the release version', () => {
+  // Given: the build steps of the release run.
+  const npmStep = step('Build, test and pack the npm migration tool');
+  const pythonStep = step('Test, then build the PyPI migration tool');
+  // Then: a stamped version changes the SDK release the tool writes, so the
+  // suites (which expect the development range) run on the unstamped tree.
+  assert.ok(npmStep.indexOf('npm test') >= 0 && npmStep.indexOf('npm test') < npmStep.indexOf('npm version'), npmStep);
+  assert.ok(pythonStep.indexOf('uv run pytest') >= 0 && pythonStep.indexOf('uv run pytest') < pythonStep.indexOf('PYPI_VERSION"]'), pythonStep);
+});
