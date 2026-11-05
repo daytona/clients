@@ -18,6 +18,7 @@ on:
       - License headers
       - SDK CI
       - Secret scan
+      - Tooling tests
       - Upgrade tool CI
     types: [completed]
 
