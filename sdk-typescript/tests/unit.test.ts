@@ -3980,9 +3980,8 @@ describe('toolbox service request shaping', () => {
     expect(form.get('files[0].path')).toBe('/tmp/a.txt')
     expect(form.get('files[1].path')).toBe('/tmp/b.txt')
 
-    // Blob, not File: the File global only exists on Node >= 20 and this
-    // suite runs on Node 18 in CI; FormData file entries are Blob subclasses
-    // carrying a `name` either way.
+    // Blob, not File: FormData file entries are Blob subclasses carrying a
+    // `name` on every runtime.
     const firstFile = form.get('files[0].file')
     const secondFile = form.get('files[1].file')
     expect(firstFile).toBeInstanceOf(Blob)
