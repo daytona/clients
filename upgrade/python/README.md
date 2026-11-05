@@ -1,6 +1,6 @@
 # daytona-upgrade for Python
 
-Upgrade Daytona SDK 0.x projects to SDK 2.x **without moving workloads to v2**. The tool keeps the root `Daytona` / `AsyncDaytona` client, adds `.v0` to proven client calls, moves resource imports and all shared errors unconditionally to `daytona.v0` to preserve 0.x constructors, attributes and `except` behavior, and updates dependencies to `daytona[v0-sdk]>=2,<3`. Unproven calls get a `FIXME(daytona-upgrade)` only when their receiver is linked to Daytona; calls with no such evidence (including generic names, dict-held or `Any`-typed clients) get no FIXME and must be reviewed by hand. The tool is precision-first and best-effort, not a completeness verifier. Dynamic `__all__` keeps known unrelated exports non-client while making client or unknown exports uncertain, including nested wildcard imports. Possible replacements never preserve stale local Daytona proofs.
+Upgrade Daytona SDK 0.x projects to SDK 2.x **without moving workloads to v2**. The tool keeps the root `Daytona` / `AsyncDaytona` client, adds `.v0` to proven client calls, moves resource imports and all shared errors unconditionally to `daytona.v0` to preserve 0.x constructors, attributes and `except` behavior, and updates dependencies to the SDK release this tool was published with (see [Versions](#versions)). Unproven calls get a `FIXME(daytona-upgrade)` only when their receiver is linked to Daytona; calls with no such evidence (including generic names, dict-held or `Any`-typed clients) get no FIXME and must be reviewed by hand. The tool is precision-first and best-effort, not a completeness verifier. Dynamic `__all__` keeps known unrelated exports non-client while making client or unknown exports uncertain, including nested wildcard imports. Possible replacements never preserve stale local Daytona proofs.
 
 Requires Python 3.9 or later.
 SDK 2.x requires Python 3.10 or later; update your application's supported versions before installing it. Dependency markers stay unchanged.
@@ -61,6 +61,30 @@ for you to resolve manually. v0 IDs, snapshots, volumes and preview URLs
 do not automatically carry over to v2. Documentation links point at the Daytona
 docs until the dedicated migration guide is published.
 
+## Versions
+
+Each release of this tool is published with the SDK release of the same
+version, and migrates to exactly that release: `uvx daytona-upgrade@2.0.0a8`
+writes `daytona[v0-sdk]==2.0.0a8` (a pre-release is pinned, because
+pre-releases may break), and a stable `X.Y.Z` writes `>=X.Y.Z,<X+1`. Run the release
+that matches the SDK you want; the SDK's runtime guidance for 0.x calls names
+it.
+
+SDK 2.x runs one 0.x release as `.v0`; the tool's warnings and refusals name
+it. The tool reads the project's installed 0.x
+version from its lockfile (`uv.lock`, `poetry.lock`, `pdm.lock` or `Pipfile.lock`,
+the closest one up to the Git root), else from the lower bound of the
+requirement, and compares:
+
+| Installed 0.x version | Result |
+| --- | --- |
+| the `.v0` release | nothing to report |
+| older, or a newer patch of the same minor | a warning (`warnings` in `--json`): moved calls now run the `.v0` release; review the 0.x changes in between |
+| a newer minor | refused (exit 2, reason `newer-v0`): 0.x APIs added after the `.v0` release are missing from it and would get no FIXME. Use a later tool release, or pass `--allow-newer-v0` to migrate anyway (with a warning) |
+| unknown | a warning |
+
+Warnings are advice, not manual items: `--strict` ignores them.
+
 ## Options
 
 | Option | Behavior |
@@ -73,12 +97,13 @@ docs until the dedicated migration guide is published.
 | `-y`, `--yes` | Skip confirmation (also automatic for non-interactive stdin) |
 | `--drop-api-url` | Accept API URLs the tool cannot verify or that come from the environment, asserting they point at Daytona Cloud |
 | `--strict` | Exit 1 if manual review items remain |
+| `--allow-newer-v0` | Migrate a project on a newer 0.x minor than the 0.x release SDK 2.x runs as `.v0` (see [Versions](#versions)) |
 | `-v`, `--version` | Print version |
 | `-h`, `--help` | Print usage |
 
 Exit codes: **0** completed (manual items may remain), **1** internal/input
 processing error or strict-mode manual items, **2** refused (dirty tree, custom
-API URL, a project-owned SDK module, invalid arguments, or no Daytona dependency/code).
+API URL, a newer 0.x minor than `.v0` without `--allow-newer-v0`, a project-owned SDK module, invalid arguments, or no Daytona dependency/code).
 
 ## Scope and safety
 
@@ -168,7 +193,8 @@ Included filenames need no particular extension. For partial-root upgrades,
 ancestor includes are inspected read-only within the nearest Git checkout;
 cycles and symlinks are skipped, and constraints never certify a runtime dependency.
 Hash-locked or backslash-continued Daytona requirements remain unchanged with a
-`manual-dependency` item: change them to `daytona[v0-sdk]>=2,<3` and regenerate
+`manual-dependency` item: change them to the target requirement (see
+[Versions](#versions); `daytona[v0-sdk]>=2,<3` below stands for it) and regenerate
 hashes before running upgraded code. Poetry constraint alternatives retain their
 Python, marker and platform conditions; unsupported alternatives need manual edits.
 UTF-8 BOMs, CRLF endings and Python source encoding declarations are preserved.

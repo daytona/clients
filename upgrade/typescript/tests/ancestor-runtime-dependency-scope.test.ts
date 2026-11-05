@@ -19,7 +19,7 @@ it('normalizes Windows-style paths before checking dependency scope', () => {
   const rewritten = join(dependencyDirectory, 'index.ts').replaceAll('/', '\\');
   const dependencyDirectories = new Set([dependencyDirectory.replaceAll('/', '\\')]);
   // When
-  const item = dependencyScopeItem(root, rewritten, dependencyDirectories);
+  const item = dependencyScopeItem(root, rewritten, dependencyDirectories, '^2.0.0');
   // Then
   expect(item).toBeUndefined();
 });

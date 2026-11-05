@@ -63,7 +63,7 @@ def test_migrates_other_dependency_when_one_record_is_manual(
     # Given
     manifest = tmp_path / "requirements.txt"
     locked = "daytona==0.224 --hash=sha256:abc\n"
-    manifest.write_text(locked + "daytona-sdk==0.225\n")
+    manifest.write_text(locked + "daytona-sdk==0.223\n")
     # When
     code = main([str(tmp_path), "--json"])
     # Then

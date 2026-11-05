@@ -11,8 +11,18 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 
-def requires_v2(constraint: str) -> bool:
-    """Require an explicit 2.x-or-newer lower bound in every Poetry alternative."""
+def requires_v2(constraint: str, target: str | None = None) -> bool:
+    """Require an explicit 2.x-or-newer lower bound in every Poetry alternative.
+
+    ``target`` (the specifier this tool writes) also counts, so the exact
+    pre-release a published tool pins certifies; other pre-release floors do not.
+    """
+    if target is not None:
+        try:
+            if SpecifierSet(constraint) == SpecifierSet(target):
+                return True
+        except InvalidSpecifier:
+            pass
     for alternative in constraint.split("||"):
         normalized = re.sub(
             r"[\^~](?!=)\s*(\d+(?:\.\d+)*)", r">=\1", alternative.strip()

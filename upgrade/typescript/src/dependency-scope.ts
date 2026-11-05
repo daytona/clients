@@ -23,7 +23,7 @@ function runtimeDependencies(source: string): readonly RuntimeDependency[] {
   });
 }
 
-export function dependencyScopeItem(root: string, rewritten: string, dependencyDirectories: ReadonlySet<string>): Item | undefined {
+export function dependencyScopeItem(root: string, rewritten: string, dependencyDirectories: ReadonlySet<string>, target: string): Item | undefined {
   const normalize = (path: string): string => resolve(path).replaceAll('\\', '/');
   const base = normalize(root);
   const rewrittenPath = normalize(rewritten);
@@ -46,21 +46,23 @@ export function dependencyScopeItem(root: string, rewritten: string, dependencyD
         // item that blocks the run; only manifests above the root report here.
         if (!(error instanceof SyntaxError) && (normalize(file) + '/').startsWith(base + '/')) return undefined;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
-          message: `Cannot read ancestor manifest ${relativePath(base, file)}; verify "@daytona/sdk": "^2.0.0" where the project declares its dependencies.` };
+          message: `Cannot read ancestor manifest ${relativePath(base, file)}; verify "@daytona/sdk": "${target}" where the project declares its dependencies.` };
       }
       if (declarations.length) {
         const certified = declarations.every(({ name, range }) => {
           if (name !== '@daytona/sdk' || range === null || validRange(range) === null) return false;
+          // The exact pre-release this tool targets counts; other pre-release floors do not.
+          if (range.trim() === target) return true;
           const minimum = minVersion(range);
           return minimum !== null && gte(minimum, '2.0.0');
         });
         if (certified) return undefined;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
-          message: 'no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "^2.0.0"' };
+          message: `no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "${target}"` };
       }
     }
     if (directory === boundary) break;
   }
   return { file: relativePath(base, rewritten), line: 0, column: 0, kind: 'manual-dependency',
-    message: 'no Daytona dependency was updated; add "@daytona/sdk": "^2.0.0" where the project declares its dependencies' };
+    message: `no Daytona dependency was updated; add "@daytona/sdk": "${target}" where the project declares its dependencies` };
 }

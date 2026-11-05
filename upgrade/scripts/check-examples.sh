@@ -8,28 +8,38 @@
 # changes nothing.
 #
 # Usage: check-examples.sh --src <daytona/clients checkout> [--py-wheel <daytona 2.x wheel>] \
-#          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--work <dir>]
+#          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--py-tool <daytona-upgrade wheel>] \
+#          [--ts-tool <@daytona/upgrade .tgz>] [--work <dir>]
 # Checks each language whose SDK artifact is given (at least one). The artifacts
-# must carry the v0 bundle (scripts/bundle-v0.sh).
+# must carry the v0 bundle (scripts/bundle-v0.sh). The tools run from source
+# unless --py-tool / --ts-tool name a packed tool (the publish run checks the
+# artifacts it publishes); a packed tool writes the exact SDK release it was
+# published with, a source build the mapping's 2.x range.
 # Needs git, plus node/npm for TypeScript and python3 with uv for Python, on PATH.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 upgrade=$(cd "$here/.." && pwd)
-src='' wheel='' tarball='' work=''
+src='' wheel='' tarball='' work='' py_tool='' ts_tool=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --src) src=$2; shift 2 ;;
     --py-wheel) wheel=${2:?--py-wheel needs a wheel path}; shift 2 ;;
     --ts-tarball) tarball=${2:?--ts-tarball needs a tarball path}; shift 2 ;;
+    --py-tool) py_tool=${2:?--py-tool needs a wheel path}; shift 2 ;;
+    --ts-tool) ts_tool=${2:?--ts-tool needs a tarball path}; shift 2 ;;
     --work) work=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-[ -n "$src" ] && { [ -n "$wheel" ] || [ -n "$tarball" ]; } || { echo "usage: $0 --src DIR [--py-wheel WHL] [--ts-tarball TGZ] [--work DIR]" >&2; exit 2; }
+[ -n "$src" ] && { [ -n "$wheel" ] || [ -n "$tarball" ]; } || { echo "usage: $0 --src DIR [--py-wheel WHL] [--ts-tarball TGZ] [--py-tool WHL] [--ts-tool TGZ] [--work DIR]" >&2; exit 2; }
 src=$(cd "$src" && pwd)
 [ -z "$wheel" ] || wheel=$(cd "$(dirname "$wheel")" && pwd)/$(basename "$wheel")
 [ -z "$tarball" ] || tarball=$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")
+[ -z "$py_tool" ] || py_tool=$(cd "$(dirname "$py_tool")" && pwd)/$(basename "$py_tool")
+[ -z "$ts_tool" ] || ts_tool=$(cd "$(dirname "$ts_tool")" && pwd)/$(basename "$ts_tool")
+# The 0.x release the examples come from: the pin SDK 2.x bundles as .v0.
+pinned=$(sed -n '1s/^v//p' "$upgrade/../scripts/v0-sdk-version" | tr -d '[:space:]')
 work=${work:-$(mktemp -d)}
 mkdir -p "$work"
 work=$(cd "$work" && pwd)
@@ -49,16 +59,29 @@ if [ -n "$tarball" ]; then
 ts="$work/ts"
 fresh_repo "$ts"
 cp -r "$src/examples/typescript/." "$ts/"
-cat >"$ts/package.json" <<'JSON'
-{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.224.0" } }
+cat >"$ts/package.json" <<JSON
+{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "$pinned" } }
 JSON
 printf 'node_modules\n' >"$ts/.gitignore"
 commit "$ts" "0.x examples"
-(cd "$upgrade/typescript" && npm ci --no-audit --no-fund >/dev/null && npm run build >/dev/null)
-node "$upgrade/typescript/dist/cli.js" "$ts" --yes
-grep -q '"@daytona/sdk": "^2.0.0"' "$ts/package.json" || { echo "FAIL: package.json not bumped" >&2; exit 1; }
+if [ -n "$ts_tool" ]; then
+  rm -rf "$work/ts-tool" && mkdir -p "$work/ts-tool"
+  (cd "$work/ts-tool" && npm init -y >/dev/null && npm install --no-audit --no-fund --ignore-scripts "$ts_tool" >/dev/null)
+  ts_cli="$work/ts-tool/node_modules/@daytona/upgrade/dist/cli.js"
+else
+  (cd "$upgrade/typescript" && npm ci --no-audit --no-fund >/dev/null && npm run build >/dev/null)
+  ts_cli="$upgrade/typescript/dist/cli.js"
+fi
+node "$ts_cli" "$ts" --yes
+# The tool's target: its own release when packed, else the mapping's range.
+ts_range=$(node -e '
+  const tool = require(process.argv[1]).version;
+  const m = /^([1-9]\d*)\.\d+\.\d+(-.+)?$/.exec(tool);
+  console.log(m ? (m[2] ? tool : `^${tool}`) : require(process.argv[2]).packages.ts.range);
+' "$(dirname "$ts_cli")/../package.json" "$upgrade/mapping/mapping.json")
+grep -qF "\"@daytona/sdk\": \"$ts_range\"" "$ts/package.json" || { echo "FAIL: package.json not bumped to $ts_range" >&2; exit 1; }
 commit "$ts" "upgraded"
-node "$upgrade/typescript/dist/cli.js" "$ts" --yes >/dev/null
+node "$ts_cli" "$ts" --yes >/dev/null
 idempotent "$ts" "TypeScript upgrade"
 (
   cd "$ts"
@@ -84,12 +107,26 @@ py="$work/py"
 fresh_repo "$py"
 cp -r "$src/examples/python" "$py/python"
 cp -r "$src/examples/jupyter" "$py/jupyter"
-printf 'daytona==0.224.0\n' >"$py/requirements.txt"
+printf 'daytona==%s\n' "$pinned" >"$py/requirements.txt"
 commit "$py" "0.x examples"
-(cd "$upgrade/python" && uv sync --locked -q && uv run -q daytona-upgrade "$py" --yes)
-grep -qx 'daytona\[v0-sdk\]>=2,<3' "$py/requirements.txt" || { echo "FAIL: requirements.txt not bumped" >&2; exit 1; }
+py_upgrade() {
+  if [ -n "$py_tool" ]; then uvx -q --python 3.12 --from "$py_tool" daytona-upgrade "$@"
+  else (cd "$upgrade/python" && uv sync --locked -q && uv run -q daytona-upgrade "$@"); fi
+}
+py_upgrade "$py" --yes
+if [ -n "$py_tool" ]; then
+  py_version=$(basename "$py_tool" | cut -d- -f2)
+  case "$py_version" in
+    0.*) py_requirement='daytona[v0-sdk]>=2,<3' ;;
+    *[a-z]*) py_requirement="daytona[v0-sdk]==$py_version" ;;
+    *) py_requirement="daytona[v0-sdk]>=$py_version,<$(( ${py_version%%.*} + 1 ))" ;;
+  esac
+else
+  py_requirement='daytona[v0-sdk]>=2,<3'
+fi
+grep -qxF "$py_requirement" "$py/requirements.txt" || { echo "FAIL: requirements.txt not bumped to $py_requirement" >&2; exit 1; }
 commit "$py" "upgraded"
-(cd "$upgrade/python" && uv run -q daytona-upgrade "$py" --yes >/dev/null)
+py_upgrade "$py" --yes >/dev/null
 idempotent "$py" "Python upgrade"
 venv="$work/venv"
 rm -rf "$venv"

@@ -7,6 +7,7 @@
   "required": [
     "$schema",
     "docs",
+    "v0Version",
     "packages",
     "v0Modules",
     "rootNames",
@@ -38,6 +39,11 @@
           "type": "boolean"
         }
       }
+    },
+    "v0Version": {
+      "type": "string",
+      "pattern": "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "The pinned 0.x release (scripts/v0-sdk-version without the v) that SDK 2.x bundles as .v0; check-v0-surface.mjs keeps it equal to the pin."
     },
     "packages": {
       "type": "object",

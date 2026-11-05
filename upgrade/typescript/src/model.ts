@@ -22,6 +22,8 @@ export type Suggestion = {
 };
 export type Mapping = {
   readonly docs: { readonly base: string; readonly placeholder: boolean };
+  /** The pinned 0.x release SDK 2.x bundles as `.v0`. */
+  readonly v0Version: string;
   readonly packages: { readonly ts: { readonly old: readonly string[]; readonly new: string; readonly range: string } };
   readonly v0Modules: { readonly ts: { readonly old: readonly string[]; readonly root: string; readonly v0: string; readonly keep: readonly string[] } };
   readonly rootNames: { readonly ts: readonly string[] };
@@ -46,8 +48,10 @@ export type Item = {
   readonly kind: ItemKind; readonly message: string; readonly suggestion?: SuggestionReport;
 };
 export type Dependency = { readonly file: string; readonly from: string; readonly to: string };
+/** Advice that is not a manual item: it never fails `--strict`. */
+export type Warning = { readonly file: string; readonly message: string };
 export type Refusal = {
-  readonly reason: 'dirty-tree' | 'custom-api-url' | 'no-daytona' | 'bad-arguments';
+  readonly reason: 'dirty-tree' | 'custom-api-url' | 'no-daytona' | 'bad-arguments' | 'newer-v0';
   readonly message: string;
 };
 export type Report = {
@@ -55,11 +59,14 @@ export type Report = {
   readonly mode: Mode; readonly root: string; readonly dryRun: boolean;
   readonly changedFiles: readonly string[]; readonly dependencies: readonly Dependency[];
   readonly items: readonly Item[]; readonly nextSteps: readonly string[]; readonly refused?: Refusal;
+  readonly warnings?: readonly Warning[];
 };
 export type Options = {
   readonly root: string; readonly mode: Mode; readonly dry: boolean; readonly print: boolean;
   readonly json: boolean; readonly force: boolean; readonly yes: boolean;
   readonly dropApiUrl: boolean; readonly strict: boolean;
+  /** Migrate a project on a newer 0.x minor than the bundled `.v0` (default false). */
+  readonly allowNewerV0?: boolean;
 };
 export type Edit = { readonly start: number; readonly end: number; readonly text: string };
 export type Change = { readonly file: string; readonly before: string; readonly after: string };

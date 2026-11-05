@@ -5,6 +5,7 @@
 
 import { loadV0, type V0ModuleExports } from '#v0-loader'
 import { credentialSafeDiagnostics } from './diagnostics.js'
+import { SDK_VERSION } from './version.js'
 import { DEFAULT_V2_API_URL, Daytona as DaytonaV2 } from './v2/Daytona.js'
 import { DaytonaError as DaytonaErrorV2, NotSupportedError } from './v2/errors/DaytonaError.js'
 import {
@@ -281,9 +282,11 @@ export class Daytona {
 export const MOVED_TO_V0 = ['create', 'get', 'list', 'start', 'stop', 'fork', '_experimental_fork', 'delete', 'volume', 'snapshot', 'secret', 'warmPool'] as const
 
 export function movedToV0Message(name: string, client = 'Daytona'): string {
+  // The migration tool is published with every SDK release under the same
+  // version, so the guidance names the release that matches this SDK.
   return (
     `SDK 2.x moved ${client}.${name} to ${client}.v0.${name} (the Daytona v0 platform; ` +
-    `use ${client}.v2 for Daytona v2).`
+    `use ${client}.v2 for Daytona v2). To migrate 0.x code, run npx @daytona/upgrade@${SDK_VERSION}.`
   )
 }
 

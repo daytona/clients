@@ -11,10 +11,12 @@ import { relativePath, text } from './discovery.js';
 import { UpgradeError } from './model.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
+import type { DeclaredDependency } from './v0-version.js';
 
 export function manifests(files: readonly string[], mapping: Mapping, context: string | ReadContext): {
   readonly changes: readonly Change[]; readonly dependencies: readonly Dependency[]; readonly items: readonly Item[];
   readonly directories: readonly string[]; readonly found: boolean; readonly dependencyDirectories: ReadonlySet<string>;
+  readonly declared: readonly DeclaredDependency[];
 } {
   const { root, failures } = readContext(context);
   const changes: Change[] = [];
@@ -23,6 +25,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
   const directories = new Set<string>();
   let found = false;
   const dependencyDirectories = new Set<string>();
+  const declared: DeclaredDependency[] = [];
   const parser = new Project({ useInMemoryFileSystem: true });
   for (const file of files.filter(file => win32.basename(file) === 'package.json')) {
     const before = text(file, failures);
@@ -78,6 +81,11 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (!mapping.packages.ts.old.includes(name) && !qualified && !reference && !scoped && !alias) continue;
         found = true;
         if (!constraint) dependencyDirectories.add(dirname(file));
+        // What the project installs (peer ranges describe consumers, not this install).
+        if (!constraint && sectionName !== 'peerDependencies' && Node.isStringLiteral(version)) {
+          const literal = version.getLiteralValue();
+          declared.push({ file, range: alias ? literal.replace(/^npm:(?:@[^@/]+\/)?[^@]+@?/, '') : literal });
+        }
         const detail = { file: relativePath(root, file), line: source.getLineAndColumnAtPos(entry.getStart()).line,
           column: Math.max(1, source.getLineAndColumnAtPos(entry.getStart()).column -
             (source.getLineAndColumnAtPos(entry.getStart()).line === 1 ? prefix.length : 0)) };
@@ -122,7 +130,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
     const after = applyEdits(before, edits);
     if (after !== before) changes.push({ file, before, after });
   }
-  return { changes, dependencies, items, directories: [...directories], found, dependencyDirectories };
+  return { changes, dependencies, items, directories: [...directories], found, dependencyDirectories, declared };
 }
 function catalogFile(consumer: string, files: readonly string[]): string | undefined {
   let directory = dirname(consumer);

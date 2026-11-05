@@ -38,7 +38,7 @@ See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](../CHANGELOG.md) ·
 
 | Line | Branch | Workflows |
 |---|---|---|
-| 2.x (this SDK) | `main` | `prepare-release.yaml`, `sdk_publish.yaml`, `upgrade-tool-publish.yaml` |
+| 2.x (this SDK) | `main` | `prepare-release.yaml`, `sdk_publish.yaml` (SDKs, CLI and the migration tool), `v0-pin-bump.yaml` |
 | 0.x | `release/v0` | that branch's own `prepare-release.yaml`, `release.yaml`, `sdk_publish.yaml` |
 
 Each line keeps its own copy of the workflows under the **same file names**:
@@ -103,9 +103,10 @@ and rejects anything that is not a release version:
 One-time setup (see the header of
 [`sdk_publish.yaml`](../.github/workflows/sdk_publish.yaml)):
 
-- **Registries:** a PyPI trusted publisher for `daytona` and an npm trusted
-  publisher for `@daytona/sdk`, both bound to repository `daytona/clients`,
-  workflow file **`sdk_publish.yaml`** and environment **`release`**.
+- **Registries:** PyPI trusted publishers for `daytona` and `daytona-upgrade`
+  and npm trusted publishers for `@daytona/sdk` and `@daytona/upgrade`, all
+  bound to repository `daytona/clients`, workflow file **`sdk_publish.yaml`**
+  and environment **`release`**.
   Renaming either breaks publishing (OIDC 403) until both registries are
   updated.
 - **Repo:** Settings → Environments → `release` → required reviewers on,
@@ -120,11 +121,10 @@ sees a publishing credential. The publish job is the only job on the
 `release` environment, so a run asks for exactly one approval, after every
 requested build is green; a failed or cancelled build skips it (nothing is
 published, no approval is asked). Inside it the targets run in order — PyPI,
-npm, the CLI's GitHub Release, the Homebrew formula — and a failed target
-stops the ones after it. The environment's deployment-branch policy still
-decides whether a run's credentials can be used at all. `upgrade-tool-publish.yaml`
-has the same shape: one build job, one publish job on `release` (PyPI, then
-npm, per its `targets` input; skipped in a dry run).
+npm, the migration tool (PyPI, then npm), the CLI's GitHub Release, the
+Homebrew formula — and a failed target stops the ones after it. The
+environment's deployment-branch policy still decides whether a run's
+credentials can be used at all.
 
 For each release:
 
@@ -137,14 +137,16 @@ For each release:
 
 ```bash
 gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3
-# optional: -f publish_pypi=false / -f publish_npm=false / -f publish_cli=false  (all default true)
+# optional: -f publish_pypi=false / -f publish_npm=false / -f publish_cli=false / -f publish_upgrade=false  (all default true)
 # optional: -f force_republish=true      # resume a half-landed publish of this version (see below)
 gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
 - `source_ref` picks the commit to build (default: the dispatch ref).
-- The three `publish_*` booleans pick the targets; all three publish by
-  default so the SDKs and the CLI stay on the same number.
+- The four `publish_*` booleans pick the targets; all four publish by
+  default so the SDKs, the CLI and the migration tool stay on the same number.
+  See [The migration tool](#the-migration-tool) for what `publish_upgrade`
+  needs.
 - The gate refuses a version a target registry **already has** (npm, PyPI,
   this repository's releases), and a version whose tag already names another
   commit. `force_republish=true` skips the registry check to *resume* a run
@@ -162,6 +164,41 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 | Python | [PyPI](https://pypi.org/project/daytona/) | `daytona` | `import daytona` | PEP 440 spelling of the version, stamped into `sdk-python/pyproject.toml` at publish |
 | TypeScript | [npm](https://www.npmjs.com/package/@daytona/sdk) | `@daytona/sdk` | `from '@daytona/sdk'` | the version without `v`, stamped into `sdk-typescript/package.json` + `src/version.ts` at publish |
 | CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + Homebrew `daytona-alpha` | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish |
+| Migration tool (Python) | [PyPI](https://pypi.org/project/daytona-upgrade/) | `daytona-upgrade` | `uvx daytona-upgrade@<version>` | the PyPI spelling, stamped into `upgrade/python/pyproject.toml` at publish |
+| Migration tool (TypeScript) | [npm](https://www.npmjs.com/package/@daytona/upgrade) | `@daytona/upgrade` | `npx @daytona/upgrade@<version>` | the npm spelling, stamped into `upgrade/typescript/package.json` at publish |
+
+### The migration tool
+
+`daytona-upgrade` is published by the same run as the SDKs, at the same
+version, and writes exactly that SDK release into the projects it migrates (a
+pre-release is pinned: `daytona[v0-sdk]==2.0.0a8`, `"@daytona/sdk":
+"2.0.0-alpha.8"`; a stable `X.Y.Z` writes `>=X.Y.Z,<X+1` / `^X.Y.Z`). Its
+mapping is checked against this commit's v2 surface and the pinned v0 bundle,
+so a tool release is correct for its own SDK release only. A pinned
+pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
+`2.0.0rc1` that a `^2.0.0-alpha.N` range would resolve to
+([VERSIONING.md](VERSIONING.md), "Release channels").
+
+- The tool never publishes without its SDK: with `publish_npm` or
+  `publish_pypi` off (a resume), the registry check requires that SDK version
+  to be published already, and in the publish job the tool follows both SDKs.
+- Before the approval, its build job runs the packed tool on the pinned 0.x
+  examples and type-checks the result against this run's SDK artifacts (or the
+  published SDK, on a resume).
+- It refuses to publish beside a `v0_tag` override, and while the mapping's
+  `docs.placeholder` is true.
+- There are no tool-only releases: a tool fix ships with the next SDK release.
+- Untick `publish_upgrade` to leave the tool out of a run.
+
+### The v0 pin
+
+The tool also refuses projects on a newer 0.x minor than the release SDK 2.x
+bundles as `.v0` (`scripts/v0-sdk-version`), so the pin follows the 0.x line:
+[`v0-pin-bump.yaml`](../.github/workflows/v0-pin-bump.yaml) runs daily, and
+when a newer stable `v0.X.Y` tag exists it opens a PR that moves the pin and
+regenerates the tool's v0 data (one `release` approval, for the bot token). Its
+body carries the 0.x surface check: a 0.x method with no mapping row gets one
+in that PR. Merge it before the next 2.x release.
 
 > **Registries reject re-uploading an existing version.** A version is
 > published once. If a publish half-fails, re-run the failed publish job, or

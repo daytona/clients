@@ -1,0 +1,138 @@
+name: v0 pin bump
+
+# Keeps the 0.x release that SDK 2.x bundles as `Daytona().v0`
+# (scripts/v0-sdk-version) close to the newest 0.x release. The migration tool
+# moves 0.x code onto that bundle and refuses projects on a newer 0.x minor, so
+# a stale pin turns migrating into downgrading.
+#
+# Daily (and on demand), `detect` compares the pin with the newest stable
+# v0.X.Y tag. When a newer one exists, `open-pr` writes the new tag and
+# commit into the pin, regenerates the migration tool's v0 data
+# (upgrade/mapping/mapping.json `v0Version` / `v0Exports`, both package
+# copies, upgrade/MIGRATION.md) and opens a pull request. The 0.x surface check
+# runs once more and its output goes into the PR body: a 0.x method with no
+# mapping row needs one, added by hand in that PR; its CI shows whatever else
+# the bump needs (the SDKs' shared-name lists, the v0 root-name list).
+# Nothing publishes: the new pin ships with the next 2.x release.
+#
+# Only `open-pr` uses the `release` environment (its GITHUBBOT_TOKEN, so the
+# pull request's checks run), so a run asks for approval only when there is a
+# release to bump to. An open bump PR for the same tag is left alone.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: v0-pin-bump
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Newest 0.x release
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      tag: ${{ steps.newest.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/v0-sdk-version
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - id: newest
+        name: Compare the pin with the newest stable v0.X.Y tag
+        env:
+          GH_TOKEN: ${{ github.token }}   # read-only
+        run: |
+          set -euo pipefail
+          pinned=$(sed -n '1p' scripts/v0-sdk-version | tr -d '[:space:]')
+          newest=$(git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v0.*' \
+            | sed 's|.*refs/tags/||' | grep -E '^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -1)
+          echo "pinned: $pinned, newest 0.x release: ${newest:-none}"
+          if [ -z "$newest" ] || [ "$(printf '%s\n%s\n' "$pinned" "$newest" | sort -V | tail -1)" = "$pinned" ]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$(gh pr list -R "$GITHUB_REPOSITORY" --head "chore/v0-pin-${newest}" --state open --json number --jq '.[].number')" ]; then
+            echo "::notice::a bump PR for ${newest} is already open"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$newest" >> "$GITHUB_OUTPUT"
+
+  open-pr:
+    name: Open the pin bump PR for ${{ needs.detect.outputs.tag }}
+    needs: detect
+    if: needs.detect.outputs.tag != ''
+    runs-on: ubuntu-latest
+    # GITHUBBOT_TOKEN lives only in the `release` environment.
+    environment: release
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.detect.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Point the pin at the release and regenerate the tool's v0 data
+        id: bump
+        run: |
+          set -euo pipefail
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$TAG" \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+          printf '%s\n%s\n' "$TAG" "$(git -C "$RUNNER_TEMP/v0-src" rev-parse HEAD)" > scripts/v0-sdk-version
+          bash scripts/resolve-v0-tag.sh --verify
+          npm ci --prefix sdk-typescript --no-audit --no-fund --ignore-scripts
+          # Writes v0Version and v0Exports, then reports what else the bump needs.
+          status=0
+          node upgrade/scripts/check-v0-surface.mjs --src "$RUNNER_TEMP/v0-src" --write-v0-exports > "$RUNNER_TEMP/surface.txt" 2>&1 || status=$?
+          node upgrade/scripts/sync-mapping.mjs
+          node upgrade/scripts/gen-guide.mjs
+          cat "$RUNNER_TEMP/surface.txt"
+          echo "surface_status=$status" >> "$GITHUB_OUTPUT"
+      - name: Push the branch and open the PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          SURFACE_STATUS: ${{ steps.bump.outputs.surface_status }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GITHUBBOT_TOKEN is unavailable; a PR opened with GITHUB_TOKEN would run no checks"
+            exit 1
+          fi
+          branch="chore/v0-pin-${TAG}"
+          git config user.name "Daytona Release Bot"
+          git config user.email "153830314+daytonaBot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A scripts/v0-sdk-version upgrade/mapping/mapping.json upgrade/typescript/src/mapping.json \
+            upgrade/python/src/daytona_upgrade/mapping.json upgrade/MIGRATION.md
+          git commit -s -m "chore(sdk): bundle 0.x ${TAG} as the v0 namespace"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}"
+          git push origin "$branch"
+          {
+            echo "Points \`scripts/v0-sdk-version\` at ${TAG}, the newest 0.x release, so SDK 2.x bundles it as \`Daytona().v0\` and the migration tool accepts projects on it. Regenerated: the tool's \`v0Version\` / \`v0Exports\` and upgrade/MIGRATION.md."
+            echo
+            if [ "$SURFACE_STATUS" = 0 ]; then
+              echo "The 0.x surface check passes: every public 0.x method at ${TAG} has a mapping row."
+            else
+              echo "**The 0.x surface check fails** — add the mapping rows it names (upgrade/mapping/mapping.json, then \`node upgrade/scripts/sync-mapping.mjs\` and \`node upgrade/scripts/gen-guide.mjs\`) in this PR:"
+              echo
+              echo '```'
+              head -c 60000 "$RUNNER_TEMP/surface.txt"
+              echo '```'
+            fi
+            echo
+            echo "CI shows what else the bump needs. The new pin ships with the next 2.x release."
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --base main --head "$branch" \
+            --title "chore(sdk): bundle 0.x ${TAG} as the v0 namespace" --body-file "$RUNNER_TEMP/body.md"

@@ -410,8 +410,22 @@ skipping exist only in the TypeScript tool).
   to the mapping.
 - The tools never rewrite v0 code to v2: `--suggest-v2` only writes
   `daytona-v2:` comments. `docs.base` in the mapping is the Daytona docs home
-  until the migration guide has its own page; `upgrade-tool-publish.yaml`
-  refuses to publish while `docs.placeholder` is true.
+  until the migration guide has its own page; `sdk_publish.yaml` refuses to
+  publish the tool while `docs.placeholder` is true.
+- **Lockstep versions.** `sdk_publish.yaml` publishes the tool with the SDKs at
+  the same version (`publish_upgrade`), and the tool writes exactly that SDK
+  release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
+  `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
+  mapping's `range` / `specifier`). The SDKs' moved-member guidance names the
+  tool release of their own version.
+- **The project's 0.x version** (`v0-version.ts` / `v0_version.py`): read from
+  the closest lockfile, else the manifest's lower bound, and compared with the
+  mapping's `v0Version` (the pin; `check-v0-surface.mjs` keeps them equal and
+  `--write-v0-exports` updates it). Older and newer-patch versions warn
+  (`warnings` in the report, never a manual item), a newer minor refuses
+  (`newer-v0`, exit 2) unless `--allow-newer-v0`. Messages are identical in
+  both tools. `v0-pin-bump.yaml` opens the pin bump PR for each new 0.x
+  release.
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel
   <built 2.x wheel> --ts-tarball <packed 2.x tarball>`

@@ -1,9 +1,10 @@
 name: SDK Publish
 
 # Publishes the Python SDK (`daytona`, PyPI), the TypeScript SDK
-# (`@daytona/sdk`, npm) and the `daytona` CLI (a GitHub Release of this
-# repository plus the Homebrew formula) on demand. PyPI and npm use OIDC
-# Trusted Publishing — no long-lived registry tokens.
+# (`@daytona/sdk`, npm), the `daytona` CLI (a GitHub Release of this
+# repository plus the Homebrew formula) and the 0.x → 2.x migration tool
+# (`daytona-upgrade` on PyPI, `@daytona/upgrade` on npm) on demand. PyPI and
+# npm use OIDC Trusted Publishing — no long-lived registry tokens.
 #
 # ── How to publish ───────────────────────────────────────────────────────────
 # Actions → "SDK Publish" → Run workflow (branch: main), or from a terminal:
@@ -11,7 +12,7 @@ name: SDK Publish
 #   gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3 \
 #     [-f source_ref=feat/my-branch] \
 #     [-f publish_pypi=false] [-f publish_npm=false] [-f publish_cli=false] \
-#     [-f force_republish=true]
+#     [-f publish_upgrade=false] [-f force_republish=true]
 #
 # ── Two refs, on purpose ─────────────────────────────────────────────────────
 # `--ref` (the DISPATCH ref) selects which copy of THIS FILE and of scripts/
@@ -30,6 +31,20 @@ name: SDK Publish
 #                   →  CLI release      v2.0.0-alpha.3 (GitHub Release + tag)
 #                   →  PyPI daytona     2.0.0a3  (PEP 440: -alpha.N → aN,
 #                                        -beta.N → bN, -rc.N → rcN)
+#                   →  npm @daytona/upgrade, PyPI daytona-upgrade: the same
+#
+# ── The migration tool is published in lockstep ──────────────────────────────
+# `daytona-upgrade` carries the version of the SDK release it ships with and
+# writes exactly that release into the projects it migrates (a pre-release
+# pins it; a stable X.Y.Z writes ^X.Y.Z / >=X.Y.Z,<X+1), because its mapping is
+# checked against this commit's v2 surface and the pinned v0 bundle and nothing
+# else. The SDKs' runtime guidance names the matching tool release. So the
+# tool never ships without its SDK: with publish_pypi or publish_npm off, the
+# registry check requires that SDK version to be published already (a resume),
+# and in the publish job the tool follows both SDKs. Before publishing, the
+# tool's build job runs the PACKED tool on the pinned 0.x examples and
+# type-checks the result against the SDK artifacts of this run (or, for a
+# resume, the published ones). Untick publish_upgrade to leave it out.
 #
 # Nothing is committed: the version is stamped into the runner's checkout
 # only, so the `version` fields tracked in git are placeholders. A successful
@@ -75,7 +90,7 @@ name: SDK Publish
 #
 # ── ALPHA-ONLY GATE (pre-launch) ─────────────────────────────────────────────
 # Until 2.x is generally available, ONLY alpha pre-releases may be published:
-# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N`. The regexes run on the
+# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N` (the migration tool too). The regexes run on the
 # DERIVED strings, so a stable, rc or beta version fails the gate and an
 # official-looking release cannot ship by accident. The npm dist-tag follows
 # the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
@@ -92,6 +107,8 @@ name: SDK Publish
 # npm   (package @daytona/sdk → Settings → Trusted publishers):
 #        repository daytona/clients, workflow sdk_publish.yaml, environment release
 #        (requires npm CLI >= 11.5.1 in the job, installed below)
+# Tool  the same two registrations for PyPI project `daytona-upgrade` and npm
+#        package `@daytona/upgrade` (workflow sdk_publish.yaml, environment release)
 # CLI   environment secret GITHUBBOT_TOKEN — dispatches the Homebrew formula
 #        update to daytonaio/homebrew-cli (a token that spans both orgs). The
 #        GitHub Release itself is created with this run's own token.
@@ -125,6 +142,11 @@ on:
         default: true
       publish_cli:
         description: 'Publish the `daytona` CLI as a GitHub Release of this repository and update the Homebrew formula'
+        required: false
+        type: boolean
+        default: true
+      publish_upgrade:
+        description: 'Publish the migration tool (npm `@daytona/upgrade`, PyPI `daytona-upgrade`) at the same version; it writes exactly this SDK release into migrated projects'
         required: false
         type: boolean
         default: true
@@ -164,6 +186,8 @@ jobs:
       npm: ${{ steps.versions.outputs.npm }}
       npm_dist_tag: ${{ steps.versions.outputs.npm_dist_tag }}
       cli: ${{ steps.versions.outputs.cli }}
+      upgrade_npm: ${{ steps.versions.outputs.upgrade_npm }}
+      upgrade_pypi: ${{ steps.versions.outputs.upgrade_pypi }}
       source_sha: ${{ steps.source.outputs.sha }}
       v0_tag: ${{ steps.v0.outputs.tag }}
       v0_sha: ${{ steps.v0.outputs.sha }}
@@ -184,10 +208,11 @@ jobs:
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           PUBLISH_CLI: ${{ inputs.publish_cli }}
+          PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
         run: |
           set -euo pipefail
-          if [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ] && [ "$PUBLISH_CLI" != true ]; then
-            echo "::error::nothing to publish — enable publish_pypi, publish_npm and/or publish_cli"
+          if [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ] && [ "$PUBLISH_CLI" != true ] && [ "$PUBLISH_UPGRADE" != true ]; then
+            echo "::error::nothing to publish — enable publish_pypi, publish_npm, publish_cli and/or publish_upgrade"
             exit 1
           fi
       # The source to build. Full history + tags: the stable-version check
@@ -228,6 +253,7 @@ jobs:
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           PUBLISH_CLI: ${{ inputs.publish_cli }}
+          PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
         run: |
           set -euo pipefail
           # version=, npm=, cli=, cli_tag=, pypi= — or exit 1 with nothing printed.
@@ -292,7 +318,9 @@ jobs:
           esac
           echo "npm dist-tag: $npm_dist_tag"
           # The build jobs and the publish job's steps key on an EMPTY version to
-          # skip a target.
+          # skip a target. The migration tool takes the SDK's two spellings.
+          upgrade_npm="" upgrade_pypi=""
+          if [ "$PUBLISH_UPGRADE" = true ]; then upgrade_npm=$npm upgrade_pypi=$pypi; fi
           [ "$PUBLISH_PYPI" = true ] || pypi=""
           [ "$PUBLISH_NPM" = true ] || npm=""
           [ "$PUBLISH_CLI" = true ] || cli=""
@@ -303,15 +331,23 @@ jobs:
             echo "npm=$npm"
             echo "npm_dist_tag=$npm_dist_tag"
             echo "cli=$cli"
+            echo "upgrade_npm=$upgrade_npm"
+            echo "upgrade_pypi=$upgrade_pypi"
           } >> "$GITHUB_OUTPUT"
       # The build jobs and the snapshot below address the SDKs as sdk-python/
       # and sdk-typescript/; a source_ref from before that layout is refused
       # here with a clear message instead of failing in a later step.
       - name: Require the sdk-python/ and sdk-typescript/ layout
+        env:
+          PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
         run: |
           set -euo pipefail
           if [ ! -d sdk-python ] || [ ! -d sdk-typescript ]; then
             echo "::error::source_ref uses the old python/ and typescript/ layout; rebase it onto main before publishing"
+            exit 1
+          fi
+          if [ "$PUBLISH_UPGRADE" = true ] && [ ! -f upgrade/mapping/mapping.json ]; then
+            echo "::error::source_ref has no upgrade/ migration tool; untick publish_upgrade or rebase it onto main"
             exit 1
           fi
       # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
@@ -329,9 +365,17 @@ jobs:
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
+          PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
         run: |
           set -euo pipefail
           .publish-tools/scripts/v0-publish-mode.sh --check-override
+          # The tool's mapping is checked against the pinned release only, so
+          # it never publishes beside a v0_tag override (allow_unpinned_v0 or not).
+          pinned_tag=$(sed -n '1p' "$DAYTONA_V0_PIN_FILE" 2>/dev/null | tr -d '[:space:]')
+          if [ "$PUBLISH_UPGRADE" = true ] && [ -n "$DAYTONA_V0_TAG" ] && [ "$DAYTONA_V0_TAG" != "$pinned_tag" ]; then
+            echo "::error::v0_tag=$DAYTONA_V0_TAG overrides the pinned v0 release; the migration tool is checked against the pin only — untick publish_upgrade or clear v0_tag"
+            exit 1
+          fi
           mode=$(.publish-tools/scripts/v0-publish-mode.sh "$PWD")
           if [ "$mode" = skip ]; then
             echo "tag=" >> "$GITHUB_OUTPUT"
@@ -365,6 +409,7 @@ jobs:
           set -euo pipefail
           optional=()
           if [ -e .v0-src ]; then optional+=(.v0-src); fi
+          if [ -e upgrade ]; then optional+=(upgrade); fi
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
             -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
@@ -391,10 +436,34 @@ jobs:
           PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
           NPM_VERSION: ${{ needs.gate.outputs.npm }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
+          UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
           FORCE: ${{ inputs.force_republish }}
           GH_TOKEN: ${{ github.token }}   # read-only
         run: |
           set -euo pipefail
+          # 200 = published, 404 = absent; anything else (5xx, auth, a timeout,
+          # no connection → 000) fails closed.
+          published() { # label url
+            local code
+            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "$2") || true
+            case "$code" in
+              200) return 0 ;;
+              404) return 1 ;;
+              *)   echo "::error::$1: the registry answered HTTP ${code:-000} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          }
+          # The migration tool writes exactly this SDK release into the
+          # projects it migrates: an SDK this run does not publish must
+          # already be on its registry (checked even with force_republish).
+          if [ -n "$UPGRADE_NPM" ] && [ -z "$NPM_VERSION" ] && ! published "@daytona/sdk@${UPGRADE_NPM}" "https://registry.npmjs.org/@daytona%2fsdk/${UPGRADE_NPM}"; then
+            echo "::error::@daytona/upgrade@${UPGRADE_NPM} would pin @daytona/sdk@${UPGRADE_NPM}, which is neither on npm nor published by this run — enable publish_npm, or untick publish_upgrade"
+            exit 1
+          fi
+          if [ -n "$UPGRADE_PYPI" ] && [ -z "$PYPI_VERSION" ] && ! published "daytona==${UPGRADE_PYPI}" "https://pypi.org/pypi/daytona/${UPGRADE_PYPI}/json"; then
+            echo "::error::daytona-upgrade==${UPGRADE_PYPI} would pin daytona==${UPGRADE_PYPI}, which is neither on PyPI nor published by this run — enable publish_pypi, or untick publish_upgrade"
+            exit 1
+          fi
           if [ "$FORCE" = true ]; then
             echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by the publish job, not overwritten"
             exit 0
@@ -422,6 +491,14 @@ jobs:
               404) ;;
               *)   echo "::error::PyPI answered HTTP ${code} for daytona ${PYPI_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
+          fi
+          if [ -n "$UPGRADE_NPM" ] && published "@daytona/upgrade@${UPGRADE_NPM}" "https://registry.npmjs.org/@daytona%2fupgrade/${UPGRADE_NPM}"; then
+            echo "::error::@daytona/upgrade@${UPGRADE_NPM} is already on npm — a version is published once; publish the next release, or set force_republish to resume a half-landed run"
+            taken=1
+          fi
+          if [ -n "$UPGRADE_PYPI" ] && published "daytona-upgrade==${UPGRADE_PYPI}" "https://pypi.org/pypi/daytona-upgrade/${UPGRADE_PYPI}/json"; then
+            echo "::error::daytona-upgrade==${UPGRADE_PYPI} is already on PyPI — a version is published once; publish the next release, or set force_republish to resume a half-landed run"
+            taken=1
           fi
           if [ -n "$CLI_VERSION" ]; then
             if out=$(gh release view "v${CLI_VERSION}" -R "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>&1); then
@@ -635,6 +712,151 @@ jobs:
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
+  # The migration tool. It needs the SDK artifacts of this run, so it waits for
+  # the SDK builds (and is skipped when one of them failed). For an SDK this
+  # run does not publish, the registry check proved it is published, and the
+  # end-to-end check below downloads it from its registry instead.
+  build-upgrade:
+    name: Build daytona-upgrade ${{ needs.gate.outputs.upgrade_npm }}
+    needs: [gate, registry-check, build-python, build-npm]
+    if: >-
+      !cancelled() && needs.gate.outputs.upgrade_npm != '' && needs.registry-check.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        env:
+          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
+        run: |
+          set -euo pipefail
+          tar -xzf /tmp/sdk-src/sdk-src.tgz
+          # The tool migrates code onto the bundled v0 namespace: a tree
+          # without one has nothing to migrate to.
+          if [ -z "$V0_TAG" ] || [ ! -d .v0-src ] || [ ! -f upgrade/mapping/mapping.json ]; then
+            echo "::error::the migration tool needs upgrade/ and the pinned v0 namespace release in the published tree"
+            exit 1
+          fi
+      - name: Download the Python SDK built by this run
+        if: needs.gate.outputs.pypi != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pypi-dist
+          path: ${{ runner.temp }}/sdk-pypi
+      - name: Download the TypeScript SDK built by this run
+        if: needs.gate.outputs.npm != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-pack
+          path: ${{ runner.temp }}/sdk-npm
+      # No caches, as in the SDK builds.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Refuse a placeholder docs URL
+        run: |
+          set -euo pipefail
+          placeholder=$(python3 -c "import json; print(json.load(open('upgrade/mapping/mapping.json'))['docs']['placeholder'])")
+          if [ "$placeholder" != "False" ]; then
+            echo "::error::upgrade/mapping/mapping.json docs.placeholder is true: set docs.base to the public migration guide first"
+            exit 1
+          fi
+      - name: Mapping copies, guide and surfaces are current
+        run: |
+          set -euo pipefail
+          npm ci --prefix sdk-typescript --no-audit --no-fund --ignore-scripts
+          node upgrade/scripts/sync-mapping.mjs --check
+          node upgrade/scripts/gen-guide.mjs --check
+          node upgrade/scripts/check-v2-surface.mjs
+          node upgrade/scripts/check-v0-surface.mjs --src .v0-src
+      - name: Build, test and pack the npm migration tool
+        working-directory: upgrade/typescript
+        env:
+          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm version --no-git-tag-version --allow-same-version "$NPM_VERSION"
+          npm run typecheck
+          npm test
+          npm run build
+          mkdir -p "$RUNNER_TEMP/upgrade-npm"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/upgrade-npm"
+          tar -tzf "$RUNNER_TEMP"/upgrade-npm/*.tgz | grep -x 'package/dist/mapping.json' >/dev/null
+          tar -xOzf "$RUNNER_TEMP"/upgrade-npm/*.tgz package/package.json | node -e '
+            const assert = require("node:assert/strict");
+            const fs = require("node:fs");
+            assert.equal(JSON.parse(fs.readFileSync(0, "utf8")).version, process.env.NPM_VERSION);
+          '
+      - name: Test, then build the PyPI migration tool
+        working-directory: upgrade/python
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip uv
+          # Test against the committed lock first; stamping the version
+          # afterwards changes only the built artifacts, not uv.lock.
+          uv sync --locked
+          uv run pytest -q -n auto
+          python - <<'PY'
+          import os, re, pathlib
+          p = pathlib.Path("pyproject.toml")
+          s = p.read_text()
+          s, n = re.subn(r'(?m)^version = "[^"]*"$', f'version = "{os.environ["PYPI_VERSION"]}"', s, count=1)
+          assert n == 1, "pyproject.toml has no version line"
+          p.write_text(s)
+          PY
+          uv build --out-dir "$RUNNER_TEMP/upgrade-pypi"
+          test -f "$RUNNER_TEMP/upgrade-pypi/daytona_upgrade-${PYPI_VERSION}-py3-none-any.whl"
+          python -m zipfile -l "$RUNNER_TEMP"/upgrade-pypi/*.whl | grep 'daytona_upgrade/mapping.json' >/dev/null
+      # A resume publishes the tool without its SDK: use the published SDK.
+      - name: Fetch a published SDK this run did not build
+        env:
+          NPM_BUILT: ${{ needs.gate.outputs.npm }}
+          PYPI_BUILT: ${{ needs.gate.outputs.pypi }}
+          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NPM_BUILT" ]; then
+            mkdir -p "$RUNNER_TEMP/sdk-npm"
+            npm pack "@daytona/sdk@${NPM_VERSION}" --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-npm"
+          fi
+          if [ -z "$PYPI_BUILT" ]; then
+            python -m pip download --no-deps --only-binary=:all: --dest "$RUNNER_TEMP/sdk-pypi" "daytona==${PYPI_VERSION}"
+          fi
+      # The packed tool, exactly as it will be published, migrates the pinned
+      # 0.x examples (pinning this release) and the result type-checks
+      # against this release's SDKs.
+      - name: The packed tool migrates the pinned 0.x examples onto this release
+        run: |
+          set -euo pipefail
+          bash upgrade/scripts/check-examples.sh --src .v0-src \
+            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-pypi/*.whl)" --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-npm/*.tgz)" \
+            --py-tool "$(ls "$RUNNER_TEMP"/upgrade-pypi/*.whl)" --ts-tool "$(ls "$RUNNER_TEMP"/upgrade-npm/*.tgz)" \
+            --work "$RUNNER_TEMP/examples"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upgrade-npm
+          path: ${{ runner.temp }}/upgrade-npm/
+          if-no-files-found: error
+          retention-days: 7   # outlives the wait for the publish approval
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upgrade-pypi
+          path: ${{ runner.temp }}/upgrade-pypi/
+          if-no-files-found: error
+          retention-days: 7   # outlives the wait for the publish approval
+
   # ── Publish: artifacts in, registries out; never checks out source ─────────
   # The ONLY job on the `release` environment, so the run's single approval is
   # asked here, after every requested build and test is green and before any
@@ -644,11 +866,12 @@ jobs:
   # failed registry check) still skips the whole job, so nothing is published
   # and nobody is asked to approve. Each target's steps key on its version
   # output, empty when the target is disabled. Targets run in order — PyPI,
-  # npm, CLI release, Homebrew — and a failure stops the ones after it. The
+  # npm, the migration tool (PyPI, then npm; after both SDKs, which it pins),
+  # CLI release, Homebrew — and a failure stops the ones after it. The
   # package artifacts are kept 7 days: approve (or re-run) within that.
   publish:
     name: Publish ${{ needs.gate.outputs.tag }}
-    needs: [gate, registry-check, build-python, build-npm, build-cli]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade]
     if: >-
       !cancelled() && needs.gate.result == 'success' && needs.registry-check.result == 'success'
       && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
@@ -663,6 +886,8 @@ jobs:
     outputs:
       pypi: ${{ (steps.pypi_download.outcome == 'failure' && 'failure') || steps.pypi_publish.outcome }}
       npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
+      upgrade_pypi: ${{ (steps.upgrade_pypi_download.outcome == 'failure' && 'failure') || steps.upgrade_pypi_publish.outcome }}
+      upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
       cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
       homebrew: ${{ steps.homebrew.outcome }}
     env:
@@ -680,9 +905,11 @@ jobs:
           PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
           NPM_VERSION: ${{ needs.gate.outputs.npm }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
+          UPGRADE_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
+          UPGRADE_BUILD: ${{ needs.build-upgrade.result }}
         run: |
           set -euo pipefail
           ok=1
@@ -695,7 +922,8 @@ jobs:
           check PyPI "$PYPI_VERSION" "$PY_BUILD"
           check npm "$NPM_VERSION" "$NPM_BUILD"
           check CLI "$CLI_VERSION" "$CLI_BUILD"
-          [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION" ] || { echo "::error::no target requested"; ok=0; }
+          check daytona-upgrade "$UPGRADE_VERSION" "$UPGRADE_BUILD"
+          [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION$UPGRADE_VERSION" ] || { echo "::error::no target requested"; ok=0; }
           [ "$ok" -eq 1 ]
 
       # ── PyPI: daytona ──
@@ -719,7 +947,7 @@ jobs:
       # ── npm: @daytona/sdk ──
       - name: Set up Node for npm
         id: npm_node
-        if: needs.gate.outputs.npm != ''
+        if: needs.gate.outputs.npm != '' || needs.gate.outputs.upgrade_npm != ''
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
@@ -734,7 +962,7 @@ jobs:
       # `_authToken` placeholder it writes stay as they are.
       - name: Install a Trusted-Publishing-capable npm (pinned)
         id: npm_tool
-        if: needs.gate.outputs.npm != ''
+        if: needs.gate.outputs.npm != '' || needs.gate.outputs.upgrade_npm != ''
         run: |
           set -euo pipefail
           sed -i '/^always-auth=/d' "${NPM_CONFIG_USERCONFIG:?setup-node registry-url did not export NPM_CONFIG_USERCONFIG}"
@@ -787,6 +1015,54 @@ jobs:
           # publishes.
           # "./" is load-bearing: npm reads a bare `pack/x.tgz` as GitHub
           # shorthand (`git ls-remote ssh://git@github.com/pack/x.tgz.git`).
+          npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
+
+      # ── Migration tool: PyPI daytona-upgrade, npm @daytona/upgrade ──
+      - name: Download the migration tool's PyPI distributions
+        id: upgrade_pypi_download
+        if: needs.gate.outputs.upgrade_pypi != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-pypi
+          path: upgrade-pypi/
+      - name: Publish daytona-upgrade ${{ needs.gate.outputs.upgrade_pypi }} to PyPI (OIDC)
+        id: upgrade_pypi_publish
+        if: needs.gate.outputs.upgrade_pypi != ''
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: upgrade-pypi/
+          skip-existing: ${{ env.RESUME }}
+      - name: Download the migration tool's npm tarball
+        id: upgrade_npm_download
+        if: needs.gate.outputs.upgrade_npm != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-npm
+          path: upgrade-pack/
+      # Same publish as @daytona/sdk above (dist-tag from the version, resume
+      # by HTTP status, registry pinned on the command line).
+      - name: Publish the migration tool to npm (OIDC)
+        id: upgrade_npm_publish
+        if: needs.gate.outputs.upgrade_npm != ''
+        env:
+          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
+        run: |
+          set -euo pipefail
+          tgz=$(ls upgrade-pack/*.tgz)
+          [ "$(echo "$tgz" | wc -l)" -eq 1 ] || { echo "::error::expected exactly one tarball, got: $tgz"; exit 1; }
+          case "$NPM_DIST_TAG" in
+            alpha|beta|next|latest) ;;
+            *) echo "::error::gate produced no usable npm dist-tag ('${NPM_DIST_TAG}')"; exit 1 ;;
+          esac
+          if [ "$RESUME" = true ]; then
+            code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@daytona%2fupgrade/${NPM_VERSION}") || true
+            case "$code" in
+              200) echo "::notice::@daytona/upgrade@${NPM_VERSION} is already on npm — skipping (force_republish or re-run)"; exit 0 ;;
+              404) ;;
+              *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/upgrade ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
+            esac
+          fi
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
 
       # ── CLI: GitHub Release + Homebrew daytona-alpha ──
@@ -932,7 +1208,7 @@ jobs:
 
   summary:
     name: Publish summary
-    needs: [gate, registry-check, build-python, build-npm, build-cli, publish, record-tag]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, publish, record-tag]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -950,6 +1226,11 @@ jobs:
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
+          UPGRADE_BUILD: ${{ needs.build-upgrade.result }}
+          UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
+          UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
+          UPGRADE_NPM_PUBLISH: ${{ needs.publish.outputs.upgrade_npm }}
+          UPGRADE_PYPI_PUBLISH: ${{ needs.publish.outputs.upgrade_pypi }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           PY_PUBLISH: ${{ needs.publish.outputs.pypi }}
           NPM_PUBLISH: ${{ needs.publish.outputs.npm }}
@@ -980,6 +1261,7 @@ jobs:
               success)   ;;
               failure)   echo ":x: BUILD FAILED — see build job log"; return ;;
               cancelled) echo ":stop_sign: cancelled"; return ;;
+              skipped)   echo ":fast_forward: NOT BUILT — a build it needs failed or was cancelled"; return ;;
               *)         echo ":grey_question: build=$2"; return ;;
             esac
             case "$PUBLISH_RESULT/$3" in
@@ -1018,10 +1300,16 @@ jobs:
             row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_VERSION" "$CLI_BUILD" "$cli_outcome")" \
                 "${CLI_VERSION:+\`brew install daytonaio/cli/daytona-alpha\` · \`install.sh --version ${CLI_VERSION}\`}" \
                 "${CLI_VERSION:+${SERVER}/${REPO}/releases/tag/v${CLI_VERSION}}"
+            row "Migration tool \`daytona-upgrade\` (PyPI)" "$UPGRADE_PYPI" "$(status "$UPGRADE_PYPI" "$UPGRADE_BUILD" "$UPGRADE_PYPI_PUBLISH")" \
+                "${UPGRADE_PYPI:+\`uvx daytona-upgrade@${UPGRADE_PYPI}\`}" \
+                "${UPGRADE_PYPI:+https://pypi.org/project/daytona-upgrade/${UPGRADE_PYPI}/}"
+            row "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "$(status "$UPGRADE_NPM" "$UPGRADE_BUILD" "$UPGRADE_NPM_PUBLISH")" \
+                "${UPGRADE_NPM:+\`npx @daytona/upgrade@${UPGRADE_NPM}\`}" \
+                "${UPGRADE_NPM:+https://www.npmjs.com/package/@daytona/upgrade/v/${UPGRADE_NPM}}"
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
           } >> "$GITHUB_STEP_SUMMARY"
-          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
+          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$UPGRADE_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
             case "$r" in failure|cancelled) exit 1;; esac
           done
           exit 0

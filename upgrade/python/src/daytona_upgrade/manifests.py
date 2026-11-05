@@ -152,6 +152,8 @@ class ManifestResult:
     found: bool
     v2_found: bool = False
     resolver_review: tuple[tuple[int, str], ...] = ()
+    # Version constraints of the Daytona declarations ("" for none).
+    declared: tuple[str, ...] = ()
 
 
 def inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResult:
@@ -186,6 +188,7 @@ def _inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResu
         for requirement in runtime_setup_requirements(source):
             runtime = Migration(mapping)
             runtime.requirement(requirement)
+            migration.declared.extend(runtime.declared)
             if runtime.found:
                 proofs.append(runtime.v2_found)
         migration.v2_found = bool(proofs) and all(proofs)
@@ -204,6 +207,7 @@ def _inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResu
         migration.found,
         migration.v2_found,
         tuple(migration.resolver_review),
+        tuple(migration.declared),
     )
 
 
@@ -215,7 +219,7 @@ def rewrite_manifest(
     return result.source, list(result.changes)
 
 
-def next_step(root: Path) -> str:
+def next_step(root: Path, requirement: str) -> str:
     """Select a lock command from the root lockfile, without running it."""
     for lockfile, command in (
         ("uv.lock", "uv lock"),
@@ -225,4 +229,4 @@ def next_step(root: Path) -> str:
     ):
         if (root / lockfile).is_file():
             return command
-    return 'pip install -U "daytona[v0-sdk]>=2,<3"'
+    return f'pip install -U "{requirement}"'

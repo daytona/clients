@@ -21,7 +21,7 @@ def test_deployment_ancestor_counts_only_outside_a_checkout(
     # Given a non-deployment values file under a deploy-named checkout parent.
     root = tmp_path / "deploy/app"
     root.mkdir(parents=True)
-    (root / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
+    (root / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
     (root / "values.yaml").write_text(
         "DAYTONA_API_URL: https://daytona.internal.corp/api\n"
     )
@@ -44,7 +44,7 @@ def test_refuses_deployment_url_when_path_is_relative_to_available_root(
     root = tmp_path / "app"
     deployment = root / "deploy"
     deployment.mkdir(parents=True)
-    (deployment / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
+    (deployment / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
     (deployment / "values.yaml").write_text(
         "DAYTONA_API_URL: https://daytona.internal.corp/api\n"
     )

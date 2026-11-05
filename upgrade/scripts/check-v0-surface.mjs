@@ -240,10 +240,15 @@ const exportedTs = tsExports(typescript, join(src, 'sdk-typescript/src/index.ts'
 // v0Exports: the pinned 0.x root's public names, which the tools check before
 // moving an import to the v0 namespace (an older 0.x name the bundle lacks
 // would otherwise move to a namespace that does not have it).
+// v0Version: the pinned release itself, which the tools compare with the
+// project's installed 0.x version (older warns, a newer minor refuses).
+const pinnedVersion = readFileSync(new URL('../../scripts/v0-sdk-version', import.meta.url), 'utf8').split('\n')[0].trim().replace(/^v/, '');
 if (values['write-v0-exports']) {
   mapping.v0Exports = { py: [...exportedPython].sort(), ts: [...exportedTs].sort() };
+  mapping.v0Version = pinnedVersion;
   writeFileSync(mappingPath, `${JSON.stringify(mapping, null, 2)}\n`);
 }
+if (mapping.v0Version !== pinnedVersion) problems.push(`v0Version: ${mapping.v0Version} is not the pinned ${pinnedVersion} (scripts/v0-sdk-version)`);
 for (const [language, names] of [['py', exportedPython], ['ts', exportedTs]]) {
   compare(names, new Set(mapping.v0Exports?.[language] ?? []), `${language}.v0Exports`);
 }

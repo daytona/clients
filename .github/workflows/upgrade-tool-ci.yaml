@@ -12,7 +12,7 @@ on:
       - 'sdk-python/**'
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
-      - '.github/workflows/upgrade-tool-publish.yaml'
+      - '.github/workflows/sdk_publish.yaml'
       - 'scripts/test-upgrade.sh'
   pull_request:
     paths:
@@ -22,7 +22,7 @@ on:
       - 'sdk-python/**'
       - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
-      - '.github/workflows/upgrade-tool-publish.yaml'
+      - '.github/workflows/sdk_publish.yaml'
       - 'scripts/test-upgrade.sh'
 
 permissions:

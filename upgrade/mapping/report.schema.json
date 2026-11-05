@@ -19,7 +19,7 @@
       "additionalProperties": false,
       "required": ["reason", "message"],
       "properties": {
-        "reason": { "enum": ["dirty-tree", "custom-api-url", "no-daytona", "bad-arguments", "local-sdk-module"] },
+        "reason": { "enum": ["dirty-tree", "custom-api-url", "no-daytona", "bad-arguments", "local-sdk-module", "newer-v0"] },
         "message": { "type": "string" }
       }
     },
@@ -72,6 +72,20 @@
         }
       }
     },
-    "nextSteps": { "type": "array", "items": { "type": "string" } }
+    "nextSteps": { "type": "array", "items": { "type": "string" } },
+    "warnings": {
+      "description": "Advice that is not a manual item and never fails --strict, such as a 0.x version other than the one SDK 2.x runs as .v0. Absent when empty.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "message"],
+        "properties": {
+          "file": { "type": "string", "description": "Path relative to root, forward slashes." },
+          "message": { "type": "string" }
+        }
+      }
+    }
   }
 }

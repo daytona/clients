@@ -45,6 +45,8 @@ class Migration:
         self.names.add(_normalized(mapping.package_new))
         self.renamed: set[str] = set()
         self.newline = "\n"
+        # Version constraints of each Daytona declaration ("" when it has none).
+        self.declared: list[str] = []
 
     def manual_setup(self, line: int, message: str) -> None:
         """Retain uncertain setup declarations as explicit manual-review items."""
@@ -90,10 +92,11 @@ class Migration:
             and requirement.marker is None
             and _normalized(requirement.name) == _normalized(self.mapping.package_new)
             and not requirement.url
-            and requires_v2(str(requirement.specifier))
+            and requires_v2(str(requirement.specifier), self.mapping.specifier)
             and {_normalized(extra) for extra in self.mapping.extras}
             <= {_normalized(extra) for extra in requirement.extras}
         )
+        self.declared.append(str(requirement.specifier))
         result = render_requirement(parsed, requirement, self.mapping)
         if result is None:
             self.unparsed_requirement()
@@ -182,6 +185,17 @@ class Migration:
             self.found = True
             original = table[name]
             versions = [original] if not isinstance(original, Array) else list(original)
+            for entry in versions:
+                version = (
+                    entry
+                    if isinstance(entry, String)
+                    else entry.get("version")
+                    if isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
+                    else None
+                )
+                self.declared.append(
+                    str(version) if isinstance(version, String) else ""
+                )
             if any(
                 isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                 and "subdirectory" in entry
@@ -199,7 +213,8 @@ class Migration:
                 and _normalized(str(name)) == _normalized(self.mapping.package_new)
                 and bool(versions)
                 and all(
-                    requires_v2(str(entry)) and not self.mapping.extras
+                    requires_v2(str(entry), self.mapping.specifier)
+                    and not self.mapping.extras
                     if isinstance(entry, String)
                     else isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                     # Unknown fields may be environment selectors; only an
@@ -207,7 +222,7 @@ class Migration:
                     and set(entry)
                     <= {"version", "extras", "index", "source", "allow-prereleases"}
                     and isinstance(entry.get("version"), String)
-                    and requires_v2(str(entry["version"]))
+                    and requires_v2(str(entry["version"]), self.mapping.specifier)
                     and isinstance(extras := entry.get("extras"), Array)
                     and {_normalized(extra) for extra in self.mapping.extras}
                     <= {_normalized(str(extra)) for extra in extras}

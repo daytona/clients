@@ -1,0 +1,9 @@
+**The migration tool ships with each SDK release and installs exactly it** —
+`npx @daytona/upgrade@<version>` / `uvx daytona-upgrade@<version>` is published
+with the SDKs at the same version and writes that release into the migrated
+project (a pre-release is pinned, a stable `X.Y.Z` writes `^X.Y.Z` /
+`>=X.Y.Z,<X+1`), and the SDKs' message for a 0.x call on the root client names
+the matching tool release. The tool now compares the project's installed 0.x
+version (lockfile first) with the 0.x release `.v0` runs: an older version or a
+newer patch adds a warning, a newer minor refuses with exit 2 unless
+`--allow-newer-v0`.
