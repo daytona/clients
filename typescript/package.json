@@ -136,7 +136,7 @@
     "oxlint": "^1.80.0",
     "openapi-typescript": "7.13.0",
     "ts-jest": "^29.2.0",
-    "typescript": "^5.5.0"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22.4.0"
