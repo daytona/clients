@@ -710,8 +710,8 @@ def _resolve_v0_tag(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 
 def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
-    """v0-sdk-version is the single source of the vendored v0 tag."""
-    pin = (ROOT.parent / "v0-sdk-version").read_text().splitlines()[0].strip()
+    """scripts/v0-sdk-version is the single source of the vendored v0 tag."""
+    pin = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()[0].strip()
     assert pin.startswith("v0."), "the v0 namespace vendors the 0.x SDK at a pinned tag"
     result = _resolve_v0_tag({})
     assert result.returncode == 0, result.stderr
@@ -719,7 +719,7 @@ def test_the_v0_namespace_is_the_pinned_0x_tag() -> None:
 
 
 def test_the_pin_records_the_tag_commit() -> None:
-    lines = (ROOT.parent / "v0-sdk-version").read_text().splitlines()
+    lines = (ROOT.parent / "scripts" / "v0-sdk-version").read_text().splitlines()
     assert len(lines) == 2
     assert re.fullmatch(r"[0-9a-f]{40}", lines[1]), lines
     result = subprocess.run(
@@ -842,7 +842,7 @@ def test_publish_bundles_v0_when_the_namespace_code_and_the_pin_exist(tmp_path: 
             tmp_path,
             "sdk-typescript/src/v0-unbundled.ts",
             "sdk-python/src/daytona/_client.py",
-            "v0-sdk-version",
+            "scripts/v0-sdk-version",
         )
     )
     assert result.returncode == 0, result.stderr
@@ -851,7 +851,7 @@ def test_publish_bundles_v0_when_the_namespace_code_and_the_pin_exist(tmp_path: 
 
 @pytest.mark.parametrize("code", ["sdk-typescript/src/v0-unbundled.ts", "sdk-python/src/daytona/_client.py"])
 def test_publish_refuses_the_namespace_code_in_only_one_sdk(tmp_path: Path, code: str) -> None:
-    result = _publish_mode(_tree(tmp_path, code, "v0-sdk-version"))
+    result = _publish_mode(_tree(tmp_path, code, "scripts/v0-sdk-version"))
     assert result.returncode != 0
     assert "only one SDK" in result.stderr
 
@@ -860,13 +860,13 @@ def test_publish_refuses_namespace_code_without_a_pin(tmp_path: Path) -> None:
     result = _publish_mode(_tree(tmp_path, "sdk-python/src/daytona/_client.py", "sdk-typescript/src/v0-unbundled.ts"))
     assert result.returncode != 0
     assert "::error::" in result.stderr
-    assert "no v0-sdk-version pin" in result.stderr
+    assert "no scripts/v0-sdk-version pin" in result.stderr
     # A testing override counts as a pin.
     assert _publish_mode(tmp_path, {"DAYTONA_V0_TAG": "v0.224.0"}).stdout.strip() == "bundle"
 
 
 def test_publish_refuses_a_pin_without_the_namespace_code(tmp_path: Path) -> None:
-    result = _publish_mode(_tree(tmp_path, "v0-sdk-version"))
+    result = _publish_mode(_tree(tmp_path, "scripts/v0-sdk-version"))
     assert result.returncode != 0
     assert "no v0 namespace code" in result.stderr
 

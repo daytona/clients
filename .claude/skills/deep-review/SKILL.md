@@ -115,7 +115,7 @@ zero commits is an empty scope, not a passing DCO result.
 
 ### 2. Build the claims and mirror checklist
 
-Read the entire description and relevant `docs/design/` records. List all
+Read the entire description and relevant `docs/adr/` records. List all
 claims, changed entry points, callers, contract dependencies, mirror pairs,
 and the tests that should fail if each promise is false. Include unresolved
 local cubic findings, if supplied. Preflight warnings are heuristics, never
@@ -157,7 +157,7 @@ commands, counts, tool versions, failures, and skips. Use isolated scratch
 copies for builds that write files; preserve relative repository paths.
 
 Live checks are optional and credential-gated: when `DAYTONA_API_KEY` is
-already available, run `./run-e2e.sh` (optionally `py` or `ts`), using
+already available, run `./e2e/run.sh` (optionally `py` or `ts`), using
 `DAYTONA_API_URL` only when provided. Otherwise skip and say so. Never ask
 for credentials, print keys or non-public endpoints, or claim a skipped
 suite passed. A feature needing undeployed API support remains draft until

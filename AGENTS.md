@@ -14,7 +14,7 @@ below works with what is in the repository plus, optionally, a Daytona account:
 
 - **Live checks gate on credentials, not on who you are.** When
   `DAYTONA_API_KEY` (and `DAYTONA_API_URL`, for a deployment other than the
-  default) are set, run the live suites (`./run-e2e.sh`); when they are not,
+  default) are set, run the live suites (`./e2e/run.sh`); when they are not,
   skip them and say so in the PR. Never ask a contributor for credentials, and
   never paste a key, an endpoint that is not public, or a request trace into an
   issue, a PR, a commit message or a workflow input.
@@ -71,12 +71,12 @@ husky hooks. Scans need git 2.36 or later.
 | `sdk-typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
-| `scripts/` | v0 bundling, release helpers, the changelog tool |
+| `scripts/` | v0 bundling (+ the `scripts/v0-sdk-version` pin), release helpers, the changelog tool |
 | `changelog.d/` | changelog fragments, one per user-visible change (see below) |
 | `examples/` | runnable examples for both SDKs |
 | `upgrade/` | `daytona-upgrade`, the 0.x → 2.x migration tool (npm + PyPI) |
-| `e2e.py`, `e2e.ts`, `run-e2e.sh` | live end-to-end suites (need `DAYTONA_API_KEY`) |
-| `docs/design/` | design records for SDK/CLI decisions that outlive a PR |
+| `e2e/` | live end-to-end suites, `e2e/run.sh` (need `DAYTONA_API_KEY`) |
+| `docs/` | release and versioning policy, contribution prep, `adr/` (architecture decision records) |
 
 ## PARITY CONTRACT (the rule that matters)
 
@@ -95,7 +95,7 @@ Both refuse URL fields at any time; only later edits to other fields differ.
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
 `sdk-typescript/src/version.ts` are placeholders, overwritten in the publish run
-([RELEASING.md](RELEASING.md), [VERSIONING.md](VERSIONING.md)).
+([RELEASING.md](docs/RELEASING.md), [VERSIONING.md](docs/VERSIONING.md)).
 
 **Changelog fragments.** Never edit `CHANGELOG.md` for unreleased work — it
 has no `Unreleased` section. Add `changelog.d/<PR>.<type>.md`,
@@ -210,7 +210,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   per-sandbox `toolbox_url` / `toolboxUrl` override remains.
 - **`v0`** (`sdk-python/src/daytona/v0/`, `sdk-typescript/src/v0/`) is the 0.x SDK
   vendored from this repository's `release/v0` line at the PINNED tag and commit in
-  `v0-sdk-version` (line 1 the tag, line 2 the commit it peels to; the single
+  `scripts/v0-sdk-version` (line 1 the tag, line 2 the commit it peels to; the single
   source of truth — a moved tag fails `resolve-v0-tag.sh --verify`,
   `bundle-v0.sh` and the publish gate) by `scripts/bundle-v0.sh` at publish time —
   git-ignored, NEVER committed or hand-edited (`scripts/check-no-bundled-v0.sh`
@@ -520,7 +520,7 @@ generate the reports listed in `scripts/patch_coverage.py`, then
 `python3 scripts/patch_coverage.py`.
 
 Live suites, when credentials are available:
-`DAYTONA_API_KEY=… ./run-e2e.sh` (both SDKs; `py` / `ts` for one).
+`DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts` for one).
 
 ## Pull requests
 
@@ -538,11 +538,11 @@ Live suites, when credentials are available:
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
   counted automatically; add its name to `ci-passed-rerun.yaml` too.
 
-## Design records — `docs/design/`
+## Architecture decision records — `docs/adr/`
 
 Decisions about the SDK and CLI surface that outlive a PR (the parity rules,
 versioning, the v0 → v2 migration, …) are recorded as
-`docs/design/NNNN-<title>.md` with a `Status:` line (`proposed`, `accepted`,
+`docs/adr/NNNN-<title>.md` with a `Status:` line (`proposed`, `accepted`,
 `implemented`, `superseded by NNNN`). Write them for an outside reader and
 cover only SDK and CLI behavior. A PR that changes a recorded decision
 updates its record.
@@ -562,5 +562,5 @@ signature ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Releases
 
-[RELEASING.md](RELEASING.md) · [VERSIONING.md](VERSIONING.md) ·
+[RELEASING.md](docs/RELEASING.md) · [VERSIONING.md](docs/VERSIONING.md) ·
 [CHANGELOG.md](CHANGELOG.md).

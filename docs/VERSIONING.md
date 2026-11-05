@@ -34,7 +34,7 @@ What follows from that:
 ## What the numbers mean
 
 The next version is decided by the **diff of the public API specifications**
-(the Daytona API and toolbox API contracts under [`contract/`](contract/)) since
+(the Daytona API and toolbox API contracts under [`contract/`](../contract/)) since
 the last published release, not by what changed in the SDK trees. Given `MAJOR.MINOR.PATCH`,
 the next release increments:
 
@@ -89,9 +89,9 @@ pre-release and the SDK surface is considered unstable: **breaking changes
 may land in any alpha.** Pre-stable, the spec diff is not classified into
 major/minor/patch — a spec change drafts the next alpha counter. We still
 call breaking changes out explicitly in the changelog, as a
-`<id>.breaking.md` fragment under [`changelog.d/`](changelog.d/), which the
+`<id>.breaking.md` fragment under [`changelog.d/`](../changelog.d/), which the
 release assembles into the `### BREAKING` section of
-[CHANGELOG.md](CHANGELOG.md).
+[CHANGELOG.md](../CHANGELOG.md).
 
 Cutting `2.0.0` is a platform decision; after it, breaking changes require a
 MAJOR bump.
@@ -183,6 +183,6 @@ not done by any workflow.
 
 ## See also
 
-- [CHANGELOG.md](CHANGELOG.md) — what changed in each version; unreleased
-  changes are fragments in [`changelog.d/`](changelog.d/).
+- [CHANGELOG.md](../CHANGELOG.md) — what changed in each version; unreleased
+  changes are fragments in [`changelog.d/`](../changelog.d/).
 - [RELEASING.md](RELEASING.md) — how to publish.

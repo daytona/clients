@@ -7,7 +7,7 @@
 # exits non-zero, with a GitHub `::error::`, when the tree is inconsistent.
 #
 #   - v0 namespace code present (sdk-typescript/src/v0-unbundled.ts or
-#     sdk-python/src/daytona/_client.py) and a pin (v0-sdk-version,
+#     sdk-python/src/daytona/_client.py) and a pin (scripts/v0-sdk-version,
 #     or a DAYTONA_V0_TAG testing override)            -> bundle
 #   - neither the namespace code nor a pin (a release from before the
 #     namespaces, e.g. v2.0.0-alpha.1)                  -> skip (with a notice)
@@ -28,7 +28,7 @@ if [ "${1:-}" = --check-override ]; then
   case ${DAYTONA_V0_TAG:-} in *$'\n'* | *$'\r'*) echo "v0-publish-mode: v0_tag must be a single line" >&2; exit 1 ;; esac
   # The same pin resolve-v0-tag.sh reads: DAYTONA_V0_PIN_FILE (the publish gate
   # points it at source_ref's pin), else the pin beside this script.
-  pin_file=${DAYTONA_V0_PIN_FILE:-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/v0-sdk-version"}
+  pin_file=${DAYTONA_V0_PIN_FILE:-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/v0-sdk-version"}
   pinned_tag=$(sed -n '1p' "$pin_file" 2>/dev/null | sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   # Naming the pinned tag itself is not an override (the pinned commit check still runs).
   if [ -n "${DAYTONA_V0_TAG:-}" ] && [ "$DAYTONA_V0_TAG" != "$pinned_tag" ] && { [ "${PUBLISH_PYPI:-}" = true ] || [ "${PUBLISH_NPM:-}" = true ]; }; then
@@ -74,19 +74,19 @@ if [ "$py_code" != "$ts_code" ]; then
 fi
 has_code=$py_code
 has_pin=false
-if [ -f "$root/v0-sdk-version" ] || [ -n "${DAYTONA_V0_TAG:-}" ]; then
+if [ -f "$root/scripts/v0-sdk-version" ] || [ -n "${DAYTONA_V0_TAG:-}" ]; then
   has_pin=true
 fi
 
 if $has_code && $has_pin; then
   echo bundle
 elif ! $has_code && ! $has_pin; then
-  echo "::notice::source_ref predates the v0 namespace (no namespace code, no v0-sdk-version): publishing without a v0 bundle" >&2
+  echo "::notice::source_ref predates the v0 namespace (no namespace code, no scripts/v0-sdk-version): publishing without a v0 bundle" >&2
   echo skip
 elif $has_code; then
-  echo "::error::source_ref has the v0 namespace code but no v0-sdk-version pin: refusing to publish packages whose Daytona().v0 cannot work" >&2
+  echo "::error::source_ref has the v0 namespace code but no scripts/v0-sdk-version pin: refusing to publish packages whose Daytona().v0 cannot work" >&2
   exit 1
 else
-  echo "::error::source_ref has v0-sdk-version but no v0 namespace code (sdk-typescript/src/v0-unbundled.ts, sdk-python/src/daytona/_client.py): refusing an inconsistent tree" >&2
+  echo "::error::source_ref has scripts/v0-sdk-version but no v0 namespace code (sdk-typescript/src/v0-unbundled.ts, sdk-python/src/daytona/_client.py): refusing an inconsistent tree" >&2
   exit 1
 fi

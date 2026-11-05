@@ -79,7 +79,7 @@ name: SDK Publish
 # DERIVED strings, so a stable, rc or beta version fails the gate and an
 # official-looking release cannot ship by accident. The npm dist-tag follows
 # the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
-# stable → `latest` — VERSIONING.md "Release channels"), so under the
+# stable → `latest` — docs/VERSIONING.md "Release channels"), so under the
 # alpha-only policy every publish lands on `alpha`, never `latest`. Widen the
 # gate (rc, then stable) by relaxing the three regexes in the "Derive registry
 # versions" step — the dist-tag and the branch rule need no change.
@@ -129,12 +129,12 @@ on:
         type: boolean
         default: true
       v0_tag:
-        description: 'TESTING ONLY: override the 0.x tag vendored as the SDKs'' v0 namespace (Daytona().v0). Publishing to PyPI/npm with it also needs allow_unpinned_v0. Empty (every release) = the pin in v0-sdk-version'
+        description: 'TESTING ONLY: override the 0.x tag vendored as the SDKs'' v0 namespace (Daytona().v0). Publishing to PyPI/npm with it also needs allow_unpinned_v0. Empty (every release) = the pin in scripts/v0-sdk-version'
         required: false
         type: string
         default: ''
       allow_unpinned_v0:
-        description: 'Required with v0_tag when publishing to PyPI or npm: knowingly ship a v0 namespace that is NOT the pinned v0-sdk-version release (the run summary marks it UNVERIFIED)'
+        description: 'Required with v0_tag when publishing to PyPI or npm: knowingly ship a v0 namespace that is NOT the pinned scripts/v0-sdk-version release (the run summary marks it UNVERIFIED)'
         required: false
         type: boolean
         default: false
@@ -279,7 +279,7 @@ jobs:
             exit 1
           fi
           # The npm dist-tag follows the version's pre-release identifier
-          # (VERSIONING.md "Release channels"), so widening the gate above
+          # (docs/VERSIONING.md "Release channels"), so widening the gate above
           # never has to touch the npm publish step: a pre-release never lands on
           # `latest`. sdk-version.sh admits only these four shapes; the
           # fallthrough guards a future widening of that helper.
@@ -305,7 +305,7 @@ jobs:
             echo "cli=$cli"
           } >> "$GITHUB_OUTPUT"
       # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
-      # v0-sdk-version, resolved once here so the Python and npm builds bundle
+      # scripts/v0-sdk-version, resolved once here so the Python and npm builds bundle
       # the same release. `v0_tag` overrides the pin for testing only. Only
       # fetched, never run, here; the build jobs copy it in with
       # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
@@ -315,7 +315,7 @@ jobs:
         name: Resolve and fetch the pinned v0 namespace release
         env:
           DAYTONA_V0_TAG: ${{ inputs.v0_tag }}
-          DAYTONA_V0_PIN_FILE: v0-sdk-version
+          DAYTONA_V0_PIN_FILE: scripts/v0-sdk-version
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
@@ -330,13 +330,13 @@ jobs:
           fi
           tag=$(.publish-tools/scripts/resolve-v0-tag.sh --verify)
           pinned=$(.publish-tools/scripts/resolve-v0-tag.sh --sha)
-          [ -z "$DAYTONA_V0_TAG" ] || echo "::warning::v0 namespace tag overridden to $DAYTONA_V0_TAG (testing only; releases use v0-sdk-version)"
+          [ -z "$DAYTONA_V0_TAG" ] || echo "::warning::v0 namespace tag overridden to $DAYTONA_V0_TAG (testing only; releases use scripts/v0-sdk-version)"
           rm -rf .v0-src
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           sha=$(git -C .v0-src rev-parse HEAD)
           if [ -n "$pinned" ] && [ "$sha" != "$pinned" ]; then
-            echo "::error::${tag} is at ${sha}, not the commit pinned in v0-sdk-version (${pinned}); was the tag moved?"
+            echo "::error::${tag} is at ${sha}, not the commit pinned in scripts/v0-sdk-version (${pinned}); was the tag moved?"
             exit 1
           fi
           echo "v0 namespace: ${tag} (${sha})"
@@ -357,7 +357,7 @@ jobs:
           if [ -e .v0-src ]; then optional+=(.v0-src); fi
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts v0-sdk-version "${optional[@]}"
+            -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
           ls -l /tmp/sdk-src.tgz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -745,7 +745,7 @@ jobs:
         # repository, public package).
         # --tag "$NPM_DIST_TAG": the gate derives the dist-tag from the
         # version (-alpha.N → alpha, -beta.N → beta, -rc.N → next, stable →
-        # latest — VERSIONING.md "Release channels"), so a pre-release never
+        # latest — docs/VERSIONING.md "Release channels"), so a pre-release never
         # becomes `latest`. Publishing the packed tarball means no package
         # scripts run here.
         env:

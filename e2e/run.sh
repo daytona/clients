@@ -5,16 +5,16 @@
 # Live e2e for the Daytona SDKs (Python + TypeScript) against a Daytona
 # deployment.
 #
-#   DAYTONA_API_KEY=dtn_... ./run-e2e.sh          # both
-#   DAYTONA_API_KEY=dtn_... ./run-e2e.sh py       # python only
-#   DAYTONA_API_KEY=dtn_... ./run-e2e.sh ts       # typescript only
+#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh          # both
+#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh py       # python only
+#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh ts       # typescript only
 #
-# Env (see e2e.py / e2e.ts headers): DAYTONA_API_URL, DAYTONA_API_KEY (required),
+# Env (see e2e/e2e.py / e2e/e2e.ts headers): DAYTONA_API_URL, DAYTONA_API_KEY (required),
 # SMOKE_IMAGE, DAYTONA_SKIP_TOOLBOX, DAYTONA_SKIP_DOCKERFILE
 # (deployments without image builds), DAYTONA_KEEP.
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 WHICH="${1:-both}"
 
 if [[ -z "${DAYTONA_API_KEY:-}" ]]; then
@@ -27,17 +27,17 @@ run_py() {
   if command -v uv >/dev/null 2>&1; then
     (cd sdk-python && uv venv --allow-existing .venv >/dev/null 2>&1 || true
      uv pip install -p .venv -q -e . >/dev/null)
-    sdk-python/.venv/bin/python e2e.py
+    sdk-python/.venv/bin/python e2e/e2e.py
   else
     (cd sdk-python && pip install -q -e . >/dev/null)
-    python3 e2e.py
+    python3 e2e/e2e.py
   fi
 }
 
 run_ts() {
   echo "== typescript SDK e2e =="
   (cd sdk-typescript && npm install --no-audit --no-fund >/dev/null 2>&1)
-  (cd sdk-typescript && npx --yes tsx ../e2e.ts)
+  (cd sdk-typescript && npx --yes tsx ../e2e/e2e.ts)
 }
 
 rc=0

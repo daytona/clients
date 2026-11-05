@@ -1,4 +1,4 @@
-# Design records
+# Architecture decision records
 
 Decisions about the SDK and CLI surface that outlive a single pull request:
 what was decided, why, and what was rejected. Each record is one file,

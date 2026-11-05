@@ -43,7 +43,7 @@ COMPONENTS = [
 # points, and generated output.
 IGNORE_GLOBS = [
     "**/tests/**", "**/*_test.go", "**/*.test.ts", "examples/**",
-    "e2e.py", "e2e.ts", "**/main.go",
+    "e2e/**", "**/main.go",
     "sdk-python/src/daytona/v2/_gen/**", "sdk-python/src/daytona/v2/_sync/**",
     "sdk-typescript/src/v2/gen/**", "cli/gen/**",
     "sdk-python/gen/**", "sdk-typescript/scripts/**", "scripts/**",

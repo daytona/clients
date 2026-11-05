@@ -7,7 +7,7 @@ on:
     branches: [main]
     paths:
       - 'upgrade/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - 'scripts/**'
       - 'sdk-python/**'
       - 'sdk-typescript/**'
@@ -17,7 +17,7 @@ on:
   pull_request:
     paths:
       - 'upgrade/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - 'scripts/**'
       - 'sdk-python/**'
       - 'sdk-typescript/**'

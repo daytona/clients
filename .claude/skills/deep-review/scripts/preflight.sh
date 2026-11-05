@@ -62,7 +62,7 @@ jq -nr --slurpfile changed "$tmp/changed.json" --slurpfile added "$tmp/added.jso
   hint(touched("^sdk-python/pyproject\\.toml$|^sdk-typescript/package\\.json$|^sdk-typescript/src/version\\.ts$");
     "Inspect version fields: tracked versions are publish placeholders, not per-PR bumps."),
   "", "## Documentation and fragments touched", "",
-  ($c | map(select(test("(^|/)README\\.md$|^docs/design/|^changelog\\.d/|^AGENTS\\.md$|DEVELOPMENT\\.md$"))) | paths),
+  ($c | map(select(test("(^|/)README\\.md$|^docs/(adr/|[^/]+\\.md$)|^changelog\\.d/|^AGENTS\\.md$|DEVELOPMENT\\.md$"))) | paths),
   "", "## Deleted files", "", ($d | paths)'
 printf '\n## Removed guard, cleanup, and test candidates\n\n'
 g diff -U0 "$base" "$head" -- '*.go' '*.ts' '*.py' > "$tmp/code.diff"

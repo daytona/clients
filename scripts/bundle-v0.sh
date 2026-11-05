@@ -8,7 +8,7 @@
 #   scripts/bundle-v0.sh [--lang python|typescript|all] [--src DIR] [TAG]
 #   scripts/bundle-v0.sh --clean
 #
-# TAG defaults to the pin in v0-sdk-version (read through
+# TAG defaults to the pin in scripts/v0-sdk-version (read through
 # scripts/resolve-v0-tag.sh). Passing TAG or setting DAYTONA_V0_TAG
 # overrides it for testing only; releases use the pin. --src uses an existing checkout of
 # daytona/clients at that tag instead of cloning one. The publish workflow runs
@@ -80,7 +80,7 @@ echo "bundle-v0: v0 namespace from daytona/clients@$tag"
 pin_tag=$(env -u DAYTONA_V0_TAG "$here/resolve-v0-tag.sh" 2>/dev/null || true)
 pin_sha=$(env -u DAYTONA_V0_TAG "$here/resolve-v0-tag.sh" --sha 2>/dev/null || true)
 if [ -n "${DAYTONA_V0_TAG:-}" ] || [ "$tag" != "$pin_tag" ]; then
-  echo "bundle-v0: WARNING: v0 tag $tag overrides the pin ($pin_tag in v0-sdk-version):" \
+  echo "bundle-v0: WARNING: v0 tag $tag overrides the pin ($pin_tag in scripts/v0-sdk-version):" \
     "this bundle is UNVERIFIED testing output — never publish it" >&2
 fi
 
@@ -106,7 +106,7 @@ if git -C "$src" rev-parse --git-dir >/dev/null 2>&1; then
     echo "bundle-v0: --src $src is at $head${dirty:+ (dirty: uncommitted or untracked files)}"
   fi
   if [ -n "$pinned_run" ] && [ "$head" != "$sha" ]; then
-    echo "bundle-v0: daytona/clients@$tag is at $head, not the pinned $sha (v0-sdk-version); was the tag moved?" >&2
+    echo "bundle-v0: daytona/clients@$tag is at $head, not the pinned $sha (scripts/v0-sdk-version); was the tag moved?" >&2
     exit 1
   fi
   if [ -n "$pinned_run" ] && [ -n "$dirty" ]; then

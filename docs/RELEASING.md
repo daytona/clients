@@ -9,7 +9,7 @@ How to publish the two client SDKs and the `daytona` CLI.
 > the tag `vX.Y.Z[-pre.N]` on the published commit.
 
 > **Preferred path: on-demand release via CI.** Run
-> [`.github/workflows/sdk_publish.yaml`](.github/workflows/sdk_publish.yaml)
+> [`.github/workflows/sdk_publish.yaml`](../.github/workflows/sdk_publish.yaml)
 > (Actions → *SDK Publish* → *Run workflow*, or `gh workflow run`). It
 > publishes using **OIDC Trusted Publishing** — no tokens, no 2FA/OTP — and
 > **commits nothing**: the version is stamped into the manifest inside the
@@ -31,8 +31,8 @@ How to publish the two client SDKs and the `daytona` CLI.
 > the npm dist-tag is derived from the version (`-rc.N` → `next`, stable →
 > `latest`), so it follows automatically.
 
-See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](CHANGELOG.md) ·
-[`changelog.d/`](changelog.d/) (changelog fragments).
+See also: [VERSIONING.md](VERSIONING.md) · [CHANGELOG.md](../CHANGELOG.md) ·
+[`changelog.d/`](../changelog.d/) (changelog fragments).
 
 ## Release lines and branches
 
@@ -89,7 +89,7 @@ next needs a deployment.
 
 ## What a version derives
 
-The gate computes these with [`scripts/sdk-version.sh`](scripts/sdk-version.sh)
+The gate computes these with [`scripts/sdk-version.sh`](../scripts/sdk-version.sh)
 and rejects anything that is not a release version:
 
 | Target | From `v2.0.0-alpha.3` | Mechanism |
@@ -101,7 +101,7 @@ and rejects anything that is not a release version:
 ## Automated release (recommended)
 
 One-time setup (see the header of
-[`sdk_publish.yaml`](.github/workflows/sdk_publish.yaml)):
+[`sdk_publish.yaml`](../.github/workflows/sdk_publish.yaml)):
 
 - **Registries:** a PyPI trusted publisher for `daytona` and an npm trusted
   publisher for `@daytona/sdk`, both bound to repository `daytona/clients`,
@@ -130,7 +130,7 @@ For each release:
 
 1. **Prepare** (stable and release-candidate versions): run
    `prepare-release.yaml` with the version. It folds every fragment in
-   [`changelog.d/`](changelog.d/) into a new `## [X.Y.Z] — DATE` section of
+   [`changelog.d/`](../changelog.d/) into a new `## [X.Y.Z] — DATE` section of
    `CHANGELOG.md` and opens the release PR. Merge it. Alphas may skip this
    step; their changes stay as fragments until the next prepared release.
 2. **Publish** from the commit to release:

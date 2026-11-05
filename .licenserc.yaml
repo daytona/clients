@@ -45,9 +45,7 @@ header:
       - 'upgrade/**/*.mjs'
       - 'upgrade/**/*.cjs'
       - 'upgrade/**/*.js'
-      - 'e2e.py'
-      - 'e2e.ts'
-      - 'run-e2e.sh'
+      - 'e2e/**'
     paths-ignore:
       # Generated output — regenerated from contract/ (scripts/gen-contract-types.sh)
       # or from package.json (sdk-typescript/scripts/stamp-version.mjs). Every one

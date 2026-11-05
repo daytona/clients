@@ -5,7 +5,7 @@ must explain which evidence defeats it, rather than silently disappearing.
 
 | Reason | Evidence required |
 |---|---|
-| Deliberate language difference | Root `AGENTS.md` or an applicable `docs/design/` decision plus a probe of both implementations |
+| Deliberate language difference | Root `AGENTS.md` or an applicable `docs/adr/` decision plus a probe of both implementations |
 | Contract-imposed limitation | The exact committed operation/schema and a driver demonstrating the documented behavior |
 | Already fixed at this head | Current code citation and the original failing probe now passing |
 | Pre-existing and unchanged | Base/head comparison proving no introduced regression and no false claim that this work fixes it |

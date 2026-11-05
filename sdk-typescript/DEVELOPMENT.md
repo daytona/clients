@@ -95,7 +95,7 @@ must preserve `manifestId: null` rather than optionalizing it.
   `git checkout -- package.json package-lock.json`; sdk-ci rejects a committed
   bundled manifest.
 - The v0 namespace vendors the 0.x SDK at the tag pinned in
-  `v0-sdk-version` (`scripts/bundle-v0.sh` reads it; bumping
+  `scripts/v0-sdk-version` (`scripts/bundle-v0.sh` reads it; bumping
   the pin, tag plus its commit, is a two-line PR plus a 2.x release; `DAYTONA_V0_TAG` overrides it
   for testing only).
 - `scripts/bundle-v0.mjs <v0-sdk-typescript-src-dir> <v0-version> <tag> <v0-root-package.json>`

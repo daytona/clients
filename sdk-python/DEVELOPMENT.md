@@ -65,7 +65,7 @@ scripts/bundle-v0.sh [--lang python|typescript|all] [--src DIR] [TAG]
 scripts/bundle-v0.sh --clean
 ```
 
-- `TAG` defaults to the pinned 0.x tag in `v0-sdk-version` (line 1,
+- `TAG` defaults to the pinned 0.x tag in `scripts/v0-sdk-version` (line 1,
   today `v0.224.0`; line 2 is the commit the tag peels to, which the scripts
   verify), the single source of truth for releases. Bumping the v0
   namespace is a two-line PR to that file plus a 2.x release. Passing `TAG` or

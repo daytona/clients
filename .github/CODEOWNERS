@@ -25,7 +25,7 @@
 /sdk-typescript/scripts/build-v0.mjs           @MDzaja
 /sdk-typescript/scripts/v0-bundle-smoke.cjs    @MDzaja
 /sdk-typescript/scripts/stamp-version.mjs      @MDzaja
-/v0-sdk-version                            @MDzaja
+/scripts/v0-sdk-version                    @MDzaja
 
 # Secret scanning
 /scripts/secret-scan.sh                    @MDzaja

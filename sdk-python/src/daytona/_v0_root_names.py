@@ -7,7 +7,7 @@ SDK 2.0 removed them from the root. `daytona.__getattr__` uses this list to tell
 code written against the 0.x SDK where each name moved, and raises a plain
 ``AttributeError`` for any other unknown name (typos, ``hasattr`` probes).
 
-Taken from ``daytona/__init__.py`` ``__all__`` at the pinned tag (v0-sdk-version).
+Taken from ``daytona/__init__.py`` ``__all__`` at the pinned tag (scripts/v0-sdk-version).
 tests/test_v0_bundle.py fails when a pin bump changes the bundled root's names.
 """
 

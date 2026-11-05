@@ -17,7 +17,8 @@ participating, you are expected to uphold it. Please report unacceptable behavio
 Found a bug or have an idea for the SDKs or the CLI? Please
 [open an issue](https://github.com/daytona/clients/issues/new) — but first check that a
 matching issue doesn't already exist. For questions and discussion, join the
-[Daytona Community Slack](https://go.daytona.io/slack).
+[Daytona Community Slack](https://go.daytona.io/slack). Security vulnerabilities go
+through [SECURITY.md](./SECURITY.md), never a public issue.
 
 ## What you can contribute
 
@@ -62,7 +63,7 @@ remove the credential rather than bypassing the hook; for a value that is not a
 secret, see the comments at the top of `.gitleaks.toml`.
 
 With a Daytona API key you can also run the live end-to-end suites:
-`DAYTONA_API_KEY=… ./run-e2e.sh`.
+`DAYTONA_API_KEY=… ./e2e/run.sh`.
 
 [`AGENTS.md`](./AGENTS.md) has the full project map and conventions.
 
@@ -83,7 +84,7 @@ Every source file starts with a license header (see [Licensing](#licensing)); th
    branch for your change.
 2. Open (or find) a [GitHub issue](https://github.com/daytona/clients/issues) describing the
    change.
-3. [Prepare your changes](./PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
+3. [Prepare your changes](./docs/PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
    every commit to comply with the DCO v1.1 (`git commit -s`).
    The first time you open a PR, our CLA assistant will also ask you to **sign the
    [Contributor License Agreement](./CLA.md)** (see [Licensing](#licensing) below).
@@ -103,7 +104,7 @@ AGPL-3.0). Contributing involves two steps:
 
 1. **DCO sign-off (per commit).** Sign off every commit with `git commit -s` to certify, under
    the [Developer Certificate of Origin](https://developercertificate.org/) v1.1, that you have
-   the right to submit the code. See [PREPARING_YOUR_CHANGES.md](./PREPARING_YOUR_CHANGES.md).
+   the right to submit the code. See [PREPARING_YOUR_CHANGES.md](./docs/PREPARING_YOUR_CHANGES.md).
 
 2. **CLA signature (once).** You must also sign the
    [Daytona Contributor License Agreement](./CLA.md) — it covers both individual and

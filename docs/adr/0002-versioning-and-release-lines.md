@@ -20,7 +20,7 @@ publishing to the same package names.
 release has the version of the platform release whose API it was built for.
 Python and TypeScript always release together on the same number. There's no
 per-SDK patch release. The full policy is in
-[`../../VERSIONING.md`](../../VERSIONING.md).
+[`../VERSIONING.md`](../VERSIONING.md).
 
 **The contract decides the number.** The next version follows the diff of the
 API contracts under [`contract/`](../../contract/) since the last release:
@@ -70,7 +70,7 @@ PyPI and npm Trusted Publishing bind a package to a repository, a workflow
 file name and an environment. Keeping the same file names on both lines lets
 one registration per package serve both. The dispatch ref picks the line, and
 the 2.x gate refuses a 0.x version. Details are in
-[`../../RELEASING.md`](../../RELEASING.md).
+[`../RELEASING.md`](../RELEASING.md).
 
 Unreleased changes live as one fragment per user-visible change under
 [`changelog.d/`](../../changelog.d/), and a prepared release folds them into

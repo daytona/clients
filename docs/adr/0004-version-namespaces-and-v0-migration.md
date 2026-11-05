@@ -39,7 +39,7 @@ loads v0 until `.v0` is first used.
 **v0 is bundled at publish time from a pinned 0.x tag.** The `v0` namespace
 (`daytona.v0`, `@daytona/sdk/v0`) is the 0.x SDK from this repository's
 `release/v0` line, at the tag and commit named in
-[`../../v0-sdk-version`](../../v0-sdk-version).
+[`../../scripts/v0-sdk-version`](../../scripts/v0-sdk-version).
 [`../../scripts/bundle-v0.sh`](../../scripts/bundle-v0.sh) copies it into the
 package when publishing. The bundled tree is never committed, and
 [`../../scripts/resolve-v0-tag.sh`](../../scripts/resolve-v0-tag.sh) fails CI

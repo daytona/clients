@@ -9,7 +9,7 @@ on:
       - 'sdk-typescript/**'
       - 'contract/**'
       - 'scripts/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
   pull_request:
@@ -18,7 +18,7 @@ on:
       - 'sdk-typescript/**'
       - 'contract/**'
       - 'scripts/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
 
@@ -76,7 +76,7 @@ jobs:
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts v0-sdk-version .v0-src
+            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts .v0-src
           mkdir "$RUNNER_TEMP/unpacked" && cd "$RUNNER_TEMP/unpacked"
           tar -xzf "$RUNNER_TEMP/sdk-src.tgz"
           test ! -e .v0-src/.git
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
-      - name: Bundle the pinned v0 release (v0-sdk-version)
+      - name: Bundle the pinned v0 release (scripts/v0-sdk-version)
         run: bash ../scripts/bundle-v0.sh --lang python
       - name: Install with the v0-sdk extra and resolve Daytona().v0
         run: |
@@ -174,7 +174,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: Bundle the pinned v0 release (v0-sdk-version)
+      - name: Bundle the pinned v0 release (scripts/v0-sdk-version)
         run: bash ../scripts/bundle-v0.sh --lang typescript
       - name: Build, pack and resolve Daytona().v0 from the tarball
         run: |

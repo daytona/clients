@@ -746,5 +746,5 @@ throwing plain `RateLimitError`.
 
 ## Versioning and releases
 
-See `VERSIONING.md` and `CHANGELOG.md` in the
+See `docs/VERSIONING.md` and `CHANGELOG.md` in the
 [repository](https://github.com/daytona/clients).
