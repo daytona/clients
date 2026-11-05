@@ -36,7 +36,7 @@ def test_migrates_include_when_arbitrary_filename(
     dependency = tmp_path / "deps/base.data"
     dependency.write_text("-r nested\ndaytona==0.224\n")
     nested = tmp_path / "deps/nested"
-    nested.write_text("--requirement ../requirements.txt\ndaytona-sdk[otel]==0.223\n")
+    nested.write_text("--requirement ../requirements.txt\ndaytona-sdk[otel]==0.225\n")
     if with_code:
         (tmp_path / "app.py").write_text(
             "from daytona import Daytona\nd = Daytona()\nd.create()\n"
@@ -95,8 +95,8 @@ def test_preserves_boundary_when_include_is_unsafe_or_unavailable(
     (root / "linked-dir").symlink_to(tmp_path, target_is_directory=True)
     (root / ".venv").mkdir()
     generated = root / ".venv/dep"
-    generated.write_text("daytona==0.223\n")
-    (root / "hidden").write_text("daytona==0.222\n")
+    generated.write_text("daytona==0.225\n")
+    (root / "hidden").write_text("daytona==0.226\n")
     (root / "requirements.txt").write_text(f"-r {target}\n")
     # When
     code = main([str(root), "--json"])
@@ -106,7 +106,7 @@ def test_preserves_boundary_when_include_is_unsafe_or_unavailable(
     assert report["refused"]["reason"] == "no-daytona"
     assert outside.read_text() == "daytona==0.224\n"
     assert (tmp_path / "dep").read_text() == "daytona==0.223\n"
-    assert generated.read_text() == "daytona==0.223\n"
+    assert generated.read_text() == "daytona==0.225\n"
     assert report["changedFiles"] == []
 
 

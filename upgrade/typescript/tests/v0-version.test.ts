@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
@@ -71,7 +71,7 @@ it('warns on a newer patch of the pinned minor', async () => {
 
 it('refuses a newer 0.x minor and writes nothing', async () => {
   // Given: pnpm installs a 0.x minor the bundled .v0 predates.
-  const pnpm = `lockfileVersion: '9.0'\n\npackages:\n\n  '@daytonaio/sdk@0.999.0':\n    resolution: {integrity: sha512-x}\n`;
+  const pnpm = `lockfileVersion: '9.0'\n\nimporters:\n\n  .:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^0.999.0\n        version: 0.999.0\n\npackages:\n\n  '@daytonaio/sdk@0.999.0':\n    resolution: {integrity: sha512-x}\n`;
   const files = { 'package.json': manifest('^0.999.0'), 'pnpm-lock.yaml': pnpm, 'index.ts': code };
   // When
   const { code: exit, report, root } = await run(files);
@@ -126,4 +126,94 @@ it('ignores the version outside upgrade mode', async () => {
   expect(exit).toBe(0);
   expect(report.refused).toBeUndefined();
   expect(report.warnings).toBeUndefined();
+});
+
+// Lockfiles also list copies other packages pull in, and other workspaces'
+// copies: only the declaring manifest's own resolution counts.
+const transitive = '0.999.0';
+it.each([
+  ['yarn.lock', `# yarn lockfile v1\n\n"@daytonaio/sdk@^${pinned}":\n  version "${pinned}"\n\n"@daytonaio/sdk@^${transitive}":\n  version "${transitive}"\n`],
+  ['yarn.lock', `__metadata:\n  version: 8\n\n"@daytonaio/sdk@npm:^${pinned}":\n  version: ${pinned}\n\n"@daytonaio/sdk@npm:^${transitive}":\n  version: ${transitive}\n`],
+  ['pnpm-lock.yaml', `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${pinned}\n        version: ${pinned}\npackages:\n  '@daytonaio/sdk@${pinned}':\n    resolution: {integrity: a}\n  '@daytonaio/sdk@${transitive}':\n    resolution: {integrity: b}\n`],
+  ['bun.lock', `{\n  "lockfileVersion": 1,\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    "other/@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "b"],\n  },\n}\n`],
+  ['package-lock.json', packageLock(pinned)],
+])('ignores a transitive newer copy in %s', async (lockfile, text) => {
+  // Given: the project resolves the pinned release; another package pulls in a newer copy.
+  // When
+  const { code: exit, report } = await run({ 'package.json': manifest(`^${pinned}`), [lockfile]: text, 'index.ts': code });
+  // Then
+  expect(report.refused).toBeUndefined();
+  expect(report.warnings).toBeUndefined();
+  expect(exit).toBe(0);
+});
+
+it.each([
+  ['package-lock.json', JSON.stringify({ lockfileVersion: 3, packages: {
+    'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/b/node_modules/@daytonaio/sdk': { version: transitive } } })],
+  ['pnpm-lock.yaml', `lockfileVersion: '9.0'\nimporters:\n  packages/a:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${pinned}\n        version: ${pinned}\n  packages/b:\n    dependencies:\n      '@daytonaio/sdk':\n        specifier: ^${transitive}\n        version: ${transitive}\n`],
+  ['bun.lock', `{\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n    "b/@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "b"],\n  },\n}\n`],
+])('migrates one workspace without reading a sibling workspace\'s copy in %s', async (lockfile, text) => {
+  // Given: packages/b is on a newer minor; packages/a, the scanned package, is on the pin.
+  const files = { '.git/HEAD': '', [lockfile]: text,
+    'packages/a/package.json': JSON.stringify({ name: 'a', dependencies: { '@daytonaio/sdk': `^${pinned}` } }), 'packages/a/index.ts': code,
+    'packages/b/package.json': JSON.stringify({ name: 'b', dependencies: { '@daytonaio/sdk': `^${transitive}` } }) };
+  // When
+  const { report } = await run(files, [], 'packages/a');
+  // Then
+  expect(report.refused).toBeUndefined();
+  expect(report.warnings).toBeUndefined();
+});
+
+it('reads a workspace\'s own nested copy before the hoisted one', async () => {
+  // Given: the root hoists the pin; packages/a keeps its own newer copy.
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: {
+    'node_modules/@daytonaio/sdk': { version: pinned }, 'packages/a/node_modules/@daytonaio/sdk': { version: transitive } } });
+  // When
+  const { code: exit, report } = await run({ '.git/HEAD': '', 'package-lock.json': lock,
+    'packages/a/package.json': manifest(`^${transitive}`), 'packages/a/index.ts': code }, [], 'packages/a');
+  // Then
+  expect(exit).toBe(2);
+  expect(report.refused?.message).toBe(newerRefusal(transitive, '../../package-lock.json', pinned));
+});
+
+it('falls back to the manifest when the lockfile does not resolve the dependency', async () => {
+  // Given: a lockfile from before the Daytona dependency was added.
+  const { code: exit, report } = await run({ 'package.json': manifest(`^${transitive}`),
+    'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/left-pad': { version: '1.0.0' } } }), 'index.ts': code });
+  // Then
+  expect(exit).toBe(2);
+  expect(report.refused?.message).toBe(newerRefusal(transitive, 'package.json', pinned));
+});
+
+it.each([
+  ['npm-shrinkwrap.json', JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: '0.100.0' } } })],
+  ['package-lock.json', JSON.stringify({ lockfileVersion: 1, dependencies: { '@daytonaio/sdk': { version: '0.100.0' } } })],
+  ['pnpm-lock.yaml', `lockfileVersion: 5.4\nspecifiers:\n  '@daytonaio/sdk': ^0.100.0\ndependencies:\n  '@daytonaio/sdk': 0.100.0\npackages:\n  /@daytonaio/sdk/0.100.0:\n    resolution: {integrity: a}\n`],
+  ['pnpm-lock.yaml', `lockfileVersion: '6.0'\ndependencies:\n  '@daytonaio/sdk':\n    specifier: ^0.100.0\n    version: 0.100.0(typescript@5.0.0)\n`],
+])('reads %s variants', async (lockfile, text) => {
+  // Given / When
+  const { report } = await run({ 'package.json': manifest('^0.100.0'), [lockfile]: text, 'index.ts': code });
+  // Then
+  expect(report.warnings).toEqual([{ file: lockfile, message: olderMessage('0.100.0', pinned) }]);
+});
+
+it('resolves an npm alias by its dependency key', async () => {
+  // Given: `"sdk0": "npm:@daytonaio/sdk@^0.100.0"` installs under node_modules/sdk0.
+  const files = { 'package.json': JSON.stringify({ dependencies: { sdk0: 'npm:@daytonaio/sdk@^0.100.0' } }),
+    'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/sdk0': { name: '@daytonaio/sdk', version: '0.100.0' } } }),
+    'index.ts': "import { Daytona } from 'sdk0'; new Daytona();\n" };
+  // When
+  const { report } = await run(files);
+  // Then
+  expect(report.warnings).toEqual([{ file: 'package-lock.json', message: olderMessage('0.100.0', pinned) }]);
+});
+
+it('follows a symlinked lockfile', async () => {
+  // Given
+  const root = temporaryProject({ 'package.json': manifest('^0.100.0'), 'locks/package-lock.json': packageLock('0.100.0'), 'index.ts': code });
+  symlinkSync(join(root, 'locks/package-lock.json'), join(root, 'package-lock.json'));
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then
+  expect((JSON.parse(result.output) as Report).warnings).toEqual([{ file: 'package-lock.json', message: olderMessage('0.100.0', pinned) }]);
 });

@@ -45,5 +45,5 @@ class ProjectResult:
     items: tuple[Item, ...]
     found: bool
     local_module: LocalModule | None = None
-    # Each Daytona declaration's manifest and version constraint ("" for none).
-    declared: tuple[tuple[Path, str], ...] = ()
+    # Each Daytona declaration's manifest, package name and constraint ("" for none).
+    declared: tuple[tuple[Path, str, str], ...] = ()

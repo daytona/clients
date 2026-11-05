@@ -65,8 +65,10 @@ def _zero_x(value: str) -> Version | None:
     return version if version.major == 0 else None
 
 
-def _locked(path: Path) -> list[str]:
+def _locked(path: Path) -> dict[str, list[str]]:
+    """The versions a lockfile resolves, per normalized Daytona package name."""
     text = path.read_text(encoding="utf-8").removeprefix("\ufeff")
+    entries: list[tuple[str, object]] = []
     if path.name == "Pipfile.lock":
         lock = json.loads(text)
         sections = (
@@ -74,26 +76,27 @@ def _locked(path: Path) -> list[str]:
             if isinstance(lock, dict)
             else []
         )
-        return [
-            entry["version"]
+        entries = [
+            (str(name), entry.get("version"))
             for section in sections
             if isinstance(section, dict)
             for name, entry in section.items()
-            if _normalized(name) in _NAMES
-            and isinstance(entry, dict)
-            and isinstance(entry.get("version"), str)
+            if isinstance(entry, dict)
         ]
-    # uv, Poetry and PDM: [[package]] tables with name and version.
-    packages = tomlkit.parse(text).unwrap().get("package", [])
-    if not isinstance(packages, list):
-        return []
-    return [
-        str(entry["version"])
-        for entry in packages
-        if isinstance(entry, dict)
-        and _normalized(str(entry.get("name", ""))) in _NAMES
-        and isinstance(entry.get("version"), str)
-    ]
+    else:
+        # uv, Poetry and PDM: [[package]] tables with name and version.
+        packages = tomlkit.parse(text).unwrap().get("package", [])
+        if isinstance(packages, list):
+            entries = [
+                (str(entry.get("name", "")), entry.get("version"))
+                for entry in packages
+                if isinstance(entry, dict)
+            ]
+    found: dict[str, list[str]] = {}
+    for name, version in entries:
+        if _normalized(name) in _NAMES and isinstance(version, str):
+            found.setdefault(_normalized(name), []).append(version)
+    return found
 
 
 def _owner_lockfiles(directory: Path) -> list[Path]:
@@ -131,35 +134,43 @@ def _poetry_lower_bound(specifier: str) -> Version | None:
 
 def check_v0_version(
     base: Path,
-    declared: tuple[tuple[Path, str], ...],
+    declared: tuple[tuple[Path, str, str], ...],
     pinned: str | None,
     allow_newer: bool,
 ) -> V0VersionCheck:
-    """Lockfiles say what is installed; a manifest without one falls back to
-    its constraint's lower bound. Older and newer-patch versions warn; a newer
-    minor refuses unless ``allow_newer``, because its added APIs are in neither
-    ``.v0`` nor the mapping."""
+    """The owning lockfile's resolution of the declared package says what is
+    installed; without one, the constraint's lower bound stands in. Older and
+    newer-patch versions warn; a newer minor refuses unless ``allow_newer``,
+    because its added APIs are in neither ``.v0`` nor the mapping."""
     if pinned is None:
         return V0VersionCheck(())
     pin = Version(pinned)
     observed: dict[tuple[Path, Version], None] = {}
     unknown: dict[Path, None] = {}
     owners: dict[Path, list[Path]] = {}
-    for manifest, specifier in declared:
+    locks: dict[Path, dict[str, list[str]]] = {}
+    for manifest, name, specifier in declared:
         directory = manifest.parent
         lockfiles = owners.setdefault(directory, _owner_lockfiles(directory))
-        locked: list[tuple[Path, Version]] = []
+        resolved: list[tuple[Path, str]] = []
         for lockfile in lockfiles:
-            try:
-                values = _locked(lockfile)
-            except (OSError, UnicodeError, ValueError, TOMLKitError):
-                continue  # An unreadable or malformed lockfile is no version evidence.
-            locked.extend((lockfile, v) for v in map(_zero_x, values) if v is not None)
-        if locked:
-            observed.update(dict.fromkeys(locked))
+            if lockfile not in locks:
+                try:
+                    locks[lockfile] = _locked(lockfile)
+                except (OSError, UnicodeError, ValueError, TOMLKitError):
+                    locks[lockfile] = {}  # Unreadable or malformed: no evidence.
+            resolved.extend(
+                (lockfile, value)
+                for value in locks[lockfile].get(_normalized(name), [])
+            )
+        if resolved:
+            # A resolution outside 0.x (an already upgraded project) needs no check.
+            for lockfile, value in resolved:
+                version = _zero_x(value)
+                if version is not None:
+                    observed[(lockfile, version)] = None
             continue
-        if lockfiles:
-            continue  # A lockfile resolving only 2.x (or nothing) for this package.
+        # No lockfile, or one that does not resolve this package: the constraint stands in.
         bound = _poetry_lower_bound(specifier) if specifier else None
         if bound is not None and bound.major >= 2:
             continue

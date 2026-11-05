@@ -134,3 +134,34 @@ for (const state of ['installed', 'incomplete', 'absent']) {
     else assert.equal(readFileSync(log, 'utf8'), 'ci --no-audit --no-fund\n');
   });
 }
+
+// registry-check: the tool never ships without its SDK, and a version is published once.
+for (const [title, inputs, codes, expected] of [
+  ['tool-only, SDK absent', { NPM_VERSION: '', PYPI_VERSION: '' }, { sdk: '404', tool: '404' }, 1],
+  ['tool-only, SDK published', { NPM_VERSION: '', PYPI_VERSION: '' }, { sdk: '200', tool: '404' }, 0],
+  ['tool-only with force_republish, SDK absent', { NPM_VERSION: '', PYPI_VERSION: '', FORCE: 'true' }, { sdk: '404', tool: '404' }, 1],
+  ['tool-only, SDK registry unavailable', { NPM_VERSION: '', PYPI_VERSION: '' }, { sdk: '503', tool: '404' }, 1],
+  ['tool already published', {}, { sdk: '404', tool: '200' }, 1],
+  ['fresh version', {}, { sdk: '404', tool: '404' }, 0],
+  ['force_republish, tool already published', { FORCE: 'true' }, { sdk: '200', tool: '200' }, 0],
+]) {
+  test(`registry check: ${title}`, (context) => {
+    // Given: a registry that answers per package.
+    const root = fixture(context);
+    executable(join(root, 'bin/curl'), [
+      'url="${*: -1}"',
+      'case "$url" in',
+      '  *daytona%2fupgrade*|*daytona-upgrade*) printf "$TOOL_CODE" ;;',
+      '  *) printf "$SDK_CODE" ;;',
+      'esac',
+    ].join('\n'));
+    // When
+    const result = spawnSync('bash', ['-c', step('Refuse a version the registry already has (unless force_republish)')], {
+      encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+        NPM_VERSION: '2.0.0-alpha.8', PYPI_VERSION: '2.0.0a8', CLI_VERSION: '', FORCE: 'false',
+        UPGRADE_NPM: '2.0.0-alpha.8', UPGRADE_PYPI: '2.0.0a8', GH_TOKEN: '', SDK_CODE: codes.sdk, TOOL_CODE: codes.tool, ...inputs },
+    });
+    // Then
+    assert.equal(result.status, expected, result.stdout + result.stderr);
+  });
+}

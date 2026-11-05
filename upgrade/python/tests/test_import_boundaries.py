@@ -34,7 +34,7 @@ def test_dry_succeeds_when_sdk_name_is_outside_import_roots(
     app = tmp_path / "app.py"
     source = "from daytona import Daytona\nDaytona().create()\n"
     app.write_text(source)
-    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     # When previewing a real project upgrade.
     status = main([str(tmp_path), "--dry", "--json"])
     # Then upgrading proceeds, with shadowing review only for regular packages.
@@ -73,7 +73,7 @@ def test_scan_succeeds_when_git_cannot_answer(
     project = tmp_path / "project"
     project.mkdir()
     (project / ".git").mkdir()
-    (project / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    (project / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     tools = tmp_path / "bin"
     tools.mkdir()
     if git_failure != "missing":
@@ -127,7 +127,7 @@ def test_strict_succeeds_when_receiver_is_built_by_external_callable(
     source = f"from daytona import Daytona\n{setup}\nredis_client.get(k)\nredis_client.delete(k)\n"
     app = tmp_path / "app.py"
     app.write_text(source)
-    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     # When running the real CLI under strict mode.
     status = main([str(tmp_path), "--dry", "--strict", "--json"])
     # Then external calls produce neither manual items nor code edits.
@@ -156,7 +156,7 @@ def test_strict_stays_clean_when_project_local_factory_has_no_daytona_link(
     (tmp_path / "app.py").write_text(
         f"from daytona import Daytona\n{setup}\nredis_client.get(k)\n"
     )
-    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     # When applying the same strict scan to a local callable.
     status = main([str(tmp_path), "--dry", "--strict", "--json"])
     # Then local ownership alone supplies no Daytona provenance for its result.

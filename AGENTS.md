@@ -417,7 +417,10 @@ skipping exist only in the TypeScript tool).
   release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
   `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
   mapping's `range` / `specifier`). The SDKs' moved-member guidance names the
-  tool release of their own version.
+  tool release of their own version. In a publish run, `build-upgrade` tests
+  and packs both tools (without the wall-clock tests listed in
+  `upgrade/typescript/vitest.config.ts`) and `upgrade-e2e` runs the packed
+  tools through `check-examples.sh` against that run's SDKs.
 - **The project's 0.x version** (`v0-version.ts` / `v0_version.py`): read from
   the closest lockfile, else the manifest's lower bound, and compared with the
   mapping's `v0Version` (the pin; `check-v0-surface.mjs` keeps them equal and

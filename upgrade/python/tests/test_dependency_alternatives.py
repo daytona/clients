@@ -29,7 +29,7 @@ def test_preserves_selectors_when_poetry_has_multiple_constraints(section: str) 
     source = f"""[{section}]
 daytona-sdk = [
   {{version='0.224',python='>=3.9,<3.11',extras=['otel'],optional=true}}, # first
-  {{version='0.223',python='>=3.12',markers='sys_platform == "linux"',platform='linux'}},
+  {{version='0.225',python='>=3.12',markers='sys_platform == "linux"',platform='linux'}},
 ]
 """
     # When
@@ -89,7 +89,7 @@ def test_migrates_table_when_another_poetry_alternative_is_manual(
     manifest = tmp_path / "pyproject.toml"
     manifest.write_text(
         "[tool.poetry.dependencies]\n"
-        'daytona = [{version="0.224",python=">=3.9",extras=["otel"]}, "0.223"]\n'
+        'daytona = [{version="0.224",python=">=3.9",extras=["otel"]}, "0.225"]\n'
     )
     # When
     code = main([str(tmp_path), "--json"])
@@ -106,7 +106,7 @@ def test_migrates_table_when_another_poetry_alternative_is_manual(
                             "python": ">=3.9",
                             "extras": ["otel", "v0-sdk"],
                         },
-                        "0.223",
+                        "0.225",
                     ]
                 }
             }

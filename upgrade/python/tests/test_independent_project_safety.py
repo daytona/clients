@@ -36,7 +36,7 @@ def test_refuses_when_project_owns_sdk_module(
     source = f"from {name} import Daytona\nDaytona().create()\n"
     app.write_text(source)
     requirements = tmp_path / "requirements.txt"
-    requirements.write_text("daytona-sdk==0.224.0\n")
+    requirements.write_text("daytona-sdk==0.226.0\n")
     # When the CLI attempts an upgrade, even with the URL override.
     status = main([str(tmp_path), "--force", "--json", "--drop-api-url"])
     # Then it refuses atomically with a schema-valid, actionable reason.
@@ -50,7 +50,7 @@ def test_refuses_when_project_owns_sdk_module(
     )
     assert report["changedFiles"] == []
     assert app.read_text() == source
-    assert requirements.read_text() == "daytona-sdk==0.224.0\n"
+    assert requirements.read_text() == "daytona-sdk==0.226.0\n"
     schema = Path(__file__).parents[2] / "mapping/report.schema.json"
     jsonschema.validate(report, json.loads(schema.read_text()))
 
@@ -119,7 +119,7 @@ def test_refuses_custom_url_when_scan_root_is_inside_deployment(
     (deployment / "values.yaml").write_text(
         "DAYTONA_API_URL: https://daytona.internal.corp/api\n"
     )
-    (deployment / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    (deployment / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     # When the real CLI scans the root, deployment directory, or file.
     status = main([str(tmp_path / root_relative), "--dry", "--json"])
     # Then the URL refusal cannot be bypassed by narrowing the root.
@@ -134,15 +134,15 @@ def test_template_is_ignored_when_not_a_requirements_manifest(
 ) -> None:
     # Given a non-manifest template containing a dependency-looking line.
     template = tmp_path / "index.html.in"
-    template.write_text("daytona-sdk==0.224.0\n")
-    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.224.0\n")
+    template.write_text("daytona-sdk==0.226.0\n")
+    (tmp_path / "requirements.txt").write_text("daytona-sdk==0.226.0\n")
     # When a strict upgrade scans the project.
     status = main([str(tmp_path), "--force", "--strict", "--json"])
     # Then the HTML template is not treated as a pip requirement.
     report = json.loads(capsys.readouterr().out)
     assert status == 0
     assert report["changedFiles"] == ["requirements.txt"]
-    assert template.read_text() == "daytona-sdk==0.224.0\n"
+    assert template.read_text() == "daytona-sdk==0.226.0\n"
 
 
 @pytest.mark.parametrize(
@@ -161,7 +161,7 @@ def test_requirements_input_is_migrated_when_named_or_referenced(
 ) -> None:
     # Given a conventional input or an explicitly included arbitrary template.
     dependency = tmp_path / name
-    dependency.write_text("daytona-sdk==0.224.0\n")
+    dependency.write_text("daytona-sdk==0.226.0\n")
     (tmp_path / "requirements.txt").write_text(f"{option} {name}\n")
     # When pip include semantics select the file as a manifest.
     status = main([str(tmp_path), "--force", "--json"])

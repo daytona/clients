@@ -5,10 +5,13 @@ keeping its workloads on the v0 platform**. Requires Node.js 20.0.0 or newer.
 Documentation links point at the Daytona docs until the dedicated migration guide is published.
 
 ```sh
-npx @daytona/upgrade --dry
-npx @daytona/upgrade . --yes
-npx @daytona/upgrade --suggest-v2
+npx @daytona/upgrade@alpha --dry
+npx @daytona/upgrade@alpha . --yes
+npx @daytona/upgrade@alpha --suggest-v2
 ```
+
+`@alpha` runs the newest alpha while SDK 2.x is in alpha; `@<version>` runs the
+release that migrates to that SDK version (see [Versions](#versions)).
 
 The default command moves proven client calls from `client.create()` to
 `client.v0.create()` and unconditionally routes resource imports and all 15 shared errors to `@daytona/sdk/v0`, preserving 0.x error constructors, fields and catches; constructor catches need a guaranteed `.v0` access inside the try, and wildcard re-exports require review. Conditional accesses (even in both `if/else` branches) and deferred callbacks keep the constructor FIXME; only straight-line accesses in the construction's block or an enclosing block suppress it. The tool updates

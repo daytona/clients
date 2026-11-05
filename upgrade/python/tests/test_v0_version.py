@@ -266,3 +266,66 @@ def test_ignores_the_version_outside_upgrade_mode(
     assert code == 0
     assert "refused" not in report
     assert "warnings" not in report
+
+
+def test_checks_a_hash_locked_requirement(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: pip-compile output, which the tool leaves for manual migration.
+    _project(
+        tmp_path,
+        {
+            "requirements.txt": "daytona==0.999.0 \\\n    --hash=sha256:"
+            + "0" * 64
+            + "\n"
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then: the version is still read, so the newer minor refuses.
+    assert code == 2
+    assert report["refused"] == {
+        "reason": "newer-v0",
+        "message": newer_refusal("0.999.0", "requirements.txt", PINNED),
+    }
+
+
+def test_falls_back_to_the_requirement_when_the_lockfile_lacks_the_package(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: a uv.lock for tooling only, beside a requirements file.
+    _project(
+        tmp_path,
+        {
+            "uv.lock": '[[package]]\nname = "ruff"\nversion = "0.6.0"\n',
+            "requirements.txt": "daytona==0.100.0\n",
+        },
+    )
+    # When
+    _, report = _run(tmp_path, capsys)
+    # Then
+    assert report["warnings"] == [
+        {"file": "requirements.txt", "message": older_message("0.100.0", PINNED)}
+    ]
+
+
+def test_reads_only_the_declared_package_from_the_lockfile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: the lockfile also lists the old daytona-sdk name at a newer minor.
+    lock = (
+        f'[[package]]\nname = "daytona"\nversion = "{PINNED}"\n\n'
+        '[[package]]\nname = "daytona-sdk"\nversion = "0.999.0"\n'
+    )
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
+            "uv.lock": lock,
+        },
+    )
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert "warnings" not in report

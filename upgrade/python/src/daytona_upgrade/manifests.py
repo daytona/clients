@@ -152,8 +152,8 @@ class ManifestResult:
     found: bool
     v2_found: bool = False
     resolver_review: tuple[tuple[int, str], ...] = ()
-    # Version constraints of the Daytona declarations ("" for none).
-    declared: tuple[str, ...] = ()
+    # Each Daytona declaration's package name and version constraint ("" for none).
+    declared: tuple[tuple[str, str], ...] = ()
 
 
 def inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResult:

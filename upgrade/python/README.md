@@ -7,10 +7,14 @@ SDK 2.x requires Python 3.10 or later; update your application's supported versi
 Run this tool with an interpreter that supports your source syntax.
 
 ```bash
-uvx daytona-upgrade --dry                 # preview the patch
-uvx daytona-upgrade . --yes               # upgrade a clean Git tree
-pipx run daytona-upgrade path/to/project  # alternative runner
+uvx --prerelease=allow daytona-upgrade --dry    # preview the patch
+uvx --prerelease=allow daytona-upgrade . --yes  # upgrade a clean Git tree
+pipx run --pip-args=--pre daytona-upgrade path/to/project  # alternative runner
 ```
+
+`--prerelease=allow` / `--pre` run the newest alpha while SDK 2.x is in alpha;
+`uvx daytona-upgrade@<version>` runs the release that migrates to that SDK
+version (see [Versions](#versions)).
 
 **No installers or lockfile updates run.** Review the changes, run the printed lock/install command, and test your application. Keep custom/self-hosted API URLs on SDK 0.x: the tool refuses those projects before writing any files.
 SDK 2.x builds the v0 client lazily. A root constructor inside a `try` that catches Daytona errors receives a manual item and FIXME only when that client's `.v0` is not accessed there, including accesses added by the upgrade. Access the assigned client's `.v0` inside that `try` to keep credential errors within its handlers.
@@ -41,9 +45,9 @@ unchanged with a `config-field` item for manual removal.
 ## Optional v2 guidance
 
 ```bash
-uvx daytona-upgrade --suggest-v2
-uvx daytona-upgrade --suggest-v2 --json   # report only; writes nothing
-uvx daytona-upgrade --remove-suggestions
+uvx --prerelease=allow daytona-upgrade --suggest-v2
+uvx --prerelease=allow daytona-upgrade --suggest-v2 --json   # report only; writes nothing
+uvx --prerelease=allow daytona-upgrade --remove-suggestions
 ```
 
 Suggestions are tagged `daytona-v2:` comments, with the v2 equivalent, behavior differences, workflow dependencies, and migration documentation links.

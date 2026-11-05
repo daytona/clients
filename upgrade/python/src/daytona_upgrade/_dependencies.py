@@ -45,8 +45,8 @@ class Migration:
         self.names.add(_normalized(mapping.package_new))
         self.renamed: set[str] = set()
         self.newline = "\n"
-        # Version constraints of each Daytona declaration ("" when it has none).
-        self.declared: list[str] = []
+        # Each Daytona declaration's package name and version constraint ("" for none).
+        self.declared: list[tuple[str, str]] = []
 
     def manual_setup(self, line: int, message: str) -> None:
         """Retain uncertain setup declarations as explicit manual-review items."""
@@ -74,6 +74,7 @@ class Migration:
             self.unparsed_requirement()
             return source
         self.found = True
+        self._declare(parsed["name"], logical)
         if "\\" in source or hash_locked:
             self.manual.append(
                 (
@@ -96,7 +97,6 @@ class Migration:
             and {_normalized(extra) for extra in self.mapping.extras}
             <= {_normalized(extra) for extra in requirement.extras}
         )
-        self.declared.append(str(requirement.specifier))
         result = render_requirement(parsed, requirement, self.mapping)
         if result is None:
             self.unparsed_requirement()
@@ -104,6 +104,15 @@ class Migration:
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
+
+    def _declare(self, name: str, logical: str) -> None:
+        """Record the version constraint, ignoring hashes, comments and options."""
+        line = re.split(r"\s+(?:#|--)", logical, maxsplit=1)[0].strip()
+        try:
+            specifier = str(Requirement(line).specifier)
+        except InvalidRequirement:
+            specifier = ""
+        self.declared.append((name, specifier))
 
     def unparsed_requirement(self) -> None:
         self.found = True
@@ -194,7 +203,7 @@ class Migration:
                     else None
                 )
                 self.declared.append(
-                    str(version) if isinstance(version, String) else ""
+                    (str(name), str(version) if isinstance(version, String) else "")
                 )
             if any(
                 isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))

@@ -41,10 +41,12 @@ name: SDK Publish
 # else. The SDKs' runtime guidance names the matching tool release. So the
 # tool never ships without its SDK: with publish_pypi or publish_npm off, the
 # registry check requires that SDK version to be published already (a resume),
-# and in the publish job the tool follows both SDKs. Before publishing, the
-# tool's build job runs the PACKED tool on the pinned 0.x examples and
-# type-checks the result against the SDK artifacts of this run (or, for a
-# resume, the published ones). Untick publish_upgrade to leave it out.
+# and in the publish job the tool follows both SDKs. Before publishing,
+# upgrade-e2e runs the PACKED tools on the pinned 0.x examples and type-checks
+# the result against the SDK artifacts of this run (or, for a resume, the
+# published ones). Untick publish_upgrade to leave it out; the SDKs still name
+# the tool release of their version, so publish it later in a tool-only run at
+# the same version from the same commit.
 #
 # Nothing is committed: the version is stamped into the runner's checkout
 # only, so the `version` fields tracked in git are placeholders. A successful
@@ -320,7 +322,10 @@ jobs:
           # The build jobs and the publish job's steps key on an EMPTY version to
           # skip a target. The migration tool takes the SDK's two spellings.
           upgrade_npm="" upgrade_pypi=""
-          if [ "$PUBLISH_UPGRADE" = true ]; then upgrade_npm=$npm upgrade_pypi=$pypi; fi
+          if [ "$PUBLISH_UPGRADE" = true ]; then upgrade_npm=$npm upgrade_pypi=$pypi
+          elif [ "$PUBLISH_PYPI" = true ] || [ "$PUBLISH_NPM" = true ]; then
+            echo "::warning::publish_upgrade is off: the SDKs' 0.x guidance names daytona-upgrade ${version}; publish it at this version from this commit in a follow-up run"
+          fi
           [ "$PUBLISH_PYPI" = true ] || pypi=""
           [ "$PUBLISH_NPM" = true ] || npm=""
           [ "$PUBLISH_CLI" = true ] || cli=""
@@ -377,6 +382,10 @@ jobs:
             exit 1
           fi
           mode=$(.publish-tools/scripts/v0-publish-mode.sh "$PWD")
+          if [ "$mode" = skip ] && [ "$PUBLISH_UPGRADE" = true ]; then
+            echo "::error::source_ref has no v0 namespace, so the migration tool has nothing to migrate onto; untick publish_upgrade"
+            exit 1
+          fi
           if [ "$mode" = skip ]; then
             echo "tag=" >> "$GITHUB_OUTPUT"
             echo "sha=" >> "$GITHUB_OUTPUT"
@@ -712,16 +721,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
-  # The migration tool. It needs the SDK artifacts of this run, so it waits for
-  # the SDK builds (and is skipped when one of them failed). For an SDK this
-  # run does not publish, the registry check proved it is published, and the
-  # end-to-end check below downloads it from its registry instead.
+  # The migration tool: its own gates and suites, then both packages, with no
+  # SDK artifact needed (so it runs beside the SDK builds). upgrade-e2e below
+  # then runs the packed tools against this run's SDKs.
   build-upgrade:
     name: Build daytona-upgrade ${{ needs.gate.outputs.upgrade_npm }}
-    needs: [gate, registry-check, build-python, build-npm]
-    if: >-
-      !cancelled() && needs.gate.outputs.upgrade_npm != '' && needs.registry-check.result == 'success'
-      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    needs: [gate, registry-check]
+    if: needs.gate.outputs.upgrade_npm != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -731,29 +737,7 @@ jobs:
           name: sdk-src
           path: /tmp/sdk-src
       - name: Unpack source snapshot (no git checkout in this job)
-        env:
-          V0_TAG: ${{ needs.gate.outputs.v0_tag }}
-        run: |
-          set -euo pipefail
-          tar -xzf /tmp/sdk-src/sdk-src.tgz
-          # The tool migrates code onto the bundled v0 namespace: a tree
-          # without one has nothing to migrate to.
-          if [ -z "$V0_TAG" ] || [ ! -d .v0-src ] || [ ! -f upgrade/mapping/mapping.json ]; then
-            echo "::error::the migration tool needs upgrade/ and the pinned v0 namespace release in the published tree"
-            exit 1
-          fi
-      - name: Download the Python SDK built by this run
-        if: needs.gate.outputs.pypi != ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: pypi-dist
-          path: ${{ runner.temp }}/sdk-pypi
-      - name: Download the TypeScript SDK built by this run
-        if: needs.gate.outputs.npm != ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: npm-pack
-          path: ${{ runner.temp }}/sdk-npm
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
       # No caches, as in the SDK builds.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -781,6 +765,9 @@ jobs:
         working-directory: upgrade/typescript
         env:
           NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          # The wall-clock budget tests run in upgrade-tool-ci, not here
+          # (vitest.config.ts): runner speed must not block a release.
+          DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
@@ -818,32 +805,6 @@ jobs:
           uv build --out-dir "$RUNNER_TEMP/upgrade-pypi"
           test -f "$RUNNER_TEMP/upgrade-pypi/daytona_upgrade-${PYPI_VERSION}-py3-none-any.whl"
           python -m zipfile -l "$RUNNER_TEMP"/upgrade-pypi/*.whl | grep 'daytona_upgrade/mapping.json' >/dev/null
-      # A resume publishes the tool without its SDK: use the published SDK.
-      - name: Fetch a published SDK this run did not build
-        env:
-          NPM_BUILT: ${{ needs.gate.outputs.npm }}
-          PYPI_BUILT: ${{ needs.gate.outputs.pypi }}
-          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
-          PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
-        run: |
-          set -euo pipefail
-          if [ -z "$NPM_BUILT" ]; then
-            mkdir -p "$RUNNER_TEMP/sdk-npm"
-            npm pack "@daytona/sdk@${NPM_VERSION}" --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-npm"
-          fi
-          if [ -z "$PYPI_BUILT" ]; then
-            python -m pip download --no-deps --only-binary=:all: --dest "$RUNNER_TEMP/sdk-pypi" "daytona==${PYPI_VERSION}"
-          fi
-      # The packed tool, exactly as it will be published, migrates the pinned
-      # 0.x examples (pinning this release) and the result type-checks
-      # against this release's SDKs.
-      - name: The packed tool migrates the pinned 0.x examples onto this release
-        run: |
-          set -euo pipefail
-          bash upgrade/scripts/check-examples.sh --src .v0-src \
-            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-pypi/*.whl)" --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-npm/*.tgz)" \
-            --py-tool "$(ls "$RUNNER_TEMP"/upgrade-pypi/*.whl)" --ts-tool "$(ls "$RUNNER_TEMP"/upgrade-npm/*.tgz)" \
-            --work "$RUNNER_TEMP/examples"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: upgrade-npm
@@ -856,6 +817,76 @@ jobs:
           path: ${{ runner.temp }}/upgrade-pypi/
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
+
+  # The packed tools, exactly as they will be published, migrate the pinned
+  # 0.x examples (pinning this release) and the result type-checks against this
+  # release's SDKs: the artifacts of this run, or, for an SDK this run does not
+  # publish (the registry check proved it is published), the registry's.
+  upgrade-e2e:
+    name: daytona-upgrade ${{ needs.gate.outputs.upgrade_npm }} migrates the pinned 0.x examples
+    needs: [gate, registry-check, build-python, build-npm, build-upgrade]
+    if: >-
+      !cancelled() && needs.gate.outputs.upgrade_npm != '' && needs.build-upgrade.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
+      - name: Download the Python SDK built by this run
+        if: needs.gate.outputs.pypi != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pypi-dist
+          path: ${{ runner.temp }}/sdk-pypi
+      - name: Download the TypeScript SDK built by this run
+        if: needs.gate.outputs.npm != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-pack
+          path: ${{ runner.temp }}/sdk-npm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-npm
+          path: ${{ runner.temp }}/upgrade-npm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upgrade-pypi
+          path: ${{ runner.temp }}/upgrade-pypi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Fetch a published SDK this run did not build
+        env:
+          NPM_BUILT: ${{ needs.gate.outputs.npm }}
+          PYPI_BUILT: ${{ needs.gate.outputs.pypi }}
+          NPM_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          PYPI_VERSION: ${{ needs.gate.outputs.upgrade_pypi }}
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade uv
+          if [ -z "$NPM_BUILT" ]; then
+            mkdir -p "$RUNNER_TEMP/sdk-npm"
+            npm pack "@daytona/sdk@${NPM_VERSION}" --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-npm"
+          fi
+          if [ -z "$PYPI_BUILT" ]; then
+            python -m pip download --no-deps --only-binary=:all: --dest "$RUNNER_TEMP/sdk-pypi" "daytona==${PYPI_VERSION}"
+          fi
+      - name: The packed tools migrate the pinned 0.x examples onto this release
+        run: |
+          set -euo pipefail
+          bash upgrade/scripts/check-examples.sh --src .v0-src \
+            --py-wheel "$(ls "$RUNNER_TEMP"/sdk-pypi/*.whl)" --ts-tarball "$(ls "$RUNNER_TEMP"/sdk-npm/*.tgz)" \
+            --py-tool "$(ls "$RUNNER_TEMP"/upgrade-pypi/*.whl)" --ts-tool "$(ls "$RUNNER_TEMP"/upgrade-npm/*.tgz)" \
+            --work "$RUNNER_TEMP/examples"
 
   # ── Publish: artifacts in, registries out; never checks out source ─────────
   # The ONLY job on the `release` environment, so the run's single approval is
@@ -871,7 +902,7 @@ jobs:
   # package artifacts are kept 7 days: approve (or re-run) within that.
   publish:
     name: Publish ${{ needs.gate.outputs.tag }}
-    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, upgrade-e2e]
     if: >-
       !cancelled() && needs.gate.result == 'success' && needs.registry-check.result == 'success'
       && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
@@ -910,6 +941,7 @@ jobs:
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
           UPGRADE_BUILD: ${{ needs.build-upgrade.result }}
+          UPGRADE_E2E: ${{ needs.upgrade-e2e.result }}
         run: |
           set -euo pipefail
           ok=1
@@ -923,6 +955,7 @@ jobs:
           check npm "$NPM_VERSION" "$NPM_BUILD"
           check CLI "$CLI_VERSION" "$CLI_BUILD"
           check daytona-upgrade "$UPGRADE_VERSION" "$UPGRADE_BUILD"
+          check "daytona-upgrade end-to-end check for" "$UPGRADE_VERSION" "$UPGRADE_E2E"
           [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION$UPGRADE_VERSION" ] || { echo "::error::no target requested"; ok=0; }
           [ "$ok" -eq 1 ]
 
@@ -1208,7 +1241,7 @@ jobs:
 
   summary:
     name: Publish summary
-    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, publish, record-tag]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, upgrade-e2e, publish, record-tag]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -1226,7 +1259,9 @@ jobs:
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
-          UPGRADE_BUILD: ${{ needs.build-upgrade.result }}
+          # The tool row counts as built only when its end-to-end check passed too.
+          UPGRADE_BUILD: ${{ needs.build-upgrade.result == 'success' && needs.upgrade-e2e.result || needs.build-upgrade.result }}
+          PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
           UPGRADE_NPM: ${{ needs.gate.outputs.upgrade_npm }}
           UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
           UPGRADE_NPM_PUBLISH: ${{ needs.publish.outputs.upgrade_npm }}
@@ -1306,6 +1341,10 @@ jobs:
             row "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "$(status "$UPGRADE_NPM" "$UPGRADE_BUILD" "$UPGRADE_NPM_PUBLISH")" \
                 "${UPGRADE_NPM:+\`npx @daytona/upgrade@${UPGRADE_NPM}\`}" \
                 "${UPGRADE_NPM:+https://www.npmjs.com/package/@daytona/upgrade/v/${UPGRADE_NPM}}"
+            if [ "$PUBLISH_UPGRADE" != true ] && [ -n "$PYPI_VERSION$NPM_VERSION" ]; then
+              echo
+              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${VERSION}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\`."
+            fi
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
           } >> "$GITHUB_STEP_SUMMARY"

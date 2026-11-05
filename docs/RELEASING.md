@@ -182,23 +182,36 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
 - The tool never publishes without its SDK: with `publish_npm` or
   `publish_pypi` off (a resume), the registry check requires that SDK version
   to be published already, and in the publish job the tool follows both SDKs.
-- Before the approval, its build job runs the packed tool on the pinned 0.x
+- Before the approval, `upgrade-e2e` runs the packed tools on the pinned 0.x
   examples and type-checks the result against this run's SDK artifacts (or the
-  published SDK, on a resume).
-- It refuses to publish beside a `v0_tag` override, and while the mapping's
-  `docs.placeholder` is true.
-- There are no tool-only releases: a tool fix ships with the next SDK release.
-- Untick `publish_upgrade` to leave the tool out of a run.
+  published SDKs, on a resume).
+- It refuses to publish beside a `v0_tag` override, from a tree without the v0
+  namespace, and while the mapping's `docs.placeholder` is true.
+- **Rollout:** the registries still carry the pre-lockstep `0.1.0` as the
+  tool's npm `latest` (and PyPI's only stable release); deprecate it on npm
+  once the first lockstep alpha is out, and keep the quickstarts on `@alpha` /
+  `--prerelease=allow` until 2.x is stable.
+- A tool fix ships with the next SDK release. Untick `publish_upgrade` to
+  leave the tool out of a run; the SDKs still name the tool release of their
+  version (the gate warns and the run summary says so), so publish it later at
+  that version from the same commit: `-f publish_pypi=false -f
+  publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
+  registry check requires both SDKs to be published already).
+- The release run leaves out the tool's wall-clock budget tests
+  (`DAYTONA_UPGRADE_SKIP_WALL_CLOCK`, `upgrade/typescript/vitest.config.ts`);
+  `upgrade-tool-ci.yaml` runs them on every change.
 
 ### The v0 pin
 
 The tool also refuses projects on a newer 0.x minor than the release SDK 2.x
 bundles as `.v0` (`scripts/v0-sdk-version`), so the pin follows the 0.x line:
 [`v0-pin-bump.yaml`](../.github/workflows/v0-pin-bump.yaml) runs daily, and
-when a newer stable `v0.X.Y` tag exists it opens a PR that moves the pin and
-regenerates the tool's v0 data (one `release` approval, for the bot token). Its
-body carries the 0.x surface check: a 0.x method with no mapping row gets one
-in that PR. Merge it before the next 2.x release.
+when a newer stable `v0.X.Y` tag exists (and no bump PR is open) it opens a PR
+that moves the pin and regenerates the tool's v0 data (one `release` approval,
+for the bot token; the job holding it runs no repository code). Its body
+carries the 0.x surface check: a 0.x method with no mapping row gets one in
+that PR. Merge it before the next 2.x release; to decline a bump, close the PR
+and keep its branch (a deleted branch is reopened on the next run).
 
 > **Registries reject re-uploading an existing version.** A version is
 > published once. If a publish half-fails, re-run the failed publish job, or

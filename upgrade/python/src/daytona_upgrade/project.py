@@ -105,7 +105,7 @@ def preflight(
     found = False
     dependency_roots: set[Path] = set()
     rewritten_sources: dict[Path, str] = {}
-    declared: list[tuple[Path, str]] = []
+    declared: list[tuple[Path, str, str]] = []
     for number, file in enumerate(files, 1):
         if report_progress:
             report_progress.advance(number, file.relative)
@@ -178,7 +178,9 @@ def preflight(
                 )
                 continue
             found = found or manifest.found
-            declared.extend((file.path, specifier) for specifier in manifest.declared)
+            declared.extend(
+                (file.path, name, specifier) for name, specifier in manifest.declared
+            )
             if manifest.found:
                 dependency_roots.add(owner)
             if file.constraint and manifest.found and not manifest.manual:

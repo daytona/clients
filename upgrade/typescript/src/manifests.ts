@@ -36,6 +36,8 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
       if (!(error instanceof SyntaxError)) throw error;
       throw new UpgradeError(`Cannot parse ${relativePath(root, file)}: ${error.message}. Fix the manifest before retrying.`);
     }
+    const parsed: unknown = JSON.parse(before.replace(/^\uFEFF/, ''));
+    const manifestName = typeof parsed === 'object' && parsed !== null && 'name' in parsed && typeof parsed.name === 'string' ? parsed.name : undefined;
     const prefix = 'const manifest = (';
     const source = parser.createSourceFile('/manifest.ts', `${prefix}${before});`, { overwrite: true });
     const object = source.getFirstDescendantByKind(SyntaxKind.ObjectLiteralExpression);
@@ -84,7 +86,8 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         // What the project installs (peer ranges describe consumers, not this install).
         if (!constraint && sectionName !== 'peerDependencies' && Node.isStringLiteral(version)) {
           const literal = version.getLiteralValue();
-          declared.push({ file, range: alias ? literal.replace(/^npm:(?:@[^@/]+\/)?[^@]+@?/, '') : literal });
+          declared.push({ file, key: name, spec: literal, owner: manifestName,
+            range: alias ? literal.replace(/^npm:(?:@[^@/]+\/)?[^@]+@?/, '') : literal });
         }
         const detail = { file: relativePath(root, file), line: source.getLineAndColumnAtPos(entry.getStart()).line,
           column: Math.max(1, source.getLineAndColumnAtPos(entry.getStart()).column -
