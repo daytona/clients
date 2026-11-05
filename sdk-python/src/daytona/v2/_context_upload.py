@@ -12,10 +12,13 @@ or a ``repr``.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Mapping, Optional, Union
+from typing import AsyncIterator, Iterator, Mapping, Optional, Sequence, Union
 from urllib.parse import quote
 
 import anyio
@@ -23,7 +26,13 @@ import httpx
 
 from ._core import RequestSpec
 from ._transport import AsyncTransport
-from .errors import BadRequestError, ConnectionError, DaytonaError, ServiceUnavailableError
+from .errors import (
+    BadRequestError,
+    ClientTimeoutError,
+    ConnectionError,
+    DaytonaError,
+    ServiceUnavailableError,
+)
 from .types import JsonObject
 
 BuildContext = Union[bytes, bytearray, memoryview, str, "os.PathLike[str]"]
@@ -34,6 +43,61 @@ _HASH_CHUNK = 1 << 20
 _PART_CHUNK = 1 << 20
 _PART_ATTEMPTS = 3
 _PART_TIMEOUT_SECONDS = 300.0
+# Parts in flight at once; each streams one chunk at a time, so memory stays a
+# few chunks whatever the part size.
+_PART_CONCURRENCY = 4
+_COMPLETE_ATTEMPTS = 3
+# The API reads the whole stored archive back (up to 1 GiB) before it answers.
+_COMPLETE_TIMEOUT_SECONDS = 600.0
+_REDACTED_URL = "<build context part URL>"
+
+
+class _RedactPartUrls(logging.Filter):
+    """Replaces the part URLs httpx logs ("HTTP Request: PUT <url> ...") while they are in use."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self._urls: dict[str, int] = {}
+
+    @contextmanager
+    def active(self, urls: Sequence[str]) -> Iterator[None]:
+        keys = [form for url in urls for form in _logged_forms(url)]
+        with self._lock:
+            for key in keys:
+                self._urls[key] = self._urls.get(key, 0) + 1
+        try:
+            yield
+        finally:
+            with self._lock:
+                for key in keys:
+                    if self._urls[key] == 1:
+                        del self._urls[key]
+                    else:
+                        self._urls[key] -= 1
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if self._urls and isinstance(record.args, tuple):
+            with self._lock:
+                urls = set(self._urls)
+            record.args = tuple(
+                _REDACTED_URL if isinstance(arg, (str, httpx.URL)) and str(arg) in urls else arg
+                for arg in record.args
+            )
+        return True
+
+
+def _logged_forms(url: str) -> set[str]:
+    # httpx logs the URL as it parsed it, which may differ in encoding. An
+    # unparsable URL fails its request before httpx logs anything.
+    try:
+        return {url, str(httpx.URL(url))}
+    except (httpx.InvalidURL, TypeError, ValueError):
+        return {url}
+
+
+_redact_part_urls = _RedactPartUrls()
+logging.getLogger("httpx").addFilter(_redact_part_urls)
 
 
 class _Source:
@@ -206,20 +270,59 @@ async def upload_build_context(
     if created.get("state") == "ready":
         return upload_id, region_id
     parts = _parts(created)
-    async with httpx.AsyncClient(
-        timeout=_PART_TIMEOUT_SECONDS, follow_redirects=False, trust_env=True
-    ) as client:
+    if sum(part.bytes for part in parts) != source.size:
+        raise DaytonaError("build context upload parts do not cover the archive", source="SDK")
+    with _redact_part_urls.active([part.url for part in parts]):
+        async with httpx.AsyncClient(
+            timeout=_PART_TIMEOUT_SECONDS, follow_redirects=False, trust_env=True
+        ) as client:
+            await _put_parts(client, source, parts)
+    await _complete(transport, upload_id, region_id)
+    return upload_id, region_id
+
+
+async def _put_parts(client: httpx.AsyncClient, source: _Source, parts: Sequence[_Part]) -> None:
+    """Upload every part, at most ``_PART_CONCURRENCY`` at a time; the first failure cancels the rest."""
+    limiter = anyio.Semaphore(_PART_CONCURRENCY)
+    failures: list[Exception] = []
+
+    async def put(part: _Part, offset: int, scope: anyio.CancelScope) -> None:
+        async with limiter:
+            try:
+                await _put_part(client, source, offset, part)
+            except Exception as error:
+                failures.append(error)
+                scope.cancel()
+
+    async with anyio.create_task_group() as group:
         offset = 0
         for part in parts:
-            await _put_part(client, source, offset, part)
+            group.start_soon(put, part, offset, group.cancel_scope)
             offset += part.bytes
-    if offset != source.size:
-        raise DaytonaError("build context upload parts do not cover the archive", source="SDK")
-    await transport.send(
-        RequestSpec(
-            "POST",
-            f"/build-contexts/{quote(upload_id, safe='')}/complete",
-            json_body={"region_id": region_id},
-        )
+    if failures:
+        raise failures[0]
+
+
+def _retryable_complete(error: DaytonaError) -> bool:
+    if isinstance(error, (ClientTimeoutError, ConnectionError)):
+        return True
+    return error.status_code is not None and error.status_code >= 500 and error.status_code != 501
+
+
+async def _complete(transport: AsyncTransport, upload_id: str, region_id: str) -> None:
+    """Verify the upload. A repeated complete of a verified upload answers with it, so failures are retried."""
+    configured = transport.request_timeout_seconds
+    spec = RequestSpec(
+        "POST",
+        f"/build-contexts/{quote(upload_id, safe='')}/complete",
+        json_body={"region_id": region_id},
+        timeout=None if configured == 0 else max(configured, _COMPLETE_TIMEOUT_SECONDS),
     )
-    return upload_id, region_id
+    for attempt in range(_COMPLETE_ATTEMPTS):
+        try:
+            await transport.send(spec)
+            return
+        except DaytonaError as error:
+            if attempt + 1 >= _COMPLETE_ATTEMPTS or not _retryable_complete(error):
+                raise
+        await anyio.sleep(2.0**attempt)
