@@ -1,0 +1,87 @@
+changelog.d/security-cubic-python-redaction.security.md
+  s_aec3b70e676052::t_d6e0cde94196e1 1-5
+python/gen-contract.sh
+  s_aec3b70e676052::t_adf064f71dc143 27-60,64,69,72-78
+  s_aec3b70e676052::t_096ee2a985f5bf 86-88
+python/src/daytona/v2/_gen/api/models/accept_invitation_request.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,62,72-78
+python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_aec3b70e676052::t_225470b5849f13 37-46,48-57,74,84-90
+  s_aec3b70e676052::t_45bed1b6baaa2c 26,47
+.github/workflows/contracts.yaml
+  s_aec3b70e676052::t_ba0d2c46b42c35 53-54
+python/tests/test_generated_model_redaction.py
+  s_aec3b70e676052::t_c7fc1fe862e7db 35-39,110-113,117-121
+  s_aec3b70e676052::t_1b0a629a5e58d4 1-34,40-78,81-109,114-116,122-141
+  s_aec3b70e676052::t_5d34f5e9a6ea2e 79-80
+python/src/daytona/v2/_gen/api/models/decline_invitation_request.py
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,62,72-78
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+python/src/daytona/v2/_gen/api/models/set_otel_config_request.py
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,62,72-78
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+python/gen/mark_sensitive.py
+  s_aec3b70e676052::t_c7fc1fe862e7db 28-30,83-87
+  s_aec3b70e676052::t_93948290ab0282 1-27,31-82,88-118
+python/src/daytona/v2/_gen/api/models/signed_preview_url.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 24,45
+  s_aec3b70e676052::t_225470b5849f13 35-44,46-55,65,75-81
+python/gen/gen-contract_test.sh
+  s_aec3b70e676052::t_849c6aaa9ae6cb 1-109
+python/src/daytona/v2/_gen/api/models/preview_url.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,63,73-79
+python/src/daytona/v2/_gen/api/models/organization_api_key_with_token.py
+  s_aec3b70e676052::t_225470b5849f13 35-44,46-55,74,84-90
+  s_aec3b70e676052::t_45bed1b6baaa2c 24,45
+python/src/daytona/v2/_gen/api/models/exchange_token_request.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,69,79-85
+python/src/daytona/v2/_gen/toolbox/models/repo_request.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,67,77-83
+python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  s_aec3b70e676052::t_225470b5849f13 35-44,46-55,79,89-95
+  s_aec3b70e676052::t_45bed1b6baaa2c 24,45
+python/src/daytona/v2/_gen/api/models/sandbox_access_token.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 25,46
+  s_aec3b70e676052::t_225470b5849f13 36-45,47-56,68,78-84
+python/src/daytona/v2/_gen/toolbox/models/clone_request.py
+  s_aec3b70e676052::t_225470b5849f13 35-44,46-55,70,80-86
+  s_aec3b70e676052::t_45bed1b6baaa2c 24,45
+python/src/daytona/v2/_gen/api/models/token_exchange.py
+  s_aec3b70e676052::t_225470b5849f13 35-44,46-55,66,76-82
+  s_aec3b70e676052::t_45bed1b6baaa2c 24,45
+python/src/daytona/v2/_gen/api/models/set_secret_request.py
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,63,73-79
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+python/gen/templates/model_generic.mustache
+  s_aec3b70e676052::t_45bed1b6baaa2c 14,48
+  s_aec3b70e676052::t_225470b5849f13 13,15,37-47,49-59,71-73,166-176,180
+python/src/daytona/v2/_gen/api/models/set_registry_request.py
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,65,75-81
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+python/src/daytona/v2/_gen/api/models/revoke_sandbox_signed_preview_url_request.py
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,62,72-78
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+python/src/daytona/v2/_gen/api/models/lookup_invitation_request.py
+  s_aec3b70e676052::t_45bed1b6baaa2c 23,44
+  s_aec3b70e676052::t_225470b5849f13 34-43,45-54,62,72-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c759d2bed1eabfb501035572cf55d71844b03a17",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
