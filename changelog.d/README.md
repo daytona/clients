@@ -1,7 +1,8 @@
 # Changelog fragments for the SDKs
 
-Unreleased SDK changes live here, **one file per PR**, instead of an
-`## [Unreleased]` section in [`../CHANGELOG.md`](../CHANGELOG.md) — so
+Unreleased SDK changes live here, **one file per user-visible change** (one
+changelog bullet each; a PR with several changes adds several files), instead
+of an `## [Unreleased]` section in [`../CHANGELOG.md`](../CHANGELOG.md) — so
 concurrent PRs never conflict on the changelog. At release time the
 prepare-release workflow runs
 `python3 scripts/changelog/assemble.py assemble --dir changelog.d --changelog CHANGELOG.md --version X.Y.Z --pr-links`,
