@@ -131,7 +131,7 @@ To ship a patch from a maintenance branch, run **Prepare Release**, **Release** 
 - open the prepare-release and `go.sum` sync PRs against that branch instead of `main`;
 - re-mark the highest stable release as **Latest** on GitHub after creating the release, because the CLI update check reads it;
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead. A package never published to npm must be published once before a release branch can publish it with `latest`;
-- never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona@0` formula.
+- never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona@0` formula, and also the `daytona` formula until the first stable 2.x release ([below](#the-daytona-formula-until-2x-is-stable)).
 
 PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site deploys from `main` only.
 
@@ -155,6 +155,15 @@ From then on, runs from `release/v0`:
 
 - **Release** builds the CLI as `daytona-v0` (its help, hints and `mcp config` name `daytona-v0`, and the upgrade hint names `daytonaio/cli/daytona@0`), uploads `daytona-v0-<os>-<arch>` assets, `install-v0.sh` and `SHA256SUMS`, attests the `daytona-v0-*` binaries, and keeps re-marking the highest stable release, now 2.x, as **Latest**;
 - **SDK and CLI Publish** with **publish_cli** dispatches `update-version-v0` to the tap for stable `v0.X.Y` versions (prereleases fail the tap job), and refuses `npm_tag: latest` outright: publish with `v0-latest`. `hack/npm-latest-guard.sh` refuses it as well once a stable 2.x version is on npm, but not while 2.x is prerelease-only.
+
+#### The `daytona` formula until 2.x is stable
+
+Until the first stable 2.x release exists, `brew install daytonaio/cli/daytona` keeps installing the 0.x CLI, so every stable 0.x release moves both formulae. While no stable `vX.Y.Z` tag with X ≥ 2 exists (`hack/stable-v2-release.sh`; 2.x prereleases such as `v2.0.0-alpha.7` do not count), runs from `release/v0` also:
+
+- **Release**: upload the 0.x binaries a second time as `daytona-<os>-<arch>`, the asset names the `daytona` formula downloads. They are the same bytes as the `daytona-v0-*` assets: the binary still calls itself `daytona-v0` in its help and hints, but Homebrew installs it as `daytona`. `SHA256SUMS` lists both names and `attest_cli` attests both;
+- **SDK and CLI Publish** with **publish_cli**: dispatch `update-version` (the `daytona` formula) after `update-version-v0` (`daytona@0`), once it has checked that the release carries the `daytona-<os>-<arch>` assets.
+
+Both workflows read the repository's tags on every run and log the decision. If the tags cannot be read, the run fails rather than guess. The tap update dispatches one event at a time and waits for each tap run to succeed before the next, because the tap's workflows commit to its default branch without rebasing. The first stable 2.x release (`v2.0.0`) ends the period with no manual step: later 0.x releases ship only `daytona-v0-*` assets and update only `daytona@0`. From then on, the `daytona` formula takes its updates from the 2.x release workflow on `main`.
 
 The CLI keeps its config directory: 0.x writes `config.json`, 2.x writes `config.yaml` and `credentials.yaml`, so profiles survive the rename. The 0.x update check compares against the newest stable 0.x release, never the 2.x **Latest**. Users move to the renamed CLI with `brew install daytonaio/cli/daytona@0`, or with `install-v0.sh` from a 0.x release (Linux/macOS; on Windows, download `daytona-v0-windows-<arch>.exe`). Releases cut before the flip keep their `daytona-<os>-<arch>` assets.
 

@@ -73,6 +73,36 @@ echo "$uploads" | grep -E '/daytona-(linux|darwin|windows)-' && fail "daytona-v0
 (cd "${work}/daytona-v0/release" && sha256sum --quiet -c SHA256SUMS) || fail "daytona-v0 SHA256SUMS does not verify"
 grep -q ' install-v0.sh$' "${work}/daytona-v0/release/SHA256SUMS" || fail "SHA256SUMS must cover install-v0.sh"
 
+# Renamed with the daytona alias (until a stable 2.x release exists): the
+# daytona-v0 uploads plus the same bytes as daytona-<os>-<arch>, all in SHA256SUMS.
+dual="${work}/dual"
+uploads="$(CLI_BINARY_NAME=daytona-v0 CLI_ALIAS_NAME=daytona CLI_DIST_DIR="${work}/daytona-v0/dist" CLI_RELEASE_DIR="$dual" \
+  bash "${script_dir}/stage-release-assets.sh" v0.300.0)" || fail "staging with CLI_ALIAS_NAME=daytona failed"
+[ "$(echo "$uploads" | wc -l)" -eq 14 ] || fail "want 14 uploads with the daytona alias, got: $uploads"
+for p in "${platforms[@]}"; do
+  ext=""
+  [[ "$p" == windows-* ]] && ext=.exe
+  echo "$uploads" | grep -qx "${dual}/daytona-${p}${ext}#daytona-cli-v0.300.0-${p}${ext}" \
+    || fail "missing alias upload daytona-${p}${ext}: $uploads"
+  echo "$uploads" | grep -qx "${dual}/daytona-v0-${p}${ext}#daytona-v0-cli-v0.300.0-${p}${ext}" \
+    || fail "missing daytona-v0-${p}${ext} upload next to the alias: $uploads"
+  cmp -s "${dual}/daytona-${p}${ext}" "${dual}/daytona-v0-${p}${ext}" || fail "daytona-${p}${ext} differs from daytona-v0-${p}${ext}"
+  grep -q " daytona-${p}${ext}\$" "${dual}/SHA256SUMS" || fail "SHA256SUMS must cover daytona-${p}${ext}"
+done
+echo "$uploads" | grep -qx "${dual}/install-v0.sh" || fail "missing install-v0.sh upload with the daytona alias"
+[ "$(wc -l <"${dual}/SHA256SUMS")" -eq 13 ] || fail "SHA256SUMS must list 12 binaries and install-v0.sh"
+(cd "$dual" && sha256sum --quiet -c SHA256SUMS) || fail "SHA256SUMS with the daytona alias does not verify"
+
+# The alias only applies to daytona-v0 assets, and only as daytona.
+if CLI_ALIAS_NAME=daytona CLI_DIST_DIR="${work}/daytona/dist" CLI_RELEASE_DIR="${work}/bad-alias" \
+  bash "${script_dir}/stage-release-assets.sh" v0.300.0 >/dev/null 2>&1; then
+  fail "CLI_ALIAS_NAME accepted for daytona-named assets"
+fi
+if CLI_BINARY_NAME=daytona-v0 CLI_ALIAS_NAME=daytona-v2 CLI_DIST_DIR="${work}/daytona-v0/dist" CLI_RELEASE_DIR="${work}/bad-alias" \
+  bash "${script_dir}/stage-release-assets.sh" v0.300.0 >/dev/null 2>&1; then
+  fail "unknown CLI_ALIAS_NAME accepted"
+fi
+
 # A name other than the two lines is refused.
 if CLI_BINARY_NAME=daytona-v2 CLI_DIST_DIR="${work}/daytona/dist" CLI_RELEASE_DIR="${work}/bad" \
   bash "${script_dir}/stage-release-assets.sh" v0.300.0 >/dev/null 2>&1; then

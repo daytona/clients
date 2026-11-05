@@ -13,6 +13,11 @@
 #
 # CLI_BINARY_NAME (daytona or daytona-v0, default daytona) selects the asset
 # names: <name>-<os>-<arch>[.exe].
+#
+# CLI_ALIAS_NAME=daytona (with CLI_BINARY_NAME=daytona-v0 only) also stages each
+# binary as daytona-<os>-<arch>[.exe], the same bytes under the asset names the
+# `daytona` Homebrew formula downloads. release.yaml sets it on release/v0 until
+# the first stable 2.x release exists (hack/stable-v2-release.sh).
 
 set -euo pipefail
 
@@ -25,10 +30,20 @@ repo_root="$(cd "${cli_dir}/.." && pwd)"
 dist_dir="${CLI_DIST_DIR:-${repo_root}/dist/cli}"
 release_dir="${CLI_RELEASE_DIR:-${repo_root}/dist/cli-release}"
 
+alias="${CLI_ALIAS_NAME:-}"
+
 case "$name" in
   daytona | daytona-v0) ;;
   *)
     echo "CLI_BINARY_NAME must be daytona or daytona-v0 (got '$name')" >&2
+    exit 1
+    ;;
+esac
+
+case "${name}:${alias}" in
+  *: | daytona-v0:daytona) ;;
+  *)
+    echo "CLI_ALIAS_NAME=daytona needs CLI_BINARY_NAME=daytona-v0 (got CLI_BINARY_NAME='$name', CLI_ALIAS_NAME='$alias')" >&2
     exit 1
     ;;
 esac
@@ -53,6 +68,17 @@ for platform in "${platforms[@]}"; do
   [[ "$platform" == windows-* ]] && label="${label}.exe"
   uploads+=("${release_dir}/${asset}#${label}")
 done
+
+if [ -n "$alias" ]; then
+  for platform in "${platforms[@]}"; do
+    ext=""
+    [[ "$platform" == windows-* ]] && ext=.exe
+    asset="${alias}-${platform}${ext}"
+    cp "${release_dir}/${name}-${platform}${ext}" "${release_dir}/${asset}"
+    assets+=("$asset")
+    uploads+=("${release_dir}/${asset}#${alias}-cli-${version}-${platform}${ext}")
+  done
+fi
 
 # The 0.x install script resolves the newest v0 release and installs daytona-v0,
 # so it only ships with releases whose assets carry that name.

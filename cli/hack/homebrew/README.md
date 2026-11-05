@@ -29,6 +29,8 @@ The patch adds:
 
 `sdk_publish.yaml` on `release/v0` dispatches `update-version-v0` once the
 repository variable `DAYTONA_V0_CUTOVER` is `true` (see
-[PUBLISHING.md](../../../PUBLISHING.md#cutting-over-to-the-2x-line)). Merge the
+[PUBLISHING.md](../../../PUBLISHING.md#cutting-over-to-the-2x-line)), and also
+`update-version` (the `daytona` formula) until the first stable 2.x release
+exists ([details](../../../PUBLISHING.md#the-daytona-formula-until-2x-is-stable)). Merge the
 tap PR before the first 0.x release after the cutover, or that release's tap
 update finds no workflow listening.

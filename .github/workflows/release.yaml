@@ -36,6 +36,7 @@ jobs:
       contents: write
     outputs:
       cli_assets_uploaded: ${{ steps.upload_cli.outputs.uploaded }}
+      cli_alias_name: ${{ steps.cli_alias.outputs.name }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -70,6 +71,25 @@ jobs:
           install-swag: 'false'
           run-go-work-sync: 'false'
       - uses: ./.github/actions/install-gh-cli
+      - name: Resolve the daytona formula assets
+        # Until the first stable 2.x release exists, the `daytona` Homebrew
+        # formula keeps following 0.x, and it downloads daytona-<os>-<arch>
+        # assets. After the cutover a 0.x release then also carries its
+        # daytona-v0 binaries under those names (same bytes). Decided from the
+        # repository's tags on every run; see PUBLISHING.md.
+        id: cli_alias
+        run: |
+          alias=""
+          if [[ "$CLI_BINARY_NAME" == daytona-v0 ]]; then
+            stable_v2=$(bash hack/stable-v2-release.sh)
+            if [[ -n "$stable_v2" ]]; then
+              echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x, so no daytona-<os>-<arch> assets."
+            else
+              echo "No stable 2.x release yet: also uploading the daytona-v0 binaries as daytona-<os>-<arch> for the daytona formula."
+              alias=daytona
+            fi
+          fi
+          echo "name=$alias" >> "$GITHUB_OUTPUT"
       - name: Configure git
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -123,10 +143,17 @@ jobs:
           GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
       - name: Record CLI binary checksums
+        env:
+          CLI_ALIAS_NAME: ${{ steps.cli_alias.outputs.name }}
         run: |
           cd dist/cli
           n="$CLI_BINARY_NAME"
           sha256sum "$n-linux-amd64" "$n-linux-arm64" "$n-darwin-amd64" "$n-darwin-arm64" "$n-windows-amd64.exe" "$n-windows-arm64.exe" > ../cli-sha256sums.txt
+          if [[ -n "$CLI_ALIAS_NAME" ]]; then
+            # The alias assets are copies of the same binaries.
+            sed "s/  $n-/  $CLI_ALIAS_NAME-/" ../cli-sha256sums.txt > "$RUNNER_TEMP/cli-alias-sha256sums.txt"
+            cat "$RUNNER_TEMP/cli-alias-sha256sums.txt" >> ../cli-sha256sums.txt
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cli-sha256sums
@@ -136,8 +163,11 @@ jobs:
           overwrite: true
       - name: Upload CLI to release assets
         # <name>-<os>-<arch> binaries plus SHA256SUMS (and install-v0.sh for
-        # daytona-v0); see cli/hack/stage-release-assets.sh.
+        # daytona-v0, and the daytona-<os>-<arch> alias copies resolved above);
+        # see cli/hack/stage-release-assets.sh.
         id: upload_cli
+        env:
+          CLI_ALIAS_NAME: ${{ steps.cli_alias.outputs.name }}
         run: |
           bash cli/hack/stage-release-assets.sh "$VERSION" > "$RUNNER_TEMP/cli-assets"
           mapfile -t assets < "$RUNNER_TEMP/cli-assets"
@@ -209,13 +239,25 @@ jobs:
       attestations: write
     steps:
       - name: Download CLI release assets
+        id: download
         env:
           GH_TOKEN: ${{ github.token }}
+          CLI_ALIAS_NAME: ${{ needs.release.outputs.cli_alias_name }}
         run: |
-          n="$CLI_BINARY_NAME"
-          for asset in "$n-linux-amd64" "$n-linux-arm64" "$n-darwin-amd64" "$n-darwin-arm64" "$n-windows-amd64.exe" "$n-windows-arm64.exe"; do
-            gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist/cli
+          names=("$CLI_BINARY_NAME")
+          if [[ -n "$CLI_ALIAS_NAME" ]]; then names+=("$CLI_ALIAS_NAME"); fi
+          subjects=()
+          for n in "${names[@]}"; do
+            for asset in "$n-linux-amd64" "$n-linux-arm64" "$n-darwin-amd64" "$n-darwin-arm64" "$n-windows-amd64.exe" "$n-windows-arm64.exe"; do
+              gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist/cli
+              subjects+=("dist/cli/$asset")
+            done
           done
+          {
+            echo 'subjects<<EOF'
+            printf '%s\n' "${subjects[@]}"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: cli-sha256sums
@@ -225,10 +267,5 @@ jobs:
       - name: Attest CLI build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: |
-            dist/cli/${{ env.CLI_BINARY_NAME }}-linux-amd64
-            dist/cli/${{ env.CLI_BINARY_NAME }}-linux-arm64
-            dist/cli/${{ env.CLI_BINARY_NAME }}-darwin-amd64
-            dist/cli/${{ env.CLI_BINARY_NAME }}-darwin-arm64
-            dist/cli/${{ env.CLI_BINARY_NAME }}-windows-amd64.exe
-            dist/cli/${{ env.CLI_BINARY_NAME }}-windows-arm64.exe
+          # The downloaded assets, including any daytona-<os>-<arch> alias copies.
+          subject-path: ${{ steps.download.outputs.subjects }}
