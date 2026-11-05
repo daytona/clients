@@ -950,7 +950,7 @@ type CreateProcessRequest struct {
 	ShellCommand *string    `json:"shellCommand,omitempty"`
 	Stdin        *StdinMode `json:"stdin,omitempty"`
 
-	// Tag Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.
+	// Tag Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.
 	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
@@ -1159,7 +1159,7 @@ type KernelKind string
 
 // KillProcessesRequest `POST /processes:kill` request body.
 type KillProcessesRequest struct {
-	// Tag The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters).
+	// Tag The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).
 	Tag string `json:"tag"`
 
 	// TimeoutMs How long to wait for every killed process to exit, in milliseconds. 1-60000; default 10000.

@@ -35,7 +35,7 @@ class KillProcessesRequest(BaseModel):
     """
     `POST /processes:kill` request body.
     """ # noqa: E501
-    tag: StrictStr = Field(description="The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters).")
+    tag: StrictStr = Field(description="The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).")
     timeout_ms: Optional[Annotated[int, Field(le=60000, strict=True, ge=1)]] = Field(default=None, description="How long to wait for every killed process to exit, in milliseconds. 1-60000; default 10000.", alias="timeoutMs")
     __properties: ClassVar[List[str]] = ["tag", "timeoutMs"]
 
