@@ -1,8 +1,10 @@
 name: E2E
 
 # Live end-to-end tests of both SDKs against a Daytona deployment. They need
-# the DAYTONA_API_KEY secret (and DAYTONA_API_URL for a deployment other than
-# the default). One key serves both release lines: keys are shared between
+# the DAYTONA_API_KEY secret and, for a deployment other than the default, the
+# DAYTONA_V2_API_URL or DAYTONA_API_URL repository variable (V2 wins, as in the
+# SDKs). The DAYTONA_API_URL secret serves the 0.x line's workflows and is not
+# read here. One key serves both release lines: keys are shared between
 # the 0.x and 2.x APIs. Secrets are not available to pull requests from forks, so
 # there the suite reports a skip instead of failing; a maintainer runs it
 # before merging.
@@ -24,9 +26,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Use the repository variable for a custom 2.x test deployment;
+  # Use a repository variable for a custom 2.x test deployment;
   # otherwise test against the default 2.x API.
-  DAYTONA_V2_API_URL: ${{ vars.DAYTONA_V2_API_URL || 'https://api.daytona.com' }}
+  DAYTONA_V2_API_URL: ${{ vars.DAYTONA_V2_API_URL || vars.DAYTONA_API_URL || 'https://api.daytona.com' }}
   DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
 
 jobs:

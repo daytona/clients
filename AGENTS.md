@@ -72,7 +72,7 @@ husky hooks. Scans need git 2.36 or later.
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
 | `scripts/` | v0 bundling, release helpers, the changelog tool |
-| `changelog.d/` | one changelog fragment per PR (see below) |
+| `changelog.d/` | changelog fragments, one per user-visible change (see below) |
 | `examples/` | runnable examples for both SDKs |
 | `upgrade/` | `daytona-upgrade`, the 0.x → 2.x migration tool (npm + PyPI) |
 | `e2e.py`, `e2e.ts`, `run-e2e.sh` | live end-to-end suites (need `DAYTONA_API_KEY`) |

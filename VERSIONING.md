@@ -184,5 +184,5 @@ not done by any workflow.
 ## See also
 
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version; unreleased
-  changes are per-PR fragments in [`changelog.d/`](changelog.d/).
+  changes are fragments in [`changelog.d/`](changelog.d/).
 - [RELEASING.md](RELEASING.md) — how to publish.

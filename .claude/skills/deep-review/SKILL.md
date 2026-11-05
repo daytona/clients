@@ -105,6 +105,7 @@ fetches, checks out, stages, commits, or pushes anything. PR mode refuses a
 different repository and fails if the PR's pinned head/base are not present
 locally. Ask the author to provide them rather than silently reviewing an
 old commit. See [preflight](references/preflight.md) for interpretation.
+After changing a script, run `bash .claude/skills/deep-review/scripts/scripts_test.sh`.
 
 Require a clean tracked tree, account for untracked files, and confirm the
 checkout is the pinned head before running package tests. If not, use an

@@ -3,6 +3,9 @@ name: License headers
 # Every source file carries the SPDX header for its license: AGPL-3.0 under
 # cli/, Apache-2.0 elsewhere (.licenserc.yaml, LICENSE, COPYRIGHT). Generated
 # files are exempt. Fix locally with `license-eye -c .licenserc.yaml header fix`.
+# Failures are listed in the job log and step summary. The action posts no pull
+# request comments (`comment: never` in .licenserc.yaml, and an empty `token`
+# input), so the read-only token is enough.
 on:
   push:
     branches: [main]
@@ -22,6 +25,6 @@ jobs:
       - name: Check license headers
         uses: apache/skywalking-eyes/header@a196742f472feaffafea537ce5a2a4c3c53a8de4
         with:
-          token: ${{ github.token }}
+          token: ''
           config: .licenserc.yaml
           mode: check

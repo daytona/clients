@@ -72,7 +72,7 @@ one registration per package serve both. The dispatch ref picks the line, and
 the 2.x gate refuses a 0.x version. Details are in
 [`../../RELEASING.md`](../../RELEASING.md).
 
-Unreleased changes live as one fragment per pull request under
+Unreleased changes live as one fragment per user-visible change under
 [`changelog.d/`](../../changelog.d/), and a prepared release folds them into
 [`../../CHANGELOG.md`](../../CHANGELOG.md).
 

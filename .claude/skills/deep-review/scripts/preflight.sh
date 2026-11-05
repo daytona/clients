@@ -24,9 +24,9 @@ head="$(g rev-parse --verify --end-of-options "$2^{commit}")"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # Keep paths NUL-delimited until JSON conversion, including unusual filenames.
-g diff --name-only -z "$base" "$head" > "$tmp/changed.z"
-g diff --name-only --diff-filter=A -z "$base" "$head" > "$tmp/added.z"
-g diff --name-only --diff-filter=D -z "$base" "$head" > "$tmp/deleted.z"
+g diff --name-only --no-renames -z "$base" "$head" > "$tmp/changed.z"
+g diff --name-only --no-renames --diff-filter=A -z "$base" "$head" > "$tmp/added.z"
+g diff --name-only --no-renames --diff-filter=D -z "$base" "$head" > "$tmp/deleted.z"
 for kind in changed added deleted; do
   jq -Rs 'split("\u0000") | map(select(length > 0))' "$tmp/$kind.z" > "$tmp/$kind.json"
 done
