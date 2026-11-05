@@ -8,7 +8,9 @@ contract/. A marked property (``x-daytona-redact``) keeps its wire value in
 ``model_dump`` / ``to_dict`` / ``to_json``, but ``to_str()`` and ``repr()``
 show a placeholder instead. A model is marked (``x-daytona-redact-model``)
 when it has such a property or nests a marked model, so a parent's
-``to_str()`` redacts the credentials of the models inside it too.
+``to_str()`` redacts the credentials of the models inside it too; a marked
+model also redacts credential-named keys (SENSITIVE_NAMES) among the
+undeclared fields it keeps in ``additional_properties``.
 
 A property is sensitive when the contract says so (``format: password`` or
 ``writeOnly``, on the value or on its items / map values), when its name is
@@ -28,7 +30,13 @@ Json = Union[None, bool, int, float, str, List["Json"], Dict[str, "Json"]]
 SENSITIVE_NAMES = frozenset(
     {"token", "access_token", "refresh_token", "id_token", "subject_token", "password"}
 )
-SENSITIVE_PROPERTIES = frozenset({("SetSecretRequest", "value")})
+SENSITIVE_PROPERTIES = frozenset(
+    {
+        ("SetSecretRequest", "value"),
+        # The signed token is the hostname's first label.
+        ("SignedPreviewUrl", "url"),
+    }
+)
 REF_PREFIX = "#/components/schemas/"
 
 
@@ -102,6 +110,7 @@ def mark(spec: Dict[str, Json]) -> Tuple[Set[Tuple[str, str]], Set[str]]:
         schema = schemas[name]
         if isinstance(schema, dict):
             schema["x-daytona-redact-model"] = True
+            schema["x-daytona-credential-keys"] = sorted(SENSITIVE_NAMES)
     return properties, models
 
 

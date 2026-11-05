@@ -20,6 +20,8 @@ from daytona.v2._gen import toolbox as toolbox_models
 from daytona.v2._gen.api.models.lookup_invitation_request import LookupInvitationRequest
 from daytona.v2._gen.api.models.preview_url import PreviewUrl
 from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyWithToken
+from daytona.v2._gen.api.models.set_registry_request import SetRegistryRequest
+from daytona.v2._gen.api.models.signed_preview_url import SignedPreviewUrl
 from daytona.v2._gen.toolbox.models.clone_request import CloneRequest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,7 +99,41 @@ def test_flattened_all_of_credentials_are_redacted() -> None:
     assert created.to_dict()["token"] == SECRET
 
 
-def test_every_generated_credential_field_is_redacted() -> None:
+def _contract_marked_fields() -> dict[str, frozenset[str]]:
+    """The redaction set every generated model must carry, recomputed from the
+    committed contracts with the generator's own marking pass."""
+    expected: dict[str, set[str]] = {}
+    for name in ("api-openapi.json", "toolbox-openapi.json"):
+        spec = json.loads((ROOT.parent / "contract" / name).read_text())
+        properties, models = mark(spec)
+        for model in models:
+            expected.setdefault(model, set())
+        for model, prop in properties:
+            expected[model].add(prop)
+    return {model: frozenset(props) for model, props in expected.items()}
+
+
+def test_generated_redaction_matches_the_marking_of_the_contract() -> None:
+    expected = _contract_marked_fields()
+    actual: dict[str, frozenset[str]] = {}
+    for model in _generated_models():
+        redacted = getattr(model, "_daytona_redacted_fields", None)
+        if redacted is None:
+            continue
+        aliases = {name: field.alias or name for name, field in model.model_fields.items()}
+        actual[model.__name__] = frozenset(aliases[name] for name in redacted)
+
+    assert actual == expected
+    for model, props in {
+        "SetSecretRequest": {"value"},
+        "SetOtelConfigRequest": {"headers"},
+        "CloneRequest": {"username", "password"},
+        "SignedPreviewUrl": {"token", "url"},
+    }.items():
+        assert props <= expected[model], model
+
+
+def test_every_generated_credential_named_field_is_redacted() -> None:
     missed = []
     for model in _generated_models():
         redacted = getattr(model, "_daytona_redacted_fields", frozenset())
@@ -105,6 +141,30 @@ def test_every_generated_credential_field_is_redacted() -> None:
             if (field.alias or name) in SENSITIVE_NAMES and name not in redacted:
                 missed.append(f"{model.__name__}.{name}")
     assert missed == []
+
+
+def test_signed_preview_url_hides_the_token_in_the_hostname() -> None:
+    token = "s" + "0" * 32
+    signed = SignedPreviewUrl.from_dict(
+        {"token": token, "url": f"https://8080-{token}.example.test/", "expires_at": "2026-01-01T00:00:00Z"}
+    )
+    assert signed is not None
+
+    for diagnostic in (signed.to_str(), repr(signed)):
+        assert token not in diagnostic
+    assert signed.to_dict()["url"] == f"https://8080-{token}.example.test/"
+
+
+def test_credential_named_extras_are_redacted() -> None:
+    registry = SetRegistryRequest.from_dict(
+        {"password": SECRET, "username": "ci", "token": SECRET, "region": "eu"}
+    )
+    assert registry is not None
+
+    for diagnostic in (registry.to_str(), repr(registry)):
+        assert SECRET not in diagnostic
+        assert "'region': 'eu'" in diagnostic
+    assert registry.to_dict()["token"] == SECRET
 
 
 def test_marking_follows_contract_markers_names_and_nesting() -> None:
