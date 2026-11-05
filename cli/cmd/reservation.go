@@ -21,7 +21,7 @@ func init() {
 }
 
 // Help texts shared by `reservation create` and `sandbox create-macos`.
-const autoRenewUsage = "renew while a sandbox is active; create-macos requires --reservation new"
+const autoRenewUsage = "renew while a sandbox runs or is paused on the reservation; create-macos requires --reservation new"
 
 const (
 	reservationCreateExample   = "daytona reservation create --region '<region>' --model '<model>' --idempotency-key nightly-mac"
@@ -109,7 +109,7 @@ func newReservationUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update ID",
 		Short: "Turn a Mac reservation's auto-renew on or off",
-		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.\n" +
+		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox runs or is paused on it; stopped sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.\n" +
 			"Examples:\n" +
 			"  " + reservationUpdateExample + "\n" +
 			"  daytona reservation update RESERVATION_ID --auto-renew=true",
@@ -131,7 +131,7 @@ func newReservationUpdateCommand() *cobra.Command {
 			return a.Printer().Object(reservation, reservationKV(reservation))
 		},
 	}
-	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use on the reservation; false lets it end at period_end")
+	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox runs or is paused on the reservation; false lets it end at period_end")
 	return cmd
 }
 

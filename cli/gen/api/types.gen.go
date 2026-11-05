@@ -40,6 +40,7 @@ const (
 	CREATEBODYTOOLARGE                  ApiErrorCode = "CREATE_BODY_TOO_LARGE"
 	CREATETTLOUTOFRANGE                 ApiErrorCode = "CREATE_TTL_OUT_OF_RANGE"
 	DEFAULTIMAGENOTCONFIGURED           ApiErrorCode = "DEFAULT_IMAGE_NOT_CONFIGURED"
+	DISKNOTREADY                        ApiErrorCode = "DISK_NOT_READY"
 	ECRACCOUNTMISMATCH                  ApiErrorCode = "ECR_ACCOUNT_MISMATCH"
 	ECRCREDENTIALSINVALID               ApiErrorCode = "ECR_CREDENTIALS_INVALID"
 	ECROWNERSHIPUNVERIFIABLE            ApiErrorCode = "ECR_OWNERSHIP_UNVERIFIABLE"
@@ -183,6 +184,8 @@ func (e ApiErrorCode) Valid() bool {
 	case CREATETTLOUTOFRANGE:
 		return true
 	case DEFAULTIMAGENOTCONFIGURED:
+		return true
+	case DISKNOTREADY:
 		return true
 	case ECRACCOUNTMISMATCH:
 		return true
@@ -2278,13 +2281,17 @@ type CreateMacosSandboxRequest struct {
 	// auto-reserve setting.
 	AutoRenew *bool `json:"auto_renew,omitempty"`
 
-	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
 	Cores *int32 `json:"cores,omitempty"`
 
-	// CreateTimeoutSeconds Seconds the sandbox may take to reach `running`. Defaults to 3600; creating from a saved disk may allow additional restore time, up to 86400. `-1` uses the maximum. The sandbox is deleted if the timeout expires, including time spent waiting for capacity. A reservation bought by this request remains purchased and charged.
+	// CreateTimeoutSeconds Seconds the sandbox can take to reach `running`: 3600 by default, or
+	// 86400 for an image captured on an earlier version of macOS sandboxes.
+	// `-1` uses the maximum, 86400. After this time, the platform deletes the
+	// sandbox. The time includes the wait for a Mac. A reservation that this
+	// create bought stays bought and charged after that delete.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
-	// DiskMib Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when `sandboxes_per_mac` is 2, or all of it when it is 1. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
+	// DiskMib Disk for this sandbox in MiB, macOS included, at least 81920. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`). For a create from a captured image, omitted or null uses the image's `disk_mib`, and a smaller value returns 400. The disk and the disk volumes must fit the disk space of the sandbox's Mac (`sandbox_disk_mib` in `GET /mac-models`).
 	DiskMib *int32 `json:"disk_mib,omitempty"`
 
 	// Env Sandbox-specific environment variables. Names must be valid environment variable names.
@@ -2294,16 +2301,18 @@ type CreateMacosSandboxRequest struct {
 	// It also covers a reservation the create buys: a retry never buys two.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 
-	// Image The macOS image, by name or `img_…` ID: a platform macOS base image, typically `base-macos`, or a project macOS image in the requested region. Creating from a saved sandbox disk can take longer than creating from a base image.
+	// Image The macOS image, by name or `img_…` id: a platform macOS image,
+	// typically `base-macos`, or a macOS image of this project in the
+	// request's region, such as an image captured from a macOS sandbox.
 	Image string `json:"image"`
 
 	// Labels User-defined labels. Not visible inside the sandbox.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// LifecyclePolicy Sandbox lifecycle policy: idle stop/delete budgets and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.
+	// LifecyclePolicy Sandbox lifecycle policy: idle stop and delete timeouts and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.
 	LifecyclePolicy *UpdateSandboxLifecyclePolicyRequest `json:"lifecycle_policy,omitempty"`
 
-	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
 	MemoryMib *int32 `json:"memory_mib,omitempty"`
 
 	// Name Optional sandbox name (defaults to `sandbox-<short-id>`).
@@ -2313,7 +2322,7 @@ type CreateMacosSandboxRequest struct {
 	// first boot. Change it later with `PUT /sandboxes/{id}/network-policy`.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
 
-	// Persistent Keep the macOS sandbox disk across stop/start and memory across pause/resume. Start and resume require the same Mac and an active reservation. Deleting the sandbox erases its disk. At reservation end, the disk is saved as an anonymous image when possible. Create from that image to continue on another Mac.
+	// Persistent Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
@@ -2327,13 +2336,16 @@ type CreateMacosSandboxRequest struct {
 	// default region, then the organization's, then `earth`.
 	RegionId *string `json:"region_id,omitempty"`
 
-	// Reservation Omitted uses any fitting Mac reservation of this organization in the region. "new" buys the cheapest available model that fits. A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+	// Reservation Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
 	Reservation *string `json:"reservation,omitempty"`
 
 	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
 	Secrets *[]string `json:"secrets,omitempty"`
 
-	// Volumes Disk volumes to attach: at most 8, each read-write. A bucket volume returns 400.
+	// Volumes Disk volumes to attach, as on Linux: at most 8, each read-write. Each
+	// volume uses its `size_gib` (100 GiB when omitted) of disk space on the
+	// sandbox's Mac, beside the sandbox's disk. A sandbox with volumes cannot
+	// be persistent. A bucket volume returns 400.
 	Volumes *[]VolumeMount `json:"volumes,omitempty"`
 
 	// WaitSeconds Seconds to hold the response until the sandbox is `running`, capped at 3 by default. Omitted uses the cap, `0` returns immediately, and a negative value returns 400. The response carries the status reached when the wait ends.
@@ -2831,8 +2843,8 @@ type Image struct {
 	Deprecated bool `json:"deprecated"`
 
 	// DiskMib The disk size in MiB that a macOS sandbox created from this image gets
-	// when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-	// null for every other image.
+	// when the create omits `disk_mib`; a create cannot ask for less. Set for
+	// images captured from a macOS sandbox; null for other images.
 	DiskMib *int64 `json:"disk_mib,omitempty"`
 
 	// Error Build failure reason; null unless `status` is `failed`.
@@ -2941,8 +2953,8 @@ type ImageListItem struct {
 	Deprecated bool `json:"deprecated"`
 
 	// DiskMib The disk size in MiB that a macOS sandbox created from this image gets
-	// when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-	// null for every other image.
+	// when the create omits `disk_mib`; a create cannot ask for less. Set for
+	// images captured from a macOS sandbox; null for other images.
 	DiskMib *int64 `json:"disk_mib,omitempty"`
 
 	// Error Build failure reason; null unless `status` is `failed`.
@@ -3269,7 +3281,7 @@ type LifecyclePolicy struct {
 	// LastActivityAt When activity was last observed, or null when no activity is recorded.
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
 
-	// LastActivitySource The kind of activity most recently observed, such as an API request, a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
+	// LastActivitySource The kind of activity most recently observed, such as an explicit idle-timer reset (`api`), a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.
 	LastActivitySource *string `json:"last_activity_source,omitempty"`
 
 	// OnIdleTimeout The action run when the idle expiry elapses, or null when idle expiry
@@ -3299,9 +3311,9 @@ type MacCatalog struct {
 	Regions []MacCatalogRegion `json:"regions"`
 }
 
-// MacCatalogModel One registry model in one region.
+// MacCatalogModel One Mac model in one region.
 type MacCatalogModel struct {
-	// Available Macs of this model currently available to reserve in this region. Advisory only: another purchase may consume the capacity first. Zero when the model has no price.
+	// Available Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.
 	Available int64 `json:"available"`
 
 	// Model The Mac model, as `GET /mac-models` lists it.
@@ -3320,7 +3332,7 @@ type MacCatalogRegion struct {
 	// Id The region ID.
 	Id string `json:"id"`
 
-	// Models One entry per registry model, in `GET /mac-models` order.
+	// Models One entry per Mac model, in `GET /mac-models` order.
 	Models []MacCatalogModel `json:"models"`
 }
 
@@ -3329,16 +3341,16 @@ type MacModel struct {
 	// Cores CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).
 	Cores int32 `json:"cores"`
 
-	// DefaultSize The size a create gives each size field it omits: half of each of the model's cores, memory, and sandbox disk room (the disk rounded down to a whole GiB) when `max_sandboxes` is 2, all of it when `max_sandboxes` is 1. Null when `max_sandboxes` is 0.
+	// DefaultSize The default size: the cores, memory and disk that a create gives each size field it omits. A create from a captured image gets the image's disk size instead. Null when this Mac model takes no sandbox.
 	DefaultSize *MacResources `json:"default_size"`
 
-	// DiskMib Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.
+	// DiskMib Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.
 	DiskMib int32 `json:"disk_mib"`
 
 	// Id Mac model slug accepted by POST /reservations.
 	Id string `json:"id"`
 
-	// MaxSandboxes Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes must also fit the Mac.
+	// MaxSandboxes Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.
 	MaxSandboxes int32 `json:"max_sandboxes"`
 
 	// MemoryMib Physical memory in MiB.
@@ -3347,7 +3359,7 @@ type MacModel struct {
 	// Name Display name of the Mac model.
 	Name string `json:"name"`
 
-	// SandboxDiskMib Disk room for sandboxes on one Mac of this model, in MiB. The disks of all sandboxes on the Mac, stopped sandboxes included, add up to at most this. Zero until the model's disk room is measured.
+	// SandboxDiskMib Disk space for sandboxes on one Mac of this model, in MiB. The disks and disk volumes of the sandboxes on one Mac must fit in it. 0 until this Mac model's disk space is known.
 	SandboxDiskMib int32 `json:"sandbox_disk_mib"`
 }
 
@@ -3384,7 +3396,7 @@ type MacReservation struct {
 	// instead.
 	AutoRenew bool `json:"auto_renew"`
 
-	// Capacity The reserved model’s CPU, memory, and sandbox disk capacity, fixed at purchase. Null when capacity information is unavailable; such a reservation accepts no new sandbox.
+	// Capacity The cores, memory and disk space for sandboxes of this reservation's Mac, set at purchase. Null when unknown; such a reservation accepts no new sandbox.
 	Capacity *MacResources `json:"capacity,omitempty"`
 
 	// CreatedAt When the reservation was created.
@@ -3405,18 +3417,19 @@ type MacReservation struct {
 	// OrgId The organization ID.
 	OrgId openapi_types.UUID `json:"org_id"`
 
-	// Origin How the lease was bought: `explicit` by `POST /reservations` or a
-	// create with `reservation: "new"`, and `auto` by a macOS create under
-	// the organization's auto-reserve setting.
+	// Origin How the reservation was bought: `explicit` by `POST /reservations` or a
+	// create with `reservation: "new"`, and `auto` by a macOS create or start
+	// under the organization's auto-reserve setting.
 	Origin MacReservationOrigin `json:"origin"`
 
-	// PendingMacStartedAt When the reservation last began waiting for a Mac: at its first
-	// charge, or when it moved after its Mac was lost. Kept after a Mac
-	// claims it.
+	// PendingMacStartedAt When the reservation last began to wait for a Mac: at its first
+	// charge, or when it moved after a Mac failure. Kept after a Mac takes
+	// it.
 	PendingMacStartedAt *time.Time `json:"pending_mac_started_at,omitempty"`
 
-	// PeriodEnd When the reservation ends unless renewed. Absent until a Mac first claims it
-	// (period 1 starts at the claim, so waiting for a Mac is not paid time).
+	// PeriodEnd When the reservation ends unless renewed. Absent until a Mac first takes
+	// the reservation; period 1 starts then, so the wait for a Mac is not paid
+	// time.
 	PeriodEnd *time.Time `json:"period_end,omitempty"`
 
 	// PeriodN The current paid period (1-based).
@@ -3437,7 +3450,7 @@ type MacReservation struct {
 	// RegionId The reservation region.
 	RegionId string `json:"region_id"`
 
-	// ReissuedAt Set when the reservation moved to another Mac after its Mac was lost.
+	// ReissuedAt Set when the reservation moved to another Mac after a Mac failure.
 	ReissuedAt *time.Time `json:"reissued_at,omitempty"`
 
 	// RenewalError Why the renewal of the next period failed (billing refused it, or the
@@ -3448,14 +3461,12 @@ type MacReservation struct {
 	// RenewalPending A renewal charge is still waiting for billing's answer.
 	RenewalPending bool `json:"renewal_pending"`
 
-	// ResourcesUsed CPU and memory held by the sandboxes on this reservation's Mac,
-	// including paused sandboxes and sandboxes still being deleted, and the
-	// disk its sandboxes hold, stopped sandboxes included. Sandboxes that no
-	// Mac has claimed yet are not counted.
+	// ResourcesUsed The cores, memory and disk space in use on this reservation's Mac.
+	// Paused sandboxes and sandboxes with status `deleting` count.
 	ResourcesUsed MacResources `json:"resources_used"`
 
-	// SandboxesPerMac Most sandboxes this reservation's Mac runs at once, subject to CPU,
-	// memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.
+	// SandboxesPerMac Most sandboxes on this reservation's Mac at once. Stopped sandboxes do
+	// not count. 0 when the reservation accepts no new sandbox.
 	SandboxesPerMac int32 `json:"sandboxes_per_mac"`
 
 	// SlotsUsed macOS sandboxes currently occupying this reservation's Mac.
@@ -3486,7 +3497,7 @@ type MacReservationOrigin string
 // MacReservationStatus defines model for MacReservationStatus.
 type MacReservationStatus string
 
-// MacResources CPU cores, memory, and sandbox disk capacity or usage, in cores and MiB.
+// MacResources CPU cores, memory and disk, in cores and MiB.
 // A Mac core is one CPU of the Mac (Apple Silicon has no SMT).
 type MacResources struct {
 	// Cores CPU cores.
@@ -3501,7 +3512,7 @@ type MacResources struct {
 
 // MacosSettings An organization's macOS settings.
 type MacosSettings struct {
-	// MacosAutoReserve Whether a macOS create buys a Mac reservation when the organization holds none in the region. On unless an admin turns it off.
+	// MacosAutoReserve Whether a macOS create or start buys a Mac reservation when the organization has none in the region. On unless an admin turns it off.
 	MacosAutoReserve bool `json:"macos_auto_reserve"`
 
 	// MacosAutoReserveDisabledAt When an admin last turned auto-reserve off; null while it is on.
@@ -4570,7 +4581,7 @@ type Region struct {
 	// Name Display name.
 	Name string `json:"name"`
 
-	// ParentRegionIds IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. Membership does not guarantee that capacity is available.
+	// ParentRegionIds IDs of the containing regions, outermost first; the last is the direct parent. Empty for `earth`. All IDs appear in this response. A create that names one of these regions is placed here only if this region accepts automatic placement, and membership does not guarantee capacity.
 	ParentRegionIds []string `json:"parent_region_ids"`
 }
 
@@ -4741,7 +4752,7 @@ type Sandbox struct {
 	// Name The sandbox name.
 	Name string `json:"name"`
 
-	// Persistent Whether the macOS sandbox retains writable state across stops.
+	// Persistent Whether the sandbox keeps its disk across stop and start.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// PortMap Port assignments reported for the sandbox.
@@ -4750,8 +4761,9 @@ type Sandbox struct {
 	// RegionId The region the sandbox runs in.
 	RegionId string `json:"region_id"`
 
-	// ReservationId The macOS reservation of the current or latest successful claim; null
-	// before the first claim and absent for other sandbox classes.
+	// ReservationId The Mac reservation that the macOS sandbox runs on, or ran on last.
+	// Null before the sandbox first reaches a Mac; absent for other sandbox
+	// classes.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Snapshot The snapshot the sandbox was created from; absent when it was
@@ -4792,7 +4804,7 @@ type Sandbox struct {
 
 // SandboxAccessToken `POST …/access-token` response.
 type SandboxAccessToken struct {
-	// AccessToken The sandbox access token. Returned only by this operation.
+	// AccessToken The sandbox access token.
 	AccessToken string `json:"access_token"`
 
 	// ExpiresAt Absolute expiry (RFC 3339). The token cannot be refreshed — mint a
@@ -4834,8 +4846,8 @@ type SandboxCreateOperation struct {
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).
 	Name string `json:"name"`
 
-	// ReservationId The macOS reservation selected by a successful claim; null until a Mac
-	// claims the sandbox.
+	// ReservationId The Mac reservation that the sandbox runs on; null until the sandbox
+	// reaches a Mac.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Status Initial lifecycle status — `pending`, or the sandbox's current status on
@@ -4965,7 +4977,7 @@ type SandboxListItem struct {
 	// Name The sandbox name.
 	Name string `json:"name"`
 
-	// Persistent Whether the macOS sandbox retains writable state across stops.
+	// Persistent Whether the sandbox keeps its disk across stop and start.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// PortMap Port assignments reported for the sandbox.
@@ -4974,8 +4986,9 @@ type SandboxListItem struct {
 	// RegionId The region the sandbox runs in.
 	RegionId string `json:"region_id"`
 
-	// ReservationId The macOS reservation of the current or latest successful claim; null
-	// before the first claim and absent for other sandbox classes.
+	// ReservationId The Mac reservation that the macOS sandbox runs on, or ran on last.
+	// Null before the sandbox first reaches a Mac; absent for other sandbox
+	// classes.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Snapshot The snapshot the sandbox was created from; absent when it was
@@ -5355,7 +5368,7 @@ type SignedFileUrl struct {
 	// Signature The link's signature. Pass it back unchanged.
 	Signature string `json:"signature"`
 
-	// Url The full pre-signed preview URL.
+	// Url The full pre-signed file URL.
 	Url string `json:"url"`
 }
 
@@ -5590,7 +5603,7 @@ type UpdateImageRequest struct {
 
 // UpdateMacosSettingsRequest The macOS settings to change: any non-empty subset of the fields.
 type UpdateMacosSettingsRequest struct {
-	// MacosAutoReserve Whether new macOS creates may automatically reserve capacity.
+	// MacosAutoReserve Whether a macOS create or start buys a Mac reservation when the organization has none in the region.
 	MacosAutoReserve *bool `json:"macos_auto_reserve,omitempty"`
 
 	// MacosAutoReserveMaxReservations Maximum number of automatically created reservations.
@@ -6485,7 +6498,7 @@ type SearchSandboxesParams struct {
 	// non-object value answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter macOS sandboxes by persistence: `true` for persistent, `false` for ephemeral.
+	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).

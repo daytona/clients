@@ -530,6 +530,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   RESERVATION_NOT_FOUND: NotFoundError,
   NO_MAC_AVAILABLE: ConflictError,
   MAC_DISK_FULL: ConflictError,
+  DISK_NOT_READY: ConflictError,
   AUTO_RESERVE_LIMIT_REACHED: ConflictError,
   IDEMPOTENCY_KEY_REUSED: ConflictError,
   INSUFFICIENT_BALANCE: DaytonaError,

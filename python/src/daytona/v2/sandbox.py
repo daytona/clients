@@ -1030,7 +1030,7 @@ class AsyncSandbox:
 
         macOS waits up to ``timeout`` for ``paused`` and raises
         ``SandboxTerminalStateError`` if the pause fails. A paused macOS
-        sandbox keeps its Mac slot but does not keep its reservation renewing.
+        sandbox stays on its Mac and keeps a reservation with auto-renew on renewing.
         """
         _validate_timeout(timeout)
         await self._require_macos_lifecycle()
@@ -1072,13 +1072,13 @@ class AsyncSandbox:
         ``memory=False`` (``memory=True`` is refused with
         ``NOT_SUPPORTED_FOR_CLASS``). A fork of a running macOS sandbox boots
         with a fresh machine identity; a fork of a paused or stopped one rests
-        ``stopped``. A fork needs available capacity for its size; insufficient
-        capacity can answer ``NO_FREE_SLOT`` or ``MAC_DISK_FULL``.
+        ``stopped``.
 
         With ``timeout`` (seconds; ``0`` waits without a deadline), wait for
-        the state the fork settles in: ``started`` for a Linux fork, and
-        ``started`` or ``stopped`` for a macOS fork. Without it, return as soon
-        as the server accepts the fork.
+        the state the fork settles in: ``started`` for a Linux fork or a fork
+        of a running macOS sandbox, and ``stopped`` for a fork of a paused or
+        stopped macOS sandbox. Without it, return as soon as the server
+        accepts the fork.
         """
         sandbox_class = await self._require_sandbox_class()
         if sandbox_class not in ("linux", "macos"):
@@ -1090,10 +1090,15 @@ class AsyncSandbox:
             body["name"] = name
         if memory is not None:
             body["memory"] = memory
-        # A Mac fork settles `started` or `stopped`; either is a valid result
-        # because the source's state can change before the request is accepted.
+        # A macOS fork of a running source rests `stopped` until its Mac
+        # releases the disk, then starts; a fork of a paused or stopped source
+        # rests `stopped`. Read the source's state to know which to wait for.
+        source_running = True
         if timeout is not None:
             _validate_timeout(timeout)
+            if sandbox_class == "macos":
+                await self.refresh_data()
+                source_running = self.state == "started"
         data = expect_fork_resp(
             await self._require_api().send(
                 RequestSpec(
@@ -1126,8 +1131,8 @@ class AsyncSandbox:
             _toolbox_url_from_api=True,
         )
         if timeout is not None:
-            if sandbox_class == "macos":
-                await fork.wait_for_state(["started", "stopped"], timeout=timeout)
+            if not source_running:
+                await fork.wait_for_state(["stopped"], timeout=timeout)
             else:
                 await fork._wait_until_started(timeout=timeout)
         return fork
@@ -1299,9 +1304,7 @@ class AsyncSandbox:
         """Snapshot this sandbox's filesystem as a new :class:`Image` (``POST /sandboxes/{id}/images``).
 
         The result boots new sandboxes (``daytona.create(image.id)``); a Linux
-        sandbox keeps running. A macOS
-        sandbox must be persistent and stopped; it cannot start until the
-        snapshot is ``ready``.
+        sandbox keeps running. A macOS sandbox must be persistent and stopped.
 
         ``name`` makes the image named and permanent. ``idle`` (seconds) is the
         idle-retention window of an ANONYMOUS capture: it is deleted once that

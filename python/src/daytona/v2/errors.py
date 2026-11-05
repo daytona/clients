@@ -747,6 +747,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.RESERVATION_NOT_FOUND: NotFoundError,
     codes.NO_MAC_AVAILABLE: ConflictError,
     codes.MAC_DISK_FULL: ConflictError,
+    codes.DISK_NOT_READY: ConflictError,
     codes.AUTO_RESERVE_LIMIT_REACHED: ConflictError,
     codes.IDEMPOTENCY_KEY_REUSED: ConflictError,
     codes.INSUFFICIENT_BALANCE: DaytonaError,

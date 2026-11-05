@@ -1226,8 +1226,8 @@ export class Sandbox {
 
   /**
    * Pause a persistent macOS sandbox with its memory. Waits up to `timeout` for `paused` and throws
-   * `SandboxTerminalStateError` if the pause fails. A paused macOS sandbox keeps its Mac slot
-   * but does not keep its reservation renewing.
+   * `SandboxTerminalStateError` if the pause fails. A paused macOS sandbox stays on its Mac
+   * and keeps a reservation with auto-renew on renewing.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
@@ -1266,28 +1266,23 @@ export class Sandbox {
    * `stopped` — call `start()` on those.
    *
    * A macOS fork copies the disk only: omit `memory` or pass `memory: false`
-   * (`memory: true` is refused with `NOT_SUPPORTED_FOR_CLASS`). A fork of a
-   * running macOS sandbox boots with a fresh machine identity; a fork of a
-   * paused or stopped one rests `stopped`. The fork may wait for capacity,
-   * as a create does; insufficient capacity can return `NO_FREE_SLOT`.
+   * (`memory: true` is refused with `NOT_SUPPORTED_FOR_CLASS`), and it starts
+   * or rests as a Linux disk fork does, with a fresh machine identity.
    */
   public async fork(options: { name?: string; memory?: boolean; timeout?: number } = {}): Promise<Sandbox> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
-    const sandboxClass = await this.requireSandboxClass()
+    await this.requireSandboxClass()
     const body: LinuxForkRequest = {}
     if (options.name) body.name = options.name
     if (options.memory !== undefined) body.memory = options.memory
     // Only a fork of a RUNNING source comes up by itself; the others rest
     // (`paused`/`stopped`). With a timeout, wait for the state the fork will
-    // actually settle in. The source can change state while the request is
-    // in flight. A macOS fork settles `started` or `stopped`, so accept either.
+    // actually settle in, read from the source's state at fork time.
     let sourceRunning = false
     if (options.timeout !== undefined) {
       validateTimeout(options.timeout)
-      if (sandboxClass !== 'macos') {
-        await this.refreshData()
-        sourceRunning = this.state === 'started'
-      }
+      await this.refreshData()
+      sourceRunning = this.state === 'started'
     }
     const response = await this.api.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
@@ -1297,8 +1292,7 @@ export class Sandbox {
     const apiSourced: SandboxConnectOptionsFromCreate = { toolboxUrlFromApi: true }
     const fork = new Sandbox({ ...sandbox, toolbox_proxy_url: response.data.toolbox_proxy_url || sandbox.toolbox_proxy_url }, this.api, undefined, this.apiKey, this.target, apiSourced, this.requestTimeout, this.httpOptions, this._hub)
     if (options.timeout !== undefined) {
-      if (sandboxClass === 'macos') await fork.waitForState(['started', 'stopped'], { timeout: options.timeout })
-      else if (sourceRunning) await fork.waitUntilStarted(options.timeout)
+      if (sourceRunning) await fork.waitUntilStarted(options.timeout)
       else await fork.waitForState(['paused', 'stopped'], { timeout: options.timeout })
     }
     return fork
@@ -1479,7 +1473,7 @@ export class Sandbox {
    * Snapshot this sandbox's filesystem as a new {@link Image}
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
    * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
-   * stopped; it cannot start until the snapshot is `ready`.
+   * stopped.
    */
   public async snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image> {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')

@@ -713,9 +713,8 @@ class AsyncMacModelService:
     """The Mac model registry (``GET /mac-models``).
 
     Lists the models ``reservations.create(model=...)`` accepts, with each
-    model's CPU cores, physical memory, physical SSD capacity and sandbox
-    disk room in MiB, maximum sandbox count, and default sandbox size. ``catalog()`` adds free Macs
-    and prices.
+    model's CPU cores, memory, SSD size and disk space for sandboxes in MiB,
+    and its default size. ``catalog()`` adds free Macs and prices.
     """
 
     def __init__(self, transport: AsyncTransport) -> None:

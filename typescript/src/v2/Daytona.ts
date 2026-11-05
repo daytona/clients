@@ -694,16 +694,18 @@ export class Daytona {
   /**
    * Create a macOS sandbox (`POST /sandboxes/macos`) on a Mac the organization
    * has reserved (`daytona.reservations`), from a macOS image name.
-   * `reservation` picks the Mac reservation: omitted uses any fitting reservation of the
-   * organization in the region (or lets the organization's auto-reserve buy
-   * one), `'new'` buys a reservation of the cheapest model that fits, and a
-   * reservation id targets that reservation at claim. With no reservation to use it fails
+   * `reservation` picks the Mac reservation: omitted uses any reservation of the
+   * organization in the region that has space for the size, and auto-reserve
+   * buys one if the organization has no reservation in the region; `'new'` buys
+   * a reservation of the cheapest model that fits; a reservation id uses that
+   * reservation. With no reservation to use it fails
    * with `ConflictError` (`NO_ACTIVE_RESERVATION`, `NO_FREE_SLOT`,
    * `MAC_DISK_FULL`, `AUTO_RESERVE_LIMIT_REACHED`, `NO_MAC_AVAILABLE`).
-   * `cpu` (cores), `memory` (GiB) and `disk` (GiB) size the sandbox; each omitted
-   * axis uses half of the claiming Mac, rounded down, on a model that runs two sandboxes,
-   * or all of it on a model that runs one. The first successful
-   * claim fixes the size, which the sandbox reports from then on. `name`,
+   * `cpu` (cores), `memory` (GiB) and `disk` (GiB) size the sandbox. Omitted
+   * uses the Mac model's default size (`default_size` in the Mac catalog). A
+   * create from a captured image gets the image's disk size when `disk` is
+   * omitted, and refuses a smaller `disk`. The size is fixed when the sandbox
+   * first gets a Mac, and the sandbox reports it from then on. `name`,
    * `idempotencyKey`, `waitSeconds` and `createTimeoutSeconds` behave as on
    * {@link create}. `networkPolicy` sets the outbound network policy as on
    * {@link create}; a sandbox with a policy runs only on a Mac that can

@@ -155,6 +155,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	f.Int64Var(&flags.timeoutSecs, "timeout", 0, "wall-clock seconds until --on-timeout fires (re-arms on every start)")
 	f.Int64Var(&flags.idleTimeout, "idle-timeout", 0, "idle seconds until --on-idle-timeout fires")
 	if sf.macos {
+
 		macosCreateLifecycleFlags(f, &flags)
 	} else {
 		f.StringVar(&flags.onTimeout, "on-timeout", "", "action when --timeout elapses: delete")
@@ -194,6 +195,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	if sf.spot {
 		f.BoolVar(&flags.spot, "spot", false, "use the spot tier")
 	}
+
 	if sf.networkPolicy {
 		f.StringArrayVar(&flags.allowDomains, "allow-domain", nil, "network policy: allowed hostname or *.wildcard (repeatable; implies --block-all)")
 		f.StringArrayVar(&flags.allowCIDRs, "allow-cidr", nil, "network policy: allowed IPv4 address or CIDR, any port (repeatable; needs --block-all or --allow-domain)")

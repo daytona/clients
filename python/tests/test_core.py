@@ -1990,8 +1990,9 @@ async def test_fork_of_a_macos_sandbox_reaches_the_server():
 
 
 @pytest.mark.anyio
-async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
-    # A macOS fork may finish started or stopped regardless of the cached source state.
+async def test_macos_fork_with_timeout_waits_by_the_sources_state():
+    # A fork of a running macOS source rests stopped until its Mac releases
+    # the disk, then starts; a fork of a stopped source rests stopped.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "mac")
     sandbox.sandbox_class = "macos"
@@ -2003,19 +2004,21 @@ async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
     }
     api = RecordingTransport(
         [
+            _sandbox_detail_payload("mac", "running", sandbox_class="macos"),
             fork_resp,
             _sandbox_detail_payload("f", "pending", sandbox_class="macos"),
             _sandbox_detail_payload("f", "stopped", sandbox_class="macos"),
+            _sandbox_detail_payload("f", "running", sandbox_class="macos"),
+            _sandbox_detail_payload("mac", "stopped", sandbox_class="macos"),
             fork_resp,
             _sandbox_detail_payload("f", "pending", sandbox_class="macos"),
-            _sandbox_detail_payload("f", "running", sandbox_class="macos"),
+            _sandbox_detail_payload("f", "stopped", sandbox_class="macos"),
         ]
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    assert (await sandbox.fork(timeout=5)).state == "stopped"
     assert (await sandbox.fork(timeout=5)).state == "started"
-    assert not any(spec.path == "/sandboxes/mac" for spec in api.specs)
+    assert (await sandbox.fork(timeout=5)).state == "stopped"
     assert api.responses == []
 
     with pytest.raises(DaytonaError) as refused:

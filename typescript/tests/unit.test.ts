@@ -6762,25 +6762,27 @@ describe('toolbox service request shaping', () => {
     expect(running.state).toBe('started')
   })
 
-  it('macOS fork({ timeout }) settles on started or stopped whatever the source showed before the POST', async () => {
+  it('macOS fork({ timeout }) waits for started from a running source and stopped from a stopped one', async () => {
     jest.useRealTimers()
-    // The source may stop after a previous read; the fork's returned state
-    // determines whether the wait is complete.
+    // A fork of a running macOS source rests stopped until its Mac releases
+    // the disk, then starts; a fork of a stopped source rests stopped.
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, 'sbx')
     sandbox.sandboxClass = 'macos'
     const api = clientInstance(client)
     jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f' } })
     const get = jest.spyOn(api, 'get')
-    get.mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
-      .mockResolvedValue({ data: { id: 'f', status: 'stopped' } })
-    expect((await sandbox.fork({ timeout: 5_000 })).state).toBe('stopped')
-    expect(get).not.toHaveBeenCalledWith('/sandboxes/sbx')
-
-    get.mockReset()
-    get.mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
+    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'running', class: 'macos' } })
+      .mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { id: 'f', status: 'stopped' } })
       .mockResolvedValue({ data: { id: 'f', status: 'running' } })
     expect((await sandbox.fork({ timeout: 5_000 })).state).toBe('started')
+
+    get.mockReset()
+    get.mockResolvedValueOnce({ data: { id: 'sbx', status: 'stopped', class: 'macos' } })
+      .mockResolvedValueOnce({ data: { id: 'f', status: 'pending' } })
+      .mockResolvedValue({ data: { id: 'f', status: 'stopped' } })
+    expect((await sandbox.fork({ timeout: 5_000 })).state).toBe('stopped')
   })
 
   it('gives a fork no toolbox rather than the parent URL when the response carries none', async () => {

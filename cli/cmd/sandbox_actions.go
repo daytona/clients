@@ -56,12 +56,14 @@ func newSandboxForkCommand() *cobra.Command {
 		if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp); err != nil {
 			return nil, "", "", err
 		}
-		// A macOS fork starts running only if its source is running when the
-		// fork is created. The source can change after our lookup, so accept
-		// either a running or stopped fork (StoppedSettles).
+		// Only a fork of a running source comes up by itself; a Linux
+		// memory fork of another rests paused, a macOS disk fork stopped.
 		waitFor := "paused"
-		if macos || resolved.Detail.Status == "running" {
+		switch {
+		case resolved.Detail.Status == "running":
 			waitFor = "running"
+		case macos:
+			waitFor = "stopped"
 		}
 		return resp, resp.Id, waitFor, nil
 	})
@@ -201,7 +203,7 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 				waitOptions.RunningAgainFails = true
 			}
 			if verb == "fork" && resolved.Detail.Class == workload.ClassMacOS {
-				waitOptions.StoppedSettles = true
+				waitOptions.StoppedPassed = true
 			}
 			if a.Globals.NoWait || waitID == "" || waitFor == "" {
 				displayID := args[0]

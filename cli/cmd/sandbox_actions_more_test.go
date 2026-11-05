@@ -353,11 +353,10 @@ func TestSandboxResume_macosConflictsWhenTheSandboxEndsStopped(t *testing.T) {
 	require.ErrorContains(t, err, "sandbox "+id+" reached stopped, not running")
 }
 
-// A macOS fork starts running only if its source is running when the fork is
-// created. The source can change after our lookup, so the CLI accepts either
-// a running or stopped fork, as the SDKs do. The fork's wait
-// long-polls `?wait=running`, which the API also answers on stopping/stopped.
-func runMacFork(t *testing.T, sampled string, forkAnswers ...string) (string, error) {
+// A macOS fork of a running source rests stopped until its Mac releases its
+// disk, then starts: the CLI waits for running past stopped. A fork of a
+// stopped source rests stopped.
+func runMacFork(t *testing.T, sampled, query string, forkAnswers ...string) (string, error) {
 	t.Helper()
 	id := testMacSandboxID
 	fork := "22222222-2222-2222-2222-222222222222"
@@ -366,50 +365,33 @@ func runMacFork(t *testing.T, sampled string, forkAnswers ...string) (string, er
 		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
 	}
 	for i, status := range forkAnswers {
-		query := ""
+		q := ""
 		if i == 0 {
-			query = "wait=running&timeout_ms=55000"
+			q = query
 		}
-		expected = append(expected, expectedRequest{method: http.MethodGet, path: "/sandboxes/" + fork, query: query, status: 200, response: sandboxDetailFixture(fork, "macos", status)})
+		expected = append(expected, expectedRequest{method: http.MethodGet, path: "/sandboxes/" + fork, query: q, status: 200, response: sandboxDetailFixture(fork, "macos", status)})
 	}
 	stdout, _, err := runCLI(t, []string{"sandbox", "fork", id, "--name", "copy"}, expected)
 	return stdout, err
 }
 
-func TestSandboxFork_macosStoppedSourceSettlesStopped(t *testing.T) {
-	stdout, err := runMacFork(t, "stopped", "stopped")
-	require.NoError(t, err)
-	require.Equal(t, "stopped", requireJSONStdout(t, stdout)["status"])
-}
-
-func TestSandboxFork_macosRunningSourceSettlesRunning(t *testing.T) {
-	stdout, err := runMacFork(t, "running", "running")
-	require.NoError(t, err)
-	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
-}
-
-// The source stopped after the CLI's lookup but before the fork was created.
-func TestSandboxFork_macosSampledRunningForkLandsStopped(t *testing.T) {
-	stdout, err := runMacFork(t, "running", "stopped")
-	require.NoError(t, err)
-	require.Equal(t, "stopped", requireJSONStdout(t, stdout)["status"])
-}
-
-// The source started after the CLI's lookup but before the fork was created.
-func TestSandboxFork_macosSampledStoppedForkLandsRunning(t *testing.T) {
-	stdout, err := runMacFork(t, "stopped", "running")
-	require.NoError(t, err)
-	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
-}
-
-func TestSandboxFork_macosWaitsPastStopping(t *testing.T) {
-	stdout, err := runMacFork(t, "paused", "stopping", "stopped")
-	require.NoError(t, err)
-	require.Equal(t, "stopped", requireJSONStdout(t, stdout)["status"])
+func TestSandboxFork_macosSettles(t *testing.T) {
+	for _, tc := range []struct {
+		sampled, query string
+		answers        []string
+		want           string
+	}{
+		{sampled: "stopped", query: "timeout_ms=55000&wait_exact=stopped", answers: []string{"stopped"}, want: "stopped"},
+		{sampled: "running", query: "timeout_ms=55000&wait=running", answers: []string{"stopped", "running"}, want: "running"},
+	} {
+		stdout, err := runMacFork(t, tc.sampled, tc.query, tc.answers...)
+		require.NoError(t, err, tc.sampled)
+		require.Equal(t, tc.want, requireJSONStdout(t, stdout)["status"], tc.sampled)
+	}
 }
 
 func TestSandboxFork_macosFailedForkConflicts(t *testing.T) {
-	_, err := runMacFork(t, "running", "failed")
+	_, err := runMacFork(t, "running", "timeout_ms=55000&wait=running", "failed")
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "reached failed, not running")
