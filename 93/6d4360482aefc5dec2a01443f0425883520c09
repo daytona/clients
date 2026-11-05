@@ -1,0 +1,106 @@
+CONTRIBUTING.md
+  s_95075aae613321::t_4091b2d7dd9d03 20-21
+  s_99e5c120850106::t_56e018ed99b936 66,87,107
+SECURITY.md
+  s_95075aae613321::t_fac600ce827f4d 1-22
+.claude/skills/coverage-preflight/SKILL.md
+  s_aec3b70e676052::t_2dd26c1724dd03 43
+.claude/skills/deep-review/SKILL.md
+  s_aec3b70e676052::t_19c83b27ac5df4 117,159
+.claude/skills/deep-review/references/rebuttals.md
+  s_aec3b70e676052::t_490fd8cf60316c 8
+.claude/skills/deep-review/scripts/preflight.sh
+  s_aec3b70e676052::t_09df259b8f5704 65
+.github/CODEOWNERS
+  s_285fc4d3645e63::t_377d0e6a50d3df 28
+.github/workflows/e2e.yaml
+  s_285fc4d3645e63::t_46cedf38ac7b34 69
+.github/workflows/sdk-ci.yaml
+  s_285fc4d3645e63::t_182557ab0d5a1f 12,21,79,112,177
+.github/workflows/sdk_publish.yaml
+  s_285fc4d3645e63::t_ddb8bd2690fc54 82,132,137,282,308,318,333,339,360,748
+.github/workflows/upgrade-tool-ci.yaml
+  s_285fc4d3645e63::t_2ca96a2aaa8234 10,20
+.licenserc.yaml
+  s_285fc4d3645e63::t_d02b577e8c6735 48
+AGENTS.md
+  s_285fc4d3645e63::t_b8fc983a46adac 17,74,78-79,98,213,523,541,545,565
+README.md
+  s_aec3b70e676052::t_380dfe2929f8d6 14-25,114,118
+docs/RELEASING.md
+  s_99e5c120850106::t_38425d6c968c92 12,34-35,92,104,133
+docs/VERSIONING.md
+  s_aec3b70e676052::t_b217b844c913b6 37,92,94,186-187
+docs/adr/0002-versioning-and-release-lines.md
+  s_285fc4d3645e63::t_020c07ed1381c5 23,73
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  s_285fc4d3645e63::t_87583d9b3df16d 42
+docs/adr/README.md
+  s_aec3b70e676052::t_22276d34bf6dc9 1
+e2e/e2e.ts
+  s_285fc4d3645e63::t_375929769b4dc3 8-9
+e2e/run.sh
+  s_285fc4d3645e63::t_3eba05c7955c67 8-10,12,17,30,33,40
+scripts/bundle-v0.sh
+  s_285fc4d3645e63::t_fc2b12b09c0218 11,83,109
+scripts/patch_coverage.py
+  s_285fc4d3645e63::t_f10ad2af67e559 46
+scripts/resolve-v0-tag.sh
+  s_285fc4d3645e63::t_eb33f2513eec42 8,37
+scripts/v0-publish-mode.sh
+  s_285fc4d3645e63::t_c9d21281ee380f 10,31,77,84,87,90
+sdk-python/DEVELOPMENT.md
+  s_aec3b70e676052::t_3682d1e167e0f1 68
+sdk-python/README.md
+  s_aec3b70e676052::t_9ae5d25eafac57 818
+sdk-python/src/daytona/_v0_root_names.py
+  s_aec3b70e676052::t_3dda2982e95b12 10
+sdk-python/tests/test_root_client.py
+  s_285fc4d3645e63::t_646fab7603cd61 713-714,722,845,854,863,869
+sdk-python/tests/test_v0_bundle.py
+  s_285fc4d3645e63::t_af4928a9a182f1 125
+sdk-typescript/DEVELOPMENT.md
+  s_aec3b70e676052::t_2dbb1b1966f0a3 98
+sdk-typescript/README.md
+  s_aec3b70e676052::t_7105df26da7d2e 749
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "936d4360482aefc5dec2a01443f0425883520c09",
+  "prompts": {},
+  "sessions": {
+    "s_285fc4d3645e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179966ffeCgtLq0AylvVHMy",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_95075aae613321": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5518546bffeoVG0PssL7UER9K",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_99e5c120850106": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5517996bffel0i7jbnk4QE4Xt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
