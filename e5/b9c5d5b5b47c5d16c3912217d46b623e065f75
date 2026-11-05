@@ -1,0 +1,14 @@
+.github/workflows/e2e.yaml
+  h_e7759ddd73fa65 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e5b9c5d5b5b47c5d16c3912217d46b623e065f75",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
