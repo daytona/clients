@@ -150,3 +150,24 @@ npm install && npm run typecheck && npm test && npm run build
 
 The live toolbox test requires `DAYTONA_SDKTS_TOOLBOX_URL` and skips when
 it is unset or the configured endpoint is unavailable.
+
+### Runtime compatibility
+
+`runtime-tests/` installs the packed package into Node (CommonJS and ESM),
+Bun, Deno, an esbuild CommonJS re-bundle, Vite (SSR and a browser bundle in
+headless Chromium), Next.js (Turbopack, webpack and `serverExternalPackages`),
+Nuxt, Remix, workerd (edge runtime), AWS Lambda and Azure Functions, and runs the
+same API, toolbox and fs-watch checks in each against a local mock API:
+
+```bash
+npm run build && npm run test:runtime
+ONLY=node-esm,bun npm run test:runtime   # a subset
+```
+
+Changes to the transports in `src/v2/http.ts` (fetch options, abort and
+timeout handling, `process` / `window` guards), the ESM / CommonJS build, or
+`package.json` `exports` / `imports` must keep it green. CI runs it on the
+v0-bundled package, one job per runtime
+(`.github/workflows/sdk-typescript-runtimes.yaml`). See
+[`runtime-tests/README.md`](./runtime-tests/README.md) for the external tools
+(bun, deno, `func`, Chromium) and how to add a runtime.

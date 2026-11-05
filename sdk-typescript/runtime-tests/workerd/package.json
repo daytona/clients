@@ -1,0 +1,12 @@
+{
+  "name": "runtime-test-workerd",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=browser --conditions=workerd,worker --external:node:* --outfile=dist/worker.js --log-level=warning"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "workerd": "^1.20260101.0"
+  }
+}

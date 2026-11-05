@@ -111,6 +111,7 @@
     "lint": "oxlint .",
     "pretest": "node --test scripts/gen-contract.test.mjs",
     "test": "jest",
+    "test:runtime": "bash runtime-tests/run-all.sh",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepublishOnly": "npm run clean && npm run build"
   },

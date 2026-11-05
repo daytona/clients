@@ -512,6 +512,13 @@ python3 scripts/changelog/assemble.py check --dir changelog.d
 scripts/gen-contract-types.sh --check     # only after touching contract/ or a generator
 ```
 
+TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
+bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a
+browser, against a local mock API; CI workflow `TypeScript runtimes`):
+`(cd sdk-typescript && npm run build && npm run test:runtime)`. Run it after
+touching the transports in `src/v2/http.ts`, the build, or `package.json`
+`exports` / `imports`; see `sdk-typescript/runtime-tests/README.md`.
+
 Before opening a PR, review the branch with `.claude/skills/deep-review` (adversarial, local-only,
 never posted).
 

@@ -272,7 +272,13 @@ function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error:
   return undefined
 }
 
-function isAbortError(error: unknown): error is DOMException | Error {
+/**
+ * Whether `error` is a fetch abort. Matched on the standard `name`, not on
+ * `instanceof DOMException`: fetch polyfills (Remix's `@remix-run/web-fetch`)
+ * reject with their own `Error` subclass, and a `DOMException` from another
+ * realm fails `instanceof` against this one.
+ */
+export function isAbortError(error: unknown): error is DOMException | Error {
   return errorName(error) === 'AbortError'
 }
 
@@ -895,7 +901,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(error.statusCode, error)
         throw error
       }
-      if (error instanceof DOMException && error.name === 'AbortError' && timeout.timedOut()) {
+      if (isAbortError(error) && timeout.timedOut()) {
         const timeoutError = new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
         finalize(timeoutError.statusCode, timeoutError)
         throw timeoutError
@@ -986,11 +992,43 @@ export function createHttpClient(baseURL: string, apiKey?: string, requestTimeou
   return createConfiguredHttpClient(baseURL, apiKey, requestTimeout, options)
 }
 
+let fetchCacheModeOverride: { readonly cache: 'no-store' } | null | undefined
+
+/**
+ * The `fetchOptions` axios' fetch adapter needs in this runtime, if any.
+ *
+ * axios 1.20 sends `cache: 'default'` on every fetch, which the workerd
+ * runtime rejects ("Unsupported cache mode: default") while accepting
+ * `no-store`. Probed once: only a runtime whose `Request` refuses `default` but
+ * takes `no-store` gets the override, so Node, Deno, Bun and browsers send
+ * requests unchanged.
+ */
+export function fetchCacheModeOptions(): { readonly cache: 'no-store' } | undefined {
+  if (fetchCacheModeOverride === undefined) {
+    const accepts = (cache: RequestCache): boolean => {
+      try {
+        new Request('http://localhost/', { cache })
+        return true
+      } catch {
+        return false
+      }
+    }
+    fetchCacheModeOverride = !accepts('default') && accepts('no-store') ? { cache: 'no-store' } : null
+  }
+  return fetchCacheModeOverride ?? undefined
+}
+
+/** Test seam: probe the runtime's `Request` again on the next client. */
+export function resetFetchCacheModeProbeForTests(): void {
+  fetchCacheModeOverride = undefined
+}
+
 function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTimeout?: number, options?: HttpClientOptions): AxiosInstance {
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
     timeout: requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS,
     headers: authHeaders(apiKey),
+    fetchOptions: fetchCacheModeOptions(),
   })
   credentialSafeDiagnostics(instance, () => ({ type: 'HttpClient' }))
   credentialSafeDiagnostics(instance.defaults, () => ({ timeout: instance.defaults.timeout }))
@@ -1211,7 +1249,7 @@ export class HttpTransport {
         } catch (error) {
           // The request deadline can fire while the token exchange is still
           // pending; that is the same timeout `send` maps below, not a raw abort.
-          if (error instanceof DOMException && error.name === 'AbortError' && timeout.timedOut()) {
+          if (isAbortError(error) && timeout.timedOut()) {
             throw new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
           }
           throw error
@@ -1299,12 +1337,12 @@ export class HttpTransport {
           finalize(error.statusCode, error)
           throw error
         }
-        if (error instanceof DOMException && error.name === 'AbortError' && timeout.timedOut()) {
+        if (isAbortError(error) && timeout.timedOut()) {
           const timeoutError = new TimeoutError('Operation timed out', 408, 'REQUEST_TIMEOUT', 'SDK')
           finalize(timeoutError.statusCode, timeoutError)
           throw timeoutError
         }
-        if (error instanceof DOMException && error.name === 'AbortError') {
+        if (isAbortError(error)) {
           finalize(undefined, error)
           throw error
         }
