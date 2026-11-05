@@ -20,6 +20,7 @@ on:
       - SDK CI
       - Secret scan
       - Tooling tests
+      - TypeScript runtimes
       - Upgrade tool CI
     types: [completed]
 
