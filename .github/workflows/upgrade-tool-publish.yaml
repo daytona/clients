@@ -173,13 +173,13 @@ jobs:
           uv build --out-dir "$RUNNER_TEMP/pypi"
           test -f "$RUNNER_TEMP/pypi/daytona_upgrade-${PYPI_VERSION}-py3-none-any.whl"
           python -m zipfile -l "$RUNNER_TEMP"/pypi/*.whl | grep 'daytona_upgrade/mapping.json' >/dev/null
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: upgrade-npm
           path: ${{ runner.temp }}/npm/
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: upgrade-pypi
           path: ${{ runner.temp }}/pypi/
