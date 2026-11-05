@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -193,6 +194,9 @@ func TestInstallSh_replacesInstalledBinaryAfterTheCheck(t *testing.T) {
 // $ErrorActionPreference afterwards.
 func installPs1(t *testing.T, installDir, asset string) (string, error) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake release binary is a shell script")
+	}
 	pwsh, err := exec.LookPath("pwsh")
 	if err != nil {
 		t.Skip("pwsh not on PATH")

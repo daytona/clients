@@ -180,4 +180,8 @@ func TestLoginKeyMintedUnderOverrideStaysWithThatOrigin(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, saved.requests, 1)
 	require.Empty(t, override.revoked)
+	require.Empty(t, saved.revoked, "the override key is not superseded through the saved URL")
+	cr, err = a.Store.LoadCredentials()
+	require.NoError(t, err)
+	require.Len(t, cr.Profiles[a.Profile.Name].WorkloadKeys, 2)
 }

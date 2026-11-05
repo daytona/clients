@@ -24,6 +24,9 @@ import (
 func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only string,
 	fetch func(ctx context.Context, c *api.Client, region string) (Page[T], error),
 	less func(a, b T) bool) (output.List[T], error) {
+	if callerErr := cerr.FromContext(ctx); callerErr != nil {
+		return output.List[T]{}, callerErr
+	}
 	targets := []gen.Region{}
 	if cat != nil {
 		if only != "" {

@@ -91,6 +91,17 @@ func TestFanOut_callerCancellationIsNotARegionFailure(t *testing.T) {
 	}
 }
 
+func TestFanOut_cancelledCallerIsNotReportedAsAnUnknownRegion(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cat := &Catalog{Regions: []gen.Region{{Id: "east", ApiBaseUrl: str("https://east.example")}}}
+	list, err := FanOut(ctx, api.New("https://home", "k", "t"), cat, "nope", func(context.Context, *api.Client, string) (Page[string], error) {
+		return Page[string]{}, nil
+	}, nil)
+	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
+	require.False(t, list.Incomplete)
+}
+
 func TestFanOut_callerDeadlineIsATimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()

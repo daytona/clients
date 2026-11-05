@@ -87,6 +87,18 @@ func TestRejectNulls_rejectsExplicitNulls(t *testing.T) {
 	}
 }
 
+// A flag overrides its --file field whatever the file key's capitalization.
+func TestSet_replacesCaseVariantsOfTheKey(t *testing.T) {
+	b := Body{"Timeout_Seconds": nil, "other": 1}
+	b.Set("timeout_seconds", 60)
+	if len(b) != 2 || b["timeout_seconds"] != 60 || b["other"] != 1 {
+		t.Fatalf("got %v", b)
+	}
+	if err := RejectNulls(b, "timeout_seconds"); err != nil {
+		t.Fatalf("the overridden null must not be rejected: %v", err)
+	}
+}
+
 // Decode matches keys case-insensitively, so the null guard must too.
 func TestRejectNulls_matchesKeysCaseInsensitively(t *testing.T) {
 	err := RejectNulls(Body{"Timeout_Seconds": nil}, "timeout_seconds")

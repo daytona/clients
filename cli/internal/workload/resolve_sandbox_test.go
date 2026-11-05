@@ -172,6 +172,28 @@ func TestResolveSandbox_surfacesCatalogFailureAfterHomeNotFound(t *testing.T) {
 	require.ErrorContains(t, err, "catalog down")
 }
 
+func TestResolveSandbox_catalogFailureKeepsItsHint(t *testing.T) {
+	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/regions" {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"code":"FORBIDDEN","message":"missing permission","source":"DAYTONA_API"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"code":"NOT_FOUND","message":"sandbox not found","source":"DAYTONA_API"}`))
+	}))
+	defer home.Close()
+
+	_, err := ResolveSandbox(context.Background(), api.New(home.URL, "k", "test"), NewCatalogCache(), "11111111-1111-1111-1111-111111111111")
+	var cause, got *cerr.Error
+	require.ErrorAs(t, err, &got)
+	_, catErr := NewCatalogCache().Fetch(context.Background(), api.New(home.URL, "k", "test"))
+	require.ErrorAs(t, catErr, &cause)
+	require.NotEmpty(t, cause.Hint)
+	require.Equal(t, cause.Hint, got.Hint)
+	require.Equal(t, cerr.ExitForbidden, got.Code)
+}
+
 func TestResolveSandbox_callerCancellationDuringProbeIsInterrupted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
