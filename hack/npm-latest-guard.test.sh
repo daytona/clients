@@ -95,8 +95,9 @@ publish @daytona/sdk 2.1.0 0.227.0 2.0.0 2.1.0
 expect fail "0.x cannot take latest above 2.1.0" "@daytona/sdk@2.1.0 is already published" check 0.228.0
 
 # Prereleases never block: while 2.x is prerelease-only on npm the guard alone
-# lets 0.x keep latest. sdk_publish.yaml closes that window with
-# DAYTONA_V0_CUTOVER, which refuses npm_tag latest on release branches.
+# lets 0.x keep latest, which is intended until the first stable 2.x release.
+# From then on sdk_publish.yaml refuses npm_tag latest on release/v0
+# (hack/stable-v2-release.sh).
 publish @daytona/sdk 0.227.0 0.227.0 2.0.0-alpha.4 2.0.0-rc.1
 expect pass "2.x prereleases alone do not block a 0.x latest" "" check 0.228.0
 
