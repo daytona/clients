@@ -103,7 +103,8 @@ class AsyncSandboxVolumesService:
     ) -> PullVolumeResult:
         """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
 
-        Zero does not wait: it submits a new request_id, or returns a known one's
+        ``volume_id`` is the attached volume's ``vol_`` ID or its UUID. Zero
+        does not wait: it submits a new request_id, or returns a known one's
         last outcome without retrying it; a timeout above zero retries pending,
         unavailable or rate-limited work. Expiry does not cancel work. Neither
         retries nor identities are automatic.

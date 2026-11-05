@@ -48,7 +48,10 @@ function assertId(value: string, name: string): void {
 export class SandboxVolumesService {
   constructor(private readonly transport: HttpTransport) {}
 
-  /** One submission/check only. Pending and errors never trigger automatic retries. */
+  /**
+   * One submission/check only. Pending and errors never trigger automatic retries.
+   * `volumeId` is the attached volume's `vol_` ID or its UUID.
+   */
   public async pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult> {
     assertId(volumeId, 'volumeId')
     assertId(options.requestId, 'requestId')
