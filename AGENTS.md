@@ -51,6 +51,31 @@ Java has no install step — Gradle resolves the SDK via composite build on firs
 If `nix develop` fails with a Nix daemon permission error, the Nix daemon isn't running.
 Start it (`sudo systemctl start nix-daemon` on systemd hosts) and retry.
 
+## Secret scanning
+
+Run `scripts/secret-scan.sh install` once per clone or worktree, before the
+first commit. It downloads the pinned, checksum-verified gitleaks into the
+clone's `.git/` (or uses one on `PATH` where no build is published) and points
+this worktree's `core.hooksPath` at `.githooks/`. Husky's hooks (`.husky/`,
+lint-staged) keep running behind the scan, whether `yarn install` ran before
+or after the install.
+
+- `pre-commit` scans the staged changes, `pre-push` the commits the remote
+  lacks, merge commits included (git 2.36+). The `gitleaks` check (workflow
+  `Secret scan`) runs the same scan on every pull request and on pushes to
+  `release/v0`. Rules: `.gitleaks.toml` (gitleaks defaults plus Daytona keys
+  and tokens).
+- Never bypass a block (`--no-verify`, editing the rules to fit). Remove the
+  secret; one that was pushed or shared anywhere is leaked and must be rotated.
+- A false positive (a spec example, a fixture) gets a `gitleaks:allow` comment
+  on that line or an exact-value `[[allowlists]]` entry with its reason, never
+  a file- or rule-wide one. Regenerated clients that change a spec example
+  need the new value allowlisted.
+- Patterns that must not be published go in `info/gitleaks-private.toml` under
+  `git rev-parse --git-common-dir`; never commit it.
+- Changing `scripts/secret-scan.sh`, `.githooks/` or `.gitleaks.toml`: run
+  `bash scripts/secret-scan_test.sh`.
+
 ## Common Commands
 
 ```bash

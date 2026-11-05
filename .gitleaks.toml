@@ -1,0 +1,58 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Secret-scanning rules for this repository, read by gitleaks
+# (https://github.com/gitleaks/gitleaks) in the pre-commit and pre-push hooks
+# and in the "Secret scan" workflow. Run it with `scripts/secret-scan.sh`, see
+# CONTRIBUTING.md.
+#
+# A finding that is not a secret (a test fixture, a documented example):
+#   - add `gitleaks:allow` in a comment on that line, or
+#   - add an [[allowlists]] entry below that names the file and the exact
+#     value, with a description that says why it is safe.
+# Never allowlist a whole file or a whole rule.
+
+title = "Daytona clients"
+
+[extend]
+# Start from the gitleaks default rule set (cloud provider keys, tokens,
+# private keys, generic high-entropy assignments, ...).
+useDefault = true
+
+# Daytona credentials. Keyword "dtn" pre-filters every rule.
+
+[[rules]]
+id = "daytona-api-key"
+description = "Daytona API key, organization key or sandbox token"
+regex = '''\b(dtn[ov]?_[a-f0-9]{32}(?:[a-f0-9]{32})?)\b'''
+secretGroup = 1
+keywords = ["dtn"]
+
+[[rules]]
+id = "daytona-invite-token"
+description = "Daytona organization invitation token"
+regex = '''\b(dtni_[A-Za-z0-9_-]{43})(?:[^A-Za-z0-9_-]|$)'''
+secretGroup = 1
+keywords = ["dtni_"]
+
+# Known non-secrets in the tree. Each entry matches exact values in one file.
+
+[[allowlists]]
+description = "Placeholder example values from the API spec, emitted by openapi-generator into the generated Go client (libs/ is the path in the repository's first commit)"
+condition = "AND"
+paths = ['''^(libs/)?api-client-go/api/openapi\.yaml$''']
+regexes = [
+  '''^api-key-xyz123$''',
+  '''^dtn_1234567890$''',
+  '''^jl6wb9z5o3eii$''',
+  '''^ul67qtv-jl6wb9z5o3eii-ljqt9qed6l$''',
+  '''^abc123def456ghi789jkl012mno345pqr678stu901vwx234yz$''',
+  '''^eyJhbGciOiJIUzI1NiIs\.\.\.$''',
+  '''^abchbGciOiJIUzI1NiIs\.\.\.$''',
+]
+
+[[allowlists]]
+description = "Published cross-language test key for the file URL signature vectors in the Python SDK tests"
+condition = "AND"
+paths = ['''^sdk-python/tests/test_file_url_signing\.py$''']
+regexes = ['''^testsigningkey1234567890abcdefgh$''']
