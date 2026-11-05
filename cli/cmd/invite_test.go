@@ -186,7 +186,7 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		t.Fatalf("show with a malformed token: %d %s (requests %d -> %d)", code, errb, before, len(f.requests))
 	}
 	out, _, code = runMgmt(t, f, d, "role", "list")
-	if code != 0 || mustJSON(t, out)["roles"] == nil {
+	if roles, ok := mustJSON(t, out)["items"].([]any); code != 0 || !ok || len(roles) == 0 {
 		t.Fatalf("roles: %d %s", code, out)
 	}
 }

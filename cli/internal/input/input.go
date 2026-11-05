@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -75,11 +76,15 @@ func (b Body) Require(key, flag string) error {
 	return nil
 }
 
+// RejectNulls refuses an explicit null for any of fields. Keys match
+// case-insensitively, as Decode does: `"Labels": null` would otherwise pass
+// here and then decode into the `labels` field as omitted.
 func RejectNulls(b Body, fields ...string) error {
 	for _, field := range fields {
-		value, ok := b[field]
-		if ok && value == nil {
-			return cerr.Usage("%q is not nullable; omit it to keep the current value", field)
+		for key, value := range b {
+			if value == nil && strings.EqualFold(key, field) {
+				return cerr.Usage("%q is not nullable; omit it to keep the current value", key)
+			}
 		}
 	}
 	return nil

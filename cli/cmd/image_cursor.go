@@ -20,7 +20,7 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 	}
 	cat = cat.ForListCursor(source.home.BaseURL, request.cursor)
 	scope := newRegionalPageCursor(request.cursor, cat.ListRegionKeys(source.home.BaseURL, source.region))
-	raw := regions.FanOut(ctx, source.home, cat, source.region,
+	raw, err := regions.FanOut(ctx, source.home, cat, source.region,
 		func(ctx context.Context, client *apiinternal.Client, currentRegion string) (regions.Page[api.ImageListItem], error) {
 			state := requestedSandboxCursor(currentRegion, scope.requested)
 			if state.done {
@@ -61,6 +61,9 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			return a.CreatedAt.After(b.CreatedAt)
 		},
 	)
+	if err != nil {
+		return output.List[api.ImageListItem]{}, err
+	}
 	raw.Items = regions.Unique(raw.Items, func(item api.ImageListItem) string { return item.Id })
 	return trimImagePage(raw, scope, request.limit), nil
 }

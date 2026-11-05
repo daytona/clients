@@ -138,7 +138,7 @@ func TestFanOutPartial(t *testing.T) {
 	}}
 	home := api.New(homeServer.URL, "k", "t")
 	type item struct{ ID string }
-	l := FanOut(context.Background(), home, cat, "", func(ctx context.Context, c *api.Client, region string) (Page[item], error) {
+	l, _ := FanOut(context.Background(), home, cat, "", func(ctx context.Context, c *api.Client, region string) (Page[item], error) {
 		var resp struct {
 			Sandboxes  []item `json:"sandboxes"`
 			NextCursor string `json:"next_cursor"`
@@ -161,7 +161,7 @@ func TestFanOutPartial(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Unknown --region
-	l2 := FanOut(context.Background(), home, cat, "nope", func(context.Context, *api.Client, string) (Page[item], error) { return Page[item]{}, nil }, nil)
+	l2, _ := FanOut(context.Background(), home, cat, "nope", func(context.Context, *api.Client, string) (Page[item], error) { return Page[item]{}, nil }, nil)
 	if !l2.Incomplete {
 		t.Fatal("unknown region must be incomplete")
 	}

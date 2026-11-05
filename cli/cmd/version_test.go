@@ -7,6 +7,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -228,4 +231,40 @@ func versionConfigFixture(issuer, version, buildSHA string, builtAt any) map[str
 	cfg["build_sha"] = buildSHA
 	cfg["built_at"] = builtAt
 	return cfg
+}
+
+// A malformed config.yaml must not stop the CLI from reporting its version.
+func TestVersion_printsCLIVersionWhenConfigIsMalformed(t *testing.T) {
+	d := cfgDir(t)
+	if err := os.WriteFile(filepath.Join(d, "config.yaml"), []byte("profiles: [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := run(t, d, nil, "version")
+	if code != 0 || !has(stdout, "daytona "+app.Version) || !has(stderr, "config.yaml") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, _, code = run(t, d, nil, "-o", "json", "version")
+	if code != 0 || mustJSON(t, stdout)["version"] != app.Version {
+		t.Fatalf("json: code=%d stdout=%q", code, stdout)
+	}
+	if _, _, code := run(t, d, nil, "-o", "bogus", "version"); code != cerr.ExitUsage {
+		t.Fatalf("an invalid --output stays a usage error: %d", code)
+	}
+	if _, _, code := run(t, d, nil, "org", "list"); code == 0 {
+		t.Fatal("other commands still fail on a malformed config")
+	}
+}
+
+// --version / -v print the CLI version offline, before config loading.
+func TestRootVersionFlags(t *testing.T) {
+	d := cfgDir(t)
+	if err := os.WriteFile(filepath.Join(d, "config.yaml"), []byte("profiles: [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, flag := range []string{"--version", "-v"} {
+		stdout, stderr, code := run(t, d, nil, flag)
+		if code != 0 || strings.TrimSpace(stdout) != "daytona "+app.Version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")" {
+			t.Fatalf("%s: code=%d stdout=%q stderr=%q", flag, code, stdout, stderr)
+		}
+	}
 }

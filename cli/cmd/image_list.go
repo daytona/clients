@@ -9,6 +9,7 @@ import (
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/regions"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -34,6 +35,11 @@ func newImageListCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
+			anonymous, err := parseImageAnonymousFilter(flags.anonymous)
+			if err != nil {
+				return err
+			}
+			flags.anonymous = anonymous
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -66,7 +72,7 @@ func newImageListCommand() *cobra.Command {
 	}
 	addPageFlags(cmd, &flags.pageFlags)
 	cmd.Flags().StringVar(&flags.name, "name", "", "filter by exact image name")
-	cmd.Flags().StringVar(&flags.anonymous, "anonymous", "", "filter by anonymous status: true|false|any")
+	cmd.Flags().StringVar(&flags.anonymous, "anonymous", "", "true lists only anonymous images, false only named ones (the default)")
 	cmd.Flags().StringVar(&flags.platform, "platform", "", "platform images: true (only platform images)|false (only the project's, the default)|any (both)")
 	cmd.Flags().StringVar(&flags.sandboxID, "sandbox", "", "filter captures by source sandbox id")
 	return cmd
@@ -74,4 +80,17 @@ func newImageListCommand() *cobra.Command {
 
 func imageKV(image gen.Image) [][2]string {
 	return [][2]string{{"id", image.Id}, {"name", formatPtr(image.Name)}, {"status", image.Status}, {"origin", image.Origin}, {"retention", string(image.Retention)}, {"expires_at", formatTimePtr(image.ExpiresAt)}, {"class", image.Class}, {"region", image.RegionId}, {"available_in", strings.Join(image.RegionIds, ",")}, {"source", jsonCell(image.Source)}}
+}
+
+// parseImageAnonymousFilter normalizes --anonymous to the API's boolean. The
+// API has no "both" value (omitting it means false), so anything else is a
+// usage error rather than a request the API rejects or misreads.
+func parseImageAnonymousFilter(value string) (string, error) {
+	v := strings.ToLower(strings.TrimSpace(value))
+	switch v {
+	case "", "true", "false":
+		return v, nil
+	}
+	return "", cerr.Usage("--anonymous wants true or false, got %q", value).
+		WithHint("omit it to list named images; run the list once with --anonymous true for anonymous ones")
 }

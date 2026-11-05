@@ -87,6 +87,20 @@ func TestRejectNulls_rejectsExplicitNulls(t *testing.T) {
 	}
 }
 
+// Decode matches keys case-insensitively, so the null guard must too.
+func TestRejectNulls_matchesKeysCaseInsensitively(t *testing.T) {
+	err := RejectNulls(Body{"Timeout_Seconds": nil}, "timeout_seconds")
+	if err == nil || !strings.Contains(err.Error(), "Timeout_Seconds") {
+		t.Fatalf("expected null rejection, got %v", err)
+	}
+	type req struct {
+		TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
+	}
+	if _, err := Decode[req](Body{"Timeout_Seconds": nil}); err != nil {
+		t.Fatalf("Decode accepts the case-folded key (why the guard must match it): %v", err)
+	}
+}
+
 func TestKV(t *testing.T) {
 	m, err := KV([]string{"A=1", "B=x=y"}, "--env")
 	if err != nil || m["A"] != "1" || m["B"] != "x=y" {

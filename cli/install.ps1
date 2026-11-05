@@ -4,6 +4,10 @@
 #
 # Downloads the release binary for this architecture from GitHub Releases,
 # verifies it against the release's SHA256SUMS, and installs daytona.exe.
+#
+# `irm | iex` runs this text in the caller's session: the body is a script
+# block so its variables and $ErrorActionPreference stay out of that session.
+& {
 $ErrorActionPreference = "Stop"
 
 $Repo = if ($env:DAYTONA_RELEASE_REPO) { $env:DAYTONA_RELEASE_REPO } else { "daytona/clients" }
@@ -30,6 +34,7 @@ $Version = $Version.TrimStart("v")
 $base = "https://github.com/$Repo/releases/download/v$Version"
 $asset = "daytona-windows-$arch.exe"
 $tmp = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("daytona-" + [guid]::NewGuid()))
+$staged = $null
 try {
   Write-Host "downloading daytona $Version (windows/$arch)"
 	Invoke-WebRequest "$base/$asset" -UseBasicParsing -OutFile (Join-Path $tmp $asset)
@@ -41,17 +46,24 @@ try {
   if ($expected -ne $actual) { throw "checksum mismatch for $asset" }
 
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-  Move-Item -Force (Join-Path $tmp $asset) (Join-Path $InstallDir "daytona.exe")
-  Write-Host "installed $InstallDir\daytona.exe"
+  $target = Join-Path $InstallDir "daytona.exe"
+  # Check that the new executable runs before it replaces the installed one.
+  $staged = Join-Path $InstallDir (".daytona.new." + [guid]::NewGuid() + ".exe")
+  Move-Item -Force (Join-Path $tmp $asset) $staged
+  & $staged version
+  if ($LASTEXITCODE -ne 0) {
+    throw "the downloaded daytona $Version failed verification with exit code $LASTEXITCODE; $target was not changed"
+  }
+  Move-Item -Force $staged $target
+  $staged = $null
+  Write-Host "installed $target"
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
   if (($userPath -split ";") -notcontains $InstallDir) {
     [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
     Write-Host "added $InstallDir to your user PATH (open a new terminal)"
   }
-  & (Join-Path $InstallDir "daytona.exe") version
-  if ($LASTEXITCODE -ne 0) {
-    throw "installed binary failed verification with exit code $LASTEXITCODE"
-  }
 } finally {
   Remove-Item -Recurse -Force $tmp
+  if ($staged -and (Test-Path $staged)) { Remove-Item -Force $staged }
+}
 }

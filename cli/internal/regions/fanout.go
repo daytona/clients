@@ -10,6 +10,7 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 )
 
@@ -17,10 +18,12 @@ import (
 // ForListCursor preserves independent alias streams. The first region
 // for a URL names that endpoint's cursor and errors. The `only` argument
 // restricts the selection to one region.
-// Failed API endpoints produce incomplete results, which PartialError maps to exit 7.
+// Failed API endpoints produce incomplete results, which PartialError maps to
+// exit 7. A cancelled or expired ctx is the caller's, not an endpoint's: it is
+// returned as the error (exit 130 or 8) instead of a partial list.
 func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only string,
 	fetch func(ctx context.Context, c *api.Client, region string) (Page[T], error),
-	less func(a, b T) bool) output.List[T] {
+	less func(a, b T) bool) (output.List[T], error) {
 	targets := []gen.Region{}
 	if cat != nil {
 		if only != "" {
@@ -36,7 +39,7 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 					targets = append(targets, *r)
 				}
 			} else {
-				return output.List[T]{Incomplete: true, Errors: []output.RegionError{{Region: only, Message: "unknown region (see `daytona region list`)"}}}
+				return output.List[T]{Incomplete: true, Errors: []output.RegionError{{Region: only, Message: "unknown region (see `daytona region list`)"}}}, nil
 			}
 		} else {
 			seen := map[string]bool{}
@@ -54,6 +57,9 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 	}
 	if len(targets) == 0 {
 		p, err := fetch(ctx, home, only)
+		if callerErr := cerr.FromContext(ctx); callerErr != nil {
+			return output.List[T]{}, callerErr
+		}
 		l := output.List[T]{Items: p.Items, NextCursor: p.NextCursor}
 		if err != nil {
 			l.Incomplete = true
@@ -62,7 +68,7 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		if l.Items == nil {
 			l.Items = []T{}
 		}
-		return l
+		return l, nil
 	}
 
 	type res struct {
@@ -82,6 +88,9 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 		}(i, r)
 	}
 	wg.Wait()
+	if callerErr := cerr.FromContext(ctx); callerErr != nil {
+		return output.List[T]{}, callerErr
+	}
 
 	l := output.List[T]{Items: []T{}}
 	for _, r := range results {
@@ -101,7 +110,7 @@ func FanOut[T any](ctx context.Context, home *api.Client, cat *Catalog, only str
 	if less != nil {
 		sort.SliceStable(l.Items, func(i, j int) bool { return less(l.Items[i], l.Items[j]) })
 	}
-	return l
+	return l, nil
 }
 
 // Unique keeps the first item for each ID, preserving merged sort order.

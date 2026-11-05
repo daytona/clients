@@ -234,6 +234,17 @@ func TestSandboxUpdate_rejectsNullLifecycleWithoutOverride(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
+func TestSandboxUpdate_rejectsCaseFoldedNullLifecycleField(t *testing.T) {
+	bodyPath := filepath.Join(t.TempDir(), "update.json")
+	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":{"Timeout_Seconds":null}}`), 0o600))
+	_, _, err := runCLI(t, []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--file", bodyPath}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "not nullable")
+}
+
 func TestSandboxUpdate_lifecycleFlagsOverrideInvalidFileLifecycle(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "update.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"lifecycle_policy":null}`), 0o600))

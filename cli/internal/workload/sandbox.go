@@ -48,7 +48,13 @@ func ResolveSandbox(ctx context.Context, home *api.Client, cache *CatalogCache, 
 
 	cat, catErr := cache.Fetch(ctx, home)
 	if catErr != nil {
-		return ResolvedSandbox{}, err
+		// Not found at home is not conclusive: the sandbox may live in a
+		// region the catalog would have named.
+		return ResolvedSandbox{}, &cerr.Error{
+			Code: cerr.ExitCode(catErr),
+			Msg:  fmt.Sprintf("sandbox %s is not in the home region, and the region catalog could not be read to search the others: %v", id, catErr),
+			Err:  errors.Join(catErr, err),
+		}
 	}
 	if cat == nil {
 		return ResolvedSandbox{}, err
@@ -103,6 +109,11 @@ func ResolveSandbox(ctx context.Context, home *api.Client, cache *CatalogCache, 
 		})
 	}
 	_ = g.Wait()
+	// Probes cancelled by probeCtx (a hard error, a second match) are ignored
+	// above; the caller's own cancellation must surface.
+	if callerErr := cerr.FromContext(ctx); callerErr != nil {
+		return ResolvedSandbox{}, callerErr
+	}
 	if hardErr != nil {
 		return ResolvedSandbox{}, hardErr
 	}

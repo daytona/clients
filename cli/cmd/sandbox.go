@@ -117,7 +117,7 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 	}
 	cat = cat.ForListCursor(source.home.BaseURL, page.cursor)
 	scope := newRegionalPageCursor(page.cursor, cat.ListRegionKeys(source.home.BaseURL, source.region))
-	raw := regions.FanOut(ctx, source.home, cat, source.region,
+	raw, err := regions.FanOut(ctx, source.home, cat, source.region,
 		func(ctx context.Context, client *api.Client, currentRegion string) (regions.Page[gen.SandboxListItem], error) {
 			state := requestedSandboxCursor(currentRegion, scope.requested)
 			if state.done {
@@ -149,6 +149,9 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 			return a.CreatedAt.After(*b.CreatedAt)
 		},
 	)
+	if err != nil {
+		return output.List[gen.SandboxListItem]{}, err
+	}
 	raw.Items = regions.Unique(raw.Items, func(item gen.SandboxListItem) string { return item.Id })
 	return trimSandboxPage(raw, scope, page.limit), nil
 }

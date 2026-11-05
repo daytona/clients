@@ -80,6 +80,29 @@ func TestOrgLimits(t *testing.T) {
 	}
 }
 
+// The JSON/YAML output is the wire body: an int64 limit past 2^53 stays exact.
+func TestOrgLimitsPreservesLargeIntegers(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	large := int64(9007199254740993) // 2^53 + 1: float64 rounds it to ...992
+	fixture := limitsFixture()
+	fixture["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5, Limit: &large},
+		Snapshots: gen.UsageLimit{Usage: 7},
+	}
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
+	f.on("GET", "/api-keys/current", 401, map[string]any{"code": "UNAUTHORIZED", "message": "unauthorized", "source": "DAYTONA_API"})
+	for _, format := range []string{"json", "yaml"} {
+		out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", format, "--org", testOrgA, "org", "limits")
+		if code != 0 {
+			t.Fatalf("%s: %d %s", format, code, errb)
+		}
+		if !has(out, "9007199254740993") {
+			t.Fatalf("%s output rounded the limit:\n%s", format, out)
+		}
+	}
+}
+
 // An API key's limits read carries no `members` group: the table renders
 // every other limit and no Members row.
 func TestOrgLimitsWithoutMembers(t *testing.T) {
