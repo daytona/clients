@@ -304,13 +304,6 @@ jobs:
             echo "npm_dist_tag=$npm_dist_tag"
             echo "cli=$cli"
           } >> "$GITHUB_OUTPUT"
-      # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
-      # scripts/v0-sdk-version, resolved once here so the Python and npm builds bundle
-      # the same release. `v0_tag` overrides the pin for testing only. Only
-      # fetched, never run, here; the build jobs copy it in with
-      # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
-      # the code) fails here, so a package whose d.v0 can never work is never
-      # published.
       # The build jobs and the snapshot below address the SDKs as sdk-python/
       # and sdk-typescript/; a source_ref from before that layout is refused
       # here with a clear message instead of failing in a later step.
@@ -321,6 +314,13 @@ jobs:
             echo "::error::source_ref uses the old python/ and typescript/ layout; rebase it onto main before publishing"
             exit 1
           fi
+      # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
+      # scripts/v0-sdk-version, resolved once here so the Python and npm builds bundle
+      # the same release. `v0_tag` overrides the pin for testing only. Only
+      # fetched, never run, here; the build jobs copy it in with
+      # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
+      # the code) fails here, so a package whose d.v0 can never work is never
+      # published.
       - id: v0
         name: Resolve and fetch the pinned v0 namespace release
         env:
