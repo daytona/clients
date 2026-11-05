@@ -315,6 +315,7 @@ export class ProcessNotFoundError extends NotFoundError {}
 export class ProcessStartFailedError extends BadRequestError {}
 export class ProcessTerminalError extends ConflictError {}
 export class ProcessExecutionTimeoutError extends RequestTimeoutError {}
+export class ProcessKillIncompleteError extends RequestTimeoutError {}
 export class NameConflictError extends ConflictError {}
 export class InvalidCursorError extends BadRequestError {}
 export class CursorExpiredError extends ConflictError {}
@@ -425,6 +426,7 @@ export const DAEMON_ERROR_CLASS: Record<DaemonErrorCode, typeof DaytonaError> = 
   PROCESS_START_FAILED: ProcessStartFailedError,
   PROCESS_TERMINAL: ProcessTerminalError,
   PROCESS_EXECUTION_TIMEOUT: ProcessExecutionTimeoutError,
+  PROCESS_KILL_INCOMPLETE: ProcessKillIncompleteError,
   NAME_CONFLICT: NameConflictError,
   INVALID_CURSOR: InvalidCursorError,
   CURSOR_EXPIRED: CursorExpiredError,
@@ -768,6 +770,7 @@ for (const [key, errorClass] of [
   ['ProcessStartFailedError', ProcessStartFailedError],
   ['ProcessTerminalError', ProcessTerminalError],
   ['ProcessExecutionTimeoutError', ProcessExecutionTimeoutError],
+  ['ProcessKillIncompleteError', ProcessKillIncompleteError],
   ['NameConflictError', NameConflictError],
   ['InvalidCursorError', InvalidCursorError],
   ['CursorExpiredError', CursorExpiredError],
