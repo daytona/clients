@@ -108,6 +108,8 @@ ROOT_EXPORTS = [
     "CursorExpiredError",
     "DISABLED",
     "SIGNED_FILE_MAX_TTL_SECONDS",
+    "PREVIEW_WARNING_SKIP_HEADER",
+    "PREVIEW_WARNING_SKIP_HEADER_VALUE",
     "NAME_LABEL",
     "idempotency_key_for_name",
     "DaytonaAuthenticationError",

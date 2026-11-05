@@ -58,7 +58,7 @@ export {
 } from './ComputerUseNamespaces.js'
 export { LspServer, LspService } from './Lsp.js'
 export { LspServer as LspServerV2 } from './Lsp.js'
-export { PortsService } from './Ports.js'
+export { PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, PortsService } from './Ports.js'
 export { DockerService } from './Docker.js'
 export type { DockerOwner, DockerState, DockerStatus, DockerWaitOptions } from './Docker.js'
 export { ProcessHandle, ProcessService, PtyService } from './Process.js'

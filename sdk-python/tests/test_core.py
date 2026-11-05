@@ -2850,6 +2850,26 @@ async def test_private_preview_link_fetches_preview_token_without_returning_api_
     assert api.specs[1].path == "/sandboxes/sbx/ports/8080/preview-url"
 
 
+def test_preview_warning_skip_header_constants_are_exported_from_v2():
+    import daytona
+    import daytona.v2
+    from daytona.v2 import PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE
+    from daytona.v2 import ports as ports_module
+    from daytona.v2._sync import ports as sync_ports_module
+
+    assert PREVIEW_WARNING_SKIP_HEADER == "X-Daytona-Skip-Preview-Warning"
+    assert PREVIEW_WARNING_SKIP_HEADER_VALUE == "true"
+    assert ports_module.PREVIEW_WARNING_SKIP_HEADER is PREVIEW_WARNING_SKIP_HEADER
+    assert ports_module.PREVIEW_WARNING_SKIP_HEADER_VALUE is PREVIEW_WARNING_SKIP_HEADER_VALUE
+    assert sync_ports_module.PREVIEW_WARNING_SKIP_HEADER is PREVIEW_WARNING_SKIP_HEADER
+    assert sync_ports_module.PREVIEW_WARNING_SKIP_HEADER_VALUE is PREVIEW_WARNING_SKIP_HEADER_VALUE
+    assert {"PREVIEW_WARNING_SKIP_HEADER", "PREVIEW_WARNING_SKIP_HEADER_VALUE"} <= set(daytona.v2.__all__)
+    for name in ("PREVIEW_WARNING_SKIP_HEADER", "PREVIEW_WARNING_SKIP_HEADER_VALUE"):
+        assert name not in daytona.__all__
+        with pytest.raises(ImportError, match=f"from daytona.v2 import {name}`"):
+            getattr(daytona, name)
+
+
 @pytest.mark.anyio
 async def test_get_preview_link_creates_private_endpoint_before_fetching_token():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))

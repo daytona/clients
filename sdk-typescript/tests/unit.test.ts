@@ -2853,6 +2853,17 @@ describe('V2 model', () => {
     expect(get.mock.calls[0]?.[0]).toBe('/sandboxes/sbx%21%27%28%29%2A')
   })
 
+  it('exports the preview warning skip header constants from the v2 namespace only', async () => {
+    const ports = await import('../src/v2/Ports')
+    const root = await import('../src/index')
+    expect(publicSdk.PREVIEW_WARNING_SKIP_HEADER).toBe('X-Daytona-Skip-Preview-Warning')
+    expect(publicSdk.PREVIEW_WARNING_SKIP_HEADER_VALUE).toBe('true')
+    expect(ports.PREVIEW_WARNING_SKIP_HEADER).toBe(publicSdk.PREVIEW_WARNING_SKIP_HEADER)
+    expect(ports.PREVIEW_WARNING_SKIP_HEADER_VALUE).toBe(publicSdk.PREVIEW_WARNING_SKIP_HEADER_VALUE)
+    expect('PREVIEW_WARNING_SKIP_HEADER' in root).toBe(false)
+    expect('PREVIEW_WARNING_SKIP_HEADER_VALUE' in root).toBe(false)
+  })
+
   it('mints a ports-scoped sandbox token for private preview links when a key is present', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)

@@ -24,6 +24,11 @@ from ._transport import AsyncTransport
 from .errors import create_error
 from .types import ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink
 
+# Request header (and its value) that skips the preview warning page. Send it
+# when a headless browser or another non-interactive client opens a preview URL.
+PREVIEW_WARNING_SKIP_HEADER = "X-Daytona-Skip-Preview-Warning"
+PREVIEW_WARNING_SKIP_HEADER_VALUE = "true"
+
 _JWT_SEGMENT = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
