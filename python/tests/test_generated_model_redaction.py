@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
 import json
 import pkgutil
@@ -23,6 +24,8 @@ from daytona.v2._gen.toolbox.models.clone_request import CloneRequest
 
 ROOT = Path(__file__).resolve().parents[1]
 SECRET = "s3cr3t-credential-value"
+PREVIEW_URL = "https://8080-sbx.example.test/"
+REPO_URL = "https://git.example.test/repo.git"
 
 
 def _generated_models() -> list[type[BaseModel]]:
@@ -44,9 +47,9 @@ def _generated_models() -> list[type[BaseModel]]:
 @pytest.mark.parametrize(
     "model",
     [
-        PreviewUrl(token=SECRET, url="https://8080-sbx.example.test/"),
+        PreviewUrl(token=SECRET, url=PREVIEW_URL),
         LookupInvitationRequest(token=SECRET),
-        CloneRequest(url="https://git.example.test/repo.git", path="/w", password=SECRET),
+        CloneRequest(url=REPO_URL, path="/w", password=SECRET),
     ],
     ids=lambda model: type(model).__name__,
 )
@@ -61,11 +64,17 @@ def test_diagnostics_redact_credentials_but_serialization_keeps_them(model: Base
 
 
 def test_redaction_keeps_other_fields_and_missing_credentials_visible() -> None:
-    preview = PreviewUrl(token=SECRET, url="https://8080-sbx.example.test/")
-    clone = CloneRequest(url="https://git.example.test/repo.git", path="/w")
+    preview = PreviewUrl(token=SECRET, url=PREVIEW_URL)
+    clone = CloneRequest(url=REPO_URL, path="/w")
 
-    assert "https://8080-sbx.example.test/" in preview.to_str()
-    assert "'password': None" in clone.to_str()
+    assert ast.literal_eval(preview.to_str()) == {
+        "token": "<redacted>",
+        "url": PREVIEW_URL,
+        "additional_properties": {},
+    }
+    shown = ast.literal_eval(clone.to_str())
+    assert shown["url"] == REPO_URL
+    assert shown["password"] is None
 
 
 def test_flattened_all_of_credentials_are_redacted() -> None:
