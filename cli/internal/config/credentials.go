@@ -45,6 +45,9 @@ type PlatformToken struct {
 	ProjectID string    `yaml:"project_id"`
 	Token     string    `yaml:"token"`
 	ExpiresAt time.Time `yaml:"expires_at"`
+	// The API that minted the token; it is only ever sent back there.
+	// Entries without it (written by older releases) are not reused.
+	APIURL string `yaml:"api_url,omitempty"`
 }
 
 type Credentials struct {

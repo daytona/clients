@@ -268,6 +268,11 @@ manually supplied credentials, other profiles' keys, or keys from other APIs.
 Static-credential exchanges are not revoked on logout: their source credential is
 separate from the login being signed out and may not be stored. Keys no longer
 tracked after replacement with `login --token` are not revoked by logout.
+`daytona profile delete` performs the same revocation for the deleted profile.
+
+A cached platform token is sent only to the API that issued it: with
+`--api-url` (or `DAYTONA_V2_API_URL` / `DAYTONA_API_URL`) pointing at another
+API, the CLI exchanges a token there instead.
 
 Environment: `DAYTONA_API_KEY`, `DAYTONA_PROFILE`,
 `DAYTONA_ORG`, `DAYTONA_PROJECT`, `DAYTONA_REGION`, `DAYTONA_YES`,

@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"strings"
 
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -45,7 +46,10 @@ Examples:
 		GroupID: GroupAuth, Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
-			if token != "" {
+			if cmd.Flags().Changed("token") {
+				if strings.TrimSpace(token) == "" {
+					return cerr.Usage("--token is empty; pass the credential value, or omit --token to sign in interactively")
+				}
 				return loginToken(cmd.Context(), a, token)
 			}
 			if device && browser {
