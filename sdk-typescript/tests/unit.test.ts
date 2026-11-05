@@ -13,7 +13,7 @@ import { createServer, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import * as otelApi from '@opentelemetry/api'
 import { trace } from '@opentelemetry/api'
-import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider as SdkTracerProvider } from '@opentelemetry/sdk-trace'
 import * as ts from 'typescript'
 import { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import * as publicSdk from '../src/v2/index'
@@ -7092,7 +7092,7 @@ describe('toolbox service request shaping', () => {
   it('uses a caller-provided otelApi module without resolving the peer itself', async () => {
     const otel = otelApi
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     jest.useRealTimers()
     ;(globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<never> }).__DAYTONA_OTEL_IMPORT__ = async () => {
@@ -7119,7 +7119,7 @@ describe('toolbox service request shaping', () => {
     const previous = process.env.DAYTONA_OTEL_ENABLED
     ;(globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<unknown> }).__DAYTONA_OTEL_IMPORT__ = async () => await import('@opentelemetry/api')
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     try {
       process.env.DAYTONA_OTEL_ENABLED = '  TRUE  '
@@ -7603,7 +7603,7 @@ describe('toolbox service request shaping', () => {
   })
 
   it('creates spans and injects trace headers only when otel is enabled', async () => {
-    const provider = new BasicTracerProvider()
+    const provider = new SdkTracerProvider()
     ;(globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<unknown> }).__DAYTONA_OTEL_IMPORT__ = async () => await import('@opentelemetry/api')
     trace.setGlobalTracerProvider(provider)
 
@@ -7631,7 +7631,7 @@ describe('toolbox service request shaping', () => {
 
   it('uses the static /sandboxes/search route template for search spans', async () => {
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     ;(globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<unknown> }).__DAYTONA_OTEL_IMPORT__ = async () => await import('@opentelemetry/api')
     trace.setGlobalTracerProvider(provider)
 
@@ -7654,7 +7654,7 @@ describe('toolbox service request shaping', () => {
 
   it('ignores an opaque base prefix and templates operation ids in fetch spans', async () => {
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     ;(globalThis as typeof globalThis & { __DAYTONA_OTEL_IMPORT__?: () => Promise<unknown> }).__DAYTONA_OTEL_IMPORT__ = async () => await import('@opentelemetry/api')
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
@@ -7678,7 +7678,7 @@ describe('toolbox service request shaping', () => {
   it('finishes aborted fetch spans with ERROR status', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
     globalThis.fetch = jest.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
@@ -7708,7 +7708,7 @@ describe('toolbox service request shaping', () => {
   it('keeps a streamed fetch span open until the body settles and marks read failures ERROR', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
     // Error only on the SECOND pull, i.e. after the caller started reading,
@@ -7745,7 +7745,7 @@ describe('toolbox service request shaping', () => {
   it('marks a 4xx span ERROR even when the caller disabled checkStatus', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
     globalThis.fetch = jest.fn(async () => new Response('{"code":"NOT_FOUND"}', { status: 404 })) as never
@@ -7768,7 +7768,7 @@ describe('toolbox service request shaping', () => {
   it('ignores an opaque API base prefix while retaining the sandbox id attribute', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     try {
       const client = withApiUrl('https://api.example/api/v2', () => new Daytona({ apiKey: 'key', otelEnabled: true, otelApi }))
@@ -7795,7 +7795,7 @@ describe('toolbox service request shaping', () => {
   it('finishes a streamed fetch span OK once the body is fully read', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
     globalThis.fetch = jest.fn(async () => new Response('whole body', { status: 200 })) as never
@@ -7816,7 +7816,7 @@ describe('toolbox service request shaping', () => {
   it('ignores an opaque base prefix and templates operation ids in axios spans', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     try {
       const transport = new HttpTransport('https://sandbox.example/sandbox-api/sbx', 'key', undefined, { otelEnabled: true, otelApi })
@@ -7843,7 +7843,7 @@ describe('toolbox service request shaping', () => {
     jest.useRealTimers()
     const otel = otelApi
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     try {
       const client = new Daytona({ apiKey: 'key', otelEnabled: true, otelApi: otel })
@@ -7868,7 +7868,7 @@ describe('toolbox service request shaping', () => {
   it('finishes auth-token spans on network failures', async () => {
     jest.useRealTimers()
     const exporter = new InMemorySpanExporter()
-    const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] })
+    const provider = new SdkTracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] })
     trace.setGlobalTracerProvider(provider)
     const originalFetch = globalThis.fetch
     let attempts = 0
