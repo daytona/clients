@@ -136,12 +136,16 @@ echo three >chain.txt
 git add chain.txt
 git commit -q -m "self-linked hooks" || fail "commit with self-linked hooks failed"
 git push -q origin main:refs/heads/self-linked 2>"$tmp/out" || fail "push with self-linked hooks failed: $(cat "$tmp/out")"
-git push -q origin :refs/heads/self-linked 2>/dev/null
+git push -q origin :refs/heads/self-linked 2>"$tmp/out" || fail "deleting the self-linked branch failed: $(cat "$tmp/out")"
 rm .git/hooks/pre-commit .git/hooks/pre-push
-cp .githooks/pre-push .git/hooks/pre-push
-[ -z "$(scripts/secret-scan.sh chained-hook pre-push)" ] || fail "a copy of the wrapper in .git/hooks chains the wrapper to itself"
+# A copy of an older wrapper differs from this one but chains the same way.
+{ cat .githooks/pre-push; echo "# an older version"; } >.git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+[ -z "$(scripts/secret-scan.sh chained-hook pre-push)" ] || fail "a copy of an older wrapper in .git/hooks is chained"
+git push -q origin main:refs/heads/stale-copy 2>"$tmp/out" || fail "push with a stale wrapper copy failed: $(cat "$tmp/out")"
+git push -q origin :refs/heads/stale-copy 2>"$tmp/out" || fail "deleting the stale-copy branch failed: $(cat "$tmp/out")"
 rm .git/hooks/pre-push
-pass "a clone hook symlinked to or copied from the wrapper is not chained to itself"
+pass "a clone hook that is a symlink to or a copy of any wrapper is not chained"
 
 # ── pre-push ───────────────────────────────────────────────────────────────
 git push -q origin main 2>"$tmp/out" || fail "clean push was blocked: $(cat "$tmp/out")"
