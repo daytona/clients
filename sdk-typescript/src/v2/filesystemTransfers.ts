@@ -4,7 +4,7 @@
  */
 
 import { DaytonaError, NotSupportedError, TransferCancelledError } from './errors/DaytonaError.js'
-import { encodeQuery, HttpTransport, runtimeUniqueId, type FetchRequestInit } from './http.js'
+import { encodeQuery, HttpTransport, isAbortError, runtimeUniqueId, type FetchRequestInit } from './http.js'
 
 export interface TransferProgressCallback {
   (bytes: number, total?: number): void
@@ -105,7 +105,7 @@ function normalizeTransferError(error: unknown, signal: AbortSignal | undefined)
   if (signal?.aborted) {
     return new TransferCancelledError('file transfer cancelled')
   }
-  if (error instanceof DOMException && error.name === 'AbortError') {
+  if (isAbortError(error)) {
     return new TransferCancelledError('file transfer cancelled')
   }
   if (error instanceof Error) {
