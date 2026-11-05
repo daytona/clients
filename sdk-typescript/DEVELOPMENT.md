@@ -102,7 +102,7 @@ must preserve `manifestId: null` rather than optionalizing it.
   repopulates `src/v0/`, writes `src/v0/_bundle.ts`, appends the `...V0`
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
-- Names also exported by v0 at the pinned tag (`v0.224.0`) on the v2 surface are committed as
+- Names also exported by v0 at the pinned tag (`v0.230.0`) on the v2 surface are committed as
   `...V2` aliases: `DaytonaAuthenticationError`,
   `DaytonaAuthorizationError`, `DaytonaConflictError`,
   `DaytonaConnectionError`, `DaytonaError`, `DaytonaNotFoundError`,
@@ -111,7 +111,8 @@ must preserve `manifestId: null` rather than optionalizing it.
 
 - `process`: cursor-replayable `logs()`, SSE `streamLogs()` with
   `Last-Event-ID` resume, `wait()` long-poll; PTY `attach()` relies on Node's
-  built-in global `WebSocket`, hence the Node 22.4+ floor. Public
+  built-in global `WebSocket` (Node 22.4+); the package's floor is Node 22.15,
+  which the bundled v0's OpenTelemetry 3.x dependencies declare. Public
   `executionTimeout` is translated to the API's `timeoutMs` only on the
   process routes that support a server-managed kill deadline; code execution
   stays client-timed and interrupts on expiry instead.

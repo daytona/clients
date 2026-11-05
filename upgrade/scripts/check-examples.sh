@@ -50,7 +50,7 @@ ts="$work/ts"
 fresh_repo "$ts"
 cp -r "$src/examples/typescript/." "$ts/"
 cat >"$ts/package.json" <<'JSON'
-{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.224.0" } }
+{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.230.0" } }
 JSON
 printf 'node_modules\n' >"$ts/.gitignore"
 commit "$ts" "0.x examples"
@@ -84,7 +84,7 @@ py="$work/py"
 fresh_repo "$py"
 cp -r "$src/examples/python" "$py/python"
 cp -r "$src/examples/jupyter" "$py/jupyter"
-printf 'daytona==0.224.0\n' >"$py/requirements.txt"
+printf 'daytona==0.230.0\n' >"$py/requirements.txt"
 commit "$py" "0.x examples"
 (cd "$upgrade/python" && uv sync --locked -q && uv run -q daytona-upgrade "$py" --yes)
 grep -qx 'daytona\[v0-sdk\]>=2,<3' "$py/requirements.txt" || { echo "FAIL: requirements.txt not bumped" >&2; exit 1; }

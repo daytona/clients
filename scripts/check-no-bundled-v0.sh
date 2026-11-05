@@ -46,11 +46,11 @@ done
 # The bundle also merges v0's own runtime dependencies into package.json. A
 # hand-edited bundled manifest with the API clients removed would still carry
 # them, so check the declared (root) dependencies for v0-only names too. These
-# are the packages bundle-v0.mjs merges at v0.224.0 that v2 does not use
+# are the packages bundle-v0.mjs merges at v0.230.0 that v2 does not use
 # (form-data is merged too, but v2 also resolves it). sdk-ci's "v0 bundle from
 # the publish snapshot" job runs `--check-list` on a real bundle, so a pin
 # bump that merges a new name fails there until it is listed here.
-v0_only='@aws-sdk/client-s3 @aws-sdk/lib-storage @iarna/toml @opentelemetry/exporter-trace-otlp-http @opentelemetry/instrumentation-http @opentelemetry/otlp-exporter-base @opentelemetry/resources @opentelemetry/sdk-node @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions @types/ws busboy expand-tilde fast-glob isomorphic-ws pathe shell-quote socket.io-client tar tslib'
+v0_only='@aws-sdk/client-s3 @aws-sdk/lib-storage @iarna/toml @opentelemetry/exporter-trace-otlp-http @opentelemetry/instrumentation-http @opentelemetry/otlp-exporter-base @opentelemetry/resources @opentelemetry/sdk-node @opentelemetry/sdk-trace @opentelemetry/semantic-conventions @types/ws busboy expand-tilde isomorphic-ws pathe shell-quote socket.io-client tar tinyglobby tslib'
 # `--check-list`, run on a freshly bundled tree: every dependency the bundle
 # added to package.json (vs the committed one) must be on v0_only, one of v0's
 # API clients, or a name v2 also resolves.

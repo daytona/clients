@@ -1,7 +1,7 @@
 # @daytona/sdk
 
 The official TypeScript SDK for Daytona sandboxes. Ships ESM + CJS with type
-declarations. Node >= 22.4 (or a browser environment with `WebSocket`).
+declarations. Node >= 22.15 (or a browser environment with `WebSocket`).
 
 > **Alpha.** This SDK is published as alpha prereleases under the `alpha`
 > dist-tag. Install with `npm install @daytona/sdk@alpha` (or pin an exact
