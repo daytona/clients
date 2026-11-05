@@ -270,9 +270,10 @@ separate from the login being signed out and may not be stored. Keys no longer
 tracked after replacement with `login --token` are not revoked by logout.
 `daytona profile delete` performs the same revocation for the deleted profile.
 
-A cached platform token is sent only to the API that issued it: with
+A cached platform token is sent only to the API that issued it. With
 `--api-url` (or `DAYTONA_V2_API_URL` / `DAYTONA_API_URL`) pointing at another
-API, the CLI exchanges a token there instead.
+API, the CLI exchanges a new token there when that API issues platform tokens,
+and otherwise uses a project API key as described above.
 
 Environment: `DAYTONA_API_KEY`, `DAYTONA_PROFILE`,
 `DAYTONA_ORG`, `DAYTONA_PROJECT`, `DAYTONA_REGION`, `DAYTONA_YES`,

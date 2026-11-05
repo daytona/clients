@@ -240,9 +240,7 @@ func TestExtractArchive_writesIntoPinnedParent_whenParentIsSwappedAfterOpen(t *t
 		called = true
 		parent := filepath.Dir(target)
 		if err := os.Rename(parent, moved); err != nil {
-			// The platform refuses to rename a directory with an open
-			// handle, so the swap cannot happen at all.
-			return
+			t.Fatalf("rename the pinned parent: %v", err)
 		}
 		requireSymlinkOrSkip(t, victimDir, parent)
 		swapped = true
@@ -262,10 +260,7 @@ func TestExtractArchive_writesIntoPinnedParent_whenParentIsSwappedAfterOpen(t *t
 		t.Fatalf("victim overwritten through the swapped parent: %q", got)
 	}
 	if !swapped {
-		if err != nil {
-			t.Fatalf("ExtractArchive(): %v", err)
-		}
-		return
+		t.Fatal("the parent swap did not happen")
 	}
 	if err != nil {
 		t.Fatalf("ExtractArchive(): %v", err)

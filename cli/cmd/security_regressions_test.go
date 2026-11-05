@@ -61,6 +61,11 @@ func TestProfileDeleteRevokesLoginMintedKeys(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, cr.Profiles, "default")
 	require.Equal(t, "other-profile", cr.Profiles["other"].Token)
+	var otherKeys []string
+	for _, k := range cr.Profiles["other"].WorkloadKeys {
+		otherKeys = append(otherKeys, k.KeyID)
+	}
+	require.Equal(t, []string{logoutKeyID, "static-key", "foreign-key"}, otherKeys)
 }
 
 // A platform token is a credential of the API that minted it: an invocation

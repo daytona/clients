@@ -39,6 +39,17 @@ func openDirectoryIn(parent *os.Root, name string, target string, create bool) (
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", target, err)
 	}
+	// OpenRoot follows a link swapped in after the Lstat above; accept the
+	// handle only if it is the directory that was checked.
+	opened, err := dir.Stat(".")
+	if err != nil {
+		_ = dir.Close()
+		return nil, fmt.Errorf("stat %s: %w", target, err)
+	}
+	if !os.SameFile(info, opened) {
+		_ = dir.Close()
+		return nil, fmt.Errorf("refusing to extract through symlink %s (replaced while opening)", target)
+	}
 	return dir, nil
 }
 

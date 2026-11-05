@@ -79,19 +79,9 @@ when that API is unavailable; keys whose revocation fails expire server-side.`,
 			if err := a.Confirm("delete", "profile "+args[0]); err != nil {
 				return err
 			}
-			var cleanup auth.LoginKeyCleanup
-			err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
-				p, ok := c.Profile(args[0])
-				if !ok {
-					return false, false, cerr.New(cerr.ExitNotFound, "no profile %q", args[0])
-				}
-				cleanup = auth.SnapshotLoginKeys(*p, cr.Profiles[args[0]])
-				c.Remove(args[0])
-				delete(cr.Profiles, args[0])
-				return true, true, nil
+			return auth.DeleteProfile(cmd.Context(), a, args[0], func() error {
+				return cerr.New(cerr.ExitNotFound, "no profile %q", args[0])
 			})
-			cleanup.Revoke(cmd.Context(), a)
-			return err
 		},
 	})
 	return c

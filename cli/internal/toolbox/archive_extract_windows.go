@@ -14,11 +14,14 @@ import (
 	"path/filepath"
 )
 
-// windowsArchiveExtractor resolves every entry relative to directory handles
-// (os.Root: NtCreateFile with a RootDirectory), never by full path. The
-// destination is pinned when extraction starts and each parent is opened
-// from the handle of its own parent, so a concurrent rename or symlink swap
-// of a directory cannot redirect a write outside the destination.
+// windowsArchiveExtractor creates entries relative to directory handles
+// (os.Root: NtCreateFile with a RootDirectory). The destination is pinned
+// when extraction starts; for files, directories and symlinks each parent is
+// opened from the handle of its own parent and the entry is created in it, so
+// a concurrent rename or link swap of a directory cannot redirect a write.
+// Hard links (os.Root.Link) re-resolve both relative paths from the pinned
+// destination, and the symlink containment check resolves paths by name;
+// os.Root keeps both inside the destination.
 type windowsArchiveExtractor struct {
 	rootPath string
 	root     *os.Root

@@ -29,7 +29,8 @@ browser on your machine cannot reach this host's loopback redirect) the CLI
 switches to the device flow automatically; --device forces it — you open a URL
 on any device and enter a short code.
 --token: stores a static credential (a project API key, an org API key, or any
-bearer the server accepts) as-is. The CLI never inspects it; the server decides
+bearer the server accepts) as-is. The CLI only rejects an empty value (for
+example an unset CI secret) and never inspects it otherwise; the server decides
 what it may do.
 
 After a browser or device login the CLI selects your personal organization
