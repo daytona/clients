@@ -4,7 +4,7 @@
  */
 
 import { performance } from 'node:perf_hooks';
-import ts from 'typescript';
+import { ts } from 'ts-morph';
 import { expect, it } from 'vitest';
 import type { Report } from '../src/model.js';
 import { invoke, temporaryProject } from './helpers.js';
