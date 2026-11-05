@@ -127,3 +127,21 @@ func TestStreamNoTimeout_outlivesHTTPClientTimeoutWhileStreamKeepsIt(t *testing.
 		t.Fatal("plain Stream must still be bounded by the client timeout")
 	}
 }
+
+func TestWithTimeoutAtLeast_onlyLengthensABoundedTimeout(t *testing.T) {
+	c := New("http://x", "", "v")
+	c.HTTP.Timeout = time.Second
+	if got := c.WithTimeoutAtLeast(time.Minute).HTTP.Timeout; got != time.Minute {
+		t.Fatalf("lengthened timeout = %v", got)
+	}
+	if c.HTTP.Timeout != time.Second {
+		t.Fatalf("original client changed: %v", c.HTTP.Timeout)
+	}
+	if got := c.WithTimeoutAtLeast(time.Millisecond).HTTP.Timeout; got != time.Second {
+		t.Fatalf("shortened timeout = %v", got)
+	}
+	c.HTTP.Timeout = 0
+	if got := c.WithTimeoutAtLeast(time.Minute).HTTP.Timeout; got != 0 {
+		t.Fatalf("unbounded timeout became %v", got)
+	}
+}
