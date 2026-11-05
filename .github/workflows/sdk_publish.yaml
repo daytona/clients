@@ -193,7 +193,7 @@ jobs:
       # The source to build. Full history + tags: the stable-version check
       # (`main` ancestry), the v0 pin and the "tag already elsewhere" check
       # read them. Nothing from this checkout is executed in this job.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
@@ -201,7 +201,7 @@ jobs:
           persist-credentials: false
       # The helpers this job runs come from the DISPATCH commit (a protected
       # branch, by the environment's branch policy), never from source_ref.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           path: .publish-tools
