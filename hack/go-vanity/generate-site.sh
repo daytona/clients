@@ -5,14 +5,14 @@
 # Env:
 #   DOMAIN       vanity import host baked into the meta tag (default: go.daytona.io)
 #   REPO         github owner/repo that holds the code (default: daytona/clients)
-#   BRANCH       branch for go-source links (default: main)
+#   BRANCH       branch for go-source links (default: release/v0)
 #   EMIT_CNAME   "true" to write a CNAME file (only once DNS for $DOMAIN is ready).
 #                Leave unset/false to serve on the default *.github.io URL for testing.
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-go.daytona.io}"
 REPO="${REPO:-daytona/clients}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-release/v0}"
 EMIT_CNAME="${EMIT_CNAME:-false}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

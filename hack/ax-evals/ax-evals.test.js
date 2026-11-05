@@ -18,18 +18,24 @@ const BOT = { login: 'github-actions[bot]' }
 const SHA = 'c8114371cbfae6ee7ffce6aea618f8de7f161c91'
 const REPO = { owner: 'daytona', repo: 'clients' }
 
-function mockGithub({ role = 'write', fork = false, files = [{ filename: 'sdk-go/a.go' }], comments = [] } = {}) {
+function mockGithub({
+  role = 'write',
+  fork = false,
+  base = 'release/v0',
+  files = [{ filename: 'sdk-go/a.go' }],
+  comments = [],
+} = {}) {
   const calls = []
   return {
     calls,
     paginate: async (fn, args) => (await fn(args)).data,
     rest: {
-      reactions: { createForIssueComment: async ({ content }) => calls.push(['react', content]) },
       repos: { getCollaboratorPermissionLevel: async () => ({ data: { role_name: role } }) },
       pulls: {
         get: async () => ({
           data: {
             state: 'open',
+            base: { ref: base },
             head: { sha: SHA, repo: { full_name: fork ? 'someone/clients' : 'daytona/clients' } },
           },
         }),
@@ -56,13 +62,13 @@ function mockCore() {
   }
 }
 
-function commentContext(body, actor = 'dev') {
+function dispatchContext(evals, actor = 'dev', pr = '7') {
   return {
-    eventName: 'issue_comment',
+    eventName: 'workflow_dispatch',
     repo: REPO,
     serverUrl: 'https://github.com',
     runId: 100,
-    payload: { issue: { number: 7 }, comment: { id: 9, body }, sender: { login: actor } },
+    payload: { inputs: { pr, evals }, sender: { login: actor } },
   }
 }
 
@@ -74,11 +80,10 @@ async function runPlan(github, context) {
 
 const names = (outputs) => JSON.parse(outputs.matrix).map((entry) => entry.name)
 
-test('parseCommand', () => {
-  assert.deepEqual(plan.parseCommand('/ax-eval'), [])
-  assert.deepEqual(plan.parseCommand('/AX-EVAL python, TS\nthanks'), ['python', 'ts'])
-  assert.equal(plan.parseCommand('/ax-evals'), null)
-  assert.equal(plan.parseCommand('please /ax-eval'), null)
+test('parseEvals', () => {
+  assert.deepEqual(plan.parseEvals(''), [])
+  assert.deepEqual(plan.parseEvals(undefined), [])
+  assert.deepEqual(plan.parseEvals(' python, TS  go'), ['python', 'ts', 'go'])
 })
 
 test('selectByPaths', () => {
@@ -91,15 +96,16 @@ test('selectByPaths', () => {
 
 test('plan: changed SDKs for a write user', async () => {
   const github = mockGithub()
-  const outputs = await runPlan(github, commentContext('/ax-eval'))
+  const outputs = await runPlan(github, dispatchContext(''))
   assert.deepEqual(names(outputs), ['go'])
   assert.equal(outputs.sha, SHA)
-  assert.deepEqual(github.calls[0], ['react', 'rocket'])
+  assert.equal(outputs.pr, '7')
+  assert.match(github.calls[0][1], /Running/)
 })
 
 test('plan: label trigger', async () => {
   const context = {
-    ...commentContext(''),
+    ...dispatchContext(''),
     eventName: 'pull_request',
     payload: { pull_request: { number: 7 }, sender: { login: 'dev' } },
   }
@@ -108,25 +114,44 @@ test('plan: label trigger', async () => {
 
 test('plan: rejects triage users and non-collaborators', async () => {
   let github = mockGithub({ role: 'triage' })
-  assert.equal((await runPlan(github, commentContext('/ax-eval all'))).matrix, '[]')
-  assert.deepEqual(github.calls, [['react', '-1']])
+  assert.equal((await runPlan(github, dispatchContext('all'))).matrix, '[]')
+  assert.deepEqual(github.calls, [])
 
   github = mockGithub()
   github.rest.repos.getCollaboratorPermissionLevel = async () => {
     throw Object.assign(new Error('Not Found'), { status: 404 })
   }
-  assert.equal((await runPlan(github, commentContext('/ax-eval all', 'stranger'))).matrix, '[]')
-  assert.deepEqual(github.calls, [['react', '-1']])
+  assert.equal((await runPlan(github, dispatchContext('all', 'stranger'))).matrix, '[]')
+  assert.deepEqual(github.calls, [])
 })
 
-test('plan: forks, unknown evals, renames, nothing changed', async () => {
-  assert.match((await runPlan(mockGithub({ fork: true }), commentContext('/ax-eval all'))).notice, /forks/)
-  assert.match((await runPlan(mockGithub(), commentContext('/ax-eval rust'))).failed, /Unknown eval/)
+test('plan: forks, unknown evals, selection, renames, nothing changed', async () => {
+  assert.match((await runPlan(mockGithub({ fork: true }), dispatchContext('all'))).notice, /forks/)
+  const toMain = await runPlan(mockGithub({ base: 'main' }), dispatchContext('all'))
+  assert.match(toMain.notice, /targets main/)
+  assert.equal(toMain.matrix, '[]')
+  assert.match((await runPlan(mockGithub(), dispatchContext('rust'))).failed, /Unknown eval/)
+  assert.deepEqual(names(await runPlan(mockGithub(), dispatchContext('py, ts python'))), ['python', 'typescript'])
+  assert.equal(
+    JSON.parse((await runPlan(mockGithub(), dispatchContext('all'))).matrix).length,
+    Object.keys(config.evals).length,
+  )
   const renamed = mockGithub({ files: [{ filename: 'legacy/x.rb', previous_filename: 'sdk-ruby/x.rb' }] })
-  assert.deepEqual(names(await runPlan(renamed, commentContext('/ax-eval'))), ['ruby'])
+  assert.deepEqual(names(await runPlan(renamed, dispatchContext(''))), ['ruby'])
   const docsOnly = mockGithub({ files: [{ filename: 'README.md' }] })
-  assert.equal((await runPlan(docsOnly, commentContext('/ax-eval'))).matrix, '[]')
-  assert.match(docsOnly.calls[1][1], /nothing was evaluated/)
+  assert.equal((await runPlan(docsOnly, dispatchContext(''))).matrix, '[]')
+  assert.match(docsOnly.calls[0][1], /nothing was evaluated/)
+  assert.match(docsOnly.calls[0][1], /--ref release\/v0 -f pr=7 -f evals=all/)
+})
+
+test('plan: manual runs need a pull request number', async () => {
+  for (const pr of ['', '0', '-3', '1.5', 'abc']) {
+    const github = mockGithub()
+    const outputs = await runPlan(github, dispatchContext('all', 'dev', pr))
+    assert.match(outputs.failed, /Not a pull request number/)
+    assert.equal(outputs.matrix, '[]')
+    assert.deepEqual(github.calls, [])
+  }
 })
 
 test('upsertComment: newest run wins, spoofed and duplicate markers', async () => {
@@ -209,6 +234,11 @@ test('render: every status label', () => {
   assert.doesNotMatch(out, /All evals succeeded/)
 })
 
+test('render: re-run hint names the PR and release/v0', () => {
+  const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
+  assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref release\/v0 -f pr=42 -f evals=all/)
+})
+
 test('render: escapes agent text', () => {
   const out = render({
     sha: SHA,
@@ -228,7 +258,7 @@ test('workflow: fork PRs never run PR-controlled code on label events', () => {
   assert.match(labelClause[0], /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/)
 })
 
-test('setup: commit under test is parsed from URL_MAP, never silently main', () => {
+test('setup: commit under test is parsed from URL_MAP, never silently release/v0', () => {
   const common = fs.readFileSync(path.join(__dirname, 'setup', '_common.sh'), 'utf8')
   const snippet = common.slice(common.indexOf('REF=$('), common.indexOf('esac') + 'esac'.length)
   const ref = (urlMap) => {
@@ -245,8 +275,8 @@ test('setup: commit under test is parsed from URL_MAP, never silently main', () 
   }
   assert.equal(ref(`git-ref.invalid=https://${SHA}.invalid`), SHA)
   assert.equal(ref('x.com=https://a.b,git-ref.invalid=https://ABC1234.invalid'), 'abc1234')
-  assert.equal(ref(''), 'main')
-  assert.equal(ref('docs.example.com=https://preview.example.com'), 'main')
+  assert.equal(ref(''), 'release/v0')
+  assert.equal(ref('docs.example.com=https://preview.example.com'), 'release/v0')
   assert.equal(ref('{"git-ref.invalid":"https://abc1234.invalid"}'), 'ERROR')
   assert.equal(ref('git-ref.invalid=https://not-a-sha.invalid'), 'ERROR')
 })

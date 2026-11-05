@@ -3,17 +3,32 @@ name: '[PR] AX evals (2027.dev)'
 # On-demand agent-experience evals: a coding agent on 2027.dev uses the SDK/CLI built
 # from the PR head and is graded on whether it gets the task done. Informational only.
 #
-# Trigger (requires write access to the repo):
-#   - add the `ax-eval` label to a PR
-#   - comment `/ax-eval` (changed SDKs), `/ax-eval all`, or `/ax-eval python go ...`
+# Trigger (requires write access to the repo), for PRs against release/v0 (0.x):
+#   - add the `ax-eval` label to a PR (evaluates the changed SDKs)
+#   - gh workflow run ax_evals.yaml --repo daytona/clients --ref release/v0 \
+#       -f pr=<number> [-f evals='all' | -f evals='python go']
+# There is no `/ax-eval` comment trigger: issue_comment runs the default branch's copy
+# of a workflow, and main (the 2.x line) has no AX evals. For the same reason the
+# Actions UI shows no "Run workflow" button; dispatch through the CLI or the API.
 # Prompts and setup scripts live in hack/ax-evals and are stored on 2027; they are
-# synced from main by ax_evals_config.yaml, so a PR is evaluated with main's prompts.
+# synced from release/v0 by ax_evals_config.yaml, so a PR is evaluated with
+# release/v0's prompts.
 
 on:
   pull_request:
     types: [labeled]
-  issue_comment:
-    types: [created]
+    branches: [release/v0]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+        type: number
+      evals:
+        description: 'Evals to run: empty for the changed SDKs, `all`, or e.g. `python go`'
+        required: false
+        default: ''
+        type: string
 
 permissions: {}
 
@@ -22,12 +37,11 @@ jobs:
     name: Plan
     # Label events check out and run the PR's hack/ax-evals code, so only same-repo
     # PRs (whose authors already have write access) may get that far; fork PRs never
-    # reach the checkout. Comment events always run main's code.
+    # reach the checkout. Manual runs need write access and run the selected ref's code.
     if: >-
       (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' &&
         github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
-        github.event.comment.user.type != 'Bot' && startsWith(github.event.comment.body, '/ax-eval'))
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

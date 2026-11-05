@@ -84,7 +84,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
 #### Triggering a Release
 
 1. Go to **Actions** → **SDK and CLI Publish** in the GitHub repository
-2. Click **Run workflow**
+2. Click **Run workflow** and select `release/v0` under **Use workflow from**
 3. Fill in the parameters:
    - **version**: The version to release (e.g., `v0.126.0`)
    - **pypi_pkg_version**: (Optional) Override PyPI version
@@ -123,21 +123,21 @@ For a 0.x release cut from `release/v0` after the [cutover](#cutting-over-to-the
 
 ### Release Branches
 
-`main` carries the current release line. Older major lines are maintained on `release/vN` branches (for example `release/v0` for `0.x`), which only receive fixes. A fix lands on `main` first and is cherry-picked (`git cherry-pick -x`) to the maintenance branches it applies to, through a PR against each branch. Releases are tags (`v0.224.2`, `sdk-go/v0.224.2`), never branches.
+The 0.x line is maintained on `release/v0`. `main` carries the 2.x line, which has a different layout and its own release workflows, so 0.x changes are not made on `main` and cherry-picked: they land directly on `release/v0` through a PR against it. Releases are tags (`v0.224.2`, `sdk-go/v0.224.2`), never branches.
 
-To ship a patch from a maintenance branch, run **Prepare Release**, **Release** and **SDK and CLI Publish** with the branch selected in **Use workflow from**, exactly as for `main`. On a `release/vN` branch the workflows:
+To ship a 0.x release, run **Prepare Release**, **Release** and **SDK and CLI Publish** with `release/v0` selected in **Use workflow from**. On a `release/vN` branch the workflows:
 
 - refuse versions outside the branch's line (`release/v0` only releases `v0.x.y`);
-- open the prepare-release and `go.sum` sync PRs against that branch instead of `main`;
+- open the prepare-release and `go.sum` sync PRs against that branch;
 - re-mark the highest stable release as **Latest** on GitHub after creating the release, because the CLI update check reads it;
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead. A package never published to npm must be published once before a release branch can publish it with `latest`;
 - never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona@0` formula.
 
-PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site deploys from `main` only.
+PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site ([`hack/go-vanity`](hack/go-vanity/README.md)) deploys from `release/v0`.
 
 ### Cutting over to the 2.x line
 
-When the 2.x SDK and CLI become the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
+Now that the 2.x SDK and CLI are the repository's main line, the 2.x CLI takes the `daytona` binary name and Homebrew formula, and the 0.x CLI moves aside to `daytona-v0` (formula `daytona@0`) so both install side by side. The 0.x workflows on `release/v0` do this behind one switch, the repository variable `DAYTONA_V0_CUTOVER`. While it is unset (or anything but `true`) they behave as described above and the 0.x CLI stays `daytona`.
 
 At the cutover, in this order:
 

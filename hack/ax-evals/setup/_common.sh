@@ -7,7 +7,7 @@
 # 2027 does not substitute template variables into setupCommand, but it does expose
 # the run's urlMap to setup as URL_MAP ("host=upstream"). The workflow encodes the
 # commit under test as {"git-ref.invalid": "https://<sha>.invalid"}; runs started
-# from the 2027 dashboard without that mapping test main.
+# from the 2027 dashboard without that mapping test release/v0 (the 0.x line).
 set -euo pipefail
 
 T0=$(date +%s)
@@ -27,10 +27,10 @@ REF=$(printf '%s\n' "${URL_MAP:-}" | tr ', ;' '\n\n\n' | tr 'A-F' 'a-f' |
   sed -n 's#^git-ref\.invalid=https\{0,1\}://\([0-9a-f]\{7,40\}\)\.invalid/\{0,1\}$#\1#p' | head -n 1)
 case "${URL_MAP:-}" in
 *git-ref.invalid*)
-  # Never fall back to main when the workflow asked for a commit: the result would
+  # Never fall back to release/v0 when the workflow asked for a commit: the result would
   # be reported against a PR it never tested.
   [ -n "$REF" ] || { echo "cannot parse the commit under test from URL_MAP: ${URL_MAP}" >&2; exit 1; } ;;
-*) REF=main ;; # started from the 2027 dashboard without a mapping
+*) REF=release/v0 ;; # started from the 2027 dashboard without a mapping
 esac
 
 t "clone daytona/clients at ${REF}"
