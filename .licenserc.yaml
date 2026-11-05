@@ -17,7 +17,7 @@ header:
       # Generated from contract/ by cli/hack/gen.sh.
       - 'cli/gen/**'
       - '**/dist/**'
-    comment: on-failure
+    comment: never
 
   - license:
       spdx-id: Apache-2.0
@@ -74,4 +74,4 @@ header:
       - '**/dist/**'
       - '**/build/**'
       - '**/.venv/**'
-    comment: on-failure
+    comment: never
