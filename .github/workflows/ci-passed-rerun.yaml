@@ -1,0 +1,54 @@
+name: CI passed re-run
+
+# Re-runs `CI passed` (ci-passed.yaml) on a pull request's head commit when a
+# re-run of a workflow it counts completes, so the gate reflects the re-run
+# instead of the earlier failure. `workflow_run` only fires from the copy of
+# this file on the default branch, for runs on any branch; keep the list below
+# in sync with the `pull_request` workflows of every branch that has a
+# ci-passed.yaml (E2E is deliberately not counted, see ci-passed.yaml).
+#
+# Runs in the base repository context with a write token: it never checks out
+# or executes pull request code, and only reads the commit SHA from the event.
+on:
+  workflow_run:
+    workflows:
+      - Changelog fragments
+      - CLI CI
+      - Contract types
+      - License headers
+      - SDK CI
+      - Secret scan
+      - Upgrade tool CI
+    types: [completed]
+
+permissions: {}
+
+# Re-runs finishing together would race to re-run the same gate run; one at a
+# time, a later one finds the gate already running and does nothing.
+concurrency:
+  group: ci-passed-rerun-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  rerun:
+    name: Re-run CI passed
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.run_attempt > 1
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # re-run the CI passed workflow run
+    steps:
+      - name: Re-run the CI passed run on the same commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          [[ $SHA =~ ^[0-9a-f]{40}$ ]] || { echo "::error::unexpected head SHA"; exit 1; }
+          run=$(gh api "repos/$REPO/actions/workflows/ci-passed.yaml/runs?head_sha=$SHA&event=pull_request&per_page=1" \
+            --jq '.workflow_runs[0] // empty | select(.status == "completed") | .id')
+          if [ -z "$run" ]; then
+            echo "No completed CI passed run on $SHA (still running, or none); nothing to do."
+            exit 0
+          fi
+          gh api -X POST "repos/$REPO/actions/runs/$run/rerun"
+          echo "Re-ran CI passed: https://github.com/$REPO/actions/runs/$run"
