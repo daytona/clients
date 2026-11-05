@@ -541,3 +541,132 @@ def test_a_pre_release_tool_replaces_a_pre_lockstep_range(
     _run(tmp_path, capsys)
     # Then
     assert (tmp_path / "requirements.txt").read_text() == "daytona[v0-sdk]==2.0.0a8\n"
+
+
+def _migrate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    requirement: str,
+    tool: str,
+) -> tuple[str, dict[str, object]]:
+    monkeypatch.setattr(cli, "load_mapping", partial(load_mapping, tool_version=tool))
+    _project(tmp_path, {"requirements.txt": requirement + "\n"})
+    _, report = _run(tmp_path, capsys)
+    return (tmp_path / "requirements.txt").read_text().strip(), report
+
+
+@pytest.mark.parametrize(
+    ("requirement", "tool", "expected"),
+    [
+        ("daytona[v0-sdk]==2.0.0a7", "2.0.0a8", "daytona[v0-sdk]==2.0.0a8"),
+        ("daytona[v0-sdk]==2.0.0a8", "2.0.0", "daytona[v0-sdk]>=2.0.0,<3"),
+        ("daytona[v0-sdk]>=2.3.1", "2.5.0", "daytona[v0-sdk]>=2.5.0,<3"),
+        ("daytona[v0-sdk]>=2.5.0", "2.3.1", "daytona[v0-sdk]>=2.5.0"),
+        ("daytona[v0-sdk]>=2.0.0a9", "2.0.0a8", "daytona[v0-sdk]>=2.0.0a9"),
+        ("daytona[v0-sdk]>2.0.0a8", "2.0.0a8", "daytona[v0-sdk]>2.0.0a8"),
+    ],
+)
+def test_moves_a_lower_release_of_the_target_major_to_the_target(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    requirement: str,
+    tool: str,
+    expected: str,
+) -> None:
+    # Given / When
+    written, report = _migrate(tmp_path, capsys, monkeypatch, requirement, tool)
+    # Then: a lower release moves to the target; a higher one stays.
+    assert written == expected
+    items = report["items"]
+    assert isinstance(items, list)
+    assert [item for item in items if item["kind"] == "manual-dependency"] == []
+
+
+@pytest.mark.parametrize(
+    "requirement", ["daytona[v0-sdk]==3.0.0", "daytona[v0-sdk]>=3"]
+)
+def test_keeps_a_later_major_and_reports_it(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    requirement: str,
+) -> None:
+    # Given / When
+    written, report = _migrate(tmp_path, capsys, monkeypatch, requirement, "2.0.0a8")
+    # Then: never downgraded across a major.
+    assert written == requirement
+    specifier = requirement.removeprefix("daytona[v0-sdk]")
+    assert {
+        "file": "requirements.txt",
+        "line": 1,
+        "column": 1,
+        "kind": "manual-dependency",
+        "message": f"daytona{specifier} is newer than this daytona-upgrade release targets (==2.0.0a8); use the daytona-upgrade release of that SDK version.",
+    } in report["items"]  # type: ignore[operator]
+
+
+def test_a_kept_newer_pin_gets_no_install_step(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given / When: an older tool on a project already past it.
+    _, report = _migrate(
+        tmp_path, capsys, monkeypatch, "daytona[v0-sdk]==2.0.0a9", "2.0.0a8"
+    )
+    # Then: no next step that would downgrade it.
+    assert report["dependencies"] == []
+    assert report["nextSteps"] == []
+
+
+@pytest.mark.parametrize(
+    ("requirement", "reported"),
+    [("daytona[v0-sdk]>=2,<3", True), ("daytona[v0-sdk]==2.0.0a8", False)],
+)
+def test_an_ancestor_certifies_only_at_or_above_the_target(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    requirement: str,
+    reported: bool,
+) -> None:
+    # Given: the repository root declares the SDK; app/ is scanned.
+    monkeypatch.setattr(
+        cli, "load_mapping", partial(load_mapping, tool_version="2.0.0a8")
+    )
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "requirements.txt").write_text(requirement + "\n")
+    _project(tmp_path / "app", {})
+    # When
+    _, report = _run(tmp_path / "app", capsys)
+    # Then
+    items = report["items"]
+    assert isinstance(items, list)
+    manual = [item for item in items if item["kind"] == "manual-dependency"]
+    assert bool(manual) is reported
+    if reported:
+        assert manual[0]["message"] == (
+            "no Daytona dependency was updated; verify an unconditional runtime"
+            " daytona[v0-sdk]==2.0.0a8 requirement where the project declares it"
+        )
+
+
+def test_treats_an_editable_development_build_as_unknown(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Given: uv.lock resolves an editable checkout of the SDK.
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
+            "uv.lock": '[[package]]\nname = "daytona"\nversion = "0.1.dev1+g1234"\n',
+        },
+    )
+    # When
+    _, report = _run(tmp_path, capsys)
+    # Then
+    assert report["warnings"] == [
+        {"file": "pyproject.toml", "message": unknown_message(PINNED)}
+    ]

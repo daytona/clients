@@ -283,7 +283,8 @@ export const MOVED_TO_V0 = ['create', 'get', 'list', 'start', 'stop', 'fork', '_
 
 export function movedToV0Message(name: string, client = 'Daytona'): string {
   // The migration tool is published with every SDK release under the same
-  // version, so the guidance names the release that matches this SDK.
+  // version, so the guidance names the release that matches this SDK (a
+  // source build names its placeholder version).
   return (
     `SDK 2.x moved ${client}.${name} to ${client}.v0.${name} (the Daytona v0 platform; ` +
     `use ${client}.v2 for Daytona v2). To migrate 0.x code, run npx @daytona/upgrade@${SDK_VERSION}.`

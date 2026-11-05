@@ -93,13 +93,6 @@ jobs:
           python -m pip install --upgrade pip >/dev/null
           python -m pip install -e ".[dev,v0-sdk]" >/dev/null
           python -m pytest -q -p no:cacheprovider
-          # The migration tool's release build (sdk_publish.yaml build-upgrade)
-          # also runs from this snapshot, with no .git above it: its Python
-          # suite, as that job runs it.
-          cd ../upgrade/python
-          python -m pip install --upgrade uv >/dev/null
-          uv sync --locked -q
-          uv run pytest -q -n auto -p no:cacheprovider -m "not wall_clock"
 
   # Run the publish-time bundle against the pinned v0 release, so a change on
   # either side that breaks it fails here and not in the publish run.

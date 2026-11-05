@@ -84,7 +84,22 @@ function pnpmLock(text: string): Lock {
   };
 }
 
-function yarnLock(text: string): Lock {
+/** The root manifest's `workspaces` globs (array or `{ packages }`), as importer patterns. */
+function manifestWorkspaces(directory: string): readonly RegExp[] | undefined {
+  let manifest: Record<string, unknown> | undefined;
+  try { manifest = record(JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8').replace(/^\uFEFF/, ''))); }
+  catch (error) {
+    if (error instanceof SyntaxError || error instanceof Error && 'code' in error) return undefined;
+    throw error;
+  }
+  const declared = manifest?.['workspaces'];
+  const globs = Array.isArray(declared) ? declared : record(declared)?.['packages'];
+  if (!Array.isArray(globs)) return [];
+  return globs.filter((glob): glob is string => typeof glob === 'string').map(glob => new RegExp(`^${glob.replace(/\/+$/, '')
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]+').replace(/\u0000/g, '.*')}$`));
+}
+
+function yarnLock(text: string, directory: string): Lock {
   // Classic and Berry: a header listing the descriptors that resolved here, then the version.
   const blocks = text.split(/\r?\n(?=\S)/).flatMap(block => {
     const [header = ''] = block.split(/\r?\n/, 1);
@@ -97,8 +112,11 @@ function yarnLock(text: string): Lock {
   // Berry records each workspace as `"<name>@workspace:<path>"`; classic records none.
   const workspaces = new Set(blocks.flatMap(block => block.descriptors.flatMap(descriptor =>
     /@workspace:(.+)$/.exec(descriptor)?.[1] ?? [])));
+  // Classic records none: the root manifest's workspace globs decide.
+  const globs = workspaces.size > 0 ? undefined : manifestWorkspaces(directory);
   return ({ key, spec }, importer) => {
     if (importer !== '' && workspaces.size > 0 && !workspaces.has(importer)) return [];
+    if (importer !== '' && globs !== undefined && !globs.some(glob => glob.test(importer))) return [];
     const wanted = new Set([`${key}@${spec}`, `${key}@npm:${spec}`]);
     return blocks.filter(block => block.descriptors.some(descriptor => wanted.has(descriptor))).map(block => block.version);
   };
@@ -123,7 +141,7 @@ function bunLock(text: string): Lock {
   };
 }
 
-const READERS: Readonly<Record<(typeof LOCKFILES)[number], (text: string) => Lock>> = {
+const READERS: Readonly<Record<(typeof LOCKFILES)[number], (text: string, directory: string) => Lock>> = {
   'package-lock.json': npmLock, 'npm-shrinkwrap.json': npmLock, 'yarn.lock': yarnLock, 'pnpm-lock.yaml': pnpmLock, 'bun.lock': bunLock,
 };
 
@@ -146,7 +164,9 @@ function ownerLockfiles(directory: string): readonly string[] {
 
 function zeroX(value: string): SemVer | undefined {
   const version = parse(value);
-  return version !== null && version.major === 0 ? version : undefined;
+  // `0.0.0-use.local` (a workspace or linked SDK) names no release.
+  if (version === null || version.major !== 0 || version.minor === 0 && version.patch === 0) return undefined;
+  return version;
 }
 
 /**
@@ -172,9 +192,12 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
       let lock: Lock | undefined;
       // An unreadable or malformed lockfile is no version evidence.
       const name = LOCKFILES.find(candidate => join(dirname(file), candidate) === file);
-      try { lock = name === undefined ? undefined : READERS[name](readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
+      try { lock = name === undefined ? undefined : READERS[name](readFileSync(file, 'utf8').replace(/^\uFEFF/, ''), dirname(file)); }
       catch (error) {
-        if (!(error instanceof SyntaxError || error instanceof Error && ('code' in error || error.name === 'YAMLParseError'))) throw error;
+        // JSON, YAML (aliases included) and file errors: no evidence. Anything
+        // else is a defect here and propagates.
+        if (!(error instanceof SyntaxError || error instanceof ReferenceError || error instanceof RangeError ||
+          error instanceof Error && ('code' in error || error.name.startsWith('YAML')))) throw error;
       }
       locks.set(file, lock);
     }
@@ -192,12 +215,16 @@ export function checkV0Version(root: string, declared: readonly DeclaredDependen
       return (lockFor(file)?.(dependency, importer) ?? []).map(version => ({ file, version }));
     });
     if (resolved.length) {
-      // A resolution outside 0.x (an already upgraded project) needs no check.
+      // A 2.x resolution (an already upgraded project) needs no check; a local
+      // build (`0.0.0-use.local`) names no release.
+      let local = false;
       for (const { file, version } of resolved) {
         const zero = zeroX(version);
         if (zero) observed.set(`${file}\0${zero.version}`, { file, version: zero });
+        else if ((parse(version)?.major ?? 0) === 0) local = true;
       }
-      evidenced.add(dependency.file);
+      if (local) unknown.add(dependency.file);
+      else evidenced.add(dependency.file);
       continue;
     }
     // No lockfile, or one that does not resolve this dependency: the manifest range stands in.

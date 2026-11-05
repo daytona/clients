@@ -25,9 +25,13 @@ def _single_floor(specifier: str) -> Version | None:
         except InvalidVersion:
             continue
         if entry.operator == ">":
-            # The least version above it, as semver's minVersion reads `>`.
-            major, minor, micro = (*bound.release, 0, 0)[:3]
-            bound = Version(f"{major}.{minor}.{micro + 1}")
+            # The least version above it, as semver's minVersion reads `>`: the
+            # next patch, or just above a pre-release (2.0.0a8 -> 2.0.0a8.post0).
+            if bound.is_prerelease:
+                bound = Version(f"{bound}.post0")
+            else:
+                major, minor, micro = (*bound.release, 0, 0)[:3]
+                bound = Version(f"{major}.{minor}.{micro + 1}")
         bounds.append(bound)
     return max(bounds) if bounds else None
 
@@ -71,12 +75,21 @@ def at_or_above_target(constraint: str, target: str) -> bool:
     )
 
 
+def above_target_major(constraint: str, target: str) -> bool:
+    """A constraint whose floor is in a later major than the target's."""
+    floor, wanted = lower_bound(constraint), lower_bound(target)
+    return floor is not None and wanted is not None and floor.major > wanted.major
+
+
 def target_constraint(name: str, constraint: str, package: str, target: str) -> str:
     """The constraint to write for a Daytona declaration: the existing one when
-    it already names the new package at or above the target, else the target."""
+    it already names the new package at or above the target (or in a later
+    major, which is never downgraded), else the target."""
     keep = re.sub(r"[-_.]+", "-", name).lower() == re.sub(
         r"[-_.]+", "-", package
-    ).lower() and at_or_above_target(constraint, target)
+    ).lower() and (
+        at_or_above_target(constraint, target) or above_target_major(constraint, target)
+    )
     return constraint if keep else target
 
 
@@ -86,8 +99,10 @@ def requires_v2(constraint: str, target: str | None = None) -> bool:
     A constraint at or above ``target`` (the specifier this tool writes) also
     counts, so a pinned pre-release certifies; pre-release floors below it do not.
     """
-    if target is not None and at_or_above_target(constraint, target):
-        return True
+    if target is not None:
+        # Only the target or a later release of its major certifies: a stable
+        # floor under a pre-release target (">=2,<3") installs nothing yet.
+        return at_or_above_target(constraint, target)
     for alternative in constraint.split("||"):
         normalized = re.sub(
             r"[\^~](?!=)\s*(\d+(?:\.\d+)*)", r">=\1", alternative.strip()

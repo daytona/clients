@@ -175,3 +175,15 @@ test('tests both tools before stamping the release version', () => {
   assert.ok(npmStep.indexOf('npm test') >= 0 && npmStep.indexOf('npm test') < npmStep.indexOf('npm version'), npmStep);
   assert.ok(pythonStep.indexOf('uv run pytest') >= 0 && pythonStep.indexOf('uv run pytest') < pythonStep.indexOf('PYPI_VERSION"]'), pythonStep);
 });
+
+test('the release build gets the raised test timeout', () => {
+  // Given: the npm script the release step runs, and the vitest config.
+  const manifest = JSON.parse(readFileSync(new URL('../typescript/package.json', import.meta.url), 'utf8'));
+  const config = readFileSync(new URL('../typescript/vitest.config.ts', import.meta.url), 'utf8');
+  // Then: no command-line timeout overrides the config's release value, and
+  // the release step sets the switch that raises it.
+  assert.doesNotMatch(manifest.scripts.test, /--(test|hook)Timeout/);
+  assert.match(config, /testTimeout: release \? 300_000/);
+  assert.match(step('Build, test and pack the npm migration tool'), /npm test/);
+  assert.match(workflow, /DAYTONA_UPGRADE_SKIP_WALL_CLOCK: '1'/);
+});

@@ -82,3 +82,48 @@ it('a pre-release tool replaces a pre-lockstep ^2.0.0 range', async () => {
   // Then
   expect(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))).toEqual({ dependencies: { '@daytona/sdk': '2.0.0-alpha.8' } });
 });
+
+const client = "import { Daytona } from '@daytona/sdk'; const d = new Daytona(); d.v0.create();\n";
+const migrate = async (range: string, tool: string): Promise<{ readonly written: unknown; readonly items: readonly { readonly kind: string; readonly message: string }[] }> => {
+  const root = temporaryProject({ 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': range } }), 'index.ts': client });
+  const result = await invoke(root, ['--json'], withTarget(loadMapping(), tool));
+  return { written: (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { readonly dependencies: Record<string, string> }).dependencies['@daytona/sdk'],
+    items: (JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items.filter(item => item.kind === 'manual-dependency') };
+};
+
+it.each([
+  ['2.0.0-alpha.7', '2.0.0-alpha.8', '2.0.0-alpha.8'],
+  ['2.0.0-alpha.8', '2.0.0', '^2.0.0'],
+  ['^2.0.0-alpha.9', '2.0.0', '^2.0.0'],
+  ['^2.3.1', '2.5.0', '^2.5.0'],
+  ['^2.5.0', '2.3.1', '^2.5.0'],
+])('moves %s under a %s tool to %s', async (range, tool, expected) => {
+  // Given / When
+  const { written, items } = await migrate(range, tool);
+  // Then: a lower release of the target's major moves to the target; a higher one stays.
+  expect(written).toBe(expected);
+  expect(items).toEqual([]);
+});
+
+it.each(['3.0.0', '^3.1.0', '>=3'])('keeps a later major %s and reports it', async range => {
+  // Given / When
+  const { written, items } = await migrate(range, '2.0.0-alpha.8');
+  // Then: never downgraded across a major.
+  expect(written).toBe(range);
+  expect(items).toEqual([expect.objectContaining({
+    message: `@daytona/sdk@${range} is newer than this daytona-upgrade release targets (2.0.0-alpha.8); use the daytona-upgrade release of that SDK version.` })]);
+});
+
+it.each([['^2.0.0', true], ['2.0.0-alpha.8', false], ['3.0.0', true]])('ancestor %s under an alpha tool: manual item %s', async (range, reported) => {
+  // Given: the workspace root declares the SDK; app/ is scanned.
+  // app/index.ts still calls the 0.x root, so the run rewrites it.
+  const root = temporaryProject({ '.git/HEAD': '', 'package.json': JSON.stringify({ dependencies: { '@daytona/sdk': range } }),
+    'app/index.ts': client.replace('d.v0.create()', 'd.create()') });
+  // When
+  const result = await invoke(join(root, 'app'), ['--json'], withTarget(loadMapping(), '2.0.0-alpha.8'));
+  // Then: only the target or a later release of its major certifies.
+  const items = (JSON.parse(result.output) as { readonly items: readonly { readonly kind: string; readonly message: string }[] }).items
+    .filter(item => item.kind === 'manual-dependency');
+  expect(items).toEqual(reported ? [expect.objectContaining({ file: '../package.json',
+    message: 'no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "2.0.0-alpha.8"' })] : []);
+});

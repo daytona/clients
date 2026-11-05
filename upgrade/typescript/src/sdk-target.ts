@@ -47,3 +47,19 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   // stable version (`^2.0.0`, what pre-lockstep releases wrote) installs nothing.
   return !wanted.prerelease.length || floor.prerelease.length > 0;
 }
+
+/** A valid range whose floor is in the target's major (an earlier pre-release included). */
+export function inTargetMajor(range: string, target: string): boolean {
+  if (validRange(range) === null || validRange(target) === null) return false;
+  const floor = minVersion(range);
+  const wanted = minVersion(target);
+  return floor !== null && wanted !== null && floor.major === wanted.major;
+}
+
+/** A valid range whose floor is in a later major than the target's. */
+export function aboveTargetMajor(range: string, target: string): boolean {
+  if (validRange(range) === null || validRange(target) === null) return false;
+  const floor = minVersion(range);
+  const wanted = minVersion(target);
+  return floor !== null && wanted !== null && floor.major > wanted.major;
+}

@@ -243,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
             {"file": entry.file, "from": entry.before, "to": entry.after}
             for entry in result.dependencies
         ]
-        if mode == "upgrade":
+        if mode == "upgrade" and result.dependencies:
             from .manifests import next_step
 
             report["nextSteps"].append(

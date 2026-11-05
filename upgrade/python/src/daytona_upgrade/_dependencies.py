@@ -13,7 +13,12 @@ from packaging.requirements import InvalidRequirement, Requirement
 from tomlkit.container import OutOfOrderTableProxy
 from tomlkit.items import Array, InlineTable, String, Table
 
-from .dependency_versions import requires_v2, target_constraint
+from .dependency_versions import (
+    above_target_major,
+    at_or_above_target,
+    requires_v2,
+    target_constraint,
+)
 from .models import Mapping
 from .requirement_rendering import render_requirement
 from .toml_values import render_declaration as _render
@@ -75,11 +80,19 @@ class Migration:
             return source
         self.found = True
         self._declare(parsed["name"], logical)
+        name, specifier = self.declared[-1]
+        if self._newer_major(name, specifier):
+            return source
         if "\\" in source or hash_locked:
+            kept = _normalized(name) == _normalized(
+                self.mapping.package_new
+            ) and at_or_above_target(specifier, self.mapping.specifier)
             self.manual.append(
                 (
                     self.line,
-                    f"Change this dependency to {self.mapping.requirement} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
+                    f"Add the {', '.join(self.mapping.extras)} extra to this dependency manually and regenerate hashes; its version already meets this release. The original hash-locked or continued record was preserved."
+                    if kept
+                    else f"Change this dependency to {self.mapping.requirement} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
                 )
             )
             return source
@@ -104,6 +117,20 @@ class Migration:
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
+
+    def _newer_major(self, name: str, specifier: str) -> bool:
+        """Report, and keep, a new-package declaration in a later major."""
+        if _normalized(name) != _normalized(
+            self.mapping.package_new
+        ) or not above_target_major(specifier, self.mapping.specifier):
+            return False
+        self.manual.append(
+            (
+                self.line,
+                f"{name}{specifier} is newer than this daytona-upgrade release targets ({self.mapping.specifier}); use the daytona-upgrade release of that SDK version.",
+            )
+        )
+        return True
 
     def _declare(self, name: str, logical: str) -> None:
         """Record the version constraint, ignoring hashes, comments and options."""
@@ -221,6 +248,11 @@ class Migration:
                 self.declared.append(
                     (str(name), str(version) if isinstance(version, String) else "")
                 )
+            if any(
+                self._newer_major(str(name), spec)
+                for _, spec in self.declared[-len(versions) :]
+            ):
+                continue
             if any(
                 isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                 and "subdirectory" in entry

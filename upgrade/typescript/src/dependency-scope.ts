@@ -5,7 +5,7 @@
 
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { gte, minVersion, validRange } from 'semver';
+import { validRange } from 'semver';
 import type { Item } from './model.js';
 import { relativePath } from './discovery.js';
 import { atOrAboveTarget } from './sdk-target.js';
@@ -52,10 +52,9 @@ export function dependencyScopeItem(root: string, rewritten: string, dependencyD
       if (declarations.length) {
         const certified = declarations.every(({ name, range }) => {
           if (name !== '@daytona/sdk' || range === null || validRange(range) === null) return false;
-          // The target or a later release of its major counts (pre-releases included).
-          if (atOrAboveTarget(range, target)) return true;
-          const minimum = minVersion(range);
-          return minimum !== null && gte(minimum, '2.0.0');
+          // Only the target or a later release of its major certifies: a stable
+          // floor under a pre-release target (`^2.0.0`) installs nothing yet.
+          return atOrAboveTarget(range, target);
         });
         if (certified) return undefined;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',

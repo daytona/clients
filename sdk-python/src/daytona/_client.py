@@ -432,7 +432,8 @@ _MOVED_TO_V0: Final = frozenset(
 
 def _moved_to_v0_message(client: str, name: str) -> str:
     # The migration tool is published with every SDK release under the same
-    # version, so the guidance names the release that matches this SDK.
+    # version, so the guidance names the release that matches this SDK (a
+    # source build names its placeholder version).
     tool = "daytona-upgrade" if _SDK_VERSION == "unknown" else f"daytona-upgrade@{_SDK_VERSION}"
     return (
         f"SDK 2.x moved {client}.{name} to {client}.v0.{name} (the Daytona v0 platform; "

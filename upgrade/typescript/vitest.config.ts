@@ -14,6 +14,9 @@ const release = process.env['DAYTONA_UPGRADE_SKIP_WALL_CLOCK'] === '1';
 export default defineConfig({
   test: {
     globalSetup: ['tests/build-cli.ts'],
-    ...(release ? { testTimeout: 300_000, hookTimeout: 300_000 } : {}),
+    // Set here, not on the command line: a CLI --testTimeout would override
+    // the release value (publish-gates.test.mjs checks the npm script).
+    testTimeout: release ? 300_000 : 20_000,
+    hookTimeout: release ? 300_000 : 20_000,
   },
 });

@@ -285,3 +285,34 @@ it.each([
   expect(exit).toBe(0);
   expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
 });
+
+it('a classic yarn.lock resolves only the workspaces its root manifest declares', async () => {
+  // Given: the root's helper pulls ^pinned resolved to a newer minor; tools/ is a separate project.
+  const yarn = `# yarn lockfile v1\n\n"@daytonaio/sdk@^${pinned}":\n  version "${transitive}"\n`;
+  const files = { '.git/HEAD': '', 'yarn.lock': yarn, 'package.json': JSON.stringify({ name: 'root', workspaces: ['packages/*'], dependencies: { helper: '1.0.0' } }),
+    'tools/package.json': manifest(`^${pinned}`), 'tools/index.ts': code };
+  // When
+  const { code: exit, report } = await run(files, [], 'tools');
+  // Then: its own manifest stands in.
+  expect(exit).toBe(0);
+  expect(report.refused).toBeUndefined();
+});
+
+it.each(['0.0.0-use.local', `0.0.0-local`])('treats a local build %s as unknown', async version => {
+  // Given
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version } } });
+  // When
+  const { report } = await run({ 'package.json': manifest('workspace:*'), 'package-lock.json': lock, 'index.ts': code });
+  // Then
+  expect(report.warnings).toEqual([{ file: 'package.json', message: unknownMessage(pinned) }]);
+});
+
+it('treats a pnpm lockfile with a broken alias as no evidence', async () => {
+  // Given
+  const pnpm = `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies: *missing\n`;
+  // When
+  const { code: exit, report } = await run({ 'package.json': manifest('0.100.0'), 'pnpm-lock.yaml': pnpm, 'index.ts': code });
+  // Then
+  expect(exit).toBe(0);
+  expect(report.warnings).toEqual([{ file: 'package.json', message: olderMessage('0.100.0', pinned) }]);
+});

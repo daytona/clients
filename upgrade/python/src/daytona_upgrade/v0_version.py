@@ -64,6 +64,13 @@ def _zero_x(value: str) -> Version | None:
         version = Version(value.lstrip("=").strip())
     except InvalidVersion:
         return None
+    # A local or development build (an editable checkout) names no release.
+    if (
+        version.is_devrelease
+        or version.local is not None
+        or version.release == (0, 0, 0)
+    ):
+        return None
     return version if version.major == 0 else None
 
 
@@ -114,11 +121,11 @@ def _owns(lockfile: Path, manifest: Path) -> bool:
     ).as_posix()
     try:
         packages = (
-            tomlkit.parse(lockfile.read_text(encoding="utf-8"))
+            tomlkit.parse(lockfile.read_text(encoding="utf-8").removeprefix("\ufeff"))
             .unwrap()
             .get("package", [])
         )
-    except (OSError, UnicodeError, ValueError, TOMLKitError):
+    except (OSError, UnicodeError, ValueError, TOMLKitError, RecursionError):
         return False
     return isinstance(packages, list) and any(
         isinstance(entry, dict)
@@ -230,19 +237,35 @@ def check_v0_version(
             if lockfile not in locks:
                 try:
                     locks[lockfile] = _locked(lockfile)
-                except (OSError, UnicodeError, ValueError, TOMLKitError):
+                except (
+                    OSError,
+                    UnicodeError,
+                    ValueError,
+                    TOMLKitError,
+                    RecursionError,
+                ):
                     locks[lockfile] = {}  # Unreadable or malformed: no evidence.
             resolved.extend(
                 (lockfile, value)
                 for value in locks[lockfile].get(_normalized(name), [])
             )
         if resolved:
-            # A resolution outside 0.x (an already upgraded project) needs no check.
+            # A 2.x resolution (an already upgraded project) needs no check; a
+            # local or development build names no release.
+            local = False
             for lockfile, value in resolved:
                 version = _zero_x(value)
                 if version is not None:
                     observed[(lockfile, version)] = None
-            evidenced.add(manifest)
+                else:
+                    try:
+                        local = local or Version(value.lstrip("=").strip()).major == 0
+                    except InvalidVersion:
+                        local = True
+            if local:
+                unknown[manifest] = None
+            else:
+                evidenced.add(manifest)
             continue
         # No lockfile, or one that does not resolve this package: the constraint stands in.
         version = (

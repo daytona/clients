@@ -12,7 +12,7 @@ import { UpgradeError } from './model.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
 import type { DeclaredDependency } from './v0-version.js';
-import { atOrAboveTarget } from './sdk-target.js';
+import { aboveTargetMajor, atOrAboveTarget, inTargetMajor } from './sdk-target.js';
 
 export function manifests(files: readonly string[], mapping: Mapping, context: string | ReadContext): {
   readonly changes: readonly Change[]; readonly dependencies: readonly Dependency[]; readonly items: readonly Item[];
@@ -103,7 +103,17 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         // ordinary-range test below, which pre-release literals fail).
         if (name === mapping.packages.ts.new && sectionName !== 'peerDependencies' && Node.isStringLiteral(version) &&
             atOrAboveTarget(version.getLiteralValue(), mapping.packages.ts.range)) continue;
-        if (qualified || reference || Node.isStringLiteral(version) &&
+        // A later major than this tool targets: never downgraded.
+        if (name === mapping.packages.ts.new && Node.isStringLiteral(version) && aboveTargetMajor(version.getLiteralValue(), mapping.packages.ts.range)) {
+          items.push({ ...detail, kind: 'manual-dependency',
+            message: `${name}@${version.getLiteralValue()} is newer than this daytona-upgrade release targets (${mapping.packages.ts.range}); use the daytona-upgrade release of that SDK version.` });
+          continue;
+        }
+        // A pre-release range of the target's major below it (an earlier
+        // alpha) is an ordinary range here too: it moves to the target.
+        const replaceablePrerelease = name === mapping.packages.ts.new && Node.isStringLiteral(version) &&
+          inTargetMajor(version.getLiteralValue(), mapping.packages.ts.range);
+        if (qualified || reference || Node.isStringLiteral(version) && !replaceablePrerelease &&
             !/^[\s~^<>=|*v\d.xX+-]+$/.test(version.getLiteralValue())) {
           const catalog = Node.isStringLiteral(version) && version.getLiteralValue().startsWith('catalog:') ? catalogFile(file, files) : undefined;
           items.push({ ...detail, ...(catalog ? { file: relativePath(root, catalog), line: 0, column: 0 } : {}),
