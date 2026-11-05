@@ -51,5 +51,5 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Generator jar integrity gate
-        run: bash python/gen/gen-contract_test.sh
+        run: bash sdk-python/gen/gen-contract_test.sh
       - run: scripts/gen-contract-types.sh --check

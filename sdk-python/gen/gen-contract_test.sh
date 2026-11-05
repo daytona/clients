@@ -2,12 +2,12 @@
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Tests for the generator-jar integrity gate in python/gen-contract.sh: a jar
+# Tests for the generator-jar integrity gate in sdk-python/gen-contract.sh: a jar
 # whose sha256 differs from the pinned one is never cached and never run.
 # Runs offline: curl and npm are stubbed. Needs node (the script reads
 # gen/openapitools.json with it).
 #
-#   bash python/gen/gen-contract_test.sh
+#   bash sdk-python/gen/gen-contract_test.sh
 set -euo pipefail
 
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
