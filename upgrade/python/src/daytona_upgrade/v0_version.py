@@ -322,9 +322,10 @@ def check_v0_version(
 
 
 def _text(version: Version) -> str:
-    # Three components, as the TypeScript tool prints (0.224 -> 0.224.0).
-    release = (
-        (*version.release, 0, 0)[:3] if len(version.release) < 3 else version.release
-    )
-    rest = str(version)[len(".".join(map(str, version.release))) :]
-    return ".".join(map(str, release)) + rest
+    """The version as the TypeScript tool prints it (semver): three release
+    components and a ``-alpha.N`` / ``-beta.N`` / ``-rc.N`` pre-release."""
+    text = ".".join(map(str, (*version.release, 0, 0)[:3]))
+    if version.pre is not None:
+        stage, number = version.pre
+        text += f"-{ {'a': 'alpha', 'b': 'beta', 'rc': 'rc'}[stage] }.{number}"
+    return text

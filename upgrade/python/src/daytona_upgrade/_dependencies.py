@@ -245,8 +245,18 @@ class Migration:
                     if isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                     else None
                 )
+                # A marker-gated entry may never install: no version evidence,
+                # as for a requirement string.
+                gated = isinstance(
+                    entry, (Table, InlineTable, OutOfOrderTableProxy)
+                ) and any(field in entry for field in ("markers", "python", "platform"))
                 self.declared.append(
-                    (str(name), str(version) if isinstance(version, String) else "")
+                    (
+                        str(name),
+                        str(version)
+                        if isinstance(version, String) and not gated
+                        else "",
+                    )
                 )
             if any(
                 self._newer_major(str(name), spec)

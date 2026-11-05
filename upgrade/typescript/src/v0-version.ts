@@ -125,7 +125,9 @@ function yarnLock(text: string, directory: string): Lock {
   };
 }
 
-function bunLock(text: string): Lock {
+function bunLock(raw: string): Lock {
+  // JSONC: drop comments outside strings, so a commented-out entry is not read.
+  const text = raw.replace(/("(?:\\.|[^"\\\n])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (match, string: string | undefined) => string ?? '');
   // `"<parent>/<key>": ["<name>@<version>", …]`: an empty parent is the hoisted copy.
   const entries = new Map<string, string>();
   for (const match of text.matchAll(/"([^"\n]+)"\s*:\s*\[\s*"([^"\n]+)"/g)) {

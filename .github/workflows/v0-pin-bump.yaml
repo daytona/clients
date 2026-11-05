@@ -64,7 +64,7 @@ jobs:
             echo "tag=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          open=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json headRefName \
+          open=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --search 'head:chore/v0-pin-' --limit 1000 --json headRefName \
             --jq '[.[].headRefName | select(startswith("chore/v0-pin-"))] | join(" ")')
           if [ -n "$open" ]; then
             echo "::notice::a pin bump PR is already open ($open); merge or close it first"
@@ -72,9 +72,14 @@ jobs:
             exit 0
           fi
           if git ls-remote --exit-code --heads "https://github.com/${GITHUB_REPOSITORY}.git" "chore/v0-pin-${newest}" >/dev/null; then
-            echo "::notice::branch chore/v0-pin-${newest} already exists (a closed bump PR?); delete it to open a new one"
-            echo "tag=" >> "$GITHUB_OUTPUT"
-            exit 0
+            # A branch whose PR was closed is a declined bump; a branch with no
+            # PR at all is a run that failed after its push, so it is retried.
+            if [ -n "$(gh pr list -R "$GITHUB_REPOSITORY" --head "chore/v0-pin-${newest}" --state all --json number --jq '.[].number')" ]; then
+              echo "::notice::branch chore/v0-pin-${newest} has a closed PR (a declined bump); delete the branch to open a new one"
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::branch chore/v0-pin-${newest} has no PR; retrying"
           fi
           echo "tag=$newest" >> "$GITHUB_OUTPUT"
 
@@ -99,6 +104,12 @@ jobs:
           set -euo pipefail
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$TAG" \
             "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
+          # Only a release of the 0.x line: the tag's commit must be on release/v0.
+          git -C "$RUNNER_TEMP/v0-src" fetch --quiet --depth 1000 origin release/v0
+          if ! git -C "$RUNNER_TEMP/v0-src" merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::${TAG} is not on release/v0; not bumping the pin to it"
+            exit 1
+          fi
           printf '%s\n%s\n' "$TAG" "$(git -C "$RUNNER_TEMP/v0-src" rev-parse HEAD)" > scripts/v0-sdk-version
           bash scripts/resolve-v0-tag.sh --verify
           npm ci --prefix sdk-typescript --no-audit --no-fund --ignore-scripts
@@ -165,11 +176,15 @@ jobs:
           branch="chore/v0-pin-${TAG}"
           git config user.name "Daytona Release Bot"
           git config user.email "153830314+daytonaBot@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add -- "${files[@]}"
-          git commit -s -m "chore(sdk): bundle 0.x ${TAG} as the v0 namespace"
           gh auth setup-git   # git's credential helper reads GH_TOKEN; no token on argv
-          git push origin "$branch"
+          # A retry (detect found the branch with no PR) opens the PR for the
+          # branch as it was pushed; the branch is never rewritten.
+          if ! git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git checkout -b "$branch"
+            git add -- "${files[@]}"
+            git commit -s -m "chore(sdk): bundle 0.x ${TAG} as the v0 namespace"
+            git push origin "$branch"
+          fi
           {
             echo "Points \`scripts/v0-sdk-version\` at ${TAG}, the newest 0.x release, so SDK 2.x bundles it as \`Daytona().v0\` and the migration tool accepts projects on it. Regenerated: the tool's \`v0Version\` / \`v0Exports\` and upgrade/MIGRATION.md."
             echo

@@ -428,7 +428,8 @@ skipping exist only in the TypeScript tool).
   `--write-v0-exports` updates it). Older and newer-patch versions warn
   (`warnings` in the report, never a manual item), a newer minor refuses
   (`newer-v0`, exit 2) unless `--allow-newer-v0`. Messages are identical in
-  both tools. `v0-pin-bump.yaml` opens the pin bump PR for each new 0.x
+  both tools (`upgrade/mapping/v0-version-messages.json` holds shared
+  expectations both suites assert). `v0-pin-bump.yaml` opens the pin bump PR for each new 0.x
   release.
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel

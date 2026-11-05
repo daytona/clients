@@ -6,7 +6,7 @@
 import { chmodSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
-import { installFakeSdk, invoke, temporaryProject } from './helpers.js';
+import { here, installFakeSdk, invoke, temporaryProject } from './helpers.js';
 import { loadMapping } from '../src/mapping.js';
 import { expectWithinBudget, testTimeout } from './budget.js';
 import { allowedNewerMessage, newerPatchMessage, newerRefusal, olderMessage, unknownMessage } from '../src/v0-version.js';
@@ -364,4 +364,28 @@ it('matches a classic yarn workspace glob written with ./', async () => {
   // Then: the workspace's lockfile resolution counts.
   expect(exit).toBe(2);
   expect(report.refused?.message).toBe(newerRefusal(transitive, '../../yarn.lock', pinned));
+});
+
+// upgrade/mapping/v0-version-messages.json holds the expected text for both tools.
+type SharedCase = { readonly id: string; readonly version: { readonly npm: string }; readonly refusal?: string; readonly warning?: string };
+const shared = (JSON.parse(readFileSync(join(here, '../../mapping/v0-version-messages.json'), 'utf8')) as { readonly cases: readonly SharedCase[] }).cases;
+it.each(shared.map(entry => [entry.id, entry] as const))('prints the shared %s message', async (_, entry) => {
+  // Given: package-lock.json resolves the case's version.
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/@daytonaio/sdk': { version: entry.version.npm } } });
+  // When
+  const { report } = await run({ 'package.json': manifest('*'), 'package-lock.json': lock, 'index.ts': code });
+  // Then
+  const fill = (text: string): string => text.replaceAll('{pinned}', pinned).replaceAll('{file}', 'package-lock.json');
+  if (entry.refusal !== undefined) expect(report.refused?.message).toBe(fill(entry.refusal));
+  if (entry.warning !== undefined) expect(report.warnings).toEqual([{ file: 'package-lock.json', message: fill(entry.warning) }]);
+});
+
+it('ignores commented-out bun.lock entries', async () => {
+  // Given: a hand-added comment naming a newer minor.
+  const bun = `{\n  "lockfileVersion": 1,\n  // "@daytonaio/sdk": ["@daytonaio/sdk@${transitive}", "", {}, "x"],\n  "packages": {\n    "@daytonaio/sdk": ["@daytonaio/sdk@${pinned}", "", {}, "a"],\n  },\n}\n`;
+  // When
+  const { code: exit, report } = await run({ 'package.json': manifest(`^${pinned}`), 'bun.lock': bun, 'index.ts': code });
+  // Then
+  expect(exit).toBe(0);
+  expect(report.refused).toBeUndefined();
 });

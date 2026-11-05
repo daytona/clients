@@ -757,3 +757,55 @@ def test_refuses_a_partial_root_with_no_daytona_code_as_no_daytona(
     assert code == 2
     assert report["refused"]["reason"] == "no-daytona"  # type: ignore[index]
     assert "warnings" not in report
+
+
+_SHARED = json.loads(
+    (Path(__file__).parents[2] / "mapping/v0-version-messages.json").read_text()
+)["cases"]
+
+
+@pytest.mark.parametrize("entry", _SHARED, ids=[case["id"] for case in _SHARED])
+def test_prints_the_shared_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], entry: dict[str, object]
+) -> None:
+    # Given: uv.lock resolves the case's version (upgrade/mapping/v0-version-messages.json).
+    version = entry["version"]
+    assert isinstance(version, dict)
+    _project(
+        tmp_path,
+        {
+            "pyproject.toml": '[project]\nname = "app"\nversion = "1"\ndependencies = ["daytona"]\n',
+            "uv.lock": f'[[package]]\nname = "daytona"\nversion = "{version["py"]}"\n',
+        },
+    )
+    # When
+    _, report = _run(tmp_path, capsys)
+
+    # Then: the same text as the TypeScript tool.
+    def fill(text: object) -> str:
+        assert isinstance(text, str)
+        return text.replace("{pinned}", PINNED).replace("{file}", "uv.lock")
+
+    if "refusal" in entry:
+        assert report["refused"]["message"] == fill(entry["refusal"])  # type: ignore[index]
+    if "warning" in entry:
+        assert report["warnings"] == [
+            {"file": "uv.lock", "message": fill(entry["warning"])}
+        ]
+
+
+@pytest.mark.parametrize("field", ["markers", "python"])
+def test_a_marker_gated_table_entry_is_no_version_evidence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], field: str
+) -> None:
+    # Given: the newer minor sits behind a condition, as in a requirement string.
+    condition = "python_version < '3.0'" if field == "markers" else "<3.0"
+    pyproject = f'[tool.poetry]\nname = "app"\n\n[tool.poetry.dependencies]\ndaytona = {{version = "0.999.0", {field} = "{condition}"}}\n'
+    _project(tmp_path, {"pyproject.toml": pyproject})
+    # When
+    code, report = _run(tmp_path, capsys)
+    # Then
+    assert code == 0
+    assert report["warnings"] == [
+        {"file": "pyproject.toml", "message": unknown_message(PINNED)}
+    ]
