@@ -31,8 +31,12 @@ RUN = uuid.uuid4().hex[:8]
 
 
 def sh(sandbox: Sandbox, command: str) -> str:
-    """Run a shell command and return trimmed stdout."""
-    return (sandbox.process.run(command).output or "").strip()
+    """Run a shell command and return trimmed stdout; raise if it exits non-zero."""
+    result = sandbox.process.run(command)
+    output = (result.output or "").strip()
+    if result.exit_code != 0:
+        raise RuntimeError(f"{command!r} failed (exit={result.exit_code}): {output}")
+    return output
 
 
 def main() -> int:
@@ -81,7 +85,7 @@ def main() -> int:
 
         print("3. sandbox C reads both writers' data")
         c = new_box("vol-c")
-        contents = sh(c, "cat /data/message.txt 2>/dev/null")
+        contents = sh(c, "cat /data/message.txt 2>/dev/null || true")
         if marker in contents and marker_b in contents:
             print("PASS: C sees changes from both A and B")
         else:

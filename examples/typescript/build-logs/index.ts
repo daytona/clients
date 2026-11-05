@@ -42,7 +42,7 @@ async function main() {
     section('build a Dockerfile as a sandbox')
     const sandbox = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `buildlogs-${RUN}`,
-      wait: 400,
+      waitSeconds: 400,
     })
     sandboxes.push(sandbox)
     info(`sandbox ${sandbox.id} is ${sandbox.state}`)
@@ -63,7 +63,7 @@ async function main() {
     section('build logs for a second sandbox from the same Dockerfile')
     const twin = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `buildlogs-twin-${RUN}`,
-      wait: 400,
+      waitSeconds: 400,
     })
     sandboxes.push(twin)
     const twinLogs = await twin.buildLogs()
@@ -81,7 +81,7 @@ async function main() {
       const broken = await daytona.createFromBuild(ImageBuilder.fromDockerfile(BROKEN_DOCKERFILE), {
         name: `buildlogs-bad-${RUN}`,
         // Bound the wait so a failed build does not stall the example.
-        wait: 120,
+        waitSeconds: 120,
       })
       sandboxes.push(broken)
       // Reaching here means the create did not fail; still print whatever the

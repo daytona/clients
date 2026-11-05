@@ -7,35 +7,46 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, IMAGE, RUN } from '../_common'
+import { client, section, info, fail, IMAGE, RUN } from '../_common'
 
-async function basicExec(sandbox: Sandbox) {
+/** Run a command and interpreter code; resolve to whether both succeeded. */
+async function basicExec(sandbox: Sandbox): Promise<boolean> {
   section('basic run + interpreter')
+  let ok = true
 
   // Run a shell command.
   const cmd = await sandbox.process.run('echo "Hello World from CMD!"')
-  if (cmd.exitCode !== 0) console.error('command failed:', cmd.exitCode)
-  else info(`cmd: ${cmd.output.trim()}`)
+  if (cmd.exitCode !== 0) {
+    fail(`command failed (exit=${cmd.exitCode})`)
+    ok = false
+  } else info(`cmd: ${cmd.output.trim()}`)
 
   // Run code in the sandbox's configured language runtime (python here).
   const code = await sandbox.interpreter.run('print("Hello World from code!")', { language: 'python' })
-  if (code.process.exitCode !== 0) console.error('code failed:', code.process.exitCode)
-  else info(`code: ${code.logs.stdout.trim()}`)
+  if (code.process.exitCode !== 0) {
+    fail(`code failed (exit=${code.process.exitCode})`)
+    ok = false
+  } else info(`code: ${code.logs.stdout.trim()}`)
+
+  return ok
 }
 
 async function main() {
   const daytona = client()
 
-  const sandbox = await daytona.create(IMAGE, { name: `exec-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(IMAGE, { name: `exec-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id} state=${sandbox.state}`)
 
+  let ok = false
   try {
-    await basicExec(sandbox)
+    ok = await basicExec(sandbox)
   } finally {
     section('cleanup')
     await daytona.delete(sandbox)
     info(`deleted sandbox ${sandbox.id}`)
   }
+
+  process.exit(ok ? 0 : 1)
 }
 
 main().catch((e) => {

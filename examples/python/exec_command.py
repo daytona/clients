@@ -10,40 +10,46 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, info, section
+from _common import IMAGE, RUN, client, failed, info, section
 
-from daytona.v2 import Image
+from daytona.v2 import Sandbox
 
 
-def basic_exec(sandbox) -> None:
+def basic_exec(sandbox: Sandbox) -> bool:
+    """Run a command and interpreter code; return whether both succeeded."""
     section("basic run + interpreter")
+    ok = True
 
     cmd = sandbox.process.run('echo "Hello World from CMD!"')
     if cmd.exit_code != 0:
-        print("command failed:", cmd.exit_code)
+        failed(f"command failed (exit={cmd.exit_code})")
+        ok = False
     else:
         info(f"cmd: {cmd.output.strip()}")
 
     code = sandbox.interpreter.run('print("Hello World from code!")', language="python")
     if code.process.exit_code != 0:
-        print("code failed:", code.process.exit_code)
+        failed(f"code failed (exit={code.process.exit_code})")
+        ok = False
     else:
-        info(f"code: {code.process.output.strip()}")
+        info(f"code: {code.logs.stdout.strip()}")
+
+    return ok
 
 
 def main() -> int:
     daytona = client()
 
-    sandbox = daytona.create(Image.base(IMAGE), name=f"exec-{RUN}", timeout=200)
+    sandbox = daytona.create(IMAGE, name=f"exec-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id} state={sandbox.state}")
 
     try:
-        basic_exec(sandbox)
+        ok = basic_exec(sandbox)
     finally:
         section("cleanup")
         daytona.delete(sandbox)
         info(f"deleted sandbox {sandbox.id}")
-    return 0
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -16,12 +16,10 @@ import sys
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
-from daytona.v2 import Image
-
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(Image.base(IMAGE), name=f"files-{RUN}", timeout=200)
+    sandbox = daytona.create(IMAGE, name=f"files-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True
@@ -46,6 +44,11 @@ def main() -> int:
         sandbox.process.run(f"chmod +x {d}/script.sh")
         script_out = sandbox.process.run(f"./{d}/script.sh")
         info(f"script output: {script_out.output.strip()}")
+        if script_out.exit_code == 0:
+            passed("the uploaded script ran")
+        else:
+            failed(f"the uploaded script failed (exit={script_out.exit_code})")
+            ok = False
 
         section("glob (by name pattern)")
         found = sandbox.fs.glob(d, "*.json")

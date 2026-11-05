@@ -10,16 +10,14 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, info, passed, section
-
-from daytona.v2 import Image
+from _common import IMAGE, RUN, client, failed, info, passed, section
 
 
 def main() -> int:
     daytona = client()
 
     section("create")
-    sandbox = daytona.create(Image.base(IMAGE), name=f"life-{RUN}", timeout=200)
+    sandbox = daytona.create(IMAGE, name=f"life-{RUN}", wait_seconds=200)
     info(f"created id={sandbox.id} state={sandbox.state} cpu={sandbox.cpu} mem={sandbox.memory}")
 
     ok = True
@@ -32,8 +30,11 @@ def main() -> int:
         section("run round-trip")
         res = sandbox.process.run('echo "Hello World from run!"')
         info(f"exit={res.exit_code} out={res.output.strip()}")
-
-        passed("sandbox lifecycle round-trip completed")
+        if res.exit_code == 0:
+            passed("sandbox lifecycle round-trip completed")
+        else:
+            failed(f"run failed (exit={res.exit_code})")
+            ok = False
     finally:
         section("delete")
         daytona.delete(sandbox)

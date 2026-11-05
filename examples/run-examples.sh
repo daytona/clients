@@ -15,7 +15,7 @@
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
 #     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - Without API access you can still validate the examples statically:
-#       ./run-examples.sh check     # tsc --noEmit + python import/compile checks
+#       ./run-examples.sh check     # type checks + offline tests against a fake client
 set -uo pipefail
 cd "$(dirname "$0")"
 WHICH="${1:-both}"
@@ -39,14 +39,14 @@ run() { # <label> <cmd...>
 }
 
 check() {
-  echo "== static checks (no API access needed) =="
+  echo "== static checks + offline tests (no API access needed) =="
   (cd . && npm install --no-audit --no-fund >/dev/null 2>&1)
   run "tsc --noEmit" npx tsc -p tsconfig.json --noEmit
-  run "python compile" "$PY_BIN" -m py_compile \
-    python/_common.py python/exec_command.py python/file_operations.py \
-    python/git_ops.py python/lifecycle.py python/snapshots.py \
-    python/dynamic_build.py python/dockerfile_sandbox.py python/build_logs.py \
-    python/pagination.py python/secrets_env.py python/volumes.py volumes_share.py
+  run "ts offline tests" node --import tsx --test \
+    typescript/examples.test.ts typescript/follow-build-logs/output.test.ts
+  # mypy and pytest come from the SDK's dev extras (pip install -e "../python[dev]").
+  run "mypy --strict" env MYPYPATH=python "$PY_BIN" -m mypy --strict python volumes_share.py
+  run "python offline tests" "$PY_BIN" -m pytest -q -p no:cacheprovider python/test_examples.py
 }
 
 run_ts() {

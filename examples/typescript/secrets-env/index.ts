@@ -29,32 +29,48 @@
 import type { Sandbox } from '@daytona/sdk/v2'
 import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
-async function main() {
+async function main(): Promise<boolean> {
   const daytona = client()
+  let ok = true
 
-  // A project secret is write-only: the API never returns its value.
-  const secretName = `EXAMPLE_API_KEY`
+  // A project secret is write-only: the API never returns its value. The name
+  // is run-scoped, so the example never touches another secret in the project;
+  // it is also the env var the secret is exposed as.
+  const secretName = `EXAMPLE_API_KEY_${RUN.toUpperCase()}`
   const secretValue = `sk-secret-${RUN}`
 
-  section('secret.set(name, value) — create/update a project secret')
-  await daytona.secret.set(secretName, secretValue, {
-    // allowedDomains: where the secret's value may be sent
-    allowedDomains: ['api.example.com'],
-    description: 'demo secret for the secrets-env example',
-  })
-  info(`set secret ${secretName} (value is write-only; never returned)`)
-
-  section('secret.list() — metadata only, never values')
-  const secrets = (await daytona.secret.list()).items
-  const found = secrets.find((s) => s.name === secretName)
-  info(`listed ${secrets.length} secret(s); ${secretName} present=${!!found}`)
-
+  let secretCreated = false
   let sandbox: Sandbox | undefined
   try {
+    section('secret.set(name, value) — create a project secret')
+    await daytona.secret.set(secretName, secretValue, {
+      // allowedDomains: where the secret's value may be sent
+      allowedDomains: ['api.example.com'],
+      description: 'demo secret for the secrets-env example',
+      // Never overwrite an existing secret: cleanup deletes only ours.
+      ifNotExists: true,
+    })
+    secretCreated = true
+    info(`set secret ${secretName} (value is write-only; never returned)`)
+
+    section('secret.iter() — metadata only, never values')
+    let found = false
+    for await (const s of daytona.secret.iter()) {
+      if (s.name === secretName) {
+        found = true
+        break
+      }
+    }
+    info(`${secretName} present=${found}`)
+    if (!found) {
+      fail(`secret ${secretName} is missing from secret.iter()`)
+      ok = false
+    }
+
     section('create a sandbox with BOTH env vars and the secret attached')
     sandbox = await daytona.create(IMAGE, {
       name: `secrets-env-${RUN}`,
-      wait: 200,
+      waitSeconds: 200,
       // Env vars: real values, injected verbatim into the sandbox.
       envVars: {
         APP_ENV: 'production',
@@ -72,22 +88,27 @@ async function main() {
       ['LOG_LEVEL', 'debug'],
       ['GREETING', `hello-${RUN}`],
     ] as const) {
-    const res = await sandbox.process.run(`printf %s "$${name}"`)
-    const got = (res.output ?? '').trim()
+      const res = await sandbox.process.run(`printf %s "$${name}"`)
+      const got = (res.output ?? '').trim()
       if (got === expected) pass(`$${name} = "${got}"`)
-      else fail(`$${name} = "${got}" (expected "${expected}")`)
+      else {
+        fail(`$${name} = "${got}" (expected "${expected}")`)
+        ok = false
+      }
     }
 
     section('the SECRET is NOT the real value inside the sandbox (placeholder only)')
     const inSandbox = (await sandbox.process.run(`printf %s "$${secretName}"`)).output?.trim() ?? ''
     // The env var exists (so apps can reference it), but it holds an opaque
     // placeholder, not the secret we set. The real value is used only in outgoing requests.
-    if (inSandbox && inSandbox !== secretValue) {
-      pass(`$${secretName} in the sandbox is a placeholder, not the secret value`)
-    } else if (inSandbox === secretValue) {
+    if (inSandbox === secretValue) {
       fail(`$${secretName} leaked the real secret value into the sandbox!`)
+      ok = false
+    } else if (inSandbox) {
+      pass(`$${secretName} in the sandbox is a placeholder, not the secret value`)
     } else {
-      info(`$${secretName} not present inside the sandbox; OK`)
+      fail(`$${secretName} is not set inside the sandbox (expected a placeholder)`)
+      ok = false
     }
   } finally {
     section('cleanup')
@@ -99,16 +120,20 @@ async function main() {
         info(`delete sandbox failed: ${e}`)
       }
     }
-    try {
-      await daytona.secret.delete(secretName)
-      info(`deleted secret ${secretName}`)
-    } catch (e) {
-      info(`delete secret failed: ${e}`)
+    if (secretCreated) {
+      try {
+        await daytona.secret.delete(secretName)
+        info(`deleted secret ${secretName}`)
+      } catch (e) {
+        info(`delete secret failed: ${e}`)
+      }
     }
   }
+
+  return ok
 }
 
-main().catch((e) => {
+main().then((ok) => process.exit(ok ? 0 : 1)).catch((e) => {
   console.error('Error:', e)
   process.exit(1)
 })

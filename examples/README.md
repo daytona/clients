@@ -31,6 +31,7 @@ examples/
 │   ├── follow-build-logs/index.ts  opt-in existing-build follower (Node.js)
 │   ├── follow-build-logs/output.ts backpressure-aware CLI output helper
 │   ├── follow-build-logs/output.test.ts  local output tests
+│   ├── examples.test.ts      offline tests (fake client, see test-support/)
 │   ├── pagination/index.ts
 │   ├── volumes/index.ts
 │   └── secrets-env/index.ts
@@ -47,7 +48,8 @@ examples/
 │   ├── follow_build_logs.py   opt-in existing-build follower
 │   ├── pagination.py
 │   ├── volumes.py
-│   └── secrets_env.py
+│   ├── secrets_env.py
+│   └── test_examples.py      offline tests (fake client)
 ├── volumes_share.{ts,py}     persistent-volume round-trip (see below)
 └── run-examples.sh           run all examples (or `check` them statically)
 ```
@@ -67,7 +69,7 @@ The examples exercise the V2 SDK surface in both languages.
 | dockerfile sandbox | `dockerfile-sandbox` | ✅ The happy path — one call builds an inline Dockerfile and hands back a **running** sandbox, then proves the baked script, `ENV`, `WORKDIR` and data file all survived into the sandbox, and round-trips a file at runtime. `DAYTONA_KEEP=1` leaves it running to poke at. Requires image-build support. |
 | build logs | `build-logs` | ✅ Prints Dockerfile build output (`sandbox.build_logs()` / `buildLogs()`), including each `RUN` step's stdout and a failed build's reason. Also reads logs for a second sandbox created from the same Dockerfile. Requires image-build support. |
 | pagination | `pagination` | ✅ `images.iter()` for lazy all-pages traversal plus manual `images.list(...)` cursor control. |
-| `secrets` (+ env) | `secrets-env` | ✅ `secret.set/list/delete` + attach via `secrets: [name]`, alongside per-sandbox `envVars`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
+| `secrets` (+ env) | `secrets-env` | ✅ `secret.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `envVars`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
 | volumes | `volumes` | `volume.get(create)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
 
 Not covered here: LSP servers and network settings.
@@ -116,14 +118,14 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 
 ### Static validation (no API access needed)
 
-`tsc --noEmit` over the TS examples + a Python compile/import check — useful in
-CI or when no live sandbox is available:
+`tsc --noEmit` and `mypy --strict` over the examples, plus offline tests that run
+each example against a fake client and check its exit code and cleanup
+(`typescript/examples.test.ts`, `python/test_examples.py`). CI runs the same
+command (`Examples CI`). The Python checks need the SDK's dev extras:
 
 ```bash
+(cd ../python && pip install -e ".[dev]")
 ./run-examples.sh check
-
-# Local follower-output tests (no API or live build needed):
-node --import tsx --test typescript/follow-build-logs/output.test.ts
 ```
 
 ## Shared-volume persistence
