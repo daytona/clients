@@ -77,6 +77,9 @@ func (e *unixArchiveExtractor) OpenRegular(relPath string, target string, mode o
 		return nil, err
 	}
 	defer parent.Close()
+	if archiveAfterParentPinned != nil {
+		archiveAfterParentPinned(target)
+	}
 	return openRegularAt(parent, base, target, mode)
 }
 

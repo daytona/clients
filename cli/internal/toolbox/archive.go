@@ -14,6 +14,10 @@ import (
 
 var archiveBeforeRegularOpen func(target string)
 
+// archiveAfterParentPinned runs once a regular entry's parent directory is
+// open, just before the file is created in it (a test seam for swap races).
+var archiveAfterParentPinned func(target string)
+
 type archiveExtractor interface {
 	Close() error
 	ExtractDirectory(relPath string, target string, mode os.FileMode) error
@@ -127,7 +131,7 @@ func ExtractArchive(r io.Reader, dst string) error {
 		if err != nil {
 			return err
 		}
-		if entry.target != root && !strings.HasPrefix(entry.target, root+string(filepath.Separator)) {
+		if entry.target != root && !strings.HasPrefix(entry.target, dirPrefix(root)) {
 			return fmt.Errorf("tar entry escapes destination: %s", header.Name)
 		}
 		// A root-mapped entry (".", "/", "") may not restyle the caller's

@@ -217,3 +217,59 @@ func TestExtractArchive_refusesParentSymlinkSwap_afterValidation(t *testing.T) {
 		t.Fatalf("victim overwritten: %q", got)
 	}
 }
+
+// The write lands in the parent directory opened during validation even when
+// that directory is renamed away and replaced by a symlink before the file is
+// created: extraction never re-resolves the parent by path.
+func TestExtractArchive_writesIntoPinnedParent_whenParentIsSwappedAfterOpen(t *testing.T) {
+	victimDir := t.TempDir()
+	victim := filepath.Join(victimDir, "victim.txt")
+	if err := os.WriteFile(victim, []byte("original"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dst := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dst, "safe"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(dst, "safe-moved")
+	called, swapped := false, false
+	archiveAfterParentPinned = func(target string) {
+		if filepath.Base(target) != "victim.txt" {
+			return
+		}
+		called = true
+		parent := filepath.Dir(target)
+		if err := os.Rename(parent, moved); err != nil {
+			t.Fatalf("rename the pinned parent: %v", err)
+		}
+		requireSymlinkOrSkip(t, victimDir, parent)
+		swapped = true
+	}
+	defer func() { archiveAfterParentPinned = nil }()
+
+	err := ExtractArchive(writeTar(t, &tar.Header{Name: "safe/victim.txt", Typeflag: tar.TypeReg, Mode: 0o644, Size: 1}), dst)
+
+	if !called {
+		t.Fatal("extraction must pin the parent directory before creating the file")
+	}
+	got, readErr := os.ReadFile(victim)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "original" {
+		t.Fatalf("victim overwritten through the swapped parent: %q", got)
+	}
+	if !swapped {
+		t.Fatal("the parent swap did not happen")
+	}
+	if err != nil {
+		t.Fatalf("ExtractArchive(): %v", err)
+	}
+	pinned, readErr := os.ReadFile(filepath.Join(moved, "victim.txt"))
+	if readErr != nil {
+		t.Fatalf("the entry must land in the pinned (renamed) parent: %v", readErr)
+	}
+	if string(pinned) != "x" {
+		t.Fatalf("pinned entry content %q", pinned)
+	}
+}

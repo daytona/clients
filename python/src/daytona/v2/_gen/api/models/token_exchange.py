@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List
 from typing_extensions import Annotated
 from typing import Optional, Set
+from typing import FrozenSet
 from typing_extensions import Self
 
 
@@ -31,6 +32,41 @@ def _json_default(value: object) -> str:
     if callable(isoformat):
         return str(isoformat())
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+_REDACTED = "<redacted>"
+
+
+_CREDENTIAL_KEYS = frozenset(["access_token", "id_token", "password", "refresh_token", "subject_token", "token", ])
+
+
+def _redacted_dump(value: object) -> object:
+    """model_dump(by_alias=True) for diagnostics: the credential fields of every
+    generated model, nested ones included, and credential-named keys of
+    undeclared extras (additional_properties) show a placeholder."""
+    if isinstance(value, BaseModel):
+        redacted = getattr(type(value), "_daytona_redacted_fields", frozenset())
+        out: dict[str, object] = {}
+        for name, field in type(value).model_fields.items():
+            item = getattr(value, name)
+            key = field.serialization_alias or field.alias or name
+            if name == "additional_properties" and isinstance(item, dict):
+                out[key] = _redact_extras(item)
+            else:
+                out[key] = _REDACTED if name in redacted and item is not None else _redacted_dump(item)
+        return out
+    if isinstance(value, (list, tuple)):
+        return [_redacted_dump(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redacted_dump(item) for key, item in value.items()}
+    return value
+
+
+def _redact_extras(extras: dict[str, object]) -> dict[str, object]:
+    return {
+        key: _REDACTED if key in _CREDENTIAL_KEYS and item is not None else _redacted_dump(item)
+        for key, item in extras.items()
+    }
 class TokenExchange(BaseModel):
     """
     A platform access token.
@@ -41,6 +77,7 @@ class TokenExchange(BaseModel):
     token_type: StrictStr = Field(description="Always `Bearer`.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["access_token", "expires_in", "issued_token_type", "token_type"]
+    _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["access_token", ])
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,8 +87,18 @@ class TokenExchange(BaseModel):
 
 
     def to_str(self) -> str:
-        """Returns the string representation of the model using alias"""
-        return pprint.pformat(self.model_dump(by_alias=True))
+        """Returns the string representation of the model using alias, with
+        credential fields redacted (to_dict()/to_json() keep them)"""
+        return pprint.pformat(_redacted_dump(self))
+
+    def __repr_args__(self):  # type: ignore[no-untyped-def]
+        for name, value in super().__repr_args__():
+            if name in self._daytona_redacted_fields and value is not None:
+                yield name, _REDACTED
+            elif name == "additional_properties" and isinstance(value, dict):
+                yield name, _redact_extras(value)
+            else:
+                yield name, value
 
     def to_json(self) -> str:
         """Returns the JSON representation of the model using alias"""

@@ -10,6 +10,9 @@ import json
 {{{.}}}
 {{/vendorExtensions.x-py-model-imports}}
 from typing import Optional, Set
+{{#vendorExtensions.x-daytona-redact-model}}
+from typing import FrozenSet
+{{/vendorExtensions.x-daytona-redact-model}}
 from typing_extensions import Self
 
 {{#hasChildren}}
@@ -31,6 +34,43 @@ def _json_default(value: object) -> str:
     if callable(isoformat):
         return str(isoformat())
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+{{#vendorExtensions.x-daytona-redact-model}}
+
+
+_REDACTED = "<redacted>"
+
+
+_CREDENTIAL_KEYS = frozenset([{{#vendorExtensions.x-daytona-credential-keys}}"{{.}}", {{/vendorExtensions.x-daytona-credential-keys}}])
+
+
+def _redacted_dump(value: object) -> object:
+    """model_dump(by_alias=True) for diagnostics: the credential fields of every
+    generated model, nested ones included, and credential-named keys of
+    undeclared extras (additional_properties) show a placeholder."""
+    if isinstance(value, BaseModel):
+        redacted = getattr(type(value), "_daytona_redacted_fields", frozenset())
+        out: dict[str, object] = {}
+        for name, field in type(value).model_fields.items():
+            item = getattr(value, name)
+            key = field.serialization_alias or field.alias or name
+            if name == "additional_properties" and isinstance(item, dict):
+                out[key] = _redact_extras(item)
+            else:
+                out[key] = _REDACTED if name in redacted and item is not None else _redacted_dump(item)
+        return out
+    if isinstance(value, (list, tuple)):
+        return [_redacted_dump(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redacted_dump(item) for key, item in value.items()}
+    return value
+
+
+def _redact_extras(extras: dict[str, object]) -> dict[str, object]:
+    return {
+        key: _REDACTED if key in _CREDENTIAL_KEYS and item is not None else _redacted_dump(item)
+        for key, item in extras.items()
+    }
+{{/vendorExtensions.x-daytona-redact-model}}
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
     """
     {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
@@ -42,6 +82,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     additional_properties: Dict[str, Any] = {}
 {{/isAdditionalPropertiesTrue}}
     __properties: ClassVar[List[str]] = [{{#allVars}}"{{baseName}}"{{^-last}}, {{/-last}}{{/allVars}}]
+{{#vendorExtensions.x-daytona-redact-model}}
+    _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset([{{#allVars}}{{#vendorExtensions.x-daytona-redact}}"{{name}}", {{/vendorExtensions.x-daytona-redact}}{{/allVars}}])
+{{/vendorExtensions.x-daytona-redact-model}}
 {{#vars}}
     {{#vendorExtensions.x-regex}}
 
@@ -134,9 +177,26 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 
 {{/discriminator}}
 {{/hasChildren}}
+{{#vendorExtensions.x-daytona-redact-model}}
+    def to_str(self) -> str:
+        """Returns the string representation of the model using alias, with
+        credential fields redacted (to_dict()/to_json() keep them)"""
+        return pprint.pformat(_redacted_dump(self))
+
+    def __repr_args__(self):  # type: ignore[no-untyped-def]
+        for name, value in super().__repr_args__():
+            if name in self._daytona_redacted_fields and value is not None:
+                yield name, _REDACTED
+            elif name == "additional_properties" and isinstance(value, dict):
+                yield name, _redact_extras(value)
+            else:
+                yield name, value
+{{/vendorExtensions.x-daytona-redact-model}}
+{{^vendorExtensions.x-daytona-redact-model}}
     def to_str(self) -> str:
         """Returns the string representation of the model using alias"""
         return pprint.pformat(self.model_dump(by_alias=True))
+{{/vendorExtensions.x-daytona-redact-model}}
 
     def to_json(self) -> str:
         """Returns the JSON representation of the model using alias"""
