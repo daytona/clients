@@ -662,9 +662,8 @@ the additional remote/branch controls to the sandbox.
 `expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
 `iterEndpoints(options)`.
 To skip the preview warning page when a headless browser opens a preview URL,
-send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }`
-(`X-Daytona-Skip-Preview-Warning: true`, both from `@daytona/sdk/v2`) with its
-requests.
+send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
+exported from `@daytona/sdk/v2`) with its requests.
 `lsp.start(languageId, pathToProject)` returns an `LspServer` handle with
 `openDocument()`, `closeDocument()`, `completions()`, `documentSymbols()`,
 `workspaceSymbols()` and `stop()`.
