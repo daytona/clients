@@ -12,7 +12,7 @@
 import type { AxiosInstance } from 'axios'
 import { strictUriEncode } from './http.js'
 import type * as api from './gen/api-types.js'
-import { BadRequestError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError } from './errors/DaytonaError.js'
+import { BadRequestError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TimeoutError } from './errors/DaytonaError.js'
 
 /** A build-context tar: its bytes, a `Blob`, or (Node.js) the path of a `.tar` file. */
 export type BuildContext = Uint8Array | Blob | string
@@ -21,11 +21,17 @@ export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024
 const HASH_CHUNK = 8 * 1024 * 1024
 const PART_CHUNK = 1024 * 1024
 const PART_ATTEMPTS = 3
+// Parts in flight at once. Each streams its bytes, so memory stays a few
+// chunks whatever the part size.
+const PART_CONCURRENCY = 4
+const COMPLETE_ATTEMPTS = 3
 
-/** Test seams: the storage client and the pause between part attempts. */
+/** Test seams: the storage client, the pause between attempts, and the complete timeout. */
 export const contextUploadRuntime = {
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
+  // The API reads the whole stored archive back (up to 1 GiB) before it answers.
+  completeTimeoutMs: 10 * 60 * 1000,
 }
 
 function badRequest(message: string): BadRequestError {
@@ -157,22 +163,25 @@ async function sha256Hex(source: ContextSource): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart): Promise<void> {
+async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal): Promise<void> {
   const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
+  const cancelled = (): DaytonaError => new DaytonaError('build context upload cancelled', undefined, undefined, 'SDK')
   let status: number | undefined
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
+    if (signal.aborted) throw cancelled()
     const body = source.part(offset, part.bytes)
     if (!(body instanceof ReadableStream) && (body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()
     // A presigned PUT needs a fixed length, so a streamed body is not chunked.
     const init: RequestInit & { duplex?: 'half' } =
       body instanceof ReadableStream
-        ? { method: 'PUT', body, redirect: 'error', headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
-        : { method: 'PUT', body, redirect: 'error' }
+        ? { method: 'PUT', body, redirect: 'error', signal, headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
+        : { method: 'PUT', body, redirect: 'error', signal }
     try {
       const response = await contextUploadRuntime.fetch(part.url, init)
       status = response.status
       await response.body?.cancel().catch(() => undefined)
     } catch {
+      if (signal.aborted) throw cancelled()
       // A streamed part fails to read once its file shrinks.
       if (await source.changed()) throw changed()
       // The failure names the URL, so it is not kept as a cause.
@@ -186,6 +195,56 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
   }
   if (status === undefined) throw new ConnectionError(`build context part ${part.part_number} could not reach storage`, undefined, undefined, 'SDK')
   throw new ServiceUnavailableError(`storage did not accept build context part ${part.part_number} (HTTP ${status})`, 503, 'SERVICE_UNAVAILABLE', 'SDK')
+}
+
+/** Upload every part, at most `PART_CONCURRENCY` at a time; the first failure aborts the rest and is thrown. */
+async function putParts(source: ContextSource, parts: readonly api.BuildContextUploadPart[]): Promise<void> {
+  const offsets: number[] = []
+  let total = 0
+  for (const part of parts) {
+    offsets.push(total)
+    total += part.bytes
+  }
+  if (total !== source.size) throw new DaytonaError('build context upload parts do not cover the archive', undefined, undefined, 'SDK')
+  const abort = new AbortController()
+  let failure: { readonly error: unknown } | undefined
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (failure === undefined && next < parts.length) {
+      const index = next++
+      try {
+        await putPart(source, offsets[index], parts[index], abort.signal)
+      } catch (error) {
+        if (failure === undefined) {
+          failure = { error }
+          abort.abort()
+        }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(PART_CONCURRENCY, parts.length) }, worker))
+  if (failure !== undefined) throw failure.error
+}
+
+function retryableComplete(error: DaytonaError): boolean {
+  if (error instanceof TimeoutError || error instanceof ConnectionError) return true
+  return error.statusCode !== undefined && error.statusCode >= 500 && error.statusCode !== 501
+}
+
+/** Verify the upload. A repeated complete of a verified upload answers with it, so failures are retried. */
+async function complete(http: AxiosInstance, upload: api.BuildContextUpload): Promise<void> {
+  const configured = http.defaults.timeout
+  const timeout = configured === 0 ? 0 : Math.max(configured ?? 0, contextUploadRuntime.completeTimeoutMs)
+  const request: api.CompleteBuildContextUploadRequest = { region_id: upload.region_id }
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await http.post<api.BuildContextUpload>(`/build-contexts/${strictUriEncode(upload.id)}/complete`, request, { timeout })
+      return
+    } catch (error) {
+      if (attempt + 1 >= COMPLETE_ATTEMPTS || !(error instanceof DaytonaError) || !retryableComplete(error)) throw error
+    }
+    await contextUploadRuntime.sleep(1000 * 2 ** attempt)
+  }
 }
 
 /** Upload `context`; resolve to the ID and region of its verified upload. */
@@ -207,14 +266,8 @@ export async function uploadBuildContext(
     }
     const { data: upload } = await http.post<api.BuildContextUpload>('/build-contexts', request)
     if (upload.state === 'ready') return { id: upload.id, regionId: upload.region_id }
-    let offset = 0
-    for (const part of upload.parts) {
-      await putPart(source, offset, part)
-      offset += part.bytes
-    }
-    if (offset !== source.size) throw new DaytonaError('build context upload parts do not cover the archive', undefined, undefined, 'SDK')
-    const complete: api.CompleteBuildContextUploadRequest = { region_id: upload.region_id }
-    await http.post<api.BuildContextUpload>(`/build-contexts/${strictUriEncode(upload.id)}/complete`, complete)
+    await putParts(source, upload.parts)
+    await complete(http, upload)
     return { id: upload.id, regionId: upload.region_id }
   } finally {
     await source.close().catch(() => undefined)

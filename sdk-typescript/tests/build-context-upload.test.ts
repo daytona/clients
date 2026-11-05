@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { ImagesService } from '../src/v2/Images.js'
 import { createHttpClient } from '../src/v2/http.js'
 import { contextUploadRuntime } from '../src/v2/contextUpload.js'
-import { BadRequestError, ConnectionError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
+import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
 
 const UPLOAD_ID = '0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41'
 const SIGNATURE = 'X-Amz-Signature=fixture-signature'
@@ -26,10 +26,18 @@ let seen: Seen[]
 let partSize: number
 let ready: boolean
 let putStatuses: number[]
+let partStatuses: Map<number, number[]>
+let onPut: ((part: number) => Promise<void>) | undefined
+let completeStatuses: number[]
+let completeDelays: number[]
+const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 
-function service(): ImagesService {
-  return new ImagesService(createHttpClient(baseUrl, 'fixture-key', 5_000))
+function service(requestTimeoutMs = 5_000): ImagesService {
+  return new ImagesService(createHttpClient(baseUrl, 'fixture-key', requestTimeoutMs))
 }
+
+const partNumber = (url: string): number => Number(url.split('?')[0].split('/').pop())
+const delay = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms).unref() })
 
 function json(method: string, url: string): unknown {
   const matches = seen.filter((request) => request.method === method && request.url === url)
@@ -38,6 +46,7 @@ function json(method: string, url: string): unknown {
 }
 
 const puts = (): Seen[] => seen.filter((request) => request.method === 'PUT')
+const inPartOrder = (requests: Seen[]): Buffer => Buffer.concat([...requests].sort((a, b) => partNumber(a.url) - partNumber(b.url)).map((request) => request.body))
 const completes = (): Seen[] => seen.filter((request) => request.url.endsWith('/complete'))
 
 function archive(size = 0): Uint8Array {
@@ -50,11 +59,16 @@ beforeEach(async () => {
   partSize = 4096
   ready = false
   putStatuses = []
+  partStatuses = new Map()
+  onPut = undefined
+  completeStatuses = []
+  completeDelays = []
   contextUploadRuntime.sleep = async () => {}
+  contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
   server = createServer((request, response) => {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
-    request.on('end', () => {
+    request.on('end', async () => {
       const body = Buffer.concat(chunks)
       seen.push({ method: request.method ?? '', url: request.url ?? '', headers: request.headers, body })
       const reply = (status: number, payload?: unknown): void => {
@@ -65,7 +79,11 @@ beforeEach(async () => {
       const upload = (state: string, declared: { dockerfile: string; bytes: number; sha256: string }, parts: unknown[]) => ({
         id: UPLOAD_ID, state, region_id: 'region-c', dockerfile: declared.dockerfile, bytes: declared.bytes, sha256: declared.sha256, parts,
       })
-      if (request.method === 'PUT') return reply(putStatuses.shift() ?? 200)
+      if (request.method === 'PUT') {
+        const part = partNumber(request.url ?? '')
+        await onPut?.(part)
+        return reply((partStatuses.get(part) ?? putStatuses).shift() ?? 200)
+      }
       if (request.url === '/build-contexts') {
         const declared = JSON.parse(body.toString()) as { dockerfile: string; bytes: number; sha256: string }
         if (ready) return reply(200, upload('ready', declared, []))
@@ -75,7 +93,13 @@ beforeEach(async () => {
         }
         return reply(201, upload('uploading', declared, parts))
       }
-      if (request.url === `/build-contexts/${UPLOAD_ID}/complete`) return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
+      if (request.url === `/build-contexts/${UPLOAD_ID}/complete`) {
+        const status = completeStatuses.shift() ?? 200
+        await delay(completeDelays.shift() ?? 0)
+        if (response.destroyed) return
+        if (status !== 200) return reply(status, { message: 'not now', code: 'UNAVAILABLE', source: 'API' })
+        return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
+      }
       if (request.url === '/images') return reply(202, { id: 'img-ctx', status: 'pending' })
       if (request.url === '/images/img-ctx') return reply(200, { id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' })
       reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
@@ -109,7 +133,7 @@ it.each(['bytes', 'file'] as const)('uploads a %s context in parts, completes it
     dockerfile: 'Dockerfile', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), region_id: 'region-c',
   })
   expect(puts()).toHaveLength(Math.ceil(data.byteLength / partSize))
-  expect(Buffer.concat(puts().map((request) => request.body))).toEqual(Buffer.from(data))
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
   expect(puts().every((request) => request.headers.authorization === undefined)).toBe(true)
   expect(json('POST', `/build-contexts/${UPLOAD_ID}/complete`)).toEqual({ region_id: 'region-c' })
   expect(json('POST', '/images')).toEqual({ context_upload_id: UPLOAD_ID, region_id: 'region-c', name: 'web' })
@@ -194,13 +218,15 @@ it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own len
   expect(puts().length).toBeGreaterThan(1)
   expect(puts().every((request) => request.headers['content-length'] === String(request.body.byteLength))).toBe(true)
   expect(puts().every((request) => request.headers['transfer-encoding'] === undefined)).toBe(true)
-  expect(Buffer.concat(puts().map((request) => request.body))).toEqual(Buffer.from(data))
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
 })
 
 it('refuses a file that changes while it is being uploaded', async () => {
-  // Given a context file rewritten after it was declared.
+  // Given a context file rewritten after it was declared, with parts longer
+  // than the one chunk a part's stream reads before it is sent.
+  partSize = 3 << 20
   const path = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
-  await writeFile(path, archive(10_000))
+  await writeFile(path, archive(5 << 20))
   const original = contextUploadRuntime.fetch
   contextUploadRuntime.fetch = async (input, init) => {
     await writeFile(path, 'short')
@@ -216,4 +242,104 @@ it('refuses a file that changes while it is being uploaded', async () => {
   } finally {
     contextUploadRuntime.fetch = original
   }
+})
+
+it.each(['bytes', 'blob', 'file'] as const)('uploads %s parts in parallel, up to the limit', async (kind) => {
+  // Given storage that holds each PUT until four are in flight.
+  const limit = 4
+  let inFlight = 0
+  let peak = 0
+  let release!: () => void
+  const full = new Promise<void>((resolve) => { release = resolve })
+  onPut = async () => {
+    inFlight++
+    peak = Math.max(peak, inFlight)
+    if (inFlight === limit) release()
+    await Promise.race([full, delay(5_000)])
+    inFlight--
+  }
+  partSize = 1024
+  const data = archive(10_000)
+  let context: Uint8Array | Blob | string = data
+  if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
+  if (kind === 'file') {
+    context = join(await mkdtemp(join(tmpdir(), 'ctx-')), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  // When a context of more parts than the limit is uploaded.
+  await service().buildFromContext(context)
+  // Then exactly the limit was in flight, each part carries its own slice,
+  // and the upload is completed once.
+  expect(peak).toBe(limit)
+  expect(puts().length).toBeGreaterThan(limit)
+  for (const request of puts()) {
+    const number = partNumber(request.url)
+    expect(request.body).toEqual(Buffer.from(data.subarray((number - 1) * partSize, number * partSize)))
+  }
+  expect(completes()).toHaveLength(1)
+})
+
+it('throws the refusal of one part among parallel parts as itself', async () => {
+  partSize = 1024
+  partStatuses = new Map([[2, [403]]])
+  const error = await service().buildFromContext(archive(10_000)).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(String(error)).toContain('part 2 ')
+  expect(String(error)).not.toContain(SIGNATURE)
+  expect(completes()).toHaveLength(0)
+})
+
+it('retries a complete the server failed', async () => {
+  completeStatuses = [503, 502]
+  const image = await service().buildFromContext(archive())
+  expect(completes()).toHaveLength(3)
+  expect(image.id).toBe('img-ctx')
+})
+
+it('gives up on a complete that keeps failing', async () => {
+  completeStatuses = [500, 500, 500]
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(DaytonaError)
+  expect((error as DaytonaError).statusCode).toBe(500)
+  expect(completes()).toHaveLength(3)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
+it('does not retry a complete the server refused', async () => {
+  completeStatuses = [409]
+  await expect(service().buildFromContext(archive())).rejects.toBeInstanceOf(ConflictError)
+  expect(completes()).toHaveLength(1)
+})
+
+it('waits for a complete longer than the request timeout', async () => {
+  contextUploadRuntime.completeTimeoutMs = 5_000
+  completeDelays = [500]
+  await service(200).buildFromContext(archive())
+  expect(completes()).toHaveLength(1)
+})
+
+it('retries a complete that timed out', async () => {
+  contextUploadRuntime.completeTimeoutMs = 300
+  completeDelays = [1_000]
+  const image = await service(100).buildFromContext(archive())
+  expect(completes()).toHaveLength(2)
+  expect(image.id).toBe('img-ctx')
+})
+
+it('writes no part URL to the console or the standard streams', async () => {
+  const written: string[] = []
+  const capture = (...args: unknown[]): boolean => { written.push(args.map(String).join(' ')); return true }
+  const spies = [
+    ...(['log', 'info', 'warn', 'error', 'debug'] as const).map((method) => jest.spyOn(console, method).mockImplementation(capture)),
+    jest.spyOn(process.stdout, 'write').mockImplementation(capture),
+    jest.spyOn(process.stderr, 'write').mockImplementation(capture),
+  ]
+  try {
+    partSize = 1024
+    putStatuses = [503]
+    await service().buildFromContext(archive(10_000))
+  } finally {
+    for (const spy of spies) spy.mockRestore()
+  }
+  expect(written.filter((line) => line.includes(SIGNATURE) || line.includes('/bucket/'))).toEqual([])
 })
