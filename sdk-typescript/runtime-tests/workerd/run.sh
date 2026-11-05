@@ -38,7 +38,8 @@ run_worker() {
   npm run --silent build
   echo "axios $(node -p "require(require.resolve('axios/package.json', { paths: [require.resolve('@daytona/sdk')] })).version")"
   start_server_on_free_port "$PWD/workerd.log" "http://127.0.0.1:{PORT}/" npx workerd serve config.capnp --socket-addr "http=127.0.0.1:{PORT}"
-  assert_response "$(curl -sf -m 60 "http://127.0.0.1:$PORT/checks")"
+  result="$(curl -sf -m 60 "http://127.0.0.1:$PORT/checks")"
+  assert_response "$result"
   stop_server
 }
 

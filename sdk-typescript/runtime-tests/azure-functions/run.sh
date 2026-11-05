@@ -24,4 +24,5 @@ cat >local.settings.json <<SETTINGS
 SETTINGS
 export FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT=1
 WAIT_FOR_URL_SECONDS=120 start_server_on_free_port "$PWD/func-start.log" "http://127.0.0.1:{PORT}/" func start --port "{PORT}"
-assert_response "$(curl -sf -m 60 "http://127.0.0.1:$PORT/api/sandboxes")"
+result="$(curl -sf -m 60 "http://127.0.0.1:$PORT/api/sandboxes")"
+assert_response "$result"

@@ -5,4 +5,5 @@
 # shellcheck source-path=SCRIPTDIR/.. source=lib.sh
 source "$RUNTIME_LIB"
 install_sdk
-assert_response "$(node test.mjs)"
+result="$(node test.mjs)"
+assert_response "$result"

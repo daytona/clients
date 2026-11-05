@@ -6,4 +6,5 @@
 source "$RUNTIME_LIB"
 require_binary deno "https://deno.com"
 install_sdk
-assert_response "$(deno run --allow-env --allow-net=127.0.0.1 --allow-read --no-lock --no-check test.ts)"
+result="$(deno run --allow-env --allow-net=127.0.0.1 --allow-read --no-lock --no-check test.ts)"
+assert_response "$result"

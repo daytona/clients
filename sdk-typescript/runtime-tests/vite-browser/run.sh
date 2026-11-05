@@ -15,4 +15,5 @@ if ! npx playwright install chromium >playwright-install.log 2>&1; then
 fi
 npx tsc -p tsconfig.json
 npx vite build --logLevel error
-assert_response "$(node test-browser.mjs)"
+result="$(node test-browser.mjs)"
+assert_response "$result"

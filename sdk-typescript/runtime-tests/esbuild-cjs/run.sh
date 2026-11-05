@@ -12,4 +12,5 @@ npm run --silent build
 standalone="$(mktemp -d)"
 trap 'rm -rf "$standalone"' EXIT
 cp dist/test.cjs "$standalone/"
-assert_response "$(cd "$standalone" && node test.cjs)"
+result="$(cd "$standalone" && node test.cjs)"
+assert_response "$result"

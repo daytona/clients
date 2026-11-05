@@ -143,8 +143,9 @@ toolchain its runtime needs.
 3. Add an executable `run.sh`:
    - start with `# shellcheck source-path=SCRIPTDIR/.. source=lib.sh` and
      `source "$RUNTIME_LIB"`, then call `require_binary` for any non-npm tool;
-   - call `install_sdk`, build if needed, and pass the JSON to
-     `assert_response`;
+   - call `install_sdk`, build if needed, capture the JSON in an assignment
+     (`result="$(…)"`, so a failing command fails the runtime) and pass it to
+     `assert_response "$result"`;
    - for a server: `install_traps`, then
      `start_server_on_free_port <log> <url with {PORT}> <command with {PORT}>`
      (picks a free port, waits for the URL, retries a lost bind race) and

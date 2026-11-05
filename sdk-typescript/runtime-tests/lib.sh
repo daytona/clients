@@ -30,7 +30,9 @@ install_sdk() {
   npm install --silent "$SDK_TARBALL"
 }
 
-# Check a runtime's JSON result (see assert-result.mjs).
+# Check a runtime's JSON result (see assert-result.mjs). Capture the output in
+# an assignment first (`result="$(cmd)"`), so set -e fails the runtime when
+# the command itself fails.
 #   assert_response <json>
 assert_response() {
   printf '%s' "$1" | node "$RUNTIME_TESTS_DIR/assert-result.mjs"

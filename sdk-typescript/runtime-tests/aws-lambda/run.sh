@@ -7,4 +7,5 @@ source "$RUNTIME_LIB"
 rm -rf dist
 install_sdk
 npm run --silent build
-assert_response "$(node invoke.cjs)"
+result="$(node invoke.cjs)"
+assert_response "$result"

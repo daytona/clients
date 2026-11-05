@@ -13,4 +13,5 @@ if grep -qE "^import .* from [\"']@daytona/sdk[\"']|(import|require)\([\"']@dayt
   echo "FAIL: dist/ssr.js imports @daytona/sdk instead of bundling it"
   exit 1
 fi
-assert_response "$(node --input-type=module -e "const m = await import('./dist/ssr.js'); console.log(await m.run())")"
+result="$(node --input-type=module -e "const m = await import('./dist/ssr.js'); console.log(await m.run())")"
+assert_response "$result"
