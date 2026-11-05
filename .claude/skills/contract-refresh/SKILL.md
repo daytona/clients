@@ -23,33 +23,32 @@ new contract files; this skill turns them into a working SDK change.
 
 ## Steps
 
-1. **See what changed.** `git diff --stat -- contract/` and, for the two
-   OpenAPI files, the added/removed paths and schemas:
+1. **See what changed** since the PR's target branch (default `origin/main`),
+   committed or not: the contract files before the refresh are the ones at
+   the merge base. For the two OpenAPI files, list the paths and schemas
+   added, removed and changed (a changed one has a new definition: read its
+   diff for field and enum updates):
 
    ```bash
-   for f in api toolbox; do
-     git show HEAD:contract/$f-openapi.json > /tmp/$f-old.json
-     python3 - "$f" <<'PY'
-   import json, sys
-   f = sys.argv[1]
-   old = json.load(open(f"/tmp/{f}-old.json")); new = json.load(open(f"contract/{f}-openapi.json"))
-   for k in ("paths",):
-       print(f, k, "added:", sorted(set(new[k]) - set(old[k])), "removed:", sorted(set(old[k]) - set(new[k])))
-   o, n = old["components"]["schemas"], new["components"]["schemas"]
-   print(f, "schemas added:", sorted(set(n) - set(o)), "removed:", sorted(set(o) - set(n)))
-   PY
-   done
+   base=$(git merge-base HEAD origin/main)
+   git diff --stat "$base" -- contract/
+   python3 .claude/skills/contract-refresh/scripts/contract_diff.py origin/main
+   git diff "$base" -- contract/api-openapi.json   # the detail of a changed entry
    ```
+
+   After changing the script, run
+   `python3 .claude/skills/contract-refresh/scripts/contract_diff_test.py`.
 
 2. **Regenerate the vendored types:** `scripts/gen-contract-types.sh`
    (needs node, a JRE and Go).
 
-3. **Let the tools list the work.** Run, and collect every failure:
+3. **Let the tools list the work.** Run every command, even after one
+   fails, and collect every failure:
 
    ```bash
-   (cd typescript && npm run typecheck && npm test)
-   (cd python && .venv/bin/python -m mypy && .venv/bin/python -m pytest -q)
-   (cd cli && go build ./... && go test ./...)
+   (cd sdk-typescript || exit; rc=0; npm run typecheck || rc=1; npm test || rc=1; exit $rc)
+   (cd sdk-python || exit; rc=0; .venv/bin/python -m mypy || rc=1; .venv/bin/python -m pytest -q || rc=1; exit $rc)
+   (cd cli || exit; rc=0; go build ./... || rc=1; go test ./... || rc=1; exit $rc)
    ```
 
    Drift tests name what must change: a new error code (both `codes.py` and

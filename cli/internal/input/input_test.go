@@ -87,6 +87,32 @@ func TestRejectNulls_rejectsExplicitNulls(t *testing.T) {
 	}
 }
 
+// A flag overrides its --file field whatever the file key's capitalization.
+func TestSet_replacesCaseVariantsOfTheKey(t *testing.T) {
+	b := Body{"Timeout_Seconds": nil, "other": 1}
+	b.Set("timeout_seconds", 60)
+	if len(b) != 2 || b["timeout_seconds"] != 60 || b["other"] != 1 {
+		t.Fatalf("got %v", b)
+	}
+	if err := RejectNulls(b, "timeout_seconds"); err != nil {
+		t.Fatalf("the overridden null must not be rejected: %v", err)
+	}
+}
+
+// Decode matches keys case-insensitively, so the null guard must too.
+func TestRejectNulls_matchesKeysCaseInsensitively(t *testing.T) {
+	err := RejectNulls(Body{"Timeout_Seconds": nil}, "timeout_seconds")
+	if err == nil || !strings.Contains(err.Error(), "Timeout_Seconds") {
+		t.Fatalf("expected null rejection, got %v", err)
+	}
+	type req struct {
+		TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
+	}
+	if _, err := Decode[req](Body{"Timeout_Seconds": nil}); err != nil {
+		t.Fatalf("Decode accepts the case-folded key (why the guard must match it): %v", err)
+	}
+}
+
 func TestKV(t *testing.T) {
 	m, err := KV([]string{"A=1", "B=x=y"}, "--env")
 	if err != nil || m["A"] != "1" || m["B"] != "x=y" {

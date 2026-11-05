@@ -9,7 +9,7 @@ description = "Upgrade Daytona 0.x Python projects to SDK 2.x on the v0 namespac
 readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
-dependencies = ["libcst>=1.8,<2", "tomlkit>=0.13,<0.14", "packaging>=24,<27"]
+dependencies = ["libcst>=1.8,<2", "tomlkit>=0.13,<0.16,!=0.15.0,!=0.15.1", "packaging>=24,<27"]
 
 [project.scripts]
 daytona-upgrade = "daytona_upgrade.cli:main"

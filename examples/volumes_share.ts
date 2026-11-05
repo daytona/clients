@@ -34,8 +34,13 @@ async function main(): Promise<number> {
   const boxes: Sandbox[] = []
   let ok = true
 
-  const sh = async (box: Sandbox, command: string): Promise<string> =>
-    (await box.process.run(command)).output.trim()
+  // Run a shell command and return trimmed stdout; throw if it exits non-zero.
+  const sh = async (box: Sandbox, command: string): Promise<string> => {
+    const result = await box.process.run(command)
+    const output = result.output.trim()
+    if (result.exitCode !== 0) throw new Error(`${JSON.stringify(command)} failed (exit=${result.exitCode}): ${output}`)
+    return output
+  }
   const newBox = async (name: string): Promise<Sandbox> => {
     const box = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), {
       name: `${name}-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: '/data' }], waitSeconds: 240,
@@ -57,7 +62,7 @@ async function main(): Promise<number> {
 
     console.log("2. sandbox B reads A's file and appends a line")
     const b = await newBox('vol-b')
-    const got = await sh(b, "cat /data/message.txt 2>/dev/null || echo '<missing>'")
+    const got = await sh(b, "if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi")
     if (got === marker) {
       console.log("PASS: B read A's file after A was deleted")
     } else {
@@ -74,7 +79,7 @@ async function main(): Promise<number> {
 
     console.log("3. sandbox C reads both writers' data")
     const c = await newBox('vol-c')
-    const contents = await sh(c, 'cat /data/message.txt 2>/dev/null')
+    const contents = await sh(c, 'if [ -e /data/message.txt ]; then cat /data/message.txt; fi')
     if (contents.includes(marker) && contents.includes(markerB)) {
       console.log('PASS: C sees changes from both A and B')
     } else {

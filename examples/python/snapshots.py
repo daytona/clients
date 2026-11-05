@@ -22,10 +22,11 @@ import time
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
+from daytona import DaytonaV2Client
 from daytona.v2 import ImageBuilder
 
 
-def wait_for_image_ready(daytona, image_name: str) -> None:
+def wait_for_image_ready(daytona: DaytonaV2Client, image_name: str) -> None:
     for _ in range(120):
         cursor = None
         entry = None

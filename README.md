@@ -11,17 +11,18 @@ processes, files, Git, code execution, ports, LSP and computer use.
 
 ```
 .
-├── cli/          daytona CLI (Go)
-├── contract/     OpenAPI contracts the SDKs and CLI generate their wire types from
-├── python/       daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
-├── typescript/   @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
-├── scripts/      bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
-│                 (+ resolve-v0-tag.sh, bundle_v0_python.py, check-no-bundled-v0.sh, changelog/)
-├── v0-sdk-version                         — the pinned 0.x tag the v0 namespace vendors
-├── upgrade/      daytona-upgrade          — 0.x → 2.x migration tool: npm (typescript/) + PyPI (python/) packages,
-│                 one shared mapping (mapping/), the generated MIGRATION.md
-├── e2e.py / e2e.ts / run-e2e.sh        — live API e2e (needs DAYTONA_API_KEY)
-└── examples/
+├── cli/             daytona CLI (Go)
+├── contract/        OpenAPI contracts the SDKs and CLI generate their wire types from
+├── sdk-python/      daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
+├── sdk-typescript/  @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
+├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
+│                    one shared mapping (mapping/), the generated MIGRATION.md
+├── examples/        runnable examples for both SDKs
+├── e2e/             live API e2e, run.sh (needs DAYTONA_API_KEY)
+├── scripts/         bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
+│                    (+ v0-sdk-version, the pinned 0.x tag the v0 namespace vendors;
+│                    resolve-v0-tag.sh, bundle_v0_python.py, check-no-bundled-v0.sh, changelog/)
+└── docs/            RELEASING.md, VERSIONING.md, PREPARING_YOUR_CHANGES.md, adr/ (architecture decision records)
 ```
 
 ## The shared V2 model (both languages, one shape)
@@ -102,19 +103,19 @@ processes, files, Git, code execution, ports, LSP and computer use.
 ## Verification
 
 ```bash
-(cd python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run build)
+(cd sdk-python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build)
 (cd cli && go vet ./... && go test ./...)
 scripts/test-upgrade.sh   # both daytona-upgrade packages + mapping / guide drift
 ```
 
 The TypeScript suite also runs a live toolbox test when
 `DAYTONA_SDKTS_TOOLBOX_URL` points at a reachable sandbox toolbox, and skips it
-otherwise. The end-to-end suites (`e2e.py`, `e2e.ts`, `run-e2e.sh`) run against
+otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh`) run against
 a Daytona deployment when `DAYTONA_API_KEY` is set. Details: each package's
 `DEVELOPMENT.md`.
 
-Releases: [RELEASING.md](RELEASING.md) · [VERSIONING.md](VERSIONING.md) ·
+Releases: [RELEASING.md](docs/RELEASING.md) · [VERSIONING.md](docs/VERSIONING.md) ·
 [CHANGELOG.md](CHANGELOG.md). Every PR that changes an SDK adds one changelog
 fragment under [`changelog.d/`](changelog.d/) (not a line in `CHANGELOG.md`);
 see [`changelog.d/README.md`](changelog.d/README.md).

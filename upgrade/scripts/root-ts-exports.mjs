@@ -5,15 +5,15 @@
 
 import { createRequire } from 'node:module';
 
-// The SDK owns the compiler dependency; run npm ci in typescript/ first.
-const require = createRequire(new URL('../../typescript/package.json', import.meta.url));
+// The SDK owns the compiler dependency; run npm ci in sdk-typescript/ first.
+const require = createRequire(new URL('../../sdk-typescript/package.json', import.meta.url));
 const ts = require('typescript');
 
 export function collectRootTsExports(text) {
   const source = ts.createSourceFile('index.ts', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const names = new Set();
   const problems = [];
-  const unsupported = (statement) => problems.push(`ts: unsupported export form in the 2.x root (typescript/src/index.ts): ${statement.getText(source).trim()}; re-export by name`);
+  const unsupported = (statement) => problems.push(`ts: unsupported export form in the 2.x root (sdk-typescript/src/index.ts): ${statement.getText(source).trim()}; re-export by name`);
   // Parse errors must never turn malformed exports into an incomplete name set.
   if (source.parseDiagnostics.length > 0) {
     unsupported(source);

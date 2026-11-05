@@ -1,15 +1,21 @@
-typescript/node_modules/
-typescript/dist/
-python/.venv/
-python/build/
-python/dist/
+# Dependencies and build output, wherever a tool writes them
+node_modules/
+dist/
+build/
+.venv/
 **/__pycache__/
 **/*.egg-info/
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
-examples/node_modules/
 examples/package-lock.json
+
+# Local environment, OS and editor files
+.env.local
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
 
 # Local agent overlay (see AGENTS.md); never committed
 AGENTS.local.md
@@ -19,6 +25,6 @@ AGENTS.local.md
 .opencode/
 
 # Coverage reports (scripts/patch_coverage.py)
-python/coverage.xml
-python/.coverage
-typescript/coverage/
+sdk-python/coverage.xml
+sdk-python/.coverage
+sdk-typescript/coverage/

@@ -79,7 +79,7 @@ name: SDK Publish
 # DERIVED strings, so a stable, rc or beta version fails the gate and an
 # official-looking release cannot ship by accident. The npm dist-tag follows
 # the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
-# stable → `latest` — VERSIONING.md "Release channels"), so under the
+# stable → `latest` — docs/VERSIONING.md "Release channels"), so under the
 # alpha-only policy every publish lands on `alpha`, never `latest`. Widen the
 # gate (rc, then stable) by relaxing the three regexes in the "Derive registry
 # versions" step — the dist-tag and the branch rule need no change.
@@ -129,12 +129,12 @@ on:
         type: boolean
         default: true
       v0_tag:
-        description: 'TESTING ONLY: override the 0.x tag vendored as the SDKs'' v0 namespace (Daytona().v0). Publishing to PyPI/npm with it also needs allow_unpinned_v0. Empty (every release) = the pin in v0-sdk-version'
+        description: 'TESTING ONLY: override the 0.x tag vendored as the SDKs'' v0 namespace (Daytona().v0). Publishing to PyPI/npm with it also needs allow_unpinned_v0. Empty (every release) = the pin in scripts/v0-sdk-version'
         required: false
         type: string
         default: ''
       allow_unpinned_v0:
-        description: 'Required with v0_tag when publishing to PyPI or npm: knowingly ship a v0 namespace that is NOT the pinned v0-sdk-version release (the run summary marks it UNVERIFIED)'
+        description: 'Required with v0_tag when publishing to PyPI or npm: knowingly ship a v0 namespace that is NOT the pinned scripts/v0-sdk-version release (the run summary marks it UNVERIFIED)'
         required: false
         type: boolean
         default: false
@@ -193,7 +193,7 @@ jobs:
       # The source to build. Full history + tags: the stable-version check
       # (`main` ancestry), the v0 pin and the "tag already elsewhere" check
       # read them. Nothing from this checkout is executed in this job.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
@@ -201,7 +201,7 @@ jobs:
           persist-credentials: false
       # The helpers this job runs come from the DISPATCH commit (a protected
       # branch, by the environment's branch policy), never from source_ref.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           path: .publish-tools
@@ -279,7 +279,7 @@ jobs:
             exit 1
           fi
           # The npm dist-tag follows the version's pre-release identifier
-          # (VERSIONING.md "Release channels"), so widening the gate above
+          # (docs/VERSIONING.md "Release channels"), so widening the gate above
           # never has to touch the npm publish step: a pre-release never lands on
           # `latest`. sdk-version.sh admits only these four shapes; the
           # fallthrough guards a future widening of that helper.
@@ -304,8 +304,18 @@ jobs:
             echo "npm_dist_tag=$npm_dist_tag"
             echo "cli=$cli"
           } >> "$GITHUB_OUTPUT"
+      # The build jobs and the snapshot below address the SDKs as sdk-python/
+      # and sdk-typescript/; a source_ref from before that layout is refused
+      # here with a clear message instead of failing in a later step.
+      - name: Require the sdk-python/ and sdk-typescript/ layout
+        run: |
+          set -euo pipefail
+          if [ ! -d sdk-python ] || [ ! -d sdk-typescript ]; then
+            echo "::error::source_ref uses the old python/ and typescript/ layout; rebase it onto main before publishing"
+            exit 1
+          fi
       # The v0 namespace: the SDKs vendor the 0.x SDK at the tag PINNED in
-      # v0-sdk-version, resolved once here so the Python and npm builds bundle
+      # scripts/v0-sdk-version, resolved once here so the Python and npm builds bundle
       # the same release. `v0_tag` overrides the pin for testing only. Only
       # fetched, never run, here; the build jobs copy it in with
       # scripts/bundle-v0.sh. Namespace code without a pin (or a pin without
@@ -315,7 +325,7 @@ jobs:
         name: Resolve and fetch the pinned v0 namespace release
         env:
           DAYTONA_V0_TAG: ${{ inputs.v0_tag }}
-          DAYTONA_V0_PIN_FILE: v0-sdk-version
+          DAYTONA_V0_PIN_FILE: scripts/v0-sdk-version
           PUBLISH_PYPI: ${{ inputs.publish_pypi }}
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
@@ -330,13 +340,13 @@ jobs:
           fi
           tag=$(.publish-tools/scripts/resolve-v0-tag.sh --verify)
           pinned=$(.publish-tools/scripts/resolve-v0-tag.sh --sha)
-          [ -z "$DAYTONA_V0_TAG" ] || echo "::warning::v0 namespace tag overridden to $DAYTONA_V0_TAG (testing only; releases use v0-sdk-version)"
+          [ -z "$DAYTONA_V0_TAG" ] || echo "::warning::v0 namespace tag overridden to $DAYTONA_V0_TAG (testing only; releases use scripts/v0-sdk-version)"
           rm -rf .v0-src
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           sha=$(git -C .v0-src rev-parse HEAD)
           if [ -n "$pinned" ] && [ "$sha" != "$pinned" ]; then
-            echo "::error::${tag} is at ${sha}, not the commit pinned in v0-sdk-version (${pinned}); was the tag moved?"
+            echo "::error::${tag} is at ${sha}, not the commit pinned in scripts/v0-sdk-version (${pinned}); was the tag moved?"
             exit 1
           fi
           echo "v0 namespace: ${tag} (${sha})"
@@ -357,7 +367,7 @@ jobs:
           if [ -e .v0-src ]; then optional+=(.v0-src); fi
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf /tmp/sdk-src.tgz python typescript contract cli scripts v0-sdk-version "${optional[@]}"
+            -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
           ls -l /tmp/sdk-src.tgz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -433,9 +443,9 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: python
+        working-directory: sdk-python
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -495,7 +505,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pypi-dist
-          path: python/dist/
+          path: sdk-python/dist/
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
@@ -508,9 +518,9 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: typescript
+        working-directory: sdk-typescript
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -520,7 +530,7 @@ jobs:
       # No `cache: npm` here on purpose: release builds never restore a cache
       # (a poisoned cache would ship). A cold `npm ci` costs seconds; the
       # publish job never touches source or cache at all.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Stamp version into the runner's checkout (not committed)
@@ -582,7 +592,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: npm-pack
-          path: typescript/pack/*.tgz
+          path: sdk-typescript/pack/*.tgz
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
@@ -597,7 +607,7 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdk-src
           path: /tmp/sdk-src
@@ -692,7 +702,7 @@ jobs:
       - name: Download the PyPI distributions
         id: pypi_download
         if: needs.gate.outputs.pypi != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pypi-dist
           path: pypi-dist/
@@ -710,7 +720,7 @@ jobs:
       - name: Set up Node for npm
         id: npm_node
         if: needs.gate.outputs.npm != ''
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -733,7 +743,7 @@ jobs:
       - name: Download the npm tarball
         id: npm_download
         if: needs.gate.outputs.npm != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-pack
           path: pack/
@@ -745,7 +755,7 @@ jobs:
         # repository, public package).
         # --tag "$NPM_DIST_TAG": the gate derives the dist-tag from the
         # version (-alpha.N → alpha, -beta.N → beta, -rc.N → next, stable →
-        # latest — VERSIONING.md "Release channels"), so a pre-release never
+        # latest — docs/VERSIONING.md "Release channels"), so a pre-release never
         # becomes `latest`. Publishing the packed tarball means no package
         # scripts run here.
         env:
@@ -783,7 +793,7 @@ jobs:
       - name: Download the CLI release assets
         id: cli_download
         if: needs.gate.outputs.cli != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: cli-dist
           path: cli-dist/

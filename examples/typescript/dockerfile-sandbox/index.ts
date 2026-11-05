@@ -44,7 +44,7 @@ async function main() {
     section('build the Dockerfile and boot it, in one call')
     sandbox = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-${RUN}`,
-      wait: 400,
+      waitSeconds: 400,
     })
     info(`sandbox ${sandbox.id}`)
     info(`state   ${sandbox.state}`)
@@ -96,7 +96,7 @@ async function main() {
     section('create a second sandbox from the same Dockerfile')
     const twin = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `dockerfile-sandbox-twin-${RUN}`,
-      wait: 400,
+      waitSeconds: 400,
     })
     try {
       info(`sandbox ${twin.id} is ${twin.state}`)

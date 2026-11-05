@@ -25,8 +25,8 @@ merge_base="$(git merge-base "$head_sha" "$base_sha")"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 zlist() { jq -Rs 'split("\u0000") | map(select(length > 0))'; }
-git diff --name-only -z "$merge_base" "$head_sha" | zlist > "$tmp/changed.json"
-git diff --name-only -z "$merge_base" "$base_sha" | zlist > "$tmp/base.json"
+git diff --name-only --no-renames -z "$merge_base" "$head_sha" | zlist > "$tmp/changed.json"
+git diff --name-only --no-renames -z "$merge_base" "$base_sha" | zlist > "$tmp/base.json"
 git status --porcelain=v1 --untracked-files=all > "$tmp/status.txt"
 git rev-list --reverse "$merge_base..$head_sha" > "$tmp/shas.txt"
 : > "$tmp/commits.jsonl"

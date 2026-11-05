@@ -6,6 +6,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/config"
 	"github.com/daytona/clients/cli/internal/output"
@@ -68,18 +69,18 @@ func newProfileCmd() *cobra.Command {
 	c.AddCommand(&cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a profile and its saved credentials",
-		Args:  cobra.ExactArgs(1),
+		Long: `Deletes the profile and its saved credentials from this machine, then attempts
+to revoke the profile's cached login-minted project keys against the profile's
+saved API, like logout (at most 3 seconds total). Local deletion completes even
+when that API is unavailable; keys whose revocation fails expire server-side.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if err := a.Confirm("delete", "profile "+args[0]); err != nil {
 				return err
 			}
-			return a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
-				if !c.Remove(args[0]) {
-					return false, false, cerr.New(cerr.ExitNotFound, "no profile %q", args[0])
-				}
-				delete(cr.Profiles, args[0])
-				return true, true, nil
+			return auth.DeleteProfile(cmd.Context(), a, args[0], func() error {
+				return cerr.New(cerr.ExitNotFound, "no profile %q", args[0])
 			})
 		},
 	})

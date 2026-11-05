@@ -130,15 +130,15 @@ for (const state of ['installed', 'incomplete', 'absent']) {
     // Given: a developer checkout with a complete, partial or missing SDK installation.
     const installed = state === 'installed';
     const root = fixture(context);
-    mkdirSync(join(root, 'typescript'), { recursive: true });
-    if (state !== 'absent') mkdirSync(join(root, 'typescript/node_modules'));
+    mkdirSync(join(root, 'sdk-typescript'), { recursive: true });
+    if (state !== 'absent') mkdirSync(join(root, 'sdk-typescript/node_modules'));
     if (installed) {
-      mkdirSync(join(root, 'typescript/node_modules/typescript'));
-      writeFileSync(join(root, 'typescript/node_modules/typescript/package.json'), '{}');
+      mkdirSync(join(root, 'sdk-typescript/node_modules/typescript'));
+      writeFileSync(join(root, 'sdk-typescript/node_modules/typescript/package.json'), '{}');
     }
     executable(join(root, 'bin/node'), 'exit 0');
     executable(join(root, 'bin/npm'), 'printf "%s\\n" "$*" >> "$INSTALL_LOG"');
-    const recipe = testUpgrade.slice(testUpgrade.indexOf('if [ ! -f typescript/node_modules'), testUpgrade.indexOf('\nfi\n') + 3);
+    const recipe = testUpgrade.slice(testUpgrade.indexOf('if [ ! -f sdk-typescript/node_modules'), testUpgrade.indexOf('\nfi\n') + 3);
     // When: executing the real SDK-install guard from scripts/test-upgrade.sh.
     const log = join(root, 'npm.log');
     const result = spawnSync('bash', ['-c', recipe], { cwd: root, encoding: 'utf8',

@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"strings"
 
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -28,7 +29,8 @@ browser on your machine cannot reach this host's loopback redirect) the CLI
 switches to the device flow automatically; --device forces it — you open a URL
 on any device and enter a short code.
 --token: stores a static credential (a project API key, an org API key, or any
-bearer the server accepts) as-is. The CLI never inspects it; the server decides
+bearer the server accepts) as-is. The CLI only rejects an empty value (for
+example an unset CI secret) and never inspects it otherwise; the server decides
 what it may do.
 
 After a browser or device login the CLI selects your personal organization
@@ -45,7 +47,10 @@ Examples:
 		GroupID: GroupAuth, Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
-			if token != "" {
+			if cmd.Flags().Changed("token") {
+				if strings.TrimSpace(token) == "" {
+					return cerr.Usage("--token is empty; pass the credential value, or omit --token to sign in interactively")
+				}
 				return loginToken(cmd.Context(), a, token)
 			}
 			if device && browser {

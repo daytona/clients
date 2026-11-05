@@ -1,15 +1,15 @@
 # Boundary driver recipes
 
 Run from an isolated writable copy of the pinned repository, with each
-driver and log in a unique local review directory. Preserve `python/`,
-`typescript/`, `cli/`, `contract/`, and `scripts/` relative paths. Use test
+driver and log in a unique local review directory. Preserve `sdk-python/`,
+`sdk-typescript/`, `cli/`, `contract/`, and `scripts/` relative paths. Use test
 credentials, ephemeral loopback ports, isolated CLI profiles, and bounded
 test contexts. Never let a never-responder hang the review process itself.
 
 ## Python: installed package, async and sync
 
 ```bash
-cd python
+cd sdk-python
 uv venv
 uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -x -q
@@ -34,7 +34,7 @@ boundary cases rather than changing the event loop's scheduler clock.
 ## TypeScript: Jest and built consumers
 
 ```bash
-cd typescript
+cd sdk-typescript
 npm install
 npm run typecheck
 npm test -- --runInBand
@@ -113,8 +113,8 @@ path injection. Inspect artifact contents as well as imports.
 
 ```bash
 # From the scratch repository root:
-(cd typescript && npm run build && npm pack --pack-destination "$REVIEW_DIR")
-(cd python && uv pip install build && .venv/bin/python -m build --outdir "$REVIEW_DIR")
+(cd sdk-typescript && npm run build && npm pack --pack-destination "$REVIEW_DIR")
+(cd sdk-python && uv pip install build && .venv/bin/python -m build --outdir "$REVIEW_DIR")
 ```
 
 For npm, install the resulting tarball into a fresh consumer and import

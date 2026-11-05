@@ -15,14 +15,13 @@ import sys
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
-from daytona.v2 import Image
 
 REPO_URL = "https://github.com/octocat/Hello-World"
 
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(Image.base(IMAGE), name=f"git-{RUN}", timeout=200)
+    sandbox = daytona.create(IMAGE, name=f"git-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True

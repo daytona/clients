@@ -56,7 +56,9 @@ func newProjectServiceAccountAddCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		acct, err := resolveServiceAccountRefForOperation(items, args[0], true)
+		// An archived account cannot be seated (the API answers 409), so a
+		// reused name resolves to the live account alone.
+		acct, err := resolveServiceAccountRefForOperation(items, args[0], false)
 		if err != nil {
 			return err
 		}

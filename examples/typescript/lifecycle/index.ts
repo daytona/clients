@@ -13,7 +13,7 @@ async function main() {
 
   section('create')
   await waitForImageReady(daytona, IMAGE)
-  const sandbox = await daytona.create(IMAGE, { name: `life-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(IMAGE, { name: `life-${RUN}`, waitSeconds: 200 })
   info(`created id=${sandbox.id} state=${sandbox.state} cpu=${sandbox.cpu} mem=${sandbox.memory}`)
 
   let ok = true

@@ -52,7 +52,8 @@ VERSION="${VERSION#v}"
 base="https://github.com/${REPO}/releases/download/v${VERSION}"
 asset="daytona-${os}-${arch}"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+staged=""
+trap 'rm -rf "$tmp"; [ -z "$staged" ] || rm -f "$staged"' EXIT
 
 echo "downloading daytona ${VERSION} (${os}/${arch})"
 curl -fsSL -o "$tmp/$asset" "$base/$asset"
@@ -69,7 +70,20 @@ if [ -z "$INSTALL_DIR" ]; then
   else INSTALL_DIR="$HOME/.local/bin"; fi
 fi
 mkdir -p "$INSTALL_DIR"
-mv "$tmp/$asset" "$INSTALL_DIR/daytona"
+if [ -d "$INSTALL_DIR/daytona" ]; then
+  echo "$INSTALL_DIR/daytona is a directory; remove it or pass --dir" >&2
+  exit 1
+fi
+# Check that the new binary runs before it replaces the installed one. It is
+# staged beside the target: the install directory allows execution where /tmp
+# may not, and the final mv is a rename on the same filesystem.
+staged="$INSTALL_DIR/.daytona.new.$$"
+mv "$tmp/$asset" "$staged"
+if ! "$staged" version; then
+  echo "the downloaded daytona ${VERSION} failed to run; $INSTALL_DIR/daytona was not changed" >&2
+  exit 1
+fi
+mv -f "$staged" "$INSTALL_DIR/daytona"
+staged=""
 echo "installed $INSTALL_DIR/daytona"
 case ":$PATH:" in *":$INSTALL_DIR:"*) ;; *) echo "note: $INSTALL_DIR is not on your PATH" ;; esac
-"$INSTALL_DIR/daytona" version

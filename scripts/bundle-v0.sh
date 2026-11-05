@@ -8,16 +8,16 @@
 #   scripts/bundle-v0.sh [--lang python|typescript|all] [--src DIR] [TAG]
 #   scripts/bundle-v0.sh --clean
 #
-# TAG defaults to the pin in v0-sdk-version (read through
+# TAG defaults to the pin in scripts/v0-sdk-version (read through
 # scripts/resolve-v0-tag.sh). Passing TAG or setting DAYTONA_V0_TAG
 # overrides it for testing only; releases use the pin. --src uses an existing checkout of
 # daytona/clients at that tag instead of cloning one. The publish workflow runs
 # this at publish time; locally it is the same command. The bundled trees
-# (python/src/daytona/v0/, typescript/src/v0/) and the manifest
+# (sdk-python/src/daytona/v0/, sdk-typescript/src/v0/) and the manifest
 # edits it makes (the Python `v0-sdk` extra, the TypeScript dependencies) are never
 # committed — scripts/check-no-bundled-v0.sh fails CI if they are.
 # --clean removes the bundles and empties the Python `v0-sdk` extra; restore
-# typescript/package.json and package-lock.json with git yourself.
+# sdk-typescript/package.json and package-lock.json with git yourself.
 set -euo pipefail
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -33,8 +33,8 @@ while [ $# -gt 0 ]; do
     --src) src=${2:?--src needs a directory}; src_given=1; shift 2 ;;
     --clean)
       python3 "$here/bundle_v0_python.py" --clean
-      rm -rf "$clients/typescript/src/v0"
-      echo "bundle-v0: removed $clients/typescript/src/v0 (restore typescript/package.json + package-lock.json with git)"
+      rm -rf "$clients/sdk-typescript/src/v0"
+      echo "bundle-v0: removed $clients/sdk-typescript/src/v0 (restore sdk-typescript/package.json + package-lock.json with git)"
       exit 0 ;;
     -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     -*) echo "bundle-v0: unknown option $1" >&2; exit 2 ;;
@@ -53,8 +53,8 @@ cleanup() {
     echo "bundle-v0: failed; removing the partial bundle" >&2
     if [ "$lang" = python ] || [ "$lang" = all ]; then python3 "$here/bundle_v0_python.py" --clean >/dev/null 2>&1 || true; fi
     if [ "$lang" = typescript ] || [ "$lang" = all ]; then
-      rm -rf "$clients/typescript/src/v0"
-      cp "$ts_manifest_backup" "$clients/typescript/package.json"
+      rm -rf "$clients/sdk-typescript/src/v0"
+      cp "$ts_manifest_backup" "$clients/sdk-typescript/package.json"
     fi
   fi
   rm -f "$ts_manifest_backup"
@@ -80,7 +80,7 @@ echo "bundle-v0: v0 namespace from daytona/clients@$tag"
 pin_tag=$(env -u DAYTONA_V0_TAG "$here/resolve-v0-tag.sh" 2>/dev/null || true)
 pin_sha=$(env -u DAYTONA_V0_TAG "$here/resolve-v0-tag.sh" --sha 2>/dev/null || true)
 if [ -n "${DAYTONA_V0_TAG:-}" ] || [ "$tag" != "$pin_tag" ]; then
-  echo "bundle-v0: WARNING: v0 tag $tag overrides the pin ($pin_tag in v0-sdk-version):" \
+  echo "bundle-v0: WARNING: v0 tag $tag overrides the pin ($pin_tag in scripts/v0-sdk-version):" \
     "this bundle is UNVERIFIED testing output — never publish it" >&2
 fi
 
@@ -106,7 +106,7 @@ if git -C "$src" rev-parse --git-dir >/dev/null 2>&1; then
     echo "bundle-v0: --src $src is at $head${dirty:+ (dirty: uncommitted or untracked files)}"
   fi
   if [ -n "$pinned_run" ] && [ "$head" != "$sha" ]; then
-    echo "bundle-v0: daytona/clients@$tag is at $head, not the pinned $sha (v0-sdk-version); was the tag moved?" >&2
+    echo "bundle-v0: daytona/clients@$tag is at $head, not the pinned $sha (scripts/v0-sdk-version); was the tag moved?" >&2
     exit 1
   fi
   if [ -n "$pinned_run" ] && [ -n "$dirty" ]; then
@@ -131,17 +131,17 @@ fi
 # A failed run must not leave a half-written bundle behind: once bundling has
 # started, remove what this run wrote (the Python bundle + its extra, the TS
 # src/v0) and restore the TS manifest it edits, then fail.
-cp "$clients/typescript/package.json" "$ts_manifest_backup"
+cp "$clients/sdk-typescript/package.json" "$ts_manifest_backup"
 started=1
 
 if [ "$lang" = python ] || [ "$lang" = all ]; then
   python3 "$here/bundle_v0_python.py" "$src/sdk-python" "$version" "$tag"
 fi
 if [ "$lang" = typescript ] || [ "$lang" = all ]; then
-  node "$clients/typescript/scripts/bundle-v0.mjs" "$src/sdk-typescript/src" "$version" "$tag" "$src/package.json"
+  node "$clients/sdk-typescript/scripts/bundle-v0.mjs" "$src/sdk-typescript/src" "$version" "$tag" "$src/package.json"
   # The bundle merges v0's dependencies into package.json; they are not
   # installed yet, so `npm run build` fails on src/v0 until they are.
-  echo "bundle-v0: next, in typescript: npm install (v0's dependencies), then npm run build;" \
+  echo "bundle-v0: next, in sdk-typescript: npm install (v0's dependencies), then npm run build;" \
     "--clean afterwards restores package.json (never commit the bundled manifest)"
 fi
 bundled_ok=1

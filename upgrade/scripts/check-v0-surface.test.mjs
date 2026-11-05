@@ -62,7 +62,7 @@ for (const [language, declaration] of [
     put('v0/sdk-python/src/daytona/__init__.py', `__all__ = ${JSON.stringify(mapping.v0Exports.py)}`);
     put('v0/sdk-typescript/src/index.ts', `export { ${mapping.v0Exports.ts.join(', ')} } from './exports'`);
     put('v0/sdk-typescript/src/exports.ts', mapping.v0Exports.ts.map((name) => `export const ${name} = {};`).join('\n'));
-    for (const component of ['python', 'typescript']) {
+    for (const component of ['sdk-python', 'sdk-typescript']) {
       symlinkSync(fileURLToPath(new URL(`../../${component}`, import.meta.url)), join(root, component));
     }
     // When: the CLI checks the fixture against the unchanged mapping.

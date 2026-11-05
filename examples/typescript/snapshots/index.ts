@@ -34,7 +34,7 @@ async function main() {
   await waitForImageReady(daytona, imageName)
 
   section('create a sandbox from the registered image')
-  const sandbox = await daytona.create(imageName, { name: `from-img-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(imageName, { name: `from-img-${RUN}`, waitSeconds: 200 })
   try {
     const py = await sandbox.process.run('python --version')
     info(`sandbox python: ${py.output.trim()}`)

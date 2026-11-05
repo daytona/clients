@@ -1,0 +1,35 @@
+name: Tooling tests
+
+# Tests of the repository tooling that no SDK suite covers: the agent skill
+# scripts under .claude/skills and the ignore rules.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.claude/skills/**'
+      - '.gitignore'
+      - 'scripts/gitignore_test.sh'
+      - '.github/workflows/tooling.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tooling:
+    name: Tooling tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: deep-review scripts
+        run: bash .claude/skills/deep-review/scripts/scripts_test.sh
+      - name: contract-refresh diff
+        run: python3 .claude/skills/contract-refresh/scripts/contract_diff_test.py
+      - name: Ignore rules
+        run: bash scripts/gitignore_test.sh

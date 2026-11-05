@@ -132,14 +132,18 @@ enable_worktree_config() {
 
 # chained_hook NAME: print the hook the .githooks wrapper runs besides the
 # scan: NAME from the hooks path install replaced, else from <common dir>/hooks.
+# A hook that is itself a wrapper (it calls chained-hook: a symlink to this
+# one, or a copy of any version from any worktree) would chain to itself
+# forever, so it is not chained.
 chained_hook() {
   local dir hook
   dir=$(git config --get secretscan.chainHooksPath || true)
   [ -n "$dir" ] || dir="$common_dir/hooks"
   case "$dir" in /*) ;; *) dir="$repo_root/$dir" ;; esac
   hook="$dir/$1"
-  [ -x "$hook" ] && [ "$(cd "$dir" && pwd -P)" != "$(cd "$repo_root/.githooks" && pwd -P)" ] && echo "$hook"
-  return 0
+  [ -x "$hook" ] || return 0
+  [ "$(cd "$dir" && pwd -P)" != "$(cd "$repo_root/.githooks" && pwd -P)" ] || return 0
+  grep -qF chained-hook "$hook" || echo "$hook"
 }
 
 # install: the pinned binary where one is published, else a gitleaks on PATH.

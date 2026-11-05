@@ -38,8 +38,9 @@ type Options struct {
 	OutputFormat string
 	// YesFlag is --yes.
 	YesFlag bool
-	// ConfirmSetting is the persisted `confirm` config value (default true).
-	ConfirmSetting bool
+	// ConfirmOff is the persisted `confirm: false` config value. The zero
+	// value keeps confirmation prompts on.
+	ConfirmOff bool
 	// Getenv is os.Getenv unless a test injects one.
 	Getenv func(string) string
 	// StdoutTTY/StdinTTY override the isatty probes (tests).
@@ -66,7 +67,7 @@ func Resolve(o Options) Mode {
 
 	color := interactive && getenv("NO_COLOR") == "" && getenv("TERM") != "dumb"
 
-	yes := o.YesFlag || !o.ConfirmSetting
+	yes := o.YesFlag || o.ConfirmOff
 	if v := getenv("DAYTONA_YES"); v == "1" || strings.EqualFold(v, "true") {
 		yes = true
 	}

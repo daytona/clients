@@ -97,9 +97,12 @@ func buildImageMultipartMeta(cmd *cobra.Command, a *app.App, name, dockerfilePat
 	if err != nil {
 		return nil, "", "", err
 	}
-	for field := range body {
+	for field, value := range body {
 		switch field {
 		case "name", "region_id", "cpu_arch", "dockerfile", "context":
+			if _, ok := value.(string); !ok {
+				return nil, "", "", cerr.Usage("image build field %q must be a string", field)
+			}
 		default:
 			return nil, "", "", cerr.Usage("unknown image build field %q", field)
 		}

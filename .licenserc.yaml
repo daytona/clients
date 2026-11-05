@@ -17,7 +17,7 @@ header:
       # Generated from contract/ by cli/hack/gen.sh.
       - 'cli/gen/**'
       - '**/dist/**'
-    comment: on-failure
+    comment: never
 
   - license:
       spdx-id: Apache-2.0
@@ -29,14 +29,14 @@ header:
         Copyright (\d{4} )?Daytona Platforms Inc\.
         SPDX-License-Identifier: Apache-2\.0
     paths:
-      - 'python/**/*.py'
-      - 'python/**/*.sh'
-      - 'typescript/**/*.ts'
-      - 'typescript/**/*.mts'
-      - 'typescript/**/*.cts'
-      - 'typescript/**/*.js'
-      - 'typescript/**/*.mjs'
-      - 'typescript/**/*.cjs'
+      - 'sdk-python/**/*.py'
+      - 'sdk-python/**/*.sh'
+      - 'sdk-typescript/**/*.ts'
+      - 'sdk-typescript/**/*.mts'
+      - 'sdk-typescript/**/*.cts'
+      - 'sdk-typescript/**/*.js'
+      - 'sdk-typescript/**/*.mjs'
+      - 'sdk-typescript/**/*.cjs'
       - 'scripts/**/*.py'
       - 'scripts/**/*.sh'
       - 'upgrade/**/*.py'
@@ -45,26 +45,24 @@ header:
       - 'upgrade/**/*.mjs'
       - 'upgrade/**/*.cjs'
       - 'upgrade/**/*.js'
-      - 'e2e.py'
-      - 'e2e.ts'
-      - 'run-e2e.sh'
+      - 'e2e/**'
     paths-ignore:
       # Generated output — regenerated from contract/ (scripts/gen-contract-types.sh)
-      # or from package.json (typescript/scripts/stamp-version.mjs). Every one
+      # or from package.json (sdk-typescript/scripts/stamp-version.mjs). Every one
       # carries a "generated" notice instead. (The generated synchronous Python
-      # surface, python/src/daytona/v2/_sync/, emits this header itself.)
-      - 'python/src/daytona/v2/_gen/**'
-      - 'typescript/src/v2/gen/api.ts'
-      - 'typescript/src/v2/gen/toolbox.ts'
-      - 'typescript/src/v2/gen/api-enums.ts'
-      - 'typescript/src/v2/gen/toolbox-enums.ts'
-      - 'typescript/src/version.ts'
+      # surface, sdk-python/src/daytona/v2/_sync/, emits this header itself.)
+      - 'sdk-python/src/daytona/v2/_gen/**'
+      - 'sdk-typescript/src/v2/gen/api.ts'
+      - 'sdk-typescript/src/v2/gen/toolbox.ts'
+      - 'sdk-typescript/src/v2/gen/api-enums.ts'
+      - 'sdk-typescript/src/v2/gen/toolbox-enums.ts'
+      - 'sdk-typescript/src/version.ts'
       # The v0 namespace is bundled at publish time from a 0.x release and
       # never committed; it carries that release's own headers.
-      - 'python/src/daytona/v0/**'
-      - 'typescript/src/v0/**'
-      # Vendored third-party lint rules (MIT, see typescript/lint/anti-slop/LICENSE).
-      - 'typescript/lint/anti-slop/**'
+      - 'sdk-python/src/daytona/v0/**'
+      - 'sdk-typescript/src/v0/**'
+      # Vendored third-party lint rules (MIT, see sdk-typescript/lint/anti-slop/LICENSE).
+      - 'sdk-typescript/lint/anti-slop/**'
       # Migration-tool test inputs and expected outputs are sample user code,
       # compared byte for byte; they carry no header.
       - 'upgrade/python/tests/fixtures/**'
@@ -74,4 +72,4 @@ header:
       - '**/dist/**'
       - '**/build/**'
       - '**/.venv/**'
-    comment: on-failure
+    comment: never

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	apiinternal "github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
@@ -153,6 +154,18 @@ func TestToolboxExec_propagatesExitCode(t *testing.T) {
 	})
 	require.Equal(t, 7, cerr.ExitCode(err))
 	require.Equal(t, "hello\n", stdout)
+}
+
+// `reason` is optional on the wire: a nonzero exitCode without a known one
+// still fails the command with that code.
+func TestExitError_exitCodeWithoutKnownReason(t *testing.T) {
+	code := int32(7)
+	unknown := tbgen.Reason("future_reason")
+	require.Equal(t, 7, cerr.ExitCode(exitError(tbgen.ExitResult{ExitCode: &code})))
+	require.Equal(t, 7, cerr.ExitCode(exitError(tbgen.ExitResult{ExitCode: &code, Reason: &unknown})))
+	zero := int32(0)
+	require.NoError(t, exitError(tbgen.ExitResult{ExitCode: &zero}))
+	require.NoError(t, exitError(tbgen.ExitResult{}))
 }
 
 func TestToolboxExec_forwardsRegularFileStdin(t *testing.T) {

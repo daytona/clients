@@ -84,6 +84,19 @@ func TestProjectServiceAccountAdd_listsOnlyLiveAccounts(t *testing.T) {
 	require.Empty(t, api.requests[0].Query)
 }
 
+func TestProjectServiceAccountAdd_reusedNameResolvesToTheLiveAccount(t *testing.T) {
+	api := newFakeAPI(t)
+	api.on(http.MethodGet, "/orgs/"+testOrgP+"/service-accounts", http.StatusOK, map[string]any{"service_accounts": []map[string]any{
+		serviceAccountFixture("11111111-1111-1111-1111-111111111111", testOrgP, "bot"),
+		archivedServiceAccountFixture("22222222-2222-2222-2222-222222222222", testOrgP, "bot"),
+	}})
+	api.on(http.MethodPost, "/projects/proj-1/service-accounts", http.StatusCreated, map[string]any{"added_service_account_ids": []string{"11111111-1111-1111-1111-111111111111"}})
+	_, stderr, code := runMgmt(t, api, cfgDir(t), "--org", testOrgP, "--project", "proj-1", "project", "service-account", "add", "bot")
+	require.Equal(t, 0, code, stderr)
+	post := findRequest(t, api, http.MethodPost, "/projects/proj-1/service-accounts")
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", post.Body["service_account_id"])
+}
+
 func TestProjectServiceAccountRemove_isAmbiguousAcrossLiveAndArchivedReuse(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/"+testOrgP+"/service-accounts", http.StatusOK, map[string]any{"service_accounts": []map[string]any{

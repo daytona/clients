@@ -7,6 +7,7 @@
 package cerr
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -72,6 +73,20 @@ func ExitCode(err error) int {
 		return e.Code
 	}
 	return ExitFailure
+}
+
+// FromContext reports the caller's own context ending, nil while ctx is live:
+// a passed deadline is a timeout, anything else an interruption.
+func FromContext(ctx context.Context) error {
+	err := ctx.Err()
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, context.DeadlineExceeded):
+		return Wrap(ExitTimeout, err, "timed out")
+	default:
+		return Wrap(ExitInterrupted, err, "interrupted")
+	}
 }
 
 // CodeForStatus maps an HTTP status to an exit code.

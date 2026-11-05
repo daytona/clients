@@ -134,17 +134,43 @@ func TestProjectBudgetCommands(t *testing.T) {
 	assertBudgetAuthJWT(t, f, path)
 }
 
-// A 404 on the budget read names the likeliest cause: no budget.
+// A project without a budget answers 200 with null fields: `get` succeeds
+// and shows the budget as not set.
 func TestProjectBudgetGetWithoutBudget(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	f.on("GET", "/projects/"+testProjA1+"/budget", 200, map[string]any{"monthly_limit_cents": nil, "period_start_date": "2026-10-01", "created_at": nil, "updated_at": nil})
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "-o", "table", "--org", testOrgA, "--project", testProjA1, "project", "budget", "get")
+	if code != 0 || !has(out, "not set") {
+		t.Fatalf("no budget: %d %s %s", code, out, errb)
+	}
+	assertBudgetAuthJWT(t, f, "/projects/"+testProjA1+"/budget")
+}
+
+// A 404 on the budget read means the project was not found; it must not be
+// reported as a missing budget.
+func TestProjectBudgetGetProjectNotFound(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
 	oidcProfile(t, d, f.srv.URL, time.Hour)
 	f.on("GET", "/projects/"+testProjA1+"/budget", 404, map[string]any{"code": "NOT_FOUND", "message": "not found", "source": "DAYTONA_API"})
 	_, errb, code := runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "get")
-	if code != cerr.ExitNotFound || !has(errb, "no monthly budget") || !has(errb, "project budget set") {
+	if code != cerr.ExitNotFound || has(errb, "no monthly budget") {
+		t.Fatalf("project not found: %d %s", code, errb)
+	}
+}
+
+// On DELETE a 404 means the project has no budget, and the hint says so.
+func TestProjectBudgetRemoveWithoutBudget(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	f.on("DELETE", "/projects/"+testProjA1+"/budget", 404, map[string]any{"code": "NOT_FOUND", "message": "not found", "source": "DAYTONA_API"})
+	_, errb, code := runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "remove", "--yes")
+	if code != cerr.ExitNotFound || !has(errb, "no monthly budget") {
 		t.Fatalf("no budget: %d %s", code, errb)
 	}
-	assertBudgetAuthJWT(t, f, "/projects/"+testProjA1+"/budget")
 }
 
 // The exhausted state renders the hold and the stop time.

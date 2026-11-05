@@ -28,7 +28,7 @@ import sys
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
-from daytona.v2 import Image
+from daytona.v2 import ImageBuilder
 
 # Everything here is baked at BUILD time. If the sandbox can see it at RUN
 # time, the image it booted is the one we just built.
@@ -53,10 +53,10 @@ def main() -> int:
 
     try:
         section("build the Dockerfile and boot it, in one call")
-        sandbox = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        sandbox = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-{RUN}",
-            timeout=400,
+            wait_seconds=400,
         )
         info(f"sandbox {sandbox.id}")
         info(f"state   {sandbox.state}")
@@ -106,10 +106,10 @@ def main() -> int:
             ok = False
 
         section("create a second sandbox from the same Dockerfile")
-        twin = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        twin = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-twin-{RUN}",
-            timeout=400,
+            wait_seconds=400,
         )
         try:
             info(f"sandbox {twin.id} is {twin.state}")

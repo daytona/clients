@@ -14,9 +14,9 @@ import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 // A small, stable public repo to clone shallowly.
 const REPO_URL = 'https://github.com/octocat/Hello-World'
 
-async function main() {
+async function main(): Promise<boolean> {
   const daytona = client()
-  const sandbox = await daytona.create(IMAGE, { name: `git-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(IMAGE, { name: `git-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id}`)
 
   let ok = true
@@ -30,7 +30,7 @@ async function main() {
     const has = await proc.run('command -v git || (apt-get update && apt-get install -y git)')
     if (has.exitCode !== 0) {
       fail(`could not ensure git: ${has.output.trim()}`)
-      return
+      return false
     }
     info((await proc.run('git --version')).output.trim())
 
@@ -71,10 +71,10 @@ async function main() {
     info(`deleted sandbox ${sandbox.id}`)
   }
 
-  process.exit(ok ? 0 : 1)
+  return ok
 }
 
-main().catch((e) => {
+main().then((ok) => process.exit(ok ? 0 : 1)).catch((e) => {
   console.error('Error:', e)
   process.exit(1)
 })
