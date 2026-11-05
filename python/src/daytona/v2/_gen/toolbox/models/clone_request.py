@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from typing import Optional, Set
+from typing import FrozenSet
 from typing_extensions import Self
 
 
@@ -31,6 +32,27 @@ def _json_default(value: object) -> str:
     if callable(isoformat):
         return str(isoformat())
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+_REDACTED = "<redacted>"
+
+
+def _redacted_dump(value: object) -> object:
+    """model_dump(by_alias=True) for diagnostics: the credential fields of every
+    generated model, nested ones included, show a placeholder."""
+    if isinstance(value, BaseModel):
+        redacted = getattr(type(value), "_daytona_redacted_fields", frozenset())
+        out: dict[str, object] = {}
+        for name, field in type(value).model_fields.items():
+            item = getattr(value, name)
+            key = field.serialization_alias or field.alias or name
+            out[key] = _REDACTED if name in redacted and item is not None else _redacted_dump(item)
+        return out
+    if isinstance(value, (list, tuple)):
+        return [_redacted_dump(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redacted_dump(item) for key, item in value.items()}
+    return value
 class CloneRequest(BaseModel):
     """
     Clone a repository into a target directory.
@@ -45,6 +67,7 @@ class CloneRequest(BaseModel):
     username: Optional[StrictStr] = Field(default=None, description="Username for authenticated remotes; write-only and never returned.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["branch", "commit_id", "depth", "insecureSkipTls", "password", "path", "url", "username"]
+    _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["password", "username", ])
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -54,8 +77,13 @@ class CloneRequest(BaseModel):
 
 
     def to_str(self) -> str:
-        """Returns the string representation of the model using alias"""
-        return pprint.pformat(self.model_dump(by_alias=True))
+        """Returns the string representation of the model using alias, with
+        credential fields redacted (to_dict()/to_json() keep them)"""
+        return pprint.pformat(_redacted_dump(self))
+
+    def __repr_args__(self):  # type: ignore[no-untyped-def]
+        for name, value in super().__repr_args__():
+            yield name, (_REDACTED if name in self._daytona_redacted_fields and value is not None else value)
 
     def to_json(self) -> str:
         """Returns the JSON representation of the model using alias"""

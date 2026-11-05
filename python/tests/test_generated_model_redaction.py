@@ -1,0 +1,141 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Generated wire models keep credentials on the wire but out of diagnostics."""
+
+from __future__ import annotations
+
+import importlib
+import json
+import pkgutil
+from pathlib import Path
+
+import pytest
+from mark_sensitive import SENSITIVE_NAMES, mark
+from pydantic import BaseModel
+
+from daytona.v2._gen import api as api_models
+from daytona.v2._gen import toolbox as toolbox_models
+from daytona.v2._gen.api.models.lookup_invitation_request import LookupInvitationRequest
+from daytona.v2._gen.api.models.preview_url import PreviewUrl
+from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyWithToken
+from daytona.v2._gen.toolbox.models.clone_request import CloneRequest
+
+ROOT = Path(__file__).resolve().parents[1]
+SECRET = "s3cr3t-credential-value"
+
+
+def _generated_models() -> list[type[BaseModel]]:
+    found: list[type[BaseModel]] = []
+    for package in (api_models, toolbox_models):
+        models = importlib.import_module(package.__name__ + ".models")
+        for info in pkgutil.iter_modules(models.__path__):
+            module = importlib.import_module(f"{models.__name__}.{info.name}")
+            for value in vars(module).values():
+                if (
+                    isinstance(value, type)
+                    and issubclass(value, BaseModel)
+                    and value.__module__ == module.__name__
+                ):
+                    found.append(value)
+    return found
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        PreviewUrl(token=SECRET, url="https://8080-sbx.example.test/"),
+        LookupInvitationRequest(token=SECRET),
+        CloneRequest(url="https://git.example.test/repo.git", path="/w", password=SECRET),
+    ],
+    ids=lambda model: type(model).__name__,
+)
+def test_diagnostics_redact_credentials_but_serialization_keeps_them(model: BaseModel) -> None:
+    for diagnostic in (model.to_str(), repr(model), str(model)):  # type: ignore[attr-defined]
+        assert SECRET not in diagnostic
+        assert "<redacted>" in diagnostic
+
+    assert SECRET in model.to_json()  # type: ignore[attr-defined]
+    assert SECRET in json.dumps(model.to_dict())  # type: ignore[attr-defined]
+    assert SECRET in json.dumps(model.model_dump(by_alias=True))
+
+
+def test_redaction_keeps_other_fields_and_missing_credentials_visible() -> None:
+    preview = PreviewUrl(token=SECRET, url="https://8080-sbx.example.test/")
+    clone = CloneRequest(url="https://git.example.test/repo.git", path="/w")
+
+    assert "https://8080-sbx.example.test/" in preview.to_str()
+    assert "'password': None" in clone.to_str()
+
+
+def test_flattened_all_of_credentials_are_redacted() -> None:
+    created = ProjectApiKeyWithToken.from_dict(
+        {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "name": "ci",
+            "project_id": "00000000-0000-0000-0000-000000000002",
+            "project_permissions": [],
+            "created_at": "2026-01-01T00:00:00Z",
+            "sync_to_v0": False,
+            "sync_to_v1": False,
+            "token": SECRET,
+        }
+    )
+    assert created is not None
+
+    assert SECRET not in created.to_str()
+    assert SECRET not in repr(created)
+    assert created.to_dict()["token"] == SECRET
+
+
+def test_every_generated_credential_field_is_redacted() -> None:
+    missed = []
+    for model in _generated_models():
+        redacted = getattr(model, "_daytona_redacted_fields", frozenset())
+        for name, field in model.model_fields.items():
+            if (field.alias or name) in SENSITIVE_NAMES and name not in redacted:
+                missed.append(f"{model.__name__}.{name}")
+    assert missed == []
+
+
+def test_marking_follows_contract_markers_names_and_nesting() -> None:
+    spec = {
+        "components": {
+            "schemas": {
+                "Creds": {
+                    "properties": {
+                        "token": {"type": "string"},
+                        "pin": {"type": "string", "format": "password"},
+                        "note": {"type": "string", "writeOnly": True},
+                        "headers": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string", "writeOnly": True},
+                        },
+                        "name": {"type": "string"},
+                    }
+                },
+                "Holder": {
+                    "properties": {
+                        "items": {"type": "array", "items": {"$ref": "#/components/schemas/Creds"}}
+                    }
+                },
+                "Outer": {"allOf": [{"$ref": "#/components/schemas/Holder"}]},
+                "Plain": {"properties": {"name": {"type": "string"}}},
+            }
+        }
+    }
+
+    properties, models = mark(spec)
+
+    assert properties == {("Creds", "token"), ("Creds", "pin"), ("Creds", "note"), ("Creds", "headers")}
+    assert models == {"Creds", "Holder", "Outer"}
+    schemas = spec["components"]["schemas"]
+    assert schemas["Creds"]["properties"]["token"]["x-daytona-redact"] is True
+    assert "x-daytona-redact" not in schemas["Creds"]["properties"]["name"]
+    assert "x-daytona-redact-model" not in schemas["Plain"]
+
+
+def test_marking_does_not_touch_the_committed_contract() -> None:
+    for name in ("api-openapi.json", "toolbox-openapi.json"):
+        text = (ROOT.parent / "contract" / name).read_text()
+        assert "x-daytona-redact" not in text

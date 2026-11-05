@@ -17,11 +17,6 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 step() { printf '\n== %s\n' "$*"; }
 
-step "installing generator tooling (npm ci, gen/package-lock.json)"
-(cd gen && npm ci --ignore-scripts --no-audit --no-fund --silent \
-  --fetch-timeout=60000 --fetch-retries=3)
-BIN=gen/node_modules/.bin
-
 # openapi-generator-cli downloads its jar itself on first use, silently and
 # without a timeout; fetch it up front instead (bounded, retried, announced)
 # into the storageDir openapitools.json points at, so the wrapper never
@@ -29,15 +24,58 @@ BIN=gen/node_modules/.bin
 GEN_VERSION="$(node -p "require('./gen/openapitools.json')['generator-cli'].version")"
 JAR_DIR="$(node -p "require('./gen/openapitools.json')['generator-cli'].storageDir")"
 JAR="$JAR_DIR/$GEN_VERSION.jar"
+
+# sha256 of each openapi-generator-cli jar this script may run (Maven Central
+# publishes only sha1). Bumping the version in gen/openapitools.json needs a
+# new entry here.
+generator_jar_sha256() {
+  case "$1" in
+    7.14.0) echo e03186835022ca02da4aa95e3967b6a3b6d44c2e5f7606e6d5c22466f519c757 ;;
+    *) return 1 ;;
+  esac
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+JAR_SHA256="$(generator_jar_sha256 "$GEN_VERSION")" || {
+  echo "gen-contract: no pinned sha256 for openapi-generator-cli $GEN_VERSION; add it to generator_jar_sha256" >&2
+  exit 1
+}
+
+# verify_jar FILE: fail unless FILE has the pinned digest.
+verify_jar() {
+  local got
+  got="$(sha256_of "$1")"
+  if [ "$got" != "$JAR_SHA256" ]; then
+    echo "gen-contract: checksum mismatch for openapi-generator-cli $GEN_VERSION ($1): got $got, want $JAR_SHA256" >&2
+    return 1
+  fi
+}
+
 if [ ! -f "$JAR" ]; then
   step "downloading openapi-generator-cli $GEN_VERSION jar (~30 MiB, cached in $JAR_DIR)"
   mkdir -p "$JAR_DIR"
+  rm -f "$JAR.tmp"
   curl -fL --silent --show-error \
     --connect-timeout 20 --max-time 600 --speed-limit 10240 --speed-time 60 \
     --retry 3 --retry-all-errors -o "$JAR.tmp" \
     "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/$GEN_VERSION/openapi-generator-cli-$GEN_VERSION.jar"
+  verify_jar "$JAR.tmp" || { rm -f "$JAR.tmp"; exit 1; }
   mv "$JAR.tmp" "$JAR"
 fi
+# A cached jar is checked on every run too: the cache is not trusted storage.
+verify_jar "$JAR" || { echo "gen-contract: delete $JAR and rerun to download it again" >&2; exit 1; }
+
+step "installing generator tooling (npm ci, gen/package-lock.json)"
+(cd gen && npm ci --ignore-scripts --no-audit --no-fund --silent \
+  --fetch-timeout=60000 --fetch-retries=3)
+BIN=gen/node_modules/.bin
 
 # The specs are OpenAPI 3.1; openapi-generator's python generator
 # is only reliable on 3.0 input, so it gets a down-converted, ephemeral copy.
@@ -45,6 +83,9 @@ fi
 step "down-converting contract specs to OpenAPI 3.0"
 "$BIN/openapi-down-convert" --input ../contract/toolbox-openapi.json --output gen/.toolbox-3.0.json
 "$BIN/openapi-down-convert" --input ../contract/api-openapi.json --output gen/.api-3.0.json
+# Credential fields keep their wire value but are redacted from to_str() and
+# repr() (gen/mark_sensitive.py; the templates read its markers).
+python3 gen/mark_sensitive.py gen/.toolbox-3.0.json gen/.api-3.0.json
 
 export OPENAPI_GENERATOR_CLI_SEARCH_URL=""
 for key in toolbox api; do
