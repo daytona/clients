@@ -3,6 +3,12 @@
 
 package internal
 
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
+
 var (
 	Version           = "v0.0.0-dev"
 	DaytonaApiUrl     = ""
@@ -17,3 +23,25 @@ var (
 	// HomebrewFormula is the formula that installs this build.
 	HomebrewFormula = "daytonaio/cli/daytona"
 )
+
+func init() {
+	adoptInvokedName(os.Args[0])
+}
+
+// adoptInvokedName names a daytona-v0 build "daytona" when it runs as daytona:
+// until the first stable 2.x release, the same 0.x binary also ships as the
+// daytona-<os>-<arch> assets that the daytona Homebrew formula installs, and
+// its hints and MCP config must name a command that is on PATH.
+func adoptInvokedName(arg0 string) {
+	if BinaryName != "daytona-v0" {
+		return
+	}
+	name := filepath.Base(arg0)
+	if strings.EqualFold(filepath.Ext(name), ".exe") {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	if strings.EqualFold(name, "daytona") {
+		BinaryName = "daytona"
+		HomebrewFormula = "daytonaio/cli/daytona"
+	}
+}

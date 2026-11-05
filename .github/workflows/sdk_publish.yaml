@@ -159,15 +159,24 @@ jobs:
         # check above.
         if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
         run: bash hack/npm-latest-guard.sh verify
+      - name: Checkout release scripts
+        if: matrix.homebrew_tap && inputs.publish_cli
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: hack
       - name: Resolve Homebrew tap updates
         # From main, the `daytona` formula follows the main release line. From
         # release/v0, once the 2.x CLI has taken the `daytona` name (repository
         # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
-        # follows the 0.x line; before that, release branches never update the tap.
+        # follows the 0.x line, and so does the `daytona` formula until the first
+        # stable 2.x release exists (read from the releases on every run); before
+        # the cutover, release branches never update the tap.
         # Each repository_dispatch event updates one formula; list one per line.
         id: tap
         if: matrix.homebrew_tap
         env:
+          GH_TOKEN: ${{ github.token }}
           PUBLISH_CLI: ${{ inputs.publish_cli }}
           V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
         run: |
@@ -177,6 +186,13 @@ jobs:
           elif [[ "$GITHUB_REF" == refs/heads/release/v0 ]]; then
             if [[ "$V0_CUTOVER" == true ]]; then
               events+=(update-version-v0)
+              stable_v2=$(bash hack/stable-v2-release.sh)
+              if [[ -n "$stable_v2" ]]; then
+                echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x; updating daytona@0 only."
+              else
+                echo "No stable 2.x release yet: updating daytona@0 and daytona."
+                events+=(update-version)
+              fi
             else
               echo "release/v0 updates the Homebrew tap only after the cutover (DAYTONA_V0_CUTOVER)."
             fi
@@ -206,18 +222,76 @@ jobs:
             echo "::error::The daytona@0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
             exit 1
           fi
+      - name: Check the daytona formula assets
+        # The `daytona` formula downloads daytona-<os>-<arch>; Release uploads
+        # them to a 0.x release only while no stable 2.x release exists.
+        if: steps.tap.outputs.events != '' && github.ref == 'refs/heads/release/v0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_EVENTS: ${{ steps.tap.outputs.events }}
+        run: |
+          if ! grep -qx update-version <<< "$HOMEBREW_EVENTS"; then
+            exit 0
+          fi
+          assets=$(gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          for asset in daytona-darwin-arm64 daytona-darwin-amd64 daytona-linux-amd64 daytona-linux-arm64; do
+            if ! grep -qx "$asset" <<< "$assets"; then
+              echo "::error::Release $VERSION has no $asset asset, which the daytona formula installs (Release did not upload daytona-<os>-<arch> assets for it); nothing was dispatched"
+              exit 1
+            fi
+          done
       - name: Update Homebrew CLI tap
         if: steps.tap.outputs.events != ''
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
           HOMEBREW_EVENTS: ${{ steps.tap.outputs.events }}
         run: |
+          # Each tap workflow commits to the tap's default branch without
+          # rebasing, so two running at once can lose a push. Dispatch one event
+          # at a time and wait for its tap run, the first one with a run ID above
+          # the newest before the dispatch, to succeed before the next.
+          tap=daytonaio/homebrew-cli
+          declare -A tap_workflow=(
+            [update-version]=brew_publish.yaml
+            [update-version-v0]=brew_publish_v0.yaml
+          )
           while read -r event; do
+            # A stable 2.x release published while an earlier tap run was in
+            # flight now owns the daytona formula: never move it back to 0.x.
+            if [[ "$event" == update-version && "$GITHUB_REF" == refs/heads/release/v0 ]]; then
+              stable_v2=$(bash hack/stable-v2-release.sh < /dev/null)
+              if [[ -n "$stable_v2" ]]; then
+                echo "::warning::Stable 2.x release $stable_v2 was published during this run: the daytona formula follows 2.x now; skipping update-version."
+                continue
+              fi
+              echo "Still no stable 2.x release: dispatching update-version."
+            fi
+            workflow="${tap_workflow[$event]:?no tap workflow known for $event}"
+            runs="repos/$tap/actions/workflows/$workflow/runs"
+            last_id=$(gh api "$runs?per_page=1" --jq '.workflow_runs[0].id // 0')
             echo "Dispatching $event for $VERSION"
             curl -f -X POST -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
-              https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
+              "https://api.github.com/repos/$tap/dispatches" \
               -d "{\"event_type\": \"$event\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+            run=""
+            for _ in $(seq 90); do
+              sleep 10
+              run=$(gh api "$runs?event=repository_dispatch&per_page=10" \
+                --jq "[.workflow_runs[] | select(.id > $last_id)] | sort_by(.id) | first // empty | \"\(.status) \(.conclusion) \(.html_url)\"") || run=""
+              [[ "$run" == completed\ * ]] && break
+            done
+            read -r status conclusion url <<< "$run"
+            if [[ "$status" != completed ]]; then
+              echo "::error::The $workflow run for $event did not finish within 15 minutes${url:+: $url}"
+              exit 1
+            fi
+            if [[ "$conclusion" != success ]]; then
+              echo "::error::The $workflow run for $event ended with $conclusion: $url"
+              exit 1
+            fi
+            echo "$event: $url succeeded"
           done <<< "$HOMEBREW_EVENTS"
       - name: Cleanup credentials
         if: always()
