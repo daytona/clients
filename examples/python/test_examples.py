@@ -66,6 +66,9 @@ class FakeWorld:
         self.sandboxes: list[MagicMock] = []
         self.deleted_sandboxes: list[str] = []
         self.deleted_volumes: list[str] = []
+        self.images: list[SimpleNamespace] = []
+        self.pulled_images: list[tuple[str, Optional[str]]] = []
+        self.deleted_images: list[str] = []
         self.fail_builds_containing: Optional[str] = None
         self.empty_build_logs = False
         self.build_logs_fail_after_output = False
@@ -104,12 +107,36 @@ class FakeWorld:
 
         images = create_autospec(ImageService, instance=True)
         images.follow_build_logs.side_effect = self._follow_build_logs
+        images.iter.side_effect = lambda *, name=None, **_: iter(
+            [i for i in list(self.images) if name is None or i.name == name]
+        )
+        images.get.side_effect = self._image_ready
+        images.pull.side_effect = self._image_pull
+        images.delete.side_effect = self._image_delete
         client.images = images
         return client
+
+    def _image_ready(self, image_id: str, **_: object) -> SimpleNamespace:
+        image = next(i for i in self.images if i.id == image_id)
+        image.status = "ready"
+        return image
+
+    def _image_pull(self, image: str, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
+        self.pulled_images.append((image, name))
+        registered = SimpleNamespace(id=f"img-{len(self.images)}", name=name or image, status="ready")
+        self.images.append(registered)
+        return registered
+
+    def _image_delete(self, image_id: str) -> None:
+        self.deleted_images.append(image_id)
+        self.images = [i for i in self.images if i.id != image_id]
 
     def _create(self, image: Optional[str] = None, /, **kwargs: object) -> MagicMock:
         if image is not None and not isinstance(image, str):
             raise TypeError("create() accepts an image name or img_… id string")
+        # The API creates only from a project image, never a registry reference.
+        if not any(i.name == image and i.status == "ready" for i in self.images):
+            raise LookupError(f"image not found: {image}")
         env = kwargs.get("env") or {}
         assert isinstance(env, Mapping)
         secrets = kwargs.get("secrets") or []
@@ -262,6 +289,36 @@ def test_example_succeeds_against_the_sdk_surface(
     code, world = run_example(name, *overrides)
     assert code == 0
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_registers_the_image_once_when_the_project_lacks_it(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    code, world = run_example("exec_command")
+    assert code == 0
+    assert world.pulled_images == [("python:3.12-slim", "examples-python-3-12-slim")]
+
+
+@pytest.mark.parametrize("status", ["ready", "pending"])
+def test_reuses_a_registered_image(
+    run_example: Callable[..., tuple[int, FakeWorld]], status: str
+) -> None:
+    world = FakeWorld()
+    world.images.append(SimpleNamespace(id="img-0", name="examples-python-3-12-slim", status=status))
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
+    assert world.pulled_images == []
+
+
+def test_registers_again_over_a_failed_registration(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.images.append(SimpleNamespace(id="img-0", name="examples-python-3-12-slim", status="failed"))
+    code, world = run_example("exec_command", world=world)
+    assert code == 0
+    assert world.deleted_images == ["img-0"]
+    assert len(world.pulled_images) == 1
 
 
 def test_build_logs_reads_the_failed_build_through_the_error_image_id(

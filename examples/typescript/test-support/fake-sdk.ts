@@ -35,6 +35,8 @@ export interface Scenario {
   leakSecrets?: boolean
   /** Keep /data/message.txt writes and serve them back (volumes_share). */
   volumeData?: boolean
+  /** Project images that exist before the run: [name, status]. */
+  images?: [string, string][]
 }
 
 export interface Record {
@@ -44,6 +46,8 @@ export interface Record {
   deletedSecrets: string[]
   deletedVolumes: string[]
   followedImages: string[]
+  pulledImages: { ref: string; name?: string }[]
+  deletedImages: string[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -54,12 +58,15 @@ const record: Record = {
   deletedSecrets: [],
   deletedVolumes: [],
   followedImages: [],
+  pulledImages: [],
+  deletedImages: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
 })
 
 const secrets = new Map<string, string>()
+const images = (scenario.images ?? []).map(([name, status], index) => ({ id: `img-${index}`, name, status }))
 const volumeLines: string[] = []
 
 const result = (exitCode: number, output: string) => ({ exitCode, output, stdout: output, stderr: '' })
@@ -143,6 +150,8 @@ const boxes: Box[] = []
 
 const fake = {
   create: async (image: string, options: { name?: string; env?: { [k: string]: string }; envVars?: { [k: string]: string }; secrets?: string[] } = {}) => {
+    // The API creates only from a project image, never a registry reference.
+    if (!images.some((entry) => entry.name === image && entry.status === 'ready')) throw new Error(`image not found: ${image}`)
     const env = { ...options.env, ...options.envVars }
     for (const name of options.secrets ?? []) {
       // The API rejects a create that attaches a secret the project lacks.
@@ -169,6 +178,24 @@ const fake = {
   },
   images: {
     list: async () => ({ items: [], nextCursor: undefined }),
+    iter: async function* (options: { name?: string } = {}) {
+      yield* images.filter((entry) => options.name === undefined || entry.name === options.name)
+    },
+    get: async (id: string) => {
+      const entry = images.find((candidate) => candidate.id === id)
+      if (entry) entry.status = 'ready'
+      return entry
+    },
+    pull: async (ref: string, options: { name?: string } = {}) => {
+      record.pulledImages.push({ ref, name: options.name })
+      const entry = { id: `img-${images.length}`, name: options.name ?? ref, status: 'ready' }
+      images.push(entry)
+      return entry
+    },
+    delete: async (id: string) => {
+      record.deletedImages.push(id)
+      images.splice(images.findIndex((entry) => entry.id === id), 1)
+    },
     followBuildLogs: async (imageId: string, options: { onLogs: (chunk: string) => void }) => {
       record.followedImages.push(imageId)
       if (!scenario.emptyBuildLogs) options.onLogs(`intentional-build-failure-${RUN}\n`)
