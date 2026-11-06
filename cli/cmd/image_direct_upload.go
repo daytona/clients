@@ -65,14 +65,28 @@ type stagedImageContext struct {
 	cleanup func()
 }
 
-func stageImageContext(upload imageContextUpload) (*stagedImageContext, error) {
+// cancellableReader stops a long copy at the next read once ctx is done, so an
+// interrupt does not wait for a whole archive to be hashed or written.
+type cancellableReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c cancellableReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
+}
+
+func stageImageContext(ctx context.Context, upload imageContextUpload) (*stagedImageContext, error) {
 	if upload.file != "" {
 		file, err := os.Open(upload.file)
 		if err != nil {
 			return nil, err
 		}
 		digest := sha256.New()
-		size, err := io.Copy(digest, file)
+		size, err := io.Copy(digest, cancellableReader{ctx, file})
 		if err != nil {
 			_ = file.Close()
 			return nil, err
@@ -93,7 +107,7 @@ func stageImageContext(upload imageContextUpload) (*stagedImageContext, error) {
 		return nil, err
 	}
 	digest := sha256.New()
-	size, err := io.Copy(io.MultiWriter(file, digest), reader)
+	size, err := io.Copy(io.MultiWriter(file, digest), cancellableReader{ctx, reader})
 	_ = reader.Close()
 	if err != nil {
 		cleanup()
@@ -211,8 +225,10 @@ func putImageContextPart(ctx context.Context, file *os.File, offset int64, part 
 			if status >= 200 && status < 300 {
 				return nil
 			}
+			// Not CodeForStatus: a storage 403 is an expired or refused part
+			// URL, not a missing API permission.
 			if status < 500 && status != http.StatusRequestTimeout && status != http.StatusTooManyRequests {
-				return cerr.New(cerr.CodeForStatus(status),
+				return cerr.New(cerr.ExitFailure,
 					"storage refused build context part %d (HTTP %d); its upload URL may have expired, run the build again", part.PartNumber, status)
 			}
 		}

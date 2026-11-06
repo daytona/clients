@@ -39,7 +39,7 @@ func postImageMultipart(ctx context.Context, client *api.Client, meta map[string
 		return gen.AsyncOperation{}, err
 	}
 	if contextUpload.size > imageContextMaxBytes {
-		staged, err := stageImageContext(contextUpload)
+		staged, err := stageImageContext(ctx, contextUpload)
 		if err != nil {
 			return gen.AsyncOperation{}, err
 		}
