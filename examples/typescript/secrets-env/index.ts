@@ -27,7 +27,7 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 async function main(): Promise<boolean> {
   const daytona = client()
@@ -68,7 +68,7 @@ async function main(): Promise<boolean> {
     }
 
     section('create a sandbox with BOTH env vars and the secret attached')
-    sandbox = await daytona.create(IMAGE, {
+    sandbox = await daytona.create(await sandboxImage(daytona), {
       name: `secrets-env-${RUN}`,
       waitSeconds: 200,
       // Env vars: real values, injected verbatim into the sandbox.

@@ -70,6 +70,27 @@ for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secr
   })
 }
 
+test('registers the image once when the project lacks it', () => {
+  const { code, record, output } = runExample(example('exec-command'))
+  assert.equal(code, 0, output)
+  assert.deepEqual(record.pulledImages, [{ ref: 'python:3.12-slim', name: 'examples-python-3-12-slim' }])
+})
+
+test('reuses a registered image, and waits for one still registering', () => {
+  for (const status of ['ready', 'pending']) {
+    const { code, record, output } = runExample(example('exec-command'), { images: [['examples-python-3-12-slim', status]] })
+    assert.equal(code, 0, output)
+    assert.deepEqual(record.pulledImages, [])
+  }
+})
+
+test('registers again over a failed registration', () => {
+  const { code, record, output } = runExample(example('exec-command'), { images: [['examples-python-3-12-slim', 'failed']] })
+  assert.equal(code, 0, output)
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assert.equal(record.pulledImages.length, 1)
+})
+
 // Each case names the FAIL line the injected failure must produce, so an
 // unrelated crash (also exit 1) cannot pass the test.
 for (const [name, override, reported] of [
