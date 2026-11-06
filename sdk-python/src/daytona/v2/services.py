@@ -28,6 +28,7 @@ from ._api_core import (
     expect_snapshot,
     expect_volume,
 )
+from ._context_upload import BuildContext, upload_build_context
 from ._core import (
     RequestSpec,
     TransportPayload,
@@ -44,7 +45,7 @@ from ._gen.api import Volume as VolumeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogFollowResult, _EventCallback, _LogsCallback, follow_build_logs
-from .errors import NotFoundError, create_error
+from .errors import BadRequestError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CreateReservationRequest,
@@ -170,6 +171,60 @@ class AsyncImageService:
             body["source"] = source
         if rendered_dockerfile is not None:
             body["dockerfile"] = rendered_dockerfile
+        created = expect_create_image_resp(
+            await self._transport.send(
+                RequestSpec(
+                    "POST",
+                    "/images",
+                    json_body=body,
+                    timeout=timeout or None,
+                    unbounded_read=timeout in (None, 0),
+                )
+            )
+        )
+        return await self.get(created.id)
+
+    async def build_from_context(
+        self,
+        context: BuildContext,
+        /,
+        *,
+        dockerfile: str = "Dockerfile",
+        name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
+        region: Optional[str] = None,
+        cpu_arch: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Image:
+        """Build an image from a Dockerfile inside a build-context tar archive.
+
+        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
+        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
+        archive is uploaded straight to storage in parts and verified by the
+        API before the build starts; an identical archive the project already
+        uploaded is reused without uploading it again. The other arguments
+        are those of :meth:`build`. Returns as soon as the build is submitted;
+        wait with :meth:`get` (``wait="ready"``).
+        """
+        # Checked before the upload: the API refuses the pair only at the build.
+        if name is not None and idle_expiry_seconds is not None:
+            raise BadRequestError(
+                "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
+                status_code=400,
+                code="BAD_REQUEST",
+                source="SDK",
+            )
+        upload_id, upload_region = await upload_build_context(
+            self._transport, context, dockerfile=dockerfile, region=region
+        )
+        # The build must name the region the upload was verified in.
+        body: JsonObject = {"context_upload_id": upload_id, "region_id": upload_region}
+        if name is not None:
+            body["name"] = name
+        if idle_expiry_seconds is not None:
+            body["idle_expiry_seconds"] = idle_expiry_seconds
+        if cpu_arch is not None:
+            body["cpu_arch"] = cpu_arch
         created = expect_create_image_resp(
             await self._transport.send(
                 RequestSpec(

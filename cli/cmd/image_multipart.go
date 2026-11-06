@@ -21,18 +21,30 @@ import (
 
 var imageContextReplayLimit int64 = 32 << 20
 
-const imageContextMaxBytes int64 = 64 << 20
+// imageContextMaxBytes is the largest context sent as a multipart field;
+// larger ones are uploaded directly (postImageDirect).
+var imageContextMaxBytes int64 = 64 << 20
 
 type imageContextUpload struct {
 	name string
 	size int64
 	open func() (io.ReadCloser, error)
+	// file is the tar file a file context names; empty for a directory.
+	file string
 }
 
 func postImageMultipart(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath, contextPath string) (gen.AsyncOperation, error) {
 	contextUpload, err := imageContextUploadForPath(contextPath)
 	if err != nil {
 		return gen.AsyncOperation{}, err
+	}
+	if contextUpload.size > imageContextMaxBytes {
+		staged, err := stageImageContext(ctx, contextUpload)
+		if err != nil {
+			return gen.AsyncOperation{}, err
+		}
+		defer staged.cleanup()
+		return postImageDirect(ctx, client, meta, dockerfilePath, staged)
 	}
 	if contextUpload.size <= imageContextReplayLimit {
 		return postBufferedImageMultipart(ctx, client, meta, dockerfilePath, contextUpload)
@@ -53,7 +65,7 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 		if !info.Mode().IsRegular() {
 			return imageContextUpload{}, unsupportedImageContextEntryError(contextPath, contextPath)
 		}
-		if info.Size() > imageContextMaxBytes {
+		if info.Size() > imageContextDirectMaxBytes {
 			return imageContextUpload{}, imageContextTooLargeError(contextPath, info.Size())
 		}
 		return imageContextUpload{
@@ -62,6 +74,7 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 			open: func() (io.ReadCloser, error) {
 				return os.Open(resolvedPath)
 			},
+			file: resolvedPath,
 		}, nil
 	}
 	if err := validateImageContextDirectory(resolvedPath, contextPath); err != nil {
@@ -71,7 +84,7 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 	if err != nil {
 		return imageContextUpload{}, err
 	}
-	if size > imageContextMaxBytes {
+	if size > imageContextDirectMaxBytes {
 		return imageContextUpload{}, imageContextTooLargeError(contextPath, size)
 	}
 	return imageContextUpload{
@@ -84,7 +97,7 @@ func imageContextUploadForPath(contextPath string) (imageContextUpload, error) {
 }
 
 func imageContextTooLargeError(path string, size int64) error {
-	return cerr.Usage("build context %q exceeds the 64 MiB limit (%d bytes)", path, size)
+	return cerr.Usage("build context %q exceeds the 1 GiB limit (%d bytes)", path, size)
 }
 
 func validateImageContextDirectory(dir, originalPath string) error {
