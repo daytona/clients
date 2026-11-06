@@ -227,3 +227,33 @@ for (const [files, valid] of [[['daytona_upgrade-2.0.0a8-py3-none-any.whl', 'day
     assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
   });
 }
+
+for (const [tagged, expected] of [[false, 1], [true, 0]]) {
+  test(`a tool-only run needs the SDKs' release tag on its source commit (tagged: ${tagged})`, (context) => {
+    // Given: a repository whose source commit may carry the release tag.
+    const root = fixture(context);
+    const git = (...args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+    git('init', '-q');
+    git('-c', 'user.email=a@b', '-c', 'user.name=x', 'commit', '-q', '--allow-empty', '-m', 'release');
+    const sha = git('rev-parse', 'HEAD').stdout.trim();
+    if (tagged) git('tag', 'v2.0.0-alpha.8');
+    mkdirSync(join(root, '.publish-tools/scripts'), { recursive: true });
+    writeFileSync(join(root, '.publish-tools/scripts/sdk-version.sh'),
+      '#!/bin/bash\nprintf "version=2.0.0-alpha.8\\nnpm=2.0.0-alpha.8\\ncli=2.0.0-alpha.8\\npypi=2.0.0a8\\n"\n');
+    chmodSync(join(root, '.publish-tools/scripts/sdk-version.sh'), 0o755);
+    const output = join(root, 'output');
+    writeFileSync(output, '');
+    // When: the gate derives versions for a tool-only run.
+    // The gate's step starts with its id, so it is cut out by its name line.
+    const block = workflow.split('        name: Derive registry versions (branch rule + alpha-only gate)\n')[1].split('\n      - ')[0];
+    const lines = block.split('        run: |\n')[1].split('\n');
+    const end = lines.findIndex((line) => line.trim() !== '' && !line.startsWith(' '.repeat(10)));
+    const script = lines.slice(0, end === -1 ? undefined : end).map((line) => line.slice(10)).join('\n');
+    const result = spawnSync('bash', ['-c', script], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, VERSION_INPUT: 'v2.0.0-alpha.8', SOURCE_SHA: sha, GITHUB_OUTPUT: output,
+        PUBLISH_PYPI: 'false', PUBLISH_NPM: 'false', PUBLISH_CLI: 'false', PUBLISH_UPGRADE: 'true' },
+    });
+    // Then: without the tag, the run cannot prove the SDKs came from this commit.
+    assert.equal(result.status, expected, result.stdout + result.stderr);
+  });
+}

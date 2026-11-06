@@ -173,13 +173,14 @@ def at_or_above_target(constraint: str, target: str) -> bool:
         and floor.major == wanted.major
         and floor >= wanted
         and not _stale_for_target(floor, wanted)
-        # While the target is a pre-release, a floor on that same release's
-        # stable version (">=2,<3" under ==2.0.0a8, what pre-lockstep releases
-        # wrote) installs nothing yet; any later stable floor is a project
-        # ahead of this tool.
+        # While the target is a pre-release, a range floored on that same
+        # release's stable version (">=2,<3" under ==2.0.0a8, what pre-lockstep
+        # releases wrote) installs nothing yet; an exact ==2.0.0 pin or any
+        # later stable floor is a project ahead of this tool.
         and (
             not wanted.is_prerelease
             or floor.is_prerelease
+            or _exact(constraint)
             or (*floor.release, 0, 0)[:3] != (*wanted.release, 0, 0)[:3]
         )
     )

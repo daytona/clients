@@ -35,11 +35,11 @@ name: SDK Publish
 #
 # ── The migration tool is published in lockstep ──────────────────────────────
 # `daytona-upgrade` carries the version of the SDK release it ships with and
-# writes exactly that release into the projects it migrates (a pre-release
+# targets that release in the projects it migrates (a pre-release
 # pins it; a stable X.Y.Z writes ^X.Y.Z / >=X.Y.Z,<X+1), because its mapping is
 # checked (by upgrade-tool-ci, on the pull request that changed it) against the
-# v2 surface and the pinned v0 bundle of the same tree. The SDKs' runtime guidance names the matching tool release. So the
-# tool never ships without its SDK: with publish_pypi or publish_npm off, the
+# v2 surface and the pinned v0 bundle of the same tree. The SDKs' runtime
+# guidance names the matching tool release. So the tool never ships without its SDK: with publish_pypi or publish_npm off, the
 # registry check requires that SDK version to be published already (a resume),
 # and in the publish job each tool package waits until its SDK is visible on
 # that registry, as the 0.x line's SDKs wait for their client packages. The
@@ -93,8 +93,8 @@ name: SDK Publish
 #
 # ── ALPHA-ONLY GATE (pre-launch) ─────────────────────────────────────────────
 # Until 2.x is generally available, ONLY alpha pre-releases may be published:
-# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N` (the migration tool too). The regexes run on the
-# DERIVED strings, so a stable, rc or beta version fails the gate and an
+# PyPI `X.Y.ZaN` (PEP 440), npm/CLI `X.Y.Z-alpha.N` (the migration tool too).
+# The regexes run on the DERIVED strings, so a stable, rc or beta version fails the gate and an
 # official-looking release cannot ship by accident. The npm dist-tag follows
 # the derived version (-alpha.N → `alpha`, -beta.N → `beta`, -rc.N → `next`,
 # stable → `latest` — docs/VERSIONING.md "Release channels"), so under the
@@ -297,6 +297,11 @@ jobs:
               echo "::error::tag ${tag} already points at ${existing}, not the source commit ${SOURCE_SHA} — a version is published once"
               exit 1
             fi
+          elif [ "$PUBLISH_UPGRADE" = true ] && [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ]; then
+            # A tool-only run builds the tool from the commit the SDKs were
+            # released from, which the release tag records.
+            echo "::error::a tool-only run publishes from the SDKs' release commit, but tag ${tag} does not exist yet — re-run the original run's publish job, or re-dispatch from the SDKs' commit with publish_pypi/publish_npm on and force_republish=true"
+            exit 1
           fi
           # ALPHA-ONLY (pre-launch): the regexes run on the DERIVED strings.
           # Numeric components: no leading zeros (npm/PEP 440 would canonicalize

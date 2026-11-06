@@ -26,8 +26,8 @@ export function companionCommand(toolVersion: string): string {
 
 /**
  * The SDK range this tool writes. A published tool has the version of the SDK
- * release it was built and tested with in the same publish run, so it targets
- * exactly that release: a pre-release pins it (pre-releases may break), a
+ * release it is published with (upgrade-tool-ci checks its mapping against
+ * that tree's SDKs), so it targets that release: a pre-release pins it (pre-releases may break), a
  * stable release takes it or any later release of the same major. An
  * unpublished build (version 0.x, the placeholder in git) keeps the mapping's
  * range.
@@ -88,10 +88,11 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   // While the target is a pre-release, only an exact pre-release counts: a
   // pre-release range (`^2.0.0-alpha.8`) also admits the stale 2.0.0-rc.1.
   if (wanted.prerelease.length && floor.prerelease.length && valid(range) === null) return false;
-  // While the target is a pre-release, a floor on that same release's stable
-  // version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases wrote)
-  // installs nothing yet; any later stable floor is a project ahead of this tool.
-  return !wanted.prerelease.length || floor.prerelease.length > 0 ||
+  // While the target is a pre-release, a range floored on that same release's
+  // stable version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases
+  // wrote) installs nothing yet; an exact `2.0.0` pin or any later stable
+  // floor is a project ahead of this tool.
+  return !wanted.prerelease.length || floor.prerelease.length > 0 || valid(range) !== null ||
     floor.minor !== wanted.minor || floor.patch !== wanted.patch;
 }
 
