@@ -79,6 +79,7 @@ class ImagesService:
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
         cpu_arch: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> Image:
         """Build an image from a Dockerfile inside a build-context tar archive."""
         return self._bridge.call(
@@ -89,6 +90,7 @@ class ImagesService:
                 idle_expiry_seconds=idle_expiry_seconds,
                 region=region,
                 cpu_arch=cpu_arch,
+                timeout=timeout,
             )
         )
 

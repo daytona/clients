@@ -25,7 +25,13 @@ from daytona.v2 import _context_upload
 from daytona.v2._bridge import SyncBridge
 from daytona.v2._sync.services import ImageService
 from daytona.v2._transport import AsyncTransport
-from daytona.v2.errors import BadRequestError, ConflictError, ConnectionError, ServiceUnavailableError
+from daytona.v2.errors import (
+    BadRequestError,
+    ConflictError,
+    ConnectionError,
+    InternalServerError,
+    ServiceUnavailableError,
+)
 from daytona.v2.services import AsyncImageService
 from daytona.v2.types import Image
 
@@ -193,7 +199,7 @@ def fast_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     async def no_sleep(_: float) -> None:
         return
 
-    monkeypatch.setattr(_context_upload.anyio, "sleep", no_sleep)
+    monkeypatch.setattr(_context_upload, "_sleep", no_sleep)
 
 
 @pytest.mark.anyio
@@ -455,9 +461,9 @@ async def test_a_complete_the_server_failed_is_retried(sync: bool) -> None:
 @pytest.mark.anyio
 async def test_a_complete_that_keeps_failing_gives_up(sync: bool) -> None:
     with storage_peer(complete_statuses=[500, 500, 500]) as peer:
-        with pytest.raises(Exception) as error:
+        with pytest.raises(InternalServerError) as error:
             await build(peer, archive(), sync)
-        assert getattr(error.value, "status_code", None) == 500
+        assert error.value.status_code == 500
         assert completes(peer) == _context_upload._COMPLETE_ATTEMPTS
         assert not [p for _, p, *_ in peer.requests if p == "/images"]
 
@@ -489,3 +495,52 @@ async def test_a_complete_that_timed_out_is_retried(sync: bool, monkeypatch: pyt
         image = await build(peer, archive(), sync, request_timeout=0.1)
         assert completes(peer) == 2
         assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+async def test_a_buffer_context_is_read_without_copying_it() -> None:
+    # Given a writable buffer and a view of it.
+    data = bytearray(archive(10_000))
+    for context in (data, memoryview(data)):
+        source = _context_upload._Source(context)
+        # When the archive is read, it is read from the caller's buffer.
+        assert source._data is not None and source._data.obj is data
+        assert source.sha256() == hashlib.sha256(data).hexdigest()
+        assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
+
+
+@pytest.mark.anyio
+async def test_a_non_contiguous_view_is_still_accepted() -> None:
+    data = archive(1_000)
+    view = memoryview(data)[::2]
+    source = _context_upload._Source(view)
+    assert source.size == len(data[::2])
+    assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data[::2]
+
+
+@pytest.mark.anyio
+async def test_a_name_with_an_idle_expiry_is_refused_before_any_request(sync: bool) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="applies only to an anonymous image"):
+            await build(peer, archive(), sync, name="web", idle_expiry_seconds=60)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("timeout", "expected"), [(None, None), (0, None), (30.0, 30.0)])
+async def test_the_build_request_takes_the_timeout(
+    monkeypatch: pytest.MonkeyPatch, timeout: float | None, expected: float | None
+) -> None:
+    sent: list[object] = []
+    original = AsyncTransport.send
+
+    async def record(self: AsyncTransport, spec: object) -> object:
+        sent.append(spec)
+        return await original(self, spec)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(AsyncTransport, "send", record)
+    with storage_peer() as peer:
+        await build(peer, archive(), False, timeout=timeout)
+    [spec] = [spec for spec in sent if getattr(spec, "path", None) == "/images" and spec.method == "POST"]  # type: ignore[attr-defined]
+    assert spec.timeout == expected  # type: ignore[attr-defined]
+    assert spec.unbounded_read is (timeout in (None, 0))  # type: ignore[attr-defined]
