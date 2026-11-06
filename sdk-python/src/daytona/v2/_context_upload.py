@@ -50,6 +50,8 @@ _COMPLETE_ATTEMPTS = 3
 # The API reads the whole stored archive back (up to 1 GiB) before it answers.
 _COMPLETE_TIMEOUT_SECONDS = 600.0
 _REDACTED_URL = "<build context part URL>"
+# The pause between attempts; tests replace it.
+_sleep = anyio.sleep
 
 
 class _RedactPartUrls(logging.Filter):
@@ -105,9 +107,14 @@ class _Source:
 
     def __init__(self, context: BuildContext) -> None:
         if isinstance(context, (bytes, bytearray, memoryview)):
-            self._data: Optional[bytes] = bytes(context)
+            # A view, not a copy, so a 1 GiB buffer is not duplicated; only a
+            # non-contiguous view, which cannot be cast to bytes, is copied.
+            view = memoryview(context)
+            if not view.c_contiguous:
+                view = memoryview(view.tobytes())
+            self._data: Optional[memoryview] = view.cast("B")
             self._path: Optional[Path] = None
-            self.size = len(self._data)
+            self.size = self._data.nbytes
         elif isinstance(context, (str, os.PathLike)):
             self._data = None
             self._path = Path(context)
@@ -135,9 +142,8 @@ class _Source:
         """Yield ``length`` bytes from ``offset`` in chunks of at most ``_PART_CHUNK``."""
         end = offset + length
         if self._data is not None:
-            view = memoryview(self._data)
             for start in range(offset, end, _PART_CHUNK):
-                yield bytes(view[start : min(start + _PART_CHUNK, end)])
+                yield bytes(self._data[start : min(start + _PART_CHUNK, end)])
             return
         assert self._path is not None
         handle = await anyio.to_thread.run_sync(self._path.open, "rb")
@@ -232,7 +238,7 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
                     source="SDK",
                 )
         if attempt + 1 < _PART_ATTEMPTS:
-            await anyio.sleep(0.5 * 2**attempt)
+            await _sleep(0.5 * 2**attempt)
     if status is None:
         raise ConnectionError(
             f"build context part {part.number} could not reach storage", source="SDK"
@@ -325,4 +331,4 @@ async def _complete(transport: AsyncTransport, upload_id: str, region_id: str) -
         except DaytonaError as error:
             if attempt + 1 >= _COMPLETE_ATTEMPTS or not _retryable_complete(error):
                 raise
-        await anyio.sleep(2.0**attempt)
+        await _sleep(2.0**attempt)

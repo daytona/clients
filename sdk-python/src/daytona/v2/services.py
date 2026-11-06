@@ -45,7 +45,7 @@ from ._gen.api import Volume as VolumeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogFollowResult, _EventCallback, _LogsCallback, follow_build_logs
-from .errors import NotFoundError, create_error
+from .errors import BadRequestError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CreateReservationRequest,
@@ -194,6 +194,7 @@ class AsyncImageService:
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
         cpu_arch: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> Image:
         """Build an image from a Dockerfile inside a build-context tar archive.
 
@@ -205,6 +206,14 @@ class AsyncImageService:
         are those of :meth:`build`. Returns as soon as the build is submitted;
         wait with :meth:`get` (``wait="ready"``).
         """
+        # Checked before the upload: the API refuses the pair only at the build.
+        if name is not None and idle_expiry_seconds is not None:
+            raise BadRequestError(
+                "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
+                status_code=400,
+                code="BAD_REQUEST",
+                source="SDK",
+            )
         upload_id, upload_region = await upload_build_context(
             self._transport, context, dockerfile=dockerfile, region=region
         )
@@ -217,7 +226,15 @@ class AsyncImageService:
         if cpu_arch is not None:
             body["cpu_arch"] = cpu_arch
         created = expect_create_image_resp(
-            await self._transport.send(RequestSpec("POST", "/images", json_body=body))
+            await self._transport.send(
+                RequestSpec(
+                    "POST",
+                    "/images",
+                    json_body=body,
+                    timeout=timeout or None,
+                    unbounded_read=timeout in (None, 0),
+                )
+            )
         )
         return await self.get(created.id)
 
