@@ -38,6 +38,8 @@ type directUploadPeer struct {
 	// partStatus answers each PUT of a part in turn, keyed by part number;
 	// 200 once exhausted.
 	partStatus map[string][]int
+	// partLocation is the Location header of a 3xx part answer.
+	partLocation string
 	// beforePut and beforeComplete run first in each storage PUT and complete
 	// call, unlocked, with that call's 0-based index.
 	beforePut func(part string, index int)
@@ -45,14 +47,17 @@ type directUploadPeer struct {
 	completeStatus []int
 	beforeComplete func(index int)
 
-	mu        sync.Mutex
-	declared  map[string]any
-	completed bool
-	completes int
-	build     map[string]any
-	parts     map[string][]byte
-	puts      int
-	partPuts  map[string]int
+	mu sync.Mutex
+	// violations are what the handlers saw go wrong. FailNow must not run
+	// on a handler goroutine, so the test body asserts them (postWith).
+	violations []string
+	declared   map[string]any
+	completed  bool
+	completes  int
+	build      map[string]any
+	parts      map[string][]byte
+	puts       int
+	partPuts   map[string]int
 }
 
 func newDirectUploadPeer(t *testing.T, partSize int64) *directUploadPeer {
@@ -87,8 +92,12 @@ func (p *directUploadPeer) serveStorage(w http.ResponseWriter, r *http.Request) 
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	require.Equal(p.t, http.MethodPut, r.Method)
-	require.Empty(p.t, r.Header.Get("Authorization"))
+	if r.Method != http.MethodPut {
+		p.violate("storage got %s, want PUT", r.Method)
+	}
+	if r.Header.Get("Authorization") != "" {
+		p.violate("storage got an Authorization header")
+	}
 	status := http.StatusOK
 	if statuses := p.partStatus[part]; index < len(statuses) {
 		status = statuses[index]
@@ -96,13 +105,20 @@ func (p *directUploadPeer) serveStorage(w http.ResponseWriter, r *http.Request) 
 	if status == http.StatusOK {
 		p.parts[part] = body
 	}
+	if p.partLocation != "" {
+		w.Header().Set("Location", p.partLocation)
+	}
 	w.WriteHeader(status)
 }
 
 func (p *directUploadPeer) serveAPI(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	require.Equal(p.t, "Bearer k", r.Header.Get("Authorization"))
+	if got := r.Header.Get("Authorization"); got != "Bearer k" {
+		p.mu.Lock()
+		p.violate("API got Authorization %q", got)
+		p.mu.Unlock()
+	}
 	completeIndex := -1
 	if r.URL.Path == "/build-contexts/"+directUploadID+"/complete" {
 		p.mu.Lock()
@@ -143,7 +159,9 @@ func (p *directUploadPeer) serveAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(upload)
 	case r.Method == http.MethodPost && r.URL.Path == "/build-contexts/"+directUploadID+"/complete":
-		require.Equal(p.t, "eu", body["region_id"])
+		if body["region_id"] != "eu" {
+			p.violate("complete got region_id %v, want eu", body["region_id"])
+		}
 		if completeIndex < len(p.completeStatus) && p.completeStatus[completeIndex] != http.StatusOK {
 			w.WriteHeader(p.completeStatus[completeIndex])
 			_, _ = io.WriteString(w, `{"code":"INTERNAL_ERROR","message":"try again"}`)
@@ -159,8 +177,14 @@ func (p *directUploadPeer) serveAPI(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = io.WriteString(w, `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`)
 	default:
-		p.t.Fatalf("unexpected API request %s %s", r.Method, r.URL.Path)
+		p.violate("unexpected API request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+// violate records a broken expectation; the caller holds p.mu.
+func (p *directUploadPeer) violate(format string, args ...any) {
+	p.violations = append(p.violations, fmt.Sprintf(format, args...))
 }
 
 func (p *directUploadPeer) post(t *testing.T, contextPath string) error {
@@ -172,6 +196,10 @@ func (p *directUploadPeer) postWith(t *testing.T, client *apiinternal.Client, co
 	t.Helper()
 	resp, err := postImageMultipart(context.Background(), client,
 		map[string]string{"name": "img", "cpu_arch": "arm64"}, "build/Dockerfile", contextPath)
+	p.mu.Lock()
+	violations := append([]string(nil), p.violations...)
+	p.mu.Unlock()
+	require.Empty(t, violations)
 	if err == nil {
 		require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.V.Id)
 	}
@@ -243,12 +271,57 @@ func TestPostImageDirect_refusedPartFailsWithoutTheURL(t *testing.T) {
 	p.partStatus = map[string][]int{"1": {http.StatusForbidden}}
 	err := p.post(t, writeContextFile(t, []byte("0123456789")))
 	require.Error(t, err)
-	require.Equal(t, cerr.ExitForbidden, cerr.ExitCode(err))
+	require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err))
 	require.Contains(t, err.Error(), "storage refused build context part 1 (HTTP 403)")
 	require.NotContains(t, err.Error(), "Signature")
 	require.Equal(t, 1, p.partPuts["1"])
 	require.False(t, p.completed)
 	require.Nil(t, p.build)
+}
+
+func TestPostImageDirect_refusesARedirectFromStorage(t *testing.T) {
+	hits := 0
+	var hitsMu sync.Mutex
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hitsMu.Lock()
+		hits++
+		hitsMu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+	p := newDirectUploadPeer(t, 4)
+	p.partStatus = map[string][]int{"1": {http.StatusTemporaryRedirect}}
+	p.partLocation = target.URL + "/elsewhere"
+	err := p.post(t, writeContextFile(t, []byte("0123456789")))
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err))
+	require.Contains(t, err.Error(), "storage refused build context part 1 (HTTP 307)")
+	require.Equal(t, 1, p.partPuts["1"])
+	hitsMu.Lock()
+	defer hitsMu.Unlock()
+	require.Zero(t, hits)
+	require.False(t, p.completed)
+}
+
+func TestStageImageContext_stopsWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	upload, err := imageContextUploadForPath(writeContextFile(t, []byte("0123456789")), "Dockerfile")
+	require.NoError(t, err)
+	_, err = stageImageContext(ctx, upload)
+	require.ErrorIs(t, err, context.Canceled)
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM scratch\n"), 0o600))
+	upload, err = imageContextUploadForPath(dir, "Dockerfile")
+	require.NoError(t, err)
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	_, err = stageImageContext(ctx, upload)
+	require.ErrorIs(t, err, context.Canceled)
+	left, err := os.ReadDir(tmp)
+	require.NoError(t, err)
+	require.Empty(t, left)
 }
 
 func TestPostImageDirect_givesUpAfterRetries(t *testing.T) {
