@@ -1200,7 +1200,18 @@ export class Sandbox {
     if (!this.api) throw new DaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION')
     const timeout = options.timeout ?? 60_000
     validateTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout
+    let waitTimeout = timeout
     await this.refreshData()
+    if (this.state === 'stopping' || this.state === 'pausing') {
+      // A stop or pause still in flight ends before a start or resume can begin.
+      await this.waitForState(['started', 'paused', 'stopped'], { timeout })
+      const remaining = remainingRequestBudget(deadline)
+      if (remaining !== undefined && remaining <= 0) {
+        throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', 408, 'REQUEST_TIMEOUT', 'SDK')
+      }
+      waitTimeout = remaining ?? 0
+    }
     if (this.state === 'started') return
     let terminalStates: readonly SandboxState[] = DEFAULT_SANDBOX_TERMINAL_STATES
     if (this.state === 'paused') {
@@ -1212,7 +1223,7 @@ export class Sandbox {
       const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/start`)
       this.learnEventDestination(eventDestinationFromHeaders(r.headers))
     }
-    await this.waitUntilStarted(timeout, terminalStates)
+    await this.waitUntilStarted(waitTimeout, terminalStates)
   }
 
   /** Stop a persistent macOS sandbox. */

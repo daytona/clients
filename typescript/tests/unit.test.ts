@@ -9968,6 +9968,81 @@ describe('macOS sandboxes and reservations', () => {
     expect(sandbox.macBootMode).toBe('future-mode')
   })
 
+  it('starts a sandbox right after stop() once it reads stopped', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = new Sandbox(macResponse, api, undefined, 'key')
+    const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    const stopping = { data: { ...macResponse, status: 'stopping' } }
+    jest.spyOn(api, 'get')
+      .mockResolvedValueOnce(stopping)
+      .mockResolvedValueOnce(stopping)
+      .mockResolvedValueOnce(stopping)
+      .mockResolvedValueOnce({ data: { ...macResponse, status: 'stopped' } })
+      .mockResolvedValueOnce({ data: macResponse })
+
+    await sandbox.stop()
+    expect(sandbox.state).toBe('stopping')
+    const started = sandbox.start({ timeout: 10_000 })
+    await jest.advanceTimersByTimeAsync(1_000)
+    await expect(started).resolves.toBeUndefined()
+    expect(sandbox.state).toBe('started')
+    expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/stop', '/sandboxes/mac/start'])
+  })
+
+  it('resumes a sandbox from start() once its pause ends', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { ...macResponse, status: 'pausing' } })
+      .mockResolvedValueOnce({ data: { ...macResponse, status: 'paused' } })
+      .mockResolvedValueOnce({ data: macResponse })
+
+    const started = sandbox.start({ timeout: 10_000 })
+    await jest.advanceTimersByTimeAsync(1_000)
+    await expect(started).resolves.toBeUndefined()
+    expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/resume'])
+  })
+
+  it('sends no start when the sandbox still reads stopping at the timeout', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { ...macResponse, status: 'stopping' } })
+
+    const started = sandbox.start({ timeout: 5_000 })
+    const outcome = expect(started).rejects.toBeInstanceOf(RequestTimeoutError)
+    await jest.advanceTimersByTimeAsync(10_000)
+    await outcome
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('keeps start() a no-op on a started sandbox', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post')
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: macResponse })
+
+    await expect(sandbox.start({ timeout: 10_000 })).resolves.toBeUndefined()
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it.each([['deleted', 'destroyed'], ['failed', 'error']])('fails start() on a %s sandbox without a start', async (status, state) => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post')
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { ...macResponse, status } })
+
+    await expect(sandbox.start({ timeout: 10_000 })).rejects.toMatchObject({ name: 'SandboxTerminalStateError', state })
+    expect(post).not.toHaveBeenCalled()
+  })
+
   it('fails a macOS pause that returns to running and a resume that ends stopped', async () => {
     const client = macClient()
     const api = clientInstance(client)

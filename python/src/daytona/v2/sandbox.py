@@ -1010,7 +1010,13 @@ class AsyncSandbox:
     async def start(self, *, timeout: float = 60) -> None:
         """Start a stopped sandbox, or resume a paused one, and wait for started."""
         _validate_timeout(timeout)
+        deadline = _wait_deadline(timeout)
+        wait_timeout: Optional[float] = timeout
         await self.refresh_data()
+        if self.state in ("stopping", "pausing"):
+            # A stop or pause still in flight ends before a start or resume can begin.
+            await self.wait_for_state(["started", "paused", "stopped"], timeout=timeout)
+            wait_timeout = _remaining_wait(deadline)
         if self.state == "started":
             return
         terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES
@@ -1023,7 +1029,7 @@ class AsyncSandbox:
         elif self.state == "stopped":
             await self._require_macos_lifecycle()
             await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/start"))
-        await self._wait_until_started(timeout=timeout, terminal_states=terminal_states)
+        await self._wait_until_started(timeout=wait_timeout, terminal_states=terminal_states)
 
     async def pause(self, *, timeout: float = 60) -> None:
         """Pause a macOS sandbox, preserving its memory.
@@ -1877,6 +1883,17 @@ def _wait_deadline(timeout: Optional[float]) -> Optional[float]:
         return None
     _validate_timeout(timeout)
     return _clock.monotonic() + timeout
+
+
+def _remaining_wait(deadline: Optional[float]) -> Optional[float]:
+    if deadline is None:
+        return None
+    remaining = deadline - _clock.monotonic()
+    if remaining <= 0:
+        raise create_error(
+            "sandbox failed to reach the requested state before timeout", 408, "REQUEST_TIMEOUT", "SDK"
+        )
+    return remaining
 
 
 def _wait_query_state(state: SandboxWaitState) -> str:

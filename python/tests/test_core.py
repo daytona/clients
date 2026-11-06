@@ -11654,6 +11654,86 @@ async def test_start_resumes_a_paused_macos_sandbox():
 
 
 @pytest.mark.anyio
+async def test_start_right_after_stop_waits_for_stopped_then_sends_start(monkeypatch):
+    # Given a stop the API accepted while the sandbox still reads `stopping`.
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    mac_payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
+    stopping = {**mac_payload, "status": "stopping"}
+    api = RecordingTransport(
+        [{}, stopping, stopping, stopping, {**mac_payload, "status": "stopped"}, {}, mac_payload]
+    )
+    mac = AsyncSandbox.from_api(mac_payload, api, None)
+    await mac.stop()
+    assert mac.state == "stopping"
+    # When start() runs at once, it sends the start after the sandbox reads `stopped`.
+    await mac.start(timeout=10)
+    assert mac.state == "started"
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("POST", "/sandboxes/mac/stop"),
+        ("GET", "/sandboxes/mac"),
+        ("GET", "/sandboxes/mac"),
+        ("GET", "/sandboxes/mac"),
+        ("GET", "/sandboxes/mac"),
+        ("POST", "/sandboxes/mac/start"),
+        ("GET", "/sandboxes/mac"),
+    ]
+
+
+@pytest.mark.anyio
+async def test_start_on_a_pausing_sandbox_resumes_it_once_paused(monkeypatch):
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    mac_payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
+    api = RecordingTransport(
+        [{**mac_payload, "status": "pausing"}, {**mac_payload, "status": "paused"}, {}, mac_payload]
+    )
+    mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    await mac.start(timeout=10)
+    assert mac.state == "started"
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("GET", "/sandboxes/mac"),
+        ("GET", "/sandboxes/mac"),
+        ("POST", "/sandboxes/mac/resume"),
+        ("GET", "/sandboxes/mac"),
+    ]
+
+
+@pytest.mark.anyio
+async def test_start_on_a_sandbox_still_stopping_at_the_timeout_sends_no_start(monkeypatch):
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    ticks = iter(float(second) for second in range(100))
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(ticks))
+    stopping = _sandbox_detail_payload("mac", "stopping", sandbox_class="macos", persistent=True)
+    api = RecordingTransport([stopping] * 20)
+    mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    with pytest.raises(RequestTimeoutError):
+        await mac.start(timeout=5)
+    assert all(spec.method == "GET" for spec in api.specs)
+
+
+@pytest.mark.anyio
+async def test_start_on_a_started_sandbox_sends_nothing_more():
+    api = RecordingTransport(
+        [_sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)]
+    )
+    mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    await mac.start(timeout=10)
+    assert mac.state == "started"
+    assert [(spec.method, spec.path) for spec in api.specs] == [("GET", "/sandboxes/mac")]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("wire_status", "state"), [("deleted", "destroyed"), ("failed", "error")])
+async def test_start_on_a_destroyed_or_failed_sandbox_fails_without_a_start(wire_status: str, state: str):
+    payload = _sandbox_detail_payload("mac", wire_status, sandbox_class="macos", persistent=True)
+    api = RecordingTransport([payload, payload])
+    mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    with pytest.raises(SandboxTerminalStateError) as failed:
+        await mac.start(timeout=10)
+    assert failed.value.state == state
+    assert all(spec.method == "GET" for spec in api.specs)
+
+
+@pytest.mark.anyio
 async def test_macos_pause_that_returns_to_running_and_resume_that_ends_stopped_fail():
     mac_payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
     api = RecordingTransport(
