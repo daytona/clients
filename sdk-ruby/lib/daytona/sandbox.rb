@@ -810,7 +810,10 @@ module Daytona
           resize_request = DaytonaApiClient::ResizeSandbox.new(resize_attrs)
           process_response(sandbox_api.resize_sandbox(id, resize_request))
         }
-      ) { |deadline| wait_for_resize(deadline) }
+      ) do |deadline|
+        # Under the resize deadline, but recorded as the wait_for_resize_complete call that it replaces.
+        instrument_as(:wait_for_resize_complete, component: 'Sandbox') { wait_for_resize(deadline) }
+      end
     end
 
     # Waits for the Sandbox resize operation to complete.
@@ -897,7 +900,8 @@ module Daytona
           otel_state:,
           analytics_api_url_provider: @analytics_api_url_provider
         )
-        forked.wait_for_start(deadline)
+        # Under the fork deadline, but recorded as the wait_for_sandbox_start call that it replaces.
+        instrument_as(:wait_for_sandbox_start, component: 'Sandbox') { forked.wait_for_start(deadline) }
         return forked
       end
     end

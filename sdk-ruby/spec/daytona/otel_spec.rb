@@ -181,5 +181,15 @@ RSpec.describe Daytona do
 
       expect(instance.private_methods).to include(:secret)
     end
+
+    it 'records a block as the span and metric of the given method with instrument_as' do
+      otel_state = double('OtelState')
+      instance = test_class.new(otel_state)
+      allow(Daytona).to receive(:with_instrumentation).and_yield
+
+      expect(instance.send(:instrument_as, :ping, component: 'Dummy') { :done }).to eq(:done)
+      expect(Daytona).to have_received(:with_instrumentation).with(otel_state, 'Dummy', 'ping')
+      expect(instance.private_methods).to include(:instrument_as)
+    end
   end
 end

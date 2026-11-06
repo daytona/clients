@@ -527,6 +527,16 @@ RSpec.describe Daytona::Sandbox do
       end
     end
 
+    it 'records the wait for the resize as wait_for_resize_complete' do
+      allow(sandbox_api).to receive(:resize_sandbox)
+        .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED, cpu: 8))
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.resize(Daytona::Resources.new(cpu: 8), 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_resize_complete')
+    end
+
     it 'waits for the resize under the resize deadline when the Timeout.timeout exception is lost' do
       resizing = build_sandbox_dto(state: DaytonaApiClient::SandboxState::RESIZING)
       allow(sandbox_api).to receive(:resize_sandbox).and_return(resizing)
@@ -915,6 +925,17 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:fork_sandbox) do |_id, request|
         expect(request.name).to eq('my-fork')
       end
+    end
+
+    it 'records the wait for the fork to start as wait_for_sandbox_start' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: DaytonaApiClient::SandboxState::STARTED)
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto)
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.fork(timeout: 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_sandbox_start')
     end
 
     it 'waits for the fork to start under the fork deadline when the Timeout.timeout exception is lost' do
