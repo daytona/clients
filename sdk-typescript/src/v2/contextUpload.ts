@@ -11,6 +11,7 @@
 
 import type { AxiosInstance } from 'axios'
 import { strictUriEncode } from './http.js'
+import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TimeoutError } from './errors/DaytonaError.js'
 
@@ -26,8 +27,9 @@ const PART_ATTEMPTS = 3
 const PART_CONCURRENCY = 4
 const COMPLETE_ATTEMPTS = 3
 
-/** Test seams: the storage client, the pause between attempts, and the complete timeout. */
+/** Test seams: the storage client, the pause between attempts, the complete timeout, and the runtime check. */
 export const contextUploadRuntime = {
+  isNode,
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
   // The API reads the whole stored archive back (up to 1 GiB) before it answers.
@@ -137,7 +139,7 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
     if (typeof Blob !== 'undefined' && context instanceof Blob) return blobSource(context)
     throw new TypeError('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
   }
-  if (!isNode()) throw new NotSupportedError('a build context path is only supported in Node.js; pass its bytes or a Blob', 501, 'NOT_IMPLEMENTED', 'SDK')
+  if (!contextUploadRuntime.isNode()) throw new NotSupportedError('a build context path is only supported in Node.js; pass its bytes or a Blob', 501, 'NOT_IMPLEMENTED', 'SDK')
   return fileSource(context)
 }
 
@@ -147,20 +149,20 @@ interface NodeHash {
 }
 
 async function sha256Hex(source: ContextSource): Promise<string> {
-  if (isNode()) {
+  let hash: NodeHash
+  if (contextUploadRuntime.isNode()) {
     const cryptoSpecifier = 'node:crypto'
     // SAFETY: the shape is node:crypto's documented createHash signature.
     const crypto = await (import(/* @vite-ignore */ /* webpackIgnore: true */ cryptoSpecifier) as Promise<{ createHash(algorithm: 'sha256'): NodeHash }>)
-    const hash = crypto.createHash('sha256')
-    for (let offset = 0; offset < source.size; offset += HASH_CHUNK) {
-      hash.update(await source.read(offset, Math.min(HASH_CHUNK, source.size - offset)))
-    }
-    return hash.digest('hex')
+    hash = crypto.createHash('sha256')
+  } else {
+    const sha = new Sha256()
+    hash = { update: (data) => void sha.update(data), digest: () => sha.digestHex() }
   }
-  // SAFETY: read() returns a view over a plain ArrayBuffer, never a shared one.
-  const whole = (await source.read(0, source.size)) as Uint8Array<ArrayBuffer>
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', whole)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  for (let offset = 0; offset < source.size; offset += HASH_CHUNK) {
+    hash.update(await source.read(offset, Math.min(HASH_CHUNK, source.size - offset)))
+  }
+  return hash.digest('hex')
 }
 
 async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal): Promise<void> {
