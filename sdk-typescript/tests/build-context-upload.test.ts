@@ -29,7 +29,7 @@ let ready: boolean
 let putStatuses: number[]
 let partStatuses: Map<number, number[]>
 let onPut: ((part: number) => Promise<void>) | undefined
-let shapeParts: ((parts: Array<Record<string, unknown>>) => Array<Record<string, unknown>>) | undefined
+let rewriteParts: ((parts: Array<Record<string, unknown>>) => Array<Record<string, unknown>>) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
@@ -71,7 +71,7 @@ beforeEach(async () => {
   putStatuses = []
   partStatuses = new Map()
   onPut = undefined
-  shapeParts = undefined
+  rewriteParts = undefined
   completeStatuses = []
   completeDelays = []
   contextUploadRuntime.sleep = async () => {}
@@ -103,7 +103,7 @@ beforeEach(async () => {
         for (let offset = 0, number = 1; offset < declared.bytes; offset += partSize, number++) {
           parts.push({ part_number: number, bytes: Math.min(partSize, declared.bytes - offset), url: `${baseUrl}/bucket/part/${number}?${SIGNATURE}` })
         }
-        return reply(201, upload('uploading', declared, shapeParts?.(parts) ?? parts))
+        return reply(201, upload('uploading', declared, rewriteParts?.(parts) ?? parts))
       }
       if (request.url === `/build-contexts/${UPLOAD_ID}/complete`) {
         const status = completeStatuses.shift() ?? 200
@@ -194,8 +194,8 @@ it('fails a refused part without revealing its URL, and completes nothing', asyn
 it.each([
   ['out of order', (parts: Array<Record<string, unknown>>) => [parts[1], parts[0]]],
   ['with an empty part', (parts: Array<Record<string, unknown>>) => [...parts, { ...parts[parts.length - 1], part_number: parts.length + 1, bytes: 0 }]],
-])('refuses parts %s before uploading any', async (_, shape) => {
-  shapeParts = shape
+])('refuses parts %s before uploading any', async (_, rewrite) => {
+  rewriteParts = rewrite
   const error = await service().buildFromContext(archive(10_000)).catch((caught: unknown) => caught)
   expect(error).toBeInstanceOf(DaytonaError)
   expect(String(error)).toContain('do not cover the archive')

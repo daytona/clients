@@ -67,7 +67,7 @@ class Peer:
     complete_statuses: list[int] = field(default_factory=list)
     complete_delays: list[float] = field(default_factory=list)
     # Rewrites the parts a declaration is answered with.
-    shape_parts: Callable[[list[dict[str, object]]], list[dict[str, object]]] | None = None
+    rewrite_parts: Callable[[list[dict[str, object]]], list[dict[str, object]]] | None = None
     requests: list[tuple[str, str, dict[str, str], bytes]] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -106,8 +106,8 @@ def storage_peer(**options: object) -> Iterator[Peer]:
                     url = f"{peer.url}/bucket/part/{number}?{SIGNATURE}"
                     parts.append({"part_number": number, "bytes": size, "url": url})
                     offset, number = offset + size, number + 1
-                if peer.shape_parts is not None:
-                    parts = peer.shape_parts(parts)
+                if peer.rewrite_parts is not None:
+                    parts = peer.rewrite_parts(parts)
                 return self.reply(201, self.upload("uploading", declared, parts))
             if self.path == f"/build-contexts/{UPLOAD_ID}/complete":
                 with peer.lock:
@@ -334,12 +334,12 @@ def _empty_part_added(parts: list[dict[str, object]]) -> list[dict[str, object]]
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("shape", [_swapped, _empty_part_added])
+@pytest.mark.parametrize("rewrite", [_swapped, _empty_part_added])
 async def test_a_malformed_part_layout_is_refused_before_any_upload(
-    sync: bool, shape: Callable[[list[dict[str, object]]], list[dict[str, object]]]
+    sync: bool, rewrite: Callable[[list[dict[str, object]]], list[dict[str, object]]]
 ) -> None:
     # Given a declaration answered with parts out of order, or with an empty part.
-    with storage_peer(part_size=4096, shape_parts=shape) as peer:
+    with storage_peer(part_size=4096, rewrite_parts=rewrite) as peer:
         # When it is built from the context.
         with pytest.raises(DaytonaError, match="do not cover the archive"):
             await build(peer, archive(10_000), sync)
