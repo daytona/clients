@@ -52,6 +52,23 @@ RSpec.describe Daytona::Sandbox do
     )
   end
 
+  # Stubs the monotonic clock so that it only moves while #wait_for_state waits between polls, so the
+  # deadline examples take no real time. Returns a proc that reads the clock.
+  def stub_wait_clock
+    clock = 0.0
+    allow(Process).to receive(:clock_gettime).and_call_original
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
+    stub_condition_variable_waits { |seconds| clock += seconds }
+    -> { clock }
+  end
+
+  # Makes ConditionVariables created from here on return from #wait at once, passing its timeout to +on_wait+.
+  def stub_condition_variable_waits(&on_wait)
+    allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
+      original.call.tap { |cv| allow(cv).to receive(:wait) { |_mutex, seconds| on_wait.call(seconds) } }
+    end
+  end
+
   describe '#initialize' do
     it 'populates attributes from DTO' do
       expect(sandbox.id).to eq('sandbox-123')
@@ -509,6 +526,33 @@ RSpec.describe Daytona::Sandbox do
         expect(request.disk).to eq(32)
       end
     end
+
+    it 'records the wait for the resize as wait_for_resize_complete' do
+      allow(sandbox_api).to receive(:resize_sandbox)
+        .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED, cpu: 8))
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.resize(Daytona::Resources.new(cpu: 8), 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_resize_complete')
+    end
+
+    it 'waits for the resize under the resize deadline when the Timeout.timeout exception is lost' do
+      resizing = build_sandbox_dto(state: DaytonaApiClient::SandboxState::RESIZING)
+      allow(sandbox_api).to receive(:resize_sandbox).and_return(resizing)
+      # The poll and the refresh after the timeout see RESIZING. A third poll, which only a wait that ignores
+      # the deadline makes, sees STARTED and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox)
+        .and_return(resizing, resizing, build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect { sandbox.resize(Daytona::Resources.new(cpu: 8), 0.2) }.to raise_error(
+        Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to resize within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
+    end
   end
 
   describe '#create_lsp_server' do
@@ -593,6 +637,31 @@ RSpec.describe Daytona::Sandbox do
         Daytona::Sdk::SpotEvictedError,
         'Sandbox sandbox-123 was evicted by spot preemption at 2026-09-29T07:05:00Z'
       )
+    end
+
+    it 'raises at the deadline when the Timeout.timeout exception is lost' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      pending_dto = build_sandbox_dto(state: 'pending')
+      started_dto = build_sandbox_dto(state: 'started')
+      # The poll and the refresh after the timeout see pending. A third poll, which only a wait that ignores
+      # the deadline makes, sees started and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(pending_dto, pending_dto, started_dto)
+      # As when the exception arrives while a request is inside libcurl: Timeout.timeout never interrupts.
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start(0.2)
+      end.to raise_error(
+        Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
     end
 
     it 'recovers from stale cached ERROR when refresh returns started' do
@@ -856,6 +925,35 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:fork_sandbox) do |_id, request|
         expect(request.name).to eq('my-fork')
       end
+    end
+
+    it 'records the wait for the fork to start as wait_for_sandbox_start' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: DaytonaApiClient::SandboxState::STARTED)
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto)
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.fork(timeout: 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_sandbox_start')
+    end
+
+    it 'waits for the fork to start under the fork deadline when the Timeout.timeout exception is lost' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: 'pending')
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      started_dto = build_sandbox_dto(id: 'forked-456', state: 'started')
+      # The poll and the refresh after the timeout see pending. A third poll, which only a wait that ignores
+      # the deadline makes, sees started and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto, forked_dto, started_dto)
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect { sandbox.fork(timeout: 0.2) }.to raise_error(
+        Daytona::Sdk::TimeoutError,
+        'Sandbox sandbox-123 fork failed to become ready within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
     end
   end
 

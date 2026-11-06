@@ -213,6 +213,32 @@ RSpec.describe 'Daytona SDK E2E', :e2e do
       end
     end
 
+    it 'stops waiting at the deadline when the Timeout.timeout exception is lost', timeout: 30 do
+      # As when the exception arrives while a request is inside libcurl: Timeout.timeout never interrupts the wait.
+      allow(Timeout).to receive(:timeout).and_call_original
+      allow(Timeout).to receive(:timeout)
+        .with(anything, Daytona::Sdk::TimeoutError, anything) { |*_args, &block| block.call }
+
+      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      # The sandbox is started, so it never reaches the stopped state. The wait runs in a thread so that
+      # this example fails instead of hanging when the wait ignores the deadline: the Timeout of the around
+      # hook would be lost inside libcurl as well.
+      waiter = Thread.new do
+        @sandbox.wait_for_sandbox_stop(2)
+        nil
+      rescue StandardError => e
+        e
+      end
+
+      # The wait ends at the deadline, plus at most the poll request in flight.
+      expect(waiter.join(12)).not_to be_nil, 'the wait did not end within 12 s of its 2 s timeout'
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at).to be >= 2
+      expect(waiter.value).to be_a(Daytona::Sdk::TimeoutError)
+        .and(have_attributes(message: /failed to stop within the 2 seconds/))
+    ensure
+      waiter&.kill
+    end
+
     it 'stops and starts the sandbox' do
       @sandbox.stop
       @sandbox.refresh
