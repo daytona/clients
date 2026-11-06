@@ -1222,10 +1222,10 @@ module Daytona
     # @return [Numeric]
     # @raise [Daytona::Sdk::TimeoutError]
     def timeout_left_after(setup, timeout:, message:)
-      start_at = Time.now
+      start_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       setup.call
 
-      remaining = timeout - (Time.now - start_at)
+      remaining = timeout - (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start_at)
       raise Sdk::TimeoutError, message if timeout.positive? && remaining <= 0
 
       [NO_TIMEOUT, remaining].max
