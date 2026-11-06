@@ -4,6 +4,7 @@
     "base": "https://www.daytona.com/docs",
     "placeholder": false
   },
+  "v0Version": "0.230.0",
   "packages": {
     "py": {
       "old": [

@@ -120,6 +120,12 @@ The derivation from the version, per target:
 | npm `@daytona/sdk` | `2.0.0-alpha.3` |
 | CLI GitHub Release (and tag) | `v2.0.0-alpha.3` |
 | PyPI `daytona` | `2.0.0a3` (PEP 440: `-alpha.N` → `aN`, `-beta.N` → `bN`, `-rc.N` → `rcN`; stable unchanged) |
+| npm `@daytona/upgrade`, PyPI `daytona-upgrade` (the migration tool) | `2.0.0-alpha.3`, `2.0.0a3` — the SDK's spellings |
+
+The migration tool is versioned with the SDKs and migrates projects to the SDK
+release of its own version (pinned for a pre-release, `^X.Y.Z` /
+`>=X.Y.Z,<X+1` for a stable one); see [RELEASING.md](RELEASING.md), "The
+migration tool".
 
 ## Compatibility between an SDK and the API
 

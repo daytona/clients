@@ -9,6 +9,7 @@ import re
 
 from packaging.requirements import InvalidRequirement, Requirement
 
+from .dependency_versions import target_constraint
 from .models import Mapping
 
 
@@ -34,7 +35,17 @@ def render_requirement(
     target = mapping.package_new
     if extras:
         target += "[" + ",".join(extras) + "]"
-    target += mapping.specifier
+    existing = str(requirement.specifier)
+    kept = target_constraint(
+        requirement.name, existing, mapping.package_new, mapping.specifier
+    )
+    # A kept constraint keeps its original text (packaging reorders specifiers);
+    # otherwise the target, or a pre-release range's own pinned floor.
+    target += (
+        tail[: len(tail) - len(suffix)].strip()
+        if existing and kept == existing and kept != mapping.specifier
+        else kept
+    )
     result = parsed["indent"] + target + suffix + (parsed["ending"] or "")
     try:
         Requirement(re.split(r"\s+#", result, maxsplit=1)[0].strip())

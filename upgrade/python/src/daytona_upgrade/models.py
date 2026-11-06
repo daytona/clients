@@ -91,6 +91,8 @@ class Mapping:
     suggestions: tuple[Suggestion, ...]
     data_traps: tuple[str, ...]
     v0_exports: tuple[str, ...] | None = None
+    # The pinned 0.x release SDK 2.x bundles as .v0.
+    v0_version: str | None = None
 
     @property
     def root_imports(self) -> tuple[str, ...]:
@@ -98,11 +100,28 @@ class Mapping:
         return tuple(name for name in self.root_names if not name.endswith("Error"))
 
 
-def load_mapping(path: Path | None = None) -> Mapping:
-    """Read the bundled, schema-checked shared mapping into domain values."""
+def load_mapping(path: Path | None = None, tool_version: str | None = None) -> Mapping:
+    """Read the bundled, schema-checked shared mapping into domain values.
+
+    The dependency target follows this tool's own version (``sdk_target``);
+    ``tool_version`` overrides it for tests.
+    """
+    from . import __version__
+    from .sdk_target import target_specifier
+
     # JSON is decoded only here; no untyped values escape this boundary.
     raw = json.loads((path or Path(__file__).with_name("mapping.json")).read_text())
     package = raw["packages"]["py"]
+    specifier = target_specifier(
+        __version__ if tool_version is None else tool_version, package["specifier"]
+    )
+    requirement = (
+        package["requirement"]
+        if specifier == package["specifier"]
+        else package["new"]
+        + (f"[{','.join(package['extras'])}]" if package["extras"] else "")
+        + specifier
+    )
     exports = raw.get("v0Exports", {}).get("py")
     receivers = {
         key: Receiver(
@@ -135,8 +154,8 @@ def load_mapping(path: Path | None = None) -> Mapping:
         tuple(raw["cloudApiUrls"]),
         tuple(package["old"]),
         package["new"],
-        package["requirement"],
-        package["specifier"],
+        requirement,
+        specifier,
         tuple(package["extras"]),
         tuple(raw["v0Modules"]["py"]["old"]),
         raw["docs"]["base"],
@@ -150,6 +169,7 @@ def load_mapping(path: Path | None = None) -> Mapping:
         tuple(exports)
         if isinstance(exports, list) and all(isinstance(name, str) for name in exports)
         else None,
+        raw.get("v0Version"),
     )
 
 

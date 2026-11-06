@@ -5,9 +5,10 @@
 
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { gte, minVersion, validRange } from 'semver';
+import { validRange } from 'semver';
 import type { Item } from './model.js';
 import { relativePath } from './discovery.js';
+import { aboveTargetMajor, atOrAboveTarget, pinnedFloor } from './sdk-target.js';
 
 type RuntimeDependency = { readonly name: '@daytonaio/sdk' | '@daytona/sdk'; readonly range: string | null };
 
@@ -23,7 +24,7 @@ function runtimeDependencies(source: string): readonly RuntimeDependency[] {
   });
 }
 
-export function dependencyScopeItem(root: string, rewritten: string, dependencyDirectories: ReadonlySet<string>): Item | undefined {
+export function dependencyScopeItem(root: string, rewritten: string, dependencyDirectories: ReadonlySet<string>, target: string): Item | undefined {
   const normalize = (path: string): string => resolve(path).replaceAll('\\', '/');
   const base = normalize(root);
   const rewrittenPath = normalize(rewritten);
@@ -46,21 +47,29 @@ export function dependencyScopeItem(root: string, rewritten: string, dependencyD
         // item that blocks the run; only manifests above the root report here.
         if (!(error instanceof SyntaxError) && (normalize(file) + '/').startsWith(base + '/')) return undefined;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
-          message: `Cannot read ancestor manifest ${relativePath(base, file)}; verify "@daytona/sdk": "^2.0.0" where the project declares its dependencies.` };
+          message: `Cannot read ancestor manifest ${relativePath(base, file)}; verify "@daytona/sdk": "${target}" where the project declares its dependencies.` };
       }
       if (declarations.length) {
         const certified = declarations.every(({ name, range }) => {
           if (name !== '@daytona/sdk' || range === null || validRange(range) === null) return false;
-          const minimum = minVersion(range);
-          return minimum !== null && gte(minimum, '2.0.0');
+          // Only the target or a later release of its major certifies: a stable
+          // floor under a pre-release target (`^2.0.0`) installs nothing yet.
+          return atOrAboveTarget(range, target);
         });
         if (certified) return undefined;
+        // The same decisions as in the project root: a later major is never
+        // downgraded, a pre-release range above the target keeps its own floor.
+        const own = declarations.find(({ range }) => range !== null && aboveTargetMajor(range, target));
+        if (own !== undefined) return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
+          message: `${own.name}@${own.range ?? ''} is newer than this daytona-upgrade release targets (${target}); use the daytona-upgrade release of that SDK version.` };
+        const range = declarations.find(({ name }) => name === '@daytona/sdk')?.range;
+        const wanted = (range === null || range === undefined ? undefined : pinnedFloor(range, target)) ?? target;
         return { file: relativePath(base, file), line: 0, column: 0, kind: 'manual-dependency',
-          message: 'no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "^2.0.0"' };
+          message: `no Daytona dependency was updated; change the dependency in this file to "@daytona/sdk": "${wanted}"` };
       }
     }
     if (directory === boundary) break;
   }
   return { file: relativePath(base, rewritten), line: 0, column: 0, kind: 'manual-dependency',
-    message: 'no Daytona dependency was updated; add "@daytona/sdk": "^2.0.0" where the project declares its dependencies' };
+    message: `no Daytona dependency was updated; add "@daytona/sdk": "${target}" where the project declares its dependencies` };
 }

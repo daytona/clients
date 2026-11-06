@@ -45,7 +45,8 @@ package when publishing. The bundled tree is never committed, and
 [`../../scripts/resolve-v0-tag.sh`](../../scripts/resolve-v0-tag.sh) fails CI
 if the pinned tag moves. Nothing is patched into v0's behavior: a v0 fix
 reaches 2.x users by releasing it on the 0.x line and bumping the pin, which
-is a two-line change plus a 2.x release.
+is a manual pull request (the pin, plus the migration tool's v0 data; see
+RELEASING, "The v0 pin") and a 2.x release.
 
 **One shared error hierarchy.** The root defines `DaytonaError` and the
 twelve status categories both versions share (`DaytonaBadRequestError`,

@@ -11,6 +11,7 @@ import { inspect } from 'node:util'
 
 import { Daytona, DEFAULT_V2_API_URL, MOVED_TO_V0, ROOT_CONFIG_ROUTING, TARGET_DEPRECATION, V0_API_URL, resetTargetDeprecationWarningForTests } from '../src/Daytona'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
+import { SDK_VERSION } from '../src/version'
 import {
   DaytonaAuthorizationError,
   DaytonaBadRequestError,
@@ -635,6 +636,11 @@ describe('0.x client members on the root', () => {
     class SandboxPool extends Daytona {}
     const root = new SandboxPool({ apiKey: 'key' }) as unknown as Record<string, unknown>
     expect(() => root.create).toThrow('SDK 2.x moved SandboxPool.create to SandboxPool.v0.create')
+  })
+
+  it('names the migration tool release that matches this SDK', () => {
+    const root = new Daytona({ apiKey: 'key' }) as unknown as Record<string, unknown>
+    expect(() => root.create).toThrow(`To migrate 0.x code, run npx @daytona/upgrade@${SDK_VERSION}.`)
   })
 
   it('leaves other names, instanceof and inspection alone', () => {

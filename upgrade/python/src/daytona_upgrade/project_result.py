@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+from pathlib import Path
 
 from .models import Item
 from .notebooks import read_notebook
@@ -44,3 +45,5 @@ class ProjectResult:
     items: tuple[Item, ...]
     found: bool
     local_module: LocalModule | None = None
+    # Each Daytona declaration's manifest, package name and constraint ("" for none).
+    declared: tuple[tuple[Path, str, str], ...] = ()

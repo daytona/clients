@@ -25,6 +25,7 @@ from typing_extensions import Self
 
 # The v2 client classes the root builds (`daytona.v2` does not export them).
 from .v2._sync import Daytona as _DaytonaV2
+from .v2._transport import SDK_VERSION as _SDK_VERSION
 from .v2.daytona import AsyncDaytona as _AsyncDaytonaV2
 
 # Imported at runtime (not only for type checkers) so typing.get_type_hints()
@@ -430,9 +431,13 @@ _MOVED_TO_V0: Final = frozenset(
 
 
 def _moved_to_v0_message(client: str, name: str) -> str:
+    # The migration tool is published with every SDK release under the same
+    # version, so the guidance names the release that matches this SDK (a
+    # source build names its placeholder version).
+    tool = "daytona-upgrade" if _SDK_VERSION == "unknown" else f"daytona-upgrade@{_SDK_VERSION}"
     return (
         f"SDK 2.x moved {client}.{name} to {client}.v0.{name} (the Daytona v0 platform; "
-        f"use {client}.v2 for Daytona v2)."
+        f"use {client}.v2 for Daytona v2). To migrate 0.x code, run uvx {tool}."
     )
 
 

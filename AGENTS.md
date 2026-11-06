@@ -214,7 +214,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   source of truth — a moved tag fails `resolve-v0-tag.sh --verify`,
   `bundle-v0.sh` and the publish gate) by `scripts/bundle-v0.sh` at publish time —
   git-ignored, NEVER committed or hand-edited (`scripts/check-no-bundled-v0.sh`
-  is an sdk-ci gate). Bumping the pin is a two-line PR plus a 2.x release;
+  is an sdk-ci gate). Bumping the pin is a manual PR (docs/RELEASING.md, "The v0 pin") plus a 2.x release;
   `scripts/resolve-v0-tag.sh --verify` (sdk-ci) proves the pinned tag exists
   at the pinned commit. `scripts/v0-publish-mode.sh` (run by the publish
   gate) decides per published tree: a tree with neither the namespace
@@ -410,8 +410,25 @@ skipping exist only in the TypeScript tool).
   to the mapping.
 - The tools never rewrite v0 code to v2: `--suggest-v2` only writes
   `daytona-v2:` comments. `docs.base` in the mapping is the Daytona docs home
-  until the migration guide has its own page; `upgrade-tool-publish.yaml`
-  refuses to publish while `docs.placeholder` is true.
+  until the migration guide has its own page; `sdk_publish.yaml` refuses to
+  publish the tool while `docs.placeholder` is true.
+- **Lockstep versions.** `sdk_publish.yaml` publishes the tool with the SDKs at
+  the same version (`publish_upgrade`), and the tool targets that SDK
+  release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
+  `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
+  mapping's `range` / `specifier`). The SDKs' moved-member guidance names the
+  tool release of their own version. A publish run only builds and packs
+  the tool (`build-upgrade`); each tool package uploads once its SDK version
+  is visible on that registry.
+- **The project's 0.x version** (`v0-version.ts` / `v0_version.py`): read from
+  the closest lockfile, else the manifest's lower bound, and compared with the
+  mapping's `v0Version` (the pin; `check-v0-surface.mjs` keeps them equal and
+  `--write-v0-exports` updates it). Older and newer-patch versions warn
+  (`warnings` in the report, never a manual item), a newer minor refuses
+  (`newer-v0`, exit 2) unless `--allow-newer-v0`. Messages are identical in
+  both tools (`upgrade/mapping/v0-version-messages.json` holds shared
+  expectations both suites assert). A pin bump is a manual PR
+  (docs/RELEASING.md, "The v0 pin").
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel
   <built 2.x wheel> --ts-tarball <packed 2.x tarball>`

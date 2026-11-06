@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
+from . import __version__
 from .dependency_scope import inspect_parent_dependencies
 from .environment_python import scan_notebook_environment, scan_python_environment
 from .manifest_errors import ManifestParseError
@@ -30,6 +31,8 @@ from .project_result import Dependency as Dependency
 from .project_result import ProjectResult as ProjectResult
 from .pytest_collection import read_collection
 from .report_items import unique_items
+from .sdk_target import companion_command
+from .v0_version import ancestor_guidance
 
 
 def preflight(
@@ -105,6 +108,7 @@ def preflight(
     found = False
     dependency_roots: set[Path] = set()
     rewritten_sources: dict[Path, str] = {}
+    declared: list[tuple[Path, str, str]] = []
     for number, file in enumerate(files, 1):
         if report_progress:
             report_progress.advance(number, file.relative)
@@ -177,6 +181,11 @@ def preflight(
                 )
                 continue
             found = found or manifest.found
+            if not file.constraint:  # Constraints limit versions; they install nothing.
+                declared.extend(
+                    (file.path, name, specifier)
+                    for name, specifier in manifest.declared
+                )
             if manifest.found:
                 dependency_roots.add(owner)
             if file.constraint and manifest.found and not manifest.manual:
@@ -213,7 +222,7 @@ def preflight(
                     line=0,
                     column=0,
                     kind="other-ecosystem",
-                    message="Run npx @daytona/upgrade for TypeScript / JavaScript code.",
+                    message=f"Run {companion_command(__version__)} for TypeScript / JavaScript code.",
                 )
             )
         if output != file.source:
@@ -223,7 +232,9 @@ def preflight(
                 changes.append(Change(file, output))
     # Finish scanning readable inputs for custom URLs before blocking all writes.
     if any(item["kind"] == "unsupported-file" for item in items):
-        return ProjectResult((), (), tuple([*encoding_items, *items]), found)
+        return ProjectResult(
+            (), (), tuple([*encoding_items, *items]), found, declared=tuple(declared)
+        )
     inspected_paths = {file.path.resolve() for file in files}
     owners = (
         rewritten_sources.keys() | dependency_roots
@@ -248,13 +259,19 @@ def preflight(
                 line=0,
                 column=0,
                 kind="manual-dependency",
-                message="no Daytona dependency was updated; verify an unconditional runtime daytona[v0-sdk]>=2,<3 requirement where the project declares it",
+                message=ancestor_guidance(owner, options.mapping),
             )
         )
     if encoding_items:
-        return ProjectResult((), (), tuple([*encoding_items, *items]), found)
+        return ProjectResult(
+            (), (), tuple([*encoding_items, *items]), found, declared=tuple(declared)
+        )
     if found and options.mode != "remove-suggestions":
         items.extend(partial_analysis(root))
     return ProjectResult(
-        tuple(changes), tuple(dependencies), tuple(unique_items(items)), found
+        tuple(changes),
+        tuple(dependencies),
+        tuple(unique_items(items)),
+        found,
+        declared=tuple(declared),
     )
