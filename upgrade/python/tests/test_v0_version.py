@@ -582,8 +582,9 @@ def _migrate(
         ("daytona[v0-sdk]>=2.5.0", "2.0.0a3", "daytona[v0-sdk]>=2.5.0"),
         ("daytona[v0-sdk]==2.1.0", "2.0.0a3", "daytona[v0-sdk]==2.1.0"),
         ("daytona[v0-sdk]>=2,<3", "2.0.0a3", "daytona[v0-sdk]==2.0.0a3"),
-        # An exact 2.0.0 pin is a project already on the stable release: kept.
+        # An exact 2.0.0 pin, in any spelling, is a project already on the stable release: kept.
         ("daytona[v0-sdk]==2.0.0", "2.0.0a3", "daytona[v0-sdk]==2.0.0"),
+        ("daytona[v0-sdk]===2.0.0", "2.0.0a3", "daytona[v0-sdk]===2.0.0"),
     ],
 )
 def test_moves_a_lower_release_of_the_target_major_to_the_target(

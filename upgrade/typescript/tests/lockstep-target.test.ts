@@ -101,8 +101,10 @@ it.each([
   ['^2.5.0', '2.0.0-alpha.3', '^2.5.0'],
   ['2.1.0', '2.0.0-alpha.3', '2.1.0'],
   ['^2.0.0', '2.0.0-alpha.3', '2.0.0-alpha.3'],
-  // An exact 2.0.0 pin is a project already on the stable release: kept.
+  // An exact 2.0.0 pin, in any spelling, is a project already on the stable release: kept.
   ['2.0.0', '2.0.0-alpha.3', '2.0.0'],
+  ['=2.0.0', '2.0.0-alpha.3', '=2.0.0'],
+  ['v2.0.0', '2.0.0-alpha.3', 'v2.0.0'],
   // A pre-release range also admits the stale 2.0.0-rc.1: pinned, never lowered.
   ['^2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],
   ['>=2.0.0-alpha.8', '2.0.0-alpha.8', '2.0.0-alpha.8'],

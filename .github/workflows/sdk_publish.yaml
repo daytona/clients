@@ -294,13 +294,13 @@ jobs:
           # second build under the same number.
           if existing=$(git rev-parse -q --verify "refs/tags/${tag}^{commit}" 2>/dev/null); then
             if [ "$existing" != "$SOURCE_SHA" ]; then
-              echo "::error::tag ${tag} already points at ${existing}, not the source commit ${SOURCE_SHA} — a version is published once"
+              echo "::error::tag ${tag} already points at ${existing}, not the source commit ${SOURCE_SHA} — a version is published once (to finish it, dispatch with source_ref=${existing})"
               exit 1
             fi
           elif [ "$PUBLISH_UPGRADE" = true ] && [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ]; then
             # A tool-only run builds the tool from the commit the SDKs were
             # released from, which the release tag records.
-            echo "::error::a tool-only run publishes from the SDKs' release commit, but tag ${tag} does not exist yet — re-run the original run's publish job, or re-dispatch from the SDKs' commit with publish_pypi/publish_npm on and force_republish=true"
+            echo "::error::a run that publishes the tool without the SDKs builds it from the SDKs' release commit, but tag ${tag} does not exist yet — re-run the original run's publish job, or re-dispatch from the SDKs' commit with publish_pypi/publish_npm on and force_republish=true; for a CLI-only release, untick publish_upgrade"
             exit 1
           fi
           # ALPHA-ONLY (pre-launch): the regexes run on the DERIVED strings.
@@ -842,7 +842,7 @@ jobs:
     # steps failed, otherwise its last step's outcome (skipped = disabled, or
     # not reached because an earlier target failed).
     outputs:
-      pypi: ${{ (steps.pypi_download.outcome == 'failure' && 'failure') || steps.pypi_publish.outcome }}
+      pypi: ${{ ((steps.pypi_download.outcome == 'failure' || steps.pypi_files.outcome == 'failure') && 'failure') || steps.pypi_publish.outcome }}
       npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
       upgrade_pypi: ${{ ((steps.upgrade_pypi_wait.outcome == 'failure' || steps.upgrade_pypi_download.outcome == 'failure' || steps.upgrade_pypi_files.outcome == 'failure') && 'failure') || steps.upgrade_pypi_publish.outcome }}
       upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_wait.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
@@ -892,6 +892,18 @@ jobs:
         with:
           name: pypi-dist
           path: pypi-dist/
+      # This identity can publish the migration tool too: only the SDK's own
+      # two distributions go up under the SDK's name.
+      - name: The PyPI distributions are exactly the SDK's
+        id: pypi_files
+        if: needs.gate.outputs.pypi != ''
+        env:
+          PYPI_VERSION: ${{ needs.gate.outputs.pypi }}
+        run: |
+          set -euo pipefail
+          expected=$(printf '%s\n' "daytona-${PYPI_VERSION}-py3-none-any.whl" "daytona-${PYPI_VERSION}.tar.gz" | sort)
+          actual=$(find pypi-dist -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+          [ "$actual" = "$expected" ] || { echo "::error::unexpected SDK distributions: $actual"; exit 1; }
       - name: Publish daytona ${{ needs.gate.outputs.pypi }} to PyPI (OIDC)
         id: pypi_publish
         if: needs.gate.outputs.pypi != ''
@@ -968,6 +980,14 @@ jobs:
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for @daytona/sdk ${NPM_VERSION} — cannot tell whether it is published"; exit 1 ;;
             esac
           fi
+          # The tarball is the SDK, at this run's version (read, never executed):
+          # this identity can publish the migration tool too.
+          # shellcheck disable=SC2016 # JavaScript, not shell, in single quotes
+          tar -xOzf "$tgz" package/package.json | node -e '
+            const manifest = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            if (manifest.name !== "@daytona/sdk" || manifest.version !== process.env.NPM_VERSION) {
+              console.error(`::error::the SDK tarball is ${manifest.name}@${manifest.version}`); process.exit(1);
+            }'
           # --registry pinned: the tarball's package.json (incl. any
           # publishConfig.registry) must not choose where the OIDC credential
           # publishes.

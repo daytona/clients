@@ -150,8 +150,8 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
   default so the SDKs, the CLI and the migration tool stay on the same number.
   See [The migration tool](#the-migration-tool) for what `publish_upgrade`
   needs: untick it for a run that does not publish an SDK and is not meant
-  to publish the tool (a CLI-only run, an SDK resume), or the registry check
-  refuses it.
+  to publish the tool (a CLI-only run, an SDK resume), or the gate or the
+  registry check refuses it.
 - The gate refuses a version a target registry **already has** (npm, PyPI,
   this repository's releases), and a version whose tag already names another
   commit. `force_republish=true` skips the registry check to *resume* a run
@@ -176,9 +176,10 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 
 `daytona-upgrade` is published by the same run as the SDKs, at the same
 version, and targets that SDK release in the projects it migrates, never
-downgrading a newer declaration (except that, while the target is a
-pre-release, a range floored on its own stable release, such as the
-pre-lockstep `^2.0.0`, installs nothing yet and is replaced) (a
+downgrading a newer declaration (a pre-release range above it is pinned to
+its own floor; and while the target is a pre-release, a range floored on its
+own stable release, such as the pre-lockstep `^2.0.0`, installs nothing yet
+and is replaced) (a
 pre-release is pinned: `daytona[v0-sdk]==2.0.0a8`, `"@daytona/sdk":
 "2.0.0-alpha.8"`; a stable `X.Y.Z` writes `>=X.Y.Z,<X+1` / `^X.Y.Z`). Its
 mapping is checked (by upgrade-tool-ci, on the pull request that changed it)

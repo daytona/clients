@@ -4,7 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { gte, minVersion, parse, valid, validRange } from 'semver';
+import { gte, minVersion, parse, validRange } from 'semver';
 import type { SemVer } from 'semver';
 import type { Mapping } from './model.js';
 import { UpgradeError } from './model.js';
@@ -46,7 +46,7 @@ export function targetRange(toolVersion: string, fallback: string): string {
  */
 export function pinnedFloor(range: string, target: string): string | undefined {
   // An exclusive bound (`>2.0.0-alpha.8`) names no release to pin.
-  if (validRange(range) === null || validRange(target) === null || valid(range) !== null || /(?<![<>])>(?!=)/.test(range)) return undefined;
+  if (validRange(range) === null || validRange(target) === null || exact(range) || /(?<![<>])>(?!=)/.test(range)) return undefined;
   const floor = minVersion(range);
   const wanted = minVersion(target);
   if (floor === null || wanted === null || !wanted.prerelease.length || !floor.prerelease.length || staleForTarget(floor, wanted)) return undefined;
@@ -70,6 +70,12 @@ function staleForTarget(floor: SemVer, wanted: SemVer): boolean {
  * (`2.0.0-alpha.9` for a `2.0.0-alpha.8` tool, `^2.5.0` for `^2.3.1`): left as
  * it is, so an older tool release never downgrades a project.
  */
+/** A range that admits exactly one version: `2.0.0`, `=2.0.0`, `v2.0.0`. */
+function exact(range: string): boolean {
+  const normalized = validRange(range);
+  return normalized !== null && normalized === minVersion(range)?.version;
+}
+
 export function atOrAboveTarget(range: string, target: string): boolean {
   if (validRange(range) === null || validRange(target) === null) return false;
   // A union is at or above the target only when every alternative is (a later
@@ -87,12 +93,12 @@ export function atOrAboveTarget(range: string, target: string): boolean {
   if (floor === null || wanted === null || floor.major !== wanted.major || !gte(floor, wanted) || staleForTarget(floor, wanted)) return false;
   // While the target is a pre-release, only an exact pre-release counts: a
   // pre-release range (`^2.0.0-alpha.8`) also admits the stale 2.0.0-rc.1.
-  if (wanted.prerelease.length && floor.prerelease.length && valid(range) === null) return false;
+  if (wanted.prerelease.length && floor.prerelease.length && !exact(range)) return false;
   // While the target is a pre-release, a range floored on that same release's
   // stable version (`^2.0.0` under 2.0.0-alpha.8, what pre-lockstep releases
   // wrote) installs nothing yet; an exact `2.0.0` pin or any later stable
   // floor is a project ahead of this tool.
-  return !wanted.prerelease.length || floor.prerelease.length > 0 || valid(range) !== null ||
+  return !wanted.prerelease.length || floor.prerelease.length > 0 || exact(range) ||
     floor.minor !== wanted.minor || floor.patch !== wanted.patch;
 }
 

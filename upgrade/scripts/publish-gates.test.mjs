@@ -253,7 +253,48 @@ for (const [tagged, expected] of [[false, 1], [true, 0]]) {
       cwd: root, encoding: 'utf8', env: { ...process.env, VERSION_INPUT: 'v2.0.0-alpha.8', SOURCE_SHA: sha, GITHUB_OUTPUT: output,
         PUBLISH_PYPI: 'false', PUBLISH_NPM: 'false', PUBLISH_CLI: 'false', PUBLISH_UPGRADE: 'true' },
     });
-    // Then: without the tag, the run cannot prove the SDKs came from this commit.
+    // Then: without the tag, the run cannot prove the SDKs came from this commit,
+    // and the error names the fixes, including unticking publish_upgrade.
     assert.equal(result.status, expected, result.stdout + result.stderr);
+    if (expected === 1) assert.match(result.stdout, /untick publish_upgrade/);
+  });
+}
+
+for (const [name, version, valid] of [['@daytona/sdk', '2.0.0-alpha.8', true], ['@daytona/upgrade', '2.0.0-alpha.8', false]]) {
+  test(`publishes the SDK tarball only when it is the SDK at this version (${name})`, (context) => {
+    // Given: a tarball whose package identity may not match the run.
+    const root = fixture(context);
+    mkdirSync(join(root, 'pack/package'), { recursive: true });
+    writeFileSync(join(root, 'pack/package/package.json'), JSON.stringify({ name, version }));
+    const packed = spawnSync('tar', ['-czf', join(root, 'pack/sdk.tgz'), 'package'], { cwd: join(root, 'pack'), encoding: 'utf8' });
+    assert.equal(packed.status, 0, packed.stderr);
+    rmSync(join(root, 'pack/package'), { recursive: true });
+    executable(join(root, 'bin/npm'), 'echo published > "$PUBLISH_LOG"');
+    const log = join(root, 'published');
+    // When
+    const result = spawnSync('bash', ['-c', step('Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm (OIDC)')], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+        NPM_DIST_TAG: 'alpha', NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
+    });
+    // Then: the tool's package never goes up under this step.
+    assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
+    if (valid) assert.equal(readFileSync(log, 'utf8'), 'published\n');
+    else assert.throws(() => readFileSync(log), { code: 'ENOENT' });
+  });
+}
+
+for (const [files, valid] of [[['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0.0a8.tar.gz'], true],
+  [['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0.0a8.tar.gz', 'daytona_upgrade-2.0.0a8-py3-none-any.whl'], false]]) {
+  test(`checks the SDK's PyPI distributions (${files.length} files)`, (context) => {
+    // Given
+    const root = fixture(context);
+    mkdirSync(join(root, 'pypi-dist'));
+    for (const file of files) writeFileSync(join(root, 'pypi-dist', file), '');
+    // When
+    const result = spawnSync('bash', ['-c', step("The PyPI distributions are exactly the SDK's")], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PYPI_VERSION: '2.0.0a8' },
+    });
+    // Then: a tool distribution never rides along under the SDK's upload.
+    assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
   });
 }
